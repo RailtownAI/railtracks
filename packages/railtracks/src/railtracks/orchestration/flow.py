@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
 from railtracks._session import Session
-from railtracks.built_nodes.concrete.function_base import RTFunction
+from railtracks.built_nodes.function.base import RTFunction
 from railtracks.interaction._call import call
 
 from ..nodes.nodes import Node

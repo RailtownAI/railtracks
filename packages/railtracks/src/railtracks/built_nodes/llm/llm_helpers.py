@@ -8,8 +8,9 @@ from typing import (
 )
 
 from pydantic import BaseModel
-from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+
 from railtracks.built_nodes.llm.model_invoker import ModelInvoker
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.interaction._call import call
 from railtracks.llm.content import ToolCall, ToolResponse
@@ -183,12 +184,11 @@ async def invoke_tool(tool_call: ToolCall, tool_nodes: list[type[Node]]):
 
 
 def get_node_from_name(tool_name: str, tool_nodes: list[type[Node]]) -> type[Node]:
-    candidate_list = [x for x in tool_nodes if x.name() == tool_name]
+    candidate_list = [x for x in tool_nodes if x.tool_info().name == tool_name]
 
     if len(candidate_list) == 0:
-        # TODO: better error here
-        raise TypeError(
-            f"LLM called tool '{tool_name}' which was not found in the provided tool nodes.",
+        raise RuntimeError(
+            f"LLM called tool '{tool_name}' which was not found in the provided tool nodes {[x.tool_info().name for x in tool_nodes]}",
         )
     assert len(candidate_list) == 1, (
         f"Multiple tool nodes found with name '{tool_name}'. This should not happen, please ensure all tool nodes have unique names. Offending nodes: {candidate_list}"

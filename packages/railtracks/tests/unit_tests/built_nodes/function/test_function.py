@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from railtracks.built_nodes.easy_usage_wrappers.function import (
+from railtracks.built_nodes.function.node import (
     function_node,
     _function_preserving_metadata,
     CallableSyncRTFunction,

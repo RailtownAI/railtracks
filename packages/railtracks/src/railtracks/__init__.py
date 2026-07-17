@@ -42,7 +42,6 @@ __all__ = [
     "evaluations",
     "vector_stores",
     "rag",
-    "RagConfig",
     "Flow",
     "enable_logging",
     "wrap_node",
@@ -53,8 +52,8 @@ __all__ = [
     "wrap_llm",
 ]
 
-from railtracks.built_nodes.concrete.rag import RagConfig
-from railtracks.built_nodes.easy_usage_wrappers import (
+
+from railtracks.built_nodes import (
     agent_node,
     function_node,
 )
@@ -70,7 +69,6 @@ from . import (
     vector_stores,
 )
 from ._session import ExecutionInfo, Session, session
-
 from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch, couple

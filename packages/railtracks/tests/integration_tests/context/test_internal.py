@@ -7,18 +7,17 @@ import railtracks as rt
 
 
 class BottomLevel(Node):
-    def __init__(self,  expected_session_id: str | None, expected_run_id: str | None):
+    def __init__(self, ):
         super().__init__()
-        self.expected_session_id = expected_session_id
-        self.expected_run_id = expected_run_id
+        
 
-    async def invoke(self):
+    async def invoke(self,  expected_session_id: str | None, expected_run_id: str | None):
         session_id = get_session_id()
         run_id = get_run_id()
         parent_id = get_parent_id()
 
-        assert session_id == self.expected_session_id
-        assert run_id == self.expected_run_id
+        assert session_id == expected_session_id
+        assert run_id == expected_run_id
         assert parent_id == self.uuid
 
         return {
@@ -37,20 +36,19 @@ class BottomLevel(Node):
 
 
 class TopLevel(Node):
-    def __init__(self, number_trials: int, expected_session_id: str | None):
+    def __init__(self, ):
         super().__init__()
-        self.expected_session_id = expected_session_id
-        self.number_trials = number_trials
 
-    async def invoke(self):
+
+    async def invoke(self, number_trials: int, expected_session_id: str | None):
         session_id = get_session_id()
         run_id = get_run_id()
         parent_id = get_parent_id()
 
-        assert session_id == self.expected_session_id
+        assert session_id == expected_session_id
         assert run_id == self.uuid
         assert parent_id == self.uuid
-        contracts = [rt.call(BottomLevel, self.expected_session_id, self.uuid) for _ in range(self.number_trials)]
+        contracts = [rt.call(BottomLevel, expected_session_id, self.uuid) for _ in range(number_trials)]
         return await asyncio.gather(*contracts)
     
     @classmethod

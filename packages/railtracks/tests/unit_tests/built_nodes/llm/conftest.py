@@ -40,7 +40,7 @@ def mock_tool_node():
         def f(x : int) -> int:
             return x
         return f
-    
+
     DummyTool = function_node(mock_func(), name="DummyTool", manifest=tool_manifest)
     return DummyTool
 

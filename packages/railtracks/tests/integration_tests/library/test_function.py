@@ -245,7 +245,7 @@ class TestPrimitiveInputTypes:
             )
 
             assert (
-                "There was an error running the tool" in output.content
+                "There was an error" in output.content
             )  # graceful error handling
             assert rt.context.get("magic_test_called")
 

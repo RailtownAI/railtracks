@@ -3,7 +3,6 @@ from __future__ import annotations
 import functools
 from copy import deepcopy
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Coroutine,
@@ -20,23 +19,19 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
 from railtracks.built_nodes.llm.llm_helpers import (
     llm_invoke_factory,
     llm_prepare_called_as_tool_factory,
 )
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
-from railtracks.guardrails.llm.guardrail_gates import (
-    guardrail_input_middleware,
-    guardrail_output_middleware,
-)
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.llm import (
     Parameter,
     SystemMessage,
     Tool,
 )
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Message
+from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.response import Response
 from railtracks.llm.type_mapping import TypeMapper
 from railtracks.middleware.core import Middleware
@@ -49,9 +44,6 @@ from railtracks.validation.node_creation.validation import (
 
 from ._types import ModelSource
 from .llm.model_invoker import ModelInvoker
-
-if TYPE_CHECKING:
-    from railtracks.guardrails.core import Guard
 
 
 def classmethod_preserving_function_meta(func):
@@ -69,7 +61,7 @@ _T2 = TypeVar("_T2")
 _R = TypeVar("_R", bound=StringResponse | StructuredResponse)
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
-UserInput = Union[str, MessageHistory, list[Message]]
+UserInput = Union[str, MessageHistory, list[Message], UserMessage]
 
 
 def unpack(item: _T | None, /) -> _T:
@@ -138,7 +130,6 @@ class NodeBuilder(Generic[_P, _T]):
             ]
         ]
         | None = None,
-        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StringResponse]: ...
 
@@ -158,7 +149,6 @@ class NodeBuilder(Generic[_P, _T]):
         middleware: Iterable[Middleware[[UserInput], StructuredResponse[_TStructured]]]
         | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], StructuredResponse[_TStructured]]: ...
 
@@ -176,7 +166,6 @@ class NodeBuilder(Generic[_P, _T]):
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], _R]] | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        guardrails: Guard | None = None,
         context_injection: bool = True,
     ) -> NodeBuilder[[UserInput], _R]:
         instance = cls()
@@ -195,14 +184,6 @@ class NodeBuilder(Generic[_P, _T]):
         if context_injection:
             unwrapped_model_middleware.insert(0, context_injection_middleware)
 
-        if guardrails is not None and guardrails.output:
-            unwrapped_model_middleware.insert(
-                0, guardrail_output_middleware(guardrails)
-            )
-
-        if guardrails is not None and guardrails.input:
-            unwrapped_model_middleware.append(guardrail_input_middleware(guardrails))
-
         model_invoker = ModelInvoker.create_with_llm_observe(
             model, middleware=unwrapped_model_middleware
         )
@@ -213,6 +194,7 @@ class NodeBuilder(Generic[_P, _T]):
             tool_nodes=list(connected_nodes) if connected_nodes else None,
             schema=schema,
         )
+        print(f"Tool details: {tool_details}, Tool params: {tool_params}")
 
         if tool_details is not None:
             tool = cls._prepare_llm_tool(
@@ -237,15 +219,15 @@ class NodeBuilder(Generic[_P, _T]):
         _check_tool_params_and_details(tool_params, tool_details)
         _check_duplicate_param_names(tool_params or [])
 
+        name = name.replace(" ", "_")
+
         tool = Tool(
-            name=name.replace(" ", "_"),
+            name=name,
             detail=tool_details,
             parameters=tool_params,
         )
 
         return tool
-
-    # TODO: consider overload helpers to help with the typing
 
     @classmethod
     def function(

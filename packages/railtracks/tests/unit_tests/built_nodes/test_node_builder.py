@@ -12,7 +12,7 @@ from railtracks.built_nodes._node_builder import (
 )
 from railtracks.built_nodes.llm.middleware import after_llm
 from railtracks.exceptions.errors import NodeCreationError
-from railtracks.guardrails.core import Guard, GuardrailDecision, InputGuard, OutputGuard
+from railtracks.guardrails.core import GuardrailDecision, InputGuard, OutputGuard
 from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage
 from railtracks.llm.message import AssistantMessage, Role
 from railtracks.llm.response import Response
@@ -110,6 +110,19 @@ def test_nodebuilder_llm_duplicate_param_names_error():
             "TestNode",
             model=dummy_model(),
             tool_details="details",
+            tool_params=params,
+        )
+
+
+def test_nodebuilder_llm_tool_params_without_tool_details_error():
+    # tool_details="" (falsy but not None) is the only way to reach this check through
+    # NodeBuilder.llm: tool_details=None skips tool setup entirely, so the check never runs.
+    params = [Parameter(name="x", param_type="integer", description="desc")]
+    with pytest.raises(NodeCreationError):
+        NodeBuilder.llm(
+            "TestNode",
+            model=dummy_model(),
+            tool_details="",
             tool_params=params,
         )
 
@@ -335,7 +348,7 @@ def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
     node_cls = NodeBuilder.llm(
         "GuardedNode",
         model=mock_llm(custom_response="hi"),
-        guardrails=Guard(input=[MarkInputGuard()], output=[MarkOutputGuard()]),
+        model_middleware=[MarkInputGuard(), MarkOutputGuard()],
     ).build()
 
     async def top():
@@ -357,7 +370,7 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
     node_cls = NodeBuilder.llm(
         "GuardedInputOnlyNode",
         model=mock_llm(custom_response="hi"),
-        guardrails=Guard(input=[MarkInputGuard()]),
+        model_middleware=[MarkInputGuard()],
     ).build()
 
     async def top():
@@ -369,9 +382,9 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
     assert result.content == "hi"
 
 
-def test_nodebuilder_llm_empty_guardrail_lists_are_a_no_op(mock_llm):
+def test_nodebuilder_llm_empty_model_middleware_is_a_no_op(mock_llm):
     node_cls = NodeBuilder.llm(
-        "EmptyGuardNode", model=mock_llm(custom_response="hi"), guardrails=Guard()
+        "EmptyGuardNode", model=mock_llm(custom_response="hi"), model_middleware=[]
     ).build()
 
     async def top():
@@ -381,10 +394,14 @@ def test_nodebuilder_llm_empty_guardrail_lists_are_a_no_op(mock_llm):
     assert asyncio.run(top()).content == "hi"
 
 
-def test_nodebuilder_llm_guardrail_output_should_be_outermost_over_user_model_middleware(
+def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
     mock_llm,
 ):
-
+    """Guardrails have no special/fixed slot: whichever model_middleware entry is
+    listed first is outermost and applies its transform last (i.e. wins), exactly
+    like any other model_middleware. List position — not "guard vs. non-guard" —
+    determines precedence.
+    """
 
     class AlwaysRedactOutputGuard(OutputGuard):
         def __call__(self, event):
@@ -400,19 +417,27 @@ def test_nodebuilder_llm_guardrail_output_should_be_outermost_over_user_model_mi
             message_info=response.message_info,
         )
 
-    node_cls = NodeBuilder.llm(
-        "GuardOrderNode",
+    guard_first_cls = NodeBuilder.llm(
+        "GuardFirstNode",
         model=mock_llm(custom_response="hello"),
-        model_middleware=[overwrite_after_guardrail],
-        guardrails=Guard(output=[AlwaysRedactOutputGuard()]),
+        model_middleware=[AlwaysRedactOutputGuard(), overwrite_after_guardrail],
     ).build()
 
-    async def top():
+    user_first_cls = NodeBuilder.llm(
+        "UserFirstNode",
+        model=mock_llm(custom_response="hello"),
+        model_middleware=[overwrite_after_guardrail, AlwaysRedactOutputGuard()],
+    ).build()
+
+    async def top(node_cls):
         with rt.Session():
             return await rt.call(node_cls, user_input="hi")
 
-    result = asyncio.run(top())
-    assert result.content == "[REDACTED BY GUARDRAIL]"
+    guard_first_result = asyncio.run(top(guard_first_cls))
+    user_first_result = asyncio.run(top(user_first_cls))
+
+    assert guard_first_result.content == "[REDACTED BY GUARDRAIL]"
+    assert user_first_result.content == "overwritten by user middleware"
 
 
 def test_nodebuilder_function_has_no_middleware_by_default():

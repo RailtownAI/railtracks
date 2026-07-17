@@ -5,10 +5,11 @@ from copy import deepcopy
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
+
 from railtracks.built_nodes._types import ModelSource
-from railtracks.built_nodes.llm.request_details import RequestDetails
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
+from railtracks.built_nodes.llm.request_details import RequestDetails
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
