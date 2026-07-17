@@ -9,9 +9,14 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
-
 from railtracks.built_nodes.llm.middleware import before_llm
-from railtracks.guardrails.core import GuardrailBlockedError, GuardrailDecision, InputGuard, LLMGuardrailEvent, OutputGuard
+from railtracks.guardrails.core import (
+    GuardrailBlockedError,
+    GuardrailDecision,
+    InputGuard,
+    LLMGuardrailEvent,
+    OutputGuard,
+)
 from railtracks.llm import UserMessage
 
 

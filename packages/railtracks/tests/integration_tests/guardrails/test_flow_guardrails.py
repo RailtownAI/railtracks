@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
-from railtracks.orchestration.flow import Flow
-
 from railtracks.guardrails import GuardrailDecision, InputGuard, LLMGuardrailEvent
+from railtracks.orchestration.flow import Flow
 
 
 class FnInputGuard(InputGuard):

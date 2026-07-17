@@ -7,7 +7,6 @@ through full agent_node integration tests; here each guard is wired directly via
 from __future__ import annotations
 
 import pytest
-
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
@@ -15,7 +14,7 @@ from railtracks.guardrails.core import (
     LLMGuardrailEvent,
     OutputGuard,
 )
-from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
+from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
 
 
@@ -155,3 +154,28 @@ async def test_output_guard_block_raises_after_call_was_made():
         await guard.wrap(fake_call)(MessageHistory([UserMessage("q")]), None, None)
 
     assert call_count["n"] == 1  # unlike InputGuard, the model call already happened
+
+
+@pytest.mark.asyncio
+async def test_output_guard_skips_intermediate_tool_call_turns():
+    tool_call_response = Response(
+        message=AssistantMessage(
+            [ToolCall(name="search", identifier="tc_1", arguments={})]
+        ),
+        message_info=MessageInfo(model_name="m"),
+    )
+
+    async def fake_call(message_history, schema, tools):
+        return tool_call_response
+
+    guard_fired = {"n": 0}
+
+    def _guard(_e):
+        guard_fired["n"] += 1
+        return GuardrailDecision.block(reason="would break the tool loop")
+
+    guard = FnOutputGuard(_guard)
+    result = await guard.wrap(fake_call)(MessageHistory([UserMessage("q")]), None, None)
+
+    assert guard_fired["n"] == 0  # tool-requesting turns are intermediate: never guarded
+    assert result is tool_call_response  # passed through untouched, tool calls intact

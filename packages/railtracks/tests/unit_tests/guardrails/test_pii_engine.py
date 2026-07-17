@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from railtracks.guardrails.llm._pii.config import (
     PIICustomPattern,
     PIIEntity,

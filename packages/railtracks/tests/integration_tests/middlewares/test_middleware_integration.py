@@ -567,11 +567,10 @@ class TestGuardrailsEndToEnd:
         with pytest.raises(GuardrailBlockedError):
             await rt.Flow("GuardedOutputAgent", agent).ainvoke("hi")
 
-    async def test_output_guard_fires_per_model_round_trip(self, mock_llm):
-        """OutputGuard is plain model_middleware: it wraps every raw model call inside
-        the tool-calling loop, so it fires on the intermediate tool-call turn too, not
-        only on the final content reply. (The old Guarded*LLM hierarchy special-cased
-        "final reply only"; that guarantee no longer holds under this architecture.)"""
+    async def test_output_guard_fires_only_on_final_reply(self, mock_llm):
+        """OutputGuard is plain model_middleware and wraps every raw model call inside
+        the tool-calling loop, but intermediate tool-call turns pass through unguarded —
+        output rails fire only on the final content reply."""
         fired = {"n": 0}
 
         class CountingAllowOutput(OutputGuard):
@@ -602,8 +601,8 @@ class TestGuardrailsEndToEnd:
 
         result = await rt.Flow("GuardedToolAgent", agent).ainvoke("increment 1")
 
-        # Fires once for the intermediate tool-call turn and once for the final reply.
-        assert fired["n"] == 2
+        # The intermediate tool-call turn is skipped; only the final reply is guarded.
+        assert fired["n"] == 1
         assert "2" in result.content
 
     async def test_guardrail_block_is_not_wrapped_as_llmerror(self, mock_llm):
