@@ -5,21 +5,40 @@
 Streaming is a way to make your agent feel more responsive. Instead of waiting for the complete response, you can stream intermediate results as they arrive.
 
 
-## Per-call Model Streaming
+## Streaming Support
+Railtracks supports streaming responses from your agent. To interact with a stream, just set the appropriate flag when creating your LLM.
 
-Streaming is requested per call via the model's `astream_*` methods (`astream_chat`,
-`astream_chat_with_tools`, `astream_structured`). Each returns an async generator that yields
-`str` token chunks as they arrive, followed by a single final `Response` containing the
-complete message:
+```python
+--8<-- "docs/scripts/streaming.py:streaming_flag"
+```
+
+When you call the LLM, it will return a generator that you can iterate through:
 
 ```python
 --8<-- "docs/scripts/streaming.py:streaming_usage"
 ```
 
-!!! Note
-    Agent- and session-level streaming (forwarding a node's stream to whoever is consuming the
-    run) is provided by the framework `astream` API, documented separately.
+## Agent Support
+
+Agents in Railtracks also support streamed responses. When creating your agent, you provide an LLM with streaming enabled:
+
+```python
+--8<-- "docs/scripts/streaming.py:streaming_with_agents"
+```
+
+The output of the agent will be a generator containing a sequence of strings, followed by the complete message.
+
+!!! Example "Usage"
+    ```python    
+    --8<-- "docs/scripts/streaming.py:streaming_agent_usage"
+    ```
+    `
 
 !!! Warning
-    Streaming of tool calls is only supported for OpenAI models. Other providers fall back to a
-    buffered response for tool-calling requests.
+    When using streaming, you should fully exhaust the returned object within the session. If you do this outside of the session, the visualizer suite will not work as expected.
+
+!!! Warning 
+    Streaming is only supported for tool-calling agents if you are using openai.
+
+
+
