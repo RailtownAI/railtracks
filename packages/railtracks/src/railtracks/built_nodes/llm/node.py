@@ -15,7 +15,7 @@ from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
 
-from .._node_builder import NodeBuilder, UserInput
+from .node_builder import LLMNodeBuilder, UserInput
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
@@ -57,7 +57,7 @@ def _build_dynamic_agent(
     )
 
     if output_schema is None:
-        nb = NodeBuilder.llm(
+        nb = LLMNodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
             model=llm,
             system_message=resolved_system,
@@ -69,7 +69,7 @@ def _build_dynamic_agent(
             context_injection=context_injection,
         )
     else:
-        nb = NodeBuilder.llm(
+        nb = LLMNodeBuilder.llm(
             name=name if name is not None else "LLM Agent",
             model=llm,
             system_message=resolved_system,

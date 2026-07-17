@@ -4,13 +4,5 @@ __all__ = [
 ]
 
 
-def __getattr__(name):
-    if name == "agent_node":
-        from .node import agent_node
-
-        return agent_node
-    if name == "middleware":
-        from . import middleware
-
-        return middleware
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+from . import middleware
+from .node import agent_node
