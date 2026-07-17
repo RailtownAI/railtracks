@@ -1,8 +1,12 @@
 """Bridge between the framework-agnostic `railtracks.observability` module and
-the railtracks runtime — reads scope from InternalContext, owns the process-wide
-Observer, and provides the emission call site."""
+the railtracks agent runtime.
+
+Reads scope from `InternalContext` to build `Event` objects. The observability
+module itself handles the singleton Observer, writer registration, and event
+publishing — this module just does the framework-aware step of turning a
+(type, payload) pair into a scoped Event.
+"""
 
 from ._factory import make_event
-from ._state import configure_writers
 
-__all__ = ["configure_writers", "make_event"]
+__all__ = ["make_event"]

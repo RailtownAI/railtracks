@@ -1,8 +1,5 @@
-"""Observability submodule: streaming Event pipeline with per-writer queues.
-
-Feature 1 of the observability HLD. Independent of the rest of the framework:
-accepts fully-formed `Event` objects; `publish_event`, contextvar reads, and
-emission sites are Feature 2 follow-ups.
+"""Observability submodule: streaming Event pipeline with per-writer queues,
+plus a process-wide default Observer.
 """
 
 from .models import (
@@ -13,6 +10,7 @@ from .models import (
     Timestamp,
 )
 from .observer import Observer, QueuePolicy
+from .configure import configure_writers
 from .writers import JsonlWriter, Writer
 
 __all__ = [
@@ -25,4 +23,5 @@ __all__ = [
     "SCOPE_SESSION",
     "SCOPE_RETRIEVAL",
     "SCOPE_EVALUATION",
+    "configure_writers",
 ]
