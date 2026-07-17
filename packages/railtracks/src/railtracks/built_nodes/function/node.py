@@ -16,7 +16,6 @@ from typing import (
     overload,
 )
 
-from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.function.base import RTFunction
 from railtracks.exceptions import NodeCreationError
 from railtracks.middleware.core import Middleware
@@ -28,6 +27,7 @@ from railtracks.validation.node_creation.validation import (
 )
 
 from .base import CallableAsyncRTFunction, CallableSyncRTFunction
+from .node_builder import FunctionNodeBuilder
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -175,7 +175,7 @@ def _single_function_node(
     else:
         unwrapped_func = func
 
-    builder = NodeBuilder.function(
+    builder = FunctionNodeBuilder.function(
         unwrapped_func,
         name=name if name is not None else f"{unwrapped_func.__name__}",
         middleware=middleware,

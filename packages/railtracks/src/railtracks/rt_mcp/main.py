@@ -13,7 +13,7 @@ from mcp.types import Tool as MCPTool
 from pydantic import BaseModel
 from typing_extensions import Type
 
-from railtracks.built_nodes._node_builder import NodeBuilder
+from railtracks.built_nodes.function.node_builder import FunctionNodeBuilder
 from railtracks.llm import Tool
 from railtracks.nodes.nodes import Node
 
@@ -427,7 +427,7 @@ def from_mcp(
                 f"Tool invocation failed: {type(e).__name__}: {str(e)}"
             ) from e
 
-    return NodeBuilder.function(
+    return FunctionNodeBuilder.function(
         invoke,
         class_name=tool.name,
         name=tool.name,
