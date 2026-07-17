@@ -8,7 +8,6 @@ from types import BuiltinFunctionType
 from typing import (
     Callable,
     Coroutine,
-    Generic,
     Iterable,
     List,
     ParamSpec,
@@ -18,7 +17,7 @@ from typing import (
 )
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete.function_base import RTFunction
+from railtracks.built_nodes.function.base import RTFunction
 from railtracks.exceptions import NodeCreationError
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.manifest import ToolManifest
@@ -28,46 +27,10 @@ from railtracks.validation.node_creation.validation import (
     validate_tool_manifest_against_function,
 )
 
+from .base import CallableAsyncRTFunction, CallableSyncRTFunction
+
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
-
-
-class CallableSyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
-    def __init__(
-        self, func: Callable[_P, _TOutput], node_type: type[Node[_P, _TOutput]]
-    ):
-        self.func = func
-        self.node_type = node_type
-        functools.update_wrapper(self, func, updated=())
-
-    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-        return self.func(*args, **kwargs)
-
-    def with_node_type(
-        self, node_type: type[Node[_P, _TOutput]]
-    ) -> CallableSyncRTFunction[_P, _TOutput]:
-        """Returns a copy of this CallableSyncRTFunction with a different `node_type`. Does not modify this instance."""
-        return CallableSyncRTFunction(self.func, node_type)
-
-
-class CallableAsyncRTFunction(RTFunction[_P, _TOutput], Generic[_P, _TOutput]):
-    def __init__(
-        self,
-        func: Callable[_P, Coroutine[None, None, _TOutput]],
-        node_type: type[Node[_P, _TOutput]],
-    ):
-        self.func = func
-        self.node_type = node_type
-        functools.update_wrapper(self, func, updated=())
-
-    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-        return await self.func(*args, **kwargs)
-
-    def with_node_type(
-        self, node_type: type[Node[_P, _TOutput]]
-    ) -> CallableAsyncRTFunction[_P, _TOutput]:
-        """Returns a copy of this CallableAsyncRTFunction with a different `node_type`. Does not modify this instance."""
-        return CallableAsyncRTFunction(self.func, node_type)
 
 
 # note there is an intentional overlap in overloads
@@ -98,13 +61,13 @@ def function_node(
 
 @overload
 def function_node(
-    func: List[Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
+    func: List[Callable],
     /,
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
-) -> List[CallableAsyncRTFunction[_P, _TOutput] | CallableSyncRTFunction[_P, _TOutput]]:
+    middleware: Iterable[Middleware] | None = None,
+) -> List[CallableAsyncRTFunction | CallableSyncRTFunction]:
     pass
 
 

@@ -42,7 +42,6 @@ __all__ = [
     "evaluations",
     "vector_stores",
     "rag",
-    "RagConfig",
     "Flow",
     "enable_logging",
     "wrap_node",
@@ -53,8 +52,8 @@ __all__ = [
     "wrap_llm",
 ]
 
-from railtracks.built_nodes.concrete.rag import RagConfig
-from railtracks.built_nodes.easy_usage_wrappers import (
+
+from railtracks.built_nodes import (
     agent_node,
     function_node,
 )

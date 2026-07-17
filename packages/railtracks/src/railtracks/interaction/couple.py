@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, ParamSpec, TypeVar, overload
 
-from railtracks.built_nodes.concrete.function_base import RTFunction
-from railtracks.built_nodes.easy_usage_wrappers.function import (
-    CallableAsyncRTFunction,
-    CallableSyncRTFunction,
-)
-from railtracks.middleware.core import Middleware
-from railtracks.nodes.nodes import Node
+if TYPE_CHECKING:
+    from railtracks.built_nodes.function.base import (
+        CallableAsyncRTFunction,
+        CallableSyncRTFunction,
+        RTFunction,
+    )
+    from railtracks.middleware.core import Middleware
+    from railtracks.nodes.nodes import Node
+
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
@@ -47,6 +49,8 @@ def couple(
     - Existing middleware on `node` is preserved and wraps around the newly added middleware
       (the new middleware ends up innermost, closest to the node).
     """
+    from railtracks.built_nodes.function.base import RTFunction
+
     if isinstance(node, RTFunction):
         new_node_type = node.node_type.extend_middleware(*middleware)
         return node.with_node_type(new_node_type)
