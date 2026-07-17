@@ -11,6 +11,7 @@ from .models import (
 )
 from .observer import Observer, QueuePolicy
 from .configure import configure_writers
+from .publish import publish_event
 from .writers import JsonlWriter, Writer
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "SCOPE_RETRIEVAL",
     "SCOPE_EVALUATION",
     "configure_writers",
+    "publish_event",
 ]
