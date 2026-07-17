@@ -1,7 +1,7 @@
-import pytest 
+import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
-from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
+from railtracks.built_nodes.concrete.response import StringResponse
 
 from .llm_map import llm_map
 
@@ -61,15 +61,7 @@ async def test_terminal_llm(llm):
         response = await rt.call(
             terminal_node, user_input="Please reverse '12345'."
         )
-        final_resp: StringResponse | None = None
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse)), "The response should be either string or the final response"
-                if isinstance(chunk, StringResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
-        
+        final_resp: StringResponse | None = response
 
         assert final_resp is not None and '54321' in final_resp.content
 
@@ -92,15 +84,7 @@ async def test_structured_llm(llm, test_case):
             user_input=test_case["user_input"]
         )
 
-        final_resp = None
-
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StructuredResponse)), "The response should be either string or the final response"
-                if isinstance(chunk, StructuredResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
+        final_resp = response
 
         # Basic type check
         assert final_resp is not None

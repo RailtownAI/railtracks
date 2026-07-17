@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC
-from typing import Generator, Generic, Literal, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -15,21 +15,19 @@ from ._llm_base import LLMBase, StructuredOutputMixIn
 from .response import StructuredResponse
 
 _TOutput = TypeVar("_TOutput", bound=StructuredResponse)
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _T = TypeVar("_T")
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
 
 class StructuredLLMBase(
     StructuredOutputMixIn[_TBaseModel],
-    LLMBase[_T, StructuredResponse[_TBaseModel], _TStream],
+    LLMBase[_T, StructuredResponse[_TBaseModel]],
     ABC,
-    Generic[_T, _TStream, _TBaseModel],
+    Generic[_T, _TBaseModel],
 ):
     """
     Python typing doesn't work great, so please ensure that you fit the following requirements when defining generics:
     - _T is the final output type of the invoke method
-    - _TStream is a Literal type, either Literal[True] or Literal[False]
     - _TBaseModel is a subclass of pydantic.BaseModel that defines the schema for the structured output
 
     """
@@ -46,7 +44,7 @@ class StructuredLLMBase(
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase[_TStream] | None = None,
+        llm: ModelBase | None = None,
     ):
         super().__init__(llm=llm, user_input=user_input)
 
@@ -63,7 +61,7 @@ class StructuredLLMBase(
 
 
 class StructuredLLM(
-    StructuredLLMBase[StructuredResponse[_TBaseModel], Literal[False], _TBaseModel],
+    StructuredLLMBase[StructuredResponse[_TBaseModel], _TBaseModel],
     ABC,
     Generic[_TBaseModel],
 ):
@@ -96,51 +94,3 @@ class StructuredLLM(
 
         self._handle_output(returned_mess.message)
         return self.return_output(returned_mess.message)
-
-
-class StreamingStructuredLLM(
-    StructuredLLMBase[
-        Generator[
-            StructuredResponse[_TBaseModel] | str, None, StructuredResponse[_TBaseModel]
-        ],
-        Literal[True],
-        _TBaseModel,
-    ],
-    ABC,
-    Generic[_TBaseModel],
-):
-    """A simple streaming LLM node that takes in a message and returns a response. It is the simplest of all LLMs.
-    This node accepts message_history in the following formats:
-    - MessageHistory: A list of Message objects
-    - UserMessage: A single UserMessage object
-    - str: A string that will be converted to a UserMessage
-
-    Examples:
-        ```python
-        # Using MessageHistory
-        mh = MessageHistory([UserMessage("Tell me about the world around us")])
-        result = await rt.call(StreamingStructuredLLM, user_input=mh)
-        # Using UserMessage
-        user_msg = UserMessage("Tell me about the world around us")
-        result = await rt.call(StreamingStructuredLLM, user_input=user_msg)
-        # Using string
-        result = await rt.call(
-            StreamingStructuredLLM, user_input="Tell me about the world around us"
-        )
-        ```
-    """
-
-    async def invoke(self):
-        """Makes a call containing the inputted message and system prompt to the llm model and returns the response
-
-        Returns:
-            (StructuredlLLM.Output): The response message from the llm model
-        """
-        context = self._pre_invoke(self.message_hist)
-        self.message_hist = context
-
-        returned_mess = await asyncio.to_thread(
-            self.llm_model.structured, self.message_hist, schema=self.output_schema()
-        )
-
-        return self._gen_wrapper(returned_mess)

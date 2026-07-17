@@ -163,12 +163,10 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
     Mock implementation of LiteLLMWrapper for testing purposes.
     """
 
-    def __init__(
-        self, model_name=None, content=None, tool_calls=None, stream: bool = False
-    ):
+    def __init__(self, model_name=None, content=None, tool_calls=None):
         self.content = content or "mock response"
         self.tool_calls = tool_calls
-        super().__init__(model_name=model_name or "mock-model", stream=stream)
+        super().__init__(model_name=model_name or "mock-model")
 
     @classmethod
     def model_gateway(cls):
@@ -201,10 +199,9 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
-        stream: Optional[bool] = None,
+        stream: bool = False,
     ) -> Tuple[Union[CustomStreamWrapper, ModelResponse], float]:
-        resolved_stream = self.stream if stream is None else stream
-        if resolved_stream:
+        if stream:
 
             def _stream_gen():
                 for i, char in enumerate(self.content):

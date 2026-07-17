@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, ClassVar, Generic, Literal, Type, TypeVar, cast
+from typing import Any, ClassVar, Generic, Type, TypeVar, cast
 
 from pydantic import BaseModel
 
@@ -19,7 +19,6 @@ from .response import StructuredResponse
 from .structured_llm_base import StructuredLLM
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
 
 class StructuredToolCallLLM(
@@ -74,12 +73,8 @@ class StructuredToolCallLLM(
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase[Literal[False]] | None = None,
+        llm: ModelBase | None = None,
     ):
-        # as of right now we do not support streaming with structured tool calls.
-        if llm is not None and llm.stream:
-            raise ValueError("StructuredToolCallLLM does not support streaming.")
-
         super().__init__(user_input=user_input, llm=llm)
         self.structured_output: _TBaseModel | Exception | None = None
 

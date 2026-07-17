@@ -5,10 +5,8 @@ from copy import deepcopy
 from typing import (
     Any,
     Dict,
-    Generator,
     Generic,
     Iterable,
-    Literal,
     TypeVar,
 )
 
@@ -43,11 +41,10 @@ logger = get_rt_logger(__name__)
 _T = TypeVar("_T")
 
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _TCollectedOutput = TypeVar("_TCollectedOutput", bound=LLMResponse)
 
 
-class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
+class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput]):
     """
     A basic LLM base class that encapsulates the attaching of an LLM model and message history object.
 
@@ -64,7 +61,7 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     def __init__(
         self,
         user_input: MessageHistory | UserMessage | str | list[Message],
-        llm: ModelBase[_TStream] | None = None,
+        llm: ModelBase | None = None,
     ):
         super().__init__()
 
@@ -153,12 +150,12 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
         check_message_history(message_history, cls.system_message())
 
     @classmethod
-    def _verify_llm_model(cls, llm: ModelBase[_TStream] | None):
+    def _verify_llm_model(cls, llm: ModelBase | None):
         """Verify the llm model is valid for this LLM."""
         check_llm_model(llm)
 
     @classmethod
-    def get_llm(cls) -> ModelBase[_TStream] | None:
+    def get_llm(cls) -> ModelBase | None:
         return None
 
     @classmethod
@@ -273,31 +270,6 @@ class LLMBase(Node[..., _T], ABC, Generic[_T, _TCollectedOutput, _TStream]):
     @classmethod
     def type(cls):
         return "Agent"
-
-    def _gen_wrapper(
-        self, returned_mess: Generator[str | Response, None, Response]
-    ) -> Generator[str | _TCollectedOutput, None, _TCollectedOutput]:
-        for r in returned_mess:
-            if isinstance(r, Response):
-                r = self._post_invoke(self.message_hist, r)
-                message = r.message
-
-                self._handle_output(message)
-                response = self.return_output(message)
-                yield response
-                return response
-            elif isinstance(r, str):
-                yield r
-            else:
-                raise LLMError(
-                    reason=f"ModelLLM returned unexpected type in generator. Expected str or Response, got {type(r)}",
-                    message_history=self.message_hist,
-                )
-
-        raise LLMError(
-            reason="The generator did not yield a final Response object",
-            message_history=self.message_hist,
-        )
 
     def _handle_output(self, output: Message):
         if output.role != "assistant":

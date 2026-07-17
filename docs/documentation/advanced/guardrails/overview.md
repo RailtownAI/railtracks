@@ -25,11 +25,10 @@ Guardrails are attached where agents are defined. The main entry point is `agent
 To write a custom rule, subclass `InputGuard` or `OutputGuard` and implement `__call__`. Your implementation receives an `LLMGuardrailEvent` (the messages and, for output guards, the model response) and returns a `GuardrailDecision` with an action: `ALLOW`, `TRANSFORM`, or `BLOCK`.
 
 !!! info "Current Guardrail Support"
-    Railtracks supports LLM input and output guardrails for all agent types created via `agent_node`, including tool-calling agents (`ToolCallLLM`, `StreamingToolCallLLM`, `StructuredToolCallLLM`). Input rails run once before the first LLM call; output rails run once on the final reply (not on intermediate tool-call turns). If a guardrail blocks the interaction, Railtracks raises `GuardrailBlockedError` so the outcome stays explicit.
+    Railtracks supports LLM input and output guardrails for all agent types created via `agent_node`, including tool-calling agents (`ToolCallLLM`, `StructuredToolCallLLM`). Input rails run once before the first LLM call; output rails run once on the final reply (not on intermediate tool-call turns). If a guardrail blocks the interaction, Railtracks raises `GuardrailBlockedError` so the outcome stays explicit.
 
     **Limitations:**
 
-    - Output guardrails on streaming tool-calling agents (`StreamingToolCallLLM`) are not yet supported — only input guardrails are wired.
     - Output guardrails on structured tool-calling agents (`StructuredToolCallLLM`) are not yet supported — only input guardrails are wired.
     - Tool call and tool response guardrails (`Guard.tool_call`, `Guard.tool_response`) remain future work.
 

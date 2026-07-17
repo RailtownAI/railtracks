@@ -1,6 +1,4 @@
-import json
 from json import JSONDecodeError
-from typing import Generator, Literal
 from unittest.mock import patch
 
 import litellm
@@ -18,7 +16,7 @@ from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 
 
-class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper[Literal[False]]):
+class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper):
     """Minimal concrete LiteLLMWrapper used to test that temperature is passed to litellm.completion."""
 
     @classmethod
@@ -169,74 +167,46 @@ def test_litellm_wrapper_model_name_property(mock_litellm_wrapper):
 
 # ================= START completion methods tests =========================
 class TestCompletionMethods:
-    @pytest.mark.parametrize("method_name,is_async,stream", [
-        ("_chat", False, False),
-        ("_achat", True, False),
-        ("_chat", False, True),
-    ], ids=["sync_chat", "async_chat", "sync_chat_streaming"])
+    @pytest.mark.parametrize("method_name,is_async", [
+        ("_chat", False),
+        ("_achat", True),
+    ], ids=["sync_chat", "async_chat"])
     @pytest.mark.asyncio
-    async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
-        content = "Mission: Impossible" if stream else "Mocked response"
-        wrapper = mock_litellm_wrapper(content=content, stream=stream)
+    async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async):
+        content = "Mocked response"
+        wrapper = mock_litellm_wrapper(content=content)
         method = getattr(wrapper, method_name)
-        
+
         if is_async:
             result = await method(message_history)
         else:
             result = method(message_history)
 
-        assert isinstance(result, (Response, Generator))
-        
-        
-        if stream:
-            result: Generator[str | Response, None, Response]
-            for chunk in result:
-                if isinstance(chunk, Response):
-                    assert isinstance(chunk.message, AssistantMessage)
-                    assert chunk.message.content == content
-                elif not isinstance(chunk, str):
-                    pytest.fail("Stream yielded non-string, non-Response chunk")
-        else:
-            result: Response
-            assert isinstance(result.message, AssistantMessage)
-            assert result.message.content == content
+        assert isinstance(result, Response)
+        assert isinstance(result.message, AssistantMessage)
+        assert result.message.content == content
 
-    @pytest.mark.parametrize("method_name,is_async,stream", [
-        ("_structured", False, False),
-        ("_astructured", True, False),
-        ("_structured", False, True),
-    ], ids=["sync_structured", "async_structured", "sync_structured_streaming"])
+    @pytest.mark.parametrize("method_name,is_async", [
+        ("_structured", False),
+        ("_astructured", True),
+    ], ids=["sync_structured", "async_structured"])
     @pytest.mark.asyncio
-    async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
+    async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async):
         class ExampleSchema(BaseModel):
             field: str
 
-        wrapper = mock_litellm_wrapper(content='{"field": "VAL"}', stream=stream)
+        wrapper = mock_litellm_wrapper(content='{"field": "VAL"}')
         method = getattr(wrapper, method_name)
-        
+
         if is_async:
             result = await method(message_history, schema=ExampleSchema)
         else:
             result = method(message_history, schema=ExampleSchema)
 
-        assert isinstance(result, (Response, Generator))
-        
-        
-        if stream:
-            for chunk in result:
-                if isinstance(chunk, Response):
-                    print(chunk)
-                    assert isinstance(chunk.message, AssistantMessage)
-                    assert isinstance(chunk.message.content, ExampleSchema)
-                    assert chunk.message.content.field == "VAL"
-                elif not isinstance(chunk, str):
-                    pytest.fail("Stream yielded non-string, non-Response chunk")
-
-            
-        else:
-            assert isinstance(result.message, AssistantMessage)
-            assert isinstance(result.message.content, ExampleSchema)
-            assert result.message.content.field == "VAL"
+        assert isinstance(result, Response)
+        assert isinstance(result.message, AssistantMessage)
+        assert isinstance(result.message.content, ExampleSchema)
+        assert result.message.content.field == "VAL"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("method_name,is_async", [
@@ -275,68 +245,41 @@ class TestCompletionMethods:
             else:
                 result = method(message_history, schema=Schema)
 
-    @pytest.mark.parametrize("method_name,is_async,stream", [
-        ("_chat_with_tools", False, False),
-        ("_achat_with_tools", True, False),
-        ("_chat_with_tools", False, True),
-        # ("_achat_with_tools", True, True),
+    @pytest.mark.parametrize("method_name,is_async", [
+        ("_chat_with_tools", False),
+        ("_achat_with_tools", True),
     ], ids=[
         "sync_chat_with_tools",
         "async_chat_with_tools",
-        "sync_chat_with_tools_streaming",
-        # "async_chat_with_tools_streaming"
         ])
     @pytest.mark.asyncio
     async def test_chat_with_tools(
-        self, mock_litellm_wrapper, message_history, tool, method_name, is_async, stream
+        self, mock_litellm_wrapper, message_history, tool, method_name, is_async
     ):
-        if stream:
-            wrapper = mock_litellm_wrapper(
-                content='[{"name": "tool_x", "arguments": {"foo": 1}, "identifier": "id123"}]',
-                stream=True,
-            )
-        else:
-            wrapper = mock_litellm_wrapper(
-                content=None,
-                tool_calls=[
-                    litellm.ChatCompletionMessageToolCall(
-                        function=litellm.Function(arguments='{"foo": 1}', name="tool_x"),
-                        id="id123",
-                        type="function",
-                    )
-                ],
-            )
-        
+        wrapper = mock_litellm_wrapper(
+            content=None,
+            tool_calls=[
+                litellm.ChatCompletionMessageToolCall(
+                    function=litellm.Function(arguments='{"foo": 1}', name="tool_x"),
+                    id="id123",
+                    type="function",
+                )
+            ],
+        )
+
         method = getattr(wrapper, method_name)
         if is_async:
             result = await method(message_history, [tool])
         else:
             result = method(message_history, [tool])
 
-        assert isinstance(result, (Response, Generator))
-
-        
-        if stream:  # no stream in case the llm requests tool
-            for chunk in result:
-                if isinstance(chunk, Response):
-                    try:
-                        calls = json.loads(chunk.message.content)
-                        assert isinstance(calls, list)
-                        assert calls[0]["name"] == "tool_x"
-                        assert calls[0]["arguments"] == {"foo": 1}
-                        assert calls[0]["identifier"] == "id123"
-                    except Exception:
-                        pytest.fail("Structured response did not match schema")
-                elif not isinstance(chunk, str):
-                    pytest.fail("Stream yielded non-string, non-Response chunk")
-
-        else:
-            assert isinstance(result.message, AssistantMessage)
-            calls = result.message.content
-            assert isinstance(calls, list)
-            assert calls[0].name == "tool_x"
-            assert calls[0].arguments == {"foo": 1}
-            assert calls[0].identifier == "id123"
+        assert isinstance(result, Response)
+        assert isinstance(result.message, AssistantMessage)
+        calls = result.message.content
+        assert isinstance(calls, list)
+        assert calls[0].name == "tool_x"
+        assert calls[0].arguments == {"foo": 1}
+        assert calls[0].identifier == "id123"
 
 
 # ================= START async streaming (sync bridge) tests =========================
@@ -344,12 +287,12 @@ class TestAsyncStreaming:
     """Exercise the per-call `astream_*` surface, which rides the synchronous
     `litellm.completion(stream=True)` bridged onto the event loop by `_bridge_sync_stream`.
 
-    The model is constructed with `stream=False` on purpose: per-call streaming forces the
-    streamed request itself, independent of the (deprecated) constructor flag."""
+    Streaming is requested per call via `astream_*`; there is no constructor-level stream
+    flag."""
 
     @pytest.mark.asyncio
     async def test_astream_chat_yields_chunks_then_response(self, mock_litellm_wrapper):
-        wrapper = mock_litellm_wrapper(content="Hello", stream=False)
+        wrapper = mock_litellm_wrapper(content="Hello")
 
         chunks: list[str] = []
         final: Response | None = None
@@ -369,7 +312,7 @@ class TestAsyncStreaming:
         class ExampleSchema(BaseModel):
             field: str
 
-        wrapper = mock_litellm_wrapper(content='{"field": "VAL"}', stream=False)
+        wrapper = mock_litellm_wrapper(content='{"field": "VAL"}')
 
         final: Response | None = None
         async for item in wrapper.astream_structured(
@@ -386,7 +329,7 @@ class TestAsyncStreaming:
     async def test_astream_chat_early_break_is_clean(self, mock_litellm_wrapper):
         """Breaking out early must not raise or hang (the worker is signalled to stop and the
         underlying stream is closed on its own thread)."""
-        wrapper = mock_litellm_wrapper(content="abcdef", stream=False)
+        wrapper = mock_litellm_wrapper(content="abcdef")
 
         got = None
         async for item in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
@@ -398,7 +341,7 @@ class TestAsyncStreaming:
 
     @pytest.mark.asyncio
     async def test_astream_chat_propagates_errors(self, mock_litellm_wrapper):
-        wrapper = mock_litellm_wrapper(content="Hello", stream=False)
+        wrapper = mock_litellm_wrapper(content="Hello")
 
         def _boom(*args, **kwargs):
             raise RuntimeError("stream open failed")
@@ -419,7 +362,7 @@ def test_temperature_passed_to_litellm_completion(message_history):
             choices=[{"message": {"content": "ok"}}]
         )
         wrapper = _ConcreteLiteLLMWrapperForTest(
-            model_name="test-model", stream=False, temperature=0.5
+            model_name="test-model", temperature=0.5
         )
         wrapper.chat(message_history)
         mock_completion.assert_called_once()
@@ -435,7 +378,7 @@ async def test_temperature_passed_through_async_chat(message_history):
             choices=[{"message": {"content": "ok"}}]
         )
         wrapper = _ConcreteLiteLLMWrapperForTest(
-            model_name="test-model", stream=False, temperature=0.7
+            model_name="test-model", temperature=0.7
         )
         await wrapper.achat(message_history)
         mock_completion.assert_called_once()

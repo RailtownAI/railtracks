@@ -4,7 +4,6 @@ from typing import Any, Callable, Iterable, Type, Union
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes.concrete.tool_call_llm_base import (
-    StreamingToolCallLLM,
     ToolCallLLM,
 )
 from railtracks.guardrails.core import Guard
@@ -28,7 +27,7 @@ def tool_call_llm(
     format_for_return: Callable[[Any], Any] | None = None,
     format_for_context: Callable[[Any], Any] | None = None,
     guardrails: Guard | None = None,
-) -> Type[ToolCallLLM | StreamingToolCallLLM]:
+) -> Type[ToolCallLLM]:
     """
     Dynamically create a ToolCallLLM node class with custom configuration for tool calling.
 
@@ -52,16 +51,14 @@ def tool_call_llm(
     Returns:
         Type[ToolCallLLM]: The dynamically generated node class with the specified configuration.
     """
-    is_streaming = llm is not None and llm.stream
     if guardrails is not None:
         from railtracks.built_nodes.concrete.guarded_llm import (
-            GuardedStreamingToolCallLLM,
             GuardedToolCallLLM,
         )
 
-        base_cls = GuardedStreamingToolCallLLM if is_streaming else GuardedToolCallLLM
+        base_cls = GuardedToolCallLLM
     else:
-        base_cls = StreamingToolCallLLM if is_streaming else ToolCallLLM
+        base_cls = ToolCallLLM
 
     builder = NodeBuilder(
         base_cls,

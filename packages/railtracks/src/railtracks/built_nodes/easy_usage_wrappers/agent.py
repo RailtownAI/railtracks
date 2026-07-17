@@ -1,4 +1,4 @@
-from typing import Iterable, Literal, Type, TypeVar, overload
+from typing import Iterable, Type, TypeVar, overload
 
 from pydantic import BaseModel
 
@@ -19,7 +19,6 @@ from railtracks.nodes.utils import extract_node_from_function
 from .._node_builder import NodeBuilder, UserInput
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 _R = TypeVar("_R", bound=StructuredResponse | StringResponse)
 
 
