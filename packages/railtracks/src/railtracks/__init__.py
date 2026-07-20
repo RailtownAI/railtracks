@@ -9,11 +9,7 @@ from __future__ import annotations
 import importlib
 import logging
 
-
 from dotenv import load_dotenv
-
-
-
 
 __all__ = [
     "Session",
