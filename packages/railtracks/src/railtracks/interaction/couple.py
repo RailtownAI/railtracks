@@ -64,7 +64,14 @@ def couple(
     """
     from railtracks.built_nodes.function.base import RTFunction
 
+    if middleware is None and model_middleware is None:
+        return node
+    
     if isinstance(node, RTFunction):
+        if model_middleware is not None:
+            raise ValueError(
+                "Your function node does not have a model to wrap"
+            )
         if middleware:
             new_node_type = node.node_type.extend_middleware(*middleware)
         else:
