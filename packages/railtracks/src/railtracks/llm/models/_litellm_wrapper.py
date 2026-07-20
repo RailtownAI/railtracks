@@ -298,9 +298,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         stop = threading.Event()
 
         worker = asyncio.ensure_future(
-            asyncio.to_thread(
-                self._pump_sync_stream, make_stream, loop, queue, stop
-            )
+            asyncio.to_thread(self._pump_sync_stream, make_stream, loop, queue, stop)
         )
         try:
             while True:
@@ -618,9 +616,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                 message_history=messages,
             ) from e
 
-    def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         """
         Chat with the model using tools.
 
@@ -763,9 +759,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         output_tokens = _return_none_on_error(lambda: raw.usage.completion_tokens)
         model_name = _return_none_on_error(lambda: raw.model)
         system_fingerprint = _return_none_on_error(lambda: raw.system_fingerprint)
-        total_cost = _return_none_on_error(
-            lambda: raw._hidden_params["response_cost"]
-        )
+        total_cost = _return_none_on_error(lambda: raw._hidden_params["response_cost"])
 
         return MessageInfo(
             input_tokens=input_tokens,
