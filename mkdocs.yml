@@ -92,6 +92,11 @@ nav:
           - LLMs:
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
+          - Middleware:
+              - Overview: documentation/agent_design/middleware/overview.md
+              - Custom: documentation/agent_design/middleware/custom.md
+              - Prebuilt: 
+                - Overview: documentation/agent_design/middleware/prebuilt/overview.md
 
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
@@ -101,8 +106,6 @@ nav:
               - Overview: documentation/advanced/guardrails/overview.md
               - Quickstart: documentation/advanced/guardrails/quickstart.md
               - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
-          - Middleware:
-              - Usage Guide: documentation/advanced/middleware/usage.md
           - Agent Context: documentation/advanced/context.md
 
   - RAG:

@@ -10,7 +10,7 @@ Every builder method returns a builder; call `.build()` to get the node class.
 !!! note "Middleware lives in the middleware guide"
     `NodeBuilder.llm()` and `NodeBuilder.function()` take the same `middleware` /
     `model_middleware` parameters as the public helpers. See
-    [Middleware: Wrappers & Gates](../documentation/advanced/middleware/usage.md) for
+    [Middleware](../documentation/agent_design/middleware/overview.md) for
     the full model — this page only shows where they attach.
 
 ---

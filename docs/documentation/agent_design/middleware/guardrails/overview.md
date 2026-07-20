@@ -15,8 +15,6 @@ Railtracks organizes guardrails into four categories covering the full lifecycle
 
 - **LLM input guardrails**: inspect messages before the model call
 - **LLM output guardrails**: inspect the model response before it is returned
-- **Tool call guardrails**: validate model-proposed tool calls *(coming soon)*
-- **Tool response guardrails**: inspect tool results flowing back into the agent loop *(coming soon)*
 
 ## Usage
 
