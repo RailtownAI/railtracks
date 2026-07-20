@@ -8,13 +8,8 @@ from abc import ABC, abstractmethod
 from typing import (
     AsyncGenerator,
     Callable,
-    Generator,
-    Generic,
     List,
-    Literal,
     Type,
-    TypeVar,
-    overload,
 )
 
 from pydantic import BaseModel
@@ -25,10 +20,8 @@ from .response import Response
 from .retries.base import RetryApproach
 from .tools import Tool
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-
-class ModelBase(ABC, Generic[_TStream]):
+class ModelBase(ABC):
     """
     A simple base that represents the behavior of a model that can be used for chat, structured interactions, and streaming.
 
@@ -45,7 +38,6 @@ class ModelBase(ABC, Generic[_TStream]):
         | None = None,
         __exception_hooks: List[Callable[[MessageHistory, Exception], None]]
         | None = None,
-        stream: _TStream = False,
         retry_approach: RetryApproach | None = None,
     ):
         if __pre_hooks is None:
@@ -66,7 +58,6 @@ class ModelBase(ABC, Generic[_TStream]):
         self._pre_hooks = pre_hooks
         self._post_hooks = post_hooks
         self._exception_hooks = exception_hooks
-        self.stream = stream
         self.retry_approach = retry_approach
 
     def add_pre_hook(self, hook: Callable[[MessageHistory], MessageHistory]) -> None:
@@ -142,41 +133,8 @@ class ModelBase(ABC, Generic[_TStream]):
         for hook in self._exception_hooks:
             hook(message_history, exception)
 
-    def generator_wrapper(
-        self,
-        generator: Generator[str | Response, None, Response],
-        message_history: MessageHistory,
-    ) -> Generator[str | Response, None, Response]:
-        new_response: Response | None = None
-        for g in generator:
-            if isinstance(g, Response):
-                g.message_info
-                new_response = self._run_post_hooks(message_history, g)
-                yield new_response
-
-            yield g
-
-        assert new_response is not None, (
-            "The generator did not yield a final Response object so nothing could be done."
-        )
-
-        return new_response
-
-    @overload
-    def chat(self: ModelBase[Literal[False]], messages: MessageHistory) -> Response:
-        pass
-
-    @overload
-    def chat(
-        self: ModelBase[Literal[True]], messages: MessageHistory
-    ) -> Generator[str | Response, None, Response]:
-        pass
-
-    def chat(
-        self, messages: MessageHistory
-    ) -> Response | Generator[str | Response, None, Response]:
+    def chat(self, messages: MessageHistory) -> Response:
         """Chat with the model using the provided messages."""
-
         messages = self._run_pre_hooks(messages)
 
         try:
@@ -185,25 +143,9 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
-        if isinstance(response, Generator):
-            return self.generator_wrapper(response, messages)
+        return self._run_post_hooks(messages, response)
 
-        response = self._run_post_hooks(messages, response)
-        return response
-
-    @overload
-    async def achat(
-        self: ModelBase[Literal[False]], messages: MessageHistory
-    ) -> Response:
-        pass
-
-    @overload
-    async def achat(
-        self: ModelBase[Literal[True]], messages: MessageHistory
-    ) -> Generator[str | Response, None, Response]:
-        pass
-
-    async def achat(self, messages: MessageHistory):
+    async def achat(self, messages: MessageHistory) -> Response:
         """Asynchronous chat with the model using the provided messages."""
         messages = self._run_pre_hooks(messages)
 
@@ -213,30 +155,9 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
-        if isinstance(response, Generator):
-            return self.generator_wrapper(response, messages)
+        return self._run_post_hooks(messages, response)
 
-        response = self._run_post_hooks(messages, response)
-
-        return response
-
-    @overload
-    def structured(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory,
-        schema: Type[BaseModel],
-    ) -> Response:
-        pass
-
-    @overload
-    def structured(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory,
-        schema: Type[BaseModel],
-    ) -> Generator[str | Response, None, Response]:
-        pass
-
-    def structured(self, messages: MessageHistory, schema: Type[BaseModel]):
+    def structured(self, messages: MessageHistory, schema: Type[BaseModel]) -> Response:
         """Structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
@@ -246,30 +167,11 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
-        if isinstance(response, Generator):
-            return self.generator_wrapper(response, messages)
+        return self._run_post_hooks(messages, response)
 
-        response = self._run_post_hooks(messages, response)
-
-        return response
-
-    @overload
     async def astructured(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory,
-        schema: Type[BaseModel],
+        self, messages: MessageHistory, schema: Type[BaseModel]
     ) -> Response:
-        pass
-
-    @overload
-    async def astructured(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory,
-        schema: Type[BaseModel],
-    ) -> Generator[str | Response, None, Response]:
-        pass
-
-    async def astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
@@ -279,26 +181,9 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
-        if isinstance(response, Generator):
-            return self.generator_wrapper(response, messages)
+        return self._run_post_hooks(messages, response)
 
-        response = self._run_post_hooks(messages, response)
-
-        return response
-
-    @overload
-    def chat_with_tools(
-        self: ModelBase[Literal[False]], messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
-        pass
-
-    @overload
-    def chat_with_tools(
-        self: ModelBase[Literal[True]], messages: MessageHistory, tools: List[Tool]
-    ) -> Generator[str | Response, None, Response]:
-        pass
-
-    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
+    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         """Chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
@@ -308,25 +193,11 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
-        if isinstance(response, Generator):
-            return self.generator_wrapper(response, messages)
+        return self._run_post_hooks(messages, response)
 
-        response = self._run_post_hooks(messages, response)
-        return response
-
-    @overload
     async def achat_with_tools(
-        self: ModelBase[Literal[False]], messages: MessageHistory, tools: List[Tool]
+        self, messages: MessageHistory, tools: List[Tool]
     ) -> Response:
-        pass
-
-    @overload
-    async def achat_with_tools(
-        self: ModelBase[Literal[True]], messages: MessageHistory, tools: List[Tool]
-    ) -> Generator[str | Response, None, Response]:
-        pass
-
-    async def achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Asynchronous chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
@@ -336,35 +207,152 @@ class ModelBase(ABC, Generic[_TStream]):
             self._run_exception_hooks(messages, e)
             raise e
 
-        if isinstance(response, Generator):
-            return self.generator_wrapper(response, messages)
+        return self._run_post_hooks(messages, response)
 
-        response = self._run_post_hooks(messages, response)
+    # ================ START Streaming (per-call) LLM calls ===============
+    # These methods request a streamed response for a single call. They are the model-level
+    # building blocks of railtracks streaming (see `rt.astream` at the framework level).
 
-        return response
+    async def astream_chat(
+        self, messages: MessageHistory
+    ) -> AsyncGenerator[str | Response, None]:
+        """
+        Chat with the model, streaming the response.
+
+        Returns an async generator that yields `str` token chunks as they arrive, followed by a
+        single final `Response` object containing the complete message (and usage info).
+
+        ```python
+        async for item in model.astream_chat(MessageHistory([UserMessage("hi")])):
+            if isinstance(item, str):
+                ...  # token chunk
+            else:
+                final = item  # the terminal Response
+        ```
+
+        Args:
+            messages: The conversation so far, as a `MessageHistory`.
+
+        Yields:
+            str | Response: `str` token chunks, then one final complete `Response`.
+        """
+        history = self._run_pre_hooks(messages)
+        try:
+            agen = self._astream_chat(history)
+            async for item in agen:
+                if isinstance(item, Response):
+                    yield self._run_post_hooks(history, item)
+                else:
+                    yield item
+        except Exception as e:
+            self._run_exception_hooks(history, e)
+            raise e
+
+    async def astream_chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> AsyncGenerator[str | Response, None]:
+        """
+        Chat with the model using tools, streaming the response.
+
+        Yields `str` content chunks as they arrive, followed by a single final `Response`. The
+        final `Response` contains either the complete assistant text or the requested tool
+        calls (tool-call deltas are accumulated internally and are not yielded as chunks).
+
+        Args:
+            messages: The conversation so far, as a `MessageHistory`.
+            tools: The tools to make available to the model.
+
+        Yields:
+            str | Response: `str` content chunks, then one final complete `Response`.
+        """
+        history = self._run_pre_hooks(messages)
+        try:
+            agen = self._astream_chat_with_tools(history, tools)
+            async for item in agen:
+                if isinstance(item, Response):
+                    yield self._run_post_hooks(history, item)
+                else:
+                    yield item
+        except Exception as e:
+            self._run_exception_hooks(history, e)
+            raise e
+
+    async def astream_structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> AsyncGenerator[str | Response, None]:
+        """
+        Structured interaction with the model, streaming the response.
+
+        Yields the raw (JSON) `str` chunks as they arrive, followed by a single final
+        `Response` whose message content is the parsed `schema` instance.
+
+        Note the chunks are unvalidated JSON fragments; validation only happens once the stream
+        completes, so a schema mismatch surfaces at the end of the stream.
+
+        Args:
+            messages: The conversation so far, as a `MessageHistory`.
+            schema: The pydantic model the response must conform to.
+
+        Yields:
+            str | Response: raw JSON `str` chunks, then one final complete `Response`.
+        """
+        history = self._run_pre_hooks(messages)
+        try:
+            agen = self._astream_structured(history, schema)
+            async for item in agen:
+                if isinstance(item, Response):
+                    yield self._run_post_hooks(history, item)
+                else:
+                    yield item
+        except Exception as e:
+            self._run_exception_hooks(history, e)
+            raise e
+
+    # ================ END Streaming (per-call) LLM calls ===============
 
     @abstractmethod
-    def _chat(
-        self, messages: MessageHistory
-    ) -> Response | Generator[str | Response, None, Response]:
+    def _chat(self, messages: MessageHistory) -> Response:
         pass
 
     @abstractmethod
     def _structured(
         self, messages: MessageHistory, schema: Type[BaseModel]
-    ) -> Response | Generator[str | Response, None, Response]:
+    ) -> Response:
         pass
 
     @abstractmethod
     def _chat_with_tools(
         self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response | Generator[str | Response, None, Response]:
+    ) -> Response:
         pass
 
-    @abstractmethod
-    async def _achat(
+    # Note: the _astream_* methods are deliberately NOT abstract so that existing ModelBase
+    # subclasses keep working; subclasses that support streaming should override them with
+    # async generator implementations yielding `str` chunks followed by a final `Response`.
+
+    def _astream_chat(
         self, messages: MessageHistory
-    ) -> Response | AsyncGenerator[str | Response, None]:
+    ) -> AsyncGenerator[str | Response, None]:
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support streamed chat calls."
+        )
+
+    def _astream_chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> AsyncGenerator[str | Response, None]:
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support streamed tool-calling calls."
+        )
+
+    def _astream_structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> AsyncGenerator[str | Response, None]:
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support streamed structured calls."
+        )
+
+    @abstractmethod
+    async def _achat(self, messages: MessageHistory) -> Response:
         pass
 
     @abstractmethod
@@ -372,11 +360,11 @@ class ModelBase(ABC, Generic[_TStream]):
         self,
         messages: MessageHistory,
         schema: Type[BaseModel],
-    ) -> Response | AsyncGenerator[str | Response, None]:
+    ) -> Response:
         pass
 
     @abstractmethod
     async def _achat_with_tools(
         self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response | AsyncGenerator[str | Response, None]:
+    ) -> Response:
         pass

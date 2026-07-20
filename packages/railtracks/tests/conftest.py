@@ -15,7 +15,6 @@ class MockLLM(rt.llm.ModelBase):
         self,
         custom_response: str | None = None,
         requested_tool_calls: list[rt.llm.ToolCall] | None = None,
-        stream: bool = False,
         errors: list[Callable[[], Exception]] | None = None,
         retry_approach: RetryApproach | None = None,
     ):
@@ -26,7 +25,7 @@ class MockLLM(rt.llm.ModelBase):
             errors: Optional list of zero-argument callables, each returning an Exception to raise on successive calls before returning a normal response. Use callables (not instances) so the LLM deepcopies cleanly.
             retry_approach: Optional retry strategy applied around chat calls.
         """
-        super().__init__(stream=stream, retry_approach=retry_approach)
+        super().__init__(retry_approach=retry_approach)
         self.custom_response = custom_response
         self.requested_tool_calls = requested_tool_calls
         self._errors = list(errors) if errors else []
@@ -70,24 +69,6 @@ class MockLLM(rt.llm.ModelBase):
         )
 
     def _base_chat(self):
-        # Streaming case — error injection not supported for streams
-        if self.stream:
-            if self.custom_response:
-                assert isinstance(self.custom_response, str), "custom_response must be a string for terminal LLMs"
-            return_message = self.custom_response or "mocked Message"
-            def make_generator():
-                    for char in return_message:
-                        yield char
-
-                    r = Response(
-                        message=AssistantMessage(content=return_message),
-                        message_info=self.mocked_message_info,
-                    )
-                    yield r
-                    return r
-
-            return make_generator()
-
         if self.retry_approach is not None:
             return self.retry_approach.call_with_retry(self._make_chat_response)
         return self._make_chat_response()
@@ -100,21 +81,6 @@ class MockLLM(rt.llm.ModelBase):
             response_model = schema(**json.loads(self.custom_response))
         else:
             response_model = DummyStructured()
-
-        # Streaming case
-        if self.stream:
-            def make_generator():
-                    for char in response_model.model_dump_json():
-                        yield char
-
-                    r = Response(
-                        message=AssistantMessage(content=response_model),
-                        message_info=self.mocked_message_info,
-                    )
-                    yield r 
-                    return r
-                
-            return make_generator()
 
         return Response(
             message=AssistantMessage(response_model),
@@ -131,38 +97,16 @@ class MockLLM(rt.llm.ModelBase):
                     f"Tool {tool_response.name} returned: '{tool_response.result}'"
                     + "\n"
                 )
-            # Streaming case
-            if self.stream:
-                def make_generator():
-                    for char in final_message:
-                        yield char
-
-                    r = Response(
-                        message=AssistantMessage(content=final_message),
-                        message_info=self.mocked_message_info,
-                    )
-                    yield r 
-                    return r
-                
-                return make_generator()
-            
-            return Response(    # no changes in this response in case of streaming
+            return Response(
                 message=AssistantMessage(content=final_message),
                 message_info=self.mocked_message_info,
             )
         else:
             return_message = self.requested_tool_calls or "mocked tool message"
-            r = Response(    # no changes in this response in case of streaming
+            return Response(
                 message=AssistantMessage(return_message),
                 message_info=self.mocked_message_info,
             )
-            if self.stream:
-                def tool_generator():
-                    yield r
-                    return r
-                return tool_generator()
-            else:
-                return r
 
 
     # ==========================================================
@@ -181,7 +125,16 @@ class MockLLM(rt.llm.ModelBase):
         return self._base_chat_with_tools(messages, **kwargs)
 
     async def _astream_chat(self, messages, **kwargs):
-        return self._base_chat()
+        return_message = self.custom_response or "mocked Message"
+        assert isinstance(return_message, str), (
+            "custom_response must be a string for terminal LLMs"
+        )
+        for char in return_message:
+            yield char
+        yield Response(
+            message=AssistantMessage(content=return_message),
+            message_info=self.mocked_message_info,
+        )
 
     def _chat(self, messages, **kwargs):
         return self._base_chat()
@@ -191,9 +144,6 @@ class MockLLM(rt.llm.ModelBase):
 
     def _chat_with_tools(self, messages, tools, **kwargs):
         return self._base_chat_with_tools(messages, **kwargs)
-
-    def _stream_chat(self, messages, **kwargs):
-        return self._base_chat()
 
     # ==========================================================
 

@@ -1,19 +1,15 @@
 import os
-from typing import Literal, TypeVar
 
 from ...providers import ModelProvider
 from ...retries import RetryApproach
 from ..api_providers._openai_compatable_provider_wrapper import OpenAICompatibleProvider
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-
-class TelusLLM(OpenAICompatibleProvider[_TStream]):
+class TelusLLM(OpenAICompatibleProvider):
     def __init__(
         self,
         model_name: str,
         *,
-        stream: _TStream = False,
         api_base: str,
         api_key: str | None = None,
         temperature: float | None = None,
@@ -30,7 +26,6 @@ class TelusLLM(OpenAICompatibleProvider[_TStream]):
 
         super().__init__(
             model_name=model_name,
-            stream=stream,
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,

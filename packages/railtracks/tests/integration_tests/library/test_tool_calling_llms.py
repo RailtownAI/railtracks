@@ -1,10 +1,10 @@
+
 import pytest
 import railtracks as rt
-from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.response import Response
-from typing import Generator
+
 
 # NOTE: Simple successful tool calls are already tested in test_function.py
 class TestSimpleToolCalling:
@@ -23,8 +23,7 @@ class TestSimpleToolCalling:
             )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("stream", [False, True])
-    async def test_simple_tool(self, mock_llm, stream):
+    async def test_simple_tool(self, mock_llm):
         def secret_phrase():
             rt.context.put("secret_phrase_called", True)
             return "Constantinople"
@@ -33,7 +32,6 @@ class TestSimpleToolCalling:
             requested_tool_calls=[
                 ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
             ],
-            stream=stream,
         )
 
         agent = rt.agent_node(
@@ -48,16 +46,8 @@ class TestSimpleToolCalling:
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
             )
-            collected_response: StringResponse | None = None
-            if stream:
-                for chunk in response:
-                    assert isinstance(chunk, (str, StringResponse))
-                    if isinstance(chunk, StringResponse):
-                        collected_response = chunk
-            else:
-                collected_response = response
-            assert collected_response is not None
-            assert "Constantinople" in collected_response.text
+            assert response is not None
+            assert "Constantinople" in response.text
             assert rt.context.get("secret_phrase_called")
             
 

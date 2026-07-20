@@ -1,19 +1,15 @@
 from abc import ABC
-from typing import Literal, TypeVar
 
 from ...providers import ModelProvider
 from ...retries import RetryApproach
 from ._provider_wrapper import ProviderLLMWrapper
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-
-class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
+class OpenAICompatibleProvider(ProviderLLMWrapper, ABC):
     def __init__(
         self,
         model_name: str,
         *,
-        stream: _TStream = False,
         api_base: str,
         api_key: str,
         temperature: float | None = None,
@@ -21,7 +17,6 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
     ):
         super().__init__(
             model_name,
-            stream=stream,
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,
