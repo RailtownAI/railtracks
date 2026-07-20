@@ -1,5 +1,5 @@
-"""Integration tests for the prebuilt add-ons (`rt.middleware.Retry`,
-`rt.middleware.ContextInjection`) wired through real nodes.
+"""Integration tests for the prebuilt add-ons (`rt.prebuilt.middleware.Retry`,
+`rt.prebuilt.middleware.ContextInjection`) wired through real nodes.
 
 ContextInjection's session/config gating is covered in
 test_middleware_integration.py (TestContextInjection) and unit_tests/prompt;
@@ -21,8 +21,8 @@ def _rate_limit_error() -> litellm.exceptions.RateLimitError:
     )
 
 
-def _fast_retry(max_tries: int = 3, **kwargs) -> rt.middleware.Retry:
-    return rt.middleware.Retry(
+def _fast_retry(max_tries: int = 3, **kwargs) -> rt.prebuilt.middleware.Retry:
+    return rt.prebuilt.middleware.Retry(
         approach=FixedRetry(max_tries=max_tries, delay=0.0), **kwargs
     )
 

@@ -1,10 +1,9 @@
 import asyncio
+from unittest.mock import MagicMock
 
 import pytest
 import railtracks as rt
 from pydantic import BaseModel
-from unittest.mock import MagicMock
-
 from railtracks.built_nodes._node_builder import (
     classmethod_preserving_function_meta,
     safe_create_node,
@@ -295,7 +294,7 @@ def test_nodebuilder_llm_context_injection_via_middleware(mock_llm):
         "CtxNode",
         model=model,
         system_message=SystemMessage(content="{secret}"),
-        model_middleware=[rt.middleware.ContextInjection()],
+        model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     ).build()
 
     async def top():

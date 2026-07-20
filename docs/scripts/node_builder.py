@@ -110,7 +110,7 @@ DynamicAgent = NodeBuilder.llm(name="DynamicAgent", model=pick_model).build()
 
 
 # --8<-- [start: context_injection]
-# Injection is opt-in: without rt.middleware.ContextInjection() in
+# Injection is opt-in: without rt.prebuilt.middleware.ContextInjection() in
 # model_middleware, {placeholders} are left untouched.
 LiteralAgent = NodeBuilder.llm(
     name="LiteralAgent",
@@ -122,6 +122,6 @@ InjectingAgent = NodeBuilder.llm(
     name="InjectingAgent",
     model=rt.llm.OpenAILLM("gpt-4o"),
     system_message=rt.llm.SystemMessage("You are helping {user_name}."),
-    model_middleware=[rt.middleware.ContextInjection()],
+    model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 ).build()
 # --8<-- [end: context_injection]

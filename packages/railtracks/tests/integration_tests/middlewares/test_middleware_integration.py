@@ -1,8 +1,10 @@
 import asyncio
 from unittest.mock import patch
 
+import litellm
 import pytest
 import railtracks as rt
+from jsonschema import validate
 from pydantic import BaseModel, Field
 from railtracks.exceptions.errors import LLMError
 from railtracks.guardrails.core import (
@@ -13,12 +15,7 @@ from railtracks.guardrails.core import (
 )
 from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
-
-import litellm
-from jsonschema import validate
 from railtracks.llm.retries.fixed import FixedRetry
-
-
 
 # ---------------------------------------------------------------------------
 # TestFunctionNodeMiddleware
@@ -486,7 +483,7 @@ class TestContextInjection:
             name="TemplateAgent",
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
-            model_middleware=[rt.middleware.ContextInjection(), capture_system],
+            model_middleware=[rt.prebuilt.middleware.ContextInjection(), capture_system],
         )
 
         await rt.Flow("TemplateAgent", agent, context={"username": "Alice"}).ainvoke(

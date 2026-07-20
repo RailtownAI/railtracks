@@ -9,18 +9,9 @@ from .core import (
     LLMGuardrailPhase,
     OutputGuard,
 )
-from .llm import (
-    BlockTextInputGuard,
-    BlockTextOutputGuard,
-    InputLengthGuard,
-    OutputLengthGuard,
-    PIICustomPattern,
-    PIIEntity,
-    PIIRedactConfig,
-    PIIRedactInputGuard,
-    PIIRedactOutputGuard,
-)
 
+# Authoring primitives only. Concrete prebuilt guards live in
+# railtracks.prebuilt.guardrails (see design-docs/addon-interface, D6).
 __all__ = [
     "GuardrailAction",
     "GuardrailBlockedError",
@@ -31,13 +22,4 @@ __all__ = [
     "LLMGuardrailEvent",
     "LLMGuardrailPhase",
     "llm",
-    "BlockTextInputGuard",
-    "BlockTextOutputGuard",
-    "InputLengthGuard",
-    "OutputLengthGuard",
-    "PIICustomPattern",
-    "PIIEntity",
-    "PIIRedactConfig",
-    "PIIRedactInputGuard",
-    "PIIRedactOutputGuard",
 ]

@@ -12,7 +12,7 @@ class Retry(Middleware):
     inspects the arguments::
 
         import railtracks as rt
-        from railtracks import middleware
+        from railtracks.prebuilt import middleware
 
         rt.agent_node(
             "Agent",

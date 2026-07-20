@@ -1,5 +1,5 @@
 """Unit tests for the prebuilt ContextInjection middleware:
-`rt.middleware.ContextInjection`.
+`rt.prebuilt.middleware.ContextInjection`.
 
 Wired directly via `.wrap(fake_call)`; the session-level behavior (injection
 on/off via config, opt-in per agent) is covered by unit_tests/prompt and the
@@ -11,7 +11,8 @@ from __future__ import annotations
 import pytest
 import railtracks as rt
 from railtracks.llm import MessageHistory, SystemMessage
-from railtracks.middleware import ContextInjection, Middleware
+from railtracks.middleware import Middleware
+from railtracks.prebuilt.middleware import ContextInjection
 
 
 def test_context_injection_is_a_plain_middleware():

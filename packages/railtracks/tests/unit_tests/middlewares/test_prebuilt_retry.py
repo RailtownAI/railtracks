@@ -1,4 +1,4 @@
-"""Unit tests for the prebuilt Retry middleware: `rt.middleware.Retry`.
+"""Unit tests for the prebuilt Retry middleware: `rt.prebuilt.middleware.Retry`.
 
 Retry is slot-agnostic — it only re-invokes `call` — so the tests wire it
 directly via `.wrap(fake_call)` with arbitrary signatures.
@@ -10,7 +10,8 @@ import litellm
 import pytest
 from railtracks.llm._exceptions import RetryError
 from railtracks.llm.retries import ExponentialRetry, FixedRetry
-from railtracks.middleware import Middleware, Retry
+from railtracks.middleware import Middleware
+from railtracks.prebuilt.middleware import Retry
 
 
 def _rate_limit_error() -> litellm.exceptions.RateLimitError:

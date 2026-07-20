@@ -10,7 +10,7 @@ assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
     llm=rt.llm.OpenAILLM("gpt-4o"),
-    model_middleware=[rt.middleware.ContextInjection()],
+    model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 
 # Run with context values
@@ -33,7 +33,7 @@ rt.set_config(prompt_injection=False)
 # --8<-- [end: disable_injection]
 
 # --8<-- [start: disable_injection_node_level]
-# Injection is opt-in: an agent that omits rt.middleware.ContextInjection()
+# Injection is opt-in: an agent that omits rt.prebuilt.middleware.ContextInjection()
 # from its model_middleware leaves {placeholders} untouched.
 literal_assistant = rt.agent_node(
     name="Literal Assistant",
@@ -65,7 +65,7 @@ assistant = rt.agent_node(
     name="Dynamic Assistant",
     system_message=template,
     llm=OpenAILLM("gpt-4o"),
-    model_middleware=[rt.middleware.ContextInjection()],
+    model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 
 # Different context for different scenarios

@@ -4,21 +4,21 @@ from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
+from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware.core import Middleware
 from railtracks.prompts.prompt import inject_context
 
 
-class ContextInjection(Middleware):
+class ContextInjection(ModelMiddleware):
     """Inject ``rt.context`` values into prompt placeholders before each model call.
 
     Model-level middleware (``model_middleware=`` only). Fills ``{placeholder}``
     templates in the message history from the active session's context::
 
         import railtracks as rt
-        from railtracks import middleware
+        from railtracks.prebuilt import middleware
 
         rt.agent_node(
             "Agent",

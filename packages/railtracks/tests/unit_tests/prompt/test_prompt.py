@@ -7,7 +7,7 @@ from railtracks.llm.message import Role
 from railtracks.llm.response import Response
 
 # Context injection is opt-in: agents only substitute {placeholders} when
-# rt.middleware.ContextInjection() is present in model_middleware.
+# rt.prebuilt.middleware.ContextInjection() is present in model_middleware.
 
 
 def _return_message(messages: MessageHistory) -> Response:
@@ -23,7 +23,7 @@ def test_prompt_injection(mock_llm):
     node = rt.agent_node(
         system_message=prompt,
         llm=model,
-        model_middleware=[rt.middleware.ContextInjection()],
+        model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
     async def top_level():
@@ -44,7 +44,7 @@ def test_prompt_injection_bypass(mock_llm):
     node = rt.agent_node(
         system_message=prompt,
         llm=model,
-        model_middleware=[rt.middleware.ContextInjection()],
+        model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
     async def top_level():
@@ -66,7 +66,7 @@ def test_prompt_numerical(mock_llm):
     node = rt.agent_node(
         system_message=prompt,
         llm=model,
-        model_middleware=[rt.middleware.ContextInjection()],
+        model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
     async def top_level():
@@ -88,7 +88,7 @@ def test_prompt_not_in_context(mock_llm):
     node = rt.agent_node(
         system_message=prompt,
         llm=model,
-        model_middleware=[rt.middleware.ContextInjection()],
+        model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
     async def top_level():
@@ -135,7 +135,7 @@ def test_prompt_injection_shared_middleware_list_stays_independent(mock_llm):
     model_off = mock_llm()
     model_off._chat = _return_message
 
-    shared_middleware = [rt.middleware.ContextInjection()]
+    shared_middleware = [rt.prebuilt.middleware.ContextInjection()]
 
     node_on = rt.agent_node(
         system_message=prompt,
@@ -171,7 +171,7 @@ def test_prompt_injection_global_config_bypass(mock_llm):
     node = rt.agent_node(
         system_message=prompt,
         llm=model,
-        model_middleware=[rt.middleware.ContextInjection()],
+        model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
     async def top_level():
