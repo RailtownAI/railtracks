@@ -285,14 +285,17 @@ def _echo_last_message(messages):
     return Response(message=Message(role=Role.assistant, content=messages[-1].content))
 
 
-def test_nodebuilder_llm_context_injection_default_true(mock_llm):
+def test_nodebuilder_llm_context_injection_via_middleware(mock_llm):
     # Empty user_input -> the system message is the only (and therefore last) message,
     # so echoing messages[-1] reflects the (possibly context-injected) system content.
     model = mock_llm()
     model._chat = _echo_last_message
 
     node_cls = LLMNodeBuilder.llm(
-        "CtxNode", model=model, system_message=SystemMessage(content="{secret}")
+        "CtxNode",
+        model=model,
+        system_message=SystemMessage(content="{secret}"),
+        model_middleware=[rt.middleware.ContextInjection()],
     ).build()
 
     async def top():
@@ -302,7 +305,8 @@ def test_nodebuilder_llm_context_injection_default_true(mock_llm):
     assert asyncio.run(top()).content == "tomato"
 
 
-def test_nodebuilder_llm_context_injection_false_skips_substitution(mock_llm):
+def test_nodebuilder_llm_no_injection_by_default(mock_llm):
+    # Injection is opt-in: without a ContextInjection entry the template is untouched.
     model = mock_llm()
     model._chat = _echo_last_message
 
@@ -310,7 +314,6 @@ def test_nodebuilder_llm_context_injection_false_skips_substitution(mock_llm):
         "CtxNode",
         model=model,
         system_message=SystemMessage(content="{secret}"),
-        context_injection=False,
     ).build()
 
     async def top():
