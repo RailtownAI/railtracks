@@ -2,8 +2,8 @@
 
 `NodeBuilder` is the internal factory behind `rt.agent_node` / `rt.function_node`.
 These snippets use its real surface (`model`, `system_message`, `schema`,
-`connected_nodes`, `tool_details`, `tool_params`, `middleware`, `model_middleware`,
-`context_injection`). Each region is embedded via pymdownx.snippets.
+`connected_nodes`, `tool_details`, `tool_params`, `middleware`, `model_middleware`).
+Each region is embedded via pymdownx.snippets.
 """
 
 # --8<-- [start: llm_basic]
@@ -110,10 +110,18 @@ DynamicAgent = NodeBuilder.llm(name="DynamicAgent", model=pick_model).build()
 
 
 # --8<-- [start: context_injection]
+# Injection is opt-in: without rt.middleware.ContextInjection() in
+# model_middleware, {placeholders} are left untouched.
 LiteralAgent = NodeBuilder.llm(
     name="LiteralAgent",
     model=rt.llm.OpenAILLM("gpt-4o"),
     system_message=rt.llm.SystemMessage("Use {curly braces} freely."),
-    context_injection=False,  # leave {placeholders} untouched for this node
+).build()
+
+InjectingAgent = NodeBuilder.llm(
+    name="InjectingAgent",
+    model=rt.llm.OpenAILLM("gpt-4o"),
+    system_message=rt.llm.SystemMessage("You are helping {user_name}."),
+    model_middleware=[rt.middleware.ContextInjection()],
 ).build()
 # --8<-- [end: context_injection]
