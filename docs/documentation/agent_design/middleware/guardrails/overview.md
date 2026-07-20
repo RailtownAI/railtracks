@@ -18,17 +18,12 @@ Railtracks organizes guardrails into four categories covering the full lifecycle
 
 ## Usage
 
-Guardrails are attached where agents are defined. The main entry point is `agent_node(..., guardrails=Guard(...))`, where `Guard` groups the rails you want to run via `input=[...]` and `output=[...]`.
+Guardrails are attached through the `middleware` API. Please see the [Middleware](../overview.md#attaching-middleware) documentation for more details. 
 
-To write a custom rule, subclass `InputGuard` or `OutputGuard` and implement `__call__`. Your implementation receives an `LLMGuardrailEvent` (the messages and, for output guards, the model response) and returns a `GuardrailDecision` with an action: `ALLOW`, `TRANSFORM`, or `BLOCK`.
+## Prebuilt Guards
+We have a set of prebuilt guardrails for common use cases. Check out the complete list of [prebuilt guardrails](prebuilt/overview.md). 
 
-!!! info "Current Guardrail Support"
-    Railtracks supports LLM input and output guardrails for all agent types created via `agent_node`, including tool-calling agents (`ToolCallLLM`, `StreamingToolCallLLM`, `StructuredToolCallLLM`). Input rails run once before the first LLM call; output rails run once on the final reply (not on intermediate tool-call turns). If a guardrail blocks the interaction, Railtracks raises `GuardrailBlockedError` so the outcome stays explicit.
-
-    **Limitations:**
-
-    - Output guardrails on streaming tool-calling agents (`StreamingToolCallLLM`) are not yet supported — only input guardrails are wired.
-    - Output guardrails on structured tool-calling agents (`StructuredToolCallLLM`) are not yet supported — only input guardrails are wired.
-    - Tool call and tool response guardrails (`Guard.tool_call`, `Guard.tool_response`) remain future work.
+## Custom Guards
+TBD see changed from @pooria 
 
 The next section, [Quickstart](quickstart.md), walks through attaching a guard to an agent and seeing a request pass or block in practice.

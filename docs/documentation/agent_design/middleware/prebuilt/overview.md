@@ -6,7 +6,7 @@ We provide a suite of prebuilt middleware to help accelerate your agent builds. 
 Model middleware wraps the model call itself. Useful for acting on the inputs or outputs of the model, or for retry logic specific to the model call. Prebuilt model middleware includes:
 
 !!! Note 
-    [Guardrails](../../../advanced/guardrails/overview.md) are model middleware under the hood and can be attached just as any other middleware.
+    [Guardrails](../guardrails/overview.md) are model middleware under the hood and can be attached just as any other middleware.
 
 Check out our prebuilt tooling:
 

@@ -95,8 +95,16 @@ nav:
           - Middleware:
               - Overview: documentation/agent_design/middleware/overview.md
               - Custom: documentation/agent_design/middleware/custom.md
+              - Guardrails:
+                - Overview: documentation/agent_design/middleware/guardrails/overview.md
+                - Quickstart: documentation/agent_design/middleware/guardrails/quickstart.md\
+                - Contributing: documentation/agent_design/middleware/guardrails/contributions.md
               - Prebuilt: 
                 - Overview: documentation/agent_design/middleware/prebuilt/overview.md
+                - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
+                - List: 
+                  - Text Detect: documentation/agent_design/middleware/prebuilt/list/text_detect.md
+                   
 
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
