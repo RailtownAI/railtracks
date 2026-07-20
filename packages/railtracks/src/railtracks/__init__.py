@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import importlib
 import logging
-from typing import TYPE_CHECKING
+
 
 from dotenv import load_dotenv
 

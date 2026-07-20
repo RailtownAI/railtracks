@@ -1,6 +1,6 @@
 # Prebuilt Middleware
 
-We provide a suite of prebuilt middleware to help accelerate your agent builds. We have provied samples to get you started; for building your own, see [Custom Middleware](../custom.md).
+We provide a suite of prebuilt middleware to help accelerate your agent builds. We have provided samples to get you started; for building your own, see [Custom Middleware](../custom.md).
 
 ## Model Middleware
 Model middleware wraps the model call itself. Useful for acting on the inputs or outputs of the model, or for retry logic specific to the model call. Prebuilt model middleware includes:

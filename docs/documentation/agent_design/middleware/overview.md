@@ -46,7 +46,7 @@ Sometimes you want your middleware to wrap around the model call itself, rather 
 ```
 
 !!! note "Guardrails are Model Middleware"
-    Built-in guardrails (PII redaction, length limits, blocked text, ...) are implemented as model middleware under the hood. See [Guardrails](../../advanced/guardrails/overview.md).
+    Built-in guardrails (PII redaction, length limits, blocked text, ...) are implemented as model middleware under the hood. See [Guardrails](../middleware/guardrails/overview.md).
 
 ## Attaching Middleware
 You can attach middleware to any node at creation time, or at any time after.

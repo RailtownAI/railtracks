@@ -11,7 +11,7 @@ Guardrails aren't just about blocking unsafe content. They can also:
 
 ## Categories
 
-Railtracks organizes guardrails into four categories covering the full lifecycle of an agent run:
+Railtracks organizes guardrails into 2 categories covering the full lifecycle of an agent run:
 
 - **LLM input guardrails**: inspect messages before the model call
 - **LLM output guardrails**: inspect the model response before it is returned
@@ -21,7 +21,7 @@ Railtracks organizes guardrails into four categories covering the full lifecycle
 Guardrails are attached through the `middleware` API. Please see the [Middleware](../overview.md#attaching-middleware) documentation for more details. 
 
 ## Prebuilt Guards
-We have a set of prebuilt guardrails for common use cases. Check out the complete list of [prebuilt guardrails](prebuilt/overview.md). 
+We have a set of prebuilt guardrails for common use cases. Check out the complete list of [prebuilt guardrails](../prebuilt/overview.md). 
 
 ## Custom Guards
 TBD see changed from @pooria 
