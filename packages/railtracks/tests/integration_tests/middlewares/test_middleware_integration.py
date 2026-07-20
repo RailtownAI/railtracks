@@ -787,7 +787,7 @@ class TestCoupleAndComposition:
             return result
 
         agent = rt.agent_node("CoupledAgent", llm=mock_llm(custom_response="ok"))
-        agent = rt.couple(agent, tracer)
+        agent = rt.couple(agent, middleware=[tracer])
 
         result = await rt.Flow("CoupledAgent", agent).ainvoke("hi")
 
@@ -840,7 +840,7 @@ class TestCoupleAndComposition:
             middleware=[node_a],
             model_middleware=[TraceOutputGuard(), model_b, TraceInputGuard()],
         )
-        agent = rt.couple(agent, node_c)
+        agent = rt.couple(agent, middleware=[node_c])
 
         await rt.Flow("FullStackAgent", agent).ainvoke("hello")
 
