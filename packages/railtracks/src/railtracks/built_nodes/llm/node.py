@@ -142,11 +142,7 @@ def agent_node(
         middleware (list[Middleware] | None): Middleware applied around the agent's node boundary
             (user_input -> Response).
         model_middleware (list[Middleware] | None): Middleware applied around each raw model call
-            (messages/schema/tools -> Response), inside the tool-calling loop. LLM guardrails
-            (e.g. `InputGuard`/`OutputGuard` subclasses) are plain entries in this list — there is
-            no separate guardrails slot, so list order is exactly execution order and is fully
-            caller-controlled. To inject rt.context variables into prompt templates, add
-            `rt.middleware.ContextInjection()` to this list.
+            (messages/schema/tools -> Response), inside the tool-calling loop.
     """
     unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
