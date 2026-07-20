@@ -9,6 +9,7 @@ from typing import (
 
 from pydantic import BaseModel
 
+from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.model_invoker import ModelInvoker
 from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
@@ -33,21 +34,21 @@ _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
 class StringLLMInvoke(Protocol):
     async def __call__(
-        self,
+        self: Node,
         user_input: MessageHistory | UserMessage | str | list[Message],
     ) -> StringResponse: ...
 
 
 class StructuredLLMInvoke(Protocol[_TStructured]):
     async def __call__(
-        self,
+        self: Node,
         user_input: MessageHistory | UserMessage | str | list[Message],
     ) -> StructuredResponse[_TStructured]: ...
 
 
 @overload
 def llm_invoke_factory(
-    model_invoker: ModelInvoker,
+    model_source: ModelSource,
     system_message: SystemMessage | None,
     *,
     tool_nodes: list[type[Node]] | None = None,
@@ -57,7 +58,7 @@ def llm_invoke_factory(
 
 @overload
 def llm_invoke_factory(
-    model_invoker: ModelInvoker,
+    model_source: ModelSource,
     system_message: SystemMessage | None,
     *,
     tool_nodes: list[type[Node]] | None = None,
@@ -76,7 +77,7 @@ class LLMCallProtocol(Protocol):
 
 
 def llm_invoke_factory(
-    model_invoker: ModelInvoker,
+    model_source: ModelSource,
     system_message: SystemMessage | None,
     *,
     tool_nodes: list[type[Node]] | None = None,
@@ -85,8 +86,9 @@ def llm_invoke_factory(
     tools = [x.tool_info() for x in tool_nodes] if tool_nodes else None
 
     async def llm_invoke(
-        user_input: MessageHistory | UserMessage | str | list[Message],
+        self: Node, user_input: MessageHistory | UserMessage | str | list[Message],
     ):
+        model_invoker = ModelInvoker.create_with_llm_observe(model_source, self._user_model_middleware)
         message_history = prepare_message_history(system_message, user_input)
 
         while True:

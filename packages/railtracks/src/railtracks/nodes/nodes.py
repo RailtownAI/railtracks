@@ -4,7 +4,7 @@ import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Generic, Literal, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware import MiddlewareChain
@@ -12,6 +12,9 @@ from railtracks.middleware.core import Middleware
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
+
+if TYPE_CHECKING:
+    from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 
 _TOutput = TypeVar("_TOutput")
 
@@ -100,6 +103,8 @@ class Node(ABC, Generic[_P, _TOutput]):
     _user_middleware: list[Middleware[_P, _TOutput]] = []
     _interior_middleware: list[Middleware[_P, _TOutput]] = []
 
+    _user_model_middleware: list[ModelMiddleware] = []
+
     def __init__(
         self,
     ):
@@ -143,6 +148,16 @@ class Node(ABC, Generic[_P, _TOutput]):
             *middleware,
         ]  # fresh list a nice protection around things
         return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
+
+    @classmethod
+    def extend_model_middleware(
+        cls, *middleware: ModelMiddleware
+    ) -> type[Node[_P, _TOutput]]:
+        new_middleware = [
+            *deepcopy(cls._user_model_middleware),
+            *middleware,
+        ]  # fresh list a nice protection around things
+        return type(cls.__name__, (cls,), {"_user_model_middleware": new_middleware})
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
