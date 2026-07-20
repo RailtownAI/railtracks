@@ -95,7 +95,10 @@ def agent_node(
     manifest: ToolManifest | None = None,
     middleware: list[Middleware[[UserInput], StringResponse]] | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-) -> type[Node[[UserInput], StringResponse]]: ...
+    # `...` (not `[UserInput]`) so the canonical keyword style — rt.call / rt.astream(
+    # agent, user_input=...) — type-checks alongside the positional style; the node
+    # accepts its input either way at runtime.
+) -> type[Node[..., StringResponse]]: ...
 
 
 @overload
@@ -110,7 +113,10 @@ def agent_node(
     middleware: list[Middleware[[UserInput], StructuredResponse[_TBaseModel]]]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
+    # `...` (not `[UserInput]`) so the canonical keyword style — rt.call / rt.astream(
+    # agent, user_input=...) — type-checks alongside the positional style; the node
+    # accepts its input either way at runtime.
+) -> type[Node[..., StructuredResponse[_TBaseModel]]]: ...
 
 
 def agent_node(

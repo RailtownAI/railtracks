@@ -106,7 +106,10 @@ class RequestFailure(RequestFinishedBase):
         )
 
     def log_message(self) -> str:
-        return f"{self.node_state.node.name()} FAILED with error {self.error}"
+        node_name = (
+            self.node_state.node.name() if self.node_state is not None else "<unknown>"
+        )
+        return f"{node_name} FAILED with error {self.error}"
 
 
 class RequestCreationFailure(RequestFinishedBase):
@@ -131,6 +134,20 @@ class RequestCreationFailure(RequestFinishedBase):
 class RequestCreation(RequestCompletionMessage):
     """
     A message that describes the creation of a new request in the system.
+
+    Args:
+        current_node_id: The id of the node creating this request (None for a top level request).
+        current_run_id: The run id of the tree this request belongs to (None for a top level request).
+        new_request_id: The unique identifier of the request being created.
+        running_mode: The execution mode used to run this request.
+        new_node_type: The node type to instantiate for this request.
+        args: The positional arguments to pass to the node.
+        kwargs: The keyword arguments to pass to the node.
+        stream: If True, the created node's frame will have streaming enabled (see `rt.astream`).
+            Note this flag is frame-local: it applies only to the node created by this request,
+            never to its children.
+        current_stream_id: The stream scope id of the *creating* frame. Children inherit this id so
+            their explicit broadcasts can be routed to the consumer attached to the entry frame.
     """
 
     def __init__(
@@ -143,6 +160,8 @@ class RequestCreation(RequestCompletionMessage):
         new_node_type: Type[Node],
         args,
         kwargs,
+        stream: bool = False,
+        current_stream_id: str | None = None,
     ):
         self.current_node_id = current_node_id
         self.current_run_id = current_run_id
@@ -151,6 +170,8 @@ class RequestCreation(RequestCompletionMessage):
         self.new_node_type = new_node_type
         self.args = args
         self.kwargs = kwargs
+        self.stream = stream
+        self.current_stream_id = current_stream_id
 
     def __repr__(self):
         return (
@@ -175,14 +196,50 @@ class FatalFailure(RequestCompletionMessage):
         return f"{self.__class__.__name__}(error={self.error})"
 
 
+# The two kinds of broadcast traffic, kept on separate lanes so consumers never mix them up.
+# "event": a one-off item published with `rt.broadcast` (progress notes, tool events, ...) —
+# this is what `broadcast_callback` observes. "stream": one chunk of a continuous production
+# published through `rt.broadcast_stream`, which includes all LLM token streaming — this is
+# what `rt.astream` consumes and, deliberately, what `broadcast_callback` ignores.
+StreamingKind = Literal["event", "stream"]
+
+
 class Streaming(RequestCompletionMessage):
     """
-    A message that indicates a streaming operation in the request completion system.
+    A message carrying a single streamed item (e.g. an LLM token chunk or a user broadcast).
+
+    Args:
+        streamed_object: The item being streamed (typically a `str` chunk).
+        node_id: The id of the node that emitted the item.
+        channel: The named channel this item was emitted on. Consumers can filter/route on
+            this name. Defaults to `"default"`.
+        stream_id: The stream scope this item belongs to. This is the request id of the entry
+            frame that was invoked with streaming enabled (see `rt.astream`), or None if the
+            item was broadcast outside any streaming scope.
+        kind: What produced this item: `"event"` for a one-off `rt.broadcast`, `"stream"` for
+            a chunk of an `rt.broadcast_stream` production (LLM token streams included). The
+            two lanes are kept separate so a `broadcast_callback` (events) is never flooded
+            with stream tokens; `rt.astream` consumes the stream lane, scoped by `stream_id`.
     """
 
-    def __init__(self, *, streamed_object: Any, node_id: str):
+    def __init__(
+        self,
+        *,
+        streamed_object: Any,
+        node_id: str | None,
+        channel: str = "default",
+        stream_id: str | None = None,
+        kind: StreamingKind = "event",
+    ):
         self.streamed_object = streamed_object
         self.node_id = node_id
+        self.channel = channel
+        self.stream_id = stream_id
+        self.kind = kind
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(streamed_object={self.streamed_object}, node_id={self.node_id})"
+        return (
+            f"{self.__class__.__name__}(streamed_object={self.streamed_object}, "
+            f"node_id={self.node_id}, channel={self.channel}, stream_id={self.stream_id}, "
+            f"kind={self.kind})"
+        )

@@ -1,8 +1,8 @@
-import pytest
 from unittest import mock
 
+import pytest
 import railtracks.context.central as central
-from requests import session
+
 
 # ============ START Session Context Tests ===============
 def test_safe_get_runner_context_raises_when_none():
@@ -117,7 +117,9 @@ def test_update_parent_id(monkeypatch, make_runner_context_vars):
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
     monkeypatch.setattr(central, "runner_context", mock.Mock(set=mock.Mock()))
     central.update_parent_id("new-parent")
-    rt.prepare_new.assert_called_with("new-parent", new_run_id=None)
+    rt.prepare_new.assert_called_with(
+        "new-parent", new_run_id=None, stream=False, stream_id=None
+    )
     central.runner_context.set.assert_called_with("new_ctx")
 
 def test_runner_context_vars_prepare_new(make_external_context_mock, make_internal_context_mock):
