@@ -321,9 +321,7 @@ class ModelBase(ABC):
         pass
 
     @abstractmethod
-    def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         pass
 
     # Note: the _astream_* methods are deliberately NOT abstract so that existing ModelBase
