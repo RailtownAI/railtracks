@@ -10,8 +10,7 @@ from .core import (
     OutputGuard,
 )
 
-# Authoring primitives only. Concrete prebuilt guards live in
-# railtracks.prebuilt.guardrails (see design-docs/addon-interface, D6).
+# Primitives only.
 __all__ = [
     "GuardrailAction",
     "GuardrailBlockedError",
