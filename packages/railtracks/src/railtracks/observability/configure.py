@@ -12,12 +12,8 @@ common case.
 
 from __future__ import annotations
 
-import logging
-
 from .observer import Observer
 from .writers.base import Writer
-
-logger = logging.getLogger(__name__)
 
 observer: Observer = Observer()
 
@@ -40,7 +36,7 @@ async def ensure_started() -> Observer:
 async def shutdown() -> None:
     """Drain per-writer queues and stop the singleton Observer's consumer tasks.
 
-    safe to call when the observer isn't running.
+    Safe to call when the observer isn't running.
     """
     await observer.shutdown()
 

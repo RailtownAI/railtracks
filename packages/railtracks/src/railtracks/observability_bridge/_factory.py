@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from railtracks.context.central import get_session_id
+from railtracks.exceptions import ContextError
 from railtracks.observability import SCOPE_SESSION, Event
 
 
-# TODO: rename to make_session_event
 def make_session_event(event_type: str, payload: dict[str, Any]) -> Event:
     """Build an `Event` scoped to the currently active Session.
     Args:
@@ -17,7 +17,8 @@ def make_session_event(event_type: str, payload: dict[str, Any]) -> Event:
     Raises `ContextError` if no Session is active
     """
     sid = get_session_id()
-    assert sid is not None, "session_id is required inside an active Session"
+    if sid is None:
+        raise ContextError("session_id is required inside an active Session")
     return Event(
         event_type=event_type,
         scope_type=SCOPE_SESSION,
