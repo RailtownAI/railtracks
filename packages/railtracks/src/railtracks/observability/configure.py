@@ -32,8 +32,7 @@ def configure_writers(writers: list[Writer]) -> None:
 
 
 async def ensure_started() -> Observer:
-    """Start the singleton observer if not already started, return it.
-    """
+    """Start the singleton observer if not already started, return it."""
     await observer.start()
     return observer
 
