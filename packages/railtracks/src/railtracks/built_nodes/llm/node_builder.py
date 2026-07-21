@@ -13,7 +13,6 @@ from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.response import Response
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
-from railtracks.prompts.prompt import context_injection_middleware
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_tool_params_and_details,
@@ -51,7 +50,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
             ]
         ]
         | None = None,
-        context_injection: bool = True,
     ) -> LLMNodeBuilder[StringResponse]: ...
 
     @overload
@@ -70,7 +68,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         middleware: Iterable[Middleware[[UserInput], StructuredResponse[_TStructured]]]
         | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        context_injection: bool = True,
     ) -> LLMNodeBuilder[StructuredResponse[_TStructured]]: ...
 
     @classmethod
@@ -90,7 +87,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         ]
         | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        context_injection: bool = True,
     ) -> LLMNodeBuilder[StructuredResponse[_TStructured] | StringResponse]:
         instance = cls()
         casted_instance = cast(LLMNodeBuilder, instance)
@@ -104,9 +100,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         unwrapped_middleware = (
             list(deepcopy(middleware)) if middleware is not None else []
         )
-
-        if context_injection:
-            unwrapped_model_middleware.insert(0, context_injection_middleware)
 
         model_invoker = ModelInvoker.create_with_llm_observe(
             model, middleware=unwrapped_model_middleware

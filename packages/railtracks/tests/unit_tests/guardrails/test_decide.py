@@ -5,14 +5,14 @@ from __future__ import annotations
 import pytest
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.llm import (
+from railtracks.llm import MessageHistory
+from railtracks.llm.message import AssistantMessage, SystemMessage, UserMessage
+from railtracks.prebuilt.guardrails import (
     PIIEntity,
     PIIRedactConfig,
     PIIRedactInputGuard,
     PIIRedactOutputGuard,
 )
-from railtracks.llm import MessageHistory
-from railtracks.llm.message import AssistantMessage, SystemMessage, UserMessage
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Literal, TypeVar
+from typing import Literal
 
 import requests
 from litellm.utils import supports_function_calling
@@ -14,19 +14,16 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DOMAIN = "http://localhost:11434"
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-
 
 class OllamaError(ModelError):
     def __init__(self, reason: str):
         super().__init__(reason=reason)
 
 
-class OllamaLLM(LiteLLMWrapper[_TStream]):
+class OllamaLLM(LiteLLMWrapper):
     def __init__(
         self,
         model_name: str,
-        stream: _TStream = False,
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
         temperature: float | None = None,
@@ -37,7 +34,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
 
         Args:
             model_name (str): Name of the Ollama model to use.
-            stream (bool): Whether to stream the response.
             domain (Literal["default", "auto", "custom"], optional): The domain configuration mode.
                 - "default": Uses the default localhost domain (http://localhost:11434)
                 - "auto": Uses the OLLAMA_HOST environment variable, raises OllamaError if not set
@@ -63,7 +59,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
             model_name = f"ollama/{model_name}"
         super().__init__(
             model_name=model_name,
-            stream=stream,
             temperature=temperature,
             retry_approach=retry_approach,
             **kwargs,

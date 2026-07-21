@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import pytest
-from railtracks.guardrails.llm._pii.config import (
+from railtracks.prebuilt.guardrails._pii.config import (
     PIICustomPattern,
     PIIEntity,
     PIIRedactConfig,
 )
-from railtracks.guardrails.llm._pii.engine import PIIEngine, RedactionRecord
+from railtracks.prebuilt.guardrails._pii.engine import PIIEngine, RedactionRecord
 
 
 @pytest.fixture

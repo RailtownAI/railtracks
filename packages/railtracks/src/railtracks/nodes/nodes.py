@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware import MiddlewareChain
+from railtracks.middleware.chain import MiddlewareChain
 from railtracks.middleware.core import Middleware
 from railtracks.validation.node_creation.validation import (
     check_classmethod,

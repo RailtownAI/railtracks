@@ -1,13 +1,9 @@
-from typing import Literal, TypeVar
-
 from ...providers import ModelProvider
 from .._model_exception_base import ModelNotFoundError
 from ._provider_wrapper import ProviderLLMWrapper
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-
-class HuggingFaceLLM(ProviderLLMWrapper[_TStream]):
+class HuggingFaceLLM(ProviderLLMWrapper):
     def _pre_init_provider_check(self, model_name):
         """called by __init__ before the super call in ProviderLLMWrapper"""
         # for huggingface models there is no good way of using `get_llm_provider` to check if the model is valid.

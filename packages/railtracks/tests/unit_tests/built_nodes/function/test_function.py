@@ -1,12 +1,9 @@
-import inspect
 import pytest
-from unittest.mock import patch, MagicMock
 from railtracks.built_nodes.function.node import (
-    function_node,
     _function_preserving_metadata,
-    CallableSyncRTFunction,
-    CallableAsyncRTFunction,
+    function_node,
 )
+from railtracks.built_nodes.function.base import CallableSyncRTFunction, CallableAsyncRTFunction
 
 
 class _SimpleCalc:
@@ -24,6 +21,8 @@ class _SimpleCalc:
         return x + y + self.offset
 
 async def async_func(x, y):
+@pytest.mark.asyncio
+async def async_func(x):
     return x
 
 def test_function_node_sync(mock_function, mock_manifest):
