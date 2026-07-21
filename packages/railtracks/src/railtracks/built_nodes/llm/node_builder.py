@@ -10,7 +10,6 @@ from railtracks.built_nodes._types import ModelSource
 from railtracks.llm import Parameter, SystemMessage, Tool
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
-from railtracks.llm.response import Response
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
@@ -20,7 +19,6 @@ from railtracks.validation.node_creation.validation import (
 
 from .llm_helpers import llm_invoke_factory, llm_prepare_called_as_tool_factory
 from .middleware.core import ModelMiddleware
-from .model_invoker import ModelInvoker
 from .response import StringResponse, StructuredResponse
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
@@ -44,12 +42,7 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], StringResponse]] | None = None,
-        model_middleware: Iterable[
-            Middleware[
-                [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
-            ]
-        ]
-        | None = None,
+        model_middleware: Iterable[ModelMiddleware] | None = None,
     ) -> LLMNodeBuilder[StringResponse]: ...
 
     @overload
@@ -101,12 +94,8 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
             list(deepcopy(middleware)) if middleware is not None else []
         )
 
-        model_invoker = ModelInvoker.create_with_llm_observe(
-            model, middleware=unwrapped_model_middleware
-        )
-
         casted_instance._invoke = llm_invoke_factory(
-            model_invoker=model_invoker,
+            model_source=model,
             system_message=system_message,
             tool_nodes=list(connected_nodes) if connected_nodes else None,
             schema=schema,
@@ -125,6 +114,7 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
             }
 
         casted_instance._user_middleware = unwrapped_middleware
+        casted_instance._user_model_middleware = unwrapped_model_middleware
 
         return casted_instance
 
