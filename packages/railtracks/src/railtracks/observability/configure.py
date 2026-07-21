@@ -38,6 +38,14 @@ async def ensure_started() -> Observer:
     return _observer
 
 
+async def shutdown() -> None:
+    """Drain per-writer queues and stop the singleton Observer's consumer tasks.
+
+    Idempotent — safe to call when the observer isn't running.
+    """
+    await _observer.shutdown()
+
+
 def reset_for_tests() -> None:
     """Clear singleton state. For test isolation only.
 

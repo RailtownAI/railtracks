@@ -2,7 +2,7 @@
 plus a process-wide default Observer.
 """
 
-from .configure import configure_writers
+from .configure import configure_writers, ensure_started, shutdown
 from .models import (
     SCOPE_EVALUATION,
     SCOPE_RETRIEVAL,
@@ -26,4 +26,6 @@ __all__ = [
     "SCOPE_EVALUATION",
     "configure_writers",
     "publish_event",
+    "ensure_started",
+    "shutdown",
 ]
