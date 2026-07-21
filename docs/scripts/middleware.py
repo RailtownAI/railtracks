@@ -117,7 +117,7 @@ OrderedAgent = rt.agent_node(
 
 
 # --8<-- [start: prebuilt_model_middleware_demo]
-from railtracks.guardrails.llm import PIIRedactInputGuard, PIIRedactOutputGuard
+from railtracks.prebuilt.guardrails import PIIRedactInputGuard, PIIRedactOutputGuard
 
 GuardedAgent = rt.agent_node(
     name="pii-redact-demo",
