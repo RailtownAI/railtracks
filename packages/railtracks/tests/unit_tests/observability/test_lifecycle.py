@@ -40,22 +40,22 @@ async def _drain_and_shutdown() -> None:
         await asyncio.gather(
             *list(publish._pending_tasks), return_exceptions=True
         )
-    if configure._started:
+    if configure._observer._running:
         await configure._observer.shutdown()
 
 
-async def test_concurrent_ensure_started_coalesces():
-    """Two _ensure_started calls at once must not both try to register the
-    same writer — Feature 1's Observer raises ValueError on duplicate names."""
+async def test_concurrentensure_started_coalesces():
+    """Two ensure_started calls at once must not both try to register the
+    same writer — Observer's start() coalesces via its internal lock."""
     writer = _CollectingWriter()
     configure_writers([writer])
 
-    # Kick off five _ensure_started calls concurrently.
-    results = await asyncio.gather(*[configure._ensure_started() for _ in range(5)])
+    # Kick off five ensure_started calls concurrently.
+    results = await asyncio.gather(*[configure.ensure_started() for _ in range(5)])
 
     # All returned the same singleton, only one actually did the registration.
     assert all(r is configure._observer for r in results)
-    assert configure._started is True
+    assert configure._observer._running is True
 
     # Registration succeeded — publishing works end-to-end.
     event = _make_session_event()
@@ -64,7 +64,7 @@ async def test_concurrent_ensure_started_coalesces():
     assert writer.events == [event]
 
 
-async def test_reset_for_tests_allows_fresh_start():
+async def testreset_for_tests_allows_fresh_start():
     # First run.
     writer1 = _CollectingWriter()
     configure_writers([writer1])
@@ -76,11 +76,11 @@ async def test_reset_for_tests_allows_fresh_start():
     first_observer = configure._observer
 
     # Reset — should swap in a fresh Observer.
-    configure._reset_for_tests()
-    publish._reset_for_tests()
+    configure.reset_for_tests()
+    publish.reset_for_tests()
     assert configure._observer is not first_observer
-    assert configure._started is False
-    assert configure._pending_writers == []
+    assert configure._observer._running is False
+    assert configure._observer._pending_writers == []
     assert publish._pending_tasks == set()
 
     # Fresh start with a different writer.

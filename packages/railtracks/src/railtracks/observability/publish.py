@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from .configure import _ensure_started
+from .configure import ensure_started
 from .models import Event
 
 logger = logging.getLogger(__name__)
@@ -36,12 +36,12 @@ def publish_event(event: Event) -> None:
 
 async def _publish(event: Event) -> None:
     try:
-        observer = await _ensure_started()
+        observer = await ensure_started()
         await observer.publish(event)
     except Exception:
         logger.warning("publish_event failed", exc_info=True)
 
 
-def _reset_for_tests() -> None:
+def reset_for_tests() -> None:
     """Clear the pending-tasks set. For test isolation only."""
     _pending_tasks.clear()

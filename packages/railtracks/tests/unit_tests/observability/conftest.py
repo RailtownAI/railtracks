@@ -12,8 +12,8 @@ def _reset_observability_state():
     leak between tests. No-op for Feature 1's tests that use their own
     Observer instances.
     """
-    configure._reset_for_tests()
-    publish._reset_for_tests()
+    configure.reset_for_tests()
+    publish.reset_for_tests()
     yield
-    configure._reset_for_tests()
-    publish._reset_for_tests()
+    configure.reset_for_tests()
+    publish.reset_for_tests()

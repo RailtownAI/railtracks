@@ -118,9 +118,54 @@ async def test_publish_after_shutdown_raises():
 
 
 async def test_register_when_not_running_raises():
+    """Public register still requires start() first. Pre-start batch
+    registration goes through configure_writers()."""
     obs = Observer()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="Observer is not running"):
         await obs.register(MemoryWriter(), "w")
+
+
+async def test_configure_writers_then_start_registers_pending():
+    """The Observer-level batch flow: configure_writers([...]) then start()
+    registers each with auto-name writer-{i}."""
+    a, b = MemoryWriter(), MemoryWriter()
+    obs = Observer()
+    obs.configure_writers([a, b])
+    try:
+        await obs.start()
+        # Both writers were started and consumer tasks are running.
+        assert a.started is True
+        assert b.started is True
+        assert set(obs._writers.keys()) == {"writer-0", "writer-1"}
+        await obs.publish(_event("e1"))
+    finally:
+        await obs.shutdown()
+    assert [e.scope_id for e in a.events] == ["e1"]
+    assert [e.scope_id for e in b.events] == ["e1"]
+
+
+async def test_configure_writers_after_start_raises():
+    obs = Observer()
+    await obs.start()
+    try:
+        with pytest.raises(RuntimeError, match="configure_writers must be called before"):
+            obs.configure_writers([MemoryWriter()])
+    finally:
+        await obs.shutdown()
+
+
+async def test_concurrent_start_coalesces():
+    """Two concurrent Observer.start() calls: only one runs the pending-writer
+    registration; the other coalesces on the lock. No duplicate-name errors."""
+    a, b = MemoryWriter(), MemoryWriter()
+    obs = Observer()
+    obs.configure_writers([a, b])
+    try:
+        await asyncio.gather(*[obs.start() for _ in range(5)])
+        assert obs._running is True
+        assert set(obs._writers.keys()) == {"writer-0", "writer-1"}
+    finally:
+        await obs.shutdown()
 
 
 async def test_register_duplicate_name_raises():

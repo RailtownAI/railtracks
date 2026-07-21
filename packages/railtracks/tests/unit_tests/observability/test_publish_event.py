@@ -51,7 +51,7 @@ async def _drain_and_shutdown() -> None:
         await asyncio.gather(
             *list(publish._pending_tasks), return_exceptions=True
         )
-    if configure._started:
+    if configure._observer._running:
         await configure._observer.shutdown()
 
 
@@ -85,10 +85,10 @@ async def test_publishes_to_configured_writer():
 async def test_no_writers_configured_is_a_silent_no_op():
     # No configure_writers() call at all.
     publish_event(_make_session_event())
+    # Point: this shouldn't blow up. The observer starts, has zero writers,
+    # fan-out is a no-op. Any exception in _publish_via_singleton would show
+    # up as an unawaited-task warning; the drain surfaces it.
     await _drain_and_shutdown()
-    # Nothing to assert on the writer side — the point is that this doesn't blow up.
-    # The observer started, has zero writers, fan-out is a no-op.
-    assert configure._started is True
 
 
 async def test_writer_that_raises_does_not_break_other_writers():
@@ -130,16 +130,23 @@ async def test_publish_event_returns_immediately():
     assert publish._pending_tasks == set()
 
 
-async def test_publish_after_shutdown_logs_and_does_not_raise(caplog):
-    """If the observer's already shut down, the fire-and-forget task's failure
-    is logged, not propagated."""
-    writer = _CollectingWriter()
-    configure_writers([writer])
+class _FailStartWriter:
+    """Writer whose start() raises. Used to force ensure_started to fail."""
 
-    # Start the observer then shut it down, so the NEXT publish's
-    # observer.publish() call raises RuntimeError (observer not running).
-    await configure._ensure_started()
-    await configure._observer.shutdown()
+    async def start(self) -> None:
+        raise RuntimeError("intentional startup failure")
+
+    async def write(self, event: Event) -> None:
+        pass
+
+    async def shutdown(self) -> None:
+        pass
+
+
+async def test_publish_event_logs_when_startup_fails(caplog):
+    """If ensure_started raises (e.g., a writer's start() blows up), the
+    fire-and-forget task's failure is logged, not propagated to the caller."""
+    configure_writers([_FailStartWriter()])
 
     with caplog.at_level(logging.WARNING, logger="railtracks.observability.publish"):
         publish_event(_make_session_event())
