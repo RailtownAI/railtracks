@@ -8,13 +8,8 @@ from __future__ import annotations
 
 import importlib
 import logging
-from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
-
-if TYPE_CHECKING:
-    import railtracks.interaction.interactive as interactive
-    from railtracks import retrieval
 
 __all__ = [
     "Session",
@@ -22,11 +17,11 @@ __all__ = [
     "call",
     "broadcast",
     "call_batch",
-    "interactive",
     "ExecutionInfo",
     "ExecutorConfig",
     "llm",
     "guardrails",
+    "middleware",
     "context",
     "set_config",
     "context",
@@ -53,6 +48,8 @@ __all__ = [
     "before_llm",
     "after_llm",
     "wrap_llm",
+    "input_guard",
+    "output_guard",
 ]
 
 
@@ -68,13 +65,16 @@ from . import (
     integrations,
     llm,
     observability,
+    middleware,
     prebuilt,
     vector_stores,
     rag,
+    retrieval,
 )
 from ._session import ExecutionInfo, Session, session
 from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
+from .guardrails import input_guard, output_guard
 from .interaction import broadcast, call, call_batch, couple
 from .middleware import after_node, wrap_node
 from .nodes.manifest import ToolManifest

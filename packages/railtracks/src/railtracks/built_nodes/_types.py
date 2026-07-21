@@ -1,4 +1,4 @@
-from typing import Awaitable, Callable, Literal
+from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
@@ -10,4 +10,4 @@ from railtracks.llm.tools.tool import Tool
 LLM_CALL = Callable[
     [MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]
 ]
-ModelSource = ModelBase[Literal[False]] | Callable[[], ModelBase[Literal[False]]]
+ModelSource = ModelBase | Callable[[], ModelBase]

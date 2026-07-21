@@ -103,26 +103,9 @@ async def test_terminal_input_allow_calls_llm(mock_llm, allow_input):
     assert "ok" in out.text
 
 
-@pytest.mark.parametrize(
-    "stream",
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.xfail(
-                reason=(
-                    "Pre-existing, guardrail-unrelated bug: model_invoker._llm_observe "
-                    "always does `response.message`, but ModelBase.chat() returns a raw "
-                    "generator when stream=True. Reproduces with zero guardrails involved."
-                ),
-                strict=True,
-            ),
-        ),
-    ],
-)
 @pytest.mark.asyncio
-async def test_streaming_terminal_guardrails(mock_llm, allow_input, stream):
-    llm = mock_llm(custom_response="streamed", stream=stream)
+async def test_terminal_guardrails_allow(mock_llm, allow_input):
+    llm = mock_llm(custom_response="streamed")
     counts = _counting_chat(llm)
     Agent = rt.agent_node(
         name="stream-term",
@@ -134,31 +117,8 @@ async def test_streaming_terminal_guardrails(mock_llm, allow_input, stream):
         result = await rt.call(Agent, user_input="hi")
 
     assert counts["n"] == 1
-    if stream:
-        collected: StringResponse | None = None
-        for chunk in result:
-            if isinstance(chunk, StringResponse):
-                collected = chunk
-        assert collected is not None
-        assert "streamed" in collected.text
-    else:
-        assert isinstance(result, StringResponse)
-        assert "streamed" in result.text
-
-
-@pytest.mark.asyncio
-async def test_streaming_terminal_input_block_skips_llm(mock_llm, block_input):
-    llm = mock_llm(stream=True)
-    counts = _counting_chat(llm)
-    Agent = rt.agent_node(
-        name="block-stream",
-        llm=llm,
-        model_middleware=[block_input],
-    )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="x")
-    assert counts["n"] == 0
+    assert isinstance(result, StringResponse)
+    assert "streamed" in result.text
 
 
 class _Answer(BaseModel):
@@ -199,26 +159,9 @@ async def test_structured_output_block_after_llm(mock_llm, allow_input):
             await rt.call(Agent, user_input="q")
 
 
-@pytest.mark.parametrize(
-    "stream",
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.xfail(
-                reason=(
-                    "Pre-existing, guardrail-unrelated bug: model_invoker._llm_observe "
-                    "always does `response.message`, but ModelBase.chat() returns a raw "
-                    "generator when stream=True. Reproduces with zero guardrails involved."
-                ),
-                strict=True,
-            ),
-        ),
-    ],
-)
 @pytest.mark.asyncio
-async def test_structured_streaming_guardrails(mock_llm, allow_input, stream):
-    llm = mock_llm(custom_response='{"text":"s"}', stream=stream)
+async def test_structured_guardrails_allow(mock_llm, allow_input):
+    llm = mock_llm(custom_response='{"text":"s"}')
     counts = _counting_structured(llm)
     Agent = rt.agent_node(
         name="struct-stream",
@@ -231,18 +174,8 @@ async def test_structured_streaming_guardrails(mock_llm, allow_input, stream):
         result = await rt.call(Agent, user_input="hi")
 
     assert counts["n"] == 1
-    if stream:
-        final: StructuredResponse[_Answer] | None = None
-        for chunk in result:
-            if isinstance(chunk, StructuredResponse):
-                final = chunk
-        assert final is not None
-        assert final.structured.text == "s"
-    else:
-        assert isinstance(result, StructuredResponse)
-        assert result.structured.text == "s"
-
-
+    assert isinstance(result, StructuredResponse)
+    assert result.structured.text == "s"
 
 
 @pytest.mark.asyncio
@@ -386,30 +319,6 @@ async def test_tool_call_output_guard_fires_only_on_final_reply(mock_llm, allow_
         await rt.call(Agent, user_input="weather?")
 
     assert fire_count["n"] == 1
-
-
-# ============================================================
-# StreamingToolCallLLM guardrail tests
-# ============================================================
-
-
-@pytest.mark.asyncio
-async def test_streaming_tool_call_input_block(mock_llm, block_input):
-    def tool_fn() -> str:
-        return "result"
-
-    llm = mock_llm(stream=True)
-    counts = _counting_chat_with_tools(llm)
-    Agent = rt.agent_node(
-        name="block-stream-tool",
-        tool_nodes={rt.function_node(tool_fn)},
-        llm=llm,
-        model_middleware=[block_input],
-    )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="hello")
-    assert counts["n"] == 0
 
 
 # ============================================================

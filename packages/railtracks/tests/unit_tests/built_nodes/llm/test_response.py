@@ -1,6 +1,10 @@
-import pytest
 from pydantic import BaseModel
-from railtracks.built_nodes.llm.response import LLMResponse, StructuredResponse, StringResponse
+from railtracks.built_nodes.llm.response import (
+    LLMResponse,
+    StringResponse,
+    StructuredResponse,
+)
+
 
 class DummyContent:
     def __repr__(self):

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Iterable
 
-from railtracks.built_nodes.concrete.function_base import RTFunction
+from railtracks.built_nodes.function.base import RTFunction
 
 
 class ToolSet(ABC):

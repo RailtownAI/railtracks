@@ -5,9 +5,9 @@ import re
 import pytest
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.llm import BlockTextInputGuard
 from railtracks.llm import MessageHistory
 from railtracks.llm.message import AssistantMessage, SystemMessage, UserMessage
+from railtracks.prebuilt.guardrails import BlockTextInputGuard
 
 
 def _make_input_event(messages: MessageHistory) -> LLMGuardrailEvent:
