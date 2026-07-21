@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import functools
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
+    Concatenate,
     Coroutine,
     Generic,
     Literal,
@@ -17,6 +19,9 @@ from railtracks.llm import (
 )
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
+
+if TYPE_CHECKING:
+    from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 
 
 def classmethod_preserving_function_meta(func):
@@ -70,7 +75,9 @@ class NodeBuilder(Generic[_P, _T]):
     def __init__(self) -> None:
         self._class_name: str | None = None
 
-        self._invoke: Callable[_P, Coroutine[Any, Any, _T]] | None = None
+        self._invoke: (
+            Callable[Concatenate[Node, _P], Coroutine[Any, Any, _T]] | None
+        ) = None
         self._node_class: Literal["Tool", "Agent"] | None = None
         self._node_name: str | None = None
 
@@ -78,11 +85,14 @@ class NodeBuilder(Generic[_P, _T]):
         self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
 
         self._user_middleware: list[Middleware[_P, _T]] = []
+        self._exterior_middleware: list[Middleware[_P, _T]] = []
+        self._interior_middleware: list[Middleware[_P, _T]] = []
+        self._user_model_middleware: list[ModelMiddleware] = []
 
     def construct_required(self) -> dict[str, Any]:
         async def invoke(_self, *args, **kwargs) -> _T:
             method = unpack(self._invoke)
-            return await method(*args, **kwargs)
+            return await method(_self, *args, **kwargs)
 
         return {
             "invoke": invoke,
@@ -99,6 +109,9 @@ class NodeBuilder(Generic[_P, _T]):
             "tool_info": self._construct_tool_info(),
             "prepare_args": self._construct_prepared_arguments(),
             "_user_middleware": self._user_middleware,
+            "_exterior_middleware": self._exterior_middleware,
+            "_interior_middleware": self._interior_middleware,
+            "_user_model_middleware": self._user_model_middleware,
         }
 
     def _construct_prepared_arguments(self):

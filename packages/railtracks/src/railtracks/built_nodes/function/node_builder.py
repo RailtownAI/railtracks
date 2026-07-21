@@ -44,7 +44,10 @@ class FunctionNodeBuilder(NodeBuilder):
 
         casted_instance._class_name = class_name or f"{function.__name__.capitalize()}"
 
-        casted_instance._invoke = function
+        async def wrapped_function(self, *args, **kwargs) -> _T2:
+            return await function(*args, **kwargs)
+
+        casted_instance._invoke = wrapped_function
         casted_instance._node_class = "Tool"
         casted_instance._node_name = name or function.__name__
 
