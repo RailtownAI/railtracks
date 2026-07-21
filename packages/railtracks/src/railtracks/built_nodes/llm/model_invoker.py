@@ -50,7 +50,7 @@ class ModelInvoker:
     round-trip (i.e. inside the tool-calling loop). The core callable takes
     ``(messages, schema, tools)`` and returns a :class:`Response`. Middleware wraps
     symmetrically (an earlier list entry is outer: it runs first going in and last
-    coming out), so a ``@before_model``/``@wrap_model`` layer earlier in the list
+    coming out), so a ``@before_llm``/``@wrap_llm`` layer earlier in the list
     sees/transforms the request before one placed later, and sees the final
     ``Response`` after it on the way back out.
 
