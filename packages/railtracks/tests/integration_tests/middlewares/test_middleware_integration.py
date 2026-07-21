@@ -1,8 +1,10 @@
 import asyncio
 from unittest.mock import patch
 
+import litellm
 import pytest
 import railtracks as rt
+from jsonschema import validate
 from pydantic import BaseModel, Field
 from railtracks.exceptions.errors import LLMError
 from railtracks.guardrails.core import (
@@ -13,12 +15,7 @@ from railtracks.guardrails.core import (
 )
 from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
-
-import litellm
-from jsonschema import validate
 from railtracks.llm.retries.fixed import FixedRetry
-
-
 
 # ---------------------------------------------------------------------------
 # TestFunctionNodeMiddleware
@@ -486,7 +483,7 @@ class TestContextInjection:
             name="TemplateAgent",
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
-            model_middleware=[capture_system],
+            model_middleware=[rt.prebuilt.middleware.ContextInjection(), capture_system],
         )
 
         await rt.Flow("TemplateAgent", agent, context={"username": "Alice"}).ainvoke(
@@ -495,7 +492,8 @@ class TestContextInjection:
 
         assert any("Alice" in c for c in injected_system_content)
 
-    async def test_context_injection_disabled_when_flag_is_false(self, mock_llm):
+    async def test_context_injection_absent_without_middleware(self, mock_llm):
+        """Injection is opt-in: no ContextInjection entry, no substitution."""
         injected_system_content = []
 
         @rt.wrap_node
@@ -510,7 +508,6 @@ class TestContextInjection:
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
             model_middleware=[capture_system],
-            context_injection=False,
         )
 
         await rt.Flow("NoInjectionAgent", agent, context={"username": "Alice"}).ainvoke(

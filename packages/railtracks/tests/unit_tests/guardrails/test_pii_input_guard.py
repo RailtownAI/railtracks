@@ -5,17 +5,17 @@ from __future__ import annotations
 import pytest
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.llm import (
-    PIICustomPattern,
-    PIIEntity,
-    PIIRedactConfig,
-    PIIRedactInputGuard,
-)
 from railtracks.llm import MessageHistory
 from railtracks.llm.message import (
     AssistantMessage,
     SystemMessage,
     UserMessage,
+)
+from railtracks.prebuilt.guardrails import (
+    PIICustomPattern,
+    PIIEntity,
+    PIIRedactConfig,
+    PIIRedactInputGuard,
 )
 
 

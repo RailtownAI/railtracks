@@ -28,7 +28,7 @@ class PIIRedactInputGuard(InputGuard):
 
         Args:
             config: Redaction settings; defaults to all built-in entity kinds and no
-                custom patterns (see :class:`~railtracks.guardrails.llm.PIIRedactConfig`).
+                custom patterns (see :class:`~railtracks.prebuilt.guardrails.PIIRedactConfig`).
             name: Optional rail name for traces (see :class:`InputGuard`).
             fail_open: Whether to allow the request to continue when this guard raises an unexpected exception.
         """

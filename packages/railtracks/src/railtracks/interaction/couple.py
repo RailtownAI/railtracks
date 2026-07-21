@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, ParamSpec, TypeVar, overload
-import warnings
 
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 
@@ -18,19 +17,31 @@ if TYPE_CHECKING:
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
-@overload
-def couple(
-    node: type[Node[_P, _R]], *, middleware: Iterable[Middleware[_P, _R]], model_middleware: Iterable[ModelMiddleware]
-) -> type[Node[_P, _R]]: ...
 
 @overload
 def couple(
-    node: type[Node[_P, _R]], *, middleware: Iterable[Middleware[_P, _R]] | None = None, model_middleware: Iterable[ModelMiddleware]
+    node: type[Node[_P, _R]],
+    *,
+    middleware: Iterable[Middleware[_P, _R]],
+    model_middleware: Iterable[ModelMiddleware],
 ) -> type[Node[_P, _R]]: ...
+
 
 @overload
 def couple(
-    node: type[Node[_P, _R]], *, middleware: Iterable[Middleware[_P, _R]], model_middleware: Iterable[ModelMiddleware] | None = None
+    node: type[Node[_P, _R]],
+    *,
+    middleware: Iterable[Middleware[_P, _R]] | None = None,
+    model_middleware: Iterable[ModelMiddleware],
+) -> type[Node[_P, _R]]: ...
+
+
+@overload
+def couple(
+    node: type[Node[_P, _R]],
+    *,
+    middleware: Iterable[Middleware[_P, _R]],
+    model_middleware: Iterable[ModelMiddleware] | None = None,
 ) -> type[Node[_P, _R]]: ...
 
 
@@ -47,7 +58,10 @@ def couple(
 
 
 def couple(
-    node: type[Node[_P, _R]] | RTFunction[_P, _R], *, middleware: Iterable[Middleware[_P, _R]] | None = None, model_middleware: Iterable[ModelMiddleware] | None = None
+    node: type[Node[_P, _R]] | RTFunction[_P, _R],
+    *,
+    middleware: Iterable[Middleware[_P, _R]] | None = None,
+    model_middleware: Iterable[ModelMiddleware] | None = None,
 ) -> type[Node[_P, _R]] | RTFunction[_P, _R]:
     """
     Attaches middleware to a Node or RTFunction. Returns a new deepcopied Node or RTFunction; the one passed in is never modified.
@@ -66,22 +80,19 @@ def couple(
 
     if middleware is None and model_middleware is None:
         return node
-    
+
     if isinstance(node, RTFunction):
         if model_middleware is not None:
-            raise ValueError(
-                "Your function node does not have a model to wrap"
-            )
+            raise ValueError("Your function node does not have a model to wrap")
         if middleware:
             new_node_type = node.node_type.extend_middleware(*middleware)
         else:
             return node
-         
-        
+
         return node.with_node_type(new_node_type)
-    
+
     new_klass = node
-    
+
     if middleware:
         new_klass = new_klass.extend_middleware(*middleware)
     if model_middleware:

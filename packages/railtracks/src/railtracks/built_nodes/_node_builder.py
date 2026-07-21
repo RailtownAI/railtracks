@@ -75,7 +75,9 @@ class NodeBuilder(Generic[_P, _T]):
     def __init__(self) -> None:
         self._class_name: str | None = None
 
-        self._invoke: Callable[Concatenate[Node, _P], Coroutine[Any, Any, _T]] | None = None
+        self._invoke: (
+            Callable[Concatenate[Node, _P], Coroutine[Any, Any, _T]] | None
+        ) = None
         self._node_class: Literal["Tool", "Agent"] | None = None
         self._node_name: str | None = None
 

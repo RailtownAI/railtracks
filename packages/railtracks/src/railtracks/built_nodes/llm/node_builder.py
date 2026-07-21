@@ -12,7 +12,6 @@ from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
-from railtracks.prompts.prompt import context_injection_middleware
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
     _check_tool_params_and_details,
@@ -43,11 +42,7 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], StringResponse]] | None = None,
-        model_middleware: Iterable[
-            ModelMiddleware
-        ]
-        | None = None,
-        context_injection: bool = True,
+        model_middleware: Iterable[ModelMiddleware] | None = None,
     ) -> LLMNodeBuilder[StringResponse]: ...
 
     @overload
@@ -66,7 +61,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         middleware: Iterable[Middleware[[UserInput], StructuredResponse[_TStructured]]]
         | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        context_injection: bool = True,
     ) -> LLMNodeBuilder[StructuredResponse[_TStructured]]: ...
 
     @classmethod
@@ -86,7 +80,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         ]
         | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-        context_injection: bool = True,
     ) -> LLMNodeBuilder[StructuredResponse[_TStructured] | StringResponse]:
         instance = cls()
         casted_instance = cast(LLMNodeBuilder, instance)
@@ -100,9 +93,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         unwrapped_middleware = (
             list(deepcopy(middleware)) if middleware is not None else []
         )
-
-        if context_injection:
-            unwrapped_model_middleware.insert(0, context_injection_middleware)
 
         casted_instance._invoke = llm_invoke_factory(
             model_source=model,

@@ -1,11 +1,12 @@
+
 import pytest
-from unittest.mock import patch, MagicMock
 from railtracks.built_nodes.function.node import (
-    function_node,
-    _function_preserving_metadata,
-    CallableSyncRTFunction,
     CallableAsyncRTFunction,
+    CallableSyncRTFunction,
+    _function_preserving_metadata,
+    function_node,
 )
+
 
 @pytest.mark.asyncio
 async def async_func(x):

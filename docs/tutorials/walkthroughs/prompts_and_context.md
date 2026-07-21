@@ -1,43 +1,47 @@
-### Basic Example
+### Enabling Context Injection
+
+Context injection is **opt-in per agent**: add `rt.middleware.ContextInjection()` to an agent's `model_middleware` to turn on placeholder substitution. Agents without this middleware leave `{placeholders}` untouched.
 
 ```python
 --8<-- "docs/scripts/prompts.py:prompt_basic"
 ```
 
-In this example, the system message will be expanded to: "You are a technical assistant specialized in Python programming."
+Because the agent includes `ContextInjection`, its system message is expanded at call time to: "You are a technical assistant specialized in Python programming." Drop the middleware and the model would receive the literal `{role}` / `{domain}` text instead.
 
-### Enabling and Disabling Context Injection
+### Disabling Context Injection
 
-Context injection is enabled by default but can be disabled at four levels, from broadest to narrowest scope:
+Once an agent opts in, injection can still be suppressed at several levels, from broadest to narrowest scope:
 
 | Scope | How | Applies to |
 | --- | --- | --- |
 | **Global** | `rt.set_config(prompt_injection=False)` | Every flow/run, unless a flow overrides it |
 | **Flow** | `prompt_injection=False` on `rt.Flow(...)` | Every run of that flow |
-| **Agent / node** | `context_injection=False` on `rt.agent_node(...)` | Every instantiation of that node |
+| **Agent / node** | omit `rt.middleware.ContextInjection()` from `model_middleware` on `rt.agent_node(...)` | Every instantiation of that node |
 | **Message** | `inject_prompt=False` on a `SystemMessage` / `UserMessage` | That single message |
 
 #### Precedence
 
-The levels combine as independent gates: a placeholder is filled **only when injection is enabled at every applicable level**. In other words, the most restrictive setting wins — disabling injection at any level turns it off within that level's scope, and a narrower scope cannot re-enable injection that a broader scope has turned off.
+The agent-level middleware is the master switch: with no `ContextInjection` entry, nothing is injected regardless of the other settings. When it *is* present, the remaining levels act as independent gates — a placeholder is filled **only when injection is enabled at every applicable level**. The most restrictive setting wins, and a narrower scope cannot re-enable injection that a broader scope has turned off.
 
 The one exception is the run-wide flag itself: a **Flow's `prompt_injection` overrides the global `rt.set_config` value**. If the flow does not set it, the global value applies; if neither is set, the default (`True`) is used.
 
+#### Agent / node level
+
+Only agents whose `model_middleware` contains `rt.middleware.ContextInjection()` substitute placeholders. An agent whose prompt legitimately contains `{}` braces that should be left untouched simply omits the middleware:
+
+```python
+--8<-- "docs/scripts/prompts.py:disable_injection_node_level"
+```
+
 #### Global and Flow level
+
+For an agent that *does* use `ContextInjection`, you can still switch injection off for a whole run or globally:
 
 ```python
 --8<-- "docs/scripts/prompts.py:disable_injection"
 ```
 
 This may be useful when formatting prompts that should not change based on the context.
-
-#### Agent / node level
-
-If you only want to disable injection for a particular agent — for example one whose prompt legitimately contains `{}` braces that should be left untouched — pass `context_injection=False` when creating it. This takes effect for that agent even when injection is enabled globally or at the flow level:
-
-```python
---8<-- "docs/scripts/prompts.py:disable_injection_node_level"
-```
 
 !!! note "Message-Level Control"
 
@@ -65,7 +69,7 @@ If you need to include literal curly braces in your prompt without triggering co
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: Check that `prompt_injection` is not disabled globally (`rt.set_config`) or on the flow, that the agent was not created with `context_injection=False`, and that the message was not created with `inject_prompt=False`
+2. **Verify prompt injection is enabled**: Check that `prompt_injection` is not disabled globally (`rt.set_config`) or on the flow, that the agent's `model_middleware` includes `rt.middleware.ContextInjection()`, and that the message was not created with `inject_prompt=False`
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 

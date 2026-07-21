@@ -23,7 +23,7 @@ Every builder method returns a builder; call `.build()` to get the node class.
 
 Key parameters: `model` (a `ModelBase` **or** a no-arg factory returning one),
 `system_message`, `schema`, `connected_nodes`, `tool_details` / `tool_params`,
-`middleware`, `model_middleware`, and `context_injection`.
+`middleware`, and `model_middleware`.
 
 ### Structured output
 
@@ -90,8 +90,9 @@ fresh on every model call, so the node can pick its model at invocation time:
 
 ## Context injection
 
-Context injection (filling `{placeholder}` templates from `rt.context`) is on by default
-for all LLM nodes. Disable it per-node with `context_injection=False`:
+Context injection (filling `{placeholder}` templates from `rt.context`) is opt-in per
+node: add `rt.middleware.ContextInjection()` to `model_middleware`. Nodes without that
+entry leave `{placeholders}` untouched:
 
 ```python
 --8<-- "docs/scripts/node_builder.py:context_injection"

@@ -86,9 +86,12 @@ def llm_invoke_factory(
     tools = [x.tool_info() for x in tool_nodes] if tool_nodes else None
 
     async def llm_invoke(
-        self: Node, user_input: MessageHistory | UserMessage | str | list[Message],
+        self: Node,
+        user_input: MessageHistory | UserMessage | str | list[Message],
     ):
-        model_invoker = ModelInvoker.create_with_llm_observe(model_source, self._user_model_middleware)
+        model_invoker = ModelInvoker.create_with_llm_observe(
+            model_source, self._user_model_middleware
+        )
         message_history = prepare_message_history(system_message, user_input)
 
         while True:
