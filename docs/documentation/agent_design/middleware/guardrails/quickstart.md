@@ -2,7 +2,7 @@
 
 Guardrails are the policy layer around an LLM call in Railtracks. They let you inspect what goes into the model and what comes out, and they can allow, transform, or block the interaction based on your own rules.
 
-In practice, you attach guardrails with `agent_node(..., guardrails=Guard(...))`, then provide one or more rails for the phases you want to control. This quickstart focuses on a small input guard with a real LLM so you can see both outcomes clearly: one request passes through to the model, and one is blocked before inference.
+In practice, you attach guardrails with `agent_node(...,  model_middleware=[...])`, then provide one or more rails for the phases you want to control. This quickstart focuses on a small input guard with a real LLM so you can see both outcomes clearly: one request passes through to the model, and one is blocked before inference.
 
 ## Minimal setup
 
@@ -17,7 +17,7 @@ In practice, you attach guardrails with `agent_node(..., guardrails=Guard(...))`
     GEMINI_API_KEY="..."
     ```
 
-    Railtracks supports multiple providers. See [Supported Providers](../../../integrations/llms/providers.md).
+    Railtracks supports multiple providers. See [Supported Providers](../../../../integrations/llms/providers.md).
 
 ## Passing request
 
