@@ -16,7 +16,6 @@ __all__ = [
     "session",
     "call",
     "astream",
-    "Stream",
     "broadcast",
     "call_batch",
     "ExecutionInfo",
@@ -73,7 +72,7 @@ from ._session import ExecutionInfo, Session, session
 from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
 from .guardrails import input_guard, output_guard
-from .interaction import Stream, astream, broadcast, call, call_batch, couple
+from .interaction import astream, broadcast, call, call_batch, couple
 from .middleware import after_node, wrap_node
 from .nodes.manifest import ToolManifest
 from .orchestration.flow import Flow

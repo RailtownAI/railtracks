@@ -13,9 +13,8 @@ async def broadcast(item: str):
     """
     Broadcasts a one-off **event** to the session bus.
 
-    This triggers the `broadcast_callback` you have already provided. Events ride a lane
-    separate from stream chunks (`rt.broadcast_stream` / LLM token streaming): a
-    `broadcast_callback` receives events only and is never flooded with tokens.
+    This triggers the `broadcast_callback` you have already provided. Events are 
+    separate from stream callbacks.
 
     Args:
         item (str): The item you want to broadcast.
