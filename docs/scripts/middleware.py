@@ -83,7 +83,11 @@ CreationTimeAgent = rt.agent_node(
 BaseAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"))
 
 # extend_middleware returns a NEW Node subclass; BaseAgent itself is untouched.
+<<<<<<< HEAD
+ExtendedAgent = rt.couple(BaseAgent, middleware=[retry, log_result])
+=======
 ExtendedAgent = BaseAgent.extend_middleware(retry, log_result)
+>>>>>>> 18f1ee8cf4ac005b5adb2071cfc2b9b0c8f97d28
 # --8<-- [end: attach_after_creation]
 
 
