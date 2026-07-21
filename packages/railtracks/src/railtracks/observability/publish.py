@@ -37,7 +37,7 @@ def publish_event(event: Event) -> None:
 async def _publish(event: Event) -> None:
     try:
         observer = await ensure_started()
-        await observer.publish(event)
+        observer.publish(event)
     except Exception:
         logger.warning("publish_event failed", exc_info=True)
 

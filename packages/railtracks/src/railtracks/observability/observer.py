@@ -134,7 +134,12 @@ class Observer:
             raise KeyError(f"No writer registered as {name!r}.")
         await self._teardown(name)
 
-    async def publish(self, event: Event) -> None:
+    def publish(self, event: Event) -> None:
+        """Fan the event out to every registered writer's queue.
+
+        Args:
+            event: The event to publish.
+        """
         if not self._running:
             raise RuntimeError("Observer is not running.")
         for name, entry in self._writers.items():
