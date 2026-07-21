@@ -7,15 +7,17 @@ that maps an event to a :class:`GuardrailDecision` and get back a ready-to-use
 Example::
 
     @rt.input_guard
-    def block_secrets(event: rt.guardrails.LLMGuardrailEvent) -> rt.guardrails.GuardrailDecision:
+    def block_secrets(
+        event: rt.guardrails.LLMGuardrailEvent,
+    ) -> rt.guardrails.GuardrailDecision:
         for msg in event.messages:
             if isinstance(msg.content, str) and "SECRET" in msg.content:
                 return rt.guardrails.GuardrailDecision.block(reason="secret leaked")
         return rt.guardrails.GuardrailDecision.allow()
 
+
     @rt.output_guard(fail_open=True)
-    def no_profanity(event) -> rt.guardrails.GuardrailDecision:
-        ...
+    def no_profanity(event) -> rt.guardrails.GuardrailDecision: ...
 
 The decorated guard is callable both with an :class:`LLMGuardrailEvent` (how the
 guard's middleware invokes it) and with a raw ``str`` / :class:`~railtracks.llm.message.Message`
@@ -91,6 +93,7 @@ def input_guard(
         @rt.input_guard
         def guard(event): ...
 
+
         @rt.input_guard(name="my_rail", fail_open=True)
         def guard(event): ...
 
@@ -135,6 +138,7 @@ def output_guard(
 
         @rt.output_guard
         def guard(event): ...
+
 
         @rt.output_guard(name="my_rail", fail_open=True)
         def guard(event): ...
