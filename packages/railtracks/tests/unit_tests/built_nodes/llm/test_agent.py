@@ -1,7 +1,6 @@
-from unittest import mock
-import pytest
-from railtracks.built_nodes.llm.node import agent_node
 from railtracks import function_node
+from railtracks.built_nodes.llm.node import agent_node
+
 
 def test_agent_node_empty_tool_nodes_with_output_schema(mock_tool_node, mock_schema, mock_llm):
     AgentClass = agent_node(tool_nodes=[mock_tool_node], output_schema=mock_schema, llm=mock_llm)

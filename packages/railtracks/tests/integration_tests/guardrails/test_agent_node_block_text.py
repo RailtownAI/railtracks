@@ -6,7 +6,7 @@ import pytest
 import railtracks as rt
 from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.guardrails import GuardrailBlockedError
-from railtracks.guardrails.llm import BlockTextInputGuard, BlockTextOutputGuard
+from railtracks.prebuilt.guardrails import BlockTextInputGuard, BlockTextOutputGuard
 
 
 @pytest.mark.asyncio

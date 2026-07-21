@@ -11,8 +11,8 @@ with each middleware in ``reversed()`` order, so **index 0 is the outermost laye
 """
 
 import pytest
-
-from railtracks.middleware import Middleware, MiddlewareChain, wrap_node
+from railtracks.middleware import Middleware, wrap_node
+from railtracks.middleware.chain import MiddlewareChain
 
 
 class TestMiddleware:

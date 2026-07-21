@@ -10,6 +10,7 @@ from .core import (
     OutputGuard,
 )
 
+# Primitives only.
 __all__ = [
     "GuardrailAction",
     "GuardrailBlockedError",

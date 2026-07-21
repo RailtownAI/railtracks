@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import MagicMock
-from railtracks import function_node
-from railtracks import ToolManifest
-from railtracks.llm import Parameter
+
+import pytest
 from pydantic import BaseModel
+from railtracks import ToolManifest, function_node
+from railtracks.llm import Parameter
+
 
 @pytest.fixture
 def mock_llm():

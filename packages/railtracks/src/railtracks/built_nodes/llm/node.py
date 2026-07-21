@@ -47,7 +47,6 @@ def _build_dynamic_agent(
     tool_params: list[Parameter] | None,
     middleware: list[Middleware[[UserInput], _R]] | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    context_injection: bool = True,
 ):
     resolved_system = (
         SystemMessage(content=system_message)
@@ -65,7 +64,6 @@ def _build_dynamic_agent(
             tool_params=tool_params,
             middleware=middleware,
             model_middleware=model_middleware,
-            context_injection=context_injection,
         )
     else:
         nb = LLMNodeBuilder.llm(
@@ -78,7 +76,6 @@ def _build_dynamic_agent(
             tool_params=tool_params,
             middleware=middleware,
             model_middleware=model_middleware,
-            context_injection=context_injection,
         )
 
     return nb.build()
@@ -98,7 +95,6 @@ def agent_node(
     manifest: ToolManifest | None = None,
     middleware: list[Middleware[[UserInput], StringResponse]] | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    context_injection: bool = True,
 ) -> type[Node[[UserInput], StringResponse]]: ...
 
 
@@ -114,7 +110,6 @@ def agent_node(
     middleware: list[Middleware[[UserInput], StructuredResponse[_TBaseModel]]]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    context_injection: bool = True,
 ) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
 
 
@@ -131,7 +126,6 @@ def agent_node(
     ]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    context_injection: bool = True,
 ):
     """
     Dynamically creates an agent based on the provided parameters.
@@ -148,14 +142,7 @@ def agent_node(
         middleware (list[Middleware] | None): Middleware applied around the agent's node boundary
             (user_input -> Response).
         model_middleware (list[Middleware] | None): Middleware applied around each raw model call
-            (messages/schema/tools -> Response), inside the tool-calling loop. LLM guardrails
-            (e.g. `InputGuard`/`OutputGuard` subclasses) are plain entries in this list — there is
-            no separate guardrails slot, so list order is exactly execution order and is fully
-            caller-controlled.
-        context_injection (bool): Whether to inject rt.context variables into prompt templates for this node.
-            Defaults to True. Set to False to disable context injection for this specific agent regardless
-            of the session-level prompt_injection setting. Can also be controlled at the session level via
-            rt.Session(prompt_injection=False) or per-message via message.inject_prompt = False.
+            (messages/schema/tools -> Response), inside the tool-calling loop.
     """
     unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
@@ -177,7 +164,6 @@ def agent_node(
         tool_params=tool_params,
         middleware=middleware,
         model_middleware=model_middleware,
-        context_injection=context_injection,
     )
 
     return agent

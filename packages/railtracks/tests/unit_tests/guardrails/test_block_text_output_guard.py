@@ -7,9 +7,9 @@ import re
 import pytest
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.llm import BlockTextOutputGuard
 from railtracks.llm import MessageHistory
 from railtracks.llm.message import AssistantMessage, UserMessage
+from railtracks.prebuilt.guardrails import BlockTextOutputGuard
 
 
 def _make_output_event(output_content: str) -> LLMGuardrailEvent:
