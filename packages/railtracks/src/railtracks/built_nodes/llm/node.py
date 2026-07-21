@@ -95,11 +95,7 @@ def agent_node(
     manifest: ToolManifest | None = None,
     middleware: list[Middleware[[UserInput], StringResponse]] | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    # `...` (not `[UserInput]`) so the canonical keyword style — rt.call / rt.astream(
-    # agent, user_input=...) — type-checks alongside the positional style; the node
-    # accepts its input either way at runtime.
-) -> type[Node[..., StringResponse]]: ...
-
+) -> type[Node[[UserInput], StringResponse]]: ...
 
 @overload
 def agent_node(
@@ -113,10 +109,7 @@ def agent_node(
     middleware: list[Middleware[[UserInput], StructuredResponse[_TBaseModel]]]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-    # `...` (not `[UserInput]`) so the canonical keyword style — rt.call / rt.astream(
-    # agent, user_input=...) — type-checks alongside the positional style; the node
-    # accepts its input either way at runtime.
-) -> type[Node[..., StructuredResponse[_TBaseModel]]]: ...
+) -> type[Node[[UserInput], StructuredResponse[_TBaseModel]]]: ...
 
 
 def agent_node(
@@ -132,7 +125,7 @@ def agent_node(
     ]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-):
+):# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:
     """
     Dynamically creates an agent based on the provided parameters.
 
