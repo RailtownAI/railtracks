@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import logging
 from typing import Any
+
+import pytest
 
 from railtracks.observability import (
     SCOPE_SESSION,
@@ -53,13 +54,12 @@ def _make_session_event(event_type: str = "test.event", payload: dict[str, Any] 
     )
 
 
-def test_publish_before_start_warns_and_drops(caplog):
-    """publish_event without a prior ensure_started() logs a WARNING and
-    drops the event (no crash)."""
+def test_publish_before_start_raises():
+    """publish_event without a prior ensure_started() propagates the
+    Observer's RuntimeError. Callers get a loud failure, not a silent drop."""
     configure_writers([_CollectingWriter()])
-    with caplog.at_level(logging.WARNING, logger="railtracks.observability.publish"):
+    with pytest.raises(RuntimeError, match="Observer is not running"):
         publish_event(_make_session_event())
-    assert "observer not started" in caplog.text
 
 
 async def test_publishes_to_configured_writer():
@@ -110,18 +110,17 @@ async def test_multiple_events_delivered_in_order():
     assert [e.event_type for e in writer.events] == [e.event_type for e in events]
 
 
-async def test_publish_after_shutdown_warns_and_drops(caplog):
-    """After shutdown, publish_event drops with a WARNING rather than
-    crashing (or restarting the observer)."""
+async def test_publish_after_shutdown_raises():
+    """After shutdown, publish_event propagates RuntimeError. Same loud
+    failure as publish-before-start."""
     writer = _CollectingWriter()
     configure_writers([writer])
     await ensure_started()
     publish_event(_make_session_event("first"))
     await shutdown()
 
-    with caplog.at_level(logging.WARNING, logger="railtracks.observability.publish"):
+    with pytest.raises(RuntimeError, match="Observer is not running"):
         publish_event(_make_session_event("second"))
-    assert "observer not started" in caplog.text
     # Only the pre-shutdown event landed.
     assert [e.event_type for e in writer.events] == ["first"]
 
@@ -131,6 +130,6 @@ async def test_ensure_started_before_configure_writers_starts_with_no_writers(ca
     the observer starts with zero pending writers. Subsequent publishes just
     fan out to nothing."""
     await ensure_started()
-    assert configure._observer._running is True
+    assert configure.observer._running is True
     publish_event(_make_session_event())
     await shutdown()

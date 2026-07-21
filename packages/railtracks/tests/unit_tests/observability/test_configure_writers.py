@@ -21,12 +21,12 @@ class _FakeWriter:
 def test_records_writers():
     writer: Writer = _FakeWriter()
     configure_writers([writer])
-    assert configure._observer._pending_writers == [writer]
+    assert configure.observer._pending_writers == [writer]
 
 
 def test_empty_writers():
     configure_writers([])
-    assert configure._observer._pending_writers == []
+    assert configure.observer._pending_writers == []
 
 
 def test_second_call_replaces_first():
@@ -34,20 +34,20 @@ def test_second_call_replaces_first():
     b: Writer = _FakeWriter()
     configure_writers([a])
     configure_writers([b])
-    assert configure._observer._pending_writers == [b]
+    assert configure.observer._pending_writers == [b]
 
 
 def test_raises_after_observer_started():
-    configure._observer._running = True  # simulate start() already ran
+    configure.observer._running = True  # simulate start() already ran
     with pytest.raises(RuntimeError, match="configure_writers must be called before"):
         configure_writers([_FakeWriter()])
 
 
 def test_reset_swaps_in_fresh_observer():
     configure_writers([_FakeWriter()])
-    first_observer = configure._observer
-    configure._observer._running = True
+    first_observer = configure.observer
+    configure.observer._running = True
     configure.reset_for_tests()
-    assert configure._observer is not first_observer
-    assert configure._observer._pending_writers == []
-    assert configure._observer._running is False
+    assert configure.observer is not first_observer
+    assert configure.observer._pending_writers == []
+    assert configure.observer._running is False

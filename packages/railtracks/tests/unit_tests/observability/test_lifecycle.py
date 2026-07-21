@@ -46,8 +46,8 @@ async def test_concurrent_ensure_started_coalesces():
     results = await asyncio.gather(*[ensure_started() for _ in range(5)])
 
     # All returned the same singleton, only one actually did the registration.
-    assert all(r is configure._observer for r in results)
-    assert configure._observer._running is True
+    assert all(r is configure.observer for r in results)
+    assert configure.observer._running is True
 
     # Registration succeeded — publishing works end-to-end.
     event = _make_session_event()
@@ -66,13 +66,13 @@ async def test_reset_for_tests_swaps_in_fresh_observer():
     await shutdown()
     assert writer1.events == [event1]
 
-    first_observer = configure._observer
+    first_observer = configure.observer
 
     # Reset — should swap in a fresh Observer.
     configure.reset_for_tests()
-    assert configure._observer is not first_observer
-    assert configure._observer._running is False
-    assert configure._observer._pending_writers == []
+    assert configure.observer is not first_observer
+    assert configure.observer._running is False
+    assert configure.observer._pending_writers == []
 
     # Fresh start with a different writer.
     writer2 = _CollectingWriter()

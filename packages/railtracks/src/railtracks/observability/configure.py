@@ -1,6 +1,6 @@
 """Process-wide default Observer, plus writer registration.
 
-Thin wrapper over `Observer` — holds the shared singleton instance and routes
+Thin wrapper over `Observer`: Holds the shared singleton instance and routes
 module-level `configure_writers` and `ensure_started` to it. All the real
 lifecycle logic (pending writers, double-checked start, running flag) lives
 on the `Observer` class now.
@@ -19,31 +19,31 @@ from .writers.base import Writer
 
 logger = logging.getLogger(__name__)
 
-_observer: Observer = Observer()
+observer: Observer = Observer()
 
 
 def configure_writers(writers: list[Writer]) -> None:
     """Set the writers to register on the singleton Observer on first start().
 
-    Delegates to `_observer.configure_writers`. Must be called before the
+    Delegates to `observer.configure_writers`. Must be called before the
     observer has started; raises `RuntimeError` otherwise.
     """
-    _observer.configure_writers(writers)
+    observer.configure_writers(writers)
 
 
 async def ensure_started() -> Observer:
     """Start the singleton observer if not already started, return it.
     """
-    await _observer.start()
-    return _observer
+    await observer.start()
+    return observer
 
 
 async def shutdown() -> None:
     """Drain per-writer queues and stop the singleton Observer's consumer tasks.
 
-    Idempotent — safe to call when the observer isn't running.
+    safe to call when the observer isn't running.
     """
-    await _observer.shutdown()
+    await observer.shutdown()
 
 
 def reset_for_tests() -> None:
@@ -52,5 +52,5 @@ def reset_for_tests() -> None:
     Swaps in a fresh `Observer` so consumer tasks from a previous test's event
     loop don't leak into the next one.
     """
-    global _observer
-    _observer = Observer()
+    global observer
+    observer = Observer()
