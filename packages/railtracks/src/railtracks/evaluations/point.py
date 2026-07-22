@@ -104,8 +104,27 @@ class AgentDataPoint(BaseModel):
     agent_name: str
     agent_input: dict | list
     agent_output: dict
+    runtime: float | None = None
     llm_details: LLMDetails
     tool_details: ToolDetails
+
+
+def extract_runtime(run: dict, session: dict) -> float | None:
+    """Extract elapsed wall-clock time from run or legacy session boundaries."""
+    if run.get("status") == Status.OPEN.value:
+        return None
+
+    timing = run if "start_time" in run or "end_time" in run else session
+    start_time = timing.get("start_time")
+    end_time = timing.get("end_time")
+
+    if not isinstance(start_time, (int, float)) or not isinstance(
+        end_time, (int, float)
+    ):
+        return None
+
+    runtime = end_time - start_time
+    return runtime if runtime >= 0 else None
 
 
 def extract_llm_details(llm_details: list[dict]) -> LLMDetails:
@@ -363,6 +382,21 @@ def _data_points_from_payload(payload: dict) -> list[AgentDataPoint]:
 
         graph, sink_list = construct_graph(edges)
 
+        agent_nodes = [
+            node for node in nodes.values() if node.node_type == NodeType.AGENT
+        ]
+        root_agent_ids = {
+            target
+            for source, target in edges
+            if source is None
+            and target in nodes
+            and nodes[target].node_type == NodeType.AGENT
+        }
+        # Legacy payloads may omit graph edges; a lone agent is still the run root.
+        if not root_agent_ids and len(agent_nodes) == 1:
+            root_agent_ids.add(agent_nodes[0].identifier)
+
+        run_runtime = extract_runtime(run, payload)
         for node in nodes.values():
             if node.node_type == NodeType.AGENT:
                 llm_details_dict = node.details.get("internals", {}).get(
@@ -389,6 +423,9 @@ def _data_points_from_payload(payload: dict) -> list[AgentDataPoint]:
                         agent_name=node.name,
                         agent_input=agent_input,
                         agent_output=agent_output,
+                        runtime=(
+                            run_runtime if node.identifier in root_agent_ids else None
+                        ),
                         llm_details=llm_details,
                         tool_details=tool_details,
                     )

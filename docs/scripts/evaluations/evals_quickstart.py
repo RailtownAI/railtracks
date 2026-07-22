@@ -8,6 +8,7 @@ data = evals.extract_agent_data_points(".railtracks/data/sessions/")
 # Default Evaluators
 t_evaluator = evals.ToolUseEvaluator()
 llm_evaluator = evals.LLMInferenceEvaluator()
+runtime_evaluator = evals.RuntimeEvaluator()
 
 # Configurable Evaluators
 judge_evaluator = evals.JudgeEvaluator(
@@ -37,6 +38,6 @@ judge_evaluator = evals.JudgeEvaluator(
 
 results = evals.evaluate(
     data=data,
-    evaluators=[t_evaluator, llm_evaluator, judge_evaluator],
+    evaluators=[t_evaluator, llm_evaluator, runtime_evaluator, judge_evaluator],
 )
 # --8<-- [end: tutorial]

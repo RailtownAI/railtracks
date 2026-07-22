@@ -141,6 +141,7 @@ nav:
           - Evaluator Abstraction: evaluations/evaluators/evaluators.md
           - ToolUseEvaluator: evaluations/evaluators/tool_use_evaluator.md
           - LLMInferenceEvaluator: evaluations/evaluators/llm_inference_evaluator.md
+          - RuntimeEvaluator: evaluations/evaluators/runtime_evaluator.md
           - JudgeEvaluator: evaluations/evaluators/judge_evaluator.md
 
   - Observability:

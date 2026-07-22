@@ -1,12 +1,11 @@
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
-
 from railtracks.evaluations.point import (
+    LLMIO,
     AgentDataPoint,
     LLMCall,
     LLMDetails,
-    LLMIO,
     MessageRole,
     Status,
     ToolArguments,
@@ -15,7 +14,13 @@ from railtracks.evaluations.point import (
 )
 
 
-def make_llm_call(index: int = 0, input_tokens: int = 50, output_tokens: int = 10, total_cost: float = 0.001, latency: float = 1.2) -> LLMCall:
+def make_llm_call(
+    index: int = 0,
+    input_tokens: int = 50,
+    output_tokens: int = 10,
+    total_cost: float = 0.001,
+    latency: float = 1.2,
+) -> LLMCall:
     return LLMCall(
         model_name="gpt-4",
         model_provider="OpenAI",
@@ -29,7 +34,9 @@ def make_llm_call(index: int = 0, input_tokens: int = 50, output_tokens: int = 1
     )
 
 
-def make_tool_call(name: str = "get_price", runtime: float = 0.1, status: Status = Status.COMPLETED) -> ToolCall:
+def make_tool_call(
+    name: str = "get_price", runtime: float = 0.1, status: Status = Status.COMPLETED
+) -> ToolCall:
     return ToolCall(
         identifier=uuid4(),
         name=name,
@@ -44,6 +51,7 @@ def make_agent_data_point(
     agent_name: str = "TestAgent",
     llm_calls: list[LLMCall] | None = None,
     tool_calls: list[ToolCall] | None = None,
+    runtime: float | None = 1.2,
 ) -> AgentDataPoint:
     if llm_calls is None:
         llm_calls = [make_llm_call()]
@@ -58,6 +66,7 @@ def make_agent_data_point(
         agent_output={"answer": "$100"},
         llm_details=LLMDetails(calls=llm_calls),
         tool_details=ToolDetails(tool_names=tool_names, calls=tool_calls),
+        runtime=runtime,
     )
 
 
