@@ -62,6 +62,7 @@ def test_request_creation_fields(dummy_node_class):
     m = RequestCreation(
         current_node_id="A",
         current_run_id="B",
+        current_scope=None,
         new_request_id="N",
         running_mode="async",
         new_node_type=dummy_node_class,
@@ -70,6 +71,7 @@ def test_request_creation_fields(dummy_node_class):
     )
     assert m.current_node_id == "A"
     assert m.current_run_id == "B"
+    assert m.current_scope is None
     assert m.new_request_id == "N"
     assert m.running_mode == "async"
     assert m.new_node_type is dummy_node_class

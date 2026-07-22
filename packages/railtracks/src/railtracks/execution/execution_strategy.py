@@ -6,13 +6,10 @@ import inspect
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from railtracks.context.central import (
-    get_publisher,
-    update_parent_id,
-)
-from railtracks.context.internal import InternalContext
+from railtracks.context.central import get_publisher
 from railtracks.nodes.nodes import NodeState
 from railtracks.pubsub.messages import RequestFailure, RequestSuccess
+from railtracks.scope_manager import NullScopeManager, ScopeManager
 
 if TYPE_CHECKING:
     from .task import Task
@@ -33,6 +30,9 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
 
     """
 
+    def __init__(self, scope_manager: ScopeManager = NullScopeManager()):
+        self.scope_manager = scope_manager
+
     def shutdown(self):
         # there is no need for any shutdown approach for asyncio.
         pass
@@ -44,12 +44,13 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
         Args:
             task (Task): The task to be executed.
         """
-        invoke_func = task.invoke
+        task.node.bind_scope_manager(self.scope_manager)
 
         publisher = get_publisher()
         response = None
         try:
-            result = await invoke_func()
+            with self.scope_manager.enter_node(task.node.uuid):
+                result = await task.invoke()
             response = RequestSuccess(
                 request_id=task.request_id,
                 node_state=NodeState(task.node),
@@ -63,7 +64,7 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
             if response is not None:
                 await publisher.publish(response)
 
-        return response
+        return
 
 
 class ConcurrentFuturesExecutor(TaskExecutionStrategy):
@@ -90,8 +91,7 @@ class ConcurrentFuturesExecutor(TaskExecutionStrategy):
 
         publisher = get_publisher()
 
-        def wrapped_invoke(global_vars: InternalContext):
-            update_parent_id(task.node.uuid)
+        def wrapped_invoke(global_vars):
             try:
                 result = invoke_func()
                 response = RequestSuccess(

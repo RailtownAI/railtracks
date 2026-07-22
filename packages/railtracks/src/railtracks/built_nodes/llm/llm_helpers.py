@@ -90,7 +90,9 @@ def llm_invoke_factory(
         user_input: MessageHistory | UserMessage | str | list[Message],
     ):
         model_invoker = ModelInvoker.create_with_llm_observe(
-            model_source, self._user_model_middleware
+            model_source,
+            self._user_model_middleware,
+            get_scope_manager=lambda: self._scope_manager,
         )
         message_history = prepare_message_history(system_message, user_input)
 

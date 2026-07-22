@@ -2,7 +2,9 @@ import asyncio
 import pytest
 from railtracks.nodes.nodes import DebugDetails, Node
 
-from railtracks.context.central import get_session_id, get_run_id, get_parent_id
+from railtracks.context.central import get_session_id, get_run_id, get_parent_id, get_middleware_id, get_current_scope
+from railtracks.context.session_context import ScopeKind
+from railtracks.middleware.core import wrap_node
 import railtracks as rt
 
 
@@ -116,3 +118,62 @@ async def test_run_id_propagation_multiple_sessions_parallel(num_trials):
         
 
     await asyncio.gather(runner(), runner())
+
+
+CAPTURED = {}
+
+
+class ChildNode(Node):
+    async def invoke(self):
+        scope = get_current_scope()
+        # skip this node's own NODE_BODY/NODE entries to find its actual parent
+        link = scope
+        while link is not None and link.value.id == self.uuid:
+            link = link.parent
+        CAPTURED["child_immediate_ancestor_kind"] = link.value.kind if link else None
+        CAPTURED["child_immediate_ancestor_id"] = link.value.id if link else None
+        return "child-done"
+
+    @classmethod
+    def name(cls):
+        return "Child Node"
+
+    @classmethod
+    def type(cls):
+        return "Tool"
+
+
+class ParentNode(Node):
+    async def invoke(self):
+        return "parent-done"
+
+    @classmethod
+    def name(cls):
+        return "Parent Node"
+
+    @classmethod
+    def type(cls):
+        return "Tool"
+
+
+@wrap_node
+async def capturing_middleware(call, *args, **kwargs):
+    CAPTURED["middleware_parent_id"] = get_parent_id()
+    CAPTURED["middleware_id_at_entry"] = get_middleware_id()
+    await rt.call(ChildNode)
+    return await call(*args, **kwargs)
+
+
+ParentWithMiddleware = ParentNode.extend_middleware(capturing_middleware)
+
+
+@pytest.mark.asyncio
+async def test_middleware_fired_call_lands_under_the_middleware_not_the_node_body():
+    CAPTURED.clear()
+    with rt.Session(name="test_session"):
+        await rt.call(ParentWithMiddleware)
+
+    assert CAPTURED["middleware_parent_id"] is not None
+    assert CAPTURED["middleware_id_at_entry"] is not None
+    assert CAPTURED["child_immediate_ancestor_kind"] == ScopeKind.MIDDLEWARE
+    assert CAPTURED["child_immediate_ancestor_id"] == CAPTURED["middleware_id_at_entry"]

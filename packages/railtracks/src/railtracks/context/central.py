@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import contextvars
 import logging
+import uuid
 import warnings
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
 
 from railtracks.exceptions import ContextError
@@ -13,7 +15,8 @@ if TYPE_CHECKING:
 from railtracks.utils.config import ExecutorConfig
 
 from .external import ExternalContext, MutableExternalContext
-from .internal import InternalContext
+from .scope_link import ScopeLink
+from .session_context import ScopeEntry, ScopeKind, SessionContext
 
 
 class RunnerContextVars:
@@ -24,25 +27,11 @@ class RunnerContextVars:
     def __init__(
         self,
         *,
-        internal_context: InternalContext,
+        session_context: SessionContext,
         external_context: ExternalContext,
     ):
-        self.internal_context = internal_context
+        self.session_context = session_context
         self.external_context = external_context
-
-    def prepare_new(self, new_parent_id: str, new_run_id: str | None = None):
-        """
-        Update the parent ID of the internal context.
-        """
-        new_internal_context = self.internal_context.prepare_new(
-            new_parent_id=new_parent_id,
-            run_id=new_run_id,
-        )
-
-        return RunnerContextVars(
-            internal_context=new_internal_context,
-            external_context=self.external_context,
-        )
 
 
 runner_context: contextvars.ContextVar[RunnerContextVars | None] = (
@@ -90,7 +79,7 @@ def is_context_active():
         bool: True if the global variables are active, False otherwise.
     """
     context = runner_context.get()
-    return context is not None and context.internal_context.is_active
+    return context is not None and context.session_context.is_active
 
 
 def get_publisher() -> RTPublisher:
@@ -104,7 +93,7 @@ def get_publisher() -> RTPublisher:
         RuntimeError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.internal_context.publisher
+    return context.session_context.publisher
 
 
 def get_session_id() -> str | None:
@@ -118,12 +107,13 @@ def get_session_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.internal_context.session_id
+    return context.session_context.session_id
 
 
 def get_parent_id() -> str | None:
     """
-    Get the parent ID of the current thread's global variables.
+    Get the id of the currently active node (walks up the scope chain to the
+    nearest node/node-body entry).
 
     Returns:
         str | None: The parent ID associated with the current thread's global variables, or None if not set.
@@ -132,7 +122,22 @@ def get_parent_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.internal_context.parent_id
+    return context.session_context.current_node_id
+
+
+def get_middleware_id() -> str | None:
+    """
+    Get the id of the currently active middleware invocation (walks up the
+    scope chain to the nearest middleware entry).
+
+    Returns:
+        str | None: The middleware id, or None if no middleware is currently active.
+
+    Raises:
+        ContextError: If the global variables have not been registered.
+    """
+    context = safe_get_runner_context()
+    return context.session_context.current_middleware_id
 
 
 def get_run_id() -> str | None:
@@ -147,30 +152,56 @@ def get_run_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.internal_context.run_id
+    return context.session_context.run_id
+
+
+def get_current_scope() -> ScopeLink[ScopeEntry] | None:
+    """Get the current thread's full scope chain."""
+    context = safe_get_runner_context()
+    return context.session_context.scope
+
+
+@contextmanager
+def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
+    """Replaces (not pushes onto) the ambient scope chain + run_id, reverting on exit."""
+    ctx = safe_get_runner_context()
+    new_session_context = SessionContext(
+        session_id=ctx.session_context.session_id,
+        run_id=run_id if run_id is not None else ctx.session_context.run_id,
+        publisher=ctx.session_context.publisher,
+        scope=scope,
+        executor_config=ctx.session_context.executor_config,
+    )
+    new_ctx = RunnerContextVars(
+        session_context=new_session_context,
+        external_context=ctx.external_context,
+    )
+    token = runner_context.set(new_ctx)
+    try:
+        yield
+    finally:
+        runner_context.reset(token)
 
 
 def register_globals(
     *,
     session_id: str,
     rt_publisher: RTPublisher | None,
-    parent_id: str | None,
     executor_config: ExecutorConfig,
     global_context_vars: dict[str, Any],
 ):
     """
     Register the global variables for the current thread.
     """
-    i_c = InternalContext(
+    s_c = SessionContext(
         publisher=rt_publisher,
-        parent_id=parent_id,
         session_id=session_id,
         executor_config=executor_config,
     )
     e_c = MutableExternalContext(global_context_vars)
 
     runner_context_vars = RunnerContextVars(
-        internal_context=i_c,
+        session_context=s_c,
         external_context=e_c,
     )
 
@@ -184,12 +215,12 @@ async def activate_publisher():
     This function should be called to ensure that the publisher is running and can be used to publish messages.
     """
     r_c = safe_get_runner_context()
-    internal_context = r_c.internal_context
-    assert internal_context is not None
+    session_context = r_c.session_context
+    assert session_context is not None
 
-    assert internal_context.publisher is not None
+    assert session_context.publisher is not None
 
-    await internal_context.publisher.start()
+    await session_context.publisher.start()
 
 
 async def shutdown_publisher():
@@ -199,7 +230,7 @@ async def shutdown_publisher():
     This function should be called to stop the publisher and clean up resources.
     """
     context = safe_get_runner_context()
-    context = context.internal_context
+    context = context.session_context
     assert context is not None
 
     assert context.publisher.is_running()
@@ -226,7 +257,7 @@ def get_local_config() -> ExecutorConfig:
     """
     context = safe_get_runner_context()
 
-    return context.internal_context.executor_config
+    return context.session_context.executor_config
 
 
 def set_local_config(
@@ -256,24 +287,62 @@ def set_global_config(
     global_executor_config.set(executor_config)
 
 
-def update_parent_id(new_parent_id: str, new_run_id: str | None = None):
-    """
-    Update the parent ID of the current thread's global variables.
+def _push_scope(entry: ScopeEntry, *, run_id: str | None = None) -> contextvars.Token:
+    """Pushes `entry` onto the scope chain, returning the token needed to revert it."""
+    ctx = safe_get_runner_context()
+    new_session_context = ctx.session_context.with_scope_pushed(entry, run_id=run_id)
+    new_ctx = RunnerContextVars(
+        session_context=new_session_context,
+        external_context=ctx.external_context,
+    )
+    return runner_context.set(new_ctx)
 
-    If no run ID is provided, the current run ID will be used.
-    """
-    current_context = safe_get_runner_context()
 
-    assert (
-        new_run_id is not None or current_context.internal_context.run_id is not None
-    ), "You cannot update the parent ID while a run ID is inactive"
+class ContextVarScopeManager:
+    """ScopeManager backed by the `runner_context` ContextVar."""
 
-    if current_context is None:
-        raise RuntimeError("No global variable set")
+    @contextmanager
+    def enter_node(self, node_id: str):
+        
+        ctx = safe_get_runner_context()
+        established_run_id = (
+            ctx.session_context.run_id
+            if ctx.session_context.run_id is not None
+            else node_id
+        )
+        token = _push_scope(
+            ScopeEntry(ScopeKind.NODE, node_id), run_id=established_run_id
+        )
+        try:
+            yield
+        finally:
+            runner_context.reset(token)
 
-    new_context = current_context.prepare_new(new_parent_id, new_run_id=new_run_id)
+    @contextmanager
+    def enter_node_body(self):
+        ctx = safe_get_runner_context()
+        node_id = ctx.session_context.current_node_id
+        if node_id is None:
+            raise RuntimeError(
+                "Cannot enter a node-body scope outside of an active node scope"
+            )
+        assert node_id is not None, (
+            "Cannot enter a node-body scope outside of an active node scope"
+        )
+        token = _push_scope(ScopeEntry(ScopeKind.NODE_BODY, node_id.id))
+        try:
+            yield
+        finally:
+            runner_context.reset(token)
 
-    runner_context.set(new_context)
+    @contextmanager
+    def enter_middleware(self, name: str):
+        middleware_id = str(uuid.uuid4())
+        token = _push_scope(ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, name=name))
+        try:
+            yield middleware_id
+        finally:
+            runner_context.reset(token)
 
 
 def delete_globals():
@@ -396,16 +465,19 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
             parent_id = get_parent_id()
             run_id = get_run_id()
             session_id = get_session_id()
+            middleware_id = get_middleware_id()
 
         except ContextError:
             parent_id = None
             run_id = None
             session_id = None
+            middleware_id = None
 
         new_variables = {
             "node_id": parent_id,
             "run_id": run_id,
             "session_id": session_id,
+            "middleware_id": middleware_id,
         }
 
         kwargs["extra"] = {**kwargs.get("extra", {}), **new_variables}

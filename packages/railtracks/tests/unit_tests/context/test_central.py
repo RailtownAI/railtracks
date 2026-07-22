@@ -2,7 +2,8 @@ import pytest
 from unittest import mock
 
 import railtracks.context.central as central
-from requests import session
+from railtracks.context.session_context import ScopeEntry, ScopeKind
+from railtracks.utils.config import ExecutorConfig
 
 # ============ START Session Context Tests ===============
 def test_safe_get_runner_context_raises_when_none():
@@ -18,57 +19,61 @@ def test_is_context_present_and_active(monkeypatch, make_runner_context_vars):
 # ============ END Session Context Tests ===============
 
 # ============ START Publisher Tests ===============
-def test_get_publisher_returns_publisher(monkeypatch, make_internal_context_mock, make_runner_context_vars):
+def test_get_publisher_returns_publisher(monkeypatch, make_session_context_mock, make_runner_context_vars):
     pub = mock.Mock()
-    rt = make_runner_context_vars(internal_context=make_internal_context_mock(publisher=pub))
+    rt = make_runner_context_vars(session_context=make_session_context_mock(publisher=pub))
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.get_publisher() is pub
 
 @pytest.mark.asyncio
-async def test_activate_publisher(monkeypatch, make_runner_context_vars, make_internal_context_mock):
+async def test_activate_publisher(monkeypatch, make_runner_context_vars, make_session_context_mock):
     pub = mock.AsyncMock()
-    ic = make_internal_context_mock(publisher=pub)
-    rt = make_runner_context_vars(internal_context=ic)
+    sc = make_session_context_mock(publisher=pub)
+    rt = make_runner_context_vars(session_context=sc)
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
     await central.activate_publisher()
     pub.start.assert_awaited_once()
 
 @pytest.mark.asyncio
-async def test_shutdown_publisher(monkeypatch, make_runner_context_vars, make_internal_context_mock):
+async def test_shutdown_publisher(monkeypatch, make_runner_context_vars, make_session_context_mock):
     pub = mock.AsyncMock()
     pub.is_running.return_value = True
-    ic = make_internal_context_mock(publisher=pub)
-    rt = make_runner_context_vars(internal_context=ic)
+    sc = make_session_context_mock(publisher=pub)
+    rt = make_runner_context_vars(session_context=sc)
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
     await central.shutdown_publisher()
     pub.shutdown.assert_awaited_once()
 # ============ END Publisher Tests ===============
 
 # ============ START ID Accessor Tests ===============
-def test_get_runner_id(monkeypatch, make_runner_context_vars, make_internal_context_mock):
+def test_get_runner_id(monkeypatch, make_runner_context_vars, make_session_context_mock):
     assert central.session_id() is None
-    internal_context = make_internal_context_mock(session_id="runner-xyz")
-    rt = make_runner_context_vars(internal_context=internal_context)
+    session_context = make_session_context_mock(session_id="runner-xyz")
+    rt = make_runner_context_vars(session_context=session_context)
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.get_session_id() == "runner-xyz"
     assert central.session_id() == "runner-xyz"
 
-def test_get_parent_id(monkeypatch, make_runner_context_vars, make_internal_context_mock):
-    rt = make_runner_context_vars(internal_context=make_internal_context_mock(parent_id="parent-abc"))
+def test_get_parent_id(monkeypatch, make_runner_context_vars, make_session_context_mock):
+    rt = make_runner_context_vars(session_context=make_session_context_mock(current_node_id="parent-abc"))
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.get_parent_id() == "parent-abc"
+
+def test_get_middleware_id(monkeypatch, make_runner_context_vars, make_session_context_mock):
+    rt = make_runner_context_vars(session_context=make_session_context_mock(current_middleware_id="mw-abc"))
+    monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
+    assert central.get_middleware_id() == "mw-abc"
 # ============ END ID Accessor Tests ===============
 
 # ============ START Globals Registration/Deletion Tests ===============
 def test_register_globals_sets_context(monkeypatch):
     monkeypatch.setattr(central, "runner_context", mock.Mock(set=mock.Mock()))
-    monkeypatch.setattr(central, "InternalContext", mock.Mock(return_value="ic"))
+    monkeypatch.setattr(central, "SessionContext", mock.Mock(return_value="sc"))
     monkeypatch.setattr(central, "MutableExternalContext", mock.Mock(return_value="ec"))
     monkeypatch.setattr(central, "RunnerContextVars", mock.Mock())
     central.register_globals(
         session_id="r1",
         rt_publisher=None,
-        parent_id=None,
         executor_config=mock.Mock(),
         global_context_vars={"foo": "bar"},
     )
@@ -89,9 +94,9 @@ def test_get_and_set_global_config(monkeypatch):
     central.set_global_config(config)
     central.global_executor_config.set.assert_called_with(config)
 
-def test_get_and_set_local_config(monkeypatch, make_runner_context_vars, make_internal_context_mock):
+def test_get_and_set_local_config(monkeypatch, make_runner_context_vars, make_session_context_mock):
     config = mock.Mock()
-    rt = make_runner_context_vars(internal_context=make_internal_context_mock(executor_config=config))
+    rt = make_runner_context_vars(session_context=make_session_context_mock(executor_config=config))
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
     assert central.get_local_config() is config
     # set_local_config should update context.executor_config and set runner_context
@@ -110,33 +115,105 @@ def test_set_config_warns(monkeypatch):
 
 # ============ END Config Tests ===============
 
-# ============ START Parent/Context Update Tests ===============
-def test_update_parent_id(monkeypatch, make_runner_context_vars):
-    rt = make_runner_context_vars()
-    rt.prepare_new = mock.Mock(return_value="new_ctx")
-    monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
-    monkeypatch.setattr(central, "runner_context", mock.Mock(set=mock.Mock()))
-    central.update_parent_id("new-parent")
-    rt.prepare_new.assert_called_with("new-parent", new_run_id=None)
-    central.runner_context.set.assert_called_with("new_ctx")
-
-def test_runner_context_vars_prepare_new(make_external_context_mock, make_internal_context_mock):
-    """Test RunnerContextVars.prepare_new creates a new context with updated parent_id."""
-    old_parent_id = "parent-1"
-    new_parent_id = "parent-2"
-    internal_context = make_internal_context_mock(parent_id=old_parent_id)
-    # Mock prepare_new to return a new mock with updated parent_id
-    new_internal_context = make_internal_context_mock(parent_id=new_parent_id)
-    internal_context.prepare_new.return_value = new_internal_context
-    rt = central.RunnerContextVars(    
-        internal_context=internal_context,
-        external_context=make_external_context_mock(),
+# ============ START ContextVarScopeManager Tests ===============
+def _register(session_id="s1"):
+    central.register_globals(
+        session_id=session_id,
+        rt_publisher=None,
+        executor_config=ExecutorConfig(),
+        global_context_vars={},
     )
-    new_rt = rt.prepare_new(new_parent_id)
-    assert new_rt.internal_context.parent_id == new_parent_id
-    assert new_rt.internal_context.session_id == rt.internal_context.session_id
-    assert new_rt.external_context == rt.external_context
-# ============ END Parent/Context Update Tests ===============
+
+
+def test_enter_node_establishes_run_id_on_first_entry():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    assert central.get_run_id() is None
+
+    with manager.enter_node("node-1"):
+        assert central.get_run_id() == "node-1"
+        assert central.get_parent_id() == "node-1"
+
+    # reverted after exit
+    assert central.get_run_id() is None
+    assert central.get_parent_id() is None
+
+
+def test_enter_node_keeps_existing_run_id_for_nested_node():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_node("node-1"):
+        with manager.enter_node("node-2"):
+            assert central.get_run_id() == "node-1"
+            assert central.get_parent_id() == "node-2"
+        assert central.get_parent_id() == "node-1"
+
+
+def test_enter_node_body_reports_owning_node_id():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_node("node-1"):
+        with manager.enter_node_body():
+            assert central.get_parent_id() == "node-1"
+
+
+def test_enter_node_body_requires_active_node_scope():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with pytest.raises(AssertionError):
+        with manager.enter_node_body():
+            pass
+
+
+def test_enter_middleware_generates_fresh_id_and_reports_current_node():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_node("node-1"):
+        with manager.enter_middleware("my-guard") as middleware_id:
+            assert middleware_id is not None
+            assert central.get_middleware_id() == middleware_id
+            # a nested call fired from within middleware still resolves to the
+            # enclosing node, not the middleware.
+            assert central.get_parent_id() == "node-1"
+        assert central.get_middleware_id() is None
+
+
+def test_middleware_fired_node_lands_under_middleware():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_node("node-1"):
+        with manager.enter_middleware("guard") as middleware_id:
+            scope = central.get_current_scope()
+            assert scope.value == ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, name="guard")
+            with manager.enter_node("node-2"):
+                # node-2's immediate parent scope entry is the middleware, not node-1
+                assert central.get_current_scope().value.kind is ScopeKind.NODE
+                assert central.get_current_scope().parent.value.kind is ScopeKind.MIDDLEWARE
+
+
+def test_restore_scope_replaces_ambient_scope():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_node("node-1"):
+        captured_scope = central.get_current_scope()
+        captured_run_id = central.get_run_id()
+
+    # ambient scope is back to None here
+    assert central.get_parent_id() is None
+
+    with central.restore_scope(captured_scope, captured_run_id):
+        assert central.get_parent_id() == "node-1"
+        assert central.get_run_id() == captured_run_id
+
+    assert central.get_parent_id() is None
+# ============ END ContextVarScopeManager Tests ===============
 
 # ============ START External Context Access Tests ===============
 def test_get_and_put(monkeypatch, make_runner_context_vars, make_external_context_mock):

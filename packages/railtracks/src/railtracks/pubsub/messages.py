@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Generic, Literal, ParamSpec, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, Type, TypeVar
 
 from railtracks.nodes.nodes import Node, NodeState
+
+if TYPE_CHECKING:
+    from railtracks.context.scope_link import ScopeLink
+    from railtracks.context.session_context import ScopeEntry
 
 # RT specific imports
 
@@ -138,6 +142,7 @@ class RequestCreation(RequestCompletionMessage):
         *,
         current_node_id: str | None,
         current_run_id: str | None,
+        current_scope: ScopeLink[ScopeEntry] | None,
         new_request_id: str,
         running_mode: ExecutionConfigurations,
         new_node_type: Type[Node],
@@ -146,6 +151,7 @@ class RequestCreation(RequestCompletionMessage):
     ):
         self.current_node_id = current_node_id
         self.current_run_id = current_run_id
+        self.current_scope = current_scope
         self.new_request_id = new_request_id
         self.running_mode = running_mode
         self.new_node_type = new_node_type
