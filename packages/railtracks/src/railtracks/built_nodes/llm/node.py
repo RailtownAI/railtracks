@@ -165,5 +165,3 @@ def agent_node(
         middleware=middleware,
         model_middleware=model_middleware,
     )
-
-    return agent

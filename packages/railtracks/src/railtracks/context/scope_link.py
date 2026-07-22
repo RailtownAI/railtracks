@@ -23,4 +23,3 @@ class ScopeLink(Generic[T]):
                 return link.value
             link = link.parent
         return None
-    

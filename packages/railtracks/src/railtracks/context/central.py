@@ -122,7 +122,11 @@ def get_parent_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.session_context.current_node_id
+    return (
+        context.session_context.current_node_id.id
+        if context.session_context.current_node_id is not None
+        else None
+    )
 
 
 def get_middleware_id() -> str | None:
@@ -137,7 +141,11 @@ def get_middleware_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.session_context.current_middleware_id
+    return (
+        context.session_context.current_middleware_id.id
+        if context.session_context.current_middleware_id is not None
+        else None
+    )
 
 
 def get_run_id() -> str | None:
@@ -303,7 +311,6 @@ class ContextVarScopeManager:
 
     @contextmanager
     def enter_node(self, node_id: str):
-        
         ctx = safe_get_runner_context()
         established_run_id = (
             ctx.session_context.run_id
@@ -326,9 +333,7 @@ class ContextVarScopeManager:
             raise RuntimeError(
                 "Cannot enter a node-body scope outside of an active node scope"
             )
-        assert node_id is not None, (
-            "Cannot enter a node-body scope outside of an active node scope"
-        )
+
         token = _push_scope(ScopeEntry(ScopeKind.NODE_BODY, node_id.id))
         try:
             yield

@@ -8,20 +8,27 @@ from typing import (
     ParamSpec,
     TypeVar,
 )
+from uuid import uuid4
 
 from railtracks.middleware.core import Middleware
 from railtracks.scope_manager import ScopeManager, null_scope_manager
-from uuid import uuid4
+
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 
-def _scoped(m: Middleware[_P, _R], inner: Callable[_P, Awaitable[_R]], get_scope_manager: Callable[[], ScopeManager]):
+def _scoped(
+    m: Middleware[_P, _R],
+    inner: Callable[_P, Awaitable[_R]],
+    get_scope_manager: Callable[[], ScopeManager],
+):
     wrapped = m.wrap(inner)
     identifier = str(uuid4())
 
     async def scoped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-        with get_scope_manager().enter_middleware(identifier,):
+        with get_scope_manager().enter_middleware(
+            identifier,
+        ):
             return await wrapped(*args, **kwargs)
 
     return scoped

@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from importlib_metadata import EntryPoint
 from railtracks.context.scope_link import ScopeLink
 from railtracks.utils.config import ExecutorConfig
 
@@ -80,13 +79,13 @@ class SessionContext:
             return None
         entry = self._scope.find(lambda e: e.kind is ScopeKind.MIDDLEWARE)
         return entry
-    
+
     @property
     def is_in_node_body(self) -> bool:
-        last_entry = self.current_node_id 
+        last_entry = self.current_node_id
         if last_entry is None:
             return False
-        
+
         return last_entry.kind is ScopeKind.NODE_BODY
 
     @property
