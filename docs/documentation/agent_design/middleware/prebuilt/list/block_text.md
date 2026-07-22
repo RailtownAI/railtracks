@@ -4,11 +4,6 @@
 
 The input guard scans user and system messages; assistant and tool messages are ignored. The output guard scans the model's output message. Non-string content is skipped.
 
-## Import
-
-```python
-from railtracks.prebuilt.guardrails import BlockTextInputGuard, BlockTextOutputGuard
-```
 
 ## Usage
 

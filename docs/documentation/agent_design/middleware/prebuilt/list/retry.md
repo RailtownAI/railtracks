@@ -4,12 +4,6 @@
 
 By default `Retry` only retries the transient LLM provider errors (rate limits, timeouts, connection failures). For node-level use, pass your own `retry_on` tuple.
 
-## Import
-
-```python
---8<-- "docs/scripts/prebuilt_middleware.py:retryimports"
-```
-
 ## Usage
 
 ```python

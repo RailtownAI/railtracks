@@ -4,17 +4,6 @@
 
 Detection uses a fixed priority when patterns overlap (for example, email and URL win over the broader phone pattern). `CREDIT_CARD` and `CA_SIN` matches are accepted only when they pass a Luhn checksum check. These guards return `TRANSFORM` when they rewrite text and `ALLOW` when there is nothing to change.
 
-## Import
-
-```python
-from railtracks.prebuilt.guardrails import (
-    PIICustomPattern,
-    PIIEntity,
-    PIIRedactConfig,
-    PIIRedactInputGuard,
-    PIIRedactOutputGuard,
-)
-```
 
 ## Entities
 

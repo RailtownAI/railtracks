@@ -4,11 +4,6 @@
 
 `InputLengthGuard` sums `len(message.content)` across **all** messages in the input history (user, system, assistant, tool). `OutputLengthGuard` measures the assistant reply on `event.output_message`; if there is no output message, it allows.
 
-## Import
-
-```python
-from railtracks.prebuilt.guardrails import InputLengthGuard, OutputLengthGuard
-```
 
 ## Usage
 

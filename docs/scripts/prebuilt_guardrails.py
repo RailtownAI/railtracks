@@ -28,6 +28,9 @@ from railtracks.prebuilt.guardrails import (
 
 
 # --8<-- [start: block_text_demo]
+from railtracks.prebuilt.guardrails import BlockTextInputGuard, BlockTextOutputGuard
+
+
 block_input = BlockTextInputGuard(
     pattern=r"\b(jailbreak|exploit|hack)\b",
     name="BlockDangerous",
@@ -60,6 +63,9 @@ BlockAgent = rt.agent_node(
 
 
 # --8<-- [start: length_input_demo]
+from railtracks.prebuilt.guardrails import InputLengthGuard, OutputLengthGuard
+
+
 input_length = InputLengthGuard(max_chars=4000)
 
 result = input_length.decide("a" * 5000)
@@ -88,11 +94,21 @@ LengthAgent = rt.agent_node(
 
 
 # --8<-- [start: pii_available]
+from railtracks.prebuilt.guardrails import PIIEntity
+
+
 names_to_help = PIIEntity.available()
 # e.g. {"EMAIL_ADDRESS": "Email addresses (e.g. alice@example.com)", ...}
 # --8<-- [end: pii_available]
 
 # --8<-- [start: pii_configured_demo]
+from railtracks.prebuilt.guardrails import (
+    PIIEntity,
+    PIIRedactConfig,
+    PIIRedactInputGuard
+)
+
+
 config = PIIRedactConfig(
     entities=[
         PIIEntity.EMAIL_ADDRESS,
@@ -108,6 +124,14 @@ result = redact_input.decide(msg)
 # --8<-- [end: pii_configured_demo]
 
 # --8<-- [start: pii_custom_patterns]
+from railtracks.prebuilt.guardrails import (
+    PIIEntity,
+    PIIRedactConfig,
+    PIIRedactInputGuard,
+    PIICustomPattern
+)
+
+
 custom_config = PIIRedactConfig(
     entities=[PIIEntity.EMAIL_ADDRESS],
     custom_patterns=[

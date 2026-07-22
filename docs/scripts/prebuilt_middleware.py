@@ -6,19 +6,12 @@ pages by MkDocs. Type-checked in CI via scripts/docs_validation.sh.
 
 from __future__ import annotations
 
-# --8<-- [start: retryimports]
+
+# --8<-- [start: retry]
 import railtracks as rt
 from railtracks.prebuilt.middleware import Retry
 
-# --8<-- [end: retryimports]
 
-# --8<-- [start: context_injection_imports]
-import railtracks as rt
-from railtracks.prebuilt.middleware import ContextInjection
-# --8<-- [end: context_injection_imports]
-
-
-# --8<-- [start: retry]
 # Retry is slot-agnostic: use it as node middleware, model middleware, or both.
 RetryAgent = rt.agent_node(
     name="retry-demo",
@@ -41,6 +34,10 @@ picky_retry = Retry(
 
 
 # --8<-- [start: context_injection]
+import railtracks as rt
+from railtracks.prebuilt.middleware import ContextInjection
+
+
 # ContextInjection is model-level only. It fills {placeholders} in the prompt
 # from the active session context before each model call.
 CtxAgent = rt.agent_node(

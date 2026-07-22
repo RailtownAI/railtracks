@@ -2,11 +2,6 @@
 
 `ContextInjection` fills `{placeholder}` templates in your prompt from the active session context before each model call. Write `{user_name}` in a system or user message, put `user_name` in the flow context, and the model sees the resolved value. It is **model-level only** (`model_middleware=`).
 
-## Import
-
-```python
---8<-- "docs/scripts/prebuilt_middleware.py:context_injection_imports"
-```
 
 ## Usage
 
