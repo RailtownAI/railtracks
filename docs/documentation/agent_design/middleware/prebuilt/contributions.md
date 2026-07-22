@@ -7,20 +7,7 @@ Prebuilt middleware are the reusable add-ons that ship with Railtracks: things l
 A prebuilt middleware is just a `Middleware` subclass whose `__init__` captures its configuration and has an async method (`_middleware_fn` in this example) that wraps the inner `call`. Here is a complete, minimal example; a timeout that fails the call if it runs too long:
 
 ```python
-import asyncio
-
-from railtracks.middleware.core import Middleware
-
-
-class Timeout(Middleware):
-    """Fail the wrapped call if it runs longer than ``seconds``."""
-
-    def __init__(self, seconds: float):
-        self._seconds = seconds
-        super().__init__(self._middleware_fn)
-
-    async def _middleware_fn(self, call, *args, **kwargs):
-        return await asyncio.wait_for(call(*args, **kwargs), timeout=self._seconds)
+--8<-- "docs/scripts/middleware.py:prebuilt_contributions_timeout"
 ```
 
 That's the recipe:
