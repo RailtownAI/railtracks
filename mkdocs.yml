@@ -74,7 +74,7 @@ extra_css:
 extra:
   generator: false
 
-# Per-add-on prebuilt pages are intentionally kept out of the sidebar (they are
+# Per-middleware prebuilt pages are intentionally kept out of the sidebar (they are
 # reached from the prebuilt Overview catalog) so the nav stays clean as the
 # catalog grows. Listing them here silences the "not in nav" build warning.
 not_in_nav: |
