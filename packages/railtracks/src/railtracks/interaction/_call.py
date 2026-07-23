@@ -23,6 +23,7 @@ from railtracks.context.central import (
 )
 from railtracks.exceptions import GlobalTimeOutError
 from railtracks.nodes.utils import extract_node_from_function
+from railtracks.observability.configure import ensure_started
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -144,6 +145,7 @@ async def _start(
     args,
     kwargs,
 ):
+    await ensure_started()
     await activate_publisher()
 
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
