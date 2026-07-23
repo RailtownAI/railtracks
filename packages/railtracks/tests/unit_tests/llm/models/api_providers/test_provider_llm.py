@@ -4,6 +4,7 @@ from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM, HuggingFaceLLM, C
 from railtracks.llm.history import MessageHistory
 from railtracks.llm._exceptions import RTLLMError
 from unittest.mock import patch
+from railtracks.llm.models._model_exception_base import UnsupportedParameterError
 
 
 class TestInvalidModelNames:
@@ -83,16 +84,9 @@ def test_temperature_passed_to_litellm_completion(message_history):
 
 
 class TestUnsupportedParameterValidation:
-    """Issue #1276: constructing a provider LLM with a common param the target
-    model doesn't support (per litellm + our manual override table) must raise
-    immediately at construction time, not fail later with a raw provider 400.
-    Expected to fail until UnsupportedParameterError / _validate_common_param_support
-    are implemented.
-    """
+    """Test that unsupported parameters raise UnsupportedParameterError."""
 
     def test_opus_4_7_temperature_raises_immediately(self):
-        from railtracks.llm.models._model_exception_base import UnsupportedParameterError
-
         with patch('railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider') as mock_provider:
             mock_provider.return_value = ("claude-opus-4-7", "anthropic", "info")
             with pytest.raises(UnsupportedParameterError):

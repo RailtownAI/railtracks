@@ -437,12 +437,9 @@ async def test_temperature_passed_to_litellm_acompletion(message_history):
         mock_acompletion.assert_called_once()
         assert mock_acompletion.call_args.kwargs.get("temperature") == 0.7
 
+# ================= END completion methods tests =========================
 
-# ================= START common param support tests (issue #1276) =========================
-# These exercise the new common params (top_p, max_tokens, frequency_penalty,
-# presence_penalty, reasoning_effort, service_tier, verbosity) that LiteLLMWrapper.__init__
-# does not accept yet -- expected to fail with TypeError until implemented.
-
+# ================= START common param support tests =========================
 
 @pytest.mark.parametrize(
     "kwarg_name,kwarg_value",
@@ -470,7 +467,5 @@ def test_common_param_passed_to_litellm_completion(kwarg_name, kwarg_value, mess
         assert mock_completion.call_args.kwargs.get(kwarg_name) == kwarg_value
 
 
-# ================= END common param support tests (issue #1276) =========================
+# ================= END common param support tests =========================
 
-
-# ================= END completion methods tests =========================

@@ -1,10 +1,3 @@
-"""
-Tests for railtracks.llm.models._param_support (issue #1276).
-
-Mirrors src/railtracks/llm/models/_param_support.py — this module does not exist
-yet, so these tests are expected to fail (ModuleNotFoundError) until it's added.
-"""
-
 import pytest
 from railtracks.llm.models._param_support import is_param_supported
 
