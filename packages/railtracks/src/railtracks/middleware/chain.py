@@ -23,7 +23,7 @@ def _scoped(
     get_scope_manager: Callable[[], ScopeManager],
 ):
     wrapped = m.wrap(inner)
-    identifier = str(uuid4())
+    identifier = m.name
 
     async def scoped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
         with get_scope_manager().enter_middleware(
