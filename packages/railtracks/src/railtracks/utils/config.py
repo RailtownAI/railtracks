@@ -13,6 +13,9 @@ class ExecutorConfig:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
+        stream_callback: (
+            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+        ) = None,
         prompt_injection: bool = True,
         save_state: bool = True,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -23,13 +26,15 @@ class ExecutorConfig:
         Args:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
-            broadcast_callback (Callable or Coroutine): A function or coroutine that will handle streaming messages.
+            broadcast_callback (Callable or Coroutine): A passive listener for one-off **events** published with `rt.broadcast`. It never receives stream chunks — see `stream_callback`.
+            stream_callback (Callable or Coroutine): A passive listener for **stream chunks** published through `rt.broadcast_stream` (LLM token streams included). It never enables streaming — only `rt.astream` does.
             prompt_injection (bool): If true, prompts can be injected with global context
             save_state (bool): If true, the state of the executor will be saved to disk.
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
         self.subscriber = broadcast_callback
+        self.stream_callback = stream_callback
         self.prompt_injection = prompt_injection
         # During test runs, disable save_state by default unless RAILTRACKS_ALLOW_PERSISTENCE is set
         self._user_save_state = save_state
@@ -54,6 +59,9 @@ class ExecutorConfig:
         subscriber: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
+        stream_callback: (
+            Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
+        ) = None,
         prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
@@ -69,6 +77,9 @@ class ExecutorConfig:
             broadcast_callback=subscriber
             if subscriber is not None
             else self.subscriber,
+            stream_callback=stream_callback
+            if stream_callback is not None
+            else self.stream_callback,
             prompt_injection=prompt_injection
             if prompt_injection is not None
             else self.prompt_injection,

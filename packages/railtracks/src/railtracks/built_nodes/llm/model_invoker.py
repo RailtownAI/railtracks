@@ -10,10 +10,42 @@ from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
 from railtracks.built_nodes.llm.request_details import RequestDetails
+from railtracks.context.central import is_streaming_enabled
+from railtracks.interaction.broadcast_ import broadcast_stream
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.model import ModelBase
+from railtracks.llm.providers import TOOL_CALLING_STREAMING_BLACKLIST
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
+from railtracks.utils.logging import get_rt_logger
+
+logger = get_rt_logger(__name__)
+
+
+def _should_stream(model: ModelBase, tools: list[Tool] | None) -> bool:
+    """
+    Frame-level streaming decision for a single model call.
+
+    Streaming is requested at the call site (`rt.astream`) and is frame-local, so this
+    returns True only for the entry frame of a streamed invocation. Tool-calling requests
+    against blacklisted providers fall back to a buffered call (with a warning) instead of
+    erroring.
+    """
+    if not is_streaming_enabled():
+        return False
+    if (
+        tools is not None
+        and len(tools) > 0
+        and model.model_provider() in TOOL_CALLING_STREAMING_BLACKLIST
+    ):
+        logger.warning(
+            "Streaming is not supported with %s for tool calling; falling back to a "
+            "buffered response.",
+            model.model_provider(),
+        )
+        return False
+    return True
 
 
 @wrap_llm
@@ -91,6 +123,22 @@ class ModelInvoker:
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ) -> Response:
+            # Streaming path: consume the model stream here, broadcasting each chunk to the
+            # run's consumer (rt.astream), and hand the complete Response back through the
+            # middleware chain — exit middleware (e.g. output guardrails) operates on the
+            # buffered final response.
+            if _should_stream(model, tools):
+                if tools is not None and len(tools) > 0:
+                    model_stream = model.astream_chat_with_tools(messages, tools=tools)
+                elif schema is not None:
+                    model_stream = model.astream_structured(messages, schema=schema)
+                else:
+                    model_stream = model.astream_chat(messages)
+
+                # broadcast_stream returns the complete Response (or raises LLMError if the
+                # stream never produced one), mirroring the buffered branch below.
+                return await broadcast_stream(model_stream)
+
             if tools is not None and len(tools) > 0:
                 return await asyncio.to_thread(
                     model.chat_with_tools, messages, tools=tools

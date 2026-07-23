@@ -1,11 +1,10 @@
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch, call, PropertyMock, Mock
-import asyncio
-import railtracks as rt
 from railtracks import Session, session
+
 
 # ================= START Mock Fixture ============
 @pytest.fixture
@@ -87,17 +86,31 @@ def test_session_name_is_taken_from_executor_config():
 def test_setup_subscriber_adds_subscriber_if_present():
     sub_subscriber = Mock()
     runner = Session(broadcast_callback=sub_subscriber)
+    runner.executor_config.stream_callback = None
     runner.publisher = MagicMock()
     with patch('railtracks._session.stream_subscriber', return_value="fake_stream_sub") as m_stream:
         runner._setup_subscriber()
         runner.publisher.subscribe.assert_called_once_with(
-            "fake_stream_sub", name="Streaming Subscriber"
+            "fake_stream_sub", name="Broadcast Callback Subscriber"
         )
-        m_stream.assert_called_once_with(sub_subscriber)
+        m_stream.assert_called_once_with(sub_subscriber, kind="event")
+
+def test_setup_subscriber_adds_stream_callback_if_present():
+    stream_cb = Mock()
+    runner = Session(stream_callback=stream_cb)
+    runner.executor_config.subscriber = None
+    runner.publisher = MagicMock()
+    with patch('railtracks._session.stream_subscriber', return_value="fake_stream_sub") as m_stream:
+        runner._setup_subscriber()
+        runner.publisher.subscribe.assert_called_once_with(
+            "fake_stream_sub", name="Stream Callback Subscriber"
+        )
+        m_stream.assert_called_once_with(stream_cb, kind="stream")
 
 def test_setup_subscriber_noop_if_no_subscriber(mock_dependencies):
     runner = Session()
     runner.executor_config.subscriber = None
+    runner.executor_config.stream_callback = None
     runner.publisher = MagicMock()
     with patch('railtracks._session.stream_subscriber') as m_stream:
         runner._setup_subscriber()

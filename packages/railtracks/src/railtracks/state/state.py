@@ -90,7 +90,13 @@ class RTState:
         if isinstance(item, RequestCreation):
             previous_context = safe_get_runner_context()
             if item.current_node_id is not None:
-                update_parent_id(item.current_node_id, item.current_run_id)
+                # restore the creating frame's context (including its stream scope) so the
+                # task created below inherits the correct lineage.
+                update_parent_id(
+                    item.current_node_id,
+                    item.current_run_id,
+                    stream_id=item.current_stream_id,
+                )
 
             try:
                 assert item.new_request_id not in self._request_heap.heap().keys()
@@ -101,6 +107,7 @@ class RTState:
                     node=item.new_node_type,
                     args=item.args,
                     kwargs=item.kwargs,
+                    stream=item.stream,
                 )
             finally:
                 # restore publisher context after dispatching child tasks so root calls don't inherit stale run IDs
@@ -210,6 +217,7 @@ class RTState:
         node: type[Node[_P, _TOutput]],
         args,
         kwargs,
+        stream: bool = False,
     ):
         """
         This function will handle the creation of the node and the subsequent running of the node returning the result.
@@ -223,6 +231,7 @@ class RTState:
             node: The node you would like to create.
             args: The arguments to pass to the node.
             kwargs: The keyword arguments to pass to the node.
+            stream: If True, the created node's frame will have streaming enabled (frame-local).
 
         Returns:
             The output of the node that was run. It will match the output type of the child node that was run.
@@ -252,7 +261,7 @@ class RTState:
             logger.exception(rfa.to_logging_msg())
             raise e
         # you have to run this in a task so it isn't blocking other completions
-        outputs = asyncio.create_task(self._run_request(request_id))
+        outputs = asyncio.create_task(self._run_request(request_id, stream=stream))
 
         return outputs
 
@@ -306,7 +315,7 @@ class RTState:
 
         return request_ids
 
-    async def _run_request(self, request_id: str):
+    async def _run_request(self, request_id: str, stream: bool = False):
         """
         Runs the request for the given request id.
 
@@ -317,6 +326,7 @@ class RTState:
 
         Args:
             request_id: The identifier for the request you would like to run
+            stream: If True, the node's frame will have streaming enabled (frame-local).
 
 
         """
@@ -327,6 +337,7 @@ class RTState:
                 request_id=request_id,
                 node=node,
                 arguments=self._request_heap[request_id].input,
+                stream=stream,
             ),
             mode="async",
         )

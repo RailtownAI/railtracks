@@ -1,6 +1,6 @@
-import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
+import pytest
 import railtracks as rt
 from railtracks.execution.task import Task
 
@@ -11,7 +11,9 @@ from railtracks.execution.task import Task
 async def test_invoke_calls_update_and_node_invoke(mock_get_run_id, mock_update_parent_id, mock_node):
     task = Task(request_id="req-1", node=mock_node, arguments=((), {}))
     result = await task.invoke()
-    mock_update_parent_id.assert_called_once_with("mock-uuid")
+    mock_update_parent_id.assert_called_once_with(
+        "mock-uuid", stream=False, stream_id=None
+    )
     mock_node.wrapped_invoke.assert_awaited_once()
     assert result == "result"
 
@@ -23,7 +25,9 @@ async def test_invoke_propagates_exception(mock_update_parent_id, mock_get_run_i
     task = Task(request_id="req-2", node=mock_node, arguments=((), {}))
     with pytest.raises(RuntimeError, match="fail!"):
         await task.invoke()
-    mock_update_parent_id.assert_called_once_with("mock-uuid")
+    mock_update_parent_id.assert_called_once_with(
+        "mock-uuid", stream=False, stream_id=None
+    )
     mock_node.wrapped_invoke.assert_awaited_once()
 
 

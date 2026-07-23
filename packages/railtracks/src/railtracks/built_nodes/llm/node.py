@@ -97,7 +97,6 @@ def agent_node(
     model_middleware: list[ModelMiddleware] | None = None,
 ) -> type[Node[[UserInput], StringResponse]]: ...
 
-
 @overload
 def agent_node(
     name: str | None = None,
