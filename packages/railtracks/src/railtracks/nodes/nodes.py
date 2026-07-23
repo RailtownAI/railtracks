@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -80,7 +81,7 @@ class Node(ABC, Generic[_P, _TOutput]):
 
             # a simple wrapper to convert any async function to a non async one.
             async def async_wrapper(self, *args, **kwargs):
-                if asyncio.iscoroutinefunction(
+                if inspect.iscoroutinefunction(
                     method
                 ):  # check if the method is a coroutine
                     return await method(self, *args, **kwargs)
