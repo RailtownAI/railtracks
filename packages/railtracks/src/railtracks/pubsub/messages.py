@@ -196,30 +196,23 @@ class FatalFailure(RequestCompletionMessage):
         return f"{self.__class__.__name__}(error={self.error})"
 
 
-# The two kinds of broadcast traffic, kept on separate lanes so consumers never mix them up.
-# "event": a one-off item published with `rt.broadcast` (progress notes, tool events, ...) —
-# this is what `broadcast_callback` observes. "stream": one chunk of a continuous production
-# published through `rt.broadcast_stream`, which includes all LLM token streaming — this is
-# what `rt.astream` consumes and, deliberately, what `broadcast_callback` ignores.
+# A one-off "event" versus a "stream" chunk (one piece of a continuous production, such as
+# an LLM token stream).
 StreamingKind = Literal["event", "stream"]
 
 
 class Streaming(RequestCompletionMessage):
     """
-    A message carrying a single streamed item (e.g. an LLM token chunk or a user broadcast).
+    A message carrying a single streamed item (e.g. an LLM token chunk or a broadcast item).
 
     Args:
         streamed_object: The item being streamed (typically a `str` chunk).
         node_id: The id of the node that emitted the item.
-        channel: The named channel this item was emitted on. Consumers can filter/route on
-            this name. Defaults to `"default"`.
-        stream_id: The stream scope this item belongs to. This is the request id of the entry
-            frame that was invoked with streaming enabled (see `rt.astream`), or None if the
-            item was broadcast outside any streaming scope.
-        kind: What produced this item: `"event"` for a one-off `rt.broadcast`, `"stream"` for
-            a chunk of an `rt.broadcast_stream` production (LLM token streams included). The
-            two lanes are kept separate so a `broadcast_callback` (events) is never flooded
-            with stream tokens; `rt.astream` consumes the stream lane, scoped by `stream_id`.
+        channel: The named channel this item was emitted on. Defaults to `"default"`.
+        stream_id: The stream scope this item belongs to, or None if it was emitted outside
+            any streaming scope.
+        kind: Whether this item is a one-off `"event"` or a `"stream"` chunk (one piece of a
+            continuous production, such as an LLM token stream).
     """
 
     def __init__(

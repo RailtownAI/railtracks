@@ -1,86 +1,48 @@
 # Streaming
 
-## What Is Streaming?
+## What is streaming?
 
-Streaming is a way to make your agent feel more responsive. Instead of waiting for the complete response, you can stream intermediate results as they arrive.
+Streaming makes an agent feel more responsive. Instead of waiting for the whole response, you receive the tokens as they are produced.
 
-## Streaming an Agent Run — `rt.astream`
+## Streaming an agent run with `rt.astream`
 
-Streaming is requested at the **call**, not baked into the agent. The same agent object serves streaming and non-streaming runs:
+Streaming is requested at the call site rather than baked into the agent, so the same agent object works either way:
 
-- `rt.call(agent, ...)` runs buffered — no streaming overhead, no chunks.
-- `rt.astream(agent, ...)` streams — the agent's LLM responses are delivered chunk-by-chunk while it runs.
+- `rt.call(agent, ...)` runs buffered, with no streaming overhead and no chunks.
+- `rt.astream(agent, ...)` streams the agent's LLM response chunk by chunk as it runs.
 
-`rt.astream` returns a `Stream` handle: an async iterator that yields **only** `str` chunks. The final result is available separately via `.result` once the stream is exhausted, so there is never any ambiguity between a chunk and the final value:
+`rt.astream` returns a `Stream`, an async iterator that yields only the `str` chunks. The final result is kept separate and read from `.result` once the stream is exhausted, so a chunk is never confused with the final value:
 
 ```python
 --8<-- "docs/scripts/streaming.py:astream_basic"
 ```
 
-A `Stream` is also awaitable — `await stream` consumes it to completion and returns the final result:
+A `Stream` is also awaitable. Awaiting it consumes the stream to completion and returns the final result:
 
 ```python
 --8<-- "docs/scripts/streaming.py:astream_await"
 ```
 
 !!! Note "The final result is authoritative"
-    `stream.result` may differ from the concatenation of the streamed chunks — for example when output guardrails gate or correct the buffered response after the raw tokens were streamed. Treat the chunks as live progress and `.result` as the answer.
+    `stream.result` can differ from the concatenation of the streamed chunks. For example, an output guardrail may correct the buffered response after the raw tokens were already streamed. Treat the chunks as live progress and `.result` as the answer.
 
-Behavior details:
+A few details worth knowing:
 
-- **Frame-local**: only the node you invoke streams its LLM responses. Nested `rt.call` children (e.g. agents used as tools) run buffered.
-- **Errors**: if the node fails mid-stream, the exception is raised out of the `async for` loop (or the `await`), exactly like `rt.call`.
-- **Early exit**: `break`-ing out of the loop does not cancel the run — it continues to completion in the background. `await stream` afterwards to get the final result.
-- **Timeouts**: the session's `timeout` applies to the whole streamed run as a wall-clock limit.
-- **Tool calling**: token streaming with tool calling is currently supported on OpenAI models only. Streamed runs of tool-calling agents on other providers automatically fall back to a buffered model call (a warning is logged) — the final result is unaffected.
+- **Frame-local.** Only the node you invoke streams its LLM response. Nested `rt.call` children, such as agents used as tools, run buffered.
+- **Errors.** If the node fails mid-stream, the exception is raised out of the `async for` loop (or the `await`), just as it is with `rt.call`.
+- **Early exit.** Breaking out of the loop does not cancel the run; it finishes in the background. Await the stream afterwards to collect the final result.
+- **Timeouts.** The session `timeout` applies to the whole streamed run as a wall-clock limit.
+- **Tool calling.** Token streaming with tool calling is currently supported on OpenAI models only. On other providers a streamed tool-calling run falls back to a buffered model call (with a logged warning), and the final result is unaffected.
 
-### Two callback lanes: `broadcast_callback` vs `stream_callback`
+### Two callback lanes: `broadcast_callback` and `stream_callback`
 
-Streaming rides the same pubsub bus as `rt.broadcast`, but the two kinds of traffic are kept on **separate lanes** so a listener is never handed the wrong thing:
+Streaming shares the same pubsub bus as `rt.broadcast`, but the two kinds of traffic travel on separate lanes so a listener never receives the wrong kind:
 
-- **`stream_callback`** — a passive session-wide listener for **stream chunks** (`rt.broadcast_stream` productions, which include all LLM token streaming). This is the callback form of consuming tokens; `rt.astream` is the pull form.
-- **`broadcast_callback`** — a passive session-wide listener for one-off **events** published with `rt.broadcast` (progress notes, tool events). It is *never* flooded with tokens, even while a run streams.
+- **`stream_callback`** is a passive, session-wide listener for stream chunks, meaning the `rt.broadcast_stream` productions that carry LLM tokens. It is the callback form of consuming tokens, where `rt.astream` is the pull form.
+- **`broadcast_callback`** is a passive, session-wide listener for one-off events sent with `rt.broadcast`, such as progress notes or tool events. It never receives token chunks, even while a run streams.
 
-Both are set on the `Flow` (or globally via `rt.set_config`), and neither one *enables* streaming — only `rt.astream` does.
+Both are set on the `Flow` or globally with `rt.set_config`, and neither one turns streaming on. Only `rt.astream` does that.
 
 ```python
 --8<-- "docs/scripts/streaming.py:stream_callback"
 ```
-
-## Streaming Support
-Railtracks supports streaming responses from your agent. To interact with a stream, just set the appropriate flag when creating your LLM.
-
-```python
---8<-- "docs/scripts/streaming.py:streaming_flag"
-```
-
-When you call the LLM, it will return a generator that you can iterate through:
-
-```python
---8<-- "docs/scripts/streaming.py:streaming_usage"
-```
-
-## Agent Support
-
-Agents in Railtracks also support streamed responses. When creating your agent, you provide an LLM with streaming enabled:
-
-```python
---8<-- "docs/scripts/streaming.py:streaming_with_agents"
-```
-
-The output of the agent will be a generator containing a sequence of strings, followed by the complete message.
-
-!!! Example "Usage"
-    ```python    
-    --8<-- "docs/scripts/streaming.py:streaming_agent_usage"
-    ```
-    `
-
-!!! Warning
-    When using streaming, you should fully exhaust the returned object within the session. If you do this outside of the session, the visualizer suite will not work as expected.
-
-!!! Warning 
-    Streaming is only supported for tool-calling agents if you are using openai.
-
-
-

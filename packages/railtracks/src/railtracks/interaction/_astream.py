@@ -6,13 +6,13 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncIterator,
+    Callable,
     Generator,
     Generic,
     NoReturn,
     ParamSpec,
     TypeVar,
     cast,
-    overload,
 )
 from uuid import uuid4
 
@@ -89,7 +89,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         args: tuple[Any, ...],
         kwargs: dict[str, Any],
         *,
-        owned_session: Session | None = None,
+        on_start: Callable[[], None] | None = None,
+        on_close: Callable[[], None] | None = None,
     ):
         """
         Creates a new (not yet started) streamed invocation. Prefer `rt.astream(...)` over
@@ -99,8 +100,12 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             node: The node type to invoke.
             args: The positional arguments to pass to the node.
             kwargs: The keyword arguments to pass to the node.
-            owned_session: A session this stream is responsible for closing once the run
-                completes (`rt.astream` creates one lazily when called outside any session).
+            on_start: Called once, just before the run is launched on first iteration. The
+                caller (`rt.astream`) uses this to set up the surrounding run context (e.g.
+                open a session when there is none). The `Stream` itself owns no such state.
+            on_close: Called once when the run finishes (or errors, or times out). The caller
+                uses this to tear down whatever `on_start` set up. The two are paired so a
+                `Stream` never has to know about — or reach into — a session's lifecycle.
         """
         self._node = node
         self._args = args
@@ -117,8 +122,11 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         self._sub_id: str | None = None
         self._deadline: float | None = None
         self._timeout: float | None = None
-        # a session this stream is responsible for closing once the run completes
-        self._owned_session: Session | None = owned_session
+        # run-context hooks supplied by the caller (session setup/teardown lives there,
+        # not in the Stream — see rt.astream)
+        self._on_start = on_start
+        self._on_close = on_close
+        self._closed = False
 
     # ------------------------------------------------------------------ lifecycle
 
@@ -129,11 +137,10 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             return
         self._started = True
 
-        if not is_context_present():
-            # lazy import to prevent a circular import (same pattern as rt.call)
-            from railtracks import Session
-
-            self._owned_session = Session()
+        # let the caller set up the run context (e.g. open a session); the Stream stays
+        # out of session lifecycle entirely.
+        if self._on_start is not None:
+            self._on_start()
 
         await activate_publisher()
         publisher = get_publisher()
@@ -174,7 +181,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         )
 
     def _cleanup(self) -> None:
-        """Unsubscribes from the bus and closes the owned session (if any)."""
+        """Unsubscribes from the bus and hands teardown of the run context back to the caller."""
         if self._sub_id is not None:
             try:
                 get_publisher().unsubscribe(self._sub_id)
@@ -183,10 +190,11 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
                 logger.debug("Failed to unsubscribe astream subscriber.", exc_info=True)
             self._sub_id = None
 
-        if self._owned_session is not None:
-            session = self._owned_session
-            self._owned_session = None
-            session.__exit__(None, None, None)
+        # tear down whatever on_start set up (e.g. a session); run at most once.
+        if not self._closed:
+            self._closed = True
+            if self._on_close is not None:
+                self._on_close()
 
     # ------------------------------------------------------------------ iteration
 
@@ -215,16 +223,16 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
 
         if kind == "chunk":
             return payload
-
-        # the run has finished: resolve the final result (or raise the node's error)
-        self._finished = True
-        self._cleanup()
-        try:
-            self._result = output_mapping(payload)
-        except BaseException as e:
-            self._error = e
-            raise
-        raise StopAsyncIteration
+        else:
+            # the run has finished: resolve the final result (or raise the node's error)
+            self._finished = True
+            self._cleanup()
+            try:
+                self._result = output_mapping(payload)
+            except BaseException as e:
+                self._error = e
+                raise
+            raise StopAsyncIteration
 
     def _finish_with_timeout(self) -> NoReturn:
         """Marks the stream as finished and raises the global timeout error."""
@@ -269,22 +277,6 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
     def __await__(self) -> Generator[Any, None, _TOutput]:
         """Awaiting a Stream consumes it to completion and returns the final result."""
         return self._drain().__await__()
-
-
-@overload
-def astream(
-    node_: type[Node[_P, _TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> Stream[_TOutput]: ...
-
-
-@overload
-def astream(
-    node_: RTFunction[_P, _TOutput],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> Stream[_TOutput]: ...
 
 
 def astream(
@@ -335,4 +327,20 @@ def astream(
         # not an RTFunction (no `node_type`), so it is already a Node subclass
         node = cast("type[Node[_P, _TOutput]]", node_)
 
-    return Stream(node, args, kwargs)
+    # Session lifecycle is owned here, not by the Stream handle. When called outside any
+    # session we open one and hold it in this closure; the Stream calls `_close` back once
+    # it finishes (see Stream.on_start / on_close), so the session's open/close logic lives
+    # with astream rather than inside the returned object.
+    owned: list[Session] = []
+
+    def _open() -> None:
+        if not is_context_present():
+            from railtracks import Session  # lazy import to avoid a circular import
+
+            owned.append(Session())
+
+    def _close() -> None:
+        while owned:
+            owned.pop().__exit__(None, None, None)
+
+    return Stream(node, args, kwargs, on_start=_open, on_close=_close)

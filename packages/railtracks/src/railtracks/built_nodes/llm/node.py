@@ -125,7 +125,7 @@ def agent_node(
     ]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
-):# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:# -> type[Node[Callable[[UserInput], Any], StringResponse]] | Any:
+):
     """
     Dynamically creates an agent based on the provided parameters.
 

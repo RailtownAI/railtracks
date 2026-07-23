@@ -11,7 +11,6 @@ from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
 from railtracks.built_nodes.llm.request_details import RequestDetails
 from railtracks.context.central import is_streaming_enabled
-from railtracks.exceptions.errors import LLMError
 from railtracks.interaction.broadcast_ import broadcast_stream
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.model import ModelBase
@@ -136,13 +135,9 @@ class ModelInvoker:
                 else:
                     model_stream = model.astream_chat(messages)
 
-                result = await broadcast_stream(model_stream)
-                if not isinstance(result, Response):
-                    raise LLMError(
-                        reason="The model stream did not yield a final Response object.",
-                        message_history=messages,
-                    )
-                return result
+                # broadcast_stream returns the complete Response (or raises LLMError if the
+                # stream never produced one), mirroring the buffered branch below.
+                return await broadcast_stream(model_stream)
 
             if tools is not None and len(tools) > 0:
                 return await asyncio.to_thread(
