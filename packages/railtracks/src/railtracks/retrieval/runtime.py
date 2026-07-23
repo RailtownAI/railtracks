@@ -374,21 +374,23 @@ class RetrievalRuntime:
         # batch_index is per-document: it counts batches (successful and
         # failed) within this document and resets for the next one.
         batch_index = 0
-        delete_done = False
+        all_succeeded = True
+        # Collect all successful batches before deleting old data.
+        # This prevents data loss when partial failures occur:
+        # old version is preserved until ALL new batches succeed.
+        successful_entries: list[tuple[EmbeddedChunk, StoreEntry]] = []
+
         async for batch in self._embedder.astream_batches(
             chunks, batch_size=self._batch_size
         ):
             if isinstance(batch, EmbeddingResult):
-                # Check model BEFORE delete_where / write — a mismatch here
-                # must not corrupt the store by clearing prior chunks first.
+                # Check model BEFORE any writes — a mismatch here
+                # must not corrupt the store.
                 self._check_model(batch.metrics.model)
-                if not delete_done:
-                    await self._store.delete_where({"document_id": str(doc.id)})
-                    delete_done = True
                 for embedded in batch.chunks:
                     self._capture_model(embedded)
                     entry = StoreEntry.from_chunk(embedded, scope=scope)
-                    await self._store.write(entry)
+                    successful_entries.append((embedded, entry))
                 stats.chunks_embedded += len(batch.chunks)
                 stats.total_metrics = stats.total_metrics + batch.metrics
                 yield BatchIngested(
@@ -398,11 +400,25 @@ class RetrievalRuntime:
                     metrics=batch.metrics,
                 )
             else:
+                all_succeeded = False
                 doc_errors.extend(batch.errors)
                 stats.batches_failed += 1
                 stats.batch_failures.append(batch)
                 yield batch
             batch_index += 1
+
+        # Only delete old version after ALL batches succeed.
+        # If any batch failed, keep the old version intact.
+        if all_succeeded and successful_entries:
+            await self._store.delete_where({"document_id": str(doc.id)})
+            for embedded, entry in successful_entries:
+                await self._store.write(entry)
+        elif not all_succeeded:
+            logger.warning(
+                "Partial failure during re-ingest of %s — "
+                "keeping old version intact (%d successful batches discarded)",
+                doc.id, len(successful_entries),
+            )
 
     def _capture_model(self, embedded: EmbeddedChunk) -> None:
         """Record the embedding model from the first successful chunk so later
