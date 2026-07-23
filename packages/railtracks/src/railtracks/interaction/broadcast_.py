@@ -8,20 +8,29 @@ from railtracks.llm.response import Response
 from railtracks.pubsub.messages import Streaming
 
 
-async def broadcast(item: str):
+async def broadcast(item: str, channel: str = "default"):
     """
     Broadcasts a one-off **event** to the session bus.
 
-    This triggers the `broadcast_callback` you have already provided. Events are 
-    separate from stream callbacks.
+    The event is delivered to a `broadcast_callback` and, when emitted inside a streamed run,
+    to `rt.astream` (which can filter to a single channel with `on_channel`). Events travel on
+    a separate lane from stream chunks, so a `broadcast_callback` never receives tokens.
 
     Args:
         item (str): The item you want to broadcast.
+        channel (str): The named channel to emit on. Consumers can select a single channel
+            (e.g. `stream.on_channel("status")`). Defaults to `"default"`.
     """
     publisher = get_publisher()
 
     await publisher.publish(
-        Streaming(node_id=get_parent_id(), streamed_object=item, kind="event")
+        Streaming(
+            node_id=get_parent_id(),
+            streamed_object=item,
+            channel=channel,
+            stream_id=get_stream_id(),
+            kind="event",
+        )
     )
 
 
