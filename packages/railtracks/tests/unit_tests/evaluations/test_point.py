@@ -1,9 +1,8 @@
 import json
 from collections import defaultdict
-
-import pytest
 from uuid import UUID
 
+import pytest
 from railtracks.evaluations.point import (
     EdgeDataPoint,
     MessageRole,
@@ -12,13 +11,13 @@ from railtracks.evaluations.point import (
     extract_agent_data_points,
     extract_agent_io,
     extract_llm_details,
+    extract_runtime,
     extract_tool_details,
     load_session,
     resolve_file_paths,
 )
 
-from .conftest import AGENT_ID, TOOL1_ID, TOOL2_ID, SESSION_ID
-
+from .conftest import AGENT_ID, SESSION_ID, TOOL1_ID, TOOL2_ID
 
 # ── load_session ──────────────────────────────────────────────────────────────
 
@@ -166,7 +165,9 @@ def test_extract_agent_io_completed_edge(agent_node, edges):
 
 
 def test_extract_agent_io_no_edges(agent_node):
-    agent_input, agent_output = extract_agent_io(defaultdict(list), agent_node, str(SESSION_ID))
+    agent_input, agent_output = extract_agent_io(
+        defaultdict(list), agent_node, str(SESSION_ID)
+    )
     assert agent_input == {}
     assert agent_output == {}
 
@@ -178,11 +179,18 @@ def test_extract_agent_io_ignores_failed_edge(agent_node):
                 identifier=UUID("eeeeeeee-0000-0000-0000-000000000001"),
                 source=None,
                 target=AGENT_ID,
-                details={"input_args": [], "input_kwargs": {}, "status": "Failed", "output": None},
+                details={
+                    "input_args": [],
+                    "input_kwargs": {},
+                    "status": "Failed",
+                    "output": None,
+                },
             )
         ]
     }
-    agent_input, agent_output = extract_agent_io(failed_sink, agent_node, str(SESSION_ID))
+    agent_input, agent_output = extract_agent_io(
+        failed_sink, agent_node, str(SESSION_ID)
+    )
     assert agent_input == {}
     assert agent_output == {}
 
@@ -237,7 +245,62 @@ def test_extract_agent_data_points_from_file(tmp_path, session_json):
     dp = data_points[0]
     assert dp.agent_name == "TestAgent"
     assert dp.session_id == SESSION_ID
+    assert dp.runtime == pytest.approx(16.0)
     assert len(dp.llm_details.calls) == 1
+
+
+def test_extract_runtime_prefers_run_boundaries():
+    run = {"start_time": 10.0, "end_time": 12.5}
+    session = {"start_time": 1.0, "end_time": 101.0}
+
+    assert extract_runtime(run, session) == pytest.approx(2.5)
+
+
+def test_extract_runtime_uses_session_boundaries_for_legacy_runs():
+    session = {"start_time": 1_000_000.0, "end_time": 1_000_016.0}
+
+    assert extract_runtime({}, session) == pytest.approx(16.0)
+
+
+def test_extract_runtime_does_not_complete_an_open_run_from_session_time():
+    run = {"start_time": 10.0, "end_time": None}
+    session = {"start_time": 1.0, "end_time": 101.0}
+
+    assert extract_runtime(run, session) is None
+
+
+def test_extract_runtime_does_not_complete_an_open_legacy_run():
+    run = {"status": "Open"}
+    session = {"start_time": 1.0, "end_time": 101.0}
+
+    assert extract_runtime(run, session) is None
+
+
+def test_extract_runtime_ignores_reversed_boundaries():
+    run = {"start_time": 12.5, "end_time": 10.0}
+
+    assert extract_runtime(run, {}) is None
+
+
+def test_extract_agent_data_points_records_runtime_only_for_root_agent(session_json):
+    nested_agent_id = UUID("aaaaaaaa-0000-0000-0000-000000000002")
+    run = session_json["runs"][0]
+    run["start_time"] = 10.0
+    run["end_time"] = 12.5
+    run["nodes"].append(
+        {
+            "identifier": str(nested_agent_id),
+            "node_type": "Agent",
+            "name": "NestedAgent",
+            "details": {},
+        }
+    )
+
+    data_points = extract_agent_data_points([session_json])
+    runtimes = {data_point.agent_name: data_point.runtime for data_point in data_points}
+
+    assert runtimes["TestAgent"] == pytest.approx(2.5)
+    assert runtimes["NestedAgent"] is None
 
 
 def test_extract_agent_data_points_tool_details(tmp_path, session_json):
