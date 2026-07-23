@@ -23,7 +23,7 @@ from railtracks.context.central import (
 )
 from railtracks.exceptions import GlobalTimeOutError
 from railtracks.nodes.utils import extract_node_from_function
-from railtracks.observability.configure import ensure_started
+from railtracks.observability.configure import ensure_started, shutdown
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -174,6 +174,8 @@ async def _start(
             raise e
 
         raise GlobalTimeOutError(timeout=timeout)
+
+    await shutdown()
 
     return result
 
