@@ -17,11 +17,5 @@
 --8<-- "docs/scripts/prebuilt_guardrails.py:length_output_demo"
 ```
 
-Attach them as model middleware:
-
-```python
---8<-- "docs/scripts/prebuilt_guardrails.py:length_agent"
-```
-
 !!! note "Scope"
     Counting is character-based and dependency-free. Word- or token-based counting (e.g. via `tiktoken`) is out of scope today and may arrive in later releases. Non-string content is treated as zero-length.

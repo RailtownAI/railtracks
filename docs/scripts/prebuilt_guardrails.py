@@ -49,18 +49,6 @@ result = block_output.decide("Your API_KEY is sk-abc123")
 # result.action == rt.guardrails.GuardrailAction.BLOCK
 # --8<-- [end: block_text_output_demo]
 
-# --8<-- [start: block_text_agent]
-BlockAgent = rt.agent_node(
-    name="block-text-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a concise assistant.",
-    model_middleware=[
-        BlockTextInputGuard(pattern=r"\b(jailbreak|exploit)\b"),
-        BlockTextOutputGuard(pattern=r"(API_KEY|SECRET_TOKEN)"),
-    ],
-)
-# --8<-- [end: block_text_agent]
-
 
 # --8<-- [start: length_input_demo]
 from railtracks.prebuilt.guardrails import InputLengthGuard, OutputLengthGuard
@@ -79,18 +67,6 @@ output_length = OutputLengthGuard(max_chars=2000)
 result = output_length.decide("ok")
 # result.action == rt.guardrails.GuardrailAction.ALLOW
 # --8<-- [end: length_output_demo]
-
-# --8<-- [start: length_agent]
-LengthAgent = rt.agent_node(
-    name="length-guard-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a concise assistant.",
-    model_middleware=[
-        InputLengthGuard(max_chars=4000),
-        OutputLengthGuard(max_chars=2000),
-    ],
-)
-# --8<-- [end: length_agent]
 
 
 # --8<-- [start: pii_available]
@@ -146,15 +122,6 @@ result = guard_with_custom.decide(
 )
 # result.messages — redacted user message(s), e.g. [EMPLOYEE_ID] and [EMAIL_ADDRESS]
 # --8<-- [end: pii_custom_patterns]
-
-# --8<-- [start: pii_agent]
-PIIAgent = rt.agent_node(
-    name="pii-redact-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are a concise assistant.",
-    model_middleware=[PIIRedactInputGuard(), PIIRedactOutputGuard()],
-)
-# --8<-- [end: pii_agent]
 
 
 def main() -> None:

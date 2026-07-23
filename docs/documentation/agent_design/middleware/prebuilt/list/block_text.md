@@ -17,11 +17,5 @@ Pass a regex string to `pattern`. It is compiled once at construction time; an i
 --8<-- "docs/scripts/prebuilt_guardrails.py:block_text_output_demo"
 ```
 
-Guards are model middleware; attach them with `model_middleware=[...]`:
-
-```python
---8<-- "docs/scripts/prebuilt_guardrails.py:block_text_agent"
-```
-
 !!! note "Scope"
     These guards perform a simple `re.search` against string message content. They do not inspect tool-call arguments, multi-part content lists, or streaming chunks.

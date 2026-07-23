@@ -48,14 +48,3 @@ You are not limited to `PIIEntity` values. Add `PIICustomPattern(name=..., regex
 ```
 
 Use the same `PIIRedactConfig` instance for both input and output guards if you want identical rules.
-
-## Agent usage
-
-Attach them as model middleware:
-
-```python
---8<-- "docs/scripts/prebuilt_guardrails.py:pii_agent"
-```
-
-!!! note "Scope"
-    This PII layer is regex-only: no NER/Presidio, no `MASK` mode, no streaming-specific API, and no redaction inside tool calls yet. Those may arrive in later releases.
