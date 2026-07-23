@@ -48,9 +48,11 @@ class Middleware(Generic[_P, _R]):
     def __init__(
         self,
         fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
+        name: str | None = None,
     ) -> None:
         _require_async(fn, "Middleware function")
         self._fn = fn
+        self.name = name if name is not None else fn.__name__
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         """Compose this middleware onto ``inner``, returning a new callable with the same signature."""

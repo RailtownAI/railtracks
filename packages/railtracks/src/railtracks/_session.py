@@ -13,6 +13,7 @@ from railtracks.exceptions.messages.exception_messages import (
 from railtracks.paths import resolve_railtracks_home
 
 from .context.central import (
+    ContextVarScopeManager,
     delete_globals,
     get_global_config,
     register_globals,
@@ -111,7 +112,11 @@ class Session:
 
         executor_info = ExecutionInfo.create_new()
         self.coordinator = Coordinator(
-            execution_modes={"async": AsyncioExecutionStrategy()}
+            execution_modes={
+                "async": AsyncioExecutionStrategy(
+                    scope_manager=ContextVarScopeManager()
+                )
+            }
         )
         self.rt_state = RTState(
             executor_info, self.executor_config, self.coordinator, self.publisher
@@ -122,7 +127,6 @@ class Session:
         register_globals(
             session_id=self._identifier,
             rt_publisher=self.publisher,
-            parent_id=None,
             executor_config=self.executor_config,
             global_context_vars=context,
         )

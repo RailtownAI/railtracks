@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, TypeVar
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
 from railtracks.middleware.core import Middleware
+from railtracks.scope_manager import NullScopeManager, ScopeManager
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
@@ -79,7 +81,7 @@ class Node(ABC, Generic[_P, _TOutput]):
 
             # a simple wrapper to convert any async function to a non async one.
             async def async_wrapper(self, *args, **kwargs):
-                if asyncio.iscoroutinefunction(
+                if inspect.iscoroutinefunction(
                     method
                 ):  # check if the method is a coroutine
                     return await method(self, *args, **kwargs)
@@ -110,13 +112,18 @@ class Node(ABC, Generic[_P, _TOutput]):
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
+        self._scope_manager: ScopeManager = NullScopeManager()
         self.middleware = MiddlewareChain[_P, _TOutput](
             middleware=[
                 *self._exterior_middleware,
                 *self._user_middleware,
                 *self._interior_middleware,
-            ]
+            ],
         )
+
+    def bind_scope_manager(self, scope_manager: ScopeManager) -> None:
+        """Binds the real ScopeManager for this node's execution."""
+        self._scope_manager = scope_manager
 
     @classmethod
     @abstractmethod
@@ -137,7 +144,14 @@ class Node(ABC, Generic[_P, _TOutput]):
         """
         Runs ``invoke`` through the node-level middleware.
         """
-        return await self.middleware.run(self.invoke, *args, **kwargs)
+
+        async def body(*a: _P.args, **kw: _P.kwargs) -> _TOutput:
+            with self._scope_manager.enter_node_body():
+                return await self.invoke(*a, **kw)
+
+        # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
+        self.middleware.get_scope_manager = lambda: self._scope_manager
+        return await self.middleware.run(body, *args, **kwargs)
 
     @classmethod
     def extend_middleware(

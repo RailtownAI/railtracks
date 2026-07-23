@@ -10,19 +10,39 @@ from typing import (
 )
 
 from railtracks.middleware.core import Middleware
+from railtracks.scope_manager import ScopeManager, null_scope_manager
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+
+
+def _scoped(
+    m: Middleware[_P, _R],
+    inner: Callable[_P, Awaitable[_R]],
+    get_scope_manager: Callable[[], ScopeManager],
+):
+    wrapped = m.wrap(inner)
+    identifier = m.name
+
+    async def scoped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        with get_scope_manager().enter_middleware(
+            identifier,
+        ):
+            return await wrapped(*args, **kwargs)
+
+    return scoped
 
 
 class MiddlewareChain(Generic[_P, _R]):
     def __init__(
         self,
         middleware: Iterable[Middleware[_P, _R]] | None = None,
+        get_scope_manager: Callable[[], ScopeManager] = null_scope_manager,
     ) -> None:
         self._middleware: list[Middleware[_P, _R]] = (
             list(middleware) if middleware is not None else []
         )
+        self.get_scope_manager = get_scope_manager
 
     def add_middleware(self, m: Middleware[_P, _R]) -> None:
         """Append a user outer middleware (outermost band). Runs around the whole call."""
@@ -41,7 +61,7 @@ class MiddlewareChain(Generic[_P, _R]):
     ) -> _R:
         func = core
         for m in reversed(self._middleware):
-            func = m.wrap(func)
+            func = _scoped(m, func, self.get_scope_manager)
 
         return await func(*args, **kwargs)
 

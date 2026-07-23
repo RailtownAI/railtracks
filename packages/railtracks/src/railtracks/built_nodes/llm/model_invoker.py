@@ -14,6 +14,7 @@ from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
+from railtracks.scope_manager import ScopeManager, null_scope_manager
 
 
 @wrap_llm
@@ -63,19 +64,29 @@ class ModelInvoker:
         self,
         model: ModelSource,
         middleware: list[ModelMiddleware] | None = None,
+        get_scope_manager: Callable[[], ScopeManager] = null_scope_manager,
     ):
         self._get_model = model if callable(model) else lambda: model
-        self._middleware = MiddlewareChain(middleware or [])
+        self._middleware = MiddlewareChain(
+            middleware or [], get_scope_manager=get_scope_manager
+        )
 
     @classmethod
     def create_with_llm_observe(
-        cls, model: ModelSource, middleware: list[ModelMiddleware] | None = None
+        cls,
+        model: ModelSource,
+        middleware: list[ModelMiddleware] | None = None,
+        get_scope_manager: Callable[[], ScopeManager] = null_scope_manager,
     ) -> ModelInvoker:
         """
         Creates a new :class:`ModelInvoker` with the given model and middleware, inserting the obersvation middleware as the last element run.
         """
         unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
-        return cls(model, [*unwrapped_middleware, _llm_observe])
+        return cls(
+            model,
+            [*unwrapped_middleware, _llm_observe],
+            get_scope_manager=get_scope_manager,
+        )
 
     async def invoke(
         self,
@@ -114,4 +125,8 @@ class ModelInvoker:
         for m in model_middleware:
             new_middleware_chain.add_middleware(m)
 
-        return ModelInvoker(self._get_model, new_middleware_chain._middleware)
+        return ModelInvoker(
+            self._get_model,
+            new_middleware_chain._middleware,
+            get_scope_manager=new_middleware_chain.get_scope_manager,
+        )

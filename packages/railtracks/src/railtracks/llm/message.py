@@ -5,11 +5,10 @@ import os
 import re
 from copy import deepcopy
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import urlparse
-from typing import Any, Generic, TypeVar
 
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
