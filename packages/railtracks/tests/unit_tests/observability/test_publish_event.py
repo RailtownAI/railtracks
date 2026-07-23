@@ -54,12 +54,12 @@ def _make_session_event(event_type: str = "test.event", payload: dict[str, Any] 
     )
 
 
-def test_publish_before_start_raises():
+async def test_publish_before_start_raises():
     """publish_event without a prior ensure_started() propagates the
     Observer's RuntimeError. Callers get a loud failure, not a silent drop."""
     configure_writers([_CollectingWriter()])
     with pytest.raises(RuntimeError, match="Observer is not running"):
-        publish_event(_make_session_event())
+        await publish_event(_make_session_event())
 
 
 async def test_publishes_to_configured_writer():
@@ -68,7 +68,7 @@ async def test_publishes_to_configured_writer():
     await ensure_started()
 
     event = _make_session_event("node.create", {"node_id": "n1"})
-    publish_event(event)
+    await publish_event(event)
     await shutdown()  # drains queues into writers
 
     assert writer.events == [event]
@@ -77,7 +77,7 @@ async def test_publishes_to_configured_writer():
 async def test_no_writers_configured_is_a_silent_no_op():
     # No configure_writers() call at all.
     await ensure_started()
-    publish_event(_make_session_event())  # zero writers → fan-out is a no-op
+    await publish_event(_make_session_event())  # zero writers → fan-out is a no-op
     await shutdown()
 
 
@@ -87,7 +87,7 @@ async def test_writer_that_raises_does_not_break_other_writers():
     await ensure_started()
 
     event = _make_session_event()
-    publish_event(event)
+    await publish_event(event)
     await shutdown()
 
     # The raising writer's exception was swallowed by Observer's consumer loop.
@@ -104,7 +104,7 @@ async def test_multiple_events_delivered_in_order():
 
     events = [_make_session_event(f"event-{i}") for i in range(5)]
     for event in events:
-        publish_event(event)
+        await publish_event(event)
     await shutdown()
 
     assert [e.event_type for e in writer.events] == [e.event_type for e in events]
@@ -116,11 +116,11 @@ async def test_publish_after_shutdown_raises():
     writer = _CollectingWriter()
     configure_writers([writer])
     await ensure_started()
-    publish_event(_make_session_event("first"))
+    await publish_event(_make_session_event("first"))
     await shutdown()
 
     with pytest.raises(RuntimeError, match="Observer is not running"):
-        publish_event(_make_session_event("second"))
+        await publish_event(_make_session_event("second"))
     # Only the pre-shutdown event landed.
     assert [e.event_type for e in writer.events] == ["first"]
 
@@ -131,5 +131,5 @@ async def test_ensure_started_before_configure_writers_starts_with_no_writers(ca
     fan out to nothing."""
     await ensure_started()
     assert configure.observer._running is True
-    publish_event(_make_session_event())
+    await publish_event(_make_session_event())
     await shutdown()

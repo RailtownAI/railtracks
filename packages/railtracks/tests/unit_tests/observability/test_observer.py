@@ -52,8 +52,8 @@ async def test_fan_out_to_multiple_writers():
     async with Observer() as obs:
         await obs.register(a, "a")
         await obs.register(b, "b")
-        obs.publish(_event("e1"))
-        obs.publish(_event("e2"))
+        await obs.publish(_event("e1"))
+        await obs.publish(_event("e2"))
     assert [e.scope_id for e in a.events] == ["e1", "e2"]
     assert [e.scope_id for e in b.events] == ["e1", "e2"]
 
@@ -75,7 +75,7 @@ async def test_slow_writer_does_not_block_fast_writer():
         await obs.register(slow, "slow")
         await obs.register(fast, "fast")
         for i in range(5):
-            obs.publish(_event(f"e{i}"))
+            await obs.publish(_event(f"e{i}"))
         await asyncio.sleep(0.01)
         assert len(fast.events) == 5
         assert len(slow.events) < 5
@@ -90,8 +90,8 @@ async def test_writer_exception_does_not_kill_observer():
     async with Observer() as obs:
         await obs.register(bad, "bad")
         await obs.register(good, "good")
-        obs.publish(_event("e1"))
-        obs.publish(_event("e2"))
+        await obs.publish(_event("e1"))
+        await obs.publish(_event("e2"))
     assert [e.scope_id for e in good.events] == ["e1", "e2"]
     assert bad.events == []
     assert bad.shutdown_called is True
@@ -103,7 +103,7 @@ async def test_shutdown_drains_pending_events():
     await obs.start()
     await obs.register(slow, "slow")
     for i in range(5):
-        obs.publish(_event(f"e{i}"))
+        await obs.publish(_event(f"e{i}"))
     await obs.shutdown()
     assert len(slow.events) == 5
 
@@ -114,7 +114,7 @@ async def test_publish_after_shutdown_raises():
     await obs.register(MemoryWriter(), "w")
     await obs.shutdown()
     with pytest.raises(RuntimeError):
-        obs.publish(_event())
+        await obs.publish(_event())
 
 
 async def test_register_when_not_running_raises():
@@ -137,7 +137,7 @@ async def test_configure_writers_then_start_registers_pending():
         assert a.started is True
         assert b.started is True
         assert set(obs._writers.keys()) == {"writer-0", "writer-1"}
-        obs.publish(_event("e1"))
+        await obs.publish(_event("e1"))
     finally:
         await obs.shutdown()
     assert [e.scope_id for e in a.events] == ["e1"]
@@ -180,10 +180,10 @@ async def test_unregister_cleans_up_writer_and_stops_delivery():
     async with Observer() as obs:
         await obs.register(a, "a")
         await obs.register(b, "b")
-        obs.publish(_event("e1"))
+        await obs.publish(_event("e1"))
         await obs.unregister("a")
         assert a.shutdown_called is True
-        obs.publish(_event("e2"))
+        await obs.publish(_event("e2"))
     assert [e.scope_id for e in a.events] == ["e1"]
     assert [e.scope_id for e in b.events] == ["e1", "e2"]
 
@@ -214,7 +214,7 @@ async def test_drop_oldest_when_queue_full():
             GatedWriter(), "gated", maxsize=3, policy=QueuePolicy.DROP_OLDEST
         )
         for i in range(6):
-            obs.publish(_event(f"e{i}"))
+            await obs.publish(_event(f"e{i}"))
         assert obs._drops["gated"] >= 3
     finally:
         gate.set()

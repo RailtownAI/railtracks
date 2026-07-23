@@ -134,8 +134,11 @@ class Observer:
             raise KeyError(f"No writer registered as {name!r}.")
         await self._teardown(name)
 
-    def publish(self, event: Event) -> None:
+    async def publish(self, event: Event) -> None:
         """Fan the event out to every registered writer's queue.
+
+        `async` on this method is contract-enforcement, the body doesn't `await` anything.
+        requiring callers to be inside a coroutine means they're on some running loop
 
         Args:
             event: The event to publish.

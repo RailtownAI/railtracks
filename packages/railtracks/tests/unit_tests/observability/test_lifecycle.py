@@ -51,7 +51,7 @@ async def test_concurrent_ensure_started_coalesces():
 
     # Registration succeeded — publishing works end-to-end.
     event = _make_session_event()
-    publish_event(event)
+    await publish_event(event)
     await shutdown()
     assert writer.events == [event]
 
@@ -62,7 +62,7 @@ async def test_reset_for_tests_swaps_in_fresh_observer():
     configure_writers([writer1])
     await ensure_started()
     event1 = _make_session_event("first")
-    publish_event(event1)
+    await publish_event(event1)
     await shutdown()
     assert writer1.events == [event1]
 
@@ -79,7 +79,7 @@ async def test_reset_for_tests_swaps_in_fresh_observer():
     configure_writers([writer2])
     await ensure_started()
     event2 = _make_session_event("second")
-    publish_event(event2)
+    await publish_event(event2)
     await shutdown()
     assert writer2.events == [event2]
     # writer1 was not touched by the second run.
