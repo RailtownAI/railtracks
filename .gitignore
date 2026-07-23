@@ -46,3 +46,4 @@ core-licenses-summary.md
 
 # Ignore Files copied during release workflow for PyPI packaging (for Flit)
 packages/railtracks/docs/
+graphify-out/
