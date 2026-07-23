@@ -1,14 +1,4 @@
-"""Process-wide default Observer, plus writer registration.
-
-Thin wrapper over `Observer`: Holds the shared singleton instance and routes
-module-level `configure_writers` and `ensure_started` to it. All the real
-lifecycle logic (pending writers, double-checked start, running flag) lives
-on the `Observer` class now.
-
-Callers who want their own Observer can still construct one directly from
-`observability.Observer`; this module just wires up a shared default for the
-common case.
-"""
+"""Process-wide default Observer, plus writer registration."""
 
 from __future__ import annotations
 

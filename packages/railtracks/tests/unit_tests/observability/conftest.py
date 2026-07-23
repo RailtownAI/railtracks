@@ -1,5 +1,4 @@
 import pytest
-
 from railtracks.observability import configure
 
 

@@ -138,7 +138,7 @@ class Observer:
         """Fan the event out to every registered writer's queue.
 
         `async` on this method is contract-enforcement, the body doesn't `await` anything.
-        requiring callers to be inside a coroutine means they're on some running loop
+        requiring callers to be inside a coroutine means they're on the same running loop
 
         Args:
             event: The event to publish.

@@ -2,7 +2,6 @@ import asyncio
 from typing import List
 
 import pytest
-
 from railtracks.observability import (
     SCOPE_SESSION,
     Event,

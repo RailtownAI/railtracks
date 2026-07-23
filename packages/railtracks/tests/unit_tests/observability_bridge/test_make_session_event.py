@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from typing import Any, Callable, TypeVar
 
 import pytest
-
 from railtracks.context.central import register_globals, runner_context
 from railtracks.exceptions import ContextError
 from railtracks.observability import SCOPE_SESSION, Event

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from railtracks.observability import Event, Writer, configure, configure_writers
 
 
