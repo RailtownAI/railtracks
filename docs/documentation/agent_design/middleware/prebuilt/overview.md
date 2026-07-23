@@ -1,28 +1,29 @@
 # Prebuilt Middleware
 
-We provide a suite of prebuilt middleware to help accelerate your agent builds. We have provided samples to get you started; for building your own, see [Custom Middleware](../custom.md).
+Railtracks ships a suite of prebuilt middleware so you can add common behavior to an agent without writing it yourself. Every item below is a normal middleware; you attach it exactly like your own, on the `middleware=` (node) or `model_middleware=` (model) slot. For the difference between the two slots, see [Middleware Overview](../overview.md); to build your own, see [Custom Middleware](../custom.md).
 
-## Model Middleware
-Model middleware wraps the model call itself. Useful for acting on the inputs or outputs of the model, or for retry logic specific to the model call. Prebuilt model middleware includes:
+The **Slot** column tells you where each middleware can be attached:
 
-!!! Note 
-    [Guardrails](../guardrails/overview.md) are model middleware under the hood and can be attached just as any other middleware.
+- **Node**: wraps the whole node/function call (`middleware=`).
+- **Model**: wraps a single model call (`model_middleware=`).
+- **Both**: slot-agnostic; works in either.
 
-Check out our prebuilt tooling:
+## Catalog
 
-TABLE TBD
+| Middleware | Slot | What it does |
+|---|---|---|
+| [Retry](list/retry.md) | Both | Re-run the wrapped call when it raises a transient error, with a configurable backoff. |
+| [ContextInjection](list/context_injection.md) | Model | Fill `{placeholder}` templates in the prompt from the active session context. |
+
+### Guardrails
+
+Guardrails are model middleware too; a policy layer that inspects inputs and outputs and can allow, transform, or block them. See the [Guardrails](../guardrails/overview.md) overview for the full picture; the prebuilt rails are catalogued here.
+
+| Guardrail | Slot | What it does |
+|---|---|---|
+| [BlockTextInputGuard / BlockTextOutputGuard](list/block_text.md) | Model | Block an interaction when a regex pattern matches the input or output. |
+| [InputLengthGuard / OutputLengthGuard](list/length.md) | Model | Block an interaction when the character count exceeds a ceiling. |
+| [PIIRedactInputGuard / PIIRedactOutputGuard](list/pii_redaction.md) | Model | Redact PII (emails, phone numbers, custom patterns, …) from inputs and outputs. |
 
 !!! Note
-    Don't see what you are looking for... [Create your own middleware](../custom.md) to build a custom solution for your needs.
-
-
-
-## Node Middleware
-Node middleware wraps the entire node call. This is useful for logging, retries, caching, and similar concerns that are not specific to the model call itself.
-
-Check out our prebuilt tooling:
-
-TABLE TBD
-
-!!! Note
-    Don't see what you are looking for... [Create your own middleware](../custom.md) to build a custom solution for your needs.
+    Don't see what you are looking for? [Create your own middleware](../custom.md) for a custom solution, or [contribute a prebuilt middleware](contributions.md) so others can reuse it.
