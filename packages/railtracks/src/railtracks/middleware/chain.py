@@ -8,7 +8,6 @@ from typing import (
     ParamSpec,
     TypeVar,
 )
-from uuid import uuid4
 
 from railtracks.middleware.core import Middleware
 from railtracks.scope_manager import ScopeManager, null_scope_manager
