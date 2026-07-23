@@ -81,3 +81,26 @@ def test_temperature_passed_to_litellm_completion(message_history):
             mock_completion.assert_called_once()
             assert mock_completion.call_args.kwargs.get("temperature") == 0.4
 
+
+class TestUnsupportedParameterValidation:
+    """Issue #1276: constructing a provider LLM with a common param the target
+    model doesn't support (per litellm + our manual override table) must raise
+    immediately at construction time, not fail later with a raw provider 400.
+    Expected to fail until UnsupportedParameterError / _validate_common_param_support
+    are implemented.
+    """
+
+    def test_opus_4_7_temperature_raises_immediately(self):
+        from railtracks.llm.models._model_exception_base import UnsupportedParameterError
+
+        with patch('railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider') as mock_provider:
+            mock_provider.return_value = ("claude-opus-4-7", "anthropic", "info")
+            with pytest.raises(UnsupportedParameterError):
+                AnthropicLLM("anthropic/claude-opus-4-7", temperature=0.5)
+
+    def test_supported_param_does_not_raise(self):
+        with patch('railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider') as mock_provider:
+            mock_provider.return_value = ("gpt-4o", "openai", "info")
+            llm = OpenAILLM("openai/gpt-4o", temperature=0.4)
+            assert llm is not None
+
