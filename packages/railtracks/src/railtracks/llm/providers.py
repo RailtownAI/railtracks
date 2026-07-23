@@ -33,3 +33,16 @@ class ModelProvider(str, Enum):
     TELUS = "Telus"
     PORTKEY = "PortKey"
     UNKNOWN = "Unknown"
+
+
+class ReasoningEffort(str, Enum):
+    """
+    Portable values for the `reasoning_effort` common param.
+
+    A raw string is also accepted wherever `ReasoningEffort` is a valid type hint.
+    """
+
+    MINIMAL = "minimal"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"

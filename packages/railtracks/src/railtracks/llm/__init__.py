@@ -15,7 +15,7 @@ from .models import (
     PortKeyLLM,
     # TelusLLM,
 )
-from .providers import ModelProvider
+from .providers import ModelProvider, ReasoningEffort
 from .tools import (
     ArrayParameter,
     ObjectParameter,
@@ -36,6 +36,7 @@ __all__ = [
     "ToolMessage",
     "MessageHistory",
     "ModelProvider",
+    "ReasoningEffort",
     "Tool",
     "AnthropicLLM",
     "AzureAILLM",

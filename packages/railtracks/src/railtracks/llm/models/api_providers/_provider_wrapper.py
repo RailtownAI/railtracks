@@ -5,7 +5,7 @@ import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
 from ...history import MessageHistory
-from ...providers import ModelProvider
+from ...providers import ModelProvider, ReasoningEffort
 from ...response import Response
 from ...retries.base import RetryApproach
 from ...tools import Tool
@@ -23,6 +23,13 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
+        reasoning_effort: ReasoningEffort | str | None = None,
+        service_tier: str | None = None,
+        verbosity: Literal["low", "medium", "high"] | str | None = None,
         retry_approach: RetryApproach | None = None,
     ):
         model_name = self._pre_init_provider_check(model_name)
@@ -32,6 +39,13 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            reasoning_effort=reasoning_effort,
+            service_tier=service_tier,
+            verbosity=verbosity,
             retry_approach=retry_approach,
         )
 

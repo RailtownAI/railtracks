@@ -41,7 +41,9 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
             model_name (str): Name of the Azure AI model to use.
             temperature (float | None, optional): Sampling temperature for generation (e.g. 0.0–2.0).
                 If None, the provider default is used.
-            **kwargs: Additional arguments passed to the parent LiteLLMWrapper.
+            **kwargs: Additional arguments passed to the parent LiteLLMWrapper, including the
+                common params `top_p`, `max_tokens`, `frequency_penalty`, `presence_penalty`,
+                `reasoning_effort`, `service_tier`, and `verbosity`.
 
         Raises:
             AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.

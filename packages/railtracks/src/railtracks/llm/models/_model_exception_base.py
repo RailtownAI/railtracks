@@ -65,3 +65,12 @@ class FunctionCallingNotSupportedError(ModelError):
         super().__init__(
             reason=f"Model {model_name} does not support function calling. Chat with tools is not supported."
         )
+
+
+class UnsupportedParameterError(ModelError):
+    """Error raised when a model does not support a given common LLM param."""
+
+    def __init__(self, model_name: str, param: str, value):
+        super().__init__(
+            reason=f"Model {model_name} does not support '{param}' (got {param}={value!r})."
+        )
