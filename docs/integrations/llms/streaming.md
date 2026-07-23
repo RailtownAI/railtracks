@@ -34,6 +34,23 @@ A few details worth knowing:
 - **Timeouts.** The session `timeout` applies to the whole streamed run as a wall-clock limit.
 - **Tool calling.** Token streaming with tool calling is currently supported on OpenAI models only. On other providers a streamed tool-calling run falls back to a buffered model call (with a logged warning), and the final result is unaffected.
 
+### Named channels
+
+Every streamed item travels on a named channel. An agent's tokens ride the `"default"` channel, and you can send your own one-off events on any channel with `rt.broadcast(item, channel=...)` from inside a run:
+
+```python
+--8<-- "docs/scripts/streaming.py:channels"
+```
+
+By default a `Stream` yields chunks from every channel. When a run produces on more than one channel (say, the agent's tokens on `"default"` and progress notes on `"status"`), chain `on_channel` to consume just one:
+
+```python
+async for token in rt.astream(agent, user_input="...").on_channel("default"):
+    ...
+```
+
+`on_channel` is a method rather than an `astream(..., channel=...)` keyword because `astream` forwards its keyword arguments to the node, where a `channel` keyword could collide with the node's own parameters.
+
 ### Two callback lanes: `broadcast_callback` and `stream_callback`
 
 Streaming shares the same pubsub bus as `rt.broadcast`, but the two kinds of traffic travel on separate lanes so a listener never receives the wrong kind:

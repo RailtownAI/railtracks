@@ -110,6 +110,9 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         self._node = node
         self._args = args
         self._kwargs = kwargs
+        # None means "yield chunks from every channel"; a name restricts to that one channel
+        # (set via `on_channel`).
+        self._channel: str | None = None
 
         # the request id doubles as the stream scope id used to tag every chunk of this run
         self._request_id = str(uuid4())
@@ -127,6 +130,40 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         self._on_start = on_start
         self._on_close = on_close
         self._closed = False
+
+    # ------------------------------------------------------------------ configuration
+
+    def on_channel(self, channel: str) -> Stream[_TOutput]:
+        """
+        Restrict this stream to chunks emitted on a single named channel.
+
+        By default a `Stream` yields chunks from every channel in the run. Chaining
+        `on_channel` before iterating narrows it to one, which is useful when a run produces
+        on several channels (e.g. the agent's tokens on `"default"` and progress notes on
+        `"status"`) and you only want one of them:
+
+        ```python
+        async for token in rt.astream(agent, user_input="...").on_channel("default"):
+            ...
+        ```
+
+        It is a method rather than an `astream(..., channel=...)` keyword because `astream`
+        forwards its keyword arguments to the node, where a `channel` keyword could collide
+        with the node's own parameters.
+
+        Args:
+            channel: The channel name to yield chunks from.
+
+        Returns:
+            Stream[_TOutput]: This same stream, so the call can be chained.
+
+        Raises:
+            RuntimeError: If iteration has already started.
+        """
+        if self._started:
+            raise RuntimeError("on_channel() must be called before iterating the stream.")
+        self._channel = channel
+        return self
 
     # ------------------------------------------------------------------ lifecycle
 
@@ -149,9 +186,13 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
 
         request_id = self._request_id
 
+        channel = self._channel
+
         def _subscriber(message: RequestCompletionMessage) -> None:
             if isinstance(message, Streaming):
-                if message.stream_id == request_id:
+                if message.stream_id == request_id and (
+                    channel is None or message.channel == channel
+                ):
                     queue.put_nowait(("chunk", message.streamed_object))
             elif isinstance(message, RequestFinishedBase):
                 if message.request_id == request_id:

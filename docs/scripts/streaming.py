@@ -25,6 +25,22 @@ async def main_await():
 # --8<-- [end: astream_await]
 
 
+# --8<-- [start: channels]
+@rt.function_node
+async def worker(topic: str) -> str:
+    # one-off events on a named channel, consumable via on_channel / broadcast_callback
+    await rt.broadcast("started", channel="status")
+    await rt.broadcast("finished", channel="status")
+    return f"done: {topic}"
+
+
+async def main_channels():
+    # consume only the "status" channel
+    async for note in rt.astream(worker, topic="rain").on_channel("status"):
+        print(note)
+# --8<-- [end: channels]
+
+
 # --8<-- [start: stream_callback]
 # Passive session-wide listeners — neither enables streaming (only rt.astream does):
 #   stream_callback    -> chunks from rt.broadcast_stream (LLM tokens included)
