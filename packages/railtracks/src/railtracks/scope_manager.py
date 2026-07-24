@@ -13,6 +13,8 @@ class ScopeManager(Protocol):
 
     def enter_middleware(self, name: str) -> ContextManager[str | None]: ...
 
+    def enter_llm_call(self) -> ContextManager[None]: ...
+
 
 class NullScopeManager:
     """No-op ScopeManager: pushes nothing, touches no global state."""
@@ -28,6 +30,10 @@ class NullScopeManager:
     @contextmanager
     def enter_middleware(self, name: str):
         yield None
+
+    @contextmanager
+    def enter_llm_call(self):
+        yield
 
 
 _NULL_SCOPE_MANAGER = NullScopeManager()

@@ -39,8 +39,10 @@ class SessionContext:
         publisher: RTPublisher | None = None,
         scope: ScopeLink[ScopeEntry] | None = None,
         executor_config: ExecutorConfig,
+        llm_call_id: str | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
+        self._llm_call_id: str | None = llm_call_id
         self._publisher: RTPublisher | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
@@ -59,6 +61,14 @@ class SessionContext:
         Sets the executor configuration for this run.
         """
         self._executor_config = value
+
+    @property
+    def llm_call_id(self) -> str | None:
+        return self._llm_call_id
+
+    @llm_call_id.setter
+    def llm_call_id(self, value: str | None):
+        self._llm_call_id = value
 
     @property
     def scope(self) -> ScopeLink[ScopeEntry] | None:

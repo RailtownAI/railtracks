@@ -128,6 +128,19 @@ def get_parent_id() -> str | None:
         else None
     )
 
+def get_llm_call_id() -> str | None:
+    """
+    Get the id of the currently active LLM call (walks up the scope chain to the
+    nearest LLM entry).
+
+    Returns:
+        str | None: The LLM call ID associated with the current thread's global variables, or None if not set.
+
+    Raises:
+        ContextError: If the global variables have not been registered.
+    """
+    context = safe_get_runner_context()
+    return context.session_context.llm_call_id
 
 def get_middleware_id() -> str | None:
     """
@@ -346,6 +359,28 @@ class ContextVarScopeManager:
         token = _push_scope(ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, name=name))
         try:
             yield middleware_id
+        finally:
+            runner_context.reset(token)
+
+    @contextmanager
+    def enter_llm_call(self):
+        llm_call_id = str(uuid.uuid4())
+        ctx = safe_get_runner_context()
+        new_session_context = SessionContext(
+            session_id=ctx.session_context.session_id,
+            run_id=ctx.session_context.run_id,
+            publisher=ctx.session_context.publisher,
+            scope=ctx.session_context.scope,
+            executor_config=ctx.session_context.executor_config,
+            llm_call_id=llm_call_id,
+        )
+        new_ctx = RunnerContextVars(
+            session_context=new_session_context,
+            external_context=ctx.external_context,
+        )
+        token = runner_context.set(new_ctx)
+        try:
+            yield
         finally:
             runner_context.reset(token)
 
