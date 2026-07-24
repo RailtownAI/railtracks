@@ -59,7 +59,7 @@ TParent = TypeVar("TParent", bound=Parent)
 @dataclass(kw_only=True)
 class SessionEventBase(ABC, Generic[TParent]):
     parent: TParent | Unset = UNSET
-    timestamp: datetime.datetime = field(default_factory=datetime.datetime.now)
+    timestamp: datetime.datetime = field(default_factory=lambda: datetime.datetime.now(tz=datetime.timezone.utc))
 
     @abstractmethod
     def event_type(self) -> str:
