@@ -3,17 +3,38 @@ from __future__ import annotations
 import contextvars
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    KeysView,
+    MutableMapping,
+    Protocol,
+    cast,
+)
 
 from railtracks.exceptions import ContextError
 
 if TYPE_CHECKING:
     from railtracks.pubsub.publisher import RTPublisher
 
+    _LoggerAdapter = logging.LoggerAdapter[logging.Logger]
+else:
+    _LoggerAdapter = logging.LoggerAdapter
+
 from railtracks.utils.config import ExecutorConfig
 
 from .external import ExternalContext, MutableExternalContext
 from .internal import InternalContext
+
+
+class _PublisherProtocol(Protocol):
+    async def start(self) -> None: ...
+
+    async def shutdown(self) -> None: ...
+
+    def is_running(self) -> bool: ...
 
 
 class RunnerContextVars:
@@ -26,11 +47,13 @@ class RunnerContextVars:
         *,
         internal_context: InternalContext,
         external_context: ExternalContext,
-    ):
+    ) -> None:
         self.internal_context = internal_context
         self.external_context = external_context
 
-    def prepare_new(self, new_parent_id: str, new_run_id: str | None = None):
+    def prepare_new(
+        self, new_parent_id: str, new_run_id: str | None = None
+    ) -> RunnerContextVars:
         """
         Update the parent ID of the internal context.
         """
@@ -76,13 +99,13 @@ def safe_get_runner_context() -> RunnerContextVars:
     return context
 
 
-def is_context_present():
+def is_context_present() -> bool:
     """Returns true if a context exists."""
     t_c = runner_context.get()
     return t_c is not None
 
 
-def is_context_active():
+def is_context_active() -> bool:
     """
     Check if the global variables for the current thread are active.
 
@@ -104,7 +127,9 @@ def get_publisher() -> RTPublisher:
         RuntimeError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.internal_context.publisher
+    publisher = cast("RTPublisher | None", context.internal_context.publisher)
+    assert publisher is not None
+    return publisher
 
 
 def get_session_id() -> str | None:
@@ -132,7 +157,7 @@ def get_parent_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.internal_context.parent_id
+    return cast("str | None", context.internal_context.parent_id)
 
 
 def get_run_id() -> str | None:
@@ -157,7 +182,7 @@ def register_globals(
     parent_id: str | None,
     executor_config: ExecutorConfig,
     global_context_vars: dict[str, Any],
-):
+) -> None:
     """
     Register the global variables for the current thread.
     """
@@ -177,33 +202,29 @@ def register_globals(
     runner_context.set(runner_context_vars)
 
 
-async def activate_publisher():
+async def activate_publisher() -> None:
     """
     Activate the publisher for the current thread's global variables.
 
     This function should be called to ensure that the publisher is running and can be used to publish messages.
     """
     r_c = safe_get_runner_context()
-    internal_context = r_c.internal_context
-    assert internal_context is not None
-
-    assert internal_context.publisher is not None
-
-    await internal_context.publisher.start()
+    publisher = cast("_PublisherProtocol | None", r_c.internal_context.publisher)
+    assert publisher is not None
+    await publisher.start()
 
 
-async def shutdown_publisher():
+async def shutdown_publisher() -> None:
     """
     Shutdown the publisher for the current thread's global variables.
 
     This function should be called to stop the publisher and clean up resources.
     """
     context = safe_get_runner_context()
-    context = context.internal_context
-    assert context is not None
-
-    assert context.publisher.is_running()
-    await context.publisher.shutdown()
+    publisher = cast("_PublisherProtocol | None", context.internal_context.publisher)
+    assert publisher is not None
+    assert publisher.is_running()
+    await publisher.shutdown()
 
 
 def get_global_config() -> ExecutorConfig:
@@ -231,7 +252,7 @@ def get_local_config() -> ExecutorConfig:
 
 def set_local_config(
     executor_config: ExecutorConfig,
-):
+) -> None:
     """
     Set the executor configuration for the current thread's global variables.
 
@@ -240,13 +261,13 @@ def set_local_config(
     """
     context = safe_get_runner_context()
 
-    context.executor_config = executor_config
+    context.internal_context.executor_config = executor_config
     runner_context.set(context)
 
 
 def set_global_config(
     executor_config: ExecutorConfig,
-):
+) -> None:
     """
     Set the executor configuration for the current thread's global variables.
 
@@ -256,7 +277,7 @@ def set_global_config(
     global_executor_config.set(executor_config)
 
 
-def update_parent_id(new_parent_id: str, new_run_id: str | None = None):
+def update_parent_id(new_parent_id: str, new_run_id: str | None = None) -> None:
     """
     Update the parent ID of the current thread's global variables.
 
@@ -268,15 +289,12 @@ def update_parent_id(new_parent_id: str, new_run_id: str | None = None):
         new_run_id is not None or current_context.internal_context.run_id is not None
     ), "You cannot update the parent ID while a run ID is inactive"
 
-    if current_context is None:
-        raise RuntimeError("No global variable set")
-
     new_context = current_context.prepare_new(new_parent_id, new_run_id=new_run_id)
 
     runner_context.set(new_context)
 
 
-def delete_globals():
+def delete_globals() -> None:
     """Resets the globals to None."""
     runner_context.set(None)
 
@@ -285,7 +303,7 @@ def get(
     key: str,
     /,
     default: Any | None = None,
-):
+) -> Any:
     """
     Get a value from context
 
@@ -305,7 +323,7 @@ def get(
 def put(
     key: str,
     value: Any,
-):
+) -> None:
     """
     Set a value in the context.
 
@@ -317,7 +335,7 @@ def put(
     context.external_context.put(key, value)
 
 
-def update(data: dict[str, Any]):
+def update(data: dict[str, Any]) -> None:
     """
     Sets the values in the context. If the context already has values, this will overwrite them, but it will not delete any existing keys.
 
@@ -328,7 +346,7 @@ def update(data: dict[str, Any]):
     context.external_context.update(data)
 
 
-def delete(key: str):
+def delete(key: str) -> None:
     """
     Delete a key from the context.
 
@@ -362,7 +380,7 @@ def set_config(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
-):
+) -> None:
     """
     Sets the global configuration for the executor. This will be propagated to all new runners created after this call.
 
@@ -390,8 +408,10 @@ def set_config(
     global_executor_config.set(new_config)
 
 
-class RTContextLoggingAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
+class RTContextLoggingAdapter(_LoggerAdapter):
+    def process(
+        self, msg: object, kwargs: MutableMapping[str, Any]
+    ) -> tuple[object, MutableMapping[str, Any]]:
         try:
             parent_id = get_parent_id()
             run_id = get_run_id()
@@ -413,7 +433,7 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
         return msg, kwargs
 
 
-def session_id():
+def session_id() -> str | None:
     """
     Gets the current session ID if it exists, otherwise returns None.
     """
