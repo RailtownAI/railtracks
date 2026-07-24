@@ -25,6 +25,7 @@ def test_session_context_properties(dummy_executor_config):
     assert ctx.is_active is True
     assert ctx.current_node_id is None
     assert ctx.current_middleware_id is None
+    assert ctx.llm_call_id is None
 # ============ END SessionContext Property Tests ===============
 
 # ============ START SessionContext Setter Tests ===============
@@ -39,9 +40,11 @@ def test_session_context_setters(dummy_executor_config):
     ctx.publisher = pub
     new_config = mock.Mock()
     ctx.executor_config = new_config
+    ctx.llm_call_id = "llm-1"
     assert ctx.session_id == "r2"
     assert ctx.publisher is pub
     assert ctx.executor_config is new_config
+    assert ctx.llm_call_id == "llm-1"
 # ============ END SessionContext Setter Tests ===============
 
 # ============ START SessionContext is_active Tests ===============
@@ -70,6 +73,7 @@ def test_with_scope_pushed_creates_new_context_and_preserves_lineage(dummy_execu
         session_id="r",
         publisher=pub,
         executor_config=dummy_executor_config,
+        llm_call_id="llm-1",
     )
     new_ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.NODE, "node-1"), run_id="node-1")
     assert isinstance(new_ctx, SessionContext)
@@ -78,6 +82,8 @@ def test_with_scope_pushed_creates_new_context_and_preserves_lineage(dummy_execu
     assert new_ctx.publisher is pub
     assert new_ctx.session_id == ctx.session_id
     assert new_ctx.executor_config is ctx.executor_config
+    # llm_call_id is carried through the scope push, not reset
+    assert new_ctx.llm_call_id == "llm-1"
     # original context is untouched (immutable push)
     assert ctx.current_node_id is None
     assert ctx.run_id is None

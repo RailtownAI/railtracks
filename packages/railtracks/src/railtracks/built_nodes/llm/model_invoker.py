@@ -70,6 +70,7 @@ class ModelInvoker:
         self._middleware = MiddlewareChain(
             middleware or [], get_scope_manager=get_scope_manager
         )
+        self.get_scope_manager = get_scope_manager
 
     @classmethod
     def create_with_llm_observe(
@@ -113,7 +114,8 @@ class ModelInvoker:
             else:
                 return await asyncio.to_thread(model.chat, messages)
 
-        return await self._middleware.run(_core_llm_call, messages, schema, tools)
+        with self.get_scope_manager().enter_llm_call():
+            return await self._middleware.run(_core_llm_call, messages, schema, tools)
 
     def extend_middleware(self, *model_middleware: ModelMiddleware) -> ModelInvoker:
         """
