@@ -213,7 +213,7 @@ def register_globals(
     global_context_vars: dict[str, Any],
 ):
     """
-    Register the global variables for the current thread
+    Register the global variables for the current thread.
     """
     s_c = SessionContext(
         publisher=rt_publisher,
