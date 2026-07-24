@@ -128,10 +128,10 @@ def get_parent_id() -> str | None:
         else None
     )
 
+
 def get_llm_call_id() -> str | None:
     """
-    Get the id of the currently active LLM call (walks up the scope chain to the
-    nearest LLM entry).
+    Get the id of the currently active LLM call, if one is in progress.
 
     Returns:
         str | None: The LLM call ID associated with the current thread's global variables, or None if not set.
@@ -141,6 +141,7 @@ def get_llm_call_id() -> str | None:
     """
     context = safe_get_runner_context()
     return context.session_context.llm_call_id
+
 
 def get_middleware_id() -> str | None:
     """
