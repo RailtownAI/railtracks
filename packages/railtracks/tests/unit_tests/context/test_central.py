@@ -245,8 +245,7 @@ def test_nested_enter_llm_call_gets_new_id_and_restores_outer():
 
 
 def test_llm_call_id_survives_nested_node_and_middleware_scopes():
-    # regression test: with_scope_pushed must carry llm_call_id through, otherwise
-    # entering a node/middleware scope inside an active LLM call silently drops it.
+    # with_scope_pushed must forward llm_call_id, or nested scopes clear it.
     _register()
     manager = central.ContextVarScopeManager()
 
