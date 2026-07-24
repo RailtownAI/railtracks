@@ -23,6 +23,7 @@ def make_session_context_mock():
         sc.is_active = kwargs.get("is_active", True)
         sc.current_node_id = kwargs.get("current_node_id", "parent-123")
         sc.current_middleware_id = kwargs.get("current_middleware_id", None)
+        sc.llm_call_id = kwargs.get("llm_call_id", None)
         sc.session_id = kwargs.get("session_id", "session-123")
         sc.run_id = kwargs.get("run_id", None)
         sc.scope = kwargs.get("scope", None)

@@ -63,6 +63,11 @@ def test_get_middleware_id(monkeypatch, make_runner_context_vars, make_session_c
     rt = make_runner_context_vars(session_context=make_session_context_mock(current_middleware_id="mw-abc"))
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.get_middleware_id() == "mw-abc"
+
+def test_get_llm_call_id(monkeypatch, make_runner_context_vars, make_session_context_mock):
+    rt = make_runner_context_vars(session_context=make_session_context_mock(llm_call_id="llm-abc"))
+    monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
+    assert central.get_llm_call_id() == "llm-abc"
 # ============ END ID Accessor Tests ===============
 
 # ============ START Globals Registration/Deletion Tests ===============
@@ -213,6 +218,61 @@ def test_restore_scope_replaces_ambient_scope():
         assert central.get_run_id() == captured_run_id
 
     assert central.get_parent_id() is None
+
+
+def test_enter_llm_call_generates_fresh_id_and_reverts():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    assert central.get_llm_call_id() is None
+
+    with manager.enter_llm_call():
+        assert central.get_llm_call_id() is not None
+
+    assert central.get_llm_call_id() is None
+
+
+def test_nested_enter_llm_call_gets_new_id_and_restores_outer():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_llm_call():
+        outer_id = central.get_llm_call_id()
+        with manager.enter_llm_call():
+            inner_id = central.get_llm_call_id()
+            assert inner_id != outer_id
+        assert central.get_llm_call_id() == outer_id
+
+
+def test_llm_call_id_survives_nested_node_and_middleware_scopes():
+    # regression test: with_scope_pushed must carry llm_call_id through, otherwise
+    # entering a node/middleware scope inside an active LLM call silently drops it.
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_llm_call():
+        llm_call_id = central.get_llm_call_id()
+        assert llm_call_id is not None
+
+        with manager.enter_node("node-1"):
+            assert central.get_llm_call_id() == llm_call_id
+            with manager.enter_middleware("guard"):
+                assert central.get_llm_call_id() == llm_call_id
+            assert central.get_llm_call_id() == llm_call_id
+
+    assert central.get_llm_call_id() is None
+
+
+def test_restore_scope_does_not_carry_llm_call_id():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_llm_call():
+        captured_scope = central.get_current_scope()
+        captured_run_id = central.get_run_id()
+
+    with central.restore_scope(captured_scope, captured_run_id):
+        assert central.get_llm_call_id() is None
 # ============ END ContextVarScopeManager Tests ===============
 
 # ============ START External Context Access Tests ===============
