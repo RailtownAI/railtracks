@@ -141,4 +141,5 @@ class SessionContext:
             publisher=self._publisher,
             scope=new_scope,
             executor_config=self._executor_config,
+            llm_call_id=self._llm_call_id,
         )

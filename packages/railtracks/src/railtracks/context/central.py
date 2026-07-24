@@ -192,6 +192,7 @@ def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
         publisher=ctx.session_context.publisher,
         scope=scope,
         executor_config=ctx.session_context.executor_config,
+        llm_call_id=ctx.session_context.llm_call_id,
     )
     new_ctx = RunnerContextVars(
         session_context=new_session_context,
