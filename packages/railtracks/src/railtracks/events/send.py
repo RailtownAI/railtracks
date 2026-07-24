@@ -15,7 +15,7 @@ async def pipe(
     await publish_event(make_session_event(event.event_type(), asdict(event)))
 
 
-# this shdould modufiyt the session event base object in place
+# this should modify the session event base object in place
 def _resolve_parent(event: SessionEventBase):
     """
     Resolves the parent of the event to a string representation.
