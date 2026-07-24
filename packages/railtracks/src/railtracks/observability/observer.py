@@ -39,6 +39,8 @@ class Observer:
         self._writers: dict[str, _Entry] = {}
         self._drops: dict[str, int] = {}  # dropped events per writer
         self._running = False
+        self._pending_writers: list[Writer] = []
+        self._start_lock: asyncio.Lock = asyncio.Lock()
 
     # async context manager support added for now, this will become more clear
     # once we move to integrating with the other modules
@@ -49,10 +51,31 @@ class Observer:
     async def __aexit__(self, exc_type, exc, tb) -> None:
         await self.shutdown()
 
+    def configure_writers(self, writers: list[Writer]) -> None:
+        """Register writers in bulk, to be brought up on the next `start()`.
+
+        Must be called before `start()` — raises `RuntimeError` if the observer
+        is already running. Replaces any previously configured pending writers.
+        """
+        if self._running:
+            raise RuntimeError(
+                "configure_writers must be called before start(); use register() to add writers after."
+            )
+        self._pending_writers = list(writers)
+
     async def start(self) -> None:
+        """Bring up the observer.
+
+        This is idempotent safe to call multiple times.
+        """
         if self._running:
             return
-        self._running = True
+        async with self._start_lock:
+            if self._running:
+                return
+            for i, writer in enumerate(self._pending_writers):
+                await self._register_impl(writer, f"writer-{i}")
+            self._running = True
 
     async def shutdown(self) -> None:
         if not self._running:
@@ -68,10 +91,29 @@ class Observer:
         maxsize: int = 10_000,
         policy: QueuePolicy = QueuePolicy.DROP_OLDEST,
     ) -> None:
+        """Register a writer on a running observer. Post-start only.
+
+        For a pre-start batch, use `configure_writers()` and let `start()`
+        register them.
+        """
         if not self._running:
             raise RuntimeError(
-                "Observer is not running; call start() or use as an async context manager."
+                "Observer is not running; call start() first, or use configure_writers() "
+                "for pre-start batch registration."
             )
+        await self._register_impl(writer, name, maxsize=maxsize, policy=policy)
+
+    async def _register_impl(
+        self,
+        writer: Writer,
+        name: str,
+        maxsize: int = 10_000,
+        policy: QueuePolicy = QueuePolicy.DROP_OLDEST,
+    ) -> None:
+        """Internal registration path used by both public `register` (post-start)
+        and `start()` (registering pending writers during startup). Skips the
+        `_running` check so `start()` can register pending writers before
+        flipping the flag."""
         if name in self._writers:
             raise ValueError(f"Writer {name!r} is already registered.")
         await writer.start()
@@ -93,6 +135,14 @@ class Observer:
         await self._teardown(name)
 
     async def publish(self, event: Event) -> None:
+        """Fan the event out to every registered writer's queue.
+
+        `async` on this method is contract-enforcement, the body doesn't `await` anything.
+        requiring callers to be inside a coroutine means they're on the same running loop
+
+        Args:
+            event: The event to publish.
+        """
         if not self._running:
             raise RuntimeError("Observer is not running.")
         for name, entry in self._writers.items():

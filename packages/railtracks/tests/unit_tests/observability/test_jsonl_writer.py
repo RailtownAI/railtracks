@@ -11,7 +11,7 @@ from railtracks.observability import (
 )
 
 
-def _make_event(scope_type: str, scope_id: str = "id-1", **kw) -> Event:
+def _make_session_event(scope_type: str, scope_id: str = "id-1", **kw) -> Event:
     return Event(
         event_type=kw.pop("event_type", "test.event"),
         stamp=Timestamp.now(),
@@ -41,8 +41,8 @@ async def test_write_creates_per_scope_files(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
     await writer.start()
     try:
-        await writer.write(_make_event(SCOPE_SESSION))
-        await writer.write(_make_event(SCOPE_RETRIEVAL))
+        await writer.write(_make_session_event(SCOPE_SESSION))
+        await writer.write(_make_session_event(SCOPE_RETRIEVAL))
     finally:
         await writer.shutdown()
 
@@ -55,7 +55,7 @@ async def test_one_line_per_event(tmp_path: Path):
     await writer.start()
     try:
         for i in range(5):
-            await writer.write(_make_event(SCOPE_SESSION, scope_id=f"s{i}"))
+            await writer.write(_make_session_event(SCOPE_SESSION, scope_id=f"s{i}"))
     finally:
         await writer.shutdown()
 
@@ -66,7 +66,7 @@ async def test_one_line_per_event(tmp_path: Path):
 async def test_each_line_round_trips_to_original_event(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
     await writer.start()
-    original = _make_event(
+    original = _make_session_event(
         SCOPE_SESSION,
         payload={"nested": {"k": "v"}, "list": [1, 2, 3]},
         parent_scope_id="parent-1",
@@ -84,12 +84,12 @@ async def test_each_line_round_trips_to_original_event(tmp_path: Path):
 async def test_append_across_writer_lifecycles(tmp_path: Path):
     first = JsonlWriter(tmp_path)
     await first.start()
-    await first.write(_make_event(SCOPE_SESSION, scope_id="a"))
+    await first.write(_make_session_event(SCOPE_SESSION, scope_id="a"))
     await first.shutdown()
 
     second = JsonlWriter(tmp_path)
     await second.start()
-    await second.write(_make_event(SCOPE_SESSION, scope_id="b"))
+    await second.write(_make_session_event(SCOPE_SESSION, scope_id="b"))
     await second.shutdown()
 
     lines = (tmp_path / "session.jsonl").read_text().splitlines()
@@ -99,7 +99,7 @@ async def test_append_across_writer_lifecycles(tmp_path: Path):
 async def test_shutdown_closes_handles(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
     await writer.start()
-    await writer.write(_make_event(SCOPE_SESSION))
+    await writer.write(_make_session_event(SCOPE_SESSION))
     handle = writer._files[SCOPE_SESSION]
     await writer.shutdown()
     assert handle.closed
@@ -110,7 +110,7 @@ async def test_flush_makes_bytes_readable_before_shutdown(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
     await writer.start()
     try:
-        await writer.write(_make_event(SCOPE_SESSION))
+        await writer.write(_make_session_event(SCOPE_SESSION))
         lines = (tmp_path / "session.jsonl").read_text().splitlines()
         assert len(lines) == 1
     finally:
