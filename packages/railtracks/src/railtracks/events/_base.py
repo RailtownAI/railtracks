@@ -63,12 +63,6 @@ class NodeParent(Parent):
     node_id: str
 
 
-@dataclass(frozen=True)
-class MiddlewareParent(Parent):
-    middleware_id: str
-    middleware_invoke_id: str
-
-
 TSpatialParent = TypeVar("TSpatialParent", bound=SpatialParent)
 
 

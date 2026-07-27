@@ -16,10 +16,15 @@ class ScopeLink(Generic[T]):
     def pushed(self, value: T) -> "ScopeLink[T]":
         return ScopeLink(value=value, parent=self)
 
-    def find(self, predicate: Callable[[T], bool]) -> T | None:
+    def find(self, predicate: Callable[[T], bool], skip: int = 0) -> T | None:
         link: ScopeLink[T] | None = self
+        counter = 0
+
         while link is not None:
             if predicate(link.value):
-                return link.value
+                counter += 1
+                if counter > skip:
+                    return link.value
+
             link = link.parent
         return None

@@ -129,6 +129,30 @@ def get_parent_id() -> str | None:
     )
 
 
+def get_node_or_llm() -> str | LLMCallData | None:
+    context = safe_get_runner_context()
+
+    scope = context.session_context.scope
+
+    result = scope.find(lambda e: e.kind in [ScopeKind.NODE, ScopeKind.LLM])
+
+    if result is None:
+        return None
+
+    if result.kind == ScopeKind.NODE:
+        return result.id
+
+    if result.kind == ScopeKind.LLM:
+        type_id = result.type_id
+
+        # defensive check
+        assert type_id is not None, (
+            "LLM call ID should have a type_id set in the context."
+        )
+
+        return LLMCallData(result.id, type_id)
+
+
 LLMCallData = NamedTuple("LLMCallData", [("call_id", str), ("type_id", str)])
 
 
@@ -160,13 +184,39 @@ MiddlewareCallData = NamedTuple(
 )
 
 
+def get_parent_middleware_id() -> MiddlewareCallData | None:
+    """
+    Get the id of the currently active middleware invocation (walks up the
+    scope chain to the nearest middleware entry).
+
+    Returns:
+        MiddlewareCallData | None: The middleware id, or None if no middleware is currently active.
+
+    Raises:
+        ContextError: If the global variables have not been registered.
+    """
+    context = safe_get_runner_context()
+    if context.session_context.parent_middleware_id is None:
+        return None
+
+    call_id = context.session_context.parent_middleware_id.id
+    type_id = context.session_context.parent_middleware_id.type_id
+
+    # defensive check
+    assert type_id is not None, (
+        "Middleware ID should have a type_id set in the context."
+    )
+
+    return MiddlewareCallData(call_id, type_id)
+
+
 def get_middleware_id() -> MiddlewareCallData | None:
     """
     Get the id of the currently active middleware invocation (walks up the
     scope chain to the nearest middleware entry).
 
     Returns:
-        str | None: The middleware id, or None if no middleware is currently active.
+        MiddlewareCallData | None: The middleware id, or None if no middleware is currently active.
 
     Raises:
         ContextError: If the global variables have not been registered.

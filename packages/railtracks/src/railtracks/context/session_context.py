@@ -43,10 +43,10 @@ class SessionContext:
         session_id: str,
         run_id: str | None = None,
         publisher: RTPublisher | None = None,
-        scope: ScopeLink[ScopeEntry] | None = None,
+        scope: ScopeLink[ScopeEntry],
         executor_config: ExecutorConfig,
     ):
-        self._scope: ScopeLink[ScopeEntry] | None = scope
+        self._scope: ScopeLink[ScopeEntry] = scope
         self._publisher: RTPublisher | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
@@ -67,7 +67,7 @@ class SessionContext:
         self._executor_config = value
 
     @property
-    def scope(self) -> ScopeLink[ScopeEntry] | None:
+    def scope(self) -> ScopeLink[ScopeEntry]:
         return self._scope
 
     @property
@@ -85,6 +85,24 @@ class SessionContext:
             return None
         entry = self._scope.find(lambda e: e.kind is ScopeKind.MIDDLEWARE)
         return entry
+
+    @property
+    def parent_middleware_id(self) -> ScopeEntry | None:
+        if self._scope is None:
+            return None
+
+        scope_entry = self._scope
+
+        # note parent middleware must be the parent according to our usage of the stack.
+        parent_entry = scope_entry.parent
+
+        if parent_entry is None:
+            return None
+
+        if parent_entry.value.kind == ScopeKind.MIDDLEWARE:
+            return parent_entry.value
+
+        return None
 
     @property
     def current_llm_call_id(self) -> ScopeEntry | None:
