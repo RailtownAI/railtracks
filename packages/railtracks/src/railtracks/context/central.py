@@ -140,7 +140,11 @@ def get_llm_call_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return context.session_context.llm_call_id
+    return (
+        context.session_context.current_llm_call_id.id
+        if context.session_context.current_llm_call_id is not None
+        else None
+    )
 
 
 def get_middleware_id() -> str | None:
@@ -366,20 +370,7 @@ class ContextVarScopeManager:
     @contextmanager
     def enter_llm_call(self):
         llm_call_id = str(uuid.uuid4())
-        ctx = safe_get_runner_context()
-        new_session_context = SessionContext(
-            session_id=ctx.session_context.session_id,
-            run_id=ctx.session_context.run_id,
-            publisher=ctx.session_context.publisher,
-            scope=ctx.session_context.scope,
-            executor_config=ctx.session_context.executor_config,
-            llm_call_id=llm_call_id,
-        )
-        new_ctx = RunnerContextVars(
-            session_context=new_session_context,
-            external_context=ctx.external_context,
-        )
-        token = runner_context.set(new_ctx)
+        token = _push_scope(ScopeEntry(ScopeKind.LLM, llm_call_id))
         try:
             yield
         finally:
