@@ -10,38 +10,55 @@ from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
 from railtracks.built_nodes.llm.request_details import RequestDetails
+from railtracks.events.llm import LLMCreationEvent, LLMFailureEvent, LLMInvocationEvent, LLMResponseEvent
+from railtracks.events.send import pipe
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.model import ModelBase
+from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
 from railtracks.scope_manager import ScopeManager, null_scope_manager
 
 
+
 @wrap_llm
 async def _llm_observe(
-    call: Callable[
-        [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-        Awaitable[Response],
-    ],
-    message_history: MessageHistory,
-    schema: type[BaseModel] | None,
-    tools: list[Tool] | None,
-) -> Response:
-    prev_message_history = deepcopy(message_history)
-    response: Response = await call(message_history, schema, tools)
-    _ = RequestDetails(
-        message_input=prev_message_history,
-        output=response.message,
-        model_name=response.message_info.model_name,
-        model_provider=None,  # TODO: implement parsing logic here
-        input_tokens=response.message_info.input_tokens,
-        output_tokens=response.message_info.output_tokens,
-        total_cost=response.message_info.total_cost,
-        system_fingerprint=response.message_info.system_fingerprint,
-        latency=response.message_info.latency,
-    )
-    return response
-
+            call: Callable[
+                [MessageHistory, type[BaseModel] | None, list[Tool] | None],
+                Awaitable[Response],
+            ],
+            message_history: MessageHistory,
+            schema: type[BaseModel] | None,
+            tools: list[Tool] | None,
+        ) -> Response:
+            
+            prev_message_history = deepcopy(message_history)
+            invocation_event = LLMInvocationEvent(
+                message_input=prev_message_history,
+            )
+            await pipe(invocation_event)
+            try: 
+                response: Response = await call(message_history, schema, tools)
+            except Exception as e:
+                event = LLMFailureEvent(
+                    message_input=prev_message_history,
+                    error_message=e,
+                )
+                await pipe(event)
+                raise e
+            
+            event = LLMResponseEvent(
+                message_input=prev_message_history,
+                output=response.message,
+                input_tokens=response.message_info.input_tokens,
+                output_tokens=response.message_info.output_tokens,
+                total_cost=response.message_info.total_cost,
+                system_fingerprint=response.message_info.system_fingerprint,
+                latency=response.message_info.latency,
+            )
+            await pipe(event)
+            return response
 
 class ModelInvoker:
     """
@@ -71,6 +88,7 @@ class ModelInvoker:
             middleware or [], get_scope_manager=get_scope_manager
         )
         self.get_scope_manager = get_scope_manager
+        self._model: ModelBase | None = None
 
     @classmethod
     def create_with_llm_observe(
@@ -89,6 +107,8 @@ class ModelInvoker:
             get_scope_manager=get_scope_manager,
         )
 
+    
+
     async def invoke(
         self,
         messages: MessageHistory,
@@ -97,6 +117,12 @@ class ModelInvoker:
         tools: list[Tool] | None = None,
     ) -> Response:
         model = self._get_model()
+        
+        await pipe(LLMCreationEvent(
+            model_id=model.id,
+            model_name=model.model_name(),
+            model_provider=model.model_provider(),
+        ))
 
         async def _core_llm_call(
             messages: MessageHistory,
@@ -114,7 +140,7 @@ class ModelInvoker:
             else:
                 return await asyncio.to_thread(model.chat, messages)
 
-        with self.get_scope_manager().enter_llm_call():
+        with self.get_scope_manager().enter_llm_call(model.id):
             return await self._middleware.run(_core_llm_call, messages, schema, tools)
 
     def extend_middleware(self, *model_middleware: ModelMiddleware) -> ModelInvoker:
@@ -132,3 +158,13 @@ class ModelInvoker:
             new_middleware_chain._middleware,
             get_scope_manager=new_middleware_chain.get_scope_manager,
         )
+
+
+    @classmethod
+    def _llm_observe_factory(
+        cls,
+        model_info: Callable[[], tuple[str, ModelProvider]],
+    ):
+        
+
+        return _llm_observe

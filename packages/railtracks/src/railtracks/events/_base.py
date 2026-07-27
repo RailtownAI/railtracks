@@ -27,38 +27,56 @@ UNSET = Unset()
 
 
 @dataclass(frozen=True)
-class Parent:
+class SpatialParent:
     pass
 
 
 @dataclass(frozen=True)
-class MiddlewareParent(Parent):
+class MiddlewareSpatialParent(SpatialParent):
     middleware_id: str
 
 
 @dataclass(frozen=True)
-class NodeParent(Parent):
+class NodeSpatialParent(SpatialParent):
     node_id: str
     middleware_id: str | None = None
 
 
 @dataclass(frozen=True)
-class LLMParent(Parent):
+class LLMSpatialParent(SpatialParent):
     llm_id: str
     middleware_id: str | None = None
 
 
 @dataclass(frozen=True)
-class NoParent(Parent):
+class NoSpatialParent(SpatialParent):
     pass
 
+@dataclass(frozen=True)
+class Parent:
+    pass
 
-TParent = TypeVar("TParent", bound=Parent)
+@dataclass(frozen=True)
+class NodeParent(Parent):
+    node_id: str
+
+@dataclass(frozen=True)
+class MiddlewareParent(Parent):
+    middleware_id: str
+    middleware_invoke_id: str
+
+
+
+
+
+TSpatialParent = TypeVar("TSpatialParent", bound=SpatialParent)
 
 
 @dataclass(kw_only=True)
-class SessionEventBase(ABC, Generic[TParent]):
-    parent: TParent | Unset = UNSET
+class SessionEventBase(ABC, Generic[TSpatialParent]):
+    
+    spatial_parent: TSpatialParent | Unset = UNSET
+    
     timestamp: datetime.datetime = field(default_factory=lambda: datetime.datetime.now(tz=datetime.timezone.utc))
 
     @abstractmethod
@@ -67,3 +85,9 @@ class SessionEventBase(ABC, Generic[TParent]):
         Returns the type of the event.
         """
         ...
+
+    def verify(self) -> None:
+        assert self.spatial_parent != UNSET, (
+            "Spatial parent should be resolved before publishing the event."
+        )
+

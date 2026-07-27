@@ -5,7 +5,7 @@ import logging
 import uuid
 import warnings
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView, NamedTuple
 
 from railtracks.exceptions import ContextError
 
@@ -128,8 +128,9 @@ def get_parent_id() -> str | None:
         else None
     )
 
+LLMCallData = NamedTuple("LLMCallData", [("call_id", str), ("type_id", str)])
 
-def get_llm_call_id() -> str | None:
+def get_llm_call_id() -> LLMCallData | None:
     """
     Get the id of the currently active LLM call, if one is in progress.
 
@@ -140,14 +141,20 @@ def get_llm_call_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return (
-        context.session_context.current_llm_call_id.id
-        if context.session_context.current_llm_call_id is not None
-        else None
-    )
+    if context.session_context.current_llm_call_id is None:
+        return None
+    
+    call_id = context.session_context.current_llm_call_id.id
+    type_id = context.session_context.current_llm_call_id.type_id
 
+    # defensive check
+    assert type_id is not None, "LLM call ID should have a type_id set in the context."
+    
+    return LLMCallData(call_id, type_id)
+    
+MiddlewareCallData = NamedTuple("MiddlewareCallData", [("call_id", str), ("type_id", str)])
 
-def get_middleware_id() -> str | None:
+def get_middleware_id() -> MiddlewareCallData | None:
     """
     Get the id of the currently active middleware invocation (walks up the
     scope chain to the nearest middleware entry).
@@ -159,11 +166,16 @@ def get_middleware_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return (
-        context.session_context.current_middleware_id.id
-        if context.session_context.current_middleware_id is not None
-        else None
-    )
+    if context.session_context.current_middleware_id is None:
+        return None
+
+    call_id = context.session_context.current_middleware_id.id
+    type_id = context.session_context.current_middleware_id.type_id
+
+    # defensive check
+    assert type_id is not None, "Middleware ID should have a type_id set in the context."
+
+    return MiddlewareCallData(call_id, type_id)
 
 
 def get_run_id() -> str | None:
@@ -359,18 +371,18 @@ class ContextVarScopeManager:
             runner_context.reset(token)
 
     @contextmanager
-    def enter_middleware(self, name: str):
+    def enter_middleware(self, middleware_type_id: str):
         middleware_id = str(uuid.uuid4())
-        token = _push_scope(ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, name=name))
+        token = _push_scope(ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, middleware_type_id))
         try:
             yield middleware_id
         finally:
             runner_context.reset(token)
 
     @contextmanager
-    def enter_llm_call(self):
+    def enter_llm_call(self, llm_model_id: str | None = None):
         llm_call_id = str(uuid.uuid4())
-        token = _push_scope(ScopeEntry(ScopeKind.LLM, llm_call_id))
+        token = _push_scope(ScopeEntry(ScopeKind.LLM, llm_call_id, llm_model_id))
         try:
             yield
         finally:
@@ -497,19 +509,39 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
             parent_id = get_parent_id()
             run_id = get_run_id()
             session_id = get_session_id()
-            middleware_id = get_middleware_id()
+            middleware = get_middleware_id()
+            if middleware is not None:
+                middleware_id = middleware.call_id
+                middleware_type_id = middleware.type_id
+            else:
+                middleware_id = None
+                middleware_type_id = None
+            llm = get_llm_call_id()
+            if llm is not None:
+                llm_id = llm.call_id
+                llm_type_id = llm.type_id
+            else:
+                llm_id = None
+                llm_type_id = None
+
 
         except ContextError:
             parent_id = None
             run_id = None
             session_id = None
             middleware_id = None
+            middleware_type_id = None
+            llm_id = None
+            llm_type_id = None
 
         new_variables = {
             "node_id": parent_id,
             "run_id": run_id,
             "session_id": session_id,
             "middleware_id": middleware_id,
+            "llm_id": llm_id,
+            "middleware_type_id": middleware_type_id,
+            "llm_type_id": llm_type_id,
         }
 
         kwargs["extra"] = {**kwargs.get("extra", {}), **new_variables}
