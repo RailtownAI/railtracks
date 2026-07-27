@@ -9,6 +9,7 @@ from typing import (
     ParamSpec,
     TypeVar,
 )
+import uuid
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
@@ -53,6 +54,7 @@ class Middleware(Generic[_P, _R]):
         _require_async(fn, "Middleware function")
         self._fn = fn
         self.name = name if name is not None else fn.__name__
+        self.id = str(uuid.uuid4())  # unique identifier for this middleware instance
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         """Compose this middleware onto ``inner``, returning a new callable with the same signature."""
