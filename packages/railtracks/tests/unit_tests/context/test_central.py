@@ -1,9 +1,10 @@
-import pytest
 from unittest import mock
 
+import pytest
 import railtracks.context.central as central
 from railtracks.context.session_context import ScopeEntry, ScopeKind
 from railtracks.utils.config import ExecutorConfig
+
 
 # ============ START Session Context Tests ===============
 def test_safe_get_runner_context_raises_when_none():
@@ -65,7 +66,7 @@ def test_get_middleware_id(monkeypatch, make_runner_context_vars, make_session_c
     assert central.get_middleware_id() == "mw-abc"
 
 def test_get_llm_call_id(monkeypatch, make_runner_context_vars, make_session_context_mock):
-    rt = make_runner_context_vars(session_context=make_session_context_mock(llm_call_id="llm-abc"))
+    rt = make_runner_context_vars(session_context=make_session_context_mock(current_llm_call_id="llm-abc"))
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.get_llm_call_id() == "llm-abc"
 # ============ END ID Accessor Tests ===============
@@ -169,7 +170,7 @@ def test_enter_node_body_requires_active_node_scope():
     _register()
     manager = central.ContextVarScopeManager()
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError):
         with manager.enter_node_body():
             pass
 
@@ -262,16 +263,21 @@ def test_llm_call_id_survives_nested_node_and_middleware_scopes():
     assert central.get_llm_call_id() is None
 
 
-def test_restore_scope_does_not_carry_llm_call_id():
+def test_captured_scope_after_llm_call_carries_no_llm_id():
+    # tool calls dispatch after the llm call returns, so the captured scope has no LLM entry
     _register()
     manager = central.ContextVarScopeManager()
 
-    with manager.enter_llm_call():
-        captured_scope = central.get_current_scope()
-        captured_run_id = central.get_run_id()
+    with manager.enter_node("node-1"):
+        with manager.enter_node_body():
+            with manager.enter_llm_call():
+                assert central.get_llm_call_id() is not None
+            captured_scope = central.get_current_scope()
+            captured_run_id = central.get_run_id()
 
     with central.restore_scope(captured_scope, captured_run_id):
         assert central.get_llm_call_id() is None
+        assert central.get_parent_id() == "node-1"
 # ============ END ContextVarScopeManager Tests ===============
 
 # ============ START External Context Access Tests ===============

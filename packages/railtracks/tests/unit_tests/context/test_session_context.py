@@ -1,7 +1,8 @@
 
-import pytest
 from unittest import mock
+
 from railtracks.context.session_context import ScopeEntry, ScopeKind, SessionContext
+
 
 # ============ START DummyPublisher Helper ===============
 class DummyPublisher:
@@ -25,7 +26,7 @@ def test_session_context_properties(dummy_executor_config):
     assert ctx.is_active is True
     assert ctx.current_node_id is None
     assert ctx.current_middleware_id is None
-    assert ctx.llm_call_id is None
+    assert ctx.current_llm_call_id is None
 # ============ END SessionContext Property Tests ===============
 
 # ============ START SessionContext Setter Tests ===============
@@ -40,11 +41,9 @@ def test_session_context_setters(dummy_executor_config):
     ctx.publisher = pub
     new_config = mock.Mock()
     ctx.executor_config = new_config
-    ctx.llm_call_id = "llm-1"
     assert ctx.session_id == "r2"
     assert ctx.publisher is pub
     assert ctx.executor_config is new_config
-    assert ctx.llm_call_id == "llm-1"
 # ============ END SessionContext Setter Tests ===============
 
 # ============ START SessionContext is_active Tests ===============
@@ -73,17 +72,14 @@ def test_with_scope_pushed_creates_new_context_and_preserves_lineage(dummy_execu
         session_id="r",
         publisher=pub,
         executor_config=dummy_executor_config,
-        llm_call_id="llm-1",
     )
     new_ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.NODE, "node-1"), run_id="node-1")
     assert isinstance(new_ctx, SessionContext)
-    assert new_ctx.current_node_id == "node-1"
+    assert new_ctx.current_node_id.id == "node-1"
     assert new_ctx.run_id == "node-1"
     assert new_ctx.publisher is pub
     assert new_ctx.session_id == ctx.session_id
     assert new_ctx.executor_config is ctx.executor_config
-    # llm_call_id is carried through the scope push, not reset
-    assert new_ctx.llm_call_id == "llm-1"
     # original context is untouched (immutable push)
     assert ctx.current_node_id is None
     assert ctx.run_id is None
@@ -104,13 +100,13 @@ def test_current_node_id_walks_past_middleware_entry(dummy_executor_config):
     ctx = SessionContext(session_id="r", publisher=None, executor_config=dummy_executor_config)
     ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.NODE, "node-1"))
     ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.MIDDLEWARE, "mw-1", name="guard"))
-    assert ctx.current_node_id == "node-1"
-    assert ctx.current_middleware_id == "mw-1"
+    assert ctx.current_node_id.id == "node-1"
+    assert ctx.current_middleware_id.id == "mw-1"
 
 
 def test_current_node_id_prefers_node_body_over_stale_node(dummy_executor_config):
     ctx = SessionContext(session_id="r", publisher=None, executor_config=dummy_executor_config)
     ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.NODE, "node-1"))
     ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.NODE_BODY, "node-1"))
-    assert ctx.current_node_id == "node-1"
+    assert ctx.current_node_id.id == "node-1"
 # ============ END SessionContext with_scope_pushed Tests ===============
