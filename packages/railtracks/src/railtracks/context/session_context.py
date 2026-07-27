@@ -15,6 +15,7 @@ class ScopeKind(Enum):
     NODE = "node"
     MIDDLEWARE = "middleware"
     NODE_BODY = "node_body"
+    LLM = "llm"
 
 
 @dataclass(frozen=True)
@@ -39,10 +40,8 @@ class SessionContext:
         publisher: RTPublisher | None = None,
         scope: ScopeLink[ScopeEntry] | None = None,
         executor_config: ExecutorConfig,
-        llm_call_id: str | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
-        self._llm_call_id: str | None = llm_call_id
         self._publisher: RTPublisher | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
@@ -63,14 +62,6 @@ class SessionContext:
         self._executor_config = value
 
     @property
-    def llm_call_id(self) -> str | None:
-        return self._llm_call_id
-
-    @llm_call_id.setter
-    def llm_call_id(self, value: str | None):
-        self._llm_call_id = value
-
-    @property
     def scope(self) -> ScopeLink[ScopeEntry] | None:
         return self._scope
 
@@ -88,6 +79,13 @@ class SessionContext:
         if self._scope is None:
             return None
         entry = self._scope.find(lambda e: e.kind is ScopeKind.MIDDLEWARE)
+        return entry
+
+    @property
+    def current_llm_call_id(self) -> ScopeEntry | None:
+        if self._scope is None:
+            return None
+        entry = self._scope.find(lambda e: e.kind is ScopeKind.LLM)
         return entry
 
     @property
@@ -141,5 +139,4 @@ class SessionContext:
             publisher=self._publisher,
             scope=new_scope,
             executor_config=self._executor_config,
-            llm_call_id=self._llm_call_id,
         )
