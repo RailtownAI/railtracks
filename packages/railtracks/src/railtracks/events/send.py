@@ -17,9 +17,7 @@ async def pipe(
     event: SessionEventBase,
 ):
     _resolve_parent(event)
-    assert event.spatial_parent != UNSET, (
-        "Parent should be resolved before publishing the event."
-    )
+    event.verify()
 
     print(asdict(event))
 
