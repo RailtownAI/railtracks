@@ -52,13 +52,16 @@ class LLMSpatialParent(SpatialParent):
 class NoSpatialParent(SpatialParent):
     pass
 
+
 @dataclass(frozen=True)
 class Parent:
     pass
 
+
 @dataclass(frozen=True)
 class NodeParent(Parent):
     node_id: str
+
 
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
@@ -66,18 +69,16 @@ class MiddlewareParent(Parent):
     middleware_invoke_id: str
 
 
-
-
-
 TSpatialParent = TypeVar("TSpatialParent", bound=SpatialParent)
 
 
 @dataclass(kw_only=True)
 class SessionEventBase(ABC, Generic[TSpatialParent]):
-    
     spatial_parent: TSpatialParent | Unset = UNSET
-    
-    timestamp: datetime.datetime = field(default_factory=lambda: datetime.datetime.now(tz=datetime.timezone.utc))
+
+    timestamp: datetime.datetime = field(
+        default_factory=lambda: datetime.datetime.now(tz=datetime.timezone.utc)
+    )
 
     @abstractmethod
     def event_type(self) -> str:
@@ -90,4 +91,3 @@ class SessionEventBase(ABC, Generic[TSpatialParent]):
         assert self.spatial_parent != UNSET, (
             "Spatial parent should be resolved before publishing the event."
         )
-

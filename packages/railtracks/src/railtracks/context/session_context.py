@@ -27,10 +27,7 @@ class ScopeEntry:
     def __post_init__(self):
         if self.kind == ScopeKind.MIDDLEWARE or self.kind == ScopeKind.LLM:
             if self.type_id is None:
-                raise ValueError(
-                    f"ScopeEntry of kind {self.kind} must have a type_id."
-                )
-    
+                raise ValueError(f"ScopeEntry of kind {self.kind} must have a type_id.")
 
 
 class SessionContext:

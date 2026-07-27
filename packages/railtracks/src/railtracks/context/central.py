@@ -128,7 +128,9 @@ def get_parent_id() -> str | None:
         else None
     )
 
+
 LLMCallData = NamedTuple("LLMCallData", [("call_id", str), ("type_id", str)])
+
 
 def get_llm_call_id() -> LLMCallData | None:
     """
@@ -143,16 +145,20 @@ def get_llm_call_id() -> LLMCallData | None:
     context = safe_get_runner_context()
     if context.session_context.current_llm_call_id is None:
         return None
-    
+
     call_id = context.session_context.current_llm_call_id.id
     type_id = context.session_context.current_llm_call_id.type_id
 
     # defensive check
     assert type_id is not None, "LLM call ID should have a type_id set in the context."
-    
+
     return LLMCallData(call_id, type_id)
-    
-MiddlewareCallData = NamedTuple("MiddlewareCallData", [("call_id", str), ("type_id", str)])
+
+
+MiddlewareCallData = NamedTuple(
+    "MiddlewareCallData", [("call_id", str), ("type_id", str)]
+)
+
 
 def get_middleware_id() -> MiddlewareCallData | None:
     """
@@ -173,7 +179,9 @@ def get_middleware_id() -> MiddlewareCallData | None:
     type_id = context.session_context.current_middleware_id.type_id
 
     # defensive check
-    assert type_id is not None, "Middleware ID should have a type_id set in the context."
+    assert type_id is not None, (
+        "Middleware ID should have a type_id set in the context."
+    )
 
     return MiddlewareCallData(call_id, type_id)
 
@@ -373,14 +381,16 @@ class ContextVarScopeManager:
     @contextmanager
     def enter_middleware(self, middleware_type_id: str):
         middleware_id = str(uuid.uuid4())
-        token = _push_scope(ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, middleware_type_id))
+        token = _push_scope(
+            ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, middleware_type_id)
+        )
         try:
             yield middleware_id
         finally:
             runner_context.reset(token)
 
     @contextmanager
-    def enter_llm_call(self, llm_model_id: str | None = None):
+    def enter_llm_call(self, llm_model_id: str):
         llm_call_id = str(uuid.uuid4())
         token = _push_scope(ScopeEntry(ScopeKind.LLM, llm_call_id, llm_model_id))
         try:
@@ -523,7 +533,6 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
             else:
                 llm_id = None
                 llm_type_id = None
-
 
         except ContextError:
             parent_id = None
