@@ -1,6 +1,19 @@
-import pytest
+from types import SimpleNamespace
 from unittest import mock
+
+import pytest
 import railtracks.context.central as central
+
+
+def _as_entry(value):
+    """Wrap a raw id as a ScopeEntry-like object exposing `.id`.
+
+    The id accessors (`get_parent_id`, `get_middleware_id`, `get_llm_call_id`) read
+    `<current_*>.id`, so the mocked properties must return an object, not a bare string.
+    """
+    if value is None:
+        return None
+    return SimpleNamespace(id=value)
 
 
 @pytest.fixture
@@ -21,9 +34,9 @@ def make_session_context_mock():
     def _make_session_context_mock(**kwargs):
         sc = mock.Mock()
         sc.is_active = kwargs.get("is_active", True)
-        sc.current_node_id = kwargs.get("current_node_id", "parent-123")
-        sc.current_middleware_id = kwargs.get("current_middleware_id", None)
-        sc.llm_call_id = kwargs.get("llm_call_id", None)
+        sc.current_node_id = _as_entry(kwargs.get("current_node_id", "parent-123"))
+        sc.current_middleware_id = _as_entry(kwargs.get("current_middleware_id", None))
+        sc.current_llm_call_id = _as_entry(kwargs.get("current_llm_call_id", None))
         sc.session_id = kwargs.get("session_id", "session-123")
         sc.run_id = kwargs.get("run_id", None)
         sc.scope = kwargs.get("scope", None)
