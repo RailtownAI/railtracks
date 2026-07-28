@@ -186,6 +186,27 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         verbosity: Literal["low", "medium", "high"] | str | None = None,
         retry_approach: RetryApproach | None = None,
     ):
+        """Initialize the litellm-backed model wrapper.
+
+        Most callers construct a provider subclass (e.g. `rt.llm.OpenAILLM`) instead of
+        this base class directly; see `ProviderLLMWrapper.__init__` for the full
+        per-param description of the common params below (`top_p`, `max_tokens`,
+        `frequency_penalty`, `presence_penalty`, `reasoning_effort`, `service_tier`,
+        `verbosity`) and their known provider gotchas.
+
+        Raises:
+            UnsupportedParameterError: If a common param isn't supported by
+                `model_name` (per litellm's schema or the manual denylist in
+                `llm/models/_param_support.py`).
+            MutuallyExclusiveParametersError: If two common params can't be combined
+                for this provider (currently: Anthropic `temperature` + `top_p`).
+
+        Note:
+            No client-side validation of param *values* is performed — invalid values
+            are passed through as-is and surface as a provider-native error, except
+            `verbosity`, which at least one provider (OpenAI) silently accepts even
+            when invalid.
+        """
         super().__init__(stream=stream, retry_approach=retry_approach)
         self._model_name = model_name
         self.api_base = api_base

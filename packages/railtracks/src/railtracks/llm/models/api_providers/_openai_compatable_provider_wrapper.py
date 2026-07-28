@@ -26,6 +26,19 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
         verbosity: Literal["low", "medium", "high"] | str | None = None,
         retry_approach: RetryApproach | None = None,
     ):
+        """Initialize an OpenAI-compatible gateway LLM instance (e.g. via PortKey).
+
+        See `ProviderLLMWrapper.__init__` for the full per-param description of the
+        common params below (`top_p`, `max_tokens`, `frequency_penalty`,
+        `presence_penalty`, `reasoning_effort`, `service_tier`, `verbosity`).
+
+        Note:
+            Gateway-style providers can't be reliably introspected by litellm, so
+            neither per-model param support nor mutual-exclusion checks run here (see
+            `_validate_common_param_support` override below) — every param, valid or
+            not, is passed straight through and any error surfaces from the gateway
+            or upstream provider directly.
+        """
         super().__init__(
             model_name,
             stream=stream,
