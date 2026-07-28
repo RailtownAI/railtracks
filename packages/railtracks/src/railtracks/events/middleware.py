@@ -1,38 +1,48 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from pydantic import BaseModel
+
 from railtracks.events._base import (
     UNSET,
     LLMSpatialParent,
+    NoSpatialParent,
     NodeSpatialParent,
     Parent,
     SessionEventBase,
     Unset,
 )
-from railtracks.guardrails.core.decision import GuardrailDecision
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Message
-from railtracks.llm.response import Response
-from railtracks.llm.tools.tool import Tool
+
+if TYPE_CHECKING:
+    from railtracks.guardrails.core.decision import GuardrailDecision
+    from railtracks.llm.history import MessageHistory
+    from railtracks.llm.message import Message
+    from railtracks.llm.response import Response
+    from railtracks.llm.tools.tool import Tool
 
 
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
-    middleware_id: str
+    middleware_type_id: str
     middleware_invoke_id: str
 
 
 @dataclass(kw_only=True)
-class MiddlewareCreationEvent:
-    middleware_id: str
+class MiddlewareCreationEvent(SessionEventBase[NoSpatialParent]):
+    middleware_type_id: str
     middleware_name: str
 
+    def event_type(self) -> str:
+        return "middleware.creation"
+
+
+_T = TypeVar("_T", bound=NodeSpatialParent | LLMSpatialParent)
 
 @dataclass(kw_only=True)
-class MiddlewareEventBase(SessionEventBase[NodeSpatialParent | LLMSpatialParent]):
+class MiddlewareEventBase(SessionEventBase[_T], Generic[_T]):
     parent: MiddlewareParent | Unset = UNSET
-    name: str
 
     def verify(self) -> None:
         super().verify()
@@ -40,14 +50,13 @@ class MiddlewareEventBase(SessionEventBase[NodeSpatialParent | LLMSpatialParent]
             "Parent ID should be resolved before publishing the event."
         )
 
-
 @dataclass(kw_only=True)
-class MiddlewareRegularEventBase(SessionEventBase[NodeSpatialParent]):
+class MiddlewareRegularEventBase(MiddlewareEventBase[NodeSpatialParent]):
     pass
 
 
 @dataclass(kw_only=True)
-class MiddlewareModelEventBase(SessionEventBase[LLMSpatialParent]):
+class MiddlewareModelEventBase(MiddlewareEventBase[LLMSpatialParent]):
     pass
 
 

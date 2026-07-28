@@ -43,10 +43,10 @@ class SessionContext:
         session_id: str,
         run_id: str | None = None,
         publisher: RTPublisher | None = None,
-        scope: ScopeLink[ScopeEntry],
+        scope: ScopeLink[ScopeEntry] | None = None,
         executor_config: ExecutorConfig,
     ):
-        self._scope: ScopeLink[ScopeEntry] = scope
+        self._scope: ScopeLink[ScopeEntry] | None = scope
         self._publisher: RTPublisher | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
@@ -67,7 +67,7 @@ class SessionContext:
         self._executor_config = value
 
     @property
-    def scope(self) -> ScopeLink[ScopeEntry]:
+    def scope(self) -> ScopeLink[ScopeEntry] | None:
         return self._scope
 
     @property

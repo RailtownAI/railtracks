@@ -93,15 +93,6 @@ class BaseLLMGuardrail(
         return get_parent_id(), get_run_id()
 
     @staticmethod
-    def _record_guard_traces(traces: list[GuardrailTrace]) -> None:
-        """The single sink for guardrail traces.
-
-        TODO: Determine the correct home for observability traces. For now, just log them at debug level.
-        """
-        for t in traces:
-            logger.debug("guardrail trace: %s", t)
-
-    @staticmethod
     def _raise_if_blocked(
         decision: GuardrailDecision | None, traces: list[GuardrailTrace]
     ) -> None:
@@ -148,7 +139,7 @@ class BaseLLMGuardrail(
         *,
         event: LLMGuardrailEvent,
         value: _TValue,
-    ) -> tuple[_TValue, list[GuardrailTrace], GuardrailDecision | None]:
+    ) -> tuple[_TValue, list[GuardrailTrace], GuardrailDecision]:
         """Run this guard once on event and value.
 
         Returns the resulting value, the traces recorded, and a blocking decision
@@ -161,12 +152,13 @@ class BaseLLMGuardrail(
             value=value,
             traces=traces,
         )
+
         if step[0] == "stop":
             return step[1], traces, step[2]
 
         _, value, event = step
 
-        return value, traces, None
+        return value, traces, GuardrailDecision.allow()
 
     def _eval_one_rail(
         self,

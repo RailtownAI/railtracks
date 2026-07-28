@@ -9,7 +9,11 @@ from typing import (
     TypeVar,
 )
 
-from railtracks.events.middleware import MiddlewareFailureEvent, MiddlewareInvocationEvent, MiddlewareResponseEvent
+from railtracks.events.middleware import (
+    MiddlewareFailureEvent,
+    MiddlewareInvocationEvent,
+    MiddlewareResponseEvent,
+)
 from railtracks.events.send import pipe
 from railtracks.middleware.core import Middleware
 from railtracks.scope_manager import ScopeManager, null_scope_manager
@@ -30,25 +34,25 @@ def _scoped(
         with get_scope_manager().enter_middleware(
             identifier,
         ):
-            invocation_event = MiddlewareInvocationEvent(name=m.name, args=args, kwargs=kwargs)
+            invocation_event = MiddlewareInvocationEvent(
+                args=args, kwargs=kwargs
+            )
 
             await pipe(invocation_event)
             try:
                 result = await wrapped(*args, **kwargs)
-                
+
             except Exception as e:
-                event = MiddlewareFailureEvent(exception=e, name=m.name)
+                event = MiddlewareFailureEvent(exception=e)
                 await pipe(event)
                 raise e
 
             event = MiddlewareResponseEvent(
-                name=m.name,
                 response=result,
             )
             await pipe(event)
 
-            return result 
-                    
+            return result
 
     return scoped
 

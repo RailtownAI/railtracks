@@ -32,8 +32,6 @@ async def pipe(
     _resolve_parent(event)
     event.verify()
 
-    print(asdict(event))
-
     await publish_event(make_session_event(event.event_type(), asdict(event)))
 
 
@@ -58,11 +56,14 @@ def _resolve_parent(event: SessionEventBase):
         spatial_parent = _get_llm_creation_parents(event)
         event.spatial_parent = spatial_parent
     elif isinstance(event, MiddlewareEventBase):
-        spatial_parent = _get_middleware_parents(event)
+        spatial_parent, parent = _get_middleware_parents(event)
         event.spatial_parent = spatial_parent
+        event.parent = parent
     elif isinstance(event, MiddlewareCreationEvent):
         spatial_parent = _get_middleware_creation_parents(event)
         event.spatial_parent = spatial_parent
+    else:
+        raise RuntimeError(f"Unknown event type {type(event)}")
 
 
 def _get_node_parent(event: SessionEventBase) -> SpatialParent:
@@ -122,7 +123,7 @@ def _get_middleware_parents(
     )
 
     actual_parent = MiddlewareParent(
-        middleware_id=middleware_item.type_id,
+        middleware_type_id=middleware_item.type_id,
         middleware_invoke_id=middleware_item.call_id,
     )
 
