@@ -1,25 +1,3 @@
-"""Parent resolution: project the scope chain onto an event's spatial `Parent`.
-
-The scope chain (`ScopeLink[ScopeEntry]`) is the single source of truth for "who is
-nested inside whom". This module reads that chain and produces the event-space `Parent`
-for an event:
-
-- **self vs. parent** — an event's parent is the enclosing scope entry(ies) *below* its own
-  entry. The runtime resolvers locate self's entry and walk strictly below it.
-- **node parents collapse to `NodeParent`** — a node's parent is always `NodeParent` (node +
-  optional intervening middleware), never a bare `MiddlewareParent`.
-- **single-hop middleware** — a `Parent`'s `middleware_id` is the *first* MIDDLEWARE below
-  self (the immediate wrapper). Deeper nesting is recovered by chaining each event's parent.
-- **creation vs. runtime** — `NodeCreation` has no self on the chain yet, so it resolves from
-  the current top with no self-skip (`resolve_parent_at_creation`).
-- **family-specific anchor** — the anchor kind depends on the event family. Node /
-  general-middleware / LLM events anchor on a NODE and treat any LLM entry as transparent;
-  only model-middleware events anchor on the LLM entry.
-
-These functions are pure: they take a scope chain and return a `Parent`. The bridge passes
-`get_current_scope()`; tests pass synthetic chains.
-"""
-
 from __future__ import annotations
 
 from railtracks.context.scope_link import ScopeLink

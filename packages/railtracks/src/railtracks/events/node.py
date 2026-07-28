@@ -1,11 +1,3 @@
-"""Node lifecycle events.
-
-One event per point in a node's life: created, body entered, responded, failed, and the
-final response outside its middleware. Each carries the node's own identity (`node_id`,
-`name`, `node_type`), supplied by the emitter (which always holds the node object); the
-bridge fills `parent` by resolving the ambient scope chain via `resolve_parent`.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

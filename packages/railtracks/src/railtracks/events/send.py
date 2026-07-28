@@ -1,9 +1,3 @@
-"""Emission entry point: resolve an event's parent from the ambient scope, then publish it.
-
-The full resolved `Parent` is carried in the event payload (with a `type` discriminator);
-`Event.parent_scope_id` belongs to the observability scope model and is not set here.
-"""
-
 from __future__ import annotations
 
 import datetime
