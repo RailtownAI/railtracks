@@ -21,7 +21,7 @@ def wrap_llm(
 
     Example usage:
     ```python
-    @wrap_model
+    @wrap_llm
     async def my_middleware(llm_call, message_history, schema, tools):
         # do something with the inputs
         response = await llm_call(message_history, schema, tools)

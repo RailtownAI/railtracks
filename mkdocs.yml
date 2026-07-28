@@ -74,6 +74,12 @@ extra_css:
 extra:
   generator: false
 
+# Per-middleware prebuilt pages are intentionally kept out of the sidebar (they are
+# reached from the prebuilt Overview catalog) so the nav stays clean as the
+# catalog grows. Listing them here silences the "not in nav" build warning.
+not_in_nav: |
+  /documentation/agent_design/middleware/prebuilt/list/*.md
+
 nav:
   - Home: index.md
 
@@ -99,11 +105,9 @@ nav:
                 - Overview: documentation/agent_design/middleware/guardrails/overview.md
                 - Quickstart: documentation/agent_design/middleware/guardrails/quickstart.md
                 - Contributing: documentation/agent_design/middleware/guardrails/contributions.md
-              - Prebuilt: 
+              - Prebuilt:
                 - Overview: documentation/agent_design/middleware/prebuilt/overview.md
                 - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
-                - List: 
-                  - Text Detect: documentation/agent_design/middleware/prebuilt/list/text_detect.md
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
           - Flow Invocation: documentation/invocation/flows.md
@@ -180,7 +184,6 @@ nav:
       - Notebooks:
           - Agent Architectures: tutorials/notebooks/architectures.md
           - FastAPI Integration: tutorials/notebooks/fastapi.md
-          - Gateway Middleware & Context Injection: tutorials/notebooks/gateway_middleware.md
       - Concepts:
           - Core:
               - Agents: tutorials/concepts/agents.md

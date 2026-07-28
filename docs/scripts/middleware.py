@@ -117,7 +117,7 @@ OrderedAgent = rt.agent_node(
 
 
 # --8<-- [start: prebuilt_model_middleware_demo]
-from railtracks.guardrails.llm import PIIRedactInputGuard, PIIRedactOutputGuard
+from railtracks.prebuilt.guardrails import PIIRedactInputGuard, PIIRedactOutputGuard
 
 GuardedAgent = rt.agent_node(
     name="pii-redact-demo",
@@ -126,3 +126,20 @@ GuardedAgent = rt.agent_node(
     model_middleware=[PIIRedactInputGuard(), PIIRedactOutputGuard()],
 )
 # --8<-- [end: prebuilt_model_middleware_demo]
+
+# --8<-- [start: prebuilt_contributions_timeout]
+import asyncio
+
+from railtracks.middleware.core import Middleware
+
+
+class Timeout(Middleware):
+    """Fail the wrapped call if it runs longer than ``seconds``."""
+
+    def __init__(self, seconds: float):
+        self._seconds = seconds
+        super().__init__(self._middleware_fn)
+
+    async def _middleware_fn(self, call, *args, **kwargs):
+        return await asyncio.wait_for(call(*args, **kwargs), timeout=self._seconds)
+# --8<-- [end: prebuilt_contributions_timeout]

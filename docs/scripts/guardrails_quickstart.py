@@ -3,32 +3,33 @@ import railtracks as rt
 from railtracks.guardrails import (
     GuardrailBlockedError,
     GuardrailDecision,
-    InputGuard,
     LLMGuardrailEvent,
 )
 
-# TODO: @pooria we should use the new wrapper API here.
-class BlockSensitiveRequests(InputGuard):
-    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        """Check the latest user message and block requests that mention passwords."""
-        
-        latest_message = event.messages[-1]
-        content = str(latest_message.content).lower()
 
-        if "password" in content:
-            return GuardrailDecision.block(
-                reason="Requests for passwords are not allowed.",
-                user_facing_message="Ask for something else instead.",
-            )
+# The quickest way to write a guard is the decorator API: a plain function that
+# takes the guardrail event and returns a decision.
+@rt.input_guard
+def block_sensitive_requests(event: LLMGuardrailEvent) -> GuardrailDecision:
+    """Check the latest user message and block requests that mention passwords."""
+    latest_message = event.messages[-1]
+    content = str(latest_message.content).lower()
 
-        return GuardrailDecision.allow()
+    if "password" in content:
+        return GuardrailDecision.block(
+            reason="Requests for passwords are not allowed.",
+            user_facing_message="Ask for something else instead.",
+        )
+
+    return GuardrailDecision.allow()
 
 
+# Guards are model middleware — attach them with model_middleware=[...].
 Agent = rt.agent_node(
     name="guardrails-quickstart-agent",
     llm=rt.llm.GeminiLLM("gemini-2.5-flash"),
     system_message="You are a concise assistant.",
-    model_middleware=[BlockSensitiveRequests()],
+    model_middleware=[block_sensitive_requests],
 )
 
 flow = rt.Flow("Guardrails Quickstart", entry_point=Agent)
