@@ -25,6 +25,18 @@ async def main_await():
 # --8<-- [end: astream_await]
 
 
+# --8<-- [start: flow_astream]
+poem_flow = rt.Flow(name="poem", entry_point=agent)
+
+
+async def main_flow_astream():
+    stream = poem_flow.astream("Write a short poem about rain.")
+    async for chunk in stream:
+        print(chunk, end="", flush=True)
+    final = stream.result
+# --8<-- [end: flow_astream]
+
+
 # --8<-- [start: channels]
 @rt.function_node
 async def worker(topic: str) -> str:

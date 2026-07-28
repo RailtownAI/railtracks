@@ -26,6 +26,12 @@ A `Stream` is also awaitable. Awaiting it consumes the stream to completion and 
 !!! Note "The final result is authoritative"
     `stream.result` can differ from the concatenation of the streamed chunks. For example, an output guardrail may correct the buffered response after the raw tokens were already streamed. Treat the chunks as live progress and `.result` as the answer.
 
+A `Flow` streams the same way with `flow.astream(...)`, which runs the entry point in a session built from the flow's configuration and closes it once the stream finishes:
+
+```python
+--8<-- "docs/scripts/streaming.py:flow_astream"
+```
+
 A few details worth knowing:
 
 - **Frame-local.** Only the node you invoke streams its LLM response. Nested `rt.call` children, such as agents used as tools, run buffered.

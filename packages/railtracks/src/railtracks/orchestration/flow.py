@@ -8,6 +8,7 @@ from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
 from railtracks._session import Session
 from railtracks.built_nodes.function.base import RTFunction
+from railtracks.interaction._astream import Stream
 from railtracks.interaction._call import call
 
 from ..nodes.nodes import Node
@@ -78,8 +79,9 @@ class Flow(Generic[_P, _TOutput]):
         new_obj._context.update(context)
         return new_obj
 
-    async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-        with Session(
+    def _new_session(self) -> Session:
+        """Builds a fresh `Session` configured from this flow (one per run)."""
+        return Session(
             context=deepcopy(self._context),
             flow_name=self.name,
             flow_id=self.equality_hash(),
@@ -91,7 +93,10 @@ class Flow(Generic[_P, _TOutput]):
             prompt_injection=self._prompt_injection,
             save_state=self._save_state,
             payload_callback=self._payload_callback,
-        ):
+        )
+
+    async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        with self._new_session():
             result = await call(self.entry_point, *args, **kwargs)
 
         return result
@@ -104,6 +109,48 @@ class Flow(Generic[_P, _TOutput]):
             raise RuntimeError(
                 "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
             )
+
+    def astream(self, *args: _P.args, **kwargs: _P.kwargs) -> Stream[_TOutput]:
+        """
+        Run this flow with streaming enabled and return a `Stream` over the emitted chunks.
+
+        This is the flow-level counterpart to `rt.astream`: it runs the flow's entry point in
+        a session configured from this flow (context, callbacks, timeout, ...), and yields the
+        entry point's streamed chunks. The session is created when iteration begins and closed
+        automatically once the stream completes, so the flow owns its own run just like
+        `ainvoke` does.
+
+        ```python
+        flow = rt.Flow(name="poem", entry_point=agent)
+        stream = flow.astream("Write a short poem about rain.")
+        async for chunk in stream:
+            print(chunk, end="", flush=True)
+        final = stream.result
+        ```
+
+        `on_channel` and the awaitable form work exactly as they do for `rt.astream`.
+
+        Args:
+            *args: Positional arguments forwarded to the entry point.
+            **kwargs: Keyword arguments forwarded to the entry point.
+
+        Returns:
+            Stream[_TOutput]: An async iterator over the chunks, with `.result` for the final
+                value.
+        """
+        # The flow owns the session lifecycle: open it when the stream starts and close it
+        # when the stream finishes. The Stream itself stays out of session management (it just
+        # calls these hooks) — mirroring how rt.astream wires a default session.
+        session_box: list[Session] = []
+
+        def _open() -> None:
+            session_box.append(self._new_session())
+
+        def _close() -> None:
+            while session_box:
+                session_box.pop().__exit__(None, None, None)
+
+        return Stream(self.entry_point, args, kwargs, on_start=_open, on_close=_close)
 
     def equality_hash(self) -> str:
         """
