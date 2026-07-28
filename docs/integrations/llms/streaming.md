@@ -49,8 +49,6 @@ async for token in rt.astream(agent, user_input="...").on_channel("default"):
     ...
 ```
 
-`on_channel` is a method rather than an `astream(..., channel=...)` keyword because `astream` forwards its keyword arguments to the node, where a `channel` keyword could collide with the node's own parameters.
-
 ### Two callback lanes: `broadcast_callback` and `stream_callback`
 
 Streaming shares the same pubsub bus as `rt.broadcast`, but the two kinds of traffic travel on separate lanes so a listener never receives the wrong kind:
