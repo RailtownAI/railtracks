@@ -1,6 +1,9 @@
 """End-to-end emit path: pipe(event) -> resolve parent -> publish -> writer."""
 
+import datetime
+
 import railtracks.context.central as central
+from railtracks.events._base import NodeParent, NoParent
 from railtracks.events.node import NodeInvocation
 from railtracks.events.send import pipe
 from railtracks.observability import (
@@ -44,7 +47,7 @@ async def _emit(event):
     return writer.events
 
 
-async def test_pipe_resolves_parent_and_publishes_json_safe_payload():
+async def test_pipe_resolves_parent_and_publishes_raw_payload():
     _register("sess-1")
     manager = central.ContextVarScopeManager()
 
@@ -71,16 +74,12 @@ async def test_pipe_resolves_parent_and_publishes_json_safe_payload():
     assert p["node_id"] == "n1"
     assert p["name"] == "Agent"
     assert p["node_type"] == "agent"
-    # parent carries a type discriminator and the resolved caller
-    assert p["parent"] == {
-        "type": "NodeParent",
-        "node_id": "caller",
-        "middleware_id": None,
-    }
-    # payload is JSON-safe: tuple -> list, datetime -> iso string
-    assert p["args"] == [1]
+    # parent is the resolved Parent object (serialization is deferred to the writers)
+    assert p["parent"] == NodeParent(node_id="caller", middleware_id=None)
+    # payload values are passed through untouched: tuple stays tuple, datetime stays datetime
+    assert p["args"] == (1,)
     assert p["kwargs"] == {"x": 2}
-    assert isinstance(p["timestamp"], str)
+    assert isinstance(p["timestamp"], datetime.datetime)
 
 
 async def test_pipe_root_node_has_noparent():
@@ -94,4 +93,4 @@ async def test_pipe_root_node_has_noparent():
             )
         )
 
-    assert events[0].payload["parent"] == {"type": "NoParent"}
+    assert events[0].payload["parent"] == NoParent()

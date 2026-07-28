@@ -6,6 +6,7 @@ Unlike `test_send.py` (which drives `pipe` directly against a synthetic scope), 
 """
 
 import railtracks as rt
+from railtracks.events._base import NodeParent, NoParent
 from railtracks.observability import Event, configure_writers
 
 
@@ -70,13 +71,9 @@ async def test_parent_child_lifecycle_and_parents():
 
     # the root node has no parent; the child is parented on the caller node (no LLM, no mw)
     for e in outer_events:
-        assert e.payload["parent"] == {"type": "NoParent"}
+        assert e.payload["parent"] == NoParent()
     for e in inner_events:
-        assert e.payload["parent"] == {
-            "type": "NodeParent",
-            "node_id": outer_id,
-            "middleware_id": None,
-        }
+        assert e.payload["parent"] == NodeParent(node_id=outer_id, middleware_id=None)
 
 
 async def test_failure_emits_node_failure_and_no_response():
