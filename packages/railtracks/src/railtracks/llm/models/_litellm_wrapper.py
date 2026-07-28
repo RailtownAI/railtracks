@@ -37,11 +37,14 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
-from ._model_exception_base import (
-    MutuallyExclusiveParametersError,
-    UnsupportedParameterError,
+from ._hyperparameter_support import (
+    find_mutually_exclusive_conflict,
+    is_hyperparameter_supported,
 )
-from ._param_support import find_mutually_exclusive_conflict, is_param_supported
+from ._model_exception_base import (
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
+)
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -159,7 +162,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     model of that type.
     """
 
-    _COMMON_PARAMS = (
+    _COMMON_HYPERPARAMETERS = (
         "temperature",
         "top_p",
         "max_tokens",
@@ -190,22 +193,23 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
         Most callers construct a provider subclass (e.g. `rt.llm.OpenAILLM`) instead of
         this base class directly; see `ProviderLLMWrapper.__init__` for the full
-        per-param description of the common params below (`top_p`, `max_tokens`,
-        `frequency_penalty`, `presence_penalty`, `reasoning_effort`, `service_tier`,
-        `verbosity`) and their known provider gotchas.
+        per-hyperparameter description of the common hyperparameters below (`top_p`,
+        `max_tokens`, `frequency_penalty`, `presence_penalty`, `reasoning_effort`,
+        `service_tier`, `verbosity`) and their known provider gotchas.
 
         Raises:
-            UnsupportedParameterError: If a common param isn't supported by
-                `model_name` (per litellm's schema or the manual denylist in
-                `llm/models/_param_support.py`).
-            MutuallyExclusiveParametersError: If two common params can't be combined
-                for this provider (currently: Anthropic `temperature` + `top_p`).
+            UnsupportedHyperparameterError: If a common hyperparameter isn't supported
+                by `model_name` (per litellm's schema or the manual denylist in
+                `llm/models/_hyperparameter_support.py`).
+            MutuallyExclusiveHyperparametersError: If two common hyperparameters can't
+                be combined for this provider (currently: Anthropic `temperature` +
+                `top_p`).
 
         Note:
-            No client-side validation of param *values* is performed — invalid values
-            are passed through as-is and surface as a provider-native error, except
-            `verbosity`, which at least one provider (OpenAI) silently accepts even
-            when invalid.
+            No client-side validation of hyperparameter *values* is performed —
+            invalid values are passed through as-is and surface as a provider-native
+            error, except `verbosity`, which at least one provider (OpenAI) silently
+            accepts even when invalid.
         """
         super().__init__(stream=stream, retry_approach=retry_approach)
         self._model_name = model_name
@@ -219,27 +223,29 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         self.reasoning_effort = reasoning_effort
         self.service_tier = service_tier
         self.verbosity = verbosity
-        self._validate_common_param_support()
+        self._validate_common_hyperparameter_support()
 
-    def _validate_common_param_support(self) -> None:
+    def _validate_common_hyperparameter_support(self) -> None:
         provider = (
             self.model_provider().lower() if hasattr(self, "model_provider") else None
         )
         if provider is None:
             return
-        for name in self._COMMON_PARAMS:
+        for name in self._COMMON_HYPERPARAMETERS:
             value = getattr(self, name)
-            if value is not None and not is_param_supported(
+            if value is not None and not is_hyperparameter_supported(
                 self._model_name, provider, name
             ):
-                raise UnsupportedParameterError(self._model_name, name, value)
+                raise UnsupportedHyperparameterError(self._model_name, name, value)
 
-        set_params = frozenset(
-            name for name in self._COMMON_PARAMS if getattr(self, name) is not None
+        hyperparameters_set = frozenset(
+            name
+            for name in self._COMMON_HYPERPARAMETERS
+            if getattr(self, name) is not None
         )
-        conflict = find_mutually_exclusive_conflict(provider, set_params)
+        conflict = find_mutually_exclusive_conflict(provider, hyperparameters_set)
         if conflict:
-            raise MutuallyExclusiveParametersError(
+            raise MutuallyExclusiveHyperparametersError(
                 self._model_name,
                 sorted(conflict),
                 {name: getattr(self, name) for name in conflict},

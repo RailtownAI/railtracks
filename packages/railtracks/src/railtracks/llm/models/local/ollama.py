@@ -48,7 +48,7 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
             temperature (float | None, optional): Sampling temperature for generation (e.g. 0.0–2.0).
                 If None, the provider default is used.
             **kwargs: Additional arguments passed to the parent LiteLLMWrapper, including the
-                common params `top_p`, `max_tokens`, `frequency_penalty`, `presence_penalty`,
+                common hyperparameters `top_p`, `max_tokens`, `frequency_penalty`, `presence_penalty`,
                 `reasoning_effort`, `service_tier`, and `verbosity`.
 
         Raises:

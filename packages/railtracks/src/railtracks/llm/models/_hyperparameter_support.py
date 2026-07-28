@@ -1,17 +1,17 @@
 """
-Per-model, per-param support checks for the "common params" (temperature, top_p,
-max_tokens, frequency_penalty, presence_penalty, reasoning_effort, service_tier,
-verbosity).
+Per-model, per-hyperparameter support checks for the "common hyperparameters"
+(temperature, top_p, max_tokens, frequency_penalty, presence_penalty, reasoning_effort,
+service_tier, verbosity).
 
 `litellm.get_supported_openai_params` is the default source of truth, but it is
-known to be stale for a few specific model/param combinations. `_MANUAL_DENYLIST`
+known to be stale for a few specific model/hyperparameter combinations. `_MANUAL_DENYLIST`
 patches those cases; re-check against a fresh litellm release before removing an
 entry.
 """
 
 import litellm
 
-# model-name-prefix (bare, no provider prefix) -> params litellm mis-reports as
+# model-name-prefix (bare, no provider prefix) -> hyperparameters litellm mis-reports as
 # supported. See litellm#26444 / litellm#28113 (Opus 4.7/4.8 temperature+top_p)
 # and litellm's own docs vs. reported schema for gpt-5-codex verbosity.
 _MANUAL_DENYLIST: dict[str, frozenset[str]] = {
@@ -19,40 +19,43 @@ _MANUAL_DENYLIST: dict[str, frozenset[str]] = {
     "claude-opus-4-8": frozenset({"temperature", "top_p"}),
     "gpt-5-codex": frozenset({"verbosity"}),
     "gpt-5.1-codex": frozenset({"verbosity"}),
-    # Gemini API rejects both penalty params with a 400 ("Penalty is not
+    # Gemini API rejects both penalty hyperparameters with a 400 ("Penalty is not
     # enabled for models/...") despite litellm reporting them as supported.
     # Confirmed empirically on gemini-2.5-flash; re-check before removing.
     "gemini-2.5": frozenset({"frequency_penalty", "presence_penalty"}),
 }
 
-# Provider-wide param exclusions, for params litellm never gates correctly
-# (e.g. structural gaps, not just stale schema entries). Documented extension
+# Provider-wide hyperparameter exclusions, for hyperparameters litellm never gates
+# correctly (e.g. structural gaps, not just stale schema entries). Documented extension
 # point; empty for now. Prob won't need but still.
 _PROVIDER_STRUCTURAL_DENYLIST: dict[str, frozenset[str]] = {}
 
-# provider -> sets of params that cannot be specified together, even though each
-# is individually supported. Confirmed empirically (2026-07-28) on claude-sonnet-4-5,
-# claude-sonnet-4-6, and claude-opus-4-1 — treated as an Anthropic-wide rule rather
-# than a per-model list since it reproduced on every model tested and Anthropic's
-# rollout appears to be actively expanding.
+# provider -> sets of hyperparameters that cannot be specified together, even though
+# each is individually supported. Confirmed empirically (2026-07-28) on
+# claude-sonnet-4-5, claude-sonnet-4-6, and claude-opus-4-1 — treated as an
+# Anthropic-wide rule rather than a per-model list since it reproduced on every model
+# tested and Anthropic's rollout appears to be actively expanding.
 _MUTUALLY_EXCLUSIVE: dict[str, list[frozenset[str]]] = {
     "anthropic": [frozenset({"temperature", "top_p"})],
 }
 
 
 def find_mutually_exclusive_conflict(
-    custom_llm_provider: str, params_set: frozenset[str]
+    custom_llm_provider: str, hyperparameters_set: frozenset[str]
 ) -> frozenset[str] | None:
-    """The first mutually-exclusive param group fully present in `params_set`, if any."""
+    """The first mutually-exclusive hyperparameter group fully present in
+    `hyperparameters_set`, if any."""
     for combo in _MUTUALLY_EXCLUSIVE.get(custom_llm_provider, []):
-        if combo <= params_set:
+        if combo <= hyperparameters_set:
             return combo
     return None
 
 
-def is_param_supported(model_name: str, custom_llm_provider: str, param: str) -> bool:
+def is_hyperparameter_supported(
+    model_name: str, custom_llm_provider: str, hyperparameter: str
+) -> bool:
     """
-    Whether `param` is safe to send to `model_name` on `custom_llm_provider`.
+    Whether `hyperparameter` is safe to send to `model_name` on `custom_llm_provider`.
 
     Checks the manual denylists first, then falls back to
     `litellm.get_supported_openai_params`. Fails open (returns True) if litellm
@@ -60,10 +63,12 @@ def is_param_supported(model_name: str, custom_llm_provider: str, param: str) ->
     """
     bare_name = model_name.split("/")[-1]
     for prefix, denied in _MANUAL_DENYLIST.items():
-        if bare_name.startswith(prefix) and param in denied:
+        if bare_name.startswith(prefix) and hyperparameter in denied:
             return False
 
-    if param in _PROVIDER_STRUCTURAL_DENYLIST.get(custom_llm_provider, frozenset()):
+    if hyperparameter in _PROVIDER_STRUCTURAL_DENYLIST.get(
+        custom_llm_provider, frozenset()
+    ):
         return False
 
     try:
@@ -78,4 +83,4 @@ def is_param_supported(model_name: str, custom_llm_provider: str, param: str) ->
         # unrecognized provider) — fail open rather than block usage.
         return True
 
-    return param in supported
+    return hyperparameter in supported

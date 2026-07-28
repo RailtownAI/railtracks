@@ -66,16 +66,19 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
 
         Raises:
             ModelNotFoundError: If `model_name` doesn't belong to this provider.
-            UnsupportedParameterError: If a common param above isn't supported by the
-                resolved model (per litellm's schema, patched by a manual denylist for
-                known-stale cases — see `llm/models/_param_support.py`).
-            MutuallyExclusiveParametersError: If two common params can't be combined for
-                this provider (currently: Anthropic `temperature` + `top_p`).
+            UnsupportedHyperparameterError: If a common hyperparameter above isn't
+                supported by the resolved model (per litellm's schema, patched by a
+                manual denylist for known-stale cases — see
+                `llm/models/_hyperparameter_support.py`).
+            MutuallyExclusiveHyperparametersError: If two common hyperparameters can't
+                be combined for this provider (currently: Anthropic `temperature` +
+                `top_p`).
 
         Note:
-            railtracks does not validate param *values* (ranges, types, enum members) —
-            invalid values are passed through and will surface as a provider-native error
-            (see `verbosity` caveat above for the one known exception).
+            railtracks does not validate hyperparameter *values* (ranges, types, enum
+            members) — invalid values are passed through and will surface as a
+            provider-native error (see `verbosity` caveat above for the one known
+            exception).
         """
         model_name = self._pre_init_provider_check(model_name)
         super().__init__(

@@ -28,16 +28,16 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
     ):
         """Initialize an OpenAI-compatible gateway LLM instance (e.g. via PortKey).
 
-        See `ProviderLLMWrapper.__init__` for the full per-param description of the
-        common params below (`top_p`, `max_tokens`, `frequency_penalty`,
+        See `ProviderLLMWrapper.__init__` for the full per-hyperparameter description
+        of the common hyperparameters below (`top_p`, `max_tokens`, `frequency_penalty`,
         `presence_penalty`, `reasoning_effort`, `service_tier`, `verbosity`).
 
         Note:
             Gateway-style providers can't be reliably introspected by litellm, so
-            neither per-model param support nor mutual-exclusion checks run here (see
-            `_validate_common_param_support` override below) — every param, valid or
-            not, is passed straight through and any error surfaces from the gateway
-            or upstream provider directly.
+            neither per-model hyperparameter support nor mutual-exclusion checks run
+            here (see `_validate_common_hyperparameter_support` override below) —
+            every hyperparameter, valid or not, is passed straight through and any
+            error surfaces from the gateway or upstream provider directly.
         """
         super().__init__(
             model_name,
@@ -70,7 +70,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
         # For OpenAI compatible providers, we skip the tool calling support check since there is no way to do it.
         return
 
-    def _validate_common_param_support(self) -> None:
+    def _validate_common_hyperparameter_support(self) -> None:
         # For OpenAI compatible providers, litellm can't reliably introspect
-        # gateway-style providers, so we skip the common param support check.
+        # gateway-style providers, so we skip the common hyperparameter support check.
         return

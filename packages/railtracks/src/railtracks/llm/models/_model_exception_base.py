@@ -67,20 +67,24 @@ class FunctionCallingNotSupportedError(ModelError):
         )
 
 
-class UnsupportedParameterError(ModelError):
-    """Error raised when a model does not support a given common LLM param."""
+class UnsupportedHyperparameterError(ModelError):
+    """Error raised when a model does not support a given common LLM hyperparameter."""
 
-    def __init__(self, model_name: str, param: str, value):
+    def __init__(self, model_name: str, hyperparameter: str, value):
         super().__init__(
-            reason=f"Model {model_name} does not support '{param}' (got {param}={value!r})."
+            reason=(
+                f"Model {model_name} does not support '{hyperparameter}' "
+                f"(got {hyperparameter}={value!r})."
+            )
         )
 
 
-class MutuallyExclusiveParametersError(ModelError):
-    """Error raised when two or more common params cannot be combined for this model."""
+class MutuallyExclusiveHyperparametersError(ModelError):
+    """Error raised when two or more common hyperparameters cannot be combined for
+    this model."""
 
-    def __init__(self, model_name: str, params: list[str], values: dict):
-        joined = " and ".join(f"'{p}'" for p in params)
+    def __init__(self, model_name: str, hyperparameters: list[str], values: dict):
+        joined = " and ".join(f"'{p}'" for p in hyperparameters)
         super().__init__(
             reason=(
                 f"Model {model_name} does not support specifying {joined} together "

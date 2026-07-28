@@ -37,7 +37,7 @@ class ModelProvider(str, Enum):
 
 class ReasoningEffort(str, Enum):
     """
-    Portable values for the `reasoning_effort` common param.
+    Portable values for the `reasoning_effort` common hyperparameter.
 
     A raw string is also accepted wherever `ReasoningEffort` is a valid type hint.
     """

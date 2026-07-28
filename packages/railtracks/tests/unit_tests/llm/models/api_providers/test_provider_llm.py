@@ -6,8 +6,8 @@ from railtracks.llm import AnthropicLLM, CohereLLM, GeminiLLM, HuggingFaceLLM, O
 from railtracks.llm._exceptions import RTLLMError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._model_exception_base import (
-    MutuallyExclusiveParametersError,
-    UnsupportedParameterError,
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
 )
 
 
@@ -113,18 +113,18 @@ def test_temperature_passed_to_litellm_completion(message_history):
             assert mock_completion.call_args.kwargs.get("temperature") == 0.4
 
 
-class TestUnsupportedParameterValidation:
-    """Test that unsupported parameters raise UnsupportedParameterError."""
+class TestUnsupportedHyperparameterValidation:
+    """Test that unsupported hyperparameters raise UnsupportedHyperparameterError."""
 
     def test_opus_4_7_temperature_raises_immediately(self):
         with patch(
             "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
         ) as mock_provider:
             mock_provider.return_value = ("claude-opus-4-7", "anthropic", "info")
-            with pytest.raises(UnsupportedParameterError):
+            with pytest.raises(UnsupportedHyperparameterError):
                 AnthropicLLM("anthropic/claude-opus-4-7", temperature=0.5)
 
-    def test_supported_param_does_not_raise(self):
+    def test_supported_hyperparameter_does_not_raise(self):
         with patch(
             "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
         ) as mock_provider:
@@ -133,9 +133,9 @@ class TestUnsupportedParameterValidation:
             assert llm is not None
 
 
-class TestMutuallyExclusiveParameterValidation:
+class TestMutuallyExclusiveHyperparameterValidation:
     """temperature+top_p together is rejected by Anthropic across every model tested,
-    not just Opus 4.7/4.8 — see _param_support._MUTUALLY_EXCLUSIVE."""
+    not just Opus 4.7/4.8 — see _hyperparameter_support._MUTUALLY_EXCLUSIVE."""
 
     def test_temperature_and_top_p_together_raises_immediately(self):
         with patch(
@@ -146,7 +146,7 @@ class TestMutuallyExclusiveParameterValidation:
                 "anthropic",
                 "info",
             )
-            with pytest.raises(MutuallyExclusiveParametersError):
+            with pytest.raises(MutuallyExclusiveHyperparametersError):
                 AnthropicLLM(
                     "anthropic/claude-sonnet-4-5-20250929", temperature=0.5, top_p=0.9
                 )
