@@ -22,7 +22,7 @@ async def emit(event: SessionEventBase) -> None:
     try:
         await pipe(event)
     except Exception:  # noqa: BLE001 - observability must not crash a node
-        logger.debug(
+        logger.exception(
             "observability: failed to emit %s", type(event).__name__, exc_info=True
         )
 
