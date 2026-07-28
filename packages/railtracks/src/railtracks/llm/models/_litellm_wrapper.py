@@ -37,8 +37,11 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
-from ._model_exception_base import UnsupportedParameterError
-from ._param_support import is_param_supported
+from ._model_exception_base import (
+    MutuallyExclusiveParametersError,
+    UnsupportedParameterError,
+)
+from ._param_support import find_mutually_exclusive_conflict, is_param_supported
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -209,6 +212,17 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 self._model_name, provider, name
             ):
                 raise UnsupportedParameterError(self._model_name, name, value)
+
+        set_params = frozenset(
+            name for name in self._COMMON_PARAMS if getattr(self, name) is not None
+        )
+        conflict = find_mutually_exclusive_conflict(provider, set_params)
+        if conflict:
+            raise MutuallyExclusiveParametersError(
+                self._model_name,
+                sorted(conflict),
+                {name: getattr(self, name) for name in conflict},
+            )
 
     def _base_completion_kwargs(self) -> Dict[str, Any]:
         """Common kwargs shared by both `_invoke` and `_ainvoke`, merged in only if set."""

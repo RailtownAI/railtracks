@@ -1,5 +1,8 @@
 import pytest
-from railtracks.llm.models._param_support import is_param_supported
+from railtracks.llm.models._param_support import (
+    find_mutually_exclusive_conflict,
+    is_param_supported,
+)
 
 
 class TestManualDenylist:
@@ -21,6 +24,50 @@ class TestManualDenylist:
 
     def test_unaffected_anthropic_model_still_allows_temperature(self):
         assert is_param_supported("claude-opus-4-1", "anthropic", "temperature") is True
+
+    @pytest.mark.parametrize(
+        "model_name,param",
+        [
+            ("gemini-2.5-flash", "frequency_penalty"),
+            ("gemini-2.5-flash", "presence_penalty"),
+            ("vertex_ai/gemini-2.5-pro", "frequency_penalty"),
+        ],
+    )
+    def test_gemini_penalty_params_denied(self, model_name, param):
+        # Gemini's API rejects both penalty params with a 400 ("Penalty is not
+        # enabled for models/...") despite litellm reporting them as supported.
+        assert is_param_supported(model_name, "vertex_ai", param) is False
+
+    def test_gemini_temperature_still_allowed(self):
+        assert (
+            is_param_supported("gemini-2.5-flash", "vertex_ai", "temperature") is True
+        )
+
+
+class TestMutualExclusion:
+    """Anthropic rejects specifying temperature and top_p together, even though each
+    is individually supported (confirmed empirically across every Anthropic model
+    tested, not just Opus 4.7/4.8)."""
+
+    def test_temperature_and_top_p_conflict_on_anthropic(self):
+        conflict = find_mutually_exclusive_conflict(
+            "anthropic", frozenset({"temperature", "top_p"})
+        )
+        assert conflict == frozenset({"temperature", "top_p"})
+
+    def test_single_param_no_conflict(self):
+        assert (
+            find_mutually_exclusive_conflict("anthropic", frozenset({"temperature"}))
+            is None
+        )
+
+    def test_no_conflict_on_other_providers(self):
+        assert (
+            find_mutually_exclusive_conflict(
+                "openai", frozenset({"temperature", "top_p"})
+            )
+            is None
+        )
 
 
 class TestLitellmFallback:

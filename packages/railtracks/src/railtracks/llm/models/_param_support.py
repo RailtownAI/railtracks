@@ -19,12 +19,35 @@ _MANUAL_DENYLIST: dict[str, frozenset[str]] = {
     "claude-opus-4-8": frozenset({"temperature", "top_p"}),
     "gpt-5-codex": frozenset({"verbosity"}),
     "gpt-5.1-codex": frozenset({"verbosity"}),
+    # Gemini API rejects both penalty params with a 400 ("Penalty is not
+    # enabled for models/...") despite litellm reporting them as supported.
+    # Confirmed empirically on gemini-2.5-flash; re-check before removing.
+    "gemini-2.5": frozenset({"frequency_penalty", "presence_penalty"}),
 }
 
 # Provider-wide param exclusions, for params litellm never gates correctly
 # (e.g. structural gaps, not just stale schema entries). Documented extension
 # point; empty for now. Prob won't need but still.
 _PROVIDER_STRUCTURAL_DENYLIST: dict[str, frozenset[str]] = {}
+
+# provider -> sets of params that cannot be specified together, even though each
+# is individually supported. Confirmed empirically (2026-07-28) on claude-sonnet-4-5,
+# claude-sonnet-4-6, and claude-opus-4-1 — treated as an Anthropic-wide rule rather
+# than a per-model list since it reproduced on every model tested and Anthropic's
+# rollout appears to be actively expanding.
+_MUTUALLY_EXCLUSIVE: dict[str, list[frozenset[str]]] = {
+    "anthropic": [frozenset({"temperature", "top_p"})],
+}
+
+
+def find_mutually_exclusive_conflict(
+    custom_llm_provider: str, params_set: frozenset[str]
+) -> frozenset[str] | None:
+    """The first mutually-exclusive param group fully present in `params_set`, if any."""
+    for combo in _MUTUALLY_EXCLUSIVE.get(custom_llm_provider, []):
+        if combo <= params_set:
+            return combo
+    return None
 
 
 def is_param_supported(model_name: str, custom_llm_provider: str, param: str) -> bool:

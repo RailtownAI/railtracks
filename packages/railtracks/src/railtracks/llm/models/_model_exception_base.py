@@ -74,3 +74,16 @@ class UnsupportedParameterError(ModelError):
         super().__init__(
             reason=f"Model {model_name} does not support '{param}' (got {param}={value!r})."
         )
+
+
+class MutuallyExclusiveParametersError(ModelError):
+    """Error raised when two or more common params cannot be combined for this model."""
+
+    def __init__(self, model_name: str, params: list[str], values: dict):
+        joined = " and ".join(f"'{p}'" for p in params)
+        super().__init__(
+            reason=(
+                f"Model {model_name} does not support specifying {joined} together "
+                f"(got {values!r}). Use only one."
+            )
+        )
