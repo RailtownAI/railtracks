@@ -4,6 +4,8 @@ import asyncio
 from typing import TYPE_CHECKING, Any, Dict, List, ParamSpec, Tuple, TypeVar
 
 from ..context.central import restore_scope
+from ..events.node import NodeCreation
+from ..events.send import emit
 from ..execution.coordinator import Coordinator
 from ..execution.task import Task
 from ..pubsub.messages import (
@@ -144,7 +146,7 @@ class RTState:
         node: type[Node[_P, _TOutput]],
         args,
         kwargs,
-    ) -> str:
+    ) -> tuple[str, Node[_P, _TOutput]]:
         """
         Creates a node using the creator function (node).
 
@@ -192,8 +194,8 @@ class RTState:
         )
 
         logger.info(request_creation_obj.to_logging_msg())
-        # 4. Return the request id of the node that was created.
-        return request_ids[0]
+        # 4. Return the request id of the node that was created, plus the instance.
+        return request_ids[0], node_instance
 
     async def call_nodes(
         self,
@@ -223,7 +225,7 @@ class RTState:
         """
 
         try:
-            request_id = self._create_node_and_request(
+            request_id, node_instance = self._create_node_and_request(
                 parent_node_id=parent_node_id,
                 request_id=request_id,
                 node=node,
@@ -244,6 +246,11 @@ class RTState:
             )
             logger.exception(rfa.to_logging_msg())
             raise e
+
+        # the node is born here, under the caller's restored scope → its parent resolves to
+        # the caller (self isn't on the chain yet, so NodeCreation walks from the top).
+        await emit(NodeCreation(**node_instance._event_identity()))
+
         # you have to run this in a task so it isn't blocking other completions
         outputs = asyncio.create_task(self._run_request(request_id))
 
