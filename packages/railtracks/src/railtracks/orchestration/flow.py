@@ -114,21 +114,12 @@ class Flow(Generic[_P, _TOutput]):
         """
         Run this flow with streaming enabled and return a `Stream` over the emitted chunks.
 
-        This is the flow-level counterpart to `rt.astream`: it runs the flow's entry point in
-        a session configured from this flow (context, callbacks, timeout, ...), and yields the
-        entry point's streamed chunks. The session is created when iteration begins and closed
-        automatically once the stream completes, so the flow owns its own run just like
-        `ainvoke` does.
+        Yields the entry point's streamed chunks. 
+        
+        The session is created when iteration begins and closed automatically once the stream completes, 
+        owning its own run just lik `ainvoke`.
 
-        ```python
-        flow = rt.Flow(name="poem", entry_point=agent)
-        stream = flow.astream("Write a short poem about rain.")
-        async for chunk in stream:
-            print(chunk, end="", flush=True)
-        final = stream.result
-        ```
-
-        `on_channel` and the awaitable form work exactly as they do for `rt.astream`.
+        `on_channel` and the awaitable form work as they do for `rt.astream`.
 
         Args:
             *args: Positional arguments forwarded to the entry point.
