@@ -1,0 +1,1 @@
+{"event_id":"__sample_llm_call__","event_type":"llm.call","scope_type":"session","scope_id":"__sample__","parent_scope_id":null,"parent_event_id":null,"stamp":{"ts":"1970-01-01T00:00:00Z","seq":0},"payload":{"session_id":null,"node_id":null,"model":null,"provider":null,"input_tokens":null,"output_tokens":null,"total_cost":null,"latency_s":null,"system_fingerprint":null}}

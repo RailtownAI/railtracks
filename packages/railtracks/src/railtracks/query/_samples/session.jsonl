@@ -1,0 +1,2 @@
+{"event_id":"__sample_session_start__","event_type":"session.start","scope_type":"session","scope_id":"__sample__","parent_scope_id":null,"parent_event_id":null,"stamp":{"ts":"1970-01-01T00:00:00Z","seq":0},"payload":{"session_id":null,"flow_id":null,"flow_name":null,"session_name":null,"run_id":null}}
+{"event_id":"__sample_session_finish__","event_type":"session.finish","scope_type":"session","scope_id":"__sample__","parent_scope_id":null,"parent_event_id":null,"stamp":{"ts":"1970-01-01T00:00:00Z","seq":0},"payload":{"session_id":null,"status":null}}
