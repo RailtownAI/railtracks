@@ -3,7 +3,11 @@ from __future__ import annotations
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
+
+if TYPE_CHECKING:
+    from railtracks.context.scope_link import ScopeLink
+    from railtracks.context.session_context import ScopeEntry
 
 
 class Unset:
@@ -59,11 +63,22 @@ TParent = TypeVar("TParent", bound=Parent)
 @dataclass(kw_only=True)
 class SessionEventBase(ABC, Generic[TParent]):
     parent: TParent | Unset = UNSET
-    timestamp: datetime.datetime = field(default_factory=lambda: datetime.datetime.now(tz=datetime.timezone.utc))
+    timestamp: datetime.datetime = field(
+        default_factory=lambda: datetime.datetime.now(tz=datetime.timezone.utc)
+    )
 
     @abstractmethod
     def event_type(self) -> str:
         """
         Returns the type of the event.
+        """
+        ...
+
+    @abstractmethod
+    def resolve_parent(self, scope: ScopeLink[ScopeEntry] | None) -> Parent:
+        """Return this event's spatial parent, given the ambient scope chain.
+
+        Implemented per event family (each picks the matching resolver). The bridge
+        calls this with `get_current_scope()` before publishing.
         """
         ...

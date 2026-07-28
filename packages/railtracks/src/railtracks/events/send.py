@@ -1,43 +1,50 @@
-from dataclasses import asdict
+"""Emission entry point: resolve an event's parent from the ambient scope, then publish it.
 
+The full resolved `Parent` is carried in the event payload (with a `type` discriminator);
+`Event.parent_scope_id` belongs to the observability scope model and is not set here.
+"""
+
+from __future__ import annotations
+
+import datetime
+from dataclasses import asdict, is_dataclass
+from typing import Any
+
+from railtracks.context.central import get_current_scope
 from railtracks.events._base import UNSET, Parent, SessionEventBase
 from railtracks.observability.publish import publish_event
 from railtracks.observability_bridge._factory import make_session_event
 
 
-async def pipe(
-    event: SessionEventBase,
-):
-    _resolve_parent(event)
-    assert event.parent != UNSET, (
-        "Parent should be resolved before publishing the event."
-    )
-    await publish_event(make_session_event(event.event_type(), asdict(event)))
+async def pipe(event: SessionEventBase) -> None:
+    """Resolve the event's parent from the current scope chain, then publish it."""
+    if event.parent is UNSET:
+        event.parent = event.resolve_parent(get_current_scope())
+
+    payload = _json_safe(asdict(event))
+    payload["parent"] = _serialize_parent(event.parent)
+    await publish_event(make_session_event(event.event_type(), payload))
 
 
-# this should modify the session event base object in place
-def _resolve_parent(event: SessionEventBase):
+def _serialize_parent(parent: Parent) -> dict[str, Any]:
+    """Serialize a `Parent` with a `type` discriminator (asdict alone drops the class)."""
+    fields = asdict(parent) if is_dataclass(parent) else {}
+    return {"type": type(parent).__name__, **fields}
+
+
+def _json_safe(value: Any) -> Any:
+    """Placeholder serializer: coerce a payload into JSON-native types.
+
+    `datetime` -> ISO string; anything not natively serializable -> `repr`. A richer
+    serialization strategy (which fields to keep/drop, structured error capture) is a
+    separate follow-up.
     """
-    Resolves the parent of the event to a string representation.
-
-    Args:
-        event (SessionEventBase): The event whose parent is to be resolved.
-
-    """
-    if event.parent != UNSET:
-        raise RuntimeError(
-            f"Event {event} has a parent set, but this is not supported in the current implementation."
-        )
-    # TODO: finish this impelmentation here
-    event.parent = _get_node_parent(event)
-
-
-def _get_node_parent(event: SessionEventBase) -> Parent:
-    """
-    Resolves the parent of the event to a string representation.
-
-    Args:
-        event (SessionEventBase): The event whose parent is to be resolved.
-
-    """
-    pass
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, datetime.datetime):
+        return value.isoformat()
+    return repr(value)
