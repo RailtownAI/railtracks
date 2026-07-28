@@ -27,12 +27,12 @@ The pipeline has two paths:
 ### Loaders
 ```python
 from railtracks.retrieval.loaders import (
-    TextLoader,                  # .txt / .md files
-    CSVLoader,                   # rows → documents; configure content_col, metadata_cols
-    JSONLoader,                  # .json / .jsonl files
-    PyPDFLoader,                 # PDF; strategy="page" (default) or "document"
-    HuggingFaceDatasetLoader,    # HF Hub datasets; pass dataset_name, split, text_column
-    LangChainLoaderAdapter,      # wrap any LangChain document loader
+    TextLoader,  # .txt / .md files
+    CSVLoader,  # rows → documents; configure content_col, metadata_cols
+    JSONLoader,  # .json / .jsonl files
+    PyPDFLoader,  # PDF; strategy="page" (default) or "document"
+    HuggingFaceDatasetLoader,  # HF Hub datasets; pass dataset_name, split, text_column
+    LangChainLoaderAdapter,  # wrap any LangChain document loader
 )
 ```
 
@@ -40,31 +40,31 @@ from railtracks.retrieval.loaders import (
 ```python
 from railtracks.retrieval.chunking import (
     RecursiveCharacterChunker,  # general text; chunk_size (chars), overlap
-    MarkdownHeaderChunker,      # heading-aware splits for .md content
-    SentenceChunker,            # sentence windows; chunk_size (# sentences), overlap
-    SemanticChunker,            # embedding-driven breakpoints; variable chunk size
-    FixedTokenChunker,          # hard token budget; chunk_size (tokens), overlap
+    MarkdownHeaderChunker,  # heading-aware splits for .md content
+    SentenceChunker,  # sentence windows; chunk_size (# sentences), overlap
+    SemanticChunker,  # embedding-driven breakpoints; variable chunk size
+    FixedTokenChunker,  # hard token budget; chunk_size (tokens), overlap
 )
 ```
 
 ### Embedders
 ```python
 from railtracks.retrieval.embedding import (
-    OpenAIEmbedding,    # default model: "text-embedding-3-small"
-    AzureEmbedding,     # Azure OpenAI routing
-    OllamaEmbedding,    # local dev; model, base_url
-    LiteLLMEmbedding,   # any LiteLLM-supported provider
+    OpenAIEmbedding,  # default model: "text-embedding-3-small"
+    AzureEmbedding,  # Azure OpenAI routing
+    OllamaEmbedding,  # local dev; model, base_url
+    LiteLLMEmbedding,  # any LiteLLM-supported provider
 )
 ```
 
 ### Store backends
 ```python
 from railtracks.retrieval.stores import (
-    VectorStore,              # store implementation; wraps a backend
-    InMemoryVectorBackend,    # tests and small corpora; no persistence by default
-    ChromaBackend,            # local / persistent / HTTP modes
-    ChromaCloudBackend,       # managed Chroma Cloud
-    PgvectorBackend,          # Postgres + pgvector; production
+    VectorStore,  # store implementation; wraps a backend
+    InMemoryVectorBackend,  # tests and small corpora; no persistence by default
+    ChromaBackend,  # local / persistent / HTTP modes
+    ChromaCloudBackend,  # managed Chroma Cloud
+    PgvectorBackend,  # Postgres + pgvector; production
 )
 ```
 
@@ -105,6 +105,7 @@ from railtracks.retrieval.chunking import RecursiveCharacterChunker
 from railtracks.retrieval.embedding import OpenAIEmbedding
 from railtracks.retrieval.stores import VectorStore, InMemoryVectorBackend
 
+
 async def main():
     runtime = RetrievalRuntime(
         chunker=RecursiveCharacterChunker(chunk_size=1000, overlap=200),
@@ -119,6 +120,7 @@ async def main():
     for rc in result.chunks:
         print(f"[rank={rc.rank} score={rc.score:.3f}] {rc.chunk.content[:200]}")
 
+
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -132,6 +134,7 @@ from railtracks.retrieval.chunking import RecursiveCharacterChunker
 from railtracks.retrieval.embedding import OpenAIEmbedding
 from railtracks.retrieval.stores import VectorStore, ChromaBackend
 
+
 async def create_runtime() -> RetrievalRuntime:
     backend = await ChromaBackend.create(
         collection_name="my-collection",
@@ -144,14 +147,18 @@ async def create_runtime() -> RetrievalRuntime:
         batch_size=100,
     )
 
+
 async def main():
     runtime = await create_runtime()
     stats = await runtime.ingest_all(loader=TextLoader("data/my_file.txt"))
-    print(f"loaded={stats.documents_loaded} chunks={stats.chunks_embedded} skipped={stats.documents_skipped}")
+    print(
+        f"loaded={stats.documents_loaded} chunks={stats.chunks_embedded} skipped={stats.documents_skipped}"
+    )
 
     result = await runtime.retrieve("your question here", top_k=5)
     for rc in result.chunks:
         print(f"[rank={rc.rank} score={rc.score:.3f}]\n{rc.chunk.content}\n")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -161,6 +168,7 @@ if __name__ == "__main__":
 ```python
 from railtracks.retrieval import RetrievalRuntime
 from railtracks.retrieval.runtime import BatchIngested, DocumentFailed, DocumentSkipped
+
 
 async def ingest_with_progress(runtime: RetrievalRuntime, loader) -> None:
     async for event in runtime.ingest(loader=loader):
@@ -230,6 +238,7 @@ from railtracks.retrieval import RetrievalRuntime
 
 runtime: RetrievalRuntime = ...  # constructed at startup
 
+
 @rt.function_node
 async def search_knowledge_base(query: str) -> str:
     """Search the knowledge base for relevant context.
@@ -242,9 +251,9 @@ async def search_knowledge_base(query: str) -> str:
     if not result.chunks:
         return "No relevant documents found."
     return "\n\n---\n\n".join(
-        f"[score={rc.score:.3f}]\n{rc.chunk.content}"
-        for rc in result.chunks
+        f"[score={rc.score:.3f}]\n{rc.chunk.content}" for rc in result.chunks
     )
+
 
 RagAgent = rt.agent_node(
     "RAG Agent",

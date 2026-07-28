@@ -35,16 +35,18 @@ Railtracks is a Python framework for building agentic systems. Agent behavior, t
 ```python
 import railtracks as rt
 
+
 # Define a tool (just a function!)
 def get_weather(location: str) -> str:
     return f"It's sunny in {location}!"
+
 
 # Create an agent with tools
 agent = rt.agent_node(
     "Weather Assistant",
     tool_nodes=(rt.function_node(get_weather)),
     llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You help users with weather information."
+    system_message="You help users with weather information.",
 )
 
 # Run it
@@ -81,10 +83,7 @@ def my_tool(text: str) -> str:
 #### Tool-First Architecture
 ```python
 # Any function becomes a tool
-agent = rt.agent_node(
-    "Assistant",
-    tool_nodes=[my_tool, api_call]
-)
+agent = rt.agent_node("Assistant", tool_nodes=[my_tool, api_call])
 ```
 - Automatic function-to-tool conversion
 - Seamless API and database integration
@@ -138,30 +137,30 @@ pip install railtracks 'railtracks[visual]'
 ```python
 import railtracks as rt
 
+
 # 1. Create tools (just functions with decorators!)
 @rt.function_node
 def count_characters(text: str, character: str) -> int:
     """Count occurrences of a character in text."""
     return text.count(character)
 
+
 @rt.function_node
 def word_count(text: str) -> int:
     """Count words in text."""
     return len(text.split())
+
 
 # 2. Build an agent with tools
 text_analyzer = rt.agent_node(
     "Text Analyzer",
     tool_nodes=(count_characters, word_count),
     llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You analyze text using the available tools."
+    system_message="You analyze text using the available tools.",
 )
 
 # 3. Use it to solve the classic "How many r's in strawberry?" problem
-text_flow = rt.Flow(
-  name="Text Analysis Flow",
-  entry_point=text_analyzer
-)
+text_flow = rt.Flow(name="Text Analysis Flow", entry_point=text_analyzer)
 
 text_flow.invoke("How many 'r's are in 'strawberry'?")
 ```
