@@ -23,3 +23,16 @@ class ScopeLink(Generic[T]):
                 return link.value
             link = link.parent
         return None
+
+    def find_link(self, predicate: Callable[[T], bool]) -> "ScopeLink[T] | None":
+        """Like `find`, but returns the matching *link* (not its value).
+
+        The link exposes `.parent`, so callers can keep walking from
+        the position of the match.
+        """
+        link: ScopeLink[T] | None = self
+        while link is not None:
+            if predicate(link.value):
+                return link
+            link = link.parent
+        return None

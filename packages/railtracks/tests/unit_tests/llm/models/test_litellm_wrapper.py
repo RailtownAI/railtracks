@@ -354,8 +354,6 @@ class TestCompletionMethods:
         assert calls[0].name == "tool_x"
         assert calls[0].arguments == {"foo": 1}
         assert calls[0].identifier == "id123"
-
-<<<<<<< HEAD
         
         if stream:  # no stream in case the llm requests tool
             for chunk in result:
@@ -370,8 +368,6 @@ class TestCompletionMethods:
                         pytest.fail("Structured response did not match schema")
                 elif not isinstance(chunk, str):
                     pytest.fail("Stream yielded non-string, non-Response chunk")
-=======
->>>>>>> 4a87510c39fa122f214afe3da113c16a2bb14190
 
 # ================= START async streaming (sync bridge) tests =========================
 class TestAsyncStreaming:

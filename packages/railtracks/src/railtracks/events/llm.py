@@ -1,45 +1,50 @@
 from dataclasses import dataclass
 
+from railtracks.context.scope_link import ScopeLink
+from railtracks.context.session_context import ScopeEntry
+from railtracks.events._resolve import llm_parent, llm_spatial_parent
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
 from railtracks.llm.providers import ModelProvider
 
 from ._base import (
     UNSET,
+    CreationEventBase,
+    LLMParent,
     NodeSpatialParent,
     NoSpatialParent,
     Parent,
+    ParentEventBase,
     SessionEventBase,
     Unset,
 )
 
 
-@dataclass(frozen=True)
-class LLMParent(Parent):
-    llm_model_id: str
-    llm_invoke_id: str
+
 
 
 @dataclass(kw_only=True)
-class LLMMessageBase(SessionEventBase[NodeSpatialParent]):
+class LLMMessageBase(ParentEventBase[NodeSpatialParent, LLMParent]):
     message_input: MessageHistory
-    parent: LLMParent | Unset = UNSET
 
-    def verify(self) -> None:
-        super().verify()
-        assert self.parent != UNSET, (
-            "Parent ID should be resolved before publishing the event."
-        )
+
+    def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
+        return llm_spatial_parent(scope)
+
+    def _get_parent(self, scope: ScopeLink[ScopeEntry] | None):
+        return llm_parent(scope)
 
 
 @dataclass(kw_only=True)
-class LLMCreationEvent(SessionEventBase[NoSpatialParent]):
+class LLMCreationEvent(CreationEventBase):
     model_id: str
     model_provider: ModelProvider
     model_name: str
 
     def event_type(self) -> str:
         return "llm.creation"
+
+  
 
 
 @dataclass(kw_only=True)

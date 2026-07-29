@@ -38,14 +38,15 @@ def test_create_node_and_request(dummy_execution_info, dummy_executor_config, mo
     state._node_heap.update = MagicMock()
     state._request_heap.create = MagicMock(side_effect=lambda *args, **kwargs: "reqid")
     state._create_new_request_set = MagicMock(return_value=["reqid"])
-    result = state._create_node_and_request(
+    request_id, node_instance = state._create_node_and_request(
         parent_node_id="parent",
         request_id="reqid",
         node=node_type,
         args=(1, 2),
         kwargs={"foo": "bar"},
     )
-    assert result == "reqid"
+    assert request_id == "reqid"
+    assert node_instance is node_type  # node() returns node_type (constructs to itself)
     state._node_heap.update.assert_called()
 # ================= END RTState: Node and Request Creation ======================
 
