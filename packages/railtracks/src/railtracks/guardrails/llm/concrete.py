@@ -13,7 +13,9 @@ from railtracks.events.middleware import (
     MiddlewareGuardInputFailureEvent,
     MiddlewareGuardInputInvocationEvent,
     MiddlewareGuardInputResponseEvent,
+    MiddlewareGuardOutputFailureEvent,
     MiddlewareGuardOutputInvocationEvent,
+    MiddlewareGuardOutputResponseEvent,
 )
 from railtracks.events.send import pipe
 from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
@@ -208,15 +210,15 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         try:
             new_message, traces, decision = self.run(event=event, value=result.message)
         except Exception as e:
-            failure_event = MiddlewareGuardInputFailureEvent(
+            failure_event = MiddlewareGuardOutputFailureEvent(
                 exception=e,
             )
             await pipe(failure_event)
             raise e
 
-        output_event = MiddlewareGuardInputResponseEvent(
+        output_event = MiddlewareGuardOutputResponseEvent(
             decision=decision,
-            message_history=MessageHistory([new_message]),
+            response=new_message,
         )
         await pipe(output_event)
 

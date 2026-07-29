@@ -1,6 +1,9 @@
 from typing import Awaitable, Callable, TypeVar
 
-from railtracks.events.middleware import MiddlewareOutputInvocationEvent
+from railtracks.events.middleware import (
+    MiddlewareOutputInvocationEvent,
+    MiddlewareOutputResponseEvent,
+)
 from railtracks.events.send import pipe
 from railtracks.utils.unpack import unpack_async_sync
 
@@ -29,8 +32,8 @@ def after_node(
 
         result = await unpack_async_sync(post_after_result)
 
-        output_event = MiddlewareOutputInvocationEvent(
-            response=post_after_result,
+        output_event = MiddlewareOutputResponseEvent(
+            response=result,
         )
         await pipe(output_event)
 

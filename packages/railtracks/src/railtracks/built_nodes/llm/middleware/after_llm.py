@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from railtracks.built_nodes._types import LLM_CALL
 from railtracks.events.middleware import (
-    MiddlewareModelInvocationEvent,
+    MiddlewareModelOutputFailureEvent,
     MiddlewareModelOutputInvocationEvent,
     MiddlewareModelOutputResponseEvent,
 )
@@ -39,10 +39,8 @@ def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
         try:
             response = await llm_call(message_history, schema, tools)
         except Exception as e:
-            event = MiddlewareModelInvocationEvent(
-                message_history=message_history,
-                schema=schema,
-                tools=tools,
+            event = MiddlewareModelOutputFailureEvent(
+                exception=e,
             )
             await pipe(event)
             raise e
