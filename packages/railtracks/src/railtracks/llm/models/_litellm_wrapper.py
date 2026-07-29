@@ -43,6 +43,10 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 litellm.drop_params = True
 litellm.modify_params = True
 
+# this flag is only used in two places in litellm
+# https://github.com/search?q=repo%3ABerriAI%2Flitellm%20suppress_debug_info&type=code
+litellm.suppress_debug_info = True
+
 
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
     """
