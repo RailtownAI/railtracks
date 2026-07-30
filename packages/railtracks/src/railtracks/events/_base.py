@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 if TYPE_CHECKING:
     from railtracks.context.scope_link import ScopeLink
@@ -37,23 +37,33 @@ class SpatialParent:
 
 @dataclass(frozen=True)
 class MiddlewareSpatialParent(SpatialParent):
+    spatial_type: Literal["middleware"] = field(init=False, default="middleware")
     middleware_id: str
 
 
 @dataclass(frozen=True)
 class NodeSpatialParent(SpatialParent):
+    spatial_type: Literal["node"] = field(init=False, default="node")
+    node_id: str | None
+
+@dataclass(frozen=True)
+class NodeAndMiddlewareSpatialParent(SpatialParent):
+    spatial_type: Literal["node_and_middleware"] = field(init=False, default="node_and_middleware")
     node_id: str
-    middleware_id: str | None = None
+    middleware_id: str | None
+    
 
 
 @dataclass(frozen=True)
-class LLMSpatialParent(SpatialParent):
+class LLMAndMiddlewareSpatialParent(SpatialParent):
+    spatial_type: Literal["llm_and_middleware"] = field(init=False, default="llm_and_middleware")
     llm_id: str
-    middleware_id: str | None = None
+    middleware_id: str | None
 
 
 @dataclass(frozen=True)
 class NoSpatialParent(SpatialParent):
+    spatial_type: Literal["none"] = field(init=False, default="none")
     pass
 
 
@@ -64,15 +74,18 @@ class Parent:
 
 @dataclass(frozen=True)
 class NodeParent(Parent):
+    parent_type: Literal["node"] = field(init=False, default="node")
     node_id: str
 
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
+    parent_type: Literal["middleware"] = field(init=False, default="middleware")
     middleware_id: str
     middleware_invoke_id: str
 
 @dataclass(frozen=True)
 class LLMParent(Parent):
+    parent_type: Literal["llm"] = field(init=False, default="llm")
     llm_model_id: str
     llm_invoke_id: str
 
@@ -81,9 +94,10 @@ TParent = TypeVar("TParent", bound=Parent)
 
 @dataclass(kw_only=True)
 class SessionEventBase(ABC, Generic[TSpatialParent]):
-    spatial_parent: TSpatialParent | Unset = UNSET
+    spatial_parent: TSpatialParent | Unset = field(init=False, default=UNSET)
 
     timestamp: datetime.datetime = field(
+        init=False,
         default_factory=lambda: datetime.datetime.now(tz=datetime.timezone.utc)
     )
 
@@ -119,7 +133,7 @@ class SessionEventBase(ABC, Generic[TSpatialParent]):
         ...
 
     
-
+@dataclass(kw_only=True)
 class CreationEventBase(SessionEventBase[NoSpatialParent]):
     """A creation event is emitted before the created entity enters its own scope,
     so its parent resolves from the caller's ambient chain (no self-skip)."""
@@ -129,11 +143,12 @@ class CreationEventBase(SessionEventBase[NoSpatialParent]):
 
 
 
+@dataclass(kw_only=True)
 class ParentEventBase(SessionEventBase[TSpatialParent], Generic[TSpatialParent, TParent]):
     """A parent event is emitted after the created entity enters its own scope,
     so its parent resolves from the caller's ambient chain (no self-skip)."""
 
-    parent: TParent | Unset = UNSET
+    parent: TParent | Unset = field(init=False, default=UNSET)
 
 
     def resolve_relationships(self, scope: ScopeLink[ScopeEntry] | None):
@@ -148,5 +163,4 @@ class ParentEventBase(SessionEventBase[TSpatialParent], Generic[TSpatialParent, 
     
     @abstractmethod
     def _get_parent(self, scope: ScopeLink[ScopeEntry] | None) -> TParent:
-        # do nothing
         pass

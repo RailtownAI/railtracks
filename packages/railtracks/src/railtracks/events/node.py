@@ -6,20 +6,18 @@ from typing import Any
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
 from railtracks.events._base import CreationEventBase, NoSpatialParent, NodeParent, NodeSpatialParent, Parent, ParentEventBase, SessionEventBase
-from railtracks.events._resolve import node_creation_spatial_parent, node_parent, node_spatial_parent
-
-
-
+from railtracks.events._resolve import node_parent, node_spatial_parent
 
 
 @dataclass(kw_only=True)
-class NodeEventBase(ParentEventBase[NodeSpatialParent | NoSpatialParent, NodeParent]):
+class NodeEventBase(ParentEventBase[NodeSpatialParent, NodeParent]):
 
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
         return node_spatial_parent(scope)
 
     def _get_parent(self, scope: ScopeLink[ScopeEntry] | None):
-        return node_parent(scope)
+        result = node_parent(scope)
+        return result
 
 
 @dataclass(kw_only=True)
@@ -32,9 +30,6 @@ class NodeCreation(CreationEventBase):
 
     def event_type(self) -> str:
         return "node.creation"
-
-    def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
-        return node_creation_spatial_parent(scope)
 
 
 @dataclass(kw_only=True)

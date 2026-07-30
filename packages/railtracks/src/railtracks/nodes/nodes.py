@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, ParamSpec, TypeVar
 
-from railtracks.events.node import NodeDestruction, NodeFailure, NodeInvocation, NodeResponse
+from railtracks.events.node import NodeCreation, NodeDestruction, NodeFailure, NodeInvocation, NodeResponse
 from railtracks.events.send import emit
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
@@ -70,24 +70,6 @@ class LatencyDetails:
 
 _P = ParamSpec("_P")
 
-@wrap_node
-async def _observe_middleware(call: Callable, *args, **kwargs):
-    invocation_event = NodeInvocation(args=args, kwargs=kwargs)
-    await emit(invocation_event)
-
-    try:
-        result = await call(*args, **kwargs)
-    except Exception as e:
-        failure_event = NodeFailure(failure=str(e))
-        await emit(failure_event)
-        raise e
-        
-    response_event = NodeResponse(response=result)
-    await emit(response_event)
-
-    return result
-
-
 
     
 
@@ -126,7 +108,7 @@ class Node(ABC, Generic[_P, _TOutput]):
 
     _exterior_middleware: list[Middleware[_P, _TOutput]] = []
     _user_middleware: list[Middleware[_P, _TOutput]] = []
-    _interior_middleware: list[Middleware[_P, _TOutput]] = [_observe_middleware]
+    _interior_middleware: list[Middleware[_P, _TOutput]] = []
 
     _user_model_middleware: list[ModelMiddleware] = []
 
@@ -143,6 +125,8 @@ class Node(ABC, Generic[_P, _TOutput]):
                 *self._interior_middleware,
             ],
         )
+
+        
 
     def bind_scope_manager(self, scope_manager: ScopeManager) -> None:
         """Binds the real ScopeManager for this node's execution."""
@@ -171,9 +155,7 @@ class Node(ABC, Generic[_P, _TOutput]):
 
         async def body(*a: _P.args, **kw: _P.kwargs) -> _TOutput:
             with self._scope_manager.enter_node_body():
-                
                 result = await self.invoke(*a, **kw)
-                
                 return result
 
         # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
