@@ -30,6 +30,13 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
         temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
+        service_tier: str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
         **kwargs,
     ):
@@ -47,9 +54,20 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 Must be provided if domain="custom". Defaults to None.
             temperature (float | None, optional): Sampling temperature for generation (e.g. 0.0–2.0).
                 If None, the provider default is used.
-            **kwargs: Additional arguments passed to the parent LiteLLMWrapper, including the
-                common hyperparameters `top_p`, `max_tokens`, `frequency_penalty`, `presence_penalty`,
-                `reasoning_effort`, `service_tier`, and `verbosity`.
+            top_p (float | None, optional): Nucleus sampling threshold.
+            max_tokens (int | None, optional): Maximum tokens to generate.
+            frequency_penalty (float | None, optional): Penalizes tokens by how often
+                they've already appeared.
+            presence_penalty (float | None, optional): Penalizes tokens that have
+                already appeared at all.
+            reasoning_effort (Literal["minimal", "low", "medium", "high"] | None, optional):
+                Requested reasoning effort for reasoning-capable models.
+            service_tier (str | None, optional): Requested service tier. Provider-specific.
+            verbosity (Literal["low", "medium", "high"] | None, optional): Requested
+                output verbosity for models that support it.
+            retry_approach (RetryApproach | None, optional): Retry strategy for transient
+                failures.
+            **kwargs: Additional arguments passed to the parent LiteLLMWrapper.
 
         Raises:
             OllamaError: If:
@@ -67,6 +85,13 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
             model_name=model_name,
             stream=stream,
             temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            reasoning_effort=reasoning_effort,
+            service_tier=service_tier,
+            verbosity=verbosity,
             retry_approach=retry_approach,
             **kwargs,
         )

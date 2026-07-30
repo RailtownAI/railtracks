@@ -4,7 +4,7 @@ from typing import Literal, TypeVar
 from ...models.api_providers._openai_compatable_provider_wrapper import (
     OpenAICompatibleProvider,
 )
-from ...providers import ModelProvider, ReasoningEffort
+from ...providers import ModelProvider
 from ...retries import RetryApproach
 
 _TStream = TypeVar("_TStream", Literal[True], Literal[False])
@@ -22,9 +22,9 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
         max_tokens: int | None = None,
         frequency_penalty: float | None = None,
         presence_penalty: float | None = None,
-        reasoning_effort: ReasoningEffort | str | None = None,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
         service_tier: str | None = None,
-        verbosity: Literal["low", "medium", "high"] | str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
     ):
         try:

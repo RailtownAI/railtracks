@@ -15,7 +15,14 @@ from .models import (
     PortKeyLLM,
     # TelusLLM,
 )
-from .providers import ModelProvider, ReasoningEffort
+from .models._model_exception_base import (
+    FunctionCallingNotSupportedError,
+    ModelError,
+    ModelNotFoundError,
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
+)
+from .providers import ModelProvider
 from .tools import (
     ArrayParameter,
     ObjectParameter,
@@ -27,6 +34,11 @@ from .tools import (
 
 __all__ = [
     "ModelBase",
+    "ModelError",
+    "ModelNotFoundError",
+    "FunctionCallingNotSupportedError",
+    "UnsupportedHyperparameterError",
+    "MutuallyExclusiveHyperparametersError",
     "ToolCall",
     "ToolResponse",
     "UserMessage",
@@ -36,7 +48,6 @@ __all__ = [
     "ToolMessage",
     "MessageHistory",
     "ModelProvider",
-    "ReasoningEffort",
     "Tool",
     "AnthropicLLM",
     "AzureAILLM",

@@ -1,14 +1,3 @@
-"""
-Per-model, per-hyperparameter support checks for the "common hyperparameters"
-(temperature, top_p, max_tokens, frequency_penalty, presence_penalty, reasoning_effort,
-service_tier, verbosity).
-
-`litellm.get_supported_openai_params` is the default source of truth, but it is
-known to be stale for a few specific model/hyperparameter combinations. `_MANUAL_DENYLIST`
-patches those cases; re-check against a fresh litellm release before removing an
-entry.
-"""
-
 import litellm
 
 # model-name-prefix (bare, no provider prefix) -> hyperparameters litellm mis-reports as

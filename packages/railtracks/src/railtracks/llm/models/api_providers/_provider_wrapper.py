@@ -5,7 +5,7 @@ import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
 from ...history import MessageHistory
-from ...providers import ModelProvider, ReasoningEffort
+from ...providers import ModelProvider
 from ...response import Response
 from ...retries.base import RetryApproach
 from ...tools import Tool
@@ -27,9 +27,9 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         max_tokens: int | None = None,
         frequency_penalty: float | None = None,
         presence_penalty: float | None = None,
-        reasoning_effort: ReasoningEffort | str | None = None,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
         service_tier: str | None = None,
-        verbosity: Literal["low", "medium", "high"] | str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
     ):
         """Initialize a provider-backed LLM instance.
@@ -51,12 +51,11 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
                 they've already appeared. Provider/model-specific support and range.
             presence_penalty (float | None, optional): Penalizes tokens that have
                 already appeared at all. Provider/model-specific support and range.
-            reasoning_effort (ReasoningEffort | str | None, optional): Requested
-                reasoning effort for reasoning-capable models (see `rt.llm.ReasoningEffort`
-                for the portable enum; a raw string also works).
+            reasoning_effort (Literal["minimal", "low", "medium", "high"] | None, optional):
+                Requested reasoning effort for reasoning-capable models.
             service_tier (str | None, optional): Requested service tier. Provider-specific,
                 no railtracks-side enum.
-            verbosity (Literal["low", "medium", "high"] | str | None, optional): Requested
+            verbosity (Literal["low", "medium", "high"] | None, optional): Requested
                 output verbosity for models that support it (currently OpenAI GPT-5-series,
                 excluding Codex variants). Note: at least one provider (OpenAI, confirmed on
                 `gpt-5-mini`) silently accepts an invalid value here with no error — pass a

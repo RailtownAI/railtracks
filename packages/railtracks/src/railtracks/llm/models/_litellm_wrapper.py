@@ -32,7 +32,6 @@ from ..content import ToolCall
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
-from ..providers import ReasoningEffort
 from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
@@ -206,9 +205,9 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         max_tokens: int | None = None,
         frequency_penalty: float | None = None,
         presence_penalty: float | None = None,
-        reasoning_effort: ReasoningEffort | str | None = None,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
         service_tier: str | None = None,
-        verbosity: Literal["low", "medium", "high"] | str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
     ):
         """Initialize the litellm-backed model wrapper.

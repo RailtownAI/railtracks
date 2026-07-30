@@ -18,8 +18,7 @@ controlling sampling, output length, and reasoning behavior.
 --8<-- "docs/scripts/documentation/common_hyperparams.py:basic_usage"
 ```
 
-`reasoning_effort` also accepts the portable `rt.llm.ReasoningEffort` enum instead of a
-raw string:
+`reasoning_effort` accepts one of `"minimal"`, `"low"`, `"medium"`, `"high"`:
 
 ```python
 --8<-- "docs/scripts/documentation/common_hyperparams.py:reasoning_effort"
@@ -29,7 +28,7 @@ raw string:
 
 For example, only OpenAI's GPT-5-series supports `verbosity`, and newer Anthropic
 models restrict `temperature`/`top_p` in ways that vary by model. Railtracks checks
-this **when you construct the model** — before making any network call — and raises
+this **when you construct the model**, before making any network call, and raises
 immediately if a hyperparameter (or combination of hyperparameters) isn't supported:
 
 ```python
@@ -38,7 +37,7 @@ immediately if a hyperparameter (or combination of hyperparameters) isn't suppor
 
 !!! tip "Railtracks Recommendation"
     Treat `UnsupportedHyperparameterError` / `MutuallyExclusiveHyperparametersError` at
-    construction as an actionable signal, not a bug to work around — it's telling you
+    construction as an actionable signal, not a bug to work around: it's telling you
     the provider would reject the request either way, just with a much less obvious
     error deeper into a run.
 
@@ -46,17 +45,17 @@ immediately if a hyperparameter (or combination of hyperparameters) isn't suppor
 
 - **Anthropic**: Opus 4.7 and later reject non-default `temperature`/`top_p`. Separately,
   specifying `temperature` **and** `top_p` together is rejected on Anthropic models in
-  general — pass at most one of the two.
+  general. Pass at most one of the two.
 - **OpenAI**: `verbosity` is only supported on the GPT-5 series, and not on the Codex
   variants (`gpt-5-codex`, `gpt-5.1-codex`, etc.).
 - **Gemini**: `frequency_penalty` and `presence_penalty` are not currently supported.
 
-Railtracks keeps this list current as providers change their behavior — if a
+Railtracks keeps this list current as providers change their behavior. If a
 hyperparameter you expect to work gets rejected, check here first.
 
 ## Invalid values
 
-Railtracks does not validate hyperparameter *values* — only whether a hyperparameter is
+Railtracks does not validate hyperparameter *values*, only whether a hyperparameter is
 supported at all for the model you're using. An out-of-range or wrong-type value (e.g.
 `temperature=999`, `temperature="not a number"`) is sent through as-is and the provider
 will reject it with a clear, specific error (e.g. "Expected a value <= 2, but got 999").
