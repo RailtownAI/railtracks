@@ -8,25 +8,16 @@ from railtracks.llm.message import Message
 from railtracks.llm.providers import ModelProvider
 
 from ._base import (
-    UNSET,
     CreationEventBase,
     LLMParent,
     NodeSpatialParent,
-    NoSpatialParent,
-    Parent,
     ParentEventBase,
-    SessionEventBase,
-    Unset,
 )
-
-
-
 
 
 @dataclass(kw_only=True)
 class LLMMessageBase(ParentEventBase[NodeSpatialParent, LLMParent]):
     message_input: MessageHistory
-
 
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
         return llm_spatial_parent(scope)
@@ -43,8 +34,6 @@ class LLMCreationEvent(CreationEventBase):
 
     def event_type(self) -> str:
         return "llm.creation"
-
-  
 
 
 @dataclass(kw_only=True)

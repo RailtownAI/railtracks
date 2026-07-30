@@ -14,7 +14,7 @@ from typing import (
     TypeVar,
 )
 
-from railtracks.events.node import NodeFailure, NodeInvocation, NodeResponse, NodeResponse
+from railtracks.events.node import NodeFailure, NodeInvocation, NodeResponse
 from railtracks.events.send import emit
 from railtracks.llm import (
     Tool,
@@ -153,7 +153,7 @@ async def _observe_middleware(call: Callable, *args, **kwargs):
         failure_event = NodeFailure(failure=str(e))
         await emit(failure_event)
         raise e
-        
+
     response_event = NodeResponse(response=result)
     await emit(response_event)
 

@@ -232,7 +232,11 @@ class RTState:
                 args=args,
                 kwargs=kwargs,
             )
-            creation_event = NodeCreation(node_id=node_instance.uuid, node_type=node_instance.type(), name=node_instance.name())
+            creation_event = NodeCreation(
+                node_id=node_instance.uuid,
+                node_type=node_instance.type(),
+                name=node_instance.name(),
+            )
 
             await emit(creation_event)
         except Exception as e:
@@ -249,7 +253,6 @@ class RTState:
             )
             logger.exception(rfa.to_logging_msg())
             raise e
-
 
         # you have to run this in a task so it isn't blocking other completions
         outputs = asyncio.create_task(self._run_request(request_id))

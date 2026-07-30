@@ -5,13 +5,15 @@ import inspect
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, TypeVar
 
-from railtracks.events.node import NodeCreation, NodeDestruction, NodeFailure, NodeInvocation, NodeResponse
+from railtracks.events.node import (
+    NodeDestruction,
+)
 from railtracks.events.send import emit
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
-from railtracks.middleware.core import Middleware, wrap_node
+from railtracks.middleware.core import Middleware
 from railtracks.scope_manager import NullScopeManager, ScopeManager
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
@@ -71,9 +73,6 @@ class LatencyDetails:
 _P = ParamSpec("_P")
 
 
-    
-
-
 class Node(ABC, Generic[_P, _TOutput]):
     """An abstract base class which defines some the functionality of a node"""
 
@@ -126,8 +125,6 @@ class Node(ABC, Generic[_P, _TOutput]):
             ],
         )
 
-        
-
     def bind_scope_manager(self, scope_manager: ScopeManager) -> None:
         """Binds the real ScopeManager for this node's execution."""
         self._scope_manager = scope_manager
@@ -151,7 +148,6 @@ class Node(ABC, Generic[_P, _TOutput]):
         """
         Runs ``invoke`` through the node-level middleware.
         """
-        
 
         async def body(*a: _P.args, **kw: _P.kwargs) -> _TOutput:
             with self._scope_manager.enter_node_body():

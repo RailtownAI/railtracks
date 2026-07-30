@@ -1,32 +1,16 @@
 from __future__ import annotations
 
-from railtracks.context.central import get_llm_call_id, get_parent_id
+from dataclasses import asdict
+
+from railtracks.context.central import get_current_scope
 from railtracks.events._base import (
-    UNSET,
-    NodeSpatialParent,
-    NoSpatialParent,
     SessionEventBase,
-    SpatialParent,
 )
-from railtracks.events.llm import LLMCreationEvent, LLMMessageBase
-from dataclasses import asdict, fields
-
-from railtracks.context.central import get_current_scope
-from railtracks.events._base import UNSET, SessionEventBase
-from railtracks.observability.publish import publish_event
-from railtracks.observability_bridge._factory import make_session_event
-from railtracks.utils.logging.create import get_rt_logger
-
-from dataclasses import fields
-
-from railtracks.context.central import get_current_scope
-from railtracks.events._base import UNSET, SessionEventBase
 from railtracks.observability.publish import publish_event
 from railtracks.observability_bridge._factory import make_session_event
 from railtracks.utils.logging.create import get_rt_logger
 
 logger = get_rt_logger(__name__)
-
 
 
 async def emit(event: SessionEventBase) -> None:
@@ -51,5 +35,5 @@ async def pipe(event: SessionEventBase) -> None:
     """
     event.resolve_relationships(get_current_scope())
     event.verify()
-    
+
     await publish_event(make_session_event(event.event_type(), asdict(event)))
