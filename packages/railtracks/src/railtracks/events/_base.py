@@ -38,7 +38,7 @@ class SpatialParent:
 @dataclass(frozen=True)
 class MiddlewareSpatialParent(SpatialParent):
     spatial_type: Literal["middleware"] = field(init=False, default="middleware")
-    middleware_id: str
+    middleware_type_id: str
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ class NodeAndMiddlewareSpatialParent(SpatialParent):
         init=False, default="node_and_middleware"
     )
     node_id: str
-    middleware_id: str | None
+    middleware_invoke_id: str | None
 
 
 @dataclass(frozen=True)
@@ -61,8 +61,8 @@ class LLMAndMiddlewareSpatialParent(SpatialParent):
     spatial_type: Literal["llm_and_middleware"] = field(
         init=False, default="llm_and_middleware"
     )
-    llm_id: str
-    middleware_id: str | None
+    llm_invoke_id: str
+    middleware_invoke_id: str | None
 
 
 @dataclass(frozen=True)
@@ -85,7 +85,7 @@ class NodeParent(Parent):
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
     parent_type: Literal["middleware"] = field(init=False, default="middleware")
-    middleware_id: str
+    middleware_type_id: str
     middleware_invoke_id: str
 
 

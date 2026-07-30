@@ -28,11 +28,14 @@ def _scoped(
     get_scope_manager: Callable[[], ScopeManager],
 ):
     wrapped = m.wrap(inner)
-    identifier = m.id
+    middleware_type_id = m.type_id
 
     async def scoped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        # we need to ensure that the middleware creation event is sent
+        await m.start_creation_task()
+
         with get_scope_manager().enter_middleware(
-            identifier,
+            middleware_type_id,
         ):
             invocation_event = MiddlewareInvocationEvent(
                 args=args, kwargs=kwargs

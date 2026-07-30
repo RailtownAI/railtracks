@@ -62,18 +62,17 @@ class Middleware(Generic[_P, _R]):
         _require_async(fn, "Middleware function")
         self._fn = fn
         self.name = name if name is not None else fn.__name__
-        self.id = str(uuid.uuid4())  # unique identifier for this middleware instance
+        self.type_id = str(uuid.uuid4())  # identifies this middleware definition, shared by every invocation
 
         self._has_registered = False
         
-
-
-
-            
-    async def _start_creation_task(self):
+    async def start_creation_task(self):
+        if self._has_registered:
+            return
+        
         self._has_registered = True
         event = MiddlewareCreationEvent(
-            middleware_type_id=self.id,
+            middleware_type_id=self.type_id,
             middleware_name=self.name,
         )
         return await pipe(event)
@@ -84,9 +83,7 @@ class Middleware(Generic[_P, _R]):
         fn = self._fn
 
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            # on demand registration
-            if not self._has_registered:
-                await self._start_creation_task()
+            
 
             return await fn(inner, *args, **kwargs)
 
