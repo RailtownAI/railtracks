@@ -150,7 +150,7 @@ async def _observe_middleware(call: Callable, *args, **kwargs):
     try:
         result = await call(*args, **kwargs)
     except Exception as e:
-        failure_event = NodeFailure(failure=str(e))
+        failure_event = NodeFailure.from_exception(e)
         await emit(failure_event)
         raise e
 

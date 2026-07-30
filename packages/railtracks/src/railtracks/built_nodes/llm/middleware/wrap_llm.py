@@ -53,9 +53,7 @@ def wrap_llm(
         try:
             response = await fn(llm_call, message_history, schema, tools)
         except Exception as e:
-            event = MiddlewareModelFailureEvent(
-                exception=e,
-            )
+            event = MiddlewareModelFailureEvent.from_exception(e)
             await pipe(event)
             raise e
 

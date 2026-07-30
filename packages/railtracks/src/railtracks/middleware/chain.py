@@ -44,7 +44,7 @@ def _scoped(
                 result = await wrapped(*args, **kwargs)
 
             except Exception as e:
-                event = MiddlewareFailureEvent(exception=e)
+                event = MiddlewareFailureEvent.from_exception(e)
                 await pipe(event)
                 raise e
 

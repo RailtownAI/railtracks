@@ -39,9 +39,7 @@ def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
         try:
             response = await llm_call(message_history, schema, tools)
         except Exception as e:
-            event = MiddlewareModelOutputFailureEvent(
-                exception=e,
-            )
+            event = MiddlewareModelOutputFailureEvent.from_exception(e)
             await pipe(event)
             raise e
 

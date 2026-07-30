@@ -3,7 +3,9 @@ from __future__ import annotations
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
-from typing import TYPE_CHECKING, Generic, Literal, Self, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
+
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from railtracks.context.scope_link import ScopeLink
@@ -183,8 +185,9 @@ class FailureMixin:
     exception_message: str
 
     @classmethod
-    def from_exception(cls, exc: Exception) -> Self:
+    def from_exception(cls, exc: Exception, **kwargs) -> Self:
         return cls(
             exception_name=type(exc).__name__,
             exception_message=str(exc),
+            **kwargs,
         )
