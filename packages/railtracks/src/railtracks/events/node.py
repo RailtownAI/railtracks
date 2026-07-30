@@ -7,6 +7,7 @@ from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
 from railtracks.events._base import (
     CreationEventBase,
+    FailureMixin,
     MiddlewareSpatialParent,
     NodeParent,
     NodeSpatialParent,
@@ -52,11 +53,7 @@ class NodeInvocation(NodeEventBase):
 
 
 @dataclass(kw_only=True)
-class NodeFailure(NodeEventBase):
-    """A failure raised inside the node body. `failure` is a stringified exception
-    (payload serialization strategy is a separate follow-up)."""
-
-    failure: str
+class NodeFailure(NodeEventBase, FailureMixin):
 
     def event_type(self) -> str:
         return "node.failure"

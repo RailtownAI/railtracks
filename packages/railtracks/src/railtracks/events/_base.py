@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
-from typing import TYPE_CHECKING, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal, Self, TypeVar
 
 if TYPE_CHECKING:
     from railtracks.context.scope_link import ScopeLink
@@ -175,3 +175,16 @@ class ParentEventBase(
     @abstractmethod
     def _get_parent(self, scope: ScopeLink[ScopeEntry] | None) -> TParent:
         pass
+
+
+@dataclass(kw_only=True)
+class FailureMixin:
+    exception_name: str
+    exception_message: str
+
+    @classmethod
+    def from_exception(cls, exc: Exception) -> Self:
+        return cls(
+            exception_name=type(exc).__name__,
+            exception_message=str(exc),
+        )
