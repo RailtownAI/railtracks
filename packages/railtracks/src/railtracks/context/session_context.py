@@ -87,24 +87,6 @@ class SessionContext:
         return entry
 
     @property
-    def parent_middleware_id(self) -> ScopeEntry | None:
-        if self._scope is None:
-            return None
-
-        scope_entry = self._scope
-
-        # note parent middleware must be the parent according to our usage of the stack.
-        parent_entry = scope_entry.parent
-
-        if parent_entry is None:
-            return None
-
-        if parent_entry.value.kind == ScopeKind.MIDDLEWARE:
-            return parent_entry.value
-
-        return None
-
-    @property
     def current_llm_call_id(self) -> ScopeEntry | None:
         if self._scope is None:
             return None
