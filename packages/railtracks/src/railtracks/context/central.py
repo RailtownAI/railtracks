@@ -129,30 +129,6 @@ def get_parent_id() -> str | None:
     )
 
 
-def get_node_or_llm() -> str | LLMCallData | None:
-    context = safe_get_runner_context()
-
-    scope = context.session_context.scope
-
-    result = scope.find(lambda e: e.kind in [ScopeKind.NODE, ScopeKind.LLM])
-
-    if result is None:
-        return None
-
-    if result.kind == ScopeKind.NODE:
-        return result.id
-
-    if result.kind == ScopeKind.LLM:
-        type_id = result.type_id
-
-        # defensive check
-        assert type_id is not None, (
-            "LLM call ID should have a type_id set in the context."
-        )
-
-        return LLMCallData(result.id, type_id)
-
-
 LLMCallData = NamedTuple("LLMCallData", [("call_id", str), ("type_id", str)])
 
 
