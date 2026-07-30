@@ -37,9 +37,7 @@ def _scoped(
         with get_scope_manager().enter_middleware(
             middleware_type_id,
         ):
-            invocation_event = MiddlewareInvocationEvent(
-                args=args, kwargs=kwargs
-            )
+            invocation_event = MiddlewareInvocationEvent(args=args, kwargs=kwargs)
 
             await pipe(invocation_event)
             try:

@@ -15,9 +15,10 @@ from railtracks.events._base import (
 from railtracks.events._resolve import node_parent, node_spatial_parent
 
 
-
 @dataclass(kw_only=True)
-class NodeEventBase(ParentEventBase[NodeSpatialParent | MiddlewareSpatialParent, NodeParent]):
+class NodeEventBase(
+    ParentEventBase[NodeSpatialParent | MiddlewareSpatialParent, NodeParent]
+):
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
         return node_spatial_parent(scope)
 

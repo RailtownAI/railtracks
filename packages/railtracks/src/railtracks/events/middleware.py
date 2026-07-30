@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -10,16 +10,16 @@ from railtracks.events._base import (
     CreationEventBase,
     LLMAndMiddlewareSpatialParent,
     MiddlewareParent,
-    NoSpatialParent,
     NodeAndMiddlewareSpatialParent,
-    NodeSpatialParent,
-    Parent,
     ParentEventBase,
-    SessionEventBase,
     Unset,
 )
-from railtracks.events._resolve import middleware_parent, middleware_spatial_parent, model_middleware_spatial_parent, regular_middleware_spatial_parent, regular_middleware_spatial_parent
-from yaml import Node
+from railtracks.events._resolve import (
+    middleware_parent,
+    middleware_spatial_parent,
+    model_middleware_spatial_parent,
+    regular_middleware_spatial_parent,
+)
 
 if TYPE_CHECKING:
     from railtracks.guardrails.core.decision import GuardrailDecision
@@ -40,6 +40,7 @@ class MiddlewareCreationEvent(CreationEventBase):
 
 _T = TypeVar("_T", bound=NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatialParent)
 
+
 @dataclass(kw_only=True)
 class MiddlewareEventBase(ParentEventBase[_T, MiddlewareParent], Generic[_T]):
     parent: MiddlewareParent | Unset = UNSET
@@ -53,8 +54,6 @@ class MiddlewareEventBase(ParentEventBase[_T, MiddlewareParent], Generic[_T]):
     def _get_parent(self, scope) -> MiddlewareParent:
         return middleware_parent(scope)
 
-    
-
 
 @dataclass(kw_only=True)
 class MiddlewareRegularEventBase(MiddlewareEventBase[NodeAndMiddlewareSpatialParent]):
@@ -67,12 +66,15 @@ class MiddlewareModelEventBase(MiddlewareEventBase[LLMAndMiddlewareSpatialParent
     def _get_spatial_parent(self, scope):
         return model_middleware_spatial_parent(scope)
 
+
 @dataclass(kw_only=True)
-class MiddlewareGeneralEventBase(MiddlewareEventBase[NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatialParent]):
+class MiddlewareGeneralEventBase(
+    MiddlewareEventBase[NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatialParent]
+):
     def _get_spatial_parent(self, scope):
-            result = middleware_spatial_parent(scope)
-           
-            return result
+        result = middleware_spatial_parent(scope)
+
+        return result
 
 
 @dataclass(kw_only=True)

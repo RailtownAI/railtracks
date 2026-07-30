@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import inspect
 import uuid
 from typing import (
@@ -62,14 +61,16 @@ class Middleware(Generic[_P, _R]):
         _require_async(fn, "Middleware function")
         self._fn = fn
         self.name = name if name is not None else fn.__name__
-        self.type_id = str(uuid.uuid4())  # identifies this middleware definition, shared by every invocation
+        self.type_id = str(
+            uuid.uuid4()
+        )  # identifies this middleware definition, shared by every invocation
 
         self._has_registered = False
-        
+
     async def start_creation_task(self):
         if self._has_registered:
             return
-        
+
         self._has_registered = True
         event = MiddlewareCreationEvent(
             middleware_type_id=self.type_id,
@@ -77,14 +78,11 @@ class Middleware(Generic[_P, _R]):
         )
         return await pipe(event)
 
-    
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         """Compose this middleware onto ``inner``, returning a new callable with the same signature."""
         fn = self._fn
 
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            
-
             return await fn(inner, *args, **kwargs)
 
         return wrapped

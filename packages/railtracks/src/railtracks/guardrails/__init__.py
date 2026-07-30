@@ -7,8 +7,8 @@ from .core import (
     LLMGuardrailEvent,
     LLMGuardrailPhase,
 )
-from .llm.decorators import input_guard, output_guard
 from .llm.concrete import InputGuard, OutputGuard
+from .llm.decorators import input_guard, output_guard
 
 # Primitives only.
 __all__ = [

@@ -6,7 +6,6 @@ from railtracks.context.central import get_current_scope
 from railtracks.events._base import (
     SessionEventBase,
 )
-
 from railtracks.observability.publish import publish_event
 from railtracks.observability_bridge._factory import make_session_event
 from railtracks.utils.logging.create import get_rt_logger
