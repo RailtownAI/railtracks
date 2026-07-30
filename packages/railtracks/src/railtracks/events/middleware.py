@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from pydantic import BaseModel
 
 from railtracks.events._base import (
     UNSET,
-    LLMSpatialParent,
+    CreationEventBase,
+    LLMAndMiddlewareSpatialParent,
+    MiddlewareParent,
     NoSpatialParent,
+    NodeAndMiddlewareSpatialParent,
     NodeSpatialParent,
     Parent,
+    ParentEventBase,
     SessionEventBase,
     Unset,
 )
+from railtracks.events._resolve import middleware_parent, middleware_spatial_parent, model_middleware_spatial_parent, regular_middleware_spatial_parent, regular_middleware_spatial_parent
+from yaml import Node
 
 if TYPE_CHECKING:
     from railtracks.guardrails.core.decision import GuardrailDecision
@@ -23,14 +29,8 @@ if TYPE_CHECKING:
     from railtracks.llm.tools.tool import Tool
 
 
-@dataclass(frozen=True)
-class MiddlewareParent(Parent):
-    middleware_type_id: str
-    middleware_invoke_id: str
-
-
 @dataclass(kw_only=True)
-class MiddlewareCreationEvent(SessionEventBase[NoSpatialParent]):
+class MiddlewareCreationEvent(CreationEventBase):
     middleware_type_id: str
     middleware_name: str
 
@@ -38,10 +38,10 @@ class MiddlewareCreationEvent(SessionEventBase[NoSpatialParent]):
         return "middleware.creation"
 
 
-_T = TypeVar("_T", bound=NodeSpatialParent | LLMSpatialParent)
+_T = TypeVar("_T", bound=NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatialParent)
 
 @dataclass(kw_only=True)
-class MiddlewareEventBase(SessionEventBase[_T], Generic[_T]):
+class MiddlewareEventBase(ParentEventBase[_T, MiddlewareParent], Generic[_T]):
     parent: MiddlewareParent | Unset = UNSET
 
     def verify(self) -> None:
@@ -50,14 +50,29 @@ class MiddlewareEventBase(SessionEventBase[_T], Generic[_T]):
             "Parent ID should be resolved before publishing the event."
         )
 
-@dataclass(kw_only=True)
-class MiddlewareRegularEventBase(MiddlewareEventBase[NodeSpatialParent]):
-    pass
+    def _get_parent(self, scope) -> MiddlewareParent:
+        return middleware_parent(scope)
+
+    
 
 
 @dataclass(kw_only=True)
-class MiddlewareModelEventBase(MiddlewareEventBase[LLMSpatialParent]):
-    pass
+class MiddlewareRegularEventBase(MiddlewareEventBase[NodeAndMiddlewareSpatialParent]):
+    def _get_spatial_parent(self, scope):
+        return regular_middleware_spatial_parent(scope)
+
+
+@dataclass(kw_only=True)
+class MiddlewareModelEventBase(MiddlewareEventBase[LLMAndMiddlewareSpatialParent]):
+    def _get_spatial_parent(self, scope):
+        return model_middleware_spatial_parent(scope)
+
+@dataclass(kw_only=True)
+class MiddlewareGeneralEventBase(MiddlewareEventBase[NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatialParent]):
+    def _get_spatial_parent(self, scope):
+            result = middleware_spatial_parent(scope)
+           
+            return result
 
 
 @dataclass(kw_only=True)
@@ -185,7 +200,7 @@ class MiddlewareGuardOutputFailureEvent(MiddlewareModelEventBase):
 
 # General middleware (invocation and response pair)
 @dataclass(kw_only=True)
-class MiddlewareInvocationEvent(MiddlewareEventBase):
+class MiddlewareInvocationEvent(MiddlewareGeneralEventBase):
     args: tuple[Any, ...]
     kwargs: dict[str, Any]
 
@@ -194,7 +209,7 @@ class MiddlewareInvocationEvent(MiddlewareEventBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareResponseEvent(MiddlewareEventBase):
+class MiddlewareResponseEvent(MiddlewareGeneralEventBase):
     response: Any
 
     def event_type(self) -> str:
@@ -202,7 +217,7 @@ class MiddlewareResponseEvent(MiddlewareEventBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareFailureEvent(MiddlewareEventBase):
+class MiddlewareFailureEvent(MiddlewareGeneralEventBase):
     exception: Exception
 
     def event_type(self) -> str:

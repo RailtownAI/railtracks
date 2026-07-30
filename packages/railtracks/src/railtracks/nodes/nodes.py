@@ -7,6 +7,10 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, TypeVar
 
+from railtracks.events.node import (
+    NodeDestruction,
+)
+from railtracks.events.send import emit
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
 from railtracks.middleware.core import Middleware
@@ -147,11 +151,18 @@ class Node(ABC, Generic[_P, _TOutput]):
 
         async def body(*a: _P.args, **kw: _P.kwargs) -> _TOutput:
             with self._scope_manager.enter_node_body():
-                return await self.invoke(*a, **kw)
+                result = await self.invoke(*a, **kw)
+                return result
 
         # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
         self.middleware.get_scope_manager = lambda: self._scope_manager
-        return await self.middleware.run(body, *args, **kwargs)
+        result: _TOutput | None = None
+        try:
+            result = await self.middleware.run(body, *args, **kwargs)
+            return result
+        finally:
+            destruction_event = NodeDestruction(response=result)
+            await emit(destruction_event)
 
     @classmethod
     def extend_middleware(

@@ -47,10 +47,12 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
         task.node.bind_scope_manager(self.scope_manager)
 
         publisher = get_publisher()
+
         response = None
         try:
             with self.scope_manager.enter_node(task.node.uuid):
                 result = await task.invoke()
+
             response = RequestSuccess(
                 request_id=task.request_id,
                 node_state=NodeState(task.node),
