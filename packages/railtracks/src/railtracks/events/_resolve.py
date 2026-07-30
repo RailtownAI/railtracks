@@ -42,7 +42,7 @@ def node_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
 
     # 3. the node is called by a middleware
     if parent.value.kind is ScopeKind.MIDDLEWARE:
-        return MiddlewareSpatialParent(middleware_type_id=parent.value.id)
+        return MiddlewareSpatialParent(middleware_invoke_id=parent.value.id)
 
     # 2 levels up please
     node_link = scope.find_link(lambda e: e.kind is ScopeKind.NODE)

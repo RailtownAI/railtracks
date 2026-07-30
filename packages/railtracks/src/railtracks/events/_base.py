@@ -40,7 +40,7 @@ class SpatialParent:
 @dataclass(frozen=True)
 class MiddlewareSpatialParent(SpatialParent):
     spatial_type: Literal["middleware"] = field(init=False, default="middleware")
-    middleware_type_id: str
+    middleware_invoke_id: str
 
 
 @dataclass(frozen=True)
