@@ -52,6 +52,10 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 litellm.drop_params = True
 litellm.modify_params = True
 
+# this flag is only used in two places in litellm
+# https://github.com/search?q=repo%3ABerriAI%2Flitellm%20suppress_debug_info&type=code
+litellm.suppress_debug_info = True
+
 
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
     """
@@ -113,6 +117,24 @@ def _parameters_to_json_schema(
             "Tool.parameters must be a set of Parameter objects",
         ],
     )
+
+
+def _model_in_litellm_catalog(model_name: str) -> bool:
+    """True if litellm has capability metadata for this model name.
+
+    Custom deployment names (Azure Foundry etc.) route through litellm but
+    have no entry in the capability catalog, so any `supports_*` probe on
+    them returns False regardless of what the underlying model can actually
+    do. This helper lets callers distinguish "litellm knows the answer is
+    False" from "litellm has no idea, don't trust the probe."
+    """
+    if model_name in litellm.model_cost:
+        return True
+    try:
+        routed_model, _, _, _ = litellm.get_llm_provider(model=model_name)
+    except Exception:
+        return False
+    return routed_model in litellm.model_cost
 
 
 def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
@@ -802,7 +824,15 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                     else msg_attachment.url
                 )
                 if msg_attachment.modality == "document":
-                    if not litellm.utils.supports_pdf_input(self._model_name):
+                    # Only trust litellm's PDF-support check when the model is in
+                    # litellm's capability catalog. Custom deployment names (Azure
+                    # Foundry etc.) route fine but have no capability metadata,
+                    # so supports_pdf_input returns False by default and would
+                    # falsely reject valid deployments. When the model isn't in
+                    # the catalog, skip the pre-check and let the API decide.
+                    if _model_in_litellm_catalog(
+                        self._model_name
+                    ) and not litellm.utils.supports_pdf_input(self._model_name):
                         raise ValueError(
                             f"Model {self._model_name!r} does not support PDF attachments. "
                             "Use a PDF-capable model or render the PDF pages to images first."

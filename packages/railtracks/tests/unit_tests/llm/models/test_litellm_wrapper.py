@@ -217,6 +217,28 @@ class TestHelpers:
         with pytest.raises(ValueError, match="does not support PDF attachments"):
             wrapper._to_litellm_message(message)
 
+    def test_to_litellm_message_pdf_attachment_allowed_for_unroutable_model(
+        self,
+        mock_litellm_wrapper,
+    ):
+        """
+        A custom deployment name (Azure Foundry etc.) that litellm can't identify
+        must NOT be pre-rejected — the API is the source of truth for capability
+        in that case. Regression for the AzureAILLM custom-deployment path.
+        """
+        import base64 as _b64
+
+        wrapper = mock_litellm_wrapper(model_name="azure/my-custom-deployment")
+        pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+        message = UserMessage(content="Summarize this.", attachment=[data_uri])
+
+        litellm_message = wrapper._to_litellm_message(message)
+
+        file_block = litellm_message["content"][1]
+        assert file_block["type"] == "file"
+
     # =================================== END _to_litellm_message Tests ====================================
 
 
