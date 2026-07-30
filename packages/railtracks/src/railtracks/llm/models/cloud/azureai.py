@@ -96,17 +96,17 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
         )
         self.logger = logger
 
-    def chat(self, messages: MessageHistory):
+    def chat(self, messages: MessageHistory, **kwargs):
         try:
-            return super().chat(messages)
+            return super().chat(messages, **kwargs)
         except InternalServerError as e:
             raise AzureAIError(
                 reason=f"Azure AI LLM error while processing the request: {e}"
             ) from e
 
-    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
+    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool], **kwargs):
         try:
-            return super().chat_with_tools(messages, tools)
+            return super().chat_with_tools(messages, tools, **kwargs)
         except InternalServerError as e:
             raise AzureAIError(
                 reason=f"Azure AI LLM error while processing the request: {e}"

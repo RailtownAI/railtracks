@@ -209,6 +209,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
         """Initialize the litellm-backed model wrapper.
 
@@ -244,6 +245,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         self.reasoning_effort = reasoning_effort
         self.service_tier = service_tier
         self.verbosity = verbosity
+        self._extra_completion_kwargs = kwargs
         self._validate_common_hyperparameter_support()
 
     def _validate_common_hyperparameter_support(self) -> None:
@@ -274,7 +276,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     def _base_completion_kwargs(self) -> Dict[str, Any]:
         """Common kwargs shared by both `_invoke` and `_ainvoke`, merged in only if set."""
-        kwargs: Dict[str, Any] = {}
+        kwargs: Dict[str, Any] = dict(self._extra_completion_kwargs)
         for name in (
             "api_base",
             "api_key",
@@ -299,6 +301,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
+        **kwargs: Any,
     ) -> Tuple[ModelResponse, float]:
         pass
 
@@ -309,6 +312,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
+        **kwargs: Any,
     ) -> Tuple[CustomStreamWrapper, float]:
         pass
 
@@ -318,6 +322,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
+        **kwargs: Any,
     ) -> Tuple[CustomStreamWrapper | ModelResponse, float]:
         """
         Internal helper that:
@@ -335,6 +340,9 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
+
+        # Per-call kwargs override the construction-time hyperparameters above.
+        merged.update(kwargs)
 
         def completion_function():
             return litellm.completion(
@@ -362,6 +370,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         *,
         response_format: Any | None = None,
         tools: Optional[list[Tool]] = None,
+        **kwargs: Any,
     ) -> Tuple[ModelResponse, float]:
         pass
 
@@ -372,6 +381,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         *,
         response_format: Any | None = None,
         tools: Optional[list[Tool]] = None,
+        **kwargs: Any,
     ) -> Tuple[CustomStreamWrapper, float]:
         pass
 
@@ -381,6 +391,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         *,
         response_format: Optional[Any] = None,
         tools: Optional[list[Tool]] = None,
+        **kwargs: Any,
     ) -> Tuple[CustomStreamWrapper | ModelResponse, float]:
         """
         Internal helper that:
@@ -396,6 +407,8 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
+        # Per-call kwargs override the construction-time hyperparameters above.
+        merged.update(kwargs)
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.
@@ -689,8 +702,8 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     # ================ START Sync LLM calls ===============
 
-    def _chat(self, messages: MessageHistory):
-        response, time = self._invoke(messages=messages)
+    def _chat(self, messages: MessageHistory, **kwargs: Any):
+        response, time = self._invoke(messages=messages, **kwargs)
         if isinstance(response, CustomStreamWrapper):
             return self._stream_handler_base(response, time)
 
@@ -701,9 +714,11 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         else:
             raise ValueError("Unexpected response type")
 
-    def _structured(self, messages: MessageHistory, schema: Type[BaseModel]):
+    def _structured(
+        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs: Any
+    ):
         try:
-            model_resp, time = self._invoke(messages, response_format=schema)
+            model_resp, time = self._invoke(messages, response_format=schema, **kwargs)
             if isinstance(model_resp, CustomStreamWrapper):
                 return self._stream_handler_base(model_resp, time, schema)
             elif isinstance(model_resp, ModelResponse):
@@ -722,7 +737,9 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 message_history=messages,
             ) from e
 
-    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
+    def _chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
+    ):
         """
         Chat with the model using tools.
 
@@ -734,7 +751,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         Returns:
             A Response containing either plain assistant text or ToolCall(s).
         """
-        resp, time = self._invoke(messages, tools=tools)
+        resp, time = self._invoke(messages, tools=tools, **kwargs)
         if isinstance(resp, CustomStreamWrapper):
             return self._stream_handler_base(resp, time)
         elif isinstance(resp, ModelResponse):
@@ -747,8 +764,8 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     # ================ END Sync LLM calls ===============
 
     # ================ START Async LLM calls ===============
-    async def _achat(self, messages: MessageHistory):
-        response, time = await self._ainvoke(messages=messages)
+    async def _achat(self, messages: MessageHistory, **kwargs: Any):
+        response, time = await self._ainvoke(messages=messages, **kwargs)
         if isinstance(response, CustomStreamWrapper):
             return self._astream_handler_base(response, time)
         elif isinstance(response, ModelResponse):
@@ -758,9 +775,13 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         else:
             raise ValueError("Unexpected response type")
 
-    async def _astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
+    async def _astructured(
+        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs: Any
+    ):
         try:
-            model_resp, time = await self._ainvoke(messages, response_format=schema)
+            model_resp, time = await self._ainvoke(
+                messages, response_format=schema, **kwargs
+            )
             if isinstance(model_resp, CustomStreamWrapper):
                 return self._astream_handler_base(model_resp, time, schema)
             elif isinstance(model_resp, ModelResponse):
@@ -779,8 +800,10 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 message_history=messages,
             ) from e
 
-    async def _achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
-        resp, time = await self._ainvoke(messages, tools=tools)
+    async def _achat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
+    ):
+        resp, time = await self._ainvoke(messages, tools=tools, **kwargs)
         if isinstance(resp, CustomStreamWrapper):
             return self._astream_handler_base(resp, time)
         elif isinstance(resp, ModelResponse):
