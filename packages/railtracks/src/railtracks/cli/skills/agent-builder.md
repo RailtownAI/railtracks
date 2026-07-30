@@ -22,7 +22,9 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 rt.llm.AnthropicLLM("claude-sonnet-4-6")
 rt.llm.OpenAILLM("gpt-5")
 rt.llm.GeminiLLM("gemini-3-flash-preview")
-rt.llm.OpenAICompatibleProvider("my-model", api_base="https://api.example.com/v1", api_key="...")
+rt.llm.OpenAICompatibleProvider(
+    "my-model", api_base="https://api.example.com/v1", api_key="..."
+)
 ```
 
 ---
@@ -51,6 +53,8 @@ rt.llm.OpenAICompatibleProvider("my-model", api_base="https://api.example.com/v1
 
 ```python
 import railtracks as rt
+
+
 @rt.function_node
 def my_tool(param: str) -> str:
     """One-line description.
@@ -60,6 +64,8 @@ def my_tool(param: str) -> str:
         What this returns.
     """
     return f"result for {param}"
+
+
 llm = rt.llm.AnthropicLLM("claude-sonnet-4-6")
 # agent_node returns a class (type), not an instance — use PascalCase
 MyAgent = rt.agent_node(
@@ -77,9 +83,13 @@ if __name__ == "__main__":
 ### Structured Output
 ```python
 from pydantic import BaseModel
+
+
 class Output(BaseModel):
     field1: str
     field2: int
+
+
 StructuredAgent = rt.agent_node(
     "Structured Agent",
     output_schema=Output,
@@ -95,6 +105,8 @@ async def pipeline(query: str):
     step1 = await rt.call(AgentA, query)
     step2 = await rt.call(AgentB, step1)
     return step2
+
+
 flow = rt.Flow(name="Pipeline", entry_point=pipeline)
 ```
 
@@ -103,6 +115,7 @@ flow = rt.Flow(name="Pipeline", entry_point=pipeline)
 To expose an agent as a callable tool for another agent, pass a `rt.ToolManifest` to `agent_node`. The manifest defines how the agent appears in the tool list of its caller — its description and parameters. Without a manifest, railtracks won't know how to present the agent as a tool.
 ```python
 from railtracks.llm import Parameter
+
 SubAgent = rt.agent_node(
     "Sub Agent",
     tool_nodes=[tool_a],
@@ -110,7 +123,9 @@ SubAgent = rt.agent_node(
     manifest=rt.ToolManifest(
         description="Does X given a topic. Call this when you need X.",
         parameters=[
-            Parameter(name="topic", description="The topic to process", param_type="string"),
+            Parameter(
+                name="topic", description="The topic to process", param_type="string"
+            ),
         ],
     ),
 )
@@ -130,7 +145,9 @@ Orchestrator = rt.agent_node(
 
 ### MCP Tools
 ```python
-server = rt.connect_mcp(rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"]))
+server = rt.connect_mcp(
+    rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"])
+)
 agent = rt.agent_node("MCP Agent", tool_nodes=server.tools, llm=llm)
 ```
 

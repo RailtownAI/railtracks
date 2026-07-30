@@ -1,76 +1,107 @@
-import pytest
-import litellm
-from railtracks.llm import OpenAILLM, GeminiLLM, AnthropicLLM, HuggingFaceLLM, CohereLLM
-from railtracks.llm.history import MessageHistory
-from railtracks.llm._exceptions import RTLLMError
 from unittest.mock import patch
+
+import litellm
+import pytest
+from railtracks.llm import AnthropicLLM, CohereLLM, GeminiLLM, HuggingFaceLLM, OpenAILLM
+from railtracks.llm._exceptions import RTLLMError
+from railtracks.llm.history import MessageHistory
+from railtracks.llm.models._model_exception_base import (
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
+)
 
 
 class TestInvalidModelNames:
     """Test invalid model names for each provider."""
-    
-    @pytest.mark.parametrize("provider_class,model_name", [
-        (OpenAILLM, "claude-3-5-sonnet-20240620"),  # Anthropic model for OpenAI
-        (AnthropicLLM, "gpt-4o"),  # OpenAI model for Anthropic
-        (CohereLLM, "gpt-4o"),  # OpenAI model for Cohere
-        (GeminiLLM, "gpt-4o"),  # OpenAI model for Gemini
-        (OpenAILLM, "gemini-pro"),  # Gemini model for OpenAI
-        (AnthropicLLM, "gemini-pro"),  # Gemini model for Anthropic
-        (GeminiLLM, "claude-3-5-sonnet"),  # Anthropic model for Gemini
-        (HuggingFaceLLM, "huggingface/meta-llama/Llama-3.3-70B-Instruct"),  # invalid naming structure for HuggingFace
-        (HuggingFaceLLM, "meta-llama/Llama-3.3-70B-Instruct"),  # invalid naming structure for HuggingFace
-    ])
+
+    @pytest.mark.parametrize(
+        "provider_class,model_name",
+        [
+            (OpenAILLM, "claude-3-5-sonnet-20240620"),  # Anthropic model for OpenAI
+            (AnthropicLLM, "gpt-4o"),  # OpenAI model for Anthropic
+            (CohereLLM, "gpt-4o"),  # OpenAI model for Cohere
+            (GeminiLLM, "gpt-4o"),  # OpenAI model for Gemini
+            (OpenAILLM, "gemini-pro"),  # Gemini model for OpenAI
+            (AnthropicLLM, "gemini-pro"),  # Gemini model for Anthropic
+            (GeminiLLM, "claude-3-5-sonnet"),  # Anthropic model for Gemini
+            (
+                HuggingFaceLLM,
+                "huggingface/meta-llama/Llama-3.3-70B-Instruct",
+            ),  # invalid naming structure for HuggingFace
+            (
+                HuggingFaceLLM,
+                "meta-llama/Llama-3.3-70B-Instruct",
+            ),  # invalid naming structure for HuggingFace
+        ],
+    )
     def test_invalid_model_names(self, provider_class, model_name):
         """Test that wrong model names raise LLMError."""
         # Determine what provider the model actually belongs to
         provider_mapping = {
             "claude": "anthropic",
-            "gpt": "openai", 
-            "gemini": "vertex_ai"
+            "gpt": "openai",
+            "gemini": "vertex_ai",
         }
-        
+
         # Guess the actual provider based on model name
         actual_provider = None
         for key, value in provider_mapping.items():
             if key in model_name.lower():
                 actual_provider = value
                 break
-        
+
         if actual_provider:
-            with patch('railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider') as mock_provider:
+            with patch(
+                "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+            ) as mock_provider:
                 # Return the actual provider, which should mismatch with the class being tested
                 mock_provider.return_value = ("something", actual_provider, "info")
-                
+
                 with pytest.raises(RTLLMError):
                     _ = provider_class(model_name)
 
 
 class TestFunctionCallingSupport:
     """Test function calling support for each provider."""
-    
-    @pytest.mark.parametrize("provider_class, model_name, expected_provider", [
-        (OpenAILLM, "openai/ada-001", "openai"),
-        (AnthropicLLM, "anthropic/claude-v1", "anthropic"),
-        (GeminiLLM, "gemini/gemini-2.0-flash-exp-image-generation", "vertex_ai"),   # gemini models return "vertex_ai" as the provider when we call get_llm_provider
-        (CohereLLM, "cohere/command-a-03-2025", "cohere_chat"),
-    ])
-    def test_no_function_calling_support(self, provider_class, model_name, expected_provider):
+
+    @pytest.mark.parametrize(
+        "provider_class, model_name, expected_provider",
+        [
+            (OpenAILLM, "openai/ada-001", "openai"),
+            (AnthropicLLM, "anthropic/claude-v1", "anthropic"),
+            (
+                GeminiLLM,
+                "gemini/gemini-2.0-flash-exp-image-generation",
+                "vertex_ai",
+            ),  # gemini models return "vertex_ai" as the provider when we call get_llm_provider
+            (CohereLLM, "cohere/command-a-03-2025", "cohere_chat"),
+        ],
+    )
+    def test_no_function_calling_support(
+        self, provider_class, model_name, expected_provider
+    ):
         """Test that models without function calling support raise appropriate errors."""
-        with patch('railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider') as mock_provider:
+        with patch(
+            "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+        ) as mock_provider:
             # Mock valid provider response
             mock_provider.return_value = ("something", expected_provider, "info")
-            
-            with patch('litellm.supports_function_calling', return_value=False):
+
+            with patch("litellm.supports_function_calling", return_value=False):
                 model = provider_class(model_name)
                 assert model is not None
-                
-                with pytest.raises(RTLLMError, match="does not support function calling"):
+
+                with pytest.raises(
+                    RTLLMError, match="does not support function calling"
+                ):
                     model.chat_with_tools(MessageHistory([]), [])
 
 
 def test_temperature_passed_to_litellm_completion(message_history):
     """Assert that when a provider LLM is created with temperature, it is passed to litellm.completion."""
-    with patch('railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider') as mock_provider:
+    with patch(
+        "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+    ) as mock_provider:
         mock_provider.return_value = ("gpt-4o", "openai", "info")
         with patch.object(litellm, "completion") as mock_completion:
             mock_completion.return_value = litellm.utils.ModelResponse(
@@ -81,3 +112,61 @@ def test_temperature_passed_to_litellm_completion(message_history):
             mock_completion.assert_called_once()
             assert mock_completion.call_args.kwargs.get("temperature") == 0.4
 
+
+class TestUnsupportedHyperparameterValidation:
+    """Test that unsupported hyperparameters raise UnsupportedHyperparameterError."""
+
+    def test_opus_4_7_temperature_raises_immediately(self):
+        with patch(
+            "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+        ) as mock_provider:
+            mock_provider.return_value = ("claude-opus-4-7", "anthropic", "info")
+            with pytest.raises(UnsupportedHyperparameterError):
+                AnthropicLLM("anthropic/claude-opus-4-7", temperature=0.5)
+
+    def test_supported_hyperparameter_does_not_raise(self):
+        with patch(
+            "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+        ) as mock_provider:
+            mock_provider.return_value = ("gpt-4o", "openai", "info")
+            llm = OpenAILLM("openai/gpt-4o", temperature=0.4)
+            assert llm is not None
+
+
+class TestMutuallyExclusiveHyperparameterValidation:
+    """temperature+top_p together is rejected by Anthropic across every model tested,
+    not just Opus 4.7/4.8 — see _hyperparameter_support._MUTUALLY_EXCLUSIVE."""
+
+    def test_temperature_and_top_p_together_raises_immediately(self):
+        with patch(
+            "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+        ) as mock_provider:
+            mock_provider.return_value = (
+                "claude-sonnet-4-5-20250929",
+                "anthropic",
+                "info",
+            )
+            with pytest.raises(MutuallyExclusiveHyperparametersError):
+                AnthropicLLM(
+                    "anthropic/claude-sonnet-4-5-20250929", temperature=0.5, top_p=0.9
+                )
+
+    def test_temperature_alone_does_not_raise(self):
+        with patch(
+            "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+        ) as mock_provider:
+            mock_provider.return_value = (
+                "claude-sonnet-4-5-20250929",
+                "anthropic",
+                "info",
+            )
+            llm = AnthropicLLM("anthropic/claude-sonnet-4-5-20250929", temperature=0.5)
+            assert llm is not None
+
+    def test_temperature_and_top_p_together_on_openai_does_not_raise(self):
+        with patch(
+            "railtracks.llm.models.api_providers._provider_wrapper.get_llm_provider"
+        ) as mock_provider:
+            mock_provider.return_value = ("gpt-4o", "openai", "info")
+            llm = OpenAILLM("openai/gpt-4o", temperature=0.4, top_p=0.9)
+            assert llm is not None

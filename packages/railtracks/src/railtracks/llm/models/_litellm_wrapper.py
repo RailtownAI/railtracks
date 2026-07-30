@@ -36,6 +36,14 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
+from ._hyperparameter_support import (
+    find_mutually_exclusive_conflict,
+    is_hyperparameter_supported,
+)
+from ._model_exception_base import (
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
+)
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -175,6 +183,17 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     model of that type.
     """
 
+    _COMMON_HYPERPARAMETERS = (
+        "temperature",
+        "top_p",
+        "max_tokens",
+        "frequency_penalty",
+        "presence_penalty",
+        "reasoning_effort",
+        "service_tier",
+        "verbosity",
+    )
+
     def __init__(
         self,
         model_name: str,
@@ -182,13 +201,96 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
+        service_tier: str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
     ):
+        """Initialize the litellm-backed model wrapper.
+
+        Most callers construct a provider subclass (e.g. `rt.llm.OpenAILLM`) instead of
+        this base class directly; see `ProviderLLMWrapper.__init__` for the full
+        per-hyperparameter description of the common hyperparameters below (`top_p`,
+        `max_tokens`, `frequency_penalty`, `presence_penalty`, `reasoning_effort`,
+        `service_tier`, `verbosity`) and their known provider gotchas.
+
+        Raises:
+            UnsupportedHyperparameterError: If a common hyperparameter isn't supported
+                by `model_name` (per litellm's schema or the manual denylist in
+                `llm/models/_hyperparameter_support.py`).
+            MutuallyExclusiveHyperparametersError: If two common hyperparameters can't
+                be combined for this provider (currently: Anthropic `temperature` +
+                `top_p`).
+
+        Note:
+            No client-side validation of hyperparameter *values* is performed —
+            invalid values are passed through as-is and surface as a provider-native
+            error, except `verbosity`, which at least one provider (OpenAI) silently
+            accepts even when invalid.
+        """
         super().__init__(stream=stream, retry_approach=retry_approach)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
         self.temperature = temperature
+        self.top_p = top_p
+        self.max_tokens = max_tokens
+        self.frequency_penalty = frequency_penalty
+        self.presence_penalty = presence_penalty
+        self.reasoning_effort = reasoning_effort
+        self.service_tier = service_tier
+        self.verbosity = verbosity
+        self._validate_common_hyperparameter_support()
+
+    def _validate_common_hyperparameter_support(self) -> None:
+        provider = (
+            self.model_provider().lower() if hasattr(self, "model_provider") else None
+        )
+        if provider is None:
+            return
+        for name in self._COMMON_HYPERPARAMETERS:
+            value = getattr(self, name)
+            if value is not None and not is_hyperparameter_supported(
+                self._model_name, provider, name
+            ):
+                raise UnsupportedHyperparameterError(self._model_name, name, value)
+
+        hyperparameters_set = frozenset(
+            name
+            for name in self._COMMON_HYPERPARAMETERS
+            if getattr(self, name) is not None
+        )
+        conflict = find_mutually_exclusive_conflict(provider, hyperparameters_set)
+        if conflict:
+            raise MutuallyExclusiveHyperparametersError(
+                self._model_name,
+                sorted(conflict),
+                {name: getattr(self, name) for name in conflict},
+            )
+
+    def _base_completion_kwargs(self) -> Dict[str, Any]:
+        """Common kwargs shared by both `_invoke` and `_ainvoke`, merged in only if set."""
+        kwargs: Dict[str, Any] = {}
+        for name in (
+            "api_base",
+            "api_key",
+            "temperature",
+            "top_p",
+            "max_tokens",
+            "frequency_penalty",
+            "presence_penalty",
+            "reasoning_effort",
+            "service_tier",
+            "verbosity",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                kwargs[name] = value
+        return kwargs
 
     @overload
     def _invoke(
@@ -225,7 +327,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         """
         start_time = time.time()
         litellm_messages = [self._to_litellm_message(m) for m in messages]
-        merged = {}
+        merged = self._base_completion_kwargs()
 
         if response_format is not None:
             merged["response_format"] = response_format
@@ -233,15 +335,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
-
-        if self.api_base is not None:
-            merged["api_base"] = self.api_base
-
-        if self.api_key is not None:
-            merged["api_key"] = self.api_key
-
-        if self.temperature is not None:
-            merged["temperature"] = self.temperature
 
         def completion_function():
             return litellm.completion(
@@ -297,18 +390,12 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         """
         start_time = time.time()
         litellm_messages = [self._to_litellm_message(m) for m in messages]
-        merged = {}
+        merged = self._base_completion_kwargs()
         if response_format is not None:
             merged["response_format"] = response_format
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
-        if self.api_base is not None:
-            merged["api_base"] = self.api_base
-        if self.api_key is not None:
-            merged["api_key"] = self.api_key
-        if self.temperature is not None:
-            merged["temperature"] = self.temperature
         warnings.filterwarnings(
             "ignore", category=UserWarning, module="pydantic.*"
         )  # Supress pydantic warnings. See issue #204 for more deatils.

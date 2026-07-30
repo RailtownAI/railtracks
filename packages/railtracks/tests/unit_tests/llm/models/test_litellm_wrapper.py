@@ -27,8 +27,8 @@ class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper[Literal[False]]):
     def model_provider(self):
         return ModelProvider.UNKNOWN
 
-class TestHelpers:
 
+class TestHelpers:
     # =================================== START _parameters_to_json_schema Tests ==================================
     # parameters_to_json_schema is guaranteed to get only a set of Parameter objects
     def test_parameters_to_json_schema_with_parameters_set(
@@ -83,7 +83,9 @@ class TestHelpers:
         assert litellm_message["role"] == "user"
         assert litellm_message["content"] == "This is a user message."
 
-    def test_to_litellm_message_assistant_message(self, mock_litellm_wrapper, assistant_message):
+    def test_to_litellm_message_assistant_message(
+        self, mock_litellm_wrapper, assistant_message
+    ):
         """
         Test _to_litellm_message with an AssistantMessage instance.
         """
@@ -191,7 +193,9 @@ class TestHelpers:
         file_block = litellm_message["content"][1]
         assert file_block["type"] == "file"
         assert file_block["file"]["filename"] == "report.pdf"
-        assert file_block["file"]["file_data"].startswith("data:application/pdf;base64,")
+        assert file_block["file"]["file_data"].startswith(
+            "data:application/pdf;base64,"
+        )
 
     def test_to_litellm_message_pdf_attachment_rejected_for_unsupported_model(
         self,
@@ -261,25 +265,30 @@ def test_litellm_wrapper_model_name_property(mock_litellm_wrapper):
 
 # ================= START completion methods tests =========================
 class TestCompletionMethods:
-    @pytest.mark.parametrize("method_name,is_async,stream", [
-        ("_chat", False, False),
-        ("_achat", True, False),
-        ("_chat", False, True),
-    ], ids=["sync_chat", "async_chat", "sync_chat_streaming"])
+    @pytest.mark.parametrize(
+        "method_name,is_async,stream",
+        [
+            ("_chat", False, False),
+            ("_achat", True, False),
+            ("_chat", False, True),
+        ],
+        ids=["sync_chat", "async_chat", "sync_chat_streaming"],
+    )
     @pytest.mark.asyncio
-    async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
+    async def test_chat(
+        self, mock_litellm_wrapper, message_history, method_name, is_async, stream
+    ):
         content = "Mission: Impossible" if stream else "Mocked response"
         wrapper = mock_litellm_wrapper(content=content, stream=stream)
         method = getattr(wrapper, method_name)
-        
+
         if is_async:
             result = await method(message_history)
         else:
             result = method(message_history)
 
         assert isinstance(result, (Response, Generator))
-        
-        
+
         if stream:
             result: Generator[str | Response, None, Response]
             for chunk in result:
@@ -293,27 +302,32 @@ class TestCompletionMethods:
             assert isinstance(result.message, AssistantMessage)
             assert result.message.content == content
 
-    @pytest.mark.parametrize("method_name,is_async,stream", [
-        ("_structured", False, False),
-        ("_astructured", True, False),
-        ("_structured", False, True),
-    ], ids=["sync_structured", "async_structured", "sync_structured_streaming"])
+    @pytest.mark.parametrize(
+        "method_name,is_async,stream",
+        [
+            ("_structured", False, False),
+            ("_astructured", True, False),
+            ("_structured", False, True),
+        ],
+        ids=["sync_structured", "async_structured", "sync_structured_streaming"],
+    )
     @pytest.mark.asyncio
-    async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async, stream):
+    async def test_structured(
+        self, mock_litellm_wrapper, message_history, method_name, is_async, stream
+    ):
         class ExampleSchema(BaseModel):
             field: str
 
         wrapper = mock_litellm_wrapper(content='{"field": "VAL"}', stream=stream)
         method = getattr(wrapper, method_name)
-        
+
         if is_async:
             result = await method(message_history, schema=ExampleSchema)
         else:
             result = method(message_history, schema=ExampleSchema)
 
         assert isinstance(result, (Response, Generator))
-        
-        
+
         if stream:
             for chunk in result:
                 if isinstance(chunk, Response):
@@ -324,17 +338,20 @@ class TestCompletionMethods:
                 elif not isinstance(chunk, str):
                     pytest.fail("Stream yielded non-string, non-Response chunk")
 
-            
         else:
             assert isinstance(result.message, AssistantMessage)
             assert isinstance(result.message.content, ExampleSchema)
             assert result.message.content.field == "VAL"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_structured", False),
-        ("_astructured", True),
-    ], ids=["sync_structured", "async_structured"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_structured", False),
+            ("_astructured", True),
+        ],
+        ids=["sync_structured", "async_structured"],
+    )
     async def test_structured_schema_jsondecode_error(
         self, mock_litellm_wrapper, message_history, method_name, is_async
     ):
@@ -350,34 +367,45 @@ class TestCompletionMethods:
                 result = method(message_history, schema=Schema)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_structured", False),
-        ("_astructured", True),
-    ], ids=["sync_structured", "async_structured"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_structured", False),
+            ("_astructured", True),
+        ],
+        ids=["sync_structured", "async_structured"],
+    )
     async def test_structured_invalid_json_raises_llm_error(
         self, mock_litellm_wrapper, message_history, method_name, is_async
     ):
         class Schema(BaseModel):
             val: int
+
         with pytest.raises(LLMError, match="Structured LLM call failed"):
-            wrapper = mock_litellm_wrapper(content='{"field": "VAL", "invalid": "json"}')
+            wrapper = mock_litellm_wrapper(
+                content='{"field": "VAL", "invalid": "json"}'
+            )
             method = getattr(wrapper, method_name)
             if is_async:
                 result = await method(message_history, schema=Schema)
             else:
                 result = method(message_history, schema=Schema)
 
-    @pytest.mark.parametrize("method_name,is_async,stream", [
-        ("_chat_with_tools", False, False),
-        ("_achat_with_tools", True, False),
-        ("_chat_with_tools", False, True),
-        # ("_achat_with_tools", True, True),
-    ], ids=[
-        "sync_chat_with_tools",
-        "async_chat_with_tools",
-        "sync_chat_with_tools_streaming",
-        # "async_chat_with_tools_streaming"
-        ])
+    @pytest.mark.parametrize(
+        "method_name,is_async,stream",
+        [
+            ("_chat_with_tools", False, False),
+            ("_achat_with_tools", True, False),
+            ("_chat_with_tools", False, True),
+            # ("_achat_with_tools", True, True),
+        ],
+        ids=[
+            "sync_chat_with_tools",
+            "async_chat_with_tools",
+            "sync_chat_with_tools_streaming",
+            # "async_chat_with_tools_streaming"
+        ],
+    )
     @pytest.mark.asyncio
     async def test_chat_with_tools(
         self, mock_litellm_wrapper, message_history, tool, method_name, is_async, stream
@@ -392,13 +420,15 @@ class TestCompletionMethods:
                 content=None,
                 tool_calls=[
                     litellm.ChatCompletionMessageToolCall(
-                        function=litellm.Function(arguments='{"foo": 1}', name="tool_x"),
+                        function=litellm.Function(
+                            arguments='{"foo": 1}', name="tool_x"
+                        ),
                         id="id123",
                         type="function",
                     )
                 ],
             )
-        
+
         method = getattr(wrapper, method_name)
         if is_async:
             result = await method(message_history, [tool])
@@ -407,7 +437,6 @@ class TestCompletionMethods:
 
         assert isinstance(result, (Response, Generator))
 
-        
         if stream:  # no stream in case the llm requests tool
             for chunk in result:
                 if isinstance(chunk, Response):
@@ -461,3 +490,36 @@ async def test_temperature_passed_to_litellm_acompletion(message_history):
 
 
 # ================= END completion methods tests =========================
+
+# ================= START common hyperparameter support tests =========================
+
+
+@pytest.mark.parametrize(
+    "kwarg_name,kwarg_value",
+    [
+        ("top_p", 0.9),
+        ("max_tokens", 256),
+        ("frequency_penalty", 0.3),
+        ("presence_penalty", 0.2),
+        ("reasoning_effort", "high"),
+        ("service_tier", "FAST"),
+        ("verbosity", "low"),
+    ],
+)
+def test_common_hyperparameter_passed_to_litellm_completion(
+    kwarg_name, kwarg_value, message_history
+):
+    """Assert that new common hyperparameters are threaded through to litellm.completion when set."""
+    with patch.object(litellm, "completion") as mock_completion:
+        mock_completion.return_value = litellm.utils.ModelResponse(
+            choices=[{"message": {"content": "ok"}}]
+        )
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="test-model", stream=False, **{kwarg_name: kwarg_value}
+        )
+        wrapper.chat(message_history)
+        mock_completion.assert_called_once()
+        assert mock_completion.call_args.kwargs.get(kwarg_name) == kwarg_value
+
+
+# ================= END common hyperparameter support tests =========================

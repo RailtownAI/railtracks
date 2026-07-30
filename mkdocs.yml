@@ -96,6 +96,7 @@ nav:
           - LLMs:
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
+              - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
 
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
