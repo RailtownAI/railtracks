@@ -15,10 +15,9 @@ from railtracks.events.llm import (
     LLMInvocationEvent,
     LLMResponseEvent,
 )
-from railtracks.events.send import emit, pipe
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.model import ModelBase
-from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
@@ -161,10 +160,3 @@ class ModelInvoker:
             new_middleware_chain._middleware,
             get_scope_manager=new_middleware_chain.get_scope_manager,
         )
-
-    @classmethod
-    def _llm_observe_factory(
-        cls,
-        model_info: Callable[[], tuple[str, ModelProvider]],
-    ):
-        return _llm_observe
