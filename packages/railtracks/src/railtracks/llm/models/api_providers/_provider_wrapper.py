@@ -146,8 +146,6 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         if not litellm.supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
 
-    def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
-    ) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         self._validate_tool_calling_support()
-        return super()._chat_with_tools(messages, tools, **kwargs)
+        return super()._chat_with_tools(messages, tools)

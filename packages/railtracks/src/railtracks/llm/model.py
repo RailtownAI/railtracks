@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import (
-    Any,
     AsyncGenerator,
     Callable,
     Generator,
@@ -164,26 +163,24 @@ class ModelBase(ABC, Generic[_TStream]):
         return new_response
 
     @overload
-    def chat(
-        self: ModelBase[Literal[False]], messages: MessageHistory, **kwargs: Any
-    ) -> Response:
+    def chat(self: ModelBase[Literal[False]], messages: MessageHistory) -> Response:
         pass
 
     @overload
     def chat(
-        self: ModelBase[Literal[True]], messages: MessageHistory, **kwargs: Any
+        self: ModelBase[Literal[True]], messages: MessageHistory
     ) -> Generator[str | Response, None, Response]:
         pass
 
     def chat(
-        self, messages: MessageHistory, **kwargs: Any
+        self, messages: MessageHistory
     ) -> Response | Generator[str | Response, None, Response]:
         """Chat with the model using the provided messages."""
 
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._chat(messages, **kwargs)
+            response = self._chat(messages)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -196,22 +193,22 @@ class ModelBase(ABC, Generic[_TStream]):
 
     @overload
     async def achat(
-        self: ModelBase[Literal[False]], messages: MessageHistory, **kwargs: Any
+        self: ModelBase[Literal[False]], messages: MessageHistory
     ) -> Response:
         pass
 
     @overload
     async def achat(
-        self: ModelBase[Literal[True]], messages: MessageHistory, **kwargs: Any
+        self: ModelBase[Literal[True]], messages: MessageHistory
     ) -> Generator[str | Response, None, Response]:
         pass
 
-    async def achat(self, messages: MessageHistory, **kwargs: Any):
+    async def achat(self, messages: MessageHistory):
         """Asynchronous chat with the model using the provided messages."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._achat(messages, **kwargs)
+            response = await self._achat(messages)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -228,7 +225,6 @@ class ModelBase(ABC, Generic[_TStream]):
         self: ModelBase[Literal[False]],
         messages: MessageHistory,
         schema: Type[BaseModel],
-        **kwargs: Any,
     ) -> Response:
         pass
 
@@ -237,18 +233,15 @@ class ModelBase(ABC, Generic[_TStream]):
         self: ModelBase[Literal[True]],
         messages: MessageHistory,
         schema: Type[BaseModel],
-        **kwargs: Any,
     ) -> Generator[str | Response, None, Response]:
         pass
 
-    def structured(
-        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs: Any
-    ):
+    def structured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._structured(messages, schema, **kwargs)
+            response = self._structured(messages, schema)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -265,7 +258,6 @@ class ModelBase(ABC, Generic[_TStream]):
         self: ModelBase[Literal[False]],
         messages: MessageHistory,
         schema: Type[BaseModel],
-        **kwargs: Any,
     ) -> Response:
         pass
 
@@ -274,18 +266,15 @@ class ModelBase(ABC, Generic[_TStream]):
         self: ModelBase[Literal[True]],
         messages: MessageHistory,
         schema: Type[BaseModel],
-        **kwargs: Any,
     ) -> Generator[str | Response, None, Response]:
         pass
 
-    async def astructured(
-        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs: Any
-    ):
+    async def astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
         """Asynchronous structured interaction with the model using the provided messages and output_schema."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._astructured(messages, schema, **kwargs)
+            response = await self._astructured(messages, schema)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -299,30 +288,22 @@ class ModelBase(ABC, Generic[_TStream]):
 
     @overload
     def chat_with_tools(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory,
-        tools: List[Tool],
-        **kwargs: Any,
+        self: ModelBase[Literal[False]], messages: MessageHistory, tools: List[Tool]
     ) -> Response:
         pass
 
     @overload
     def chat_with_tools(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory,
-        tools: List[Tool],
-        **kwargs: Any,
+        self: ModelBase[Literal[True]], messages: MessageHistory, tools: List[Tool]
     ) -> Generator[str | Response, None, Response]:
         pass
 
-    def chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
-    ):
+    def chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = self._chat_with_tools(messages, tools, **kwargs)
+            response = self._chat_with_tools(messages, tools)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -335,30 +316,22 @@ class ModelBase(ABC, Generic[_TStream]):
 
     @overload
     async def achat_with_tools(
-        self: ModelBase[Literal[False]],
-        messages: MessageHistory,
-        tools: List[Tool],
-        **kwargs: Any,
+        self: ModelBase[Literal[False]], messages: MessageHistory, tools: List[Tool]
     ) -> Response:
         pass
 
     @overload
     async def achat_with_tools(
-        self: ModelBase[Literal[True]],
-        messages: MessageHistory,
-        tools: List[Tool],
-        **kwargs: Any,
+        self: ModelBase[Literal[True]], messages: MessageHistory, tools: List[Tool]
     ) -> Generator[str | Response, None, Response]:
         pass
 
-    async def achat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
-    ):
+    async def achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
         """Asynchronous chat with the model using the provided messages and tools."""
         messages = self._run_pre_hooks(messages)
 
         try:
-            response = await self._achat_with_tools(messages, tools, **kwargs)
+            response = await self._achat_with_tools(messages, tools)
         except Exception as e:
             self._run_exception_hooks(messages, e)
             raise e
@@ -372,25 +345,25 @@ class ModelBase(ABC, Generic[_TStream]):
 
     @abstractmethod
     def _chat(
-        self, messages: MessageHistory, **kwargs: Any
+        self, messages: MessageHistory
     ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     def _structured(
-        self, messages: MessageHistory, schema: Type[BaseModel], **kwargs: Any
+        self, messages: MessageHistory, schema: Type[BaseModel]
     ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
+        self, messages: MessageHistory, tools: List[Tool]
     ) -> Response | Generator[str | Response, None, Response]:
         pass
 
     @abstractmethod
     async def _achat(
-        self, messages: MessageHistory, **kwargs: Any
+        self, messages: MessageHistory
     ) -> Response | AsyncGenerator[str | Response, None]:
         pass
 
@@ -399,12 +372,11 @@ class ModelBase(ABC, Generic[_TStream]):
         self,
         messages: MessageHistory,
         schema: Type[BaseModel],
-        **kwargs: Any,
     ) -> Response | AsyncGenerator[str | Response, None]:
         pass
 
     @abstractmethod
     async def _achat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
+        self, messages: MessageHistory, tools: List[Tool]
     ) -> Response | AsyncGenerator[str | Response, None]:
         pass
