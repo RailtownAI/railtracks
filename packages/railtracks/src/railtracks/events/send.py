@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-
 from railtracks.context.central import get_current_scope
 from railtracks.events._base import (
     SessionEventBase,
