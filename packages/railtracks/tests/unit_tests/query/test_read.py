@@ -18,16 +18,16 @@ class TestListNamespaces:
     def test_union_of_samples_and_data(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"
         _write(f, [LLM_CALL, CUSTOM_NS_EVENT])
-        # samples floor: session, node, llm. data adds: llm (dup), custom.
-        assert list_namespaces(f) == sorted({"session", "node", "llm", "custom"})
+        # samples floor: llm, middleware, node. data adds: llm (dup), custom.
+        assert list_namespaces(f) == sorted({"llm", "middleware", "node", "custom"})
 
     def test_samples_alone_when_path_is_empty_directory(self, tmp_path: Path):
         # tmp_path has no jsonl files — only the bundled samples participate.
-        assert list_namespaces(tmp_path) == sorted({"session", "node", "llm"})
+        assert list_namespaces(tmp_path) == sorted({"llm", "middleware", "node"})
 
     def test_samples_alone_when_path_does_not_exist(self, tmp_path: Path):
         assert list_namespaces(tmp_path / "does_not_exist") == sorted(
-            {"session", "node", "llm"}
+            {"llm", "middleware", "node"}
         )
 
     def test_single_file_path(self, tmp_path: Path):
@@ -63,13 +63,13 @@ class TestScanRobustness:
         ns = list_namespaces(tmp_path)
         # The un-namespaced event is ignored; only bundled samples count.
         assert "no_dot_here" not in ns
-        assert ns == sorted({"session", "node", "llm"})
+        assert ns == sorted({"llm", "middleware", "node"})
 
     def test_missing_event_type_is_skipped(self, tmp_path: Path):
         no_type = {k: v for k, v in LLM_CALL.items() if k != "event_type"}
         (tmp_path / "e.jsonl").write_text(json.dumps(no_type) + "\n", encoding="utf-8")
         ns = list_namespaces(tmp_path)
-        assert ns == sorted({"session", "node", "llm"})
+        assert ns == sorted({"llm", "middleware", "node"})
 
     def test_non_dict_payload_still_records_the_namespace(self, tmp_path: Path):
         # Payload is a list, not a dict — namespace should still be picked up,
@@ -84,4 +84,4 @@ class TestSampleDiscovery:
         from railtracks.query.read import _sample_files
 
         names = [p.name for p in _sample_files()]
-        assert set(names) == {"llm.jsonl", "node.jsonl", "session.jsonl"}
+        assert set(names) == {"session.jsonl"}

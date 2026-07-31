@@ -3,7 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from railtracks.cli.io import print_error, print_status, print_warning
+
 from .read import _resolve_data_files, _sample_files, _scan
+
+if TYPE_CHECKING:
+    from duckdb import DuckDBPyConnection
 
 
 _INSTALL_HINT = "pip install 'railtracks[visual]'"
@@ -15,8 +20,7 @@ _ENVELOPE_COLUMNS: dict[str, str] = {
     "scope_type": "VARCHAR",
     "scope_id": "VARCHAR",
     "parent_scope_id": "VARCHAR",
-    "parent_event_id": "VARCHAR",
-    "stamp": "JSON",
+    "stamp": "TIMESTAMP WITH TIME ZONE",
     "payload": "JSON",
 }
 
@@ -30,8 +34,6 @@ def _require_duckdb():
         ) from e
     return duckdb
 
-if TYPE_CHECKING:
-    from duckdb import DuckDBPyConnection
 
 def connect(path: Path | str, namespaces: list[str]) -> EventQuery:
     """Requested namespaces present in samples or in ``path`` are registered as views;
@@ -69,59 +71,81 @@ class EventQuery:
         sample_files = _sample_files()
         data_files = _resolve_data_files(self._path)
         all_files = sample_files + data_files
-        found = _scan(all_files)
 
-        # Drop namespace views first (they depend on events), then events.
+        self._teardown_views()
+        if not all_files:
+            self.namespaces, self.namespaces_missing = [], list(self._requested)
+            return
+
+        self._build_events_view(all_files)
+        self._build_namespace_views(_scan(all_files))
+
+    def _teardown_views(self) -> None:
+        """Drop any views that were created for the requested namespaces, and the events view."""
         for ns in self._requested:
             self.con.execute(f"DROP VIEW IF EXISTS {_sql_identifier(ns)}")
         self.con.execute("DROP VIEW IF EXISTS events")
 
-        if all_files:
-            self.con.execute(
-                "CREATE VIEW events AS "
-                f"SELECT * FROM {_read_json_expr(all_files)} "
-                f"WHERE scope_id != {_sql_string(_SAMPLE_SCOPE_ID)}"
-            )
+    def _build_events_view(self, files: list[Path]) -> None:
+        """Create a view named ``events`` that unions all the JSONL files together."""
+        raw = self.con.read_json(
+            [str(p) for p in files],  # type: ignore[arg-type] typing issue in duckdb
+            format="newline_delimited",
+            columns=_ENVELOPE_COLUMNS,
+        )
+        raw.filter(f"scope_id != '{_SAMPLE_SCOPE_ID}'").create_view(
+            "events", replace=True
+        )
 
-        registered: list[str] = []
-        missing: list[str] = []
+    def _build_namespace_views(self, found: dict[str, set[str]]) -> None:
+        """Create views for each requested namespace."""
+        registered, missing = [], []
         for ns in self._requested:
-            if all_files and ns in found:
+            if ns in found:
                 _register_namespace_view(self.con, ns, sorted(found[ns]))
                 registered.append(ns)
             else:
                 missing.append(ns)
-
         self.namespaces = registered
         self.namespaces_missing = missing
+        print_status(
+            f"Registered {len(registered)} namespaces: {registered}; "
+            f"missing {len(missing)} namespaces: {missing}"
+        )
 
 
 def _register_namespace_view(con, namespace: str, payload_keys: list[str]) -> None:
+    """Create a view for a namespace, exposing envelope columns and payload keys."""
     envelope_cols = [c for c in _ENVELOPE_COLUMNS if c != "payload"]
-    # Payload keys that collide with envelope columns are dropped — envelope wins.
+    collided = [k for k in payload_keys if k in _ENVELOPE_COLUMNS]
+    if collided:
+        print_warning(
+            f"namespace {namespace!r}: payload keys {collided} collide with envelope columns and were dropped"
+        )
     exposed = [k for k in payload_keys if k not in _ENVELOPE_COLUMNS]
     projections = list(envelope_cols)
     for key in exposed:
         projections.append(f"payload->>{_sql_string(key)} AS {_sql_identifier(key)}")
-    con.execute(
-        f"CREATE VIEW {_sql_identifier(namespace)} AS "
-        f"SELECT {', '.join(projections)} "
-        "FROM events "
-        f"WHERE event_type LIKE {_sql_string(namespace + '.%')}"
-    )
 
-
-def _read_json_expr(files: list[Path]) -> str:
-    file_list = "[" + ", ".join(_sql_string(str(p)) for p in files) + "]"
-    columns = "{" + ", ".join(
-        f"{_sql_string(k)}: {_sql_string(v)}" for k, v in _ENVELOPE_COLUMNS.items()
-    ) + "}"
-    return f"read_json({file_list}, format='newline_delimited', columns={columns})"
+    try:
+        con.execute(
+            f"CREATE VIEW {_sql_identifier(namespace)} AS "
+            f"SELECT {', '.join(projections)} "
+            "FROM events "
+            f"WHERE event_type LIKE {_sql_string(namespace + '.%')}"
+        )
+    except Exception as e:
+        print_error(
+            f"Failed to create view for namespace {namespace!r} with payload keys {exposed}: {e}"
+        )
+        raise
 
 
 def _sql_string(value: str) -> str:
+    """Return a SQL string literal for the given value, escaping single quotes."""
     return "'" + value.replace("'", "''") + "'"
 
 
 def _sql_identifier(value: str) -> str:
+    """Return a SQL identifier for the given value, escaping double quotes."""
     return '"' + value.replace('"', '""') + '"'

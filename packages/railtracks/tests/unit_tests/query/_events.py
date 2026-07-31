@@ -8,8 +8,7 @@ LLM_CALL = {
     "scope_type": "session",
     "scope_id": "sess_a1",
     "parent_scope_id": None,
-    "parent_event_id": None,
-    "stamp": {"ts": "2026-07-10T14:00:00.000Z", "seq": 1},
+    "stamp": "2026-07-10T14:00:00.000+00:00",
     "payload": {
         "session_id": "sess_a1",
         "node_id": "node_root",
@@ -28,8 +27,7 @@ NODE_START = {
     "scope_type": "session",
     "scope_id": "sess_a1",
     "parent_scope_id": None,
-    "parent_event_id": None,
-    "stamp": {"ts": "2026-07-10T14:00:00.100Z", "seq": 2},
+    "stamp": "2026-07-10T14:00:00.100+00:00",
     "payload": {
         "session_id": "sess_a1",
         "node_id": "node_root",
@@ -44,7 +42,6 @@ CUSTOM_NS_EVENT = {
     "scope_type": "session",
     "scope_id": "sess_a1",
     "parent_scope_id": None,
-    "parent_event_id": None,
-    "stamp": {"ts": "2026-07-10T14:00:00.200Z", "seq": 3},
+    "stamp": "2026-07-10T14:00:00.200+00:00",
     "payload": {"foo": "bar", "children": [{"x": 1}]},
 }
