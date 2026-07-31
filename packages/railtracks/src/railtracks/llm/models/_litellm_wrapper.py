@@ -329,7 +329,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         Opens, iterates, and closes the blocking stream entirely on the calling thread (so the
         network stream object is never touched from more than one thread), marshaling each item
-        — or a terminal `_STREAM_DONE` / exception — back to the loop thread via `queue`.
+        or a terminal `_STREAM_DONE` / exception  back to the loop thread via `queue`.
         """
         try:
             gen = make_stream()

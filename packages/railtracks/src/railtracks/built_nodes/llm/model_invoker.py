@@ -151,9 +151,8 @@ class ModelInvoker:
             tools: list[Tool] | None,
         ) -> Response:
             # Streaming path: consume the model stream here, forwarding each chunk directly to
-            # the rt.astream handle's per-call queue, and hand the complete Response back
-            # through the middleware chain — exit middleware (e.g. output guardrails) operates
-            # on the buffered final response.
+            # the rt.astream handle's per-call queue, and back
+            # through the middleware chain.
             stream_queue = _stream_queue_if_enabled(model, tools)
             if stream_queue is not None:
                 if tools is not None and len(tools) > 0:

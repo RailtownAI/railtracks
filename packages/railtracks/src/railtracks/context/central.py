@@ -176,8 +176,7 @@ def get_stream_queue() -> asyncio.Queue[Any] | None:
 
     An LLM node uses this to decide whether to stream its model response token-by-token: when
     a queue is present the node writes each chunk onto it (drained by the `rt.astream` handle).
-    It is frame-local — set only on the entry frame of a streamed invocation and never
-    propagated to nested `rt.call` children — and is None when no context is present.
+    Set only on the entry frame of a streamed invocation.
     """
     context = runner_context.get()
     if context is None:
