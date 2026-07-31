@@ -34,7 +34,11 @@ UNSET = Unset()
 
 @dataclass(frozen=True)
 class SpatialParent:
-    pass
+    def __post_init__(self):
+        if not hasattr(self, "spatial_type"):
+            raise ValueError(
+                f"SpatialParent subclass {self.__class__.__name__} must define a 'spatial_type' field."
+            )
 
 
 @dataclass(frozen=True)
@@ -70,12 +74,15 @@ class LLMAndMiddlewareSpatialParent(SpatialParent):
 @dataclass(frozen=True)
 class NoSpatialParent(SpatialParent):
     spatial_type: Literal["none"] = field(init=False, default="none")
-    pass
 
 
 @dataclass(frozen=True)
 class Parent:
-    pass
+    def __post_init__(self):
+        if not hasattr(self, "parent_type"):
+            raise ValueError(
+                f"Parent subclass {self.__class__.__name__} must define a 'parent_type' field."
+            )
 
 
 @dataclass(frozen=True)
@@ -94,7 +101,7 @@ class MiddlewareParent(Parent):
 @dataclass(frozen=True)
 class LLMParent(Parent):
     parent_type: Literal["llm"] = field(init=False, default="llm")
-    llm_model_id: str
+    llm_type_id: str
     llm_invoke_id: str
 
 
