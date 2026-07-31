@@ -20,9 +20,9 @@ __all__ = [
     "Streaming",
     "output_mapping",
     "RTPublisher",
-    "stream_subscriber",
+    "event_subscriber",
 ]
 
-from ._subscriber import stream_subscriber
+from ._subscriber import event_subscriber
 from .publisher import RTPublisher
 from .utils import output_mapping

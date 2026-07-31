@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import asyncio
+from typing import TYPE_CHECKING, Any
 
 from railtracks.utils.config import ExecutorConfig
 
@@ -23,16 +24,14 @@ class InternalContext:
         publisher: RTPublisher | None = None,
         parent_id: str | None = None,
         executor_config: ExecutorConfig,
-        stream_enabled: bool = False,
-        stream_id: str | None = None,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         self._parent_id: str | None = parent_id
         self._publisher: RTPublisher | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
         self._executor_config: ExecutorConfig = executor_config
-        self._stream_enabled: bool = stream_enabled
-        self._stream_id: str | None = stream_id
+        self._stream_queue: asyncio.Queue[Any] | None = stream_queue
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -88,29 +87,21 @@ class InternalContext:
         return self._run_id
 
     @property
-    def stream_enabled(self) -> bool:
-        """True when the frame attached to this context should stream its LLM responses.
+    def stream_queue(self) -> asyncio.Queue[Any] | None:
+        """The queue that this frame's streamed LLM chunks are written to, or None.
 
-        This flag is frame-local: it is set only on the entry frame of a streamed invocation
-        (see `rt.astream`) and is never inherited by child frames.
+        When set, the frame is the entry of a streamed invocation (see `rt.astream`): its
+        LLM node writes each token chunk directly onto this queue, which the `Stream` handle
+        on the calling side drains. It is frame-local — never inherited by child frames — so
+        only the astream'd agent streams; nested `rt.call` children run buffered.
         """
-        return self._stream_enabled
-
-    @property
-    def stream_id(self) -> str | None:
-        """The stream scope this frame belongs to (the entry request id of a streamed run).
-
-        Unlike `stream_enabled`, this id is inherited by child frames so their explicit
-        broadcasts can be routed back to the consumer attached to the entry frame.
-        """
-        return self._stream_id
+        return self._stream_queue
 
     def prepare_new(
         self,
         new_parent_id: str,
         run_id: str | None = None,
-        stream: bool = False,
-        stream_id: str | None = None,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ) -> InternalContext:
         """
         Prepares a new InternalContext with a new parent ID. If `run_id` or `session_id` are not provided, they will default to the current context's values.
@@ -120,10 +111,9 @@ class InternalContext:
         Args:
             new_parent_id: The parent id of the new frame.
             run_id: The run id of the new frame. Defaults to the current context's run id.
-            stream: Whether the new frame should have streaming enabled. Note this is
-                deliberately NOT inherited from the current context (streaming is frame-local).
-            stream_id: The stream scope id of the new frame. If None, the current context's
-                stream id is inherited (so nested broadcasts stay routed to the entry consumer).
+            stream_queue: The queue the new frame streams its LLM chunks onto (see `rt.astream`).
+                Deliberately NOT inherited from the current context: streaming is frame-local,
+                so a child frame only streams when it is itself the entry of an astream call.
         """
 
         unwrapped_run_id: str | None
@@ -138,6 +128,5 @@ class InternalContext:
             session_id=self._session_id,
             run_id=unwrapped_run_id,
             executor_config=self._executor_config,
-            stream_enabled=stream,
-            stream_id=stream_id if stream_id is not None else self._stream_id,
+            stream_queue=stream_queue,
         )

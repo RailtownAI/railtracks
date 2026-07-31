@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextvars
 import logging
 import warnings
@@ -34,20 +35,18 @@ class RunnerContextVars:
         self,
         new_parent_id: str,
         new_run_id: str | None = None,
-        stream: bool = False,
-        stream_id: str | None = None,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         """
         Update the parent ID of the internal context.
 
-        `stream` marks the new frame as streaming-enabled (frame-local, never inherited),
-        while `stream_id` (inherited when None) tracks which stream scope the frame belongs to.
+        `stream_queue` (when set) makes the new frame the entry of a streamed invocation: its
+        LLM chunks are written onto this queue. It is frame-local and never inherited.
         """
         new_internal_context = self.internal_context.prepare_new(
             new_parent_id=new_parent_id,
             run_id=new_run_id,
-            stream=stream,
-            stream_id=stream_id,
+            stream_queue=stream_queue,
         )
 
         return RunnerContextVars(
@@ -171,30 +170,19 @@ def get_run_id() -> str | None:
     return context.internal_context.run_id
 
 
-def is_streaming_enabled() -> bool:
+def get_stream_queue() -> asyncio.Queue[Any] | None:
     """
-    Returns True when the current frame was invoked with streaming enabled (via `rt.astream`).
+    Returns the queue the current frame streams its LLM chunks onto, or None.
 
-    LLM nodes use this to decide whether to stream their model responses token-by-token.
-    The flag is frame-local: it is True only for the entry frame of a streamed invocation and
-    never propagates to nested `rt.call` children. Returns False when no context is present.
-    """
-    context = runner_context.get()
-    if context is None:
-        return False
-    return context.internal_context.stream_enabled
-
-
-def get_stream_id() -> str | None:
-    """
-    Returns the stream scope id of the current frame (the entry request id of the streamed
-    run this frame belongs to), or None when the frame is not part of a streamed run or no
-    context is present.
+    An LLM node uses this to decide whether to stream its model response token-by-token: when
+    a queue is present the node writes each chunk onto it (drained by the `rt.astream` handle).
+    It is frame-local — set only on the entry frame of a streamed invocation and never
+    propagated to nested `rt.call` children — and is None when no context is present.
     """
     context = runner_context.get()
     if context is None:
         return None
-    return context.internal_context.stream_id
+    return context.internal_context.stream_queue
 
 
 def register_globals(
@@ -309,8 +297,7 @@ def update_parent_id(
     new_parent_id: str,
     new_run_id: str | None = None,
     *,
-    stream: bool = False,
-    stream_id: str | None = None,
+    stream_queue: asyncio.Queue[Any] | None = None,
 ):
     """
     Update the parent ID of the current thread's global variables.
@@ -320,10 +307,8 @@ def update_parent_id(
     Args:
         new_parent_id: The parent id of the new frame.
         new_run_id: The run id of the new frame (defaults to the current one).
-        stream: If True, the new frame will have streaming enabled. This is frame-local:
-            child frames created afterwards will NOT inherit it.
-        stream_id: The stream scope id for the new frame. If None, the current stream id is
-            inherited.
+        stream_queue: If set, the new frame is the entry of a streamed invocation and writes
+            its LLM chunks onto this queue. Frame-local: child frames do NOT inherit it.
     """
     current_context = safe_get_runner_context()
 
@@ -335,7 +320,7 @@ def update_parent_id(
         raise RuntimeError("No global variable set")
 
     new_context = current_context.prepare_new(
-        new_parent_id, new_run_id=new_run_id, stream=stream, stream_id=stream_id
+        new_parent_id, new_run_id=new_run_id, stream_queue=stream_queue
     )
 
     runner_context.set(new_context)
@@ -425,9 +410,6 @@ def set_config(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    stream_callback: (
-        Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
-    ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ):
@@ -439,10 +421,7 @@ def set_config(
 
     Args:
         broadcast_callback: A passive listener for one-off events published with `rt.broadcast`.
-            Stream chunks go to `stream_callback` instead.
-        stream_callback: A passive listener for stream chunks published through
-            `rt.broadcast_stream` (LLM token streams included). It never enables streaming —
-            only `rt.astream` does.
+            (LLM token streaming is consumed directly by the `rt.astream` handle, not here.)
     """
 
     if is_context_active():
@@ -456,7 +435,6 @@ def set_config(
         timeout=timeout,
         end_on_error=end_on_error,
         subscriber=broadcast_callback,
-        stream_callback=stream_callback,
         prompt_injection=prompt_injection,
         save_state=save_state,
     )

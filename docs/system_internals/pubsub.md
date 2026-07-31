@@ -53,8 +53,6 @@ Messages are the data structures that flow through the PubSub system. All messag
 
 #### Special Messages
 - **`FatalFailure`**: Indicates an irrecoverable system failure
-- **`Streaming`**: Used for streaming data during execution
-    - Contains: the streamed object and node ID
 
 ### 2. Publisher (`publisher.py`)
 
@@ -151,13 +149,13 @@ async with Publisher() as pub:
 }'></div>
 Contains utilities for creating specialized subscribers.
 
-#### Stream Subscriber
-Converts streaming callbacks into proper message subscribers:
+#### Event Subscriber
+Converts a broadcast callback into a proper message subscriber:
 ```python
-def handle_stream_data(data):
-    print(f"Streaming: {data}")
+def handle_event(data):
+    print(f"Event: {data}")
 
-subscriber = stream_subscriber(handle_stream_data)
+subscriber = event_subscriber(handle_event)
 publisher.subscribe(subscriber)
 ```
 
@@ -232,15 +230,15 @@ result = await publisher.listener(
 )
 ```
 
-### 4. Streaming Data
+### 4. Broadcast Events
 ```python
-def process_stream(data):
-    # Process each piece of streaming data
+def process_event(data):
+    # Process each one-off broadcast event
     print(f"Processing: {data}")
 
-# Subscribe to streaming messages
-stream_handler = stream_subscriber(process_stream)
-publisher.subscribe(stream_handler, "stream_processor")
+# Subscribe to broadcast events
+event_handler = event_subscriber(process_event)
+publisher.subscribe(event_handler, "event_processor")
 ```
 
 ## Error Handling

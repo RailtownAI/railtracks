@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
-from typing import Awaitable, Callable
+from typing import Any, AsyncIterator, Awaitable, Callable
 
 from pydantic import BaseModel
 
@@ -10,8 +10,8 @@ from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
 from railtracks.built_nodes.llm.request_details import RequestDetails
-from railtracks.context.central import is_streaming_enabled
-from railtracks.interaction.broadcast_ import broadcast_stream
+from railtracks.context.central import get_stream_queue
+from railtracks.exceptions.errors import LLMError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.model import ModelBase
 from railtracks.llm.providers import TOOL_CALLING_STREAMING_BLACKLIST
@@ -23,17 +23,20 @@ from railtracks.utils.logging import get_rt_logger
 logger = get_rt_logger(__name__)
 
 
-def _should_stream(model: ModelBase, tools: list[Tool] | None) -> bool:
+def _stream_queue_if_enabled(
+    model: ModelBase, tools: list[Tool] | None
+) -> asyncio.Queue[Any] | None:
     """
     Frame-level streaming decision for a single model call.
 
-    Streaming is requested at the call site (`rt.astream`) and is frame-local, so this
-    returns True only for the entry frame of a streamed invocation. Tool-calling requests
-    against blacklisted providers fall back to a buffered call (with a warning) instead of
-    erroring.
+    Streaming is requested at the call site (`rt.astream`), which sets a per-call queue on the
+    entry frame's context. This returns that queue only when streaming is genuinely available
+    for this call, otherwise None (the call runs buffered). Tool-calling requests against
+    blacklisted providers fall back to a buffered call (with a warning) instead of erroring.
     """
-    if not is_streaming_enabled():
-        return False
+    queue = get_stream_queue()
+    if queue is None:
+        return None
     if (
         tools is not None
         and len(tools) > 0
@@ -44,8 +47,32 @@ def _should_stream(model: ModelBase, tools: list[Tool] | None) -> bool:
             "buffered response.",
             model.model_provider(),
         )
-        return False
-    return True
+        return None
+    return queue
+
+
+async def _drain_to_queue(
+    model_stream: AsyncIterator[str | Response],
+    queue: asyncio.Queue[Any],
+) -> Response:
+    """
+    Consumes a model token stream, forwarding each `str` chunk onto the astream queue and
+    returning the terminal `Response`.
+
+    Mirrors the buffered call's fail-fast contract: if the stream ends without producing a
+    `Response`, an `LLMError` is raised rather than returning a partial result.
+    """
+    final: Any = None
+    async for item in model_stream:
+        if isinstance(item, str):
+            queue.put_nowait(("chunk", item))
+        else:
+            final = item
+
+    if not isinstance(final, Response):
+        raise LLMError(reason="The stream did not yield a final Response object.")
+
+    return final
 
 
 @wrap_llm
@@ -123,11 +150,12 @@ class ModelInvoker:
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ) -> Response:
-            # Streaming path: consume the model stream here, broadcasting each chunk to the
-            # run's consumer (rt.astream), and hand the complete Response back through the
-            # middleware chain — exit middleware (e.g. output guardrails) operates on the
-            # buffered final response.
-            if _should_stream(model, tools):
+            # Streaming path: consume the model stream here, forwarding each chunk directly to
+            # the rt.astream handle's per-call queue, and hand the complete Response back
+            # through the middleware chain — exit middleware (e.g. output guardrails) operates
+            # on the buffered final response.
+            stream_queue = _stream_queue_if_enabled(model, tools)
+            if stream_queue is not None:
                 if tools is not None and len(tools) > 0:
                     model_stream = model.astream_chat_with_tools(messages, tools=tools)
                 elif schema is not None:
@@ -135,9 +163,9 @@ class ModelInvoker:
                 else:
                     model_stream = model.astream_chat(messages)
 
-                # broadcast_stream returns the complete Response (or raises LLMError if the
+                # _drain_to_queue returns the complete Response (or raises LLMError if the
                 # stream never produced one), mirroring the buffered branch below.
-                return await broadcast_stream(model_stream)
+                return await _drain_to_queue(model_stream, stream_queue)
 
             if tools is not None and len(tools) > 0:
                 return await asyncio.to_thread(
