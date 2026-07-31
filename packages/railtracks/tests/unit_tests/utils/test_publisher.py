@@ -382,13 +382,13 @@ class TestPublisherException:
         ), "Callback should still receive messages even if one broadcast_callback throws an exception"
 
     @pytest.mark.asyncio
-    async def test_event_subscriber_callback_exception(self, streaming_message):
+    async def test_event_subscriber_callback_exception(self, broadcast_event):
         def bad(val):
             raise Exception("fail!")  # coverage for error handling
 
         handler = event_subscriber(bad)
         with pytest.raises(Exception):
-            await handler(streaming_message)
+            await handler(broadcast_event)
 # ================ END Publisher exception tests ===============
 
 # ================= START Publisher listener tests ============
@@ -502,8 +502,8 @@ class TestPublisherSanity:
 # ================= START Subscriber (event_subscriber) tests ============
 class TestSubscriberEvent:
     @pytest.mark.asyncio
-    async def test_event_subscriber_handles_streaming_true(
-        self, streaming_message, streamed_object
+    async def test_event_subscriber_handles_broadcast_event(
+        self, broadcast_event, event_item
     ):
         results = []
 
@@ -511,12 +511,12 @@ class TestSubscriberEvent:
             results.append(val)
 
         handler = event_subscriber(cb)
-        await handler(streaming_message)
-        assert results == [streamed_object]
+        await handler(broadcast_event)
+        assert results == [event_item]
 
 
     @pytest.mark.asyncio
-    async def test_event_subscriber_skips_non_streaming(self):
+    async def test_event_subscriber_skips_non_event(self):
         class DummyMsg:
             pass
 
@@ -532,7 +532,7 @@ class TestSubscriberEvent:
 
     @pytest.mark.asyncio
     async def test_event_subscriber_supports_async_callbacks(
-        self, streaming_message, streamed_object
+        self, broadcast_event, event_item
     ):
         results = []
 
@@ -540,8 +540,8 @@ class TestSubscriberEvent:
             results.append(val)
 
         handler = event_subscriber(cb)
-        await handler(streaming_message)
-        assert results == [streamed_object]
+        await handler(broadcast_event)
+        assert results == [event_item]
 
 # ================ END Subscriber (event_subscriber) tests ===============
 
