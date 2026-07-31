@@ -15,10 +15,9 @@ from railtracks.events.llm import (
     LLMInvocationEvent,
     LLMResponseEvent,
 )
-from railtracks.events.send import pipe
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.model import ModelBase
-from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
@@ -39,7 +38,7 @@ async def _llm_observe(
     invocation_event = LLMInvocationEvent(
         message_input=prev_message_history,
     )
-    await pipe(invocation_event)
+    await emit(invocation_event)
     try:
         response: Response = await call(message_history, schema, tools)
     except Exception as e:
@@ -47,7 +46,7 @@ async def _llm_observe(
             message_input=prev_message_history,
             error_message=e,
         )
-        await pipe(event)
+        await emit(event)
         raise e
 
     event = LLMResponseEvent(
@@ -59,7 +58,7 @@ async def _llm_observe(
         system_fingerprint=response.message_info.system_fingerprint,
         latency=response.message_info.latency,
     )
-    await pipe(event)
+    await emit(event)
     return response
 
 
@@ -119,7 +118,7 @@ class ModelInvoker:
     ) -> Response:
         model = self._get_model()
 
-        await pipe(
+        await emit(
             LLMCreationEvent(
                 model_id=model.id,
                 model_name=model.model_name(),
@@ -161,10 +160,3 @@ class ModelInvoker:
             new_middleware_chain._middleware,
             get_scope_manager=new_middleware_chain.get_scope_manager,
         )
-
-    @classmethod
-    def _llm_observe_factory(
-        cls,
-        model_info: Callable[[], tuple[str, ModelProvider]],
-    ):
-        return _llm_observe

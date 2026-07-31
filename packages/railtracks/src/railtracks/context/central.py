@@ -390,9 +390,9 @@ class ContextVarScopeManager:
             runner_context.reset(token)
 
     @contextmanager
-    def enter_llm_call(self, llm_model_id: str):
+    def enter_llm_call(self, llm_type_id: str):
         llm_call_id = str(uuid.uuid4())
-        token = _push_scope(ScopeEntry(ScopeKind.LLM, llm_call_id, llm_model_id))
+        token = _push_scope(ScopeEntry(ScopeKind.LLM, llm_call_id, llm_type_id))
         try:
             yield
         finally:
