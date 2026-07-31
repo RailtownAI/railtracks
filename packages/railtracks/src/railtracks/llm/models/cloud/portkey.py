@@ -1,5 +1,5 @@
 import os
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 from ...models.api_providers._openai_compatable_provider_wrapper import (
     OpenAICompatibleProvider,
@@ -26,6 +26,7 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
         try:
             from portkey_ai import Portkey
@@ -56,6 +57,7 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
             service_tier=service_tier,
             verbosity=verbosity,
             retry_approach=retry_approach,
+            **kwargs,
         )
 
     @classmethod

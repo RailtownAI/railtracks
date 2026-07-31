@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 from ...providers import ModelProvider
 from ...retries import RetryApproach
@@ -25,6 +25,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
         """Initialize an OpenAI-compatible gateway LLM instance (e.g. via PortKey).
 
@@ -53,6 +54,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper[_TStream], ABC):
             service_tier=service_tier,
             verbosity=verbosity,
             retry_approach=retry_approach,
+            **kwargs,
         )
 
     def full_model_name(self, model_name: str) -> str:

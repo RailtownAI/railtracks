@@ -142,11 +142,11 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
             logger.error(e)
             raise
 
-    def chat_with_tools(self, messages, tools, **kwargs):
+    def chat_with_tools(self, messages, tools):
         if not supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
 
-        return super().chat_with_tools(messages, tools, **kwargs)
+        return super().chat_with_tools(messages, tools)
 
     @classmethod
     def model_gateway(cls):

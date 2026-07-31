@@ -31,6 +31,7 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
         """Initialize a provider-backed LLM instance.
 
@@ -62,6 +63,9 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
                 valid value, don't rely on validation.
             retry_approach (RetryApproach | None, optional): Retry strategy for transient
                 failures.
+            **kwargs: Any other litellm-supported completion param not named above
+                (e.g. `seed`, `logprobs`) — held as-is and merged into every completion
+                call. Never checked against `_hyperparameter_support`.
 
         Raises:
             ModelNotFoundError: If `model_name` doesn't belong to this provider.
@@ -94,6 +98,7 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
             service_tier=service_tier,
             verbosity=verbosity,
             retry_approach=retry_approach,
+            **kwargs,
         )
 
     def _pre_init_provider_check(self, model_name: str):
@@ -141,8 +146,6 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
         if not litellm.supports_function_calling(model=self._model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
 
-    def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool], **kwargs: Any
-    ) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         self._validate_tool_calling_support()
-        return super()._chat_with_tools(messages, tools, **kwargs)
+        return super()._chat_with_tools(messages, tools)

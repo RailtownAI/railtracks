@@ -209,6 +209,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
         """Initialize the litellm-backed model wrapper.
 
@@ -244,6 +245,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         self.reasoning_effort = reasoning_effort
         self.service_tier = service_tier
         self.verbosity = verbosity
+        self._extra_completion_kwargs = kwargs
         self._validate_common_hyperparameter_support()
 
     def _validate_common_hyperparameter_support(self) -> None:
@@ -274,7 +276,7 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     def _base_completion_kwargs(self) -> Dict[str, Any]:
         """Common kwargs shared by both `_invoke` and `_ainvoke`, merged in only if set."""
-        kwargs: Dict[str, Any] = {}
+        kwargs: Dict[str, Any] = dict(self._extra_completion_kwargs)
         for name in (
             "api_base",
             "api_key",
@@ -729,7 +731,6 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         Args:
             messages: The message history to use as context
             tools: The tools to make available to the model
-            **kwargs: Additional arguments to pass to litellm.completion
 
         Returns:
             A Response containing either plain assistant text or ToolCall(s).
