@@ -15,7 +15,7 @@ class ScopeManager(Protocol):
         self, middleware_type_id: str
     ) -> ContextManager[str | None]: ...
 
-    def enter_llm_call(self, llm_model_id: str) -> ContextManager[None]: ...
+    def enter_llm_call(self, llm_type_id: str) -> ContextManager[None]: ...
 
 
 class NullScopeManager:
@@ -34,7 +34,7 @@ class NullScopeManager:
         yield None
 
     @contextmanager
-    def enter_llm_call(self, llm_model_id: str):
+    def enter_llm_call(self, llm_type_id: str):
         yield
 
 
