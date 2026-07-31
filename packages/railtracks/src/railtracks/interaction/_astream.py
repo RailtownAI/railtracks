@@ -24,14 +24,13 @@ from railtracks.context.central import (
     get_run_id,
     is_context_present,
 )
-from railtracks.exceptions import GlobalTimeOutError
+from railtracks.exceptions import GlobalTimeOutError, NodeCreationError
 from railtracks.nodes.utils import extract_node_from_function
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
     RequestCreation,
     RequestFinishedBase,
-    Streaming,
 )
 from railtracks.pubsub.utils import output_mapping
 from railtracks.utils.logging import get_rt_logger
@@ -144,22 +143,23 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
 
         await activate_publisher()
         publisher = get_publisher()
+        # token chunks are written onto this queue directly by the streamed frame's LLM node
+        # (via the frame-local queue carried in its context); the completion subscriber below
+        # enqueues the terminal ("done", ...) marker.
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         self._queue = queue
 
         request_id = self._request_id
 
         def _subscriber(message: RequestCompletionMessage) -> None:
-            if isinstance(message, Streaming):
-                if message.stream_id == request_id:
-                    queue.put_nowait(("chunk", message.streamed_object))
-            elif isinstance(message, RequestFinishedBase):
+            # the Stream only listens for run completion here — chunk delivery bypasses the bus.
+            if isinstance(message, RequestFinishedBase):
                 if message.request_id == request_id:
                     queue.put_nowait(("done", message))
             elif isinstance(message, FatalFailure):
                 queue.put_nowait(("done", message))
 
-        # subscribe BEFORE publishing the request so no chunk can be missed
+        # subscribe BEFORE publishing the request so the completion marker can't be missed
         self._sub_id = publisher.subscribe(_subscriber, name="astream subscriber")
 
         self._timeout = get_local_config().timeout
@@ -176,7 +176,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
                 new_node_type=self._node,
                 args=self._args,
                 kwargs=self._kwargs,
-                stream=True,
+                stream_queue=queue,
             )
         )
 
@@ -326,6 +326,19 @@ def astream(
     else:
         # not an RTFunction (no `node_type`), so it is already a Node subclass
         node = cast("type[Node[_P, _TOutput]]", node_)
+
+    # rt.astream streams an agent's LLM tokens, so it only accepts agent nodes. Anything else
+    # (a @function_node / tool node) has no token stream to surface — use rt.call instead.
+    node_kind = node.type() if hasattr(node, "type") else None
+    if node_kind != "Agent":
+        name = node.name() if hasattr(node, "name") else repr(node_)
+        raise NodeCreationError(
+            message=f"rt.astream only supports agent nodes, but {name!r} is not one.",
+            notes=[
+                "Pass an agent built with rt.agent_node(...) to rt.astream(...).",
+                "To run a function/tool node, use rt.call(...) instead.",
+            ],
+        )
 
     # Session lifecycle is owned here, not by the Stream handle. When called outside any
     # session we open one and hold it in this closure; the Stream calls `_close` back once

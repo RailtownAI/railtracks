@@ -90,12 +90,11 @@ class RTState:
         if isinstance(item, RequestCreation):
             previous_context = safe_get_runner_context()
             if item.current_node_id is not None:
-                # restore the creating frame's context (including its stream scope) so the
-                # task created below inherits the correct lineage.
+                # restore the creating frame's context so the task created below inherits the
+                # correct lineage.
                 update_parent_id(
                     item.current_node_id,
                     item.current_run_id,
-                    stream_id=item.current_stream_id,
                 )
 
             try:
@@ -107,7 +106,7 @@ class RTState:
                     node=item.new_node_type,
                     args=item.args,
                     kwargs=item.kwargs,
-                    stream=item.stream,
+                    stream_queue=item.stream_queue,
                 )
             finally:
                 # restore publisher context after dispatching child tasks so root calls don't inherit stale run IDs
@@ -217,7 +216,7 @@ class RTState:
         node: type[Node[_P, _TOutput]],
         args,
         kwargs,
-        stream: bool = False,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         """
         This function will handle the creation of the node and the subsequent running of the node returning the result.
@@ -231,7 +230,8 @@ class RTState:
             node: The node you would like to create.
             args: The arguments to pass to the node.
             kwargs: The keyword arguments to pass to the node.
-            stream: If True, the created node's frame will have streaming enabled (frame-local).
+            stream_queue: When set, the created node is the entry of a streamed invocation and
+                writes its LLM chunks onto this queue (frame-local, see `rt.astream`).
 
         Returns:
             The output of the node that was run. It will match the output type of the child node that was run.
@@ -261,7 +261,9 @@ class RTState:
             logger.exception(rfa.to_logging_msg())
             raise e
         # you have to run this in a task so it isn't blocking other completions
-        outputs = asyncio.create_task(self._run_request(request_id, stream=stream))
+        outputs = asyncio.create_task(
+            self._run_request(request_id, stream_queue=stream_queue)
+        )
 
         return outputs
 
@@ -315,7 +317,9 @@ class RTState:
 
         return request_ids
 
-    async def _run_request(self, request_id: str, stream: bool = False):
+    async def _run_request(
+        self, request_id: str, stream_queue: asyncio.Queue[Any] | None = None
+    ):
         """
         Runs the request for the given request id.
 
@@ -326,7 +330,8 @@ class RTState:
 
         Args:
             request_id: The identifier for the request you would like to run
-            stream: If True, the node's frame will have streaming enabled (frame-local).
+            stream_queue: When set, the node's frame streams its LLM chunks onto this queue
+                (frame-local, see `rt.astream`).
 
 
         """
@@ -337,7 +342,7 @@ class RTState:
                 request_id=request_id,
                 node=node,
                 arguments=self._request_heap[request_id].input,
-                stream=stream,
+                stream_queue=stream_queue,
             ),
             mode="async",
         )

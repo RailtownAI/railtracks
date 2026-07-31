@@ -118,7 +118,7 @@ def test_update_parent_id(monkeypatch, make_runner_context_vars):
     monkeypatch.setattr(central, "runner_context", mock.Mock(set=mock.Mock()))
     central.update_parent_id("new-parent")
     rt.prepare_new.assert_called_with(
-        "new-parent", new_run_id=None, stream=False, stream_id=None
+        "new-parent", new_run_id=None, stream_queue=None
     )
     central.runner_context.set.assert_called_with("new_ctx")
 

@@ -3,7 +3,7 @@ import asyncio
 import time
 from railtracks.utils.publisher import Publisher, Subscriber
 
-from railtracks.pubsub._subscriber import stream_subscriber
+from railtracks.pubsub._subscriber import event_subscriber
 
 # ================= START Subscriber class tests ============
 
@@ -382,11 +382,11 @@ class TestPublisherException:
         ), "Callback should still receive messages even if one broadcast_callback throws an exception"
 
     @pytest.mark.asyncio
-    async def test_stream_subscriber_callback_exception(self, streaming_message):
+    async def test_event_subscriber_callback_exception(self, streaming_message):
         def bad(val):
             raise Exception("fail!")  # coverage for error handling
 
-        handler = stream_subscriber(bad)
+        handler = event_subscriber(bad)
         with pytest.raises(Exception):
             await handler(streaming_message)
 # ================ END Publisher exception tests ===============
@@ -499,10 +499,10 @@ class TestPublisherSanity:
 
 # ================ END Publisher advanced tests ===============
 
-# ================= START Subscriber (stream_subscriber) tests ============
-class TestSubscriberStream:
+# ================= START Subscriber (event_subscriber) tests ============
+class TestSubscriberEvent:
     @pytest.mark.asyncio
-    async def test_stream_subscriber_handles_streaming_true(
+    async def test_event_subscriber_handles_streaming_true(
         self, streaming_message, streamed_object
     ):
         results = []
@@ -510,13 +510,13 @@ class TestSubscriberStream:
         def cb(val):
             results.append(val)
 
-        handler = stream_subscriber(cb)
+        handler = event_subscriber(cb)
         await handler(streaming_message)
         assert results == [streamed_object]
 
 
     @pytest.mark.asyncio
-    async def test_stream_subscriber_skips_non_streaming(self):
+    async def test_event_subscriber_skips_non_streaming(self):
         class DummyMsg:
             pass
 
@@ -525,13 +525,13 @@ class TestSubscriberStream:
         def cb(val):
             results.append(val)
 
-        handler = stream_subscriber(cb)
+        handler = event_subscriber(cb)
         await handler(DummyMsg())
         assert results == []
 
 
     @pytest.mark.asyncio
-    async def test_stream_subscriber_supports_async_callbacks(
+    async def test_event_subscriber_supports_async_callbacks(
         self, streaming_message, streamed_object
     ):
         results = []
@@ -539,11 +539,11 @@ class TestSubscriberStream:
         async def cb(val):
             results.append(val)
 
-        handler = stream_subscriber(cb)
+        handler = event_subscriber(cb)
         await handler(streaming_message)
         assert results == [streamed_object]
 
-# ================ END Subscriber (stream_subscriber) tests ===============
+# ================ END Subscriber (event_subscriber) tests ===============
 
 # ================= START Miscellaneous corner cases ============
 class TestMisc:
