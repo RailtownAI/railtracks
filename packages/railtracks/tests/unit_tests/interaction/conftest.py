@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
+from railtracks.context.central import SessionIdentity
+
 @pytest.fixture
 def mock_publisher():
     """Fixture providing a mock publisher with async methods."""
@@ -28,12 +30,20 @@ def mock_context_functions():
          patch('railtracks.interaction._call.get_parent_id') as get_parent, \
          patch('railtracks.interaction._call.get_run_id') as get_run, \
          patch('railtracks.interaction._call.get_current_scope') as get_scope, \
+         patch('railtracks.interaction._call.get_session_identity') as get_identity, \
          patch('railtracks.interaction._call.get_local_config') as get_config:
 
         # Set default return values
         get_parent.return_value = "parent_123"
         get_run.return_value = "run_456"
         get_scope.return_value = None
+        # _start emits the session events, so it needs an identity to stamp them with
+        get_identity.return_value = SessionIdentity(
+            session_id="sess_789",
+            flow_name="mock-flow",
+            flow_id=None,
+            session_name=None,
+        )
 
         yield {
             'is_context_present': present,
@@ -43,6 +53,7 @@ def mock_context_functions():
             'get_parent_id': get_parent,
             'get_run_id': get_run,
             'get_current_scope': get_scope,
+            'get_session_identity': get_identity,
             'get_local_config': get_config
         }
 
