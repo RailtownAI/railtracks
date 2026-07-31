@@ -68,7 +68,6 @@ class LLMAndMiddlewareSpatialParent(SpatialParent):
 @dataclass(frozen=True)
 class NoSpatialParent(SpatialParent):
     spatial_type: Literal["none"] = field(init=False, default="none")
-    pass
 
 
 @dataclass(frozen=True)
