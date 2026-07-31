@@ -36,4 +36,4 @@ async def pipe(event: SessionEventBase) -> None:
     event.resolve_relationships(get_current_scope())
     event.verify()
 
-    await publish_event(make_session_event(event.event_type(), asdict(event)))
+    await publish_event(make_session_event(event.event_type(), event.encode()))

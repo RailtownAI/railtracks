@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 from typing_extensions import Self
@@ -39,6 +39,9 @@ class SpatialParent:
             raise ValueError(
                 f"SpatialParent subclass {self.__class__.__name__} must define a 'spatial_type' field."
             )
+        
+    def encode(self):
+        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -84,6 +87,9 @@ class Parent:
                 f"Parent subclass {self.__class__.__name__} must define a 'parent_type' field."
             )
 
+    def encode(self):
+        return asdict(self)
+
 
 @dataclass(frozen=True)
 class NodeParent(Parent):
@@ -111,7 +117,7 @@ TParent = TypeVar("TParent", bound=Parent)
 
 @dataclass(kw_only=True)
 class SessionEventBase(ABC, Generic[TSpatialParent]):
-    spatial_parent: TSpatialParent | Unset = field(init=False, default=UNSET)
+    spatial_parent: TSpatialParent | Unset = field(init=False, default=UNSET, metadata={"flatten": True})
 
     timestamp: datetime.datetime = field(
         init=False,
@@ -153,6 +159,22 @@ class SessionEventBase(ABC, Generic[TSpatialParent]):
         """
         ...
 
+    def encode(self):
+        encoded_json = {}
+        for f in fields(self):
+            if f.metadata.get("flatten", False):
+                inner_dict = getattr(self, f.name).encode()
+                for inner_key, inner_value in inner_dict.items():
+                    name = f"{f.name}_{inner_key}"
+                    encoded_json[name] = inner_value
+            else:
+                encoded_json[f.name] = getattr(self, f.name)
+        return encoded_json
+             
+
+
+            
+
 
 @dataclass(kw_only=True)
 class CreationEventBase(SessionEventBase[NoSpatialParent]):
@@ -170,7 +192,7 @@ class ParentEventBase(
     """A parent event is emitted after the created entity enters its own scope,
     so its parent resolves from the caller's ambient chain (no self-skip)."""
 
-    parent: TParent | Unset = field(init=False, default=UNSET)
+    parent: TParent | Unset = field(init=False, default=UNSET, metadata={"flatten": True})
 
     def resolve_relationships(self, scope: ScopeLink[ScopeEntry] | None):
         """Resolve the event's spatial parent and parent from the current scope chain.

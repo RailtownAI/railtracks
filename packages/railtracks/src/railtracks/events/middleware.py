@@ -44,7 +44,6 @@ _T = TypeVar("_T", bound=NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatia
 
 @dataclass(kw_only=True)
 class MiddlewareEventBase(ParentEventBase[_T, MiddlewareParent], Generic[_T]):
-    parent: MiddlewareParent | Unset = UNSET
 
     def verify(self) -> None:
         super().verify()
