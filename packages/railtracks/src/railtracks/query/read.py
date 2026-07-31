@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-_SAMPLES_DIR = Path(__file__).parent / "_samples"
-
-
-def _sample_files() -> list[Path]:
-    if not _SAMPLES_DIR.is_dir():
-        return []
-    return sorted(_SAMPLES_DIR.glob("*.jsonl"))
+from railtracks.events.registry import namespaces as _registry_namespaces
 
 
 def _resolve_data_files(path: Path | str) -> list[Path]:
@@ -21,30 +14,10 @@ def _resolve_data_files(path: Path | str) -> list[Path]:
     return []
 
 
-def _scan(files: list[Path]) -> dict[str, set[str]]:
-    result: dict[str, set[str]] = {}
-    for path in files:
-        with path.open(encoding="utf-8") as fh:
-            for raw in fh:
-                line = raw.strip()
-                if not line:
-                    continue
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                event_type = event.get("event_type") or ""
-                if "." not in event_type:
-                    continue
-                namespace = event_type.split(".", 1)[0]
-                bucket = result.setdefault(namespace, set())
-                payload = event.get("payload")
-                if isinstance(payload, dict):
-                    bucket.update(payload.keys())
-    return result
+def list_namespaces(_path: Path | str | None = None) -> list[str]:
+    """Return the namespaces backed by an event dataclass in ``railtracks.events``.
 
-
-def list_namespaces(path: Path | str) -> list[str]:
-    """Union of namespaces in the bundled samples and in ``path``."""
-    files = _sample_files() + _resolve_data_files(path)
-    return sorted(_scan(files).keys())
+    The ``path`` argument is accepted for signature stability but ignored — namespace
+    membership is now static, driven by the registry.
+    """
+    return _registry_namespaces()

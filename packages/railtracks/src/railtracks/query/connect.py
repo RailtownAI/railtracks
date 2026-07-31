@@ -4,8 +4,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from railtracks.cli.io import print_error, print_status, print_warning
+from railtracks.events.registry import namespaces as _registry_namespaces
 
-from .read import _resolve_data_files, _sample_files, _scan
+from .read import _resolve_data_files
 from .schema import duckdb_columns
 
 if TYPE_CHECKING:
@@ -13,7 +14,6 @@ if TYPE_CHECKING:
 
 
 _INSTALL_HINT = "pip install 'railtracks[visual]'"
-_SAMPLE_SCOPE_ID = "__sample__"
 
 _ENVELOPE_COLUMNS: dict[str, str] = {
     "event_id": "VARCHAR",
@@ -37,7 +37,7 @@ def _require_duckdb():
 
 
 def connect(path: Path | str, namespaces: list[str]) -> EventQuery:
-    """Requested namespaces present in samples or in ``path`` are registered as views;
+    """Requested namespaces backed by an event dataclass are registered as views;
     the rest land in ``EventQuery.namespaces_missing``."""
     duckdb = _require_duckdb()
     return EventQuery(duckdb.connect(), path, namespaces)
@@ -67,19 +67,17 @@ class EventQuery:
         self.close()
 
     def refresh(self) -> None:
-        """Re-scan the files and rebuild the views. Mutates ``namespaces`` /
+        """Re-read the data files and rebuild the views. Mutates ``namespaces`` /
         ``namespaces_missing`` in place."""
-        sample_files = _sample_files()
         data_files = _resolve_data_files(self._path)
-        all_files = sample_files + data_files
 
         self._teardown_views()
-        if not all_files:
+        if not data_files:
             self.namespaces, self.namespaces_missing = [], list(self._requested)
             return
 
-        self._build_events_view(all_files)
-        self._build_namespace_views(_scan(all_files))
+        self._build_events_view(data_files)
+        self._build_namespace_views()
 
     def _teardown_views(self) -> None:
         """Drop any views that were created for the requested namespaces, and the events view."""
@@ -89,21 +87,19 @@ class EventQuery:
 
     def _build_events_view(self, files: list[Path]) -> None:
         """Create a view named ``events`` that unions all the JSONL files together."""
-        raw = self.con.read_json(
+        self.con.read_json(
             [str(p) for p in files],  # type: ignore[arg-type] typing issue in duckdb
             format="newline_delimited",
             columns=_ENVELOPE_COLUMNS,
-        )
-        raw.filter(f"scope_id != '{_SAMPLE_SCOPE_ID}'").create_view(
-            "events", replace=True
-        )
+        ).create_view("events", replace=True)
 
-    def _build_namespace_views(self, found: dict[str, set[str]]) -> None:
-        """Create views for each requested namespace."""
+    def _build_namespace_views(self) -> None:
+        """Create views for each requested namespace that has a dataclass backing it."""
+        registry_ns = set(_registry_namespaces())
         registered, missing = [], []
         for ns in self._requested:
-            if ns in found:
-                _register_namespace_view(self.con, ns, sorted(found[ns]))
+            if ns in registry_ns:
+                _register_namespace_view(self.con, ns)
                 registered.append(ns)
             else:
                 missing.append(ns)
@@ -115,32 +111,21 @@ class EventQuery:
         )
 
 
-def _register_namespace_view(con, namespace: str, payload_keys: list[str]) -> None:
-    """Create a view for a namespace, exposing envelope columns and payload keys.
-
-    Known namespaces (backed by event dataclasses) get typed columns from the
-    registry. Unknown namespaces fall back to VARCHAR projections keyed off the
-    scanned payload keys.
-    """
+def _register_namespace_view(con, namespace: str) -> None:
+    """Create a view for a namespace, exposing envelope columns and typed payload columns."""
     envelope_cols = [c for c in _ENVELOPE_COLUMNS if c != "payload"]
     projections = list(envelope_cols)
 
     registry_cols = duckdb_columns(namespace)
-    if registry_cols:
-        source_keys = list(registry_cols.keys())
-        key_type = registry_cols.__getitem__
-    else:
-        source_keys = payload_keys
-        key_type = lambda _k: "VARCHAR"  # noqa: E731
-
-    collided = [k for k in source_keys if k in _ENVELOPE_COLUMNS]
+    collided = [k for k in registry_cols if k in _ENVELOPE_COLUMNS]
     if collided:
         print_warning(
             f"namespace {namespace!r}: payload keys {collided} collide with envelope columns and were dropped"
         )
-    exposed = [k for k in source_keys if k not in _ENVELOPE_COLUMNS]
-    for key in exposed:
-        projections.append(_project_payload_key(key, key_type(key)))
+    for key, duckdb_type in registry_cols.items():
+        if key in _ENVELOPE_COLUMNS:
+            continue
+        projections.append(_project_payload_key(key, duckdb_type))
 
     try:
         con.execute(
@@ -151,7 +136,7 @@ def _register_namespace_view(con, namespace: str, payload_keys: list[str]) -> No
         )
     except Exception as e:
         print_error(
-            f"Failed to create view for namespace {namespace!r} with payload keys {exposed}: {e}"
+            f"Failed to create view for namespace {namespace!r}: {e}"
         )
         raise
 

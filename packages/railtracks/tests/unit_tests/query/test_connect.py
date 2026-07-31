@@ -54,24 +54,19 @@ class TestConnectDirectory:
             assert (nodes, llms) == (1, 1)
 
 
-class TestSamples:
-    def test_sampled_namespace_with_no_real_data_view_exists_zero_rows(self, tmp_path: Path):
+class TestEmptyRegisteredNamespace:
+    def test_registered_namespace_with_no_events_still_gets_a_view(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["node", "llm"])) as q:
-            assert "node" in q.namespaces
+            assert set(q.namespaces) == {"node", "llm"}
             assert q.namespaces_missing == []
             (n,) = q.con.execute("SELECT COUNT(*) FROM node").fetchone()
             assert n == 0
 
-    def test_sample_rows_never_leak_into_namespace_view(self, tmp_path: Path):
-        f = tmp_path / "e.jsonl"
-        _write(f, [LLM_RESPONSE])
-        with closing(connect(f, ["llm"])) as q:
-            rows = q.con.execute("SELECT event_id FROM llm ORDER BY event_id").fetchall()
-            assert rows == [("evt_llm_1",)]
 
-    def test_events_view_excludes_samples(self, tmp_path: Path):
+class TestEventsView:
+    def test_events_view_contains_all_written_rows(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, [])) as q:
@@ -79,43 +74,36 @@ class TestSamples:
             assert ids == ["evt_llm_1"]
 
 
-class TestUnsampledNamespaces:
-    def test_absent_from_data_lands_in_missing(self, tmp_path: Path):
+class TestUnregisteredNamespaces:
+    def test_unknown_namespace_lands_in_missing(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["retrieval"])) as q:
             assert q.namespaces == []
             assert q.namespaces_missing == ["retrieval"]
 
-    def test_present_in_data_gets_registered(self, tmp_path: Path):
+    def test_custom_events_in_data_do_not_auto_register(self, tmp_path: Path):
+        # No more scan-based fallback: only registry-backed namespaces materialize views.
         f = tmp_path / "e.jsonl"
         _write(f, [CUSTOM_NS_EVENT])
         with closing(connect(f, ["custom"])) as q:
-            assert q.namespaces == ["custom"]
-            assert q.namespaces_missing == []
-            (foo,) = q.con.execute("SELECT foo FROM custom").fetchone()
-            assert foo == "bar"
+            assert q.namespaces == []
+            assert q.namespaces_missing == ["custom"]
 
 
 class TestRefresh:
-    def test_picks_up_namespace_that_appears_after_connect(self, tmp_path: Path):
+    def test_picks_up_new_events_in_the_file(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"
         _write(f, [LLM_RESPONSE])
-        with closing(connect(f, ["llm", "retrieval"])) as q:
-            assert q.namespaces_missing == ["retrieval"]
-            new_event = {
-                **CUSTOM_NS_EVENT,
-                "event_id": "evt_r1",
-                "event_type": "retrieval.query",
-                "payload": {"query": "hi"},
-            }
+        with closing(connect(f, ["llm"])) as q:
+            (n,) = q.con.execute("SELECT COUNT(*) FROM llm").fetchone()
+            assert n == 1
+            new_event = {**LLM_RESPONSE, "event_id": "evt_llm_2"}
             with f.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(new_event) + "\n")
             q.refresh()
-            assert "retrieval" in q.namespaces
-            assert q.namespaces_missing == []
-            (n,) = q.con.execute("SELECT COUNT(*) FROM retrieval").fetchone()
-            assert n == 1
+            (n,) = q.con.execute("SELECT COUNT(*) FROM llm").fetchone()
+            assert n == 2
 
     def test_returns_none(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"
@@ -196,20 +184,6 @@ class TestFlatParent:
                 "SELECT parent_parent_type, parent_llm_type_id, parent_llm_invoke_id FROM llm"
             ).fetchone()
             assert row == ("llm", "llm_type_a", "llm_invoke_b")
-
-
-class TestUnregisteredNamespaceFallback:
-    def test_custom_namespace_columns_are_varchar(self, tmp_path: Path):
-        # Unregistered namespaces still work — scan derives keys, all as VARCHAR.
-        f = tmp_path / "e.jsonl"
-        _write(f, [CUSTOM_NS_EVENT])
-        with closing(connect(f, ["custom"])) as q:
-            (foo,) = q.con.execute("SELECT foo FROM custom").fetchone()
-            assert foo == "bar"
-            (n,) = q.con.execute(
-                "SELECT json_array_length(CAST(children AS JSON)) FROM custom"
-            ).fetchone()
-            assert n == 1
 
 
 class TestEnvelopeCollision:
