@@ -1,4 +1,5 @@
 from .messages import (
+    BroadcastEvent,
     FatalFailure,
     RequestCompletionMessage,
     RequestCreation,
@@ -6,7 +7,6 @@ from .messages import (
     RequestFailure,
     RequestFinishedBase,
     RequestSuccess,
-    Streaming,
 )
 
 __all__ = [
@@ -17,7 +17,7 @@ __all__ = [
     "RequestSuccess",
     "RequestFinishedBase",
     "FatalFailure",
-    "Streaming",
+    "BroadcastEvent",
     "output_mapping",
     "RTPublisher",
     "event_subscriber",

@@ -194,29 +194,26 @@ class FatalFailure(RequestCompletionMessage):
         return f"{self.__class__.__name__}(error={self.error})"
 
 
-class Streaming(RequestCompletionMessage):
+class BroadcastEvent(RequestCompletionMessage):
     """
-    A message carrying a single one-off broadcast event published with `rt.broadcast`.
+    A message carrying a single one-off event published with `rt.broadcast`.
 
-    LLM token chunks are NOT carried here — those flow directly to the `rt.astream` handle
-    through its per-call queue. This message drives the `broadcast_callback` event lane only.
+    This drives the `broadcast_callback` lane: a user emits a discrete event from inside a
+    node and any attached callback receives it. Each event stands alone.
 
     Args:
-        streamed_object: The event item being broadcast (typically a `str`).
+        item: The event being broadcast (typically a `str`).
         node_id: The id of the node that emitted the event.
     """
 
     def __init__(
         self,
         *,
-        streamed_object: Any,
+        item: Any,
         node_id: str | None,
     ):
-        self.streamed_object = streamed_object
+        self.item = item
         self.node_id = node_id
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(streamed_object={self.streamed_object}, "
-            f"node_id={self.node_id})"
-        )
+        return f"{self.__class__.__name__}(item={self.item}, node_id={self.node_id})"

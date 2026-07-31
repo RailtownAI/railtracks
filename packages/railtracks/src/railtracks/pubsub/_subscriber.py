@@ -1,24 +1,22 @@
 import asyncio
 from typing import Any, Callable, Coroutine, Union
 
-from .messages import RequestCompletionMessage, Streaming
+from .messages import BroadcastEvent, RequestCompletionMessage
 
 
 def event_subscriber(
     sub_callback: Callable[[Any], Union[None, Coroutine[None, None, None]]],
 ) -> Callable[[RequestCompletionMessage], Coroutine[None, None, None]]:
     """
-    Wraps a user callback into a bus handler for one-off broadcast events.
+    Wraps a user callback into a bus handler for broadcast events.
 
-    The handler fires only on `Streaming` messages (published by `rt.broadcast`), forwarding
-    the broadcast item to `sub_callback`. LLM token streaming does not flow through the bus —
-    it is consumed directly by the `rt.astream` handle — so this callback only ever sees
-    explicit `rt.broadcast` events.
+    Fires on each `BroadcastEvent` message (published by `rt.broadcast`), forwarding the
+    event to `sub_callback`. This is the only traffic `BroadcastEvent` carries.
     """
 
-    async def subscriber_handler(item: RequestCompletionMessage):
-        if isinstance(item, Streaming):
-            result = sub_callback(item.streamed_object)
+    async def subscriber_handler(message: RequestCompletionMessage):
+        if isinstance(message, BroadcastEvent):
+            result = sub_callback(message.item)
             if asyncio.iscoroutine(result):
                 await result
 
