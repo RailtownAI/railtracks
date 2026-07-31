@@ -9,6 +9,7 @@ from railtracks.llm.providers import ModelProvider
 
 from ._base import (
     CreationEventBase,
+    FailureMixin,
     LLMParent,
     NodeSpatialParent,
     ParentEventBase,
@@ -28,7 +29,7 @@ class LLMMessageBase(ParentEventBase[NodeSpatialParent, LLMParent]):
 
 @dataclass(kw_only=True)
 class LLMCreationEvent(CreationEventBase):
-    model_id: str
+    llm_model_id: str
     model_provider: ModelProvider
     model_name: str
 
@@ -56,8 +57,6 @@ class LLMResponseEvent(LLMMessageBase):
 
 
 @dataclass(kw_only=True)
-class LLMFailureEvent(LLMMessageBase):
-    error_message: Exception
-
+class LLMFailureEvent(LLMMessageBase, FailureMixin):
     def event_type(self) -> str:
         return "llm.failure"

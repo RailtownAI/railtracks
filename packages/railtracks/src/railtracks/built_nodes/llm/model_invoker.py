@@ -42,10 +42,7 @@ async def _llm_observe(
     try:
         response: Response = await call(message_history, schema, tools)
     except Exception as e:
-        event = LLMFailureEvent(
-            message_input=prev_message_history,
-            error_message=e,
-        )
+        event = LLMFailureEvent.from_exception(e, message_input=prev_message_history)
         await emit(event)
         raise e
 
@@ -120,7 +117,7 @@ class ModelInvoker:
 
         await emit(
             LLMCreationEvent(
-                model_id=model.id,
+                llm_model_id=model.id,
                 model_name=model.model_name(),
                 model_provider=model.model_provider(),
             )

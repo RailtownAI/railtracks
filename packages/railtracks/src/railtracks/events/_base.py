@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import datetime
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar
+
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from railtracks.context.scope_link import ScopeLink
@@ -38,11 +40,14 @@ class SpatialParent:
                 f"SpatialParent subclass {self.__class__.__name__} must define a 'spatial_type' field."
             )
 
+    def encode(self):
+        return asdict(self)
+
 
 @dataclass(frozen=True)
 class MiddlewareSpatialParent(SpatialParent):
     spatial_type: Literal["middleware"] = field(init=False, default="middleware")
-    middleware_id: str
+    middleware_invoke_id: str
 
 
 @dataclass(frozen=True)
@@ -57,7 +62,7 @@ class NodeAndMiddlewareSpatialParent(SpatialParent):
         init=False, default="node_and_middleware"
     )
     node_id: str
-    middleware_id: str | None
+    middleware_invoke_id: str | None
 
 
 @dataclass(frozen=True)
@@ -65,8 +70,8 @@ class LLMAndMiddlewareSpatialParent(SpatialParent):
     spatial_type: Literal["llm_and_middleware"] = field(
         init=False, default="llm_and_middleware"
     )
-    llm_id: str
-    middleware_id: str | None
+    llm_invoke_id: str
+    middleware_invoke_id: str | None
 
 
 @dataclass(frozen=True)
@@ -82,6 +87,9 @@ class Parent:
                 f"Parent subclass {self.__class__.__name__} must define a 'parent_type' field."
             )
 
+    def encode(self):
+        return asdict(self)
+
 
 @dataclass(frozen=True)
 class NodeParent(Parent):
@@ -92,7 +100,7 @@ class NodeParent(Parent):
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
     parent_type: Literal["middleware"] = field(init=False, default="middleware")
-    middleware_id: str
+    middleware_type_id: str
     middleware_invoke_id: str
 
 
@@ -109,7 +117,9 @@ TParent = TypeVar("TParent", bound=Parent)
 
 @dataclass(kw_only=True)
 class SessionEventBase(ABC, Generic[TSpatialParent]):
-    spatial_parent: TSpatialParent | Unset = field(init=False, default=UNSET)
+    spatial_parent: TSpatialParent | Unset = field(
+        init=False, default=UNSET, metadata={"flatten": True}
+    )
 
     timestamp: datetime.datetime = field(
         init=False,
@@ -151,6 +161,18 @@ class SessionEventBase(ABC, Generic[TSpatialParent]):
         """
         ...
 
+    def encode(self):
+        encoded_json = {}
+        for f in fields(self):
+            if f.metadata.get("flatten", False):
+                inner_dict = getattr(self, f.name).encode()
+                for inner_key, inner_value in inner_dict.items():
+                    name = f"{f.name}_{inner_key}"
+                    encoded_json[name] = inner_value
+            else:
+                encoded_json[f.name] = getattr(self, f.name)
+        return encoded_json
+
 
 @dataclass(kw_only=True)
 class CreationEventBase(SessionEventBase[NoSpatialParent]):
@@ -168,7 +190,9 @@ class ParentEventBase(
     """A parent event is emitted after the created entity enters its own scope,
     so its parent resolves from the caller's ambient chain (no self-skip)."""
 
-    parent: TParent | Unset = field(init=False, default=UNSET)
+    parent: TParent | Unset = field(
+        init=False, default=UNSET, metadata={"flatten": True}
+    )
 
     def resolve_relationships(self, scope: ScopeLink[ScopeEntry] | None):
         """Resolve the event's spatial parent and parent from the current scope chain.
@@ -182,3 +206,17 @@ class ParentEventBase(
     @abstractmethod
     def _get_parent(self, scope: ScopeLink[ScopeEntry] | None) -> TParent:
         pass
+
+
+@dataclass(kw_only=True)
+class FailureMixin:
+    exception_name: str
+    exception_message: str
+
+    @classmethod
+    def from_exception(cls, exc: Exception, **kwargs) -> Self:
+        return cls(
+            exception_name=type(exc).__name__,
+            exception_message=str(exc),
+            **kwargs,
+        )

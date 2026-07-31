@@ -197,7 +197,7 @@ def get_middleware_id() -> MiddlewareCallData | None:
     scope chain to the nearest middleware entry).
 
     Returns:
-        str | None: The middleware id, or None if no middleware is currently active.
+        MiddlewareCallData | None: The middleware id, or None if no middleware is currently active.
 
     Raises:
         ContextError: If the global variables have not been registered.

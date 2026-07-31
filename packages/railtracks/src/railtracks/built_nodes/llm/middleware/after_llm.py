@@ -3,6 +3,12 @@ from typing import Awaitable, Callable
 from pydantic import BaseModel
 
 from railtracks.built_nodes._types import LLM_CALL
+from railtracks.events.middleware import (
+    MiddlewareModelOutputFailureEvent,
+    MiddlewareModelOutputInvocationEvent,
+    MiddlewareModelOutputResponseEvent,
+)
+from railtracks.events.send import pipe
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
@@ -30,7 +36,26 @@ def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
-        response = await llm_call(message_history, schema, tools)
-        return await unpack_async_sync(fn(response))
+        try:
+            response = await llm_call(message_history, schema, tools)
+        except Exception as e:
+            event = MiddlewareModelOutputFailureEvent.from_exception(e)
+            await pipe(event)
+            raise e
+
+        input_event = MiddlewareModelOutputInvocationEvent(
+            response=response,
+        )
+        await pipe(input_event)
+
+        response = await unpack_async_sync(fn(response))
+
+        output_event = MiddlewareModelOutputResponseEvent(
+            response=response,
+        )
+
+        await pipe(output_event)
+
+        return response
 
     return wrapper

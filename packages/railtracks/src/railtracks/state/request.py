@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 import uuid
 from dataclasses import dataclass
 from functools import reduce
@@ -24,6 +25,17 @@ class Cancelled:
 class Failure:
     def __init__(self, exception: Exception):
         self.exception = exception
+
+    def encode(self):
+        return {
+            "type": type(self.exception).__name__,
+            "message": str(self.exception),
+            "traceback": "".join(
+                traceback.format_exception(
+                    type(self.exception), self.exception, self.exception.__traceback__
+                )
+            ),
+        }
 
 
 @dataclass(frozen=True)

@@ -2,6 +2,12 @@ from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
+from railtracks.events.middleware import (
+    MiddlewareModelFailureEvent,
+    MiddlewareModelInvocationEvent,
+    MiddlewareModelResponseEvent,
+)
+from railtracks.events.send import pipe
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
@@ -29,6 +35,34 @@ def wrap_llm(
         return response
     ```
     """
-    wrapped = wrap_node(fn)
 
-    return wrapped
+    @wrap_node
+    async def _pipe_wrapped(
+        llm_call: LLM_CALL,
+        message_history: MessageHistory,
+        schema: type[BaseModel] | None,
+        tools: list[Tool] | None,
+    ):
+        input_event = MiddlewareModelInvocationEvent(
+            message_history=message_history,
+            schema=schema,
+            tools=tools,
+        )
+        await pipe(input_event)
+
+        try:
+            response = await fn(llm_call, message_history, schema, tools)
+        except Exception as e:
+            event = MiddlewareModelFailureEvent.from_exception(e)
+            await pipe(event)
+            raise e
+
+        output_event = MiddlewareModelResponseEvent(
+            response=response,
+        )
+
+        await pipe(output_event)
+
+        return response
+
+    return _pipe_wrapped

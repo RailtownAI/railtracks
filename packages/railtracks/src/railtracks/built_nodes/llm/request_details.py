@@ -30,3 +30,16 @@ class RequestDetails:
 
     def __repr__(self):
         return f"RequestDetails(model_name={self.model_name}, model_provider={self.model_provider}, input={self.input}, output={self.output})"
+
+    def encode(self):
+        return {
+            "model_name": self.model_name,
+            "model_provider": self.model_provider,
+            "input": self.input,
+            "output": self.output,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_cost": self.total_cost,
+            "system_fingerprint": self.system_fingerprint,
+            "latency": self.latency,
+        }

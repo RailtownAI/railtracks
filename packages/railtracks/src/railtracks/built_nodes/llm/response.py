@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -24,6 +24,12 @@ class LLMResponse(Generic[_T]):
 
     def __repr__(self):
         return f"LLMResponse({self.content})"
+
+    def encode(self) -> dict[str, Any]:
+        return {
+            "content": self.content,
+            "message_history": self.message_history,
+        }
 
     @property
     def tool_invocations(self) -> list[tuple[ToolCall, ToolResponse]]:
