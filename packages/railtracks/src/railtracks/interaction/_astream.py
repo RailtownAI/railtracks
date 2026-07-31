@@ -53,33 +53,20 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
     """
     The handle returned by `rt.astream(...)`.
 
-    A `Stream` is an async iterator over the chunks emitted during a streamed invocation. It
-    yields *only* chunks (typically `str` tokens); the node's final return value is exposed
-    separately so there is never any ambiguity between a chunk and the final result:
+    Async-iterate a `Stream` to receive the chunks (typically `str` tokens) emitted during
+    the run, then read the node's final return value from `.result`. The final result may
+    differ from the concatenation of the chunks (e.g. when output guardrails correct the
+    buffered response).
 
-    ```python
-    stream = rt.astream(agent, user_input="Write a poem.")
-    async for chunk in stream:
-        print(chunk, end="", flush=True)
-    final = stream.result  # the node's complete return value (e.g. StringResponse)
-    ```
+    A `Stream` is also awaitable: `await stream` runs it to completion (discarding unread
+    chunks) and returns the final result, which is useful when you break out of iteration
+    early but still want the result. The run always finishes; breaking does not cancel it.
 
-    The final result may legitimately differ from the concatenation of the streamed chunks —
-    for example when output guardrails gate/correct the buffered response after the raw tokens
-    were streamed.
+    If the node raises, the exception propagates out of the `async for` loop (or the
+    `await`), exactly like `rt.call`.
 
-    A `Stream` is also awaitable: `final = await stream` consumes the stream to completion
-    (discarding any unread chunks) and returns the final result. This is handy when you stop
-    iterating early (`break`) but still want the run to finish and the result to be available —
-    the underlying invocation always runs to completion; breaking out of the loop does not
-    cancel it.
-
-    Error behavior: if the invoked node raises, the exception propagates out of the `async for`
-    loop (or the `await`), exactly like `rt.call`.
-
-    Notes:
-        - Iterate (and await) a `Stream` from a single task.
-        - The stream honors the session's `timeout` as a wall-clock limit on the whole run.
+    Iterate (and await) a `Stream` from a single task. The run honors the session's
+    `timeout` as a wall-clock limit.
     """
 
     def __init__(
@@ -99,12 +86,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             node: The node type to invoke.
             args: The positional arguments to pass to the node.
             kwargs: The keyword arguments to pass to the node.
-            on_start: Called once, just before the run is launched on first iteration. The
-                caller (`rt.astream`) uses this to set up the surrounding run context (e.g.
-                open a session when there is none). The `Stream` itself owns no such state.
-            on_close: Called once when the run finishes (or errors, or times out). The caller
-                uses this to tear down whatever `on_start` set up. The two are paired so a
-                `Stream` never has to know about — or reach into — a session's lifecycle.
+            on_start: Called once, just before the run is launched on first iteration.
+            on_close: Called once when the run finishes, errors, or times out.
         """
         self._node = node
         self._args = args
@@ -122,7 +105,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         self._deadline: float | None = None
         self._timeout: float | None = None
         # run-context hooks supplied by the caller (session setup/teardown lives there,
-        # not in the Stream — see rt.astream)
+        # not in the Stream. see rt.astream)
         self._on_start = on_start
         self._on_close = on_close
         self._closed = False
@@ -152,7 +135,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         request_id = self._request_id
 
         def _subscriber(message: RequestCompletionMessage) -> None:
-            # the Stream only listens for run completion here — chunk delivery bypasses the bus.
+            # the Stream only listens for run completion here
             if isinstance(message, RequestFinishedBase):
                 if message.request_id == request_id:
                     queue.put_nowait(("done", message))
@@ -181,7 +164,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         )
 
     def _cleanup(self) -> None:
-        """Unsubscribes from the bus and hands teardown of the run context back to the caller."""
+        """Hands teardown of the run context back to the caller."""
         if self._sub_id is not None:
             try:
                 get_publisher().unsubscribe(self._sub_id)
@@ -285,29 +268,16 @@ def astream(
     **kwargs: _P.kwargs,
 ) -> Stream[_TOutput]:
     """
-    Invoke a node with streaming enabled and return a `Stream` over its emitted chunks.
+    Invoke an agent node with streaming enabled and return a `Stream` over its emitted chunks.
 
-    This is the streaming entry point of railtracks. The same node/agent object serves
-    streaming and non-streaming runs — `rt.call` runs it buffered, `rt.astream` streams it.
-    Streaming is frame-local: only the node you invoke here streams its LLM responses;
-    nested `rt.call` children run buffered.
-
-    Usage:
-    ```python
-    stream = rt.astream(agent, user_input="Write a short poem about rain.")
-    async for chunk in stream:
-        print(chunk, end="", flush=True)   # str token chunks
-    final = stream.result                  # the complete StringResponse
-    ```
-
-    When you only care about the final result of the streamed run:
-    ```python
-    final = await rt.astream(agent, user_input="...")
-    ```
+    Async-iterate the returned `Stream` for token chunks and read `.result` for the final
+    return value, or `await` it directly when you only want the result. Streaming is
+    frame-local: only the node invoked here streams its LLM responses; nested `rt.call`
+    children run buffered.
 
     Args:
-        node_: The node to invoke. This can be a node class or a function decorated with
-            `@function_node` (same as `rt.call`).
+        node_: The agent node to invoke. This can be a node class or a function decorated
+            with `@function_node` (same as `rt.call`).
         *args: The positional arguments to pass to the node.
         **kwargs: The keyword arguments to pass to the node.
 
@@ -328,7 +298,7 @@ def astream(
         node = cast("type[Node[_P, _TOutput]]", node_)
 
     # rt.astream streams an agent's LLM tokens, so it only accepts agent nodes. Anything else
-    # (a @function_node / tool node) has no token stream to surface — use rt.call instead.
+    # (a @function_node / tool node) has no token stream to surface use rt.call instead.
     node_kind = node.type() if hasattr(node, "type") else None
     if node_kind != "Agent":
         name = node.name() if hasattr(node, "name") else repr(node_)
