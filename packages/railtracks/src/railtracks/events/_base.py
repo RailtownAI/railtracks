@@ -32,7 +32,11 @@ UNSET = Unset()
 
 @dataclass(frozen=True)
 class SpatialParent:
-    pass
+    def __post_init__(self):
+        if not hasattr(self, "spatial_type"):
+            raise ValueError(
+                f"SpatialParent subclass {self.__class__.__name__} must define a 'spatial_type' field."
+            )
 
 
 @dataclass(frozen=True)
@@ -72,7 +76,11 @@ class NoSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class Parent:
-    pass
+    def __post_init__(self):
+        if not hasattr(self, "parent_type"):
+            raise ValueError(
+                f"Parent subclass {self.__class__.__name__} must define a 'parent_type' field."
+            )
 
 
 @dataclass(frozen=True)
