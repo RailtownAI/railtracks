@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 from typing import TextIO
 
-from ._serialize import RTObserverEncoder
-
 from ...models import Event
+from ._serialize import RTObserverEncoder
 
 
 class JsonlWriter:

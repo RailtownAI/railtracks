@@ -8,5 +8,4 @@ from .models import Event
 
 async def publish_event(event: Event) -> None:
     """Convenience wrapper to publish an Event via the process-wide singleton Observer."""
-    print(event)
     await configure.observer.publish(event)
