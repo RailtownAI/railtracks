@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from railtracks.cli.io import print_error, print_status, print_warning
 
 from .read import _resolve_data_files, _sample_files, _scan
+from .schema import duckdb_columns
 
 if TYPE_CHECKING:
     from duckdb import DuckDBPyConnection
@@ -115,17 +116,31 @@ class EventQuery:
 
 
 def _register_namespace_view(con, namespace: str, payload_keys: list[str]) -> None:
-    """Create a view for a namespace, exposing envelope columns and payload keys."""
+    """Create a view for a namespace, exposing envelope columns and payload keys.
+
+    Known namespaces (backed by event dataclasses) get typed columns from the
+    registry. Unknown namespaces fall back to VARCHAR projections keyed off the
+    scanned payload keys.
+    """
     envelope_cols = [c for c in _ENVELOPE_COLUMNS if c != "payload"]
-    collided = [k for k in payload_keys if k in _ENVELOPE_COLUMNS]
+    projections = list(envelope_cols)
+
+    registry_cols = duckdb_columns(namespace)
+    if registry_cols:
+        source_keys = list(registry_cols.keys())
+        key_type = registry_cols.__getitem__
+    else:
+        source_keys = payload_keys
+        key_type = lambda _k: "VARCHAR"  # noqa: E731
+
+    collided = [k for k in source_keys if k in _ENVELOPE_COLUMNS]
     if collided:
         print_warning(
             f"namespace {namespace!r}: payload keys {collided} collide with envelope columns and were dropped"
         )
-    exposed = [k for k in payload_keys if k not in _ENVELOPE_COLUMNS]
-    projections = list(envelope_cols)
+    exposed = [k for k in source_keys if k not in _ENVELOPE_COLUMNS]
     for key in exposed:
-        projections.append(f"payload->>{_sql_string(key)} AS {_sql_identifier(key)}")
+        projections.append(_project_payload_key(key, key_type(key)))
 
     try:
         con.execute(
@@ -139,6 +154,20 @@ def _register_namespace_view(con, namespace: str, payload_keys: list[str]) -> No
             f"Failed to create view for namespace {namespace!r} with payload keys {exposed}: {e}"
         )
         raise
+
+
+def _project_payload_key(key: str, duckdb_type: str) -> str:
+    """Return a SQL projection clause for ``payload['<key>']`` with the right operator.
+
+    - ``VARCHAR`` uses ``payload->>'key'`` so the raw text comes back without JSON quotes.
+    - ``JSON`` uses ``payload->'key'`` — keeps the native JSON so nested access works.
+    - Everything else casts ``payload->'key'`` (native JSON) to the target duckdb type.
+    """
+    if duckdb_type == "VARCHAR":
+        return f"payload->>{_sql_string(key)} AS {_sql_identifier(key)}"
+    if duckdb_type == "JSON":
+        return f"payload->{_sql_string(key)} AS {_sql_identifier(key)}"
+    return f"CAST(payload->{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
 
 
 def _sql_string(value: str) -> str:
