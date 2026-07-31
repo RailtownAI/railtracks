@@ -12,7 +12,7 @@
 
 ## Event-Driven Coordination
 - **Request Lifecycle**: Creation → Execution → Completion
-- **Message Types**: Success, Failure, Streaming, Fatal
+- **Message Types**: Success, Failure, BroadcastEvent, Fatal
 - **Loose Coupling**: Components communicate via events only
 
 ## Session Isolation

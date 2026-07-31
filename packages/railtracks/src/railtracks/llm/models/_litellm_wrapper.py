@@ -501,11 +501,10 @@ class LiteLLMWrapper(ModelBase, ABC):
     # ================ END Streaming Handlers ===============
 
     # ================ START Per-call Streaming LLM calls ===============
-    # These implement the ModelBase._astream_* extension points. Each one forces a streamed
-    # request (regardless of the deprecated constructor-level stream flag) and returns an async
-    # generator yielding `str` chunks followed by a single final `Response`. They ride litellm's
-    # synchronous `completion(stream=True)` API, bridged onto the event loop by
-    # `_bridge_sync_stream` (a dedicated worker thread), so the loop never blocks.
+    # These implement the ModelBase._astream_* extension points. Each one requests a streamed
+    # response and returns an async generator yielding `str` chunks followed by a single final
+    # `Response`. They ride litellm's synchronous `completion(stream=True)` API, bridged onto the
+    # event loop by `_bridge_sync_stream` (a dedicated worker thread), so the loop never blocks.
 
     async def _astream_chat(self, messages: MessageHistory):
         def _open() -> Generator[str | Response, None, Response]:

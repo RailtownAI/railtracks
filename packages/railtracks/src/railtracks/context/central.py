@@ -420,7 +420,6 @@ def set_config(
 
     Args:
         broadcast_callback: A passive listener for one-off events published with `rt.broadcast`.
-            (LLM token streaming is consumed directly by the `rt.astream` handle, not here.)
     """
 
     if is_context_active():

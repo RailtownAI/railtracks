@@ -93,7 +93,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         self._args = args
         self._kwargs = kwargs
 
-        # the request id doubles as the stream scope id used to tag every chunk of this run
+        # identifies this run so the completion subscriber can match its terminal message
         self._request_id = str(uuid4())
 
         self._queue: asyncio.Queue[tuple[str, Any]] | None = None
@@ -113,8 +113,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
     # ------------------------------------------------------------------ lifecycle
 
     async def _start(self) -> None:
-        """Lazily starts the run on first iteration: subscribes to the bus, then publishes
-        the entry request with streaming enabled."""
+        """Lazily starts the run on first iteration: subscribes for the run's completion,
+        then publishes the entry request with its chunk queue attached."""
         if self._started:
             return
         self._started = True

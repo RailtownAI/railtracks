@@ -25,7 +25,7 @@ graph TD
 The `Session` establishes a pub/sub messaging system where:
 - `Coordinator` subscribes to handle task completion messages
 - `RTState` subscribes to manage state updates
-- Optional user subscribers can be attached for streaming
+- Optional user subscribers can be attached to receive broadcast events
 
 ### Global Context Management
 The `Session` manages global context through:
@@ -158,7 +158,7 @@ The `Session` supports extensive customization through `ExecutorConfig`:
 - **Timeout Control**: Set maximum execution time limits
 - **Error Handling**: Configure whether to stop on first error or continue
 - **State Persistence**: Enable/disable saving execution state to disk
-- **Streaming**: Attach custom subscribers for real-time monitoring
+- **Event Broadcasting**: Attach a `broadcast_callback` to receive `rt.broadcast` events
 - **Context Injection**: Control global context variable behavior
 
 ## Error Handling and Recovery
