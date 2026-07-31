@@ -111,8 +111,8 @@ class InternalContext:
             new_parent_id: The parent id of the new frame.
             run_id: The run id of the new frame. Defaults to the current context's run id.
             stream_queue: The queue the new frame streams its LLM chunks onto (see `rt.astream`).
-                Deliberately NOT inherited from the current context: streaming is frame-local,
-                so a child frame only streams when it is itself the entry of an astream call.
+                Frame-local and never inherited: a frame streams only when it is itself the
+                entry of an `rt.astream` call.
         """
 
         unwrapped_run_id: str | None

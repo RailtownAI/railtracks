@@ -11,7 +11,7 @@ Streaming is requested at the call site rather than baked into the agent, so the
 - `rt.call(agent, ...)` runs buffered, with no streaming overhead and no chunks.
 - `rt.astream(agent, ...)` streams the agent's LLM response chunk by chunk as it runs.
 
-`rt.astream` targets **agent nodes only** — the thing being streamed is an agent's LLM tokens. Passing a `@function_node` (or any non-agent node) raises an error; run those with `rt.call` and reach for `rt.astream` on the agent inside them.
+`rt.astream` targets **agent nodes only**. Passing a `@function_node` (or any non-agent node) raises an error; run those with `rt.call` and reach for `rt.astream` on the agent inside them.
 
 `rt.astream` returns a `Stream`, an async iterator that yields only the `str` chunks. The final result is kept separate and read from `.result` once the stream is exhausted, so a chunk is never confused with the final value:
 
@@ -38,7 +38,7 @@ A few details worth knowing:
 
 ### Streaming inside a `@function_node`
 
-Because `rt.astream` targets an agent, the natural pattern is to stream the agent from inside a `@function_node` and drive that outer node with `rt.call`. The chunks are delivered straight to your handle — there are no channels or callbacks to wire up, and concurrent streams stay isolated simply by being separate handles:
+Because `rt.astream` targets an agent, the natural pattern is to stream the agent from inside a `@function_node` and drive that outer node with `rt.call`. The chunks are delivered straight to your handl.
 
 ```python
 --8<-- "docs/scripts/streaming.py:astream_nested"

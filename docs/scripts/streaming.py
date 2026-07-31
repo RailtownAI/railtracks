@@ -28,7 +28,7 @@ async def main_await():
 # --8<-- [start: astream_nested]
 # rt.astream targets an agent node; use it inside a @function_node and drive the
 # outer node with rt.call. Each stream is independent, so concurrent streams simply
-# have their own handles — no channels needed.
+# have their own handles.
 @rt.function_node
 async def head(prompt: str) -> str:
     stream = rt.astream(agent, user_input=prompt)

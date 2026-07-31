@@ -60,7 +60,7 @@ class Session:
         flow_id (str | None, optional): The unique identifier of the flow this session is associated with.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A passive listener for one-off events published with `rt.broadcast`. (LLM token streaming is consumed directly by the `rt.astream` handle, not through a callback.)
+        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A passive listener for one-off events published with `rt.broadcast`.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
     """
@@ -216,8 +216,7 @@ class Session:
     def _setup_subscriber(self):
         """
         Prepares and attaches the saved `broadcast_callback` to the publisher: it listens on
-        the event lane for one-off `rt.broadcast` items. (LLM token streaming does not flow
-        through the bus — it is consumed directly by the `rt.astream` handle.)
+        the event lane for one-off `rt.broadcast` items.
         """
 
         if self.executor_config.subscriber is not None:

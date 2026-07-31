@@ -23,7 +23,7 @@ class ExecutorConfig:
         Args:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
-            broadcast_callback (Callable or Coroutine): A passive listener for one-off **events** published with `rt.broadcast`. (LLM token streaming is consumed directly by the `rt.astream` handle, not through a callback.)
+            broadcast_callback (Callable or Coroutine): A passive listener for one-off **events** published with `rt.broadcast`.
             prompt_injection (bool): If true, prompts can be injected with global context
             save_state (bool): If true, the state of the executor will be saved to disk.
         """
