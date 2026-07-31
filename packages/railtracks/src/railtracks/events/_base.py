@@ -92,7 +92,7 @@ class MiddlewareParent(Parent):
 @dataclass(frozen=True)
 class LLMParent(Parent):
     parent_type: Literal["llm"] = field(init=False, default="llm")
-    llm_model_id: str
+    llm_type_id: str
     llm_invoke_id: str
 
 

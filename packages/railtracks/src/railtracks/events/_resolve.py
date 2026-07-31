@@ -71,6 +71,6 @@ def llm_parent(scope: ScopeLink[ScopeEntry] | None):
     assert type_id is not None, "Expected an LLM scope entry with a type_id"
 
     return LLMParent(
-        llm_model_id=type_id,
+        llm_type_id=type_id,
         llm_invoke_id=call_id,
     )
