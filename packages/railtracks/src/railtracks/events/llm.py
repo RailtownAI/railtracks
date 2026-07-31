@@ -58,6 +58,5 @@ class LLMResponseEvent(LLMMessageBase):
 
 @dataclass(kw_only=True)
 class LLMFailureEvent(LLMMessageBase, FailureMixin):
-
     def event_type(self) -> str:
         return "llm.failure"

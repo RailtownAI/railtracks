@@ -43,9 +43,7 @@ async def _llm_observe(
     try:
         response: Response = await call(message_history, schema, tools)
     except Exception as e:
-        event = LLMFailureEvent.from_exception(
-            e, message_input=prev_message_history
-        )
+        event = LLMFailureEvent.from_exception(e, message_input=prev_message_history)
         await pipe(event)
         raise e
 

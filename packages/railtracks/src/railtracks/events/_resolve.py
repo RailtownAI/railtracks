@@ -44,23 +44,6 @@ def node_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
     if parent.value.kind is ScopeKind.MIDDLEWARE:
         return MiddlewareSpatialParent(middleware_invoke_id=parent.value.id)
 
-    # 2 levels up please
-    node_link = scope.find_link(lambda e: e.kind is ScopeKind.NODE)
-
-    if node_link is None or node_link.parent is None:
-        return NodeSpatialParent(node_id=None)
-
-    node_link = (
-        node_link.parent.find_link(lambda e: e.kind is ScopeKind.NODE)
-        if scope is not None
-        else None
-    )
-
-    if node_link is None:
-        return NodeSpatialParent(node_id=None)
-
-    return NodeSpatialParent(node_id=node_link.value.id)
-
 
 def node_parent(scope: ScopeLink[ScopeEntry] | None):
     assert scope is not None, "Expected a scope chain for node parent resolution"

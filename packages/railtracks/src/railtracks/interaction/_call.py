@@ -147,6 +147,7 @@ async def _start(
 ):
     await ensure_started()
     await activate_publisher()
+    
 
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
     #  exception. It should be handled differently then the global timeout exception.

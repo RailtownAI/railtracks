@@ -54,7 +54,6 @@ class NodeInvocation(NodeEventBase):
 
 @dataclass(kw_only=True)
 class NodeFailure(NodeEventBase, FailureMixin):
-
     def event_type(self) -> str:
         return "node.failure"
 
