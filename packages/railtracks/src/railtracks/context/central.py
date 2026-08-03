@@ -10,7 +10,6 @@ from typing import (
     Coroutine,
     KeysView,
     MutableMapping,
-    Protocol,
     cast,
 )
 
@@ -27,14 +26,6 @@ from railtracks.utils.config import ExecutorConfig
 
 from .external import ExternalContext, MutableExternalContext
 from .internal import InternalContext
-
-
-class _PublisherProtocol(Protocol):
-    async def start(self) -> None: ...
-
-    async def shutdown(self) -> None: ...
-
-    def is_running(self) -> bool: ...
 
 
 class RunnerContextVars:
@@ -209,7 +200,7 @@ async def activate_publisher() -> None:
     This function should be called to ensure that the publisher is running and can be used to publish messages.
     """
     r_c = safe_get_runner_context()
-    publisher = cast("_PublisherProtocol | None", r_c.internal_context.publisher)
+    publisher = cast("RTPublisher | None", r_c.internal_context.publisher)
     assert publisher is not None
     await publisher.start()
 
@@ -221,7 +212,7 @@ async def shutdown_publisher() -> None:
     This function should be called to stop the publisher and clean up resources.
     """
     context = safe_get_runner_context()
-    publisher = cast("_PublisherProtocol | None", context.internal_context.publisher)
+    publisher = cast("RTPublisher | None", context.internal_context.publisher)
     assert publisher is not None
     assert publisher.is_running()
     await publisher.shutdown()
