@@ -1,5 +1,6 @@
 from typing import Awaitable, Callable
 
+from mypyc.build import emit_messages
 from pydantic import BaseModel
 
 from railtracks.events.middleware import (
@@ -7,7 +8,7 @@ from railtracks.events.middleware import (
     MiddlewareModelInvocationEvent,
     MiddlewareModelResponseEvent,
 )
-from railtracks.events.send import pipe
+from railtracks.events.send import pipe, emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
@@ -48,20 +49,20 @@ def wrap_llm(
             schema=schema,
             tools=tools,
         )
-        await pipe(input_event)
+        await emit(input_event)
 
         try:
             response = await fn(llm_call, message_history, schema, tools)
         except Exception as e:
             event = MiddlewareModelFailureEvent.from_exception(e)
-            await pipe(event)
+            await emit(event)
             raise e
 
         output_event = MiddlewareModelResponseEvent(
             response=response,
         )
 
-        await pipe(output_event)
+        await emit(output_event)
 
         return response
 

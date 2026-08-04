@@ -12,7 +12,7 @@ from typing import (
 )
 
 from railtracks.events.middleware import MiddlewareCreationEvent
-from railtracks.events.send import pipe
+from railtracks.events.send import pipe, emit
 from railtracks.utils.logging.create import get_rt_logger
 
 _P = ParamSpec("_P")
@@ -76,7 +76,7 @@ class Middleware(Generic[_P, _R]):
             middleware_type_id=self.type_id,
             middleware_name=self.name,
         )
-        return await pipe(event)
+        return await emit(event)
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         """Compose this middleware onto ``inner``, returning a new callable with the same signature."""

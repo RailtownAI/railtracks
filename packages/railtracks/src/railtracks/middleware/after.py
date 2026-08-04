@@ -4,7 +4,7 @@ from railtracks.events.middleware import (
     MiddlewareOutputInvocationEvent,
     MiddlewareOutputResponseEvent,
 )
-from railtracks.events.send import pipe
+from railtracks.events.send import emit, pipe
 from railtracks.utils.unpack import unpack_async_sync
 
 from .core import wrap_node
@@ -27,7 +27,7 @@ def after_node(
         input_event = MiddlewareOutputInvocationEvent(
             response=result,
         )
-        await pipe(input_event)
+        await emit(input_event)
         post_after_result = fn(result)
 
         result = await unpack_async_sync(post_after_result)
@@ -35,7 +35,7 @@ def after_node(
         output_event = MiddlewareOutputResponseEvent(
             response=result,
         )
-        await pipe(output_event)
+        await emit(output_event)
 
         return result
 

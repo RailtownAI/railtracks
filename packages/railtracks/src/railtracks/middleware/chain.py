@@ -14,7 +14,7 @@ from railtracks.events.middleware import (
     MiddlewareInvocationEvent,
     MiddlewareResponseEvent,
 )
-from railtracks.events.send import pipe
+from railtracks.events.send import emit, pipe
 from railtracks.middleware.core import Middleware
 from railtracks.scope_manager import ScopeManager, null_scope_manager
 
@@ -39,19 +39,19 @@ def _scoped(
         ):
             invocation_event = MiddlewareInvocationEvent(args=args, kwargs=kwargs)
 
-            await pipe(invocation_event)
+            await emit(invocation_event)
             try:
                 result = await wrapped(*args, **kwargs)
 
             except Exception as e:
                 event = MiddlewareFailureEvent.from_exception(e)
-                await pipe(event)
+                await emit(event)
                 raise e
 
             event = MiddlewareResponseEvent(
                 response=result,
             )
-            await pipe(event)
+            await emit(event)
 
             return result
 
