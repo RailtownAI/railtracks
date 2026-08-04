@@ -12,7 +12,6 @@ from typing import (
     NoReturn,
     ParamSpec,
     TypeVar,
-    cast,
 )
 from uuid import uuid4
 
@@ -25,7 +24,6 @@ from railtracks.context.central import (
     is_context_present,
 )
 from railtracks.exceptions import GlobalTimeOutError, NodeCreationError
-from railtracks.nodes.utils import extract_node_from_function
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -37,7 +35,6 @@ from railtracks.utils.logging import get_rt_logger
 
 if TYPE_CHECKING:
     from railtracks._session import Session
-    from railtracks.built_nodes.function.base import RTFunction
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")
@@ -263,7 +260,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
 
 
 def astream(
-    node_: type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput],
+    node_: type[Node[_P, _TOutput]],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> Stream[_TOutput]:
@@ -276,32 +273,31 @@ def astream(
     children run buffered.
 
     Args:
-        node_: The agent node to invoke. This can be a node class or a function decorated
-            with `@function_node` (same as `rt.call`).
+        node_: The agent node class to invoke (built with `rt.agent_node(...)`). Only agent
+            nodes are accepted; a `@function_node` / tool node has no token stream to
+            surface, so use `rt.call` for those.
         *args: The positional arguments to pass to the node.
         **kwargs: The keyword arguments to pass to the node.
 
     Returns:
         Stream[_TOutput]: An async iterator over the chunks, with the final result available
             via `.result` (or by awaiting the stream).
+
+    Raises:
+        NodeCreationError: If `node_` is not an agent node.
     """
-    node: type[Node[_P, _TOutput]]
+    # local import to prevent circular import issues (mirrors rt.call)
+    from railtracks.nodes.nodes import Node
 
-    if hasattr(node_, "node_type"):
-        # local import to prevent circular import issues (mirrors rt.call)
-        from railtracks.built_nodes.function.base import RTFunction
-
-        assert isinstance(node_, RTFunction)
-        node = extract_node_from_function(node_)
-    else:
-        # not an RTFunction (no `node_type`), so it is already a Node subclass
-        node = cast("type[Node[_P, _TOutput]]", node_)
-
-    # rt.astream streams an agent's LLM tokens, so it only accepts agent nodes. Anything else
-    # (a @function_node / tool node) has no token stream to surface use rt.call instead.
-    node_kind = node.type() if hasattr(node, "type") else None
-    if node_kind != "Agent":
-        name = node.name() if hasattr(node, "name") else repr(node_)
+    # rt.astream streams an agent's LLM tokens, so it only accepts agent nodes built with
+    # rt.agent_node(...). Validate the input up front: anything that is not an agent `Node`
+    # subclass (a @function_node / tool node, or a raw value) has no token stream to surface,
+    # so it is rejected here rather than unpacked use rt.call instead.
+    is_agent_node = (
+        isinstance(node_, type) and issubclass(node_, Node) and node_.type() == "Agent"
+    )
+    if not is_agent_node:
+        name = getattr(node_, "__name__", None) or repr(node_)
         raise NodeCreationError(
             message=f"rt.astream only supports agent nodes, but {name!r} is not one.",
             notes=[
@@ -309,6 +305,7 @@ def astream(
                 "To run a function/tool node, use rt.call(...) instead.",
             ],
         )
+    node = node_
 
     # Session lifecycle is owned here, not by the Stream handle. When called outside any
     # session we open one and hold it in this closure; the Stream calls `_close` back once
