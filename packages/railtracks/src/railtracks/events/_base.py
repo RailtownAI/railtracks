@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
+from typing_extensions import Self
+
 if TYPE_CHECKING:
     from railtracks.context.scope_link import ScopeLink
     from railtracks.context.session_context import ScopeEntry
@@ -182,3 +184,17 @@ class ParentEventBase(
     @abstractmethod
     def _get_parent(self, scope: ScopeLink[ScopeEntry] | None) -> TParent:
         pass
+
+
+@dataclass(kw_only=True)
+class FailureMixin:
+    exception_name: str
+    exception_message: str
+
+    @classmethod
+    def from_exception(cls, exc: Exception, **kwargs) -> Self:
+        return cls(
+            exception_name=type(exc).__name__,
+            exception_message=str(exc),
+            **kwargs,
+        )

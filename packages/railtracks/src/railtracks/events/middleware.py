@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from railtracks.events._base import (
     UNSET,
     CreationEventBase,
+    FailureMixin,
     LLMAndMiddlewareSpatialParent,
     MiddlewareParent,
     NodeAndMiddlewareSpatialParent,
@@ -115,8 +116,8 @@ class MiddlewareGuardInputResponseEvent(MiddlewareModelEventBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareGuardInputFailureEvent(MiddlewareModelEventBase):
-    exception: Exception
+class MiddlewareGuardInputFailureEvent(MiddlewareModelEventBase, FailureMixin):
+    
 
     def event_type(self) -> str:
         return "middleware.guard.input.failure"
@@ -141,8 +142,7 @@ class MiddlewareModelOutputResponseEvent(MiddlewareModelOutputTypesBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareModelOutputFailureEvent(MiddlewareModelEventBase):
-    exception: Exception
+class MiddlewareModelOutputFailureEvent(MiddlewareModelEventBase, FailureMixin):
 
     def event_type(self) -> str:
         return "middleware.model.output.failure"
@@ -167,8 +167,7 @@ class MiddlewareOutputResponseEvent(MiddlewareOutputTypesBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareOutputFailureEvent(MiddlewareRegularEventBase):
-    exception: Exception
+class MiddlewareOutputFailureEvent(MiddlewareRegularEventBase, FailureMixin):
 
     def event_type(self) -> str:
         return "middleware.regular.output.failure"
@@ -193,8 +192,7 @@ class MiddlewareGuardOutputResponseEvent(MiddlewareModelEventBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareGuardOutputFailureEvent(MiddlewareModelEventBase):
-    exception: Exception
+class MiddlewareGuardOutputFailureEvent(MiddlewareModelEventBase, FailureMixin):
 
     def event_type(self) -> str:
         return "middleware.guard.output.failure"
@@ -219,8 +217,7 @@ class MiddlewareResponseEvent(MiddlewareGeneralEventBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareFailureEvent(MiddlewareGeneralEventBase):
-    exception: Exception
+class MiddlewareFailureEvent(MiddlewareGeneralEventBase, FailureMixin):
 
     def event_type(self) -> str:
         return "middleware.failure"
@@ -245,8 +242,7 @@ class MiddlewareModelResponseEvent(MiddlewareModelEventBase):
 
 
 @dataclass(kw_only=True)
-class MiddlewareModelFailureEvent(MiddlewareModelEventBase):
-    exception: Exception
+class MiddlewareModelFailureEvent(MiddlewareModelEventBase, FailureMixin):
 
     def event_type(self) -> str:
         return "middleware.model.failure"
