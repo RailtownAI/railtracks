@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
+from enum import Enum
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 from typing_extensions import Self
@@ -32,6 +33,18 @@ class Unset:
 UNSET = Unset()
 
 
+class SpatialType(str, Enum):
+    """Discriminator tag for the ``SpatialParent`` union. ``str`` base means the
+    member serializes as its ``.value`` through ``json.dumps`` and satisfies the
+    registry's ``Literal`` → ``ColumnKind.STRING`` check."""
+
+    MIDDLEWARE = "middleware"
+    NODE = "node"
+    NODE_AND_MIDDLEWARE = "node_and_middleware"
+    LLM_AND_MIDDLEWARE = "llm_and_middleware"
+    NONE = "none"
+
+
 @dataclass(frozen=True)
 class SpatialParent:
     def __post_init__(self):
@@ -43,20 +56,24 @@ class SpatialParent:
 
 @dataclass(frozen=True)
 class MiddlewareSpatialParent(SpatialParent):
-    spatial_type: Literal["middleware"] = field(init=False, default="middleware")
+    spatial_type: Literal[SpatialType.MIDDLEWARE] = field(
+        init=False, default=SpatialType.MIDDLEWARE
+    )
     middleware_invoke_id: str
 
 
 @dataclass(frozen=True)
 class NodeSpatialParent(SpatialParent):
-    spatial_type: Literal["node"] = field(init=False, default="node")
+    spatial_type: Literal[SpatialType.NODE] = field(
+        init=False, default=SpatialType.NODE
+    )
     node_id: str | None
 
 
 @dataclass(frozen=True)
 class NodeAndMiddlewareSpatialParent(SpatialParent):
-    spatial_type: Literal["node_and_middleware"] = field(
-        init=False, default="node_and_middleware"
+    spatial_type: Literal[SpatialType.NODE_AND_MIDDLEWARE] = field(
+        init=False, default=SpatialType.NODE_AND_MIDDLEWARE
     )
     node_id: str
     middleware_invoke_id: str | None
@@ -64,8 +81,8 @@ class NodeAndMiddlewareSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class LLMAndMiddlewareSpatialParent(SpatialParent):
-    spatial_type: Literal["llm_and_middleware"] = field(
-        init=False, default="llm_and_middleware"
+    spatial_type: Literal[SpatialType.LLM_AND_MIDDLEWARE] = field(
+        init=False, default=SpatialType.LLM_AND_MIDDLEWARE
     )
     llm_invoke_id: str
     middleware_invoke_id: str | None
@@ -73,7 +90,19 @@ class LLMAndMiddlewareSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class NoSpatialParent(SpatialParent):
-    spatial_type: Literal["none"] = field(init=False, default="none")
+    spatial_type: Literal[SpatialType.NONE] = field(
+        init=False, default=SpatialType.NONE
+    )
+
+
+class ParentType(str, Enum):
+    """Discriminator tag for the ``Parent`` union. ``str`` base means the member
+    serializes as its ``.value`` through ``json.dumps`` and satisfies the
+    registry's ``Literal`` → ``ColumnKind.STRING`` check."""
+
+    NODE = "node"
+    MIDDLEWARE = "middleware"
+    LLM = "llm"
 
 
 @dataclass(frozen=True)
@@ -87,20 +116,26 @@ class Parent:
 
 @dataclass(frozen=True)
 class NodeParent(Parent):
-    parent_type: Literal["node"] = field(init=False, default="node")
+    parent_type: Literal[ParentType.NODE] = field(
+        init=False, default=ParentType.NODE
+    )
     node_id: str
 
 
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
-    parent_type: Literal["middleware"] = field(init=False, default="middleware")
+    parent_type: Literal[ParentType.MIDDLEWARE] = field(
+        init=False, default=ParentType.MIDDLEWARE
+    )
     middleware_type_id: str
     middleware_invoke_id: str
 
 
 @dataclass(frozen=True)
 class LLMParent(Parent):
-    parent_type: Literal["llm"] = field(init=False, default="llm")
+    parent_type: Literal[ParentType.LLM] = field(
+        init=False, default=ParentType.LLM
+    )
     llm_type_id: str
     llm_invoke_id: str
 

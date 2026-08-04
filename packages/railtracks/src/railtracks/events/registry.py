@@ -1,8 +1,8 @@
-"""Event registry — the source of truth for what payload columns each namespace exposes.
+"""Event registry, the source of truth for what payload columns each namespace exposes.
 
 ``payload_columns(namespace)`` returns ``{payload_key: ColumnKind}`` for every event
-class in the namespace, unioned. Storage-layer mapping (e.g. DuckDB type strings) lives
-in the consumer — this module is DB-agnostic.
+class in the namespace, unioned. Storage-layer mapping lives
+in the consumer leaving this module agnostic.
 """
 
 from __future__ import annotations
@@ -13,10 +13,7 @@ from dataclasses import fields
 from enum import Enum
 from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
-from pydantic import BaseModel
-
 # Unconditional imports so ``get_type_hints`` on middleware event classes can resolve
-# forward-refs that middleware.py only imports under ``TYPE_CHECKING``.
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message
@@ -116,8 +113,6 @@ _TYPE_LOCALS: dict[str, Any] = {
     "Response": Response,
     "Tool": Tool,
     "GuardrailDecision": GuardrailDecision,
-    "BaseModel": BaseModel,
-    "Any": Any,
 }
 
 _SCALAR_KINDS: dict[type, ColumnKind] = {
@@ -144,11 +139,15 @@ def _namespace_of(cls: type[SessionEventBase]) -> str:
 
 
 def _is_union(origin: Any) -> bool:
+    """Return True if ``origin`` is a ``Union`` type.
+    Python 3.10+ has ``types.UnionType`` for the ``|`` operator, 
+    but ``typing.Union`` is still used for ``Union[...]``.
+    """
     return origin is Union or origin is types.UnionType
 
 
 def _unwrap(annotation: Any) -> Any:
-    """Strip ``None`` and the ``Unset`` sentinel from a union annotation."""
+    """Strip ``None`` and the ``Unset`` flags from a union annotation."""
     if not _is_union(get_origin(annotation)):
         return annotation
     args = tuple(a for a in get_args(annotation) if a is not type(None) and a is not Unset)
@@ -162,11 +161,12 @@ def _unwrap(annotation: Any) -> Any:
 def _annotation_to_kind(annotation: Any) -> ColumnKind:
     """Map a Python annotation to a ``ColumnKind``.
 
-    Falls back to ``JSON`` for anything structured — dataclasses, Pydantic models,
+    Falls back to ``JSON`` for anything structured, ie dataclasses, Pydantic models,
     ``list``/``dict``/``tuple``, ``Any``, enums, ``type[BaseModel]``, etc.
     """
     annotation = _unwrap(annotation)
 
+    # Some funky logic for Literal types: if all args are str, int, or bool, we can map to a scalar kind.
     if get_origin(annotation) is Literal:
         literal_args = get_args(annotation)
         if all(isinstance(a, str) for a in literal_args):
