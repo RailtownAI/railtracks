@@ -31,18 +31,7 @@ class WebSearchToolSet(ToolSet):
     """Prebuilt web search + page-fetch tools for an agent.
 
     Gives an agent the ability to search the live web and read full page
-    content: ``search()`` for ranked title/url/snippet results, ``fetch()``
-    to read one result's full content, and ``search_and_fetch()`` to do both
-    in a single call. Defaults to Tavily for search and an httpx + trafilatura
-    HTML-to-text extractor for fetch; both are swappable via constructor
-    injection::
-
-        toolset = WebSearchToolSet(search=MySearchBackend(), fetch=MyFetchBackend())
-
-    Backend/network failures are caught and returned as a descriptive string
-    rather than raised, so a backend outage never breaks the agent's turn;
-    semantic fetch failures (paywalled, blocked, no extractable content) are
-    likewise reported as text rather than an exception.
+    content
 
     Args:
         search: Backend used by search()/search_and_fetch(). Defaults to
