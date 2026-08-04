@@ -9,7 +9,6 @@ from typing import (
     ParamSpec,
     TypeAlias,
     TypeVar,
-    overload,
 )
 
 _P = ParamSpec("_P")
@@ -70,8 +69,11 @@ class Middleware(Generic[_P, _R]):
 
     def middleware_type(self) -> str:
         return "General"
-    
-_Wrapper: TypeAlias = Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]]
+
+
+_Wrapper: TypeAlias = Callable[
+    Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]
+]
 
 
 def wrap_node(
@@ -79,4 +81,5 @@ def wrap_node(
 ) -> Callable[[_Wrapper[_P, _R]], Middleware[_P, _R]]:
     def decorator(fn: _Wrapper[_P, _R], /) -> Middleware[_P, _R]:
         return Middleware(fn, name=name)
+
     return decorator

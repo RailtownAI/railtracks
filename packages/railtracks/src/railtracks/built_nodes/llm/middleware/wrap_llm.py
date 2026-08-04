@@ -27,7 +27,14 @@ def wrap_llm(
         return response
     ```
     """
-    def decorator(fn: Callable[[LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None], Awaitable[Response]], /):
+
+    def decorator(
+        fn: Callable[
+            [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
+            Awaitable[Response],
+        ],
+        /,
+    ):
         @wrap_node(name=name)
         async def wrapped(
             llm_call: LLM_CALL,

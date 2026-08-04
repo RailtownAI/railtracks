@@ -1,6 +1,4 @@
-from os import name
 from typing import Awaitable, Callable
-from distro import name
 
 from pydantic import BaseModel
 
@@ -13,7 +11,7 @@ from ..._types import LLM_CALL
 
 
 def before_llm(
-        *,
+    *,
     name: str | None = None,
 ):
     """
@@ -27,11 +25,17 @@ def before_llm(
         return message_history, schema, tools
     ```
     """
-    def decorator(fn: Callable[
-        [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-        tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
-        | Awaitable[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]],
-    ], /):
+
+    def decorator(
+        fn: Callable[
+            [MessageHistory, type[BaseModel] | None, list[Tool] | None],
+            tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
+            | Awaitable[
+                tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
+            ],
+        ],
+        /,
+    ):
         @wrap_llm(name=name)
         async def wrapper(
             llm_call: LLM_CALL,

@@ -12,7 +12,7 @@ async def broadcast(item: str):
     """
     Broadcasts a one-off **event** to the session bus.
 
-    This triggers the `broadcast_callback` you have already provided. Events are 
+    This triggers the `broadcast_callback` you have already provided. Events are
     separate from stream callbacks.
 
     Args:

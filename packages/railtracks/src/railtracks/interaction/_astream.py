@@ -296,8 +296,8 @@ def astream(
     ```python
     stream = rt.astream(agent, user_input="Write a short poem about rain.")
     async for chunk in stream:
-        print(chunk, end="", flush=True)   # str token chunks
-    final = stream.result                  # the complete StringResponse
+        print(chunk, end="", flush=True)  # str token chunks
+    final = stream.result  # the complete StringResponse
     ```
 
     When you only care about the final result of the streamed run:
