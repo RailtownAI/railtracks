@@ -13,13 +13,17 @@ from .wrap_llm import wrap_llm
 
 
 @overload
-def after_llm(fn: Callable[[Response], Response | Awaitable[Response]], /) -> ModelMiddleware: ...
+def after_llm(
+    fn: Callable[[Response], Response | Awaitable[Response]], /
+) -> ModelMiddleware: ...
 
 
 @overload
 def after_llm(
     *, name: str | None = None
-) -> Callable[[Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware]: ...
+) -> Callable[
+    [Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware
+]: ...
 
 
 def after_llm(
@@ -27,9 +31,10 @@ def after_llm(
     /,
     *,
     name: str | None = None,
-) -> ModelMiddleware | Callable[
-    [Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware
-]:
+) -> (
+    ModelMiddleware
+    | Callable[[Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware]
+):
     """
     A special decorator to create a middleware that runs after every successful call to the model.
 

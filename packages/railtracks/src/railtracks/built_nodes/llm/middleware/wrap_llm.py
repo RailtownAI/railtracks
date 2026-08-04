@@ -46,15 +46,18 @@ def wrap_llm(
     /,
     *,
     name: str | None = None,
-) -> ModelMiddleware | Callable[
-    [
-        Callable[
-            [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
-            Awaitable[Response],
-        ]
-    ],
-    ModelMiddleware,
-]:
+) -> (
+    ModelMiddleware
+    | Callable[
+        [
+            Callable[
+                [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
+                Awaitable[Response],
+            ]
+        ],
+        ModelMiddleware,
+    ]
+):
     """
     A special decorator to create a middleware wrapper that wraps every call to an llm
 

@@ -51,18 +51,21 @@ def before_llm(
     /,
     *,
     name: str | None = None,
-) -> ModelMiddleware | Callable[
-    [
-        Callable[
-            [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-            tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
-            | Awaitable[
+) -> (
+    ModelMiddleware
+    | Callable[
+        [
+            Callable[
+                [MessageHistory, type[BaseModel] | None, list[Tool] | None],
                 tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
-            ],
-        ]
-    ],
-    ModelMiddleware,
-]:
+                | Awaitable[
+                    tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
+                ],
+            ]
+        ],
+        ModelMiddleware,
+    ]
+):
     """
     A special decorator to create a middleware that maps the inputs to a new input before every call to a model
 
