@@ -1,4 +1,4 @@
-from typing import Awaitable, Callable, TypeAlias, overload
+from typing import Awaitable, Callable, overload
 
 from pydantic import BaseModel
 
@@ -11,25 +11,25 @@ from railtracks.utils.unpack import unpack_async_sync
 from .core import ModelMiddleware
 from .wrap_llm import wrap_llm
 
-_AfterLlmFn: TypeAlias = Callable[[Response], Response | Awaitable[Response]]
-
 
 @overload
-def after_llm(fn: _AfterLlmFn, /) -> ModelMiddleware: ...
+def after_llm(fn: Callable[[Response], Response | Awaitable[Response]], /) -> ModelMiddleware: ...
 
 
 @overload
 def after_llm(
     *, name: str | None = None
-) -> Callable[[_AfterLlmFn], ModelMiddleware]: ...
+) -> Callable[[Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware]: ...
 
 
 def after_llm(
-    fn: _AfterLlmFn | None = None,
+    fn: Callable[[Response], Response | Awaitable[Response]] | None = None,
     /,
     *,
     name: str | None = None,
-) -> ModelMiddleware | Callable[[_AfterLlmFn], ModelMiddleware]:
+) -> ModelMiddleware | Callable[
+    [Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware
+]:
     """
     A special decorator to create a middleware that runs after every successful call to the model.
 
@@ -42,7 +42,7 @@ def after_llm(
     ```
     """
 
-    def decorator(fn: _AfterLlmFn) -> ModelMiddleware:
+    def decorator(fn):
         @wrap_llm(name=name)
         async def wrapper(
             llm_call: LLM_CALL,
