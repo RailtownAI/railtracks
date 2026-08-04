@@ -8,7 +8,7 @@ from railtracks.events.middleware import (
     MiddlewareModelOutputInvocationEvent,
     MiddlewareModelOutputResponseEvent,
 )
-from railtracks.events.send import emit, pipe
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool

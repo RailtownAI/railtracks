@@ -17,7 +17,7 @@ from railtracks.events.middleware import (
     MiddlewareGuardOutputInvocationEvent,
     MiddlewareGuardOutputResponseEvent,
 )
-from railtracks.events.send import emit, pipe
+from railtracks.events.send import emit
 from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, Message

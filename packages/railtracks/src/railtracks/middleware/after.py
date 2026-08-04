@@ -4,7 +4,7 @@ from railtracks.events.middleware import (
     MiddlewareOutputInvocationEvent,
     MiddlewareOutputResponseEvent,
 )
-from railtracks.events.send import emit, pipe
+from railtracks.events.send import emit
 from railtracks.utils.unpack import unpack_async_sync
 
 from .core import wrap_node

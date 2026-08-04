@@ -1,6 +1,5 @@
 from typing import Awaitable, Callable
 
-from mypyc.build import emit_messages
 from pydantic import BaseModel
 
 from railtracks.events.middleware import (
@@ -8,7 +7,7 @@ from railtracks.events.middleware import (
     MiddlewareModelInvocationEvent,
     MiddlewareModelResponseEvent,
 )
-from railtracks.events.send import pipe, emit
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool

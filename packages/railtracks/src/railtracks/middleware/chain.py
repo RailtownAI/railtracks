@@ -14,7 +14,7 @@ from railtracks.events.middleware import (
     MiddlewareInvocationEvent,
     MiddlewareResponseEvent,
 )
-from railtracks.events.send import emit, pipe
+from railtracks.events.send import emit
 from railtracks.middleware.core import Middleware
 from railtracks.scope_manager import ScopeManager, null_scope_manager
 

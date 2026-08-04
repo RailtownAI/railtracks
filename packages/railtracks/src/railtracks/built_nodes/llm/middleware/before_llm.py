@@ -7,7 +7,7 @@ from railtracks.events.middleware import (
     MiddlewareModelInputInvocationEvent,
     MiddlewareModelInputResponseEvent,
 )
-from railtracks.events.send import emit, pipe
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.unpack import unpack_async_sync

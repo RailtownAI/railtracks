@@ -12,7 +12,7 @@ from typing import (
 )
 
 from railtracks.events.middleware import MiddlewareCreationEvent
-from railtracks.events.send import pipe, emit
+from railtracks.events.send import emit
 from railtracks.utils.logging.create import get_rt_logger
 
 _P = ParamSpec("_P")
