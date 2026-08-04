@@ -116,10 +116,8 @@ def _validate_and_normalize_callable(
 ) -> Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]:
     """Validate ``func`` and normalise it into a node-ready callable.
 
-    Runs dict-parameter validation, cross-checks an optional ``manifest`` against
-    the signature, resolves ``functools.partial`` metadata, wraps builtins so the
-    node type can be attached, and rejects anything that is not a supported
-    callable.
+    Resolves partial metadata, validates parameters against an optional
+    ``manifest``, wraps builtins, and rejects unsupported callables.
 
     Args:
         func: The callable to validate and normalise.
@@ -131,26 +129,19 @@ def _validate_and_normalize_callable(
     Raises:
         NodeCreationError: If ``func`` is not a supported callable type.
     """
-    # functools.partial objects carry no usable __name__/__qualname__ and only a
-    # boilerplate __doc__, both of which downstream tool-schema extraction relies
-    # on. Normalise into a copy that sources these from the wrapped callable
-    # before any further handling so the rest of the pipeline is oblivious to it.
+    # partials lack real __name__/__qualname__/__doc__; recover them onto a copy
     if isinstance(func, functools.partial):
         func = _partial_with_resolved_metadata(func)
 
-    if not isinstance(
-        func, BuiltinFunctionType
-    ):  # we don't require dict validation for builtin functions, that is handled separately.
-        validate_function(func)  # checks for dict or Dict parameters
+    # dict-parameter validation; builtins are validated separately
+    if not isinstance(func, BuiltinFunctionType):
+        validate_function(func)
 
-    # Validate tool manifest against function signature if manifest is provided
     if manifest is not None:
         validate_tool_manifest_against_function(func, manifest.parameters)
 
     if inspect.isbuiltin(func):
-        # builtin functions are written in C and do not have space for the addition of metadata like our node type.
-        # so instead we wrap them in a function that allows for the addition of the node type.
-        # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
+        # builtins are C-level and can't hold our node-type attribute; wrap them
         return _function_preserving_metadata(func)
 
     if not (
@@ -336,33 +327,23 @@ def _partial_with_resolved_metadata(
 ) -> "functools.partial[_TOutput]":
     """Return a copy of a ``functools.partial`` with real name/qualname/doc.
 
-    A partial exposes no ``__name__``/``__qualname__`` and only the useless
-    ``"partial(func, ...)"`` boilerplate as ``__doc__``, so the tool-schema
-    extraction that reads those attributes would either raise or produce garbage
-    descriptions. This unwraps ``.func`` (recursively, so nested partials are
-    handled) to recover the underlying callable's metadata and stamps it onto a
-    fresh copy, leaving the caller's original object untouched.
-
-    The copy keeps the partial's *reduced* signature (already-bound arguments are
-    excluded), so parameter inference continues to see only the arguments the
-    caller still needs to supply.
+    Sources ``__name__``/``__qualname__``/``__doc__`` from the wrapped callable
+    (unwrapping nested partials) onto a fresh copy, leaving the caller's object
+    untouched. The copy keeps the partial's reduced signature.
 
     Args:
         func: The ``functools.partial`` to normalise.
 
     Returns:
-        A new ``functools.partial`` wrapping the same callable/arguments, with
-        ``__name__``, ``__qualname__``, and ``__doc__`` sourced from the
-        underlying callable.
+        A copy of ``func`` with metadata sourced from the underlying callable.
     """
     underlying: Callable = func
     while isinstance(underlying, functools.partial):
         underlying = underlying.func
 
+    # discard the partial's boilerplate __doc__ in favour of the underlying one
     name = getattr(underlying, "__name__", "partial")
     qualname = getattr(underlying, "__qualname__", name)
-    # Only adopt the underlying callable's docstring; the partial's own
-    # boilerplate __doc__ is deliberately discarded.
     doc = getattr(underlying, "__doc__", None)
 
     resolved: "functools.partial[_TOutput]" = functools.partial(
