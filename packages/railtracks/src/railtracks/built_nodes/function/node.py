@@ -204,9 +204,11 @@ def _single_function_node(
     is_sync = False
     if not asyncio.iscoroutinefunction(func):
         is_sync = True
+        # narrowed: the guard above means `func` returns _TOutput, not a coroutine
+        sync_func = cast(Callable[_P, _TOutput], func)
 
         async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-            return await asyncio.to_thread(func, *args, **kwargs)
+            return await asyncio.to_thread(sync_func, *args, **kwargs)
 
         functools.update_wrapper(wrapped_function, func)
         unwrapped_func = wrapped_function
@@ -357,14 +359,16 @@ def _partial_with_resolved_metadata(
     while isinstance(underlying, functools.partial):
         underlying = underlying.func
 
+    name = getattr(underlying, "__name__", "partial")
+    qualname = getattr(underlying, "__qualname__", name)
+    # Only adopt the underlying callable's docstring; the partial's own
+    # boilerplate __doc__ is deliberately discarded.
+    doc = getattr(underlying, "__doc__", None)
+
     resolved: "functools.partial[_TOutput]" = functools.partial(
         func.func, *func.args, **func.keywords
     )
-    resolved.__name__ = getattr(underlying, "__name__", "partial")  # type: ignore[attr-defined]
-    resolved.__qualname__ = getattr(  # type: ignore[attr-defined]
-        underlying, "__qualname__", resolved.__name__
-    )
-    # Only adopt the underlying callable's docstring; the partial's own
-    # boilerplate __doc__ is deliberately discarded.
-    resolved.__doc__ = getattr(underlying, "__doc__", None)
+    resolved.__name__ = name  # type: ignore[attr-defined]
+    resolved.__qualname__ = qualname  # type: ignore[attr-defined]
+    resolved.__doc__ = doc
     return resolved
