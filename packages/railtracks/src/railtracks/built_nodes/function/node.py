@@ -139,6 +139,13 @@ def _single_function_node(
     ):
         return func
 
+    # functools.partial objects carry no usable __name__/__qualname__ and only a
+    # boilerplate __doc__, both of which downstream tool-schema extraction relies
+    # on. Normalise into a copy that sources these from the wrapped callable
+    # before any further handling so the rest of the pipeline is oblivious to it.
+    if isinstance(func, functools.partial):
+        func = _partial_with_resolved_metadata(func)
+
     if not isinstance(
         func, BuiltinFunctionType
     ):  # we don't require dict validation for builtin functions, that is handled separately.
@@ -154,7 +161,12 @@ def _single_function_node(
         # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
         func = _function_preserving_metadata(func)
 
-    elif not asyncio.iscoroutinefunction(func) and not inspect.isfunction(func):
+    elif not (
+        asyncio.iscoroutinefunction(func)
+        or inspect.isfunction(func)
+        or inspect.ismethod(func)  # bound (and class) methods
+        or isinstance(func, functools.partial)
+    ):
         raise NodeCreationError(
             message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
             notes=[
@@ -289,3 +301,44 @@ def _function_preserving_metadata(
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def _partial_with_resolved_metadata(
+    func: "functools.partial[_TOutput]",
+) -> "functools.partial[_TOutput]":
+    """Return a copy of a ``functools.partial`` with real name/qualname/doc.
+
+    A partial exposes no ``__name__``/``__qualname__`` and only the useless
+    ``"partial(func, ...)"`` boilerplate as ``__doc__``, so the tool-schema
+    extraction that reads those attributes would either raise or produce garbage
+    descriptions. This unwraps ``.func`` (recursively, so nested partials are
+    handled) to recover the underlying callable's metadata and stamps it onto a
+    fresh copy, leaving the caller's original object untouched.
+
+    The copy keeps the partial's *reduced* signature (already-bound arguments are
+    excluded), so parameter inference continues to see only the arguments the
+    caller still needs to supply.
+
+    Args:
+        func: The ``functools.partial`` to normalise.
+
+    Returns:
+        A new ``functools.partial`` wrapping the same callable/arguments, with
+        ``__name__``, ``__qualname__``, and ``__doc__`` sourced from the
+        underlying callable.
+    """
+    underlying: Callable = func
+    while isinstance(underlying, functools.partial):
+        underlying = underlying.func
+
+    resolved: "functools.partial[_TOutput]" = functools.partial(
+        func.func, *func.args, **func.keywords
+    )
+    resolved.__name__ = getattr(underlying, "__name__", "partial")  # type: ignore[attr-defined]
+    resolved.__qualname__ = getattr(  # type: ignore[attr-defined]
+        underlying, "__qualname__", resolved.__name__
+    )
+    # Only adopt the underlying callable's docstring; the partial's own
+    # boilerplate __doc__ is deliberately discarded.
+    resolved.__doc__ = getattr(underlying, "__doc__", None)
+    return resolved
