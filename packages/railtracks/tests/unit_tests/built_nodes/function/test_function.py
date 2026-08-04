@@ -217,3 +217,48 @@ async def test_function_node_partial_executes():
     power_node = function_node(functools.partial(_apower, exp=2))
     assert await rt.call(greet_node, name="World") == "Hello, World!"
     assert await rt.call(power_node, base=3) == 9
+
+
+# ---------------------------------------------------------------------------
+# `name=` override propagates to the LLM-facing tool name (issues #1 & #2)
+# ---------------------------------------------------------------------------
+def test_function_node_name_override_sets_tool_name():
+    def square(x: int) -> int:
+        """Square a number.
+
+        Args:
+            x: the number
+        """
+        return x * x
+
+    node = function_node(square, name="my_custom_name")
+    # the override must reach the tool the LLM sees, not just the node id
+    assert node.node_type.tool_info().name == "my_custom_name"
+
+
+def test_function_node_name_override_defaults_to_function_name():
+    def square(x: int) -> int:
+        """Square a number.
+
+        Args:
+            x: the number
+        """
+        return x * x
+
+    node = function_node(square)
+    assert node.node_type.tool_info().name == "square"
+
+
+def test_partials_of_same_parent_get_distinct_tool_names():
+    from railtracks.built_nodes.llm.llm_helpers import get_node_from_name
+
+    sq = function_node(functools.partial(_apower, exp=2), name="square")
+    cb = function_node(functools.partial(_apower, exp=3), name="cube")
+
+    # without the name override both would collapse to "_apower" and collide
+    assert sq.node_type.tool_info().name == "square"
+    assert cb.node_type.tool_info().name == "cube"
+
+    nodes = [sq.node_type, cb.node_type]
+    assert get_node_from_name("square", nodes) is sq.node_type
+    assert get_node_from_name("cube", nodes) is cb.node_type
