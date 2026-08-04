@@ -1,9 +1,8 @@
-"""End-to-end emit path: pipe(event) -> resolve parent -> publish -> writer."""
+"""End-to-end emit path: pipe(event) -> resolve relationships -> publish -> writer."""
 
 import datetime
 
 import railtracks.context.central as central
-from railtracks.events._base import NodeParent, NoParent
 from railtracks.events.node import NodeInvocation
 from railtracks.events.send import pipe
 from railtracks.observability import (
@@ -47,22 +46,14 @@ async def _emit(event):
     return writer.events
 
 
-async def test_pipe_resolves_parent_and_publishes_raw_payload():
+async def test_pipe_resolves_relationships_and_publishes_payload():
     _register("sess-1")
     manager = central.ContextVarScopeManager()
 
     with manager.enter_node("caller"):
         with manager.enter_node_body():
             with manager.enter_node("n1"):
-                events = await _emit(
-                    NodeInvocation(
-                        name="Agent",
-                        node_id="n1",
-                        node_type="agent",
-                        args=(1,),
-                        kwargs={"x": 2},
-                    )
-                )
+                events = await _emit(NodeInvocation(args=(1,), kwargs={"x": 2}))
 
     assert len(events) == 1
     ev = events[0]
@@ -71,26 +62,22 @@ async def test_pipe_resolves_parent_and_publishes_raw_payload():
     assert ev.scope_id == "sess-1"
 
     p = ev.payload
-    assert p["node_id"] == "n1"
-    assert p["name"] == "Agent"
-    assert p["node_type"] == "agent"
-    # parent is the resolved Parent object (serialization is deferred to the writers)
-    assert p["parent"] == NodeParent(node_id="caller", middleware_id=None)
+    # the resolved relationships: self is n1, nested inside the caller
+    assert p["parent"] == {"parent_type": "node", "node_id": "n1"}
+    assert p["spatial_parent"] == {"spatial_type": "node", "node_id": "caller"}
     # payload values are passed through untouched: tuple stays tuple, datetime stays datetime
     assert p["args"] == (1,)
     assert p["kwargs"] == {"x": 2}
     assert isinstance(p["timestamp"], datetime.datetime)
 
 
-async def test_pipe_root_node_has_noparent():
+async def test_pipe_root_node_has_no_enclosing_node():
     _register("sess-2")
     manager = central.ContextVarScopeManager()
 
     with manager.enter_node("root"):
-        events = await _emit(
-            NodeInvocation(
-                name="Root", node_id="root", node_type="agent", args=(), kwargs={}
-            )
-        )
+        events = await _emit(NodeInvocation(args=(), kwargs={}))
 
-    assert events[0].payload["parent"] == NoParent()
+    p = events[0].payload
+    assert p["parent"] == {"parent_type": "node", "node_id": "root"}
+    assert p["spatial_parent"] == {"spatial_type": "node", "node_id": None}

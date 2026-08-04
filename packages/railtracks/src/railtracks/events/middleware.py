@@ -13,7 +13,6 @@ from railtracks.events._base import (
     MiddlewareParent,
     NodeAndMiddlewareSpatialParent,
     ParentEventBase,
-    Unset,
 )
 from railtracks.events._resolve import (
     middleware_parent,
@@ -44,8 +43,6 @@ _T = TypeVar("_T", bound=NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatia
 
 @dataclass(kw_only=True)
 class MiddlewareEventBase(ParentEventBase[_T, MiddlewareParent], Generic[_T]):
-    parent: MiddlewareParent | Unset = UNSET
-
     def verify(self) -> None:
         super().verify()
         assert self.parent != UNSET, (

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-
 from railtracks.context.central import get_current_scope
 from railtracks.events._base import (
     SessionEventBase,
@@ -36,4 +34,4 @@ async def pipe(event: SessionEventBase) -> None:
     event.resolve_relationships(get_current_scope())
     event.verify()
 
-    await publish_event(make_session_event(event.event_type(), asdict(event)))
+    await publish_event(make_session_event(event.event_type(), event.encode()))

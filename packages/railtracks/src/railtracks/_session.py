@@ -129,6 +129,9 @@ class Session:
             rt_publisher=self.publisher,
             executor_config=self.executor_config,
             global_context_vars=context,
+            flow_name=self.flow_name,
+            flow_id=self.flow_id,
+            session_name=self.name,
         )
 
         self._start_time = time.time()

@@ -2,7 +2,7 @@
 
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry, ScopeKind
-from railtracks.events._base import NodeParent, NoParent
+from railtracks.events._base import NodeParent, NodeSpatialParent, NoSpatialParent
 from railtracks.events.node import (
     NodeCreation,
     NodeDestruction,
@@ -20,41 +20,36 @@ def chain(*entries: tuple[ScopeKind, str]) -> ScopeLink[ScopeEntry] | None:
     return link
 
 
-def _node_kwargs():
-    return {"name": "Agent", "node_id": "1", "node_type": "agent"}
-
-
 def test_event_type_strings():
-    assert NodeCreation(**_node_kwargs()).event_type() == "node.creation"
     assert (
-        NodeInvocation(**_node_kwargs(), args=(), kwargs={}).event_type()
-        == "node.invocation"
+        NodeCreation(node_id="1", name="Agent", node_type="agent").event_type()
+        == "node.creation"
     )
-    assert NodeResponse(**_node_kwargs(), response="r").event_type() == "node.response"
-    assert NodeFailure(**_node_kwargs(), failure="boom").event_type() == "node.failure"
-    assert (
-        NodeDestruction(**_node_kwargs(), response="r").event_type()
-        == "node.destruction"
-    )
+    assert NodeInvocation(args=(), kwargs={}).event_type() == "node.invocation"
+    assert NodeResponse(response="r").event_type() == "node.response"
+    assert NodeFailure(failure="boom").event_type() == "node.failure"
+    assert NodeDestruction(response="r").event_type() == "node.destruction"
 
 
-def test_runtime_node_event_resolves_via_node_parent():
-    # node "1" running under the caller's body → caller is the parent
+def test_runtime_node_event_resolves_self_and_enclosing_node():
+    # node "1" running under the caller's body → self is "1", nested inside "caller"
     scope = chain(
         (ScopeKind.NODE, "caller"),
         (ScopeKind.NODE_BODY, "caller"),
         (ScopeKind.NODE, "1"),
     )
-    ev = NodeInvocation(**_node_kwargs(), args=(), kwargs={})
-    assert ev._get_spatial_parent(scope) == NodeParent(node_id="caller", middleware_id=None)
+    ev = NodeInvocation(args=(), kwargs={})
+    ev.resolve_relationships(scope)
+
+    assert ev.parent == NodeParent(node_id="1")
+    assert ev.spatial_parent == NodeSpatialParent(node_id="caller")
+    ev.verify()
 
 
-def test_node_creation_resolves_via_creation_parent():
-    # self ("1") is NOT on the chain; caller's body is ambient (no self-skip)
-    scope = chain((ScopeKind.NODE, "caller"), (ScopeKind.NODE_BODY, "caller"))
-    ev = NodeCreation(**_node_kwargs())
-    assert ev._get_spatial_parent(scope) == NodeParent(node_id="caller", middleware_id=None)
-
-
-def test_root_node_creation_has_no_parent():
-    assert NodeCreation(**_node_kwargs())._get_spatial_parent(None) == NoParent()
+def test_node_creation_has_no_spatial_parent():
+    # a creation event is emitted before the node enters its own scope
+    ev = NodeCreation(node_id="1", name="Agent", node_type="agent")
+    assert ev._get_spatial_parent(None) == NoSpatialParent()
+    assert (
+        ev._get_spatial_parent(chain((ScopeKind.NODE, "caller"))) == NoSpatialParent()
+    )

@@ -2,11 +2,13 @@
 
 Unlike `test_send.py` (which drives `pipe` directly against a synthetic scope), this runs
 `rt.call` end-to-end and checks that the emission sites in `nodes.py`,
-`execution_strategy.py`, and `state.py` fire with the right lifecycle and parents.
+`_node_builder.py`, and `state.py` fire with the right lifecycle and relationships.
+
+Only `node.creation` carries the node's name/id; the running events identify themselves
+through the resolved `parent` (which, for a node event, is the node itself).
 """
 
 import railtracks as rt
-from railtracks.events._base import NodeParent, NoParent
 from railtracks.observability import Event, configure_writers
 
 
@@ -24,12 +26,29 @@ class _Collecting:
         pass
 
 
-def _by_name(events, name):
-    return [e for e in events if e.payload["name"] == name]
+def _node_events(events):
+    return [e for e in events if e.event_type.startswith("node.")]
 
 
-def _types(events):
-    return [e.event_type for e in events]
+def _ids_by_name(events):
+    """node name -> node_id, read off the creation events."""
+    return {
+        e.payload["name"]: e.payload["node_id"]
+        for e in events
+        if e.event_type == "node.creation"
+    }
+
+
+def _lifecycle(events, *, name, node_id):
+    """The ordered event types belonging to one node."""
+    out = []
+    for e in _node_events(events):
+        if e.event_type == "node.creation":
+            if e.payload["name"] == name:
+                out.append(e.event_type)
+        elif e.payload["parent"]["node_id"] == node_id:
+            out.append(e.event_type)
+    return out
 
 
 async def test_parent_child_lifecycle_and_parents():
@@ -50,30 +69,28 @@ async def test_parent_child_lifecycle_and_parents():
         result = await rt.call(outer, 10)
     assert result == 11
 
-    outer_events = _by_name(writer.events, "outer")
-    inner_events = _by_name(writer.events, "inner")
+    ids = _ids_by_name(writer.events)
+    assert set(ids) == {"outer", "inner"}
 
     # every node runs its full lifecycle
-    for events in (outer_events, inner_events):
-        assert _types(events) == [
+    for name, node_id in ids.items():
+        assert _lifecycle(writer.events, name=name, node_id=node_id) == [
             "node.creation",
             "node.invocation",
             "node.response",
             "node.destruction",
         ]
 
-    # self-id is stable across an invocation's lifecycle (pairs invocation with response)
-    outer_id = {e.payload["node_id"] for e in outer_events}
-    inner_id = {e.payload["node_id"] for e in inner_events}
-    assert len(outer_id) == 1
-    assert len(inner_id) == 1
-    (outer_id,) = outer_id
-
-    # the root node has no parent; the child is parented on the caller node (no LLM, no mw)
-    for e in outer_events:
-        assert e.payload["parent"] == NoParent()
-    for e in inner_events:
-        assert e.payload["parent"] == NodeParent(node_id=outer_id, middleware_id=None)
+    # the root node has no enclosing node; the child is nested inside the caller
+    running = [
+        e for e in _node_events(writer.events) if e.event_type != "node.creation"
+    ]
+    for e in running:
+        enclosing = e.payload["spatial_parent"]["node_id"]
+        if e.payload["parent"]["node_id"] == ids["outer"]:
+            assert enclosing is None
+        else:
+            assert enclosing == ids["outer"]
 
 
 async def test_failure_emits_node_failure_and_no_response():
@@ -91,8 +108,15 @@ async def test_failure_emits_node_failure_and_no_response():
         except Exception:
             pass
 
-    boom_events = _by_name(writer.events, "boom")
-    # failure short-circuits: creation + invocation + failure, never response/destruction
-    assert _types(boom_events) == ["node.creation", "node.invocation", "node.failure"]
-    failure = boom_events[-1]
+    ids = _ids_by_name(writer.events)
+    lifecycle = _lifecycle(writer.events, name="boom", node_id=ids["boom"])
+    # failure replaces the response; destruction still fires as the node unwinds
+    assert lifecycle == [
+        "node.creation",
+        "node.invocation",
+        "node.failure",
+        "node.destruction",
+    ]
+
+    failure = [e for e in writer.events if e.event_type == "node.failure"][0]
     assert "kaboom" in failure.payload["failure"]

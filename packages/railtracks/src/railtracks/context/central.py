@@ -110,6 +110,37 @@ def get_session_id() -> str | None:
     return context.session_context.session_id
 
 
+SessionIdentity = NamedTuple(
+    "SessionIdentity",
+    [
+        ("session_id", str),
+        ("flow_name", str | None),
+        ("flow_id", str | None),
+        ("session_name", str | None),
+    ],
+)
+
+
+def get_session_identity() -> SessionIdentity:
+    """
+    Get the full identity of the active session: its id plus the flow/session names it
+    was created with.
+
+    Returns:
+        SessionIdentity: The identity of the currently active session.
+
+    Raises:
+        ContextError: If the global variables have not been registered.
+    """
+    context = safe_get_runner_context().session_context
+    return SessionIdentity(
+        session_id=context.session_id,
+        flow_name=context.flow_name,
+        flow_id=context.flow_id,
+        session_name=context.session_name,
+    )
+
+
 def get_parent_id() -> str | None:
     """
     Get the id of the currently active node (walks up the scope chain to the
@@ -217,6 +248,9 @@ def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
         publisher=ctx.session_context.publisher,
         scope=scope,
         executor_config=ctx.session_context.executor_config,
+        flow_name=ctx.session_context.flow_name,
+        flow_id=ctx.session_context.flow_id,
+        session_name=ctx.session_context.session_name,
     )
     new_ctx = RunnerContextVars(
         session_context=new_session_context,
@@ -235,6 +269,9 @@ def register_globals(
     rt_publisher: RTPublisher | None,
     executor_config: ExecutorConfig,
     global_context_vars: dict[str, Any],
+    flow_name: str | None = None,
+    flow_id: str | None = None,
+    session_name: str | None = None,
 ):
     """
     Register the global variables for the current thread.
@@ -243,6 +280,9 @@ def register_globals(
         publisher=rt_publisher,
         session_id=session_id,
         executor_config=executor_config,
+        flow_name=flow_name,
+        flow_id=flow_id,
+        session_name=session_name,
     )
     e_c = MutableExternalContext(global_context_vars)
 
