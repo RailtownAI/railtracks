@@ -110,6 +110,65 @@ def validate_function_parameters(
         validate_tool_manifest_against_function(func, manifest.parameters)
 
 
+def _validate_and_normalize_callable(
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
+    manifest: ToolManifest | None,
+) -> Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]:
+    """Validate ``func`` and normalise it into a node-ready callable.
+
+    Runs dict-parameter validation, cross-checks an optional ``manifest`` against
+    the signature, resolves ``functools.partial`` metadata, wraps builtins so the
+    node type can be attached, and rejects anything that is not a supported
+    callable.
+
+    Args:
+        func: The callable to validate and normalise.
+        manifest: Optional tool manifest to validate against ``func``'s signature.
+
+    Returns:
+        A callable equivalent to ``func`` that is safe to hand to the node builder.
+
+    Raises:
+        NodeCreationError: If ``func`` is not a supported callable type.
+    """
+    # functools.partial objects carry no usable __name__/__qualname__ and only a
+    # boilerplate __doc__, both of which downstream tool-schema extraction relies
+    # on. Normalise into a copy that sources these from the wrapped callable
+    # before any further handling so the rest of the pipeline is oblivious to it.
+    if isinstance(func, functools.partial):
+        func = _partial_with_resolved_metadata(func)
+
+    if not isinstance(
+        func, BuiltinFunctionType
+    ):  # we don't require dict validation for builtin functions, that is handled separately.
+        validate_function(func)  # checks for dict or Dict parameters
+
+    # Validate tool manifest against function signature if manifest is provided
+    if manifest is not None:
+        validate_tool_manifest_against_function(func, manifest.parameters)
+
+    if inspect.isbuiltin(func):
+        # builtin functions are written in C and do not have space for the addition of metadata like our node type.
+        # so instead we wrap them in a function that allows for the addition of the node type.
+        # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
+        return _function_preserving_metadata(func)
+
+    if not (
+        asyncio.iscoroutinefunction(func)
+        or inspect.isfunction(func)
+        or inspect.ismethod(func)  # bound (and class) methods
+        or isinstance(func, functools.partial)
+    ):
+        raise NodeCreationError(
+            message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
+            notes=[
+                "You must provide a valid function or coroutine function to make a node.",
+            ],
+        )
+
+    return func
+
+
 def _single_function_node(
     func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     /,
@@ -139,40 +198,7 @@ def _single_function_node(
     ):
         return func
 
-    # functools.partial objects carry no usable __name__/__qualname__ and only a
-    # boilerplate __doc__, both of which downstream tool-schema extraction relies
-    # on. Normalise into a copy that sources these from the wrapped callable
-    # before any further handling so the rest of the pipeline is oblivious to it.
-    if isinstance(func, functools.partial):
-        func = _partial_with_resolved_metadata(func)
-
-    if not isinstance(
-        func, BuiltinFunctionType
-    ):  # we don't require dict validation for builtin functions, that is handled separately.
-        validate_function(func)  # checks for dict or Dict parameters
-
-    # Validate tool manifest against function signature if manifest is provided
-    if manifest is not None:
-        validate_tool_manifest_against_function(func, manifest.parameters)
-
-    if inspect.isbuiltin(func):
-        # builtin functions are written in C and do not have space for the addition of metadata like our node type.
-        # so instead we wrap them in a function that allows for the addition of the node type.
-        # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
-        func = _function_preserving_metadata(func)
-
-    elif not (
-        asyncio.iscoroutinefunction(func)
-        or inspect.isfunction(func)
-        or inspect.ismethod(func)  # bound (and class) methods
-        or isinstance(func, functools.partial)
-    ):
-        raise NodeCreationError(
-            message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
-            notes=[
-                "You must provide a valid function or coroutine function to make a node.",
-            ],
-        )
+    func = _validate_and_normalize_callable(func, manifest)
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
     is_sync = False

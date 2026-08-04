@@ -89,7 +89,7 @@ def test_function_preserving_metadata():
 
 
 # ---------------------------------------------------------------------------
-# Bound methods (issue #1318)
+# Bound methods test
 # ---------------------------------------------------------------------------
 class _Calculator:
     def add(self, a: int, b: int) -> int:
