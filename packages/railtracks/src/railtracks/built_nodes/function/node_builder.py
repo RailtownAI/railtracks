@@ -55,10 +55,6 @@ class FunctionNodeBuilder(NodeBuilder):
         resolved_tool = (
             tool_info
             if tool_info is not None
-            # Forward `name` so the LLM-facing tool name honors the override.
-            # Without it, Tool.from_function falls back to function.__name__, which
-            # leaves distinct nodes (e.g. two functools.partial of the same parent)
-            # sharing one tool name and colliding at tool-dispatch time.
             else Tool.from_function(
                 function, name=name, details=tool_details, params=tool_params
             )
