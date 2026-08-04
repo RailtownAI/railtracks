@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from abc import ABC
 from typing import Any, Generic, Literal, ParamSpec, Type, TypeVar
 
@@ -143,11 +144,10 @@ class RequestCreation(RequestCompletionMessage):
         new_node_type: The node type to instantiate for this request.
         args: The positional arguments to pass to the node.
         kwargs: The keyword arguments to pass to the node.
-        stream: If True, the created node's frame will have streaming enabled (see `rt.astream`).
-            Note this flag is frame-local: it applies only to the node created by this request,
-            never to its children.
-        current_stream_id: The stream scope id of the *creating* frame. Children inherit this id so
-            their explicit broadcasts can be routed to the consumer attached to the entry frame.
+        stream_queue: When set, the created node is the entry of a streamed invocation (see
+            `rt.astream`): its LLM node writes each token chunk directly onto this queue, which
+            the `Stream` handle drains. Frame-local — it applies only to the node created by
+            this request, never to its children (nested `rt.call` children run buffered).
     """
 
     def __init__(
@@ -160,8 +160,7 @@ class RequestCreation(RequestCompletionMessage):
         new_node_type: Type[Node],
         args,
         kwargs,
-        stream: bool = False,
-        current_stream_id: str | None = None,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         self.current_node_id = current_node_id
         self.current_run_id = current_run_id
@@ -170,8 +169,7 @@ class RequestCreation(RequestCompletionMessage):
         self.new_node_type = new_node_type
         self.args = args
         self.kwargs = kwargs
-        self.stream = stream
-        self.current_stream_id = current_stream_id
+        self.stream_queue = stream_queue
 
     def __repr__(self):
         return (
@@ -196,43 +194,26 @@ class FatalFailure(RequestCompletionMessage):
         return f"{self.__class__.__name__}(error={self.error})"
 
 
-# A one-off "event" versus a "stream" chunk (one piece of a continuous production, such as
-# an LLM token stream).
-StreamingKind = Literal["event", "stream"]
-
-
-class Streaming(RequestCompletionMessage):
+class BroadcastEvent(RequestCompletionMessage):
     """
-    A message carrying a single streamed item (e.g. an LLM token chunk or a broadcast item).
+    A message carrying a single one-off event published with `rt.broadcast`.
+
+    This drives the `broadcast_callback` lane: a user emits a discrete event from inside a
+    node and any attached callback receives it. Each event stands alone.
 
     Args:
-        streamed_object: The item being streamed (typically a `str` chunk).
-        node_id: The id of the node that emitted the item.
-        channel: The named channel this item was emitted on. Defaults to `"default"`.
-        stream_id: The stream scope this item belongs to, or None if it was emitted outside
-            any streaming scope.
-        kind: Whether this item is a one-off `"event"` or a `"stream"` chunk (one piece of a
-            continuous production, such as an LLM token stream).
+        item: The event being broadcast (typically a `str`).
+        node_id: The id of the node that emitted the event.
     """
 
     def __init__(
         self,
         *,
-        streamed_object: Any,
+        item: Any,
         node_id: str | None,
-        channel: str = "default",
-        stream_id: str | None = None,
-        kind: StreamingKind = "event",
     ):
-        self.streamed_object = streamed_object
+        self.item = item
         self.node_id = node_id
-        self.channel = channel
-        self.stream_id = stream_id
-        self.kind = kind
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(streamed_object={self.streamed_object}, "
-            f"node_id={self.node_id}, channel={self.channel}, stream_id={self.stream_id}, "
-            f"kind={self.kind})"
-        )
+        return f"{self.__class__.__name__}(item={self.item}, node_id={self.node_id})"

@@ -108,7 +108,7 @@ class Response:
         The plain-text content of the response message.
 
         This is a typed convenience accessor for the common case where the model returned
-        text (e.g. the final `Response` of `astream_chat` / `broadcast_stream`).
+        text (e.g. the final `Response` of `astream_chat`).
 
         Returns:
             str: The message's text content.

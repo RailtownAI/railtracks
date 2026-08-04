@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Generic, TypeVar
 
 from railtracks.context.central import get_run_id, update_parent_id
@@ -18,30 +19,27 @@ class Task(Generic[_TOutput]):
         request_id: str,
         node: Node[..., _TOutput],
         arguments: tuple[tuple, dict[str, Any]],
-        stream: bool = False,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         self.request_id = request_id
         self.node = node
         self.arguments = arguments
-        # when True the node's frame will run with streaming enabled (frame-local, see rt.astream)
-        self.stream = stream
+        # when set, this frame is the entry of a streamed invocation: its LLM node writes each
+        # token chunk onto this queue, which the rt.astream handle drains (frame-local).
+        self.stream_queue = stream_queue
 
     async def invoke(self):
         """The callable that this task is representing."""
-        # if this frame is the entry of a streamed invocation, its request id becomes the
-        # stream scope id used to route broadcast chunks back to the consumer.
-        stream_id = self.request_id if self.stream else None
-
         # if there is no parent run_id then this is the root
         if get_run_id() is None:
             # note critically that since these variables only this tree of requests will see this run_id.
             update_parent_id(
-                self.node.uuid, self.node.uuid, stream=self.stream, stream_id=stream_id
+                self.node.uuid, self.node.uuid, stream_queue=self.stream_queue
             )
 
         # otherwise we are already in a run so we just use the previous one.
         else:
-            update_parent_id(self.node.uuid, stream=self.stream, stream_id=stream_id)
+            update_parent_id(self.node.uuid, stream_queue=self.stream_queue)
 
         result = await self.node.wrapped_invoke(*self.arguments[0], **self.arguments[1])
 
