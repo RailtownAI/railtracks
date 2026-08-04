@@ -2,7 +2,8 @@
 
 ``SearchBackend`` is pure stdlib (a Protocol) and imported eagerly.
 ``TavilySearch`` requires the `websearch` extra (httpx), so it is loaded
-lazily on first access — importing this package stays dependency-light.
+lazily on first access; importing this package for the protocol alone stays
+dependency-light.
 """
 
 from __future__ import annotations

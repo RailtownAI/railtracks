@@ -2,8 +2,8 @@
 
 ``FetchBackend`` is pure stdlib (a Protocol) and imported eagerly.
 ``HttpFetch`` requires the `websearch` extra (httpx, trafilatura), so it is
-loaded lazily on first access — importing this package stays
-dependency-light.
+loaded lazily on first access; importing this package for the protocol alone
+stays dependency-light.
 """
 
 from __future__ import annotations
