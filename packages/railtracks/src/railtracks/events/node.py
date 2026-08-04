@@ -5,31 +5,36 @@ from typing import Any
 
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
-from railtracks.events._base import NodeParent, NoParent, Parent, SessionEventBase
-from railtracks.events._resolve import node_creation_parent, node_parent
+from railtracks.events._base import (
+    CreationEventBase,
+    NodeParent,
+    NodeSpatialParent,
+    ParentEventBase,
+)
+from railtracks.events._resolve import node_parent, node_spatial_parent
 
 
 @dataclass(kw_only=True)
-class NodeEventBase(SessionEventBase[NodeParent | NoParent]):
-    name: str
-    node_id: str
-    node_type: str
+class NodeEventBase(ParentEventBase[NodeSpatialParent, NodeParent]):
+    def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
+        return node_spatial_parent(scope)
 
-    def resolve_parent(self, scope: ScopeLink[ScopeEntry] | None) -> Parent:
-        # a running node's own NODE entry is on the chain; walk below it
-        return node_parent(scope)
+    def _get_parent(self, scope: ScopeLink[ScopeEntry] | None):
+        result = node_parent(scope)
+        return result
 
 
 @dataclass(kw_only=True)
-class NodeCreation(NodeEventBase):
+class NodeCreation(CreationEventBase):
     """Node instantiated. Emitted before the node enters its own scope, so its parent
     resolves from the caller's ambient chain (no self-skip)."""
 
+    node_id: str
+    name: str
+    node_type: str
+
     def event_type(self) -> str:
         return "node.creation"
-
-    def resolve_parent(self, scope: ScopeLink[ScopeEntry] | None) -> Parent:
-        return node_creation_parent(scope)
 
 
 @dataclass(kw_only=True)

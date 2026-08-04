@@ -9,11 +9,11 @@ from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry, ScopeKind
 from railtracks.events._base import LLMParent, NodeParent, NoParent
 from railtracks.events._resolve import (
-    llm_parent,
+    llm_spatial_parent,
     middleware_parent,
     model_middleware_parent,
-    node_creation_parent,
-    node_parent,
+    node_creation_spatial_parent,
+    node_spatial_parent,
 )
 
 N = ScopeKind.NODE
@@ -36,25 +36,25 @@ def chain(*entries: tuple[ScopeKind, str]) -> ScopeLink[ScopeEntry] | None:
 
 def test_root_node_has_no_parent():
     # A is the root; nothing below its NODE entry
-    assert node_parent(chain((N, "A"), (NB, "A"))) == NoParent()
+    assert node_spatial_parent(chain((N, "A"), (NB, "A"))) == NoParent()
 
 
 def test_nested_node_resolves_to_caller_node():
     # B called from A's body
     scope = chain((N, "A"), (NB, "A"), (N, "B"), (NB, "B"))
-    assert node_parent(scope) == NodeParent(node_id="A", middleware_id=None)
+    assert node_spatial_parent(scope) == NodeParent(node_id="A", middleware_id=None)
 
 
 def test_node_called_from_a_middleware_collapses_to_nodeparent_with_mw():
     # B spawned from middleware m on A → NodeParent(A, mw=m), not MiddlewareParent
     scope = chain((N, "A"), (NB, "A"), (MW, "m"), (N, "B"), (NB, "B"))
-    assert node_parent(scope) == NodeParent(node_id="A", middleware_id="m")
+    assert node_spatial_parent(scope) == NodeParent(node_id="A", middleware_id="m")
 
 
 def test_nodes_own_middleware_does_not_leak_into_its_parent():
     # B's own middleware (bm) sits above NODE(B); it must not become the parent's mw hop
     scope = chain((N, "A"), (NB, "A"), (N, "B"), (MW, "bm"), (NB, "B"))
-    assert node_parent(scope) == NodeParent(node_id="A", middleware_id=None)
+    assert node_spatial_parent(scope) == NodeParent(node_id="A", middleware_id=None)
 
 
 def test_node_with_llm_in_ancestry_skips_llm_and_anchors_on_node():
@@ -63,7 +63,7 @@ def test_node_with_llm_in_ancestry_skips_llm_and_anchors_on_node():
     scope = chain(
         (N, "A"), (NB, "A"), (LLM, "l"), (MW, "model-mw"), (N, "C"), (NB, "C")
     )
-    parent = node_parent(scope)
+    parent = node_spatial_parent(scope)
     assert parent == NodeParent(node_id="A", middleware_id="model-mw")
     assert not isinstance(parent, LLMParent)  # LLM entry is transparent to a node event
 
@@ -71,9 +71,9 @@ def test_node_with_llm_in_ancestry_skips_llm_and_anchors_on_node():
 def test_node_parent_raises_when_self_node_absent():
     # bad state: a node event with no NODE entry on the chain
     with pytest.raises(ValueError):
-        node_parent(chain((MW, "m")))
+        node_spatial_parent(chain((MW, "m")))
     with pytest.raises(ValueError):
-        node_parent(None)
+        node_spatial_parent(None)
 
 
 # ── General middleware events (middleware_parent) ────────────────────────────
@@ -108,7 +108,7 @@ def test_nested_model_middleware_keeps_immediate_wrapper():
 
 def test_llm_event_resolves_to_enclosing_node():
     scope = chain((N, "A"), (NB, "A"), (LLM, "l"))
-    assert llm_parent(scope) == NodeParent(node_id="A", middleware_id=None)
+    assert llm_spatial_parent(scope) == NodeParent(node_id="A", middleware_id=None)
 
 
 # ── NodeCreation (node_creation_parent) — self not on chain ──────────────────
@@ -116,15 +116,15 @@ def test_llm_event_resolves_to_enclosing_node():
 
 def test_node_creation_from_body_resolves_to_creating_node():
     # caller (A) chain is ambient; the new node is NOT on it
-    assert node_creation_parent(chain((N, "A"), (NB, "A"))) == NodeParent(
+    assert node_creation_spatial_parent(chain((N, "A"), (NB, "A"))) == NodeParent(
         node_id="A", middleware_id=None
     )
 
 
 def test_node_creation_at_root_has_no_parent():
-    assert node_creation_parent(None) == NoParent()
+    assert node_creation_spatial_parent(None) == NoParent()
 
 
 def test_node_creation_from_middleware_records_the_middleware():
     scope = chain((N, "A"), (NB, "A"), (MW, "m"))
-    assert node_creation_parent(scope) == NodeParent(node_id="A", middleware_id="m")
+    assert node_creation_spatial_parent(scope) == NodeParent(node_id="A", middleware_id="m")

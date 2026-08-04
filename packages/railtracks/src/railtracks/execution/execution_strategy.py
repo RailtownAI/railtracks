@@ -7,8 +7,6 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from railtracks.context.central import get_publisher
-from railtracks.events.node import NodeDestruction, NodeFailure
-from railtracks.events.send import emit
 from railtracks.nodes.nodes import NodeState
 from railtracks.pubsub.messages import RequestFailure, RequestSuccess
 from railtracks.scope_manager import NullScopeManager, ScopeManager
@@ -49,17 +47,12 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
         task.node.bind_scope_manager(self.scope_manager)
 
         publisher = get_publisher()
-        ident = task.node._event_identity()
+
         response = None
         try:
             with self.scope_manager.enter_node(task.node.uuid):
-                try:
-                    result = await task.invoke()
-                except Exception as e:
-                    # emit inside the node scope, before it unwinds, so the parent resolves
-                    await emit(NodeFailure(**ident, failure=repr(e)))
-                    raise
-                await emit(NodeDestruction(**ident, response=result))
+                result = await task.invoke()
+
             response = RequestSuccess(
                 request_id=task.request_id,
                 node_state=NodeState(task.node),

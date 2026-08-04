@@ -46,15 +46,15 @@ def test_runtime_node_event_resolves_via_node_parent():
         (ScopeKind.NODE, "1"),
     )
     ev = NodeInvocation(**_node_kwargs(), args=(), kwargs={})
-    assert ev.resolve_parent(scope) == NodeParent(node_id="caller", middleware_id=None)
+    assert ev._get_spatial_parent(scope) == NodeParent(node_id="caller", middleware_id=None)
 
 
 def test_node_creation_resolves_via_creation_parent():
     # self ("1") is NOT on the chain; caller's body is ambient (no self-skip)
     scope = chain((ScopeKind.NODE, "caller"), (ScopeKind.NODE_BODY, "caller"))
     ev = NodeCreation(**_node_kwargs())
-    assert ev.resolve_parent(scope) == NodeParent(node_id="caller", middleware_id=None)
+    assert ev._get_spatial_parent(scope) == NodeParent(node_id="caller", middleware_id=None)
 
 
 def test_root_node_creation_has_no_parent():
-    assert NodeCreation(**_node_kwargs()).resolve_parent(None) == NoParent()
+    assert NodeCreation(**_node_kwargs())._get_spatial_parent(None) == NoParent()

@@ -232,6 +232,13 @@ class RTState:
                 args=args,
                 kwargs=kwargs,
             )
+            creation_event = NodeCreation(
+                node_id=node_instance.uuid,
+                node_type=node_instance.type(),
+                name=node_instance.name(),
+            )
+
+            await emit(creation_event)
         except Exception as e:
             # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
             rfa = RequestFailureAction(
@@ -246,10 +253,6 @@ class RTState:
             )
             logger.exception(rfa.to_logging_msg())
             raise e
-
-        # the node is born here, under the caller's restored scope → its parent resolves to
-        # the caller (self isn't on the chain yet, so NodeCreation walks from the top).
-        await emit(NodeCreation(**node_instance._event_identity()))
 
         # you have to run this in a task so it isn't blocking other completions
         outputs = asyncio.create_task(self._run_request(request_id))

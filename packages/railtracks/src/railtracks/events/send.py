@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import asdict
 
 from railtracks.context.central import get_current_scope
-from railtracks.events._base import UNSET, SessionEventBase
+from railtracks.events._base import (
+    SessionEventBase,
+)
 from railtracks.observability.publish import publish_event
 from railtracks.observability_bridge._factory import make_session_event
 from railtracks.utils.logging.create import get_rt_logger
@@ -31,8 +33,7 @@ async def pipe(event: SessionEventBase) -> None:
     Payload values are passed through as raw objects; the resolved `Parent`, the
     `datetime` timestamp, and node args/response are handed off untouched.
     """
-    if event.parent is UNSET:
-        event.parent = event.resolve_parent(get_current_scope())
+    event.resolve_relationships(get_current_scope())
+    event.verify()
 
-    payload = {f.name: getattr(event, f.name) for f in fields(event)}
-    await publish_event(make_session_event(event.event_type(), payload))
+    await publish_event(make_session_event(event.event_type(), asdict(event)))
