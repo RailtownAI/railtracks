@@ -1,8 +1,20 @@
+import re
+
 import pytest
 import railtracks as rt
 from railtracks.llm import ToolCall
 from railtracks.prebuilt.tools.websearch import WebSearchToolSet
 from railtracks.prebuilt.tools.websearch.models import FetchResult, SearchResult
+
+
+def _contains_url(text: str, url: str) -> bool:
+    """Check that `url` appears in `text` as a whole token.
+
+    A plain `url in text` substring check would also match a spoofed
+    superstring like "https://railtracks.org.evil.com", so anchor on a
+    non-URL character (or end of string) right after it.
+    """
+    return re.search(rf"{re.escape(url)}(?![\w./-])", text) is not None
 
 
 class _FakeSearch:
@@ -53,7 +65,7 @@ class TestWebSearchToolCalling:
         with rt.Session():
             response = await rt.call(agent, user_input="What is railtracks?")
             assert "An agentic framework" in response.text
-            assert "https://railtracks.org" in response.text
+            assert _contains_url(response.text, "https://railtracks.org")
 
     @pytest.mark.asyncio
     async def test_fetch_tool_round_trips_through_agent(self, mock_llm):

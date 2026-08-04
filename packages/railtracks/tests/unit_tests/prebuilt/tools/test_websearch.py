@@ -1,8 +1,21 @@
+import re
+
 import pytest
 from railtracks.prebuilt.tools.websearch import WebSearchToolSet
 from railtracks.prebuilt.tools.websearch.fetch import HttpFetch
 from railtracks.prebuilt.tools.websearch.models import FetchResult, SearchResult
 from railtracks.prebuilt.tools.websearch.search import TavilySearch
+
+
+def _contains_url(text: str, url: str) -> bool:
+    """Check that `url` appears in `text` as a whole token.
+
+    A plain `url in text` substring check would also match a spoofed
+    superstring like "https://a.com.evil.com", so anchor on a non-URL
+    character (or end of string) right after it.
+    """
+    return re.search(rf"{re.escape(url)}(?![\w./-])", text) is not None
+
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -106,7 +119,7 @@ async def test_search_and_fetch_combines_both():
     )
     out = await ts.search_and_fetch("query")
     assert "A" in out
-    assert "https://a.com" in out
+    assert _contains_url(out, "https://a.com")
     assert "full content" in out
 
 
