@@ -1,5 +1,3 @@
-"""Tests for prebuilt/tools/websearch/fetch/http.py — HttpFetch."""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx

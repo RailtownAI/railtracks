@@ -1,5 +1,3 @@
-"""Tests for prebuilt/tools/websearch/models.py — SearchResult, FetchResult."""
-
 import pytest
 from pydantic import ValidationError
 from railtracks.prebuilt.tools.websearch.models import FetchResult, SearchResult

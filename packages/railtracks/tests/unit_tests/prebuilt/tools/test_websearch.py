@@ -1,5 +1,3 @@
-"""Tests for prebuilt/tools/websearch/websearch.py — WebSearchToolSet."""
-
 import pytest
 from railtracks.prebuilt.tools.websearch import WebSearchToolSet
 from railtracks.prebuilt.tools.websearch.fetch import HttpFetch

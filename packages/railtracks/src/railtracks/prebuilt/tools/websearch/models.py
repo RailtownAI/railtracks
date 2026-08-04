@@ -16,7 +16,7 @@ class FetchResult(BaseModel):
 
     A failed fetch (paywalled, blocked, no extractable content, network
     error) is represented by ``is_error=True`` with ``error_message`` set,
-    rather than raising — these are expected, common outcomes for a fetch
+    rather than raising, these are expected, common outcomes for a fetch
     layer, not exceptional ones.
     """
 
