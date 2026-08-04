@@ -354,6 +354,7 @@ class TestCompletionMethods:
         assert calls[0].name == "tool_x"
         assert calls[0].arguments == {"foo": 1}
         assert calls[0].identifier == "id123"
+
         
         if stream:  # no stream in case the llm requests tool
             for chunk in result:

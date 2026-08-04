@@ -120,7 +120,7 @@ class ModelInvoker:
 
         await emit(
             LLMCreationEvent(
-                model_id=model.id,
+                llm_id=model.id,
                 model_name=model.model_name(),
                 model_provider=model.model_provider(),
             )

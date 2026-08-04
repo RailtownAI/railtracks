@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import uuid
 from typing import (
     Awaitable,
     Callable,
@@ -9,6 +10,10 @@ from typing import (
     ParamSpec,
     TypeVar,
 )
+
+from railtracks.events.middleware import MiddlewareCreationEvent
+from railtracks.events.send import pipe
+from railtracks.utils.logging.create import get_rt_logger
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
@@ -25,6 +30,9 @@ def _require_async(fn: Callable, role: str) -> None:
         raise TypeError(
             f"{role} must be an async function (coroutine function): {fn!r}"
         )
+
+
+logger = get_rt_logger(__name__)
 
 
 class Middleware(Generic[_P, _R]):
@@ -53,6 +61,22 @@ class Middleware(Generic[_P, _R]):
         _require_async(fn, "Middleware function")
         self._fn = fn
         self.name = name if name is not None else fn.__name__
+        self.type_id = str(
+            uuid.uuid4()
+        )  # identifies this middleware definition, shared by every invocation
+
+        self._has_registered = False
+
+    async def start_creation_task(self):
+        if self._has_registered:
+            return
+
+        self._has_registered = True
+        event = MiddlewareCreationEvent(
+            middleware_type_id=self.type_id,
+            middleware_name=self.name,
+        )
+        return await pipe(event)
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         """Compose this middleware onto ``inner``, returning a new callable with the same signature."""

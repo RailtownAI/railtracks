@@ -7,6 +7,7 @@ from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
 from railtracks.events._base import (
     CreationEventBase,
+    MiddlewareSpatialParent,
     NodeParent,
     NodeSpatialParent,
     ParentEventBase,
@@ -15,7 +16,9 @@ from railtracks.events._resolve import node_parent, node_spatial_parent
 
 
 @dataclass(kw_only=True)
-class NodeEventBase(ParentEventBase[NodeSpatialParent, NodeParent]):
+class NodeEventBase(
+    ParentEventBase[NodeSpatialParent | MiddlewareSpatialParent, NodeParent]
+):
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
         return node_spatial_parent(scope)
 

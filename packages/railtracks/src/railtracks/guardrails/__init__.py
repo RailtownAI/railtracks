@@ -4,11 +4,10 @@ from .core import (
     GuardrailBlockedError,
     GuardrailDecision,
     GuardrailTrace,
-    InputGuard,
     LLMGuardrailEvent,
     LLMGuardrailPhase,
-    OutputGuard,
 )
+from .llm.concrete import InputGuard, OutputGuard
 from .llm.decorators import input_guard, output_guard
 
 # Primitives only.
