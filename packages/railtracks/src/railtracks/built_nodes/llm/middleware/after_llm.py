@@ -8,9 +8,11 @@ from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.core import wrap_node
 from railtracks.utils.unpack import unpack_async_sync
+from .wrap_llm import wrap_llm
 
 
-def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
+
+def after_llm(*, name: str | None = None):
     """
     A special decorator to create a middleware that runs after every successful call to the model.
 
@@ -22,15 +24,16 @@ def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
         return response
     ```
     """
+    def decorator(fn: Callable[[Response], Response | Awaitable[Response]], /):
+        @wrap_llm(name=name)
+        async def wrapper(
+            llm_call: LLM_CALL,
+            message_history: MessageHistory,
+            schema: type[BaseModel] | None,
+            tools: list[Tool] | None,
+        ):
+            response = await llm_call(message_history, schema, tools)
+            return await unpack_async_sync(fn(response))
 
-    @wrap_node
-    async def wrapper(
-        llm_call: LLM_CALL,
-        message_history: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ):
-        response = await llm_call(message_history, schema, tools)
-        return await unpack_async_sync(fn(response))
-
-    return wrapper
+        return wrapper
+    return decorator

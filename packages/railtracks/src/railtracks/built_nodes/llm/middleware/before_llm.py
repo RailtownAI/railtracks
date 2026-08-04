@@ -1,4 +1,6 @@
+from os import name
 from typing import Awaitable, Callable
+from distro import name
 
 from pydantic import BaseModel
 
@@ -11,11 +13,8 @@ from ..._types import LLM_CALL
 
 
 def before_llm(
-    fn: Callable[
-        [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-        tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
-        | Awaitable[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]],
-    ],
+        *,
+    name: str | None = None,
 ):
     """
     A special decorator to create a middleware that maps the inputs to a new input before every call to a model
@@ -28,17 +27,23 @@ def before_llm(
         return message_history, schema, tools
     ```
     """
+    def decorator(fn: Callable[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None],
+        tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
+        | Awaitable[tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]],
+    ], /):
+        @wrap_llm(name=name)
+        async def wrapper(
+            llm_call: LLM_CALL,
+            message_history: MessageHistory,
+            schema: type[BaseModel] | None,
+            tools: list[Tool] | None,
+        ):
+            message_history, schema, tools = await unpack_async_sync(
+                fn(message_history, schema, tools)
+            )
+            return await llm_call(message_history, schema, tools)
 
-    @wrap_llm
-    async def wrapper(
-        llm_call: LLM_CALL,
-        message_history: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ):
-        message_history, schema, tools = await unpack_async_sync(
-            fn(message_history, schema, tools)
-        )
-        return await llm_call(message_history, schema, tools)
+        return wrapper
 
-    return wrapper
+    return decorator

@@ -7,7 +7,9 @@ from typing import (
     Concatenate,
     Generic,
     ParamSpec,
+    TypeAlias,
     TypeVar,
+    overload,
 )
 
 _P = ParamSpec("_P")
@@ -48,9 +50,11 @@ class Middleware(Generic[_P, _R]):
     def __init__(
         self,
         fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
+        name: str | None = None,
     ) -> None:
         _require_async(fn, "Middleware function")
         self._fn = fn
+        self.name = name or fn.__name__
 
     def wrap(self, inner: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         """Compose this middleware onto ``inner``, returning a new callable with the same signature."""
@@ -66,12 +70,13 @@ class Middleware(Generic[_P, _R]):
 
     def middleware_type(self) -> str:
         return "General"
+    
+_Wrapper: TypeAlias = Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]]
 
 
 def wrap_node(
-    fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
-) -> Middleware[_P, _R]:
-    """
-    Decorator to wrap any async wrapper function into a Middleware object. The wrapped function will accept
-    """
-    return Middleware(fn)
+    *, name: str | None = None
+) -> Callable[[_Wrapper[_P, _R]], Middleware[_P, _R]]:
+    def decorator(fn: _Wrapper[_P, _R], /) -> Middleware[_P, _R]:
+        return Middleware(fn, name=name)
+    return decorator
