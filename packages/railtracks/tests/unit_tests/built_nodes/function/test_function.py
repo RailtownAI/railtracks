@@ -146,7 +146,7 @@ async def test_function_node_bound_method_executes():
 
 
 # ---------------------------------------------------------------------------
-# functools.partial (issue #1318)
+# functools.partial
 # ---------------------------------------------------------------------------
 def _greet(greeting: str, name: str) -> str:
     """Greet someone.
