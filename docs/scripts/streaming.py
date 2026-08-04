@@ -25,20 +25,19 @@ async def main_await():
 # --8<-- [end: astream_await]
 
 
-# --8<-- [start: stream_callback]
-# Passive session-wide listeners — neither enables streaming (only rt.astream does):
-#   stream_callback    -> chunks from rt.broadcast_stream (LLM tokens included)
-#   broadcast_callback -> one-off events from rt.broadcast (progress notes, ...)
-observed_flow = rt.Flow(
-    name="poet_observed",
-    entry_point=agent,
-    stream_callback=lambda chunk: print(chunk, end="", flush=True),
-    broadcast_callback=lambda event: print(f"[event] {event}"),
-)
+# --8<-- [start: astream_nested]
+# rt.astream targets an agent node; use it inside a @function_node and drive the
+# outer node with rt.call. Each stream is independent, so concurrent streams simply
+# have their own handles.
+@rt.function_node
+async def head(prompt: str) -> str:
+    stream = rt.astream(agent, user_input=prompt)
+    async for chunk in stream:
+        print(chunk, end="", flush=True)
+    return stream.result.text
 
 
-async def main_observed():
-    # tokens flow to stream_callback while the run streams; the broadcast_callback
-    # only ever sees explicit rt.broadcast events (never the token chunks)
-    final = await observed_flow.ainvoke("Write a short poem about rain.")
-# --8<-- [end: stream_callback]
+async def main_nested():
+    # the function node is buffered (rt.call); only the agent inside it streams
+    text = await rt.call(head, "Write a short poem about rain.")
+# --8<-- [end: astream_nested]

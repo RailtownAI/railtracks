@@ -11,6 +11,8 @@ Streaming is requested at the call site rather than baked into the agent, so the
 - `rt.call(agent, ...)` runs buffered, with no streaming overhead and no chunks.
 - `rt.astream(agent, ...)` streams the agent's LLM response chunk by chunk as it runs.
 
+`rt.astream` targets **agent nodes only**. Passing a `@function_node` (or any non-agent node) raises an error; run those with `rt.call` and reach for `rt.astream` on the agent inside them.
+
 `rt.astream` returns a `Stream`, an async iterator that yields only the `str` chunks. The final result is kept separate and read from `.result` once the stream is exhausted, so a chunk is never confused with the final value:
 
 ```python
@@ -28,21 +30,16 @@ A `Stream` is also awaitable. Awaiting it consumes the stream to completion and 
 
 A few details worth knowing:
 
-- **Frame-local.** Only the node you invoke streams its LLM response. Nested `rt.call` children, such as agents used as tools, run buffered.
+- **Frame-local.** Only the agent you invoke streams its LLM response. Nested `rt.call` children, such as agents used as tools, run buffered.
 - **Errors.** If the node fails mid-stream, the exception is raised out of the `async for` loop (or the `await`), just as it is with `rt.call`.
 - **Early exit.** Breaking out of the loop does not cancel the run; it finishes in the background. Await the stream afterwards to collect the final result.
 - **Timeouts.** The session `timeout` applies to the whole streamed run as a wall-clock limit.
 - **Tool calling.** Token streaming with tool calling is currently supported on OpenAI models only. On other providers a streamed tool-calling run falls back to a buffered model call (with a logged warning), and the final result is unaffected.
 
-### Two callback lanes: `broadcast_callback` and `stream_callback`
+### Streaming inside a `@function_node`
 
-Streaming shares the same pubsub bus as `rt.broadcast`, but the two kinds of traffic travel on separate lanes so a listener never receives the wrong kind:
-
-- **`stream_callback`** is a passive, session-wide listener for stream chunks, meaning the `rt.broadcast_stream` productions that carry LLM tokens. It is the callback form of consuming tokens, where `rt.astream` is the pull form.
-- **`broadcast_callback`** is a passive, session-wide listener for one-off events sent with `rt.broadcast`, such as progress notes or tool events. It never receives token chunks, even while a run streams.
-
-Both are set on the `Flow` or globally with `rt.set_config`, and neither one turns streaming on. Only `rt.astream` does that.
+Because `rt.astream` targets an agent, the natural pattern is to stream the agent from inside a `@function_node` and drive that outer node with `rt.call`. The chunks are delivered straight to your handl.
 
 ```python
---8<-- "docs/scripts/streaming.py:stream_callback"
+--8<-- "docs/scripts/streaming.py:astream_nested"
 ```
