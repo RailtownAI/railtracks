@@ -23,6 +23,17 @@ class HttpFetch:
         timeout: float = 15.0,
         user_agent: str = _DEFAULT_USER_AGENT,
     ) -> None:
+        """Create an httpx + trafilatura fetch backend.
+
+        Args:
+            timeout: Request timeout in seconds before the fetch is treated
+                as failed.
+            user_agent: Sent as the request's User-Agent header. Defaults to
+                an honest, identifiable string rather than spoofing a real
+                browser; some sites block bare HTTP-library user agents, and
+                a few require a real browser UA to serve content at all —
+                override this if you hit that.
+        """
         self._timeout = timeout
         self._user_agent = user_agent
 

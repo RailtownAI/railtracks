@@ -20,6 +20,15 @@ class TavilySearch:
     def __init__(
         self, api_key: str | None = None, *, base_url: str = _TAVILY_URL
     ) -> None:
+        """Create a Tavily-backed search backend.
+
+        Args:
+            api_key: Tavily API key. Falls back to the TAVILY_API_KEY
+                environment variable if not provided; raises if neither is
+                set.
+            base_url: Override the Tavily search endpoint, e.g. to point at
+                a proxy or a mocked server in tests.
+        """
         self.api_key = api_key or os.getenv("TAVILY_API_KEY")
         if not self.api_key:
             raise ValueError(
