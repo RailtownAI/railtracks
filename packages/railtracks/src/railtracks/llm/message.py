@@ -248,6 +248,12 @@ class Message(Generic[_T, _TRole]):
     def __repr__(self):
         return str(self)
 
+    def encode(self) -> dict[str, Any]:
+        return {
+            "role": self.role.value,
+            "content": self.content,
+        }
+
     @property
     def tool_calls(self):
         """Gets the tool calls attached to this message, if any. If there are none return and empty list."""
@@ -338,6 +344,24 @@ class UserMessage(_StringOnlyContent[Role.user]):
                 "UserMessage must have content if no attachment is provided."
             )
         super().__init__(content=content, role=Role.user, inject_prompt=inject_prompt)
+
+    def encode(self):
+        if self.attachment is not None:
+            attachment = [
+                {
+                    "modality": msg_attachment.modality,
+                    "type": msg_attachment.type,
+                    "info": msg_attachment.url,
+                }
+                for msg_attachment in self.attachment
+            ]
+
+            return {
+                "role": self.role.value,
+                "content": [{"type": "text", "text": self.content}, *attachment],
+            }
+
+        return super().encode()
 
 
 class SystemMessage(_StringOnlyContent[Role.system]):

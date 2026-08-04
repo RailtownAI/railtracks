@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import dataclasses
 import json
 from pathlib import Path
 from typing import TextIO
 
-from ..models import Event
+from ...models import Event
+from ._serialize import RTObserverEncoder
 
 
 class JsonlWriter:
@@ -34,6 +34,4 @@ class JsonlWriter:
 
 
 def _serialize(event: Event) -> str:
-    data = dataclasses.asdict(event)
-    data["stamp"] = event.stamp.isoformat()
-    return json.dumps(data)
+    return json.dumps(event, cls=RTObserverEncoder)

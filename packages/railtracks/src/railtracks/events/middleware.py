@@ -117,8 +117,6 @@ class MiddlewareGuardInputResponseEvent(MiddlewareModelEventBase):
 
 @dataclass(kw_only=True)
 class MiddlewareGuardInputFailureEvent(MiddlewareModelEventBase, FailureMixin):
-    
-
     def event_type(self) -> str:
         return "middleware.guard.input.failure"
 
@@ -143,7 +141,6 @@ class MiddlewareModelOutputResponseEvent(MiddlewareModelOutputTypesBase):
 
 @dataclass(kw_only=True)
 class MiddlewareModelOutputFailureEvent(MiddlewareModelEventBase, FailureMixin):
-
     def event_type(self) -> str:
         return "middleware.model.output.failure"
 
@@ -168,7 +165,6 @@ class MiddlewareOutputResponseEvent(MiddlewareOutputTypesBase):
 
 @dataclass(kw_only=True)
 class MiddlewareOutputFailureEvent(MiddlewareRegularEventBase, FailureMixin):
-
     def event_type(self) -> str:
         return "middleware.regular.output.failure"
 
@@ -193,7 +189,6 @@ class MiddlewareGuardOutputResponseEvent(MiddlewareModelEventBase):
 
 @dataclass(kw_only=True)
 class MiddlewareGuardOutputFailureEvent(MiddlewareModelEventBase, FailureMixin):
-
     def event_type(self) -> str:
         return "middleware.guard.output.failure"
 
@@ -218,7 +213,6 @@ class MiddlewareResponseEvent(MiddlewareGeneralEventBase):
 
 @dataclass(kw_only=True)
 class MiddlewareFailureEvent(MiddlewareGeneralEventBase, FailureMixin):
-
     def event_type(self) -> str:
         return "middleware.failure"
 
@@ -243,6 +237,5 @@ class MiddlewareModelResponseEvent(MiddlewareModelEventBase):
 
 @dataclass(kw_only=True)
 class MiddlewareModelFailureEvent(MiddlewareModelEventBase, FailureMixin):
-
     def event_type(self) -> str:
         return "middleware.model.failure"

@@ -28,3 +28,15 @@ class Event:
     stamp: datetime = field(default_factory=Timestamp.now)
     parent_scope_id: str | None = None
     payload: dict[str, Any] = field(default_factory=dict)
+
+    def encode(self) -> dict[str, Any]:
+        """Encode the event to a JSON-serializable dictionary."""
+        return {
+            "event_type": self.event_type,
+            "scope_type": self.scope_type,
+            "scope_id": self.scope_id,
+            "event_id": self.event_id,
+            "stamp": self.stamp.isoformat(),
+            "parent_scope_id": self.parent_scope_id,
+            "payload": self.payload,
+        }

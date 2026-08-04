@@ -6,9 +6,9 @@ from typing import Any, List, Tuple, TypeVar
 from railtracks.utils.profiling import Stamp, StampManager
 from railtracks.utils.serialization.graph import Edge, Vertex
 
+from ..utils.json.encoder import RTJSONEncoder
 from .node import NodeForest
 from .request import RequestForest
-from .serialize import RTJSONEncoder
 from .utils import create_sub_state_info
 
 _TOutput = TypeVar("_TOutput")

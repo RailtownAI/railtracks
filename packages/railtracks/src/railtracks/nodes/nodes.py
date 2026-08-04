@@ -69,6 +69,11 @@ class LatencyDetails:
         """
         self.total_time = total_time
 
+    def encode(self) -> dict[str, Any]:
+        return {
+            "total_time": self.total_time,
+        }
+
 
 _P = ParamSpec("_P")
 
