@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -18,9 +19,12 @@ from railtracks.context.central import (
     get_parent_id,
     get_publisher,
     get_run_id,
+    get_session_identity,
     is_context_active,
     is_context_present,
 )
+from railtracks.events.send import emit
+from railtracks.events.session import SessionCompleted, SessionStarted, format_error
 from railtracks.exceptions import GlobalTimeOutError
 from railtracks.nodes.utils import extract_node_from_function
 from railtracks.observability.configure import ensure_started, shutdown
@@ -148,6 +152,23 @@ async def _start(
     await ensure_started()
     await activate_publisher()
 
+    config = get_local_config()
+    identity = get_session_identity()
+
+    await emit(
+        SessionStarted(
+            session_id=identity.session_id,
+            flow_name=identity.flow_name,
+            flow_id=identity.flow_id,
+            session_name=identity.session_name,
+            entry_point_name=node.name() if hasattr(node, "name") else "Unknown",
+            timeout=config.timeout,
+            end_on_error=config.end_on_error,
+            save_state=config.save_state,
+        )
+    )
+    start_time = time.perf_counter()
+
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
     #  exception. It should be handled differently then the global timeout exception.
     #  Yes I am aware that is a bit of a hack but this is the best way to handle this specific case.
@@ -160,22 +181,36 @@ async def _start(
             timeout_exception_flag["value"] = True
             raise error
 
-    timeout = get_local_config().timeout
+    timeout = config.timeout
     fut = _execute(
         node, args=args, kwargs=kwargs, message_filter=_top_level_message_filter
     )
-    # Here we wait the completion of the future with timeouts.
+
+    error: BaseException | None = None
     try:
-        result = await asyncio.wait_for(wrapped_fut(fut), timeout=timeout)
-    except asyncio.TimeoutError as e:
-        # if the internal flag is set then the coroutine itself raised a timeout error and it was not the wait
-        #  for function.
-        if timeout_exception_flag["value"]:
-            raise e
+        # Here we wait the completion of the future with timeouts.
+        try:
+            result = await asyncio.wait_for(wrapped_fut(fut), timeout=timeout)
+        except asyncio.TimeoutError as e:
+            # if the internal flag is set then the coroutine itself raised a timeout error and it was not the wait
+            #  for function.
+            if timeout_exception_flag["value"]:
+                raise e
 
-        raise GlobalTimeOutError(timeout=timeout)
-
-    await shutdown()
+            raise GlobalTimeOutError(timeout=timeout)
+    except BaseException as e:
+        error = e
+        raise
+    finally:
+        await emit(
+            SessionCompleted(
+                session_id=identity.session_id,
+                status="success" if error is None else "failure",
+                error=None if error is None else format_error(error),
+                duration_seconds=time.perf_counter() - start_time,
+            )
+        )
+        await shutdown()
 
     return result
 
