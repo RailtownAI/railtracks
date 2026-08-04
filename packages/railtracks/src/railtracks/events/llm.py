@@ -29,7 +29,7 @@ class LLMMessageBase(ParentEventBase[NodeSpatialParent, LLMParent]):
 
 @dataclass(kw_only=True)
 class LLMCreationEvent(CreationEventBase):
-    llm_model_id: str
+    llm_id: str
     model_provider: ModelProvider
     model_name: str
 
