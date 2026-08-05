@@ -11,14 +11,15 @@ from railtracks.query.read import _resolve_data_files
 class TestListNamespaces:
     def test_returns_the_registry_namespaces(self):
         # Registry-backed: always ["llm", "middleware", "node"] regardless of path.
-        assert list_namespaces() == ["llm", "middleware", "node"]
+        assert list_namespaces() == ["llm", "middleware", "node", "session"]
 
     def test_path_argument_is_ignored(self, tmp_path: Path):
-        assert list_namespaces(tmp_path) == ["llm", "middleware", "node"]
+        assert list_namespaces(tmp_path) == ["llm", "middleware", "node", "session"]
         assert list_namespaces(tmp_path / "does_not_exist") == [
             "llm",
             "middleware",
             "node",
+            "session",
         ]
 
 

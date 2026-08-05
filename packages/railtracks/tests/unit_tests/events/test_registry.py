@@ -13,14 +13,14 @@ from railtracks.events.registry import (
 
 
 class TestNamespaces:
-    def test_returns_the_three_known_namespaces(self):
-        assert namespaces() == ["llm", "middleware", "node"]
+    def test_returns_the_known_namespaces(self):
+        assert namespaces() == ["llm", "middleware", "node", "session"]
 
 
 class TestPayloadColumnsLLM:
     def test_scalars_get_native_kinds(self):
         cols = payload_columns("llm")
-        assert cols["llm_model_id"] == ColumnKind.STRING
+        assert cols["llm_id"] == ColumnKind.STRING
         assert cols["model_name"] == ColumnKind.STRING
         assert cols["input_tokens"] == ColumnKind.INTEGER
         assert cols["output_tokens"] == ColumnKind.INTEGER
@@ -104,6 +104,22 @@ class TestPayloadColumnsMiddleware:
         assert cols["response"] == ColumnKind.JSON
 
 
+class TestPayloadColumnsSession:
+    def test_scalar_fields(self):
+        cols = payload_columns("session")
+        assert cols["session_id"] == ColumnKind.STRING
+        assert cols["flow_name"] == ColumnKind.STRING
+        assert cols["flow_id"] == ColumnKind.STRING
+        assert cols["session_name"] == ColumnKind.STRING
+        assert cols["entry_point_name"] == ColumnKind.STRING
+        assert cols["status"] == ColumnKind.STRING
+        assert cols["error"] == ColumnKind.STRING
+        assert cols["timeout"] == ColumnKind.FLOAT
+        assert cols["duration_seconds"] == ColumnKind.FLOAT
+        assert cols["end_on_error"] == ColumnKind.BOOLEAN
+        assert cols["save_state"] == ColumnKind.BOOLEAN
+
+
 class TestUnknownNamespace:
     def test_returns_empty_dict(self):
         assert payload_columns("nope") == {}
@@ -113,8 +129,8 @@ class TestUnknownNamespace:
 class TestRegistryCompleteness:
     def test_every_event_class_contributes_at_least_one_column(self):
         seen_namespaces = {n for n in namespaces() if payload_columns(n)}
-        assert seen_namespaces == {"llm", "middleware", "node"}
-        assert len(EVENT_CLASSES) >= 30  # sanity — matches the current taxonomy
+        assert seen_namespaces == {"llm", "middleware", "node", "session"}
+        assert len(EVENT_CLASSES) >= 32  # sanity — matches the current taxonomy
 
     def test_every_dataclass_field_appears_as_a_column(self):
         """Every field on every event class must be reachable via ``payload_columns``,

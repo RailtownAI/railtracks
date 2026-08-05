@@ -4,11 +4,7 @@ from railtracks.events.middleware import (
     MiddlewareOutputInvocationEvent,
     MiddlewareOutputResponseEvent,
 )
-<<<<<<< HEAD
-from railtracks.events.send import pipe
-=======
 from railtracks.events.send import emit
->>>>>>> feature-branch-observability-update
 from railtracks.utils.unpack import unpack_async_sync
 
 from .core import wrap_node
@@ -31,11 +27,7 @@ def after_node(
         input_event = MiddlewareOutputInvocationEvent(
             response=result,
         )
-<<<<<<< HEAD
-        await pipe(input_event)
-=======
         await emit(input_event)
->>>>>>> feature-branch-observability-update
         post_after_result = fn(result)
 
         result = await unpack_async_sync(post_after_result)
@@ -43,11 +35,7 @@ def after_node(
         output_event = MiddlewareOutputResponseEvent(
             response=result,
         )
-<<<<<<< HEAD
-        await pipe(output_event)
-=======
         await emit(output_event)
->>>>>>> feature-branch-observability-update
 
         return result
 

@@ -46,7 +46,7 @@ def _lifecycle(events, *, name, node_id):
         if e.event_type == "node.creation":
             if e.payload["name"] == name:
                 out.append(e.event_type)
-        elif e.payload["parent"]["node_id"] == node_id:
+        elif e.payload["parent_node_id"] == node_id:
             out.append(e.event_type)
     return out
 
@@ -86,8 +86,8 @@ async def test_parent_child_lifecycle_and_parents():
         e for e in _node_events(writer.events) if e.event_type != "node.creation"
     ]
     for e in running:
-        enclosing = e.payload["spatial_parent"]["node_id"]
-        if e.payload["parent"]["node_id"] == ids["outer"]:
+        enclosing = e.payload["spatial_parent_node_id"]
+        if e.payload["parent_node_id"] == ids["outer"]:
             assert enclosing is None
         else:
             assert enclosing == ids["outer"]
@@ -119,4 +119,4 @@ async def test_failure_emits_node_failure_and_no_response():
     ]
 
     failure = [e for e in writer.events if e.event_type == "node.failure"][0]
-    assert "kaboom" in failure.payload["failure"]
+    assert "kaboom" in failure.payload["exception_message"]

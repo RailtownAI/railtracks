@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
-from dataclasses import asdict
-
-=======
->>>>>>> feature-branch-observability-update
 from railtracks.context.central import get_current_scope
 from railtracks.events._base import (
     SessionEventBase,
@@ -39,8 +34,4 @@ async def pipe(event: SessionEventBase) -> None:
     event.resolve_relationships(get_current_scope())
     event.verify()
 
-<<<<<<< HEAD
-    await publish_event(make_session_event(event.event_type(), asdict(event)))
-=======
     await publish_event(make_session_event(event.event_type(), event.encode()))
->>>>>>> feature-branch-observability-update

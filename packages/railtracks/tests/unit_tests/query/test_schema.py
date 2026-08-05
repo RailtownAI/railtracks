@@ -8,7 +8,7 @@ from railtracks.query.schema import duckdb_columns
 class TestDuckdbColumnsLLM:
     def test_scalars_map_to_native_duckdb_types(self):
         cols = duckdb_columns("llm")
-        assert cols["llm_model_id"] == "VARCHAR"
+        assert cols["llm_id"] == "VARCHAR"
         assert cols["input_tokens"] == "BIGINT"
         assert cols["output_tokens"] == "BIGINT"
         assert cols["total_cost"] == "DOUBLE"

@@ -31,10 +31,6 @@ def node_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
 
     parent = node_link.parent
 
-<<<<<<< HEAD
-    # there are 3 cases here
-=======
->>>>>>> feature-branch-observability-update
     # 1. This is the top level node, so it has no parent
     if parent is None:
         return NodeSpatialParent(node_id=None)

@@ -62,9 +62,11 @@ async def test_pipe_resolves_relationships_and_publishes_payload():
     assert ev.scope_id == "sess-1"
 
     p = ev.payload
-    # the resolved relationships: self is n1, nested inside the caller
-    assert p["parent"] == {"parent_type": "node", "node_id": "n1"}
-    assert p["spatial_parent"] == {"spatial_type": "node", "node_id": "caller"}
+    # the resolved relationships flatten into <field>_<subfield> keys
+    assert p["parent_parent_type"] == "node"
+    assert p["parent_node_id"] == "n1"
+    assert p["spatial_parent_spatial_type"] == "node"
+    assert p["spatial_parent_node_id"] == "caller"
     # payload values are passed through untouched: tuple stays tuple, datetime stays datetime
     assert p["args"] == (1,)
     assert p["kwargs"] == {"x": 2}
@@ -79,5 +81,7 @@ async def test_pipe_root_node_has_no_enclosing_node():
         events = await _emit(NodeInvocation(args=(), kwargs={}))
 
     p = events[0].payload
-    assert p["parent"] == {"parent_type": "node", "node_id": "root"}
-    assert p["spatial_parent"] == {"spatial_type": "node", "node_id": None}
+    assert p["parent_parent_type"] == "node"
+    assert p["parent_node_id"] == "root"
+    assert p["spatial_parent_spatial_type"] == "node"
+    assert p["spatial_parent_node_id"] is None

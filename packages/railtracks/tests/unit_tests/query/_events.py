@@ -40,7 +40,7 @@ LLM_CREATION = {
     "payload": {
         "spatial_parent_spatial_type": "none",
         "timestamp": "2026-07-10T13:59:59.000+00:00",
-        "llm_model_id": "llm_type_a",
+        "llm_id": "llm_type_a",
         "model_provider": "Anthropic",
         "model_name": "claude-opus-4-7",
     },
@@ -59,6 +59,27 @@ NODE_CREATION = {
         "node_id": "node_root",
         "name": "Root",
         "node_type": "Agent",
+    },
+}
+
+SESSION_STARTED = {
+    "event_id": "evt_session_1",
+    "event_type": "session.started",
+    "scope_type": "session",
+    "scope_id": "sess_a1",
+    "parent_scope_id": None,
+    "stamp": "2026-07-10T13:59:58.000+00:00",
+    "payload": {
+        "spatial_parent_spatial_type": "none",
+        "timestamp": "2026-07-10T13:59:58.000+00:00",
+        "session_id": "sess_a1",
+        "flow_name": "demo_flow",
+        "flow_id": "flow_1",
+        "session_name": "demo",
+        "entry_point_name": "BasicStringAgent",
+        "timeout": 60.0,
+        "end_on_error": True,
+        "save_state": False,
     },
 }
 

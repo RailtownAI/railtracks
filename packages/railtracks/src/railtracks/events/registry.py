@@ -57,6 +57,10 @@ from .node import (
     NodeInvocation,
     NodeResponse,
 )
+from .session import (
+    SessionCompleted,
+    SessionStarted,
+)
 
 EVENT_CLASSES: list[type[SessionEventBase]] = [
     LLMCreationEvent,
@@ -89,6 +93,8 @@ EVENT_CLASSES: list[type[SessionEventBase]] = [
     MiddlewareGuardOutputInvocationEvent,
     MiddlewareGuardOutputResponseEvent,
     MiddlewareGuardOutputFailureEvent,
+    SessionStarted,
+    SessionCompleted,
 ]
 
 class ColumnKind(str, Enum):
