@@ -28,7 +28,10 @@ def test_event_type_strings():
     assert NodeInvocation(args=(), kwargs={}).event_type() == "node.invocation"
     assert NodeResponse(response="r").event_type() == "node.response"
     assert NodeFailure(failure="boom").event_type() == "node.failure"
-    assert NodeDestruction(response="r").event_type() == "node.destruction"
+    assert (
+        NodeDestruction(response="r", duration_seconds=0.0).event_type()
+        == "node.destruction"
+    )
 
 
 def test_runtime_node_event_resolves_self_and_enclosing_node():
