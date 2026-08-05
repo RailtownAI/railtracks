@@ -262,3 +262,24 @@ def test_partials_of_same_parent_get_distinct_tool_names():
     nodes = [sq.node_type, cb.node_type]
     assert get_node_from_name("square", nodes) is sq.node_type
     assert get_node_from_name("cube", nodes) is cb.node_type
+
+
+def test_get_node_from_name_raises_on_ambiguous_name():
+    from railtracks.built_nodes.llm.llm_helpers import get_node_from_name
+
+    sq = function_node(functools.partial(_apower, exp=2), name="power")
+    cb = function_node(functools.partial(_apower, exp=3), name="power")
+
+    # Agent creation rejects this list up front; this is the defensive backstop for
+    # tool lists assembled by other means.
+    with pytest.raises(RuntimeError, match="power"):
+        get_node_from_name("power", [sq.node_type, cb.node_type])
+
+def test_function_node_reuses_result_for_repeated_conversion(mock_function):
+    # Same callable, default options -> one tool, so a tool list cannot collide with itself.
+    assert function_node(mock_function) is function_node(mock_function)
+
+
+def test_function_node_does_not_reuse_when_options_differ(mock_function):
+    first = function_node(mock_function)
+    assert function_node(mock_function, name="other") is not first

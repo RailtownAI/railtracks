@@ -114,6 +114,136 @@ def test_nodebuilder_llm_duplicate_param_names_error():
         )
 
 
+# --- tool_nodes accessor ---
+
+def _tool_node(func, name):
+    return FunctionNodeBuilder.function(func, name=name).build()
+
+
+def test_nodebuilder_llm_tool_nodes_returns_connected_nodes():
+    a = _tool_node(async_func, "a")
+    b = _tool_node(async_func, "b")
+    node_cls = LLMNodeBuilder.llm(
+        "TestNode", model=dummy_model(), connected_nodes=[a, b]
+    ).build()
+    assert node_cls.tool_nodes() == [a, b]
+
+
+def test_nodebuilder_llm_tool_nodes_empty_when_no_tools():
+    node_cls = LLMNodeBuilder.llm("TestNode", model=dummy_model()).build()
+    assert node_cls.tool_nodes() == []
+
+
+def test_nodebuilder_llm_tool_nodes_returns_defensive_copy():
+    a = _tool_node(async_func, "a")
+    node_cls = LLMNodeBuilder.llm(
+        "TestNode", model=dummy_model(), connected_nodes=[a]
+    ).build()
+
+    node_cls.tool_nodes().clear()
+
+    assert node_cls.tool_nodes() == [a]
+
+
+def test_nodebuilder_llm_tool_nodes_preserves_declaration_order():
+    nodes = [_tool_node(async_func, f"tool_{i}") for i in range(5)]
+    node_cls = LLMNodeBuilder.llm(
+        "TestNode", model=dummy_model(), connected_nodes=nodes
+    ).build()
+    assert node_cls.tool_nodes() == nodes
+
+
+def test_nodebuilder_function_tool_nodes_empty():
+    node_cls = FunctionNodeBuilder.function(async_func).build()
+    assert node_cls.tool_nodes() == []
+
+
+def test_node_tool_nodes_defaults_to_empty_on_base_class():
+    class Dummy(Node):
+        @classmethod
+        def name(cls):
+            return "Dummy"
+
+        @classmethod
+        def type(cls):
+            return "Tool"
+
+        async def invoke(self):
+            return "dummy"
+
+    assert Dummy.tool_nodes() == []
+
+
+def test_node_tool_nodes_must_be_a_classmethod():
+    with pytest.raises(NodeCreationError):
+
+        class Dummy(Node):
+            @classmethod
+            def name(cls):
+                return "Dummy"
+
+            @classmethod
+            def type(cls):
+                return "Tool"
+
+            async def invoke(self):
+                return "dummy"
+
+            def tool_nodes(self):  # not a classmethod
+                return []
+
+
+def test_nodebuilder_llm_tool_nodes_survives_extend_middleware():
+    a = _tool_node(async_func, "a")
+    node_cls = LLMNodeBuilder.llm(
+        "TestNode", model=dummy_model(), connected_nodes=[a]
+    ).build()
+
+    assert node_cls.extend_middleware().tool_nodes() == [a]
+
+
+# --- duplicate tool names ---
+
+def test_nodebuilder_llm_duplicate_tool_names_error():
+    a = _tool_node(async_func, "power")
+    b = _tool_node(async_func, "power")
+    with pytest.raises(NodeCreationError, match="power"):
+        LLMNodeBuilder.llm("TestNode", model=dummy_model(), connected_nodes=[a, b])
+
+
+def test_nodebuilder_llm_duplicate_tool_names_error_names_offenders():
+    a = FunctionNodeBuilder.function(
+        async_func, class_name="First", name="power"
+    ).build()
+    b = FunctionNodeBuilder.function(
+        async_func, class_name="Second", name="power"
+    ).build()
+    with pytest.raises(NodeCreationError) as exc_info:
+        LLMNodeBuilder.llm("TestNode", model=dummy_model(), connected_nodes=[a, b])
+
+    message = str(exc_info.value)
+    assert "FirstNode" in message
+    assert "SecondNode" in message
+
+
+def test_nodebuilder_llm_distinct_tool_names_build_fine():
+    a = _tool_node(async_func, "square")
+    b = _tool_node(async_func, "cube")
+    node_cls = LLMNodeBuilder.llm(
+        "TestNode", model=dummy_model(), connected_nodes=[a, b]
+    ).build()
+    assert [t.tool_info().name for t in node_cls.tool_nodes()] == ["square", "cube"]
+
+
+def test_nodebuilder_llm_same_node_passed_twice_is_not_a_duplicate_name_error():
+    # The same class deduplicates upstream, so the builder never sees a collision.
+    a = _tool_node(async_func, "square")
+    node_cls = LLMNodeBuilder.llm(
+        "TestNode", model=dummy_model(), connected_nodes={a}
+    ).build()
+    assert node_cls.tool_nodes() == [a]
+
+
 # --- NodeBuilder.function ---
 
 def test_nodebuilder_function_basic_build():

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import functools
 import inspect
 import warnings
@@ -31,6 +32,9 @@ from .node_builder import FunctionNodeBuilder
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
+
+# Where a callable remembers the RTFunction it was already converted into.
+_RT_FUNCTION_ATTR = "_rt_function"
 
 
 # note there is an intentional overlap in overloads
@@ -110,6 +114,21 @@ def validate_function_parameters(
         validate_tool_manifest_against_function(func, manifest.parameters)
 
 
+# intentional overload overlap, as in `function_node` above: async is checked first
+@overload
+def _validate_and_normalize_callable(  # pyright: ignore[reportOverlappingOverload]
+    func: Callable[_P, Coroutine[None, None, _TOutput]],
+    manifest: ToolManifest | None,
+) -> Callable[_P, Coroutine[None, None, _TOutput]]: ...
+
+
+@overload
+def _validate_and_normalize_callable(
+    func: Callable[_P, _TOutput],
+    manifest: ToolManifest | None,
+) -> Callable[_P, _TOutput]: ...
+
+
 def _validate_and_normalize_callable(
     func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     manifest: ToolManifest | None,
@@ -117,7 +136,8 @@ def _validate_and_normalize_callable(
     """Validate ``func`` and normalise it into a node-ready callable.
 
     Resolves partial metadata, validates parameters against an optional
-    ``manifest``, wraps builtins, and rejects unsupported callables.
+    ``manifest``, wraps builtins, and rejects unsupported callables. Overloaded so
+    the sync/async character of ``func`` is preserved in the return type.
 
     Args:
         func: The callable to validate and normalise.
@@ -189,7 +209,20 @@ def _single_function_node(
     ):
         return func
 
-    func = _validate_and_normalize_callable(func, manifest)
+    # Converting the same callable twice with default options reuses the first result, so
+    # it dedupes instead of colliding as two identical tools with the same name.
+    reusable = name is None and manifest is None and middleware is None
+    original = func
+    if reusable:
+        cached = getattr(original, _RT_FUNCTION_ATTR, None)
+        if cached is not None:
+            return cached
+
+    # `func` is an un-narrowed union here, so restate it; narrowed just below
+    func = cast(
+        "Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]",
+        _validate_and_normalize_callable(func, manifest),
+    )
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
     is_sync = False
@@ -217,12 +250,22 @@ def _single_function_node(
     completed_node_type = builder.build()
 
     if issubclass(completed_node_type, Node):
+        rt_function: (
+            CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]
+        )
         if is_sync:
             new_func = cast(Callable[_P, _TOutput], func)
-            return CallableSyncRTFunction(new_func, completed_node_type)
+            rt_function = CallableSyncRTFunction(new_func, completed_node_type)
         else:
             new_func = cast(Callable[_P, Coroutine[None, None, _TOutput]], func)
-            return CallableAsyncRTFunction(new_func, completed_node_type)
+            rt_function = CallableAsyncRTFunction(new_func, completed_node_type)
+
+        if reusable:
+            # Builtins and other C-level callables reject attributes; caching is best-effort.
+            with contextlib.suppress(AttributeError, TypeError):
+                setattr(original, _RT_FUNCTION_ATTR, rt_function)
+
+        return rt_function
 
     raise NodeCreationError(
         message="The provided function did not create a valid node type.",
