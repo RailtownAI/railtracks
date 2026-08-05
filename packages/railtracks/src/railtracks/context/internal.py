@@ -92,7 +92,7 @@ class InternalContext:
 
         When set, the frame is the entry of a streamed invocation (see `rt.astream`): its
         LLM node writes each token chunk directly onto this queue, which the `Stream` handle
-        on the calling side drains. 
+        on the calling side drains.
         """
         return self._stream_queue
 
