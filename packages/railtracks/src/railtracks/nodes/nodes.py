@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -162,11 +163,15 @@ class Node(ABC, Generic[_P, _TOutput]):
         # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
         self.middleware.get_scope_manager = lambda: self._scope_manager
         result: _TOutput | None = None
+        start_time = time.perf_counter()
         try:
             result = await self.middleware.run(body, *args, **kwargs)
             return result
         finally:
-            destruction_event = NodeDestruction(response=result)
+            destruction_event = NodeDestruction(
+                response=result,
+                duration_seconds=time.perf_counter() - start_time,
+            )
             await emit(destruction_event)
 
     @classmethod
