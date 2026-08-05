@@ -29,7 +29,7 @@ This request does not match the guardrail, so it reaches the LLM normally.
 
 !!! example "Example output"
     ```text
-    LLMResponse(Welcome!)
+    Welcome!
     ```
 
 ## Blocked request
