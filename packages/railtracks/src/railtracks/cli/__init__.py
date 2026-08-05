@@ -67,7 +67,7 @@ SKILLS = {
             "Use middleware as part of your railtracks agent. Use when you want build resilient and effective agents"
         ),
         "argument_hint": "[describe the middleware to implement]",
-    }
+    },
 }
 
 SUPPORTED_TOOLS = ("claude", "copilot", "cursor")
