@@ -12,7 +12,7 @@ from .models import (
 )
 from .observer import Observer, QueuePolicy
 from .publish import publish_event
-from .writers import JsonlWriter, Writer
+from .writers import JsonlWriter, NodeInternalsCollector, Writer
 
 __all__ = [
     "Event",
@@ -21,6 +21,7 @@ __all__ = [
     "QueuePolicy",
     "Writer",
     "JsonlWriter",
+    "NodeInternalsCollector",
     "SCOPE_SESSION",
     "SCOPE_RETRIEVAL",
     "SCOPE_EVALUATION",
