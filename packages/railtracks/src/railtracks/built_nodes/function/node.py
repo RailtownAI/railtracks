@@ -110,6 +110,21 @@ def validate_function_parameters(
         validate_tool_manifest_against_function(func, manifest.parameters)
 
 
+# intentional overload overlap, as in `function_node` above: async is checked first
+@overload
+def _validate_and_normalize_callable(  # pyright: ignore[reportOverlappingOverload]
+    func: Callable[_P, Coroutine[None, None, _TOutput]],
+    manifest: ToolManifest | None,
+) -> Callable[_P, Coroutine[None, None, _TOutput]]: ...
+
+
+@overload
+def _validate_and_normalize_callable(
+    func: Callable[_P, _TOutput],
+    manifest: ToolManifest | None,
+) -> Callable[_P, _TOutput]: ...
+
+
 def _validate_and_normalize_callable(
     func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     manifest: ToolManifest | None,
@@ -117,7 +132,8 @@ def _validate_and_normalize_callable(
     """Validate ``func`` and normalise it into a node-ready callable.
 
     Resolves partial metadata, validates parameters against an optional
-    ``manifest``, wraps builtins, and rejects unsupported callables.
+    ``manifest``, wraps builtins, and rejects unsupported callables. Overloaded so
+    the sync/async character of ``func`` is preserved in the return type.
 
     Args:
         func: The callable to validate and normalise.
@@ -189,7 +205,11 @@ def _single_function_node(
     ):
         return func
 
-    func = _validate_and_normalize_callable(func, manifest)
+    # `func` is an un-narrowed union here, so restate it; narrowed just below
+    func = cast(
+        "Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]",
+        _validate_and_normalize_callable(func, manifest),
+    )
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
     is_sync = False
