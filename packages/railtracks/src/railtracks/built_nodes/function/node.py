@@ -237,12 +237,17 @@ def _single_function_node(
     completed_node_type = builder.build()
 
     if issubclass(completed_node_type, Node):
+        rt_function: (
+            CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]
+        )
         if is_sync:
             new_func = cast(Callable[_P, _TOutput], func)
-            return CallableSyncRTFunction(new_func, completed_node_type)
+            rt_function = CallableSyncRTFunction(new_func, completed_node_type)
         else:
             new_func = cast(Callable[_P, Coroutine[None, None, _TOutput]], func)
-            return CallableAsyncRTFunction(new_func, completed_node_type)
+            rt_function = CallableAsyncRTFunction(new_func, completed_node_type)
+
+        return rt_function
 
     raise NodeCreationError(
         message="The provided function did not create a valid node type.",
