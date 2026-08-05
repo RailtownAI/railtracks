@@ -118,7 +118,7 @@ def get_publisher() -> RTPublisher:
         RuntimeError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    publisher = cast("RTPublisher | None", context.internal_context.publisher)
+    publisher = context.internal_context.publisher
     assert publisher is not None
     return publisher
 
@@ -200,7 +200,7 @@ async def activate_publisher() -> None:
     This function should be called to ensure that the publisher is running and can be used to publish messages.
     """
     r_c = safe_get_runner_context()
-    publisher = cast("RTPublisher | None", r_c.internal_context.publisher)
+    publisher = r_c.internal_context.publisher
     assert publisher is not None
     await publisher.start()
 
@@ -212,7 +212,7 @@ async def shutdown_publisher() -> None:
     This function should be called to stop the publisher and clean up resources.
     """
     context = safe_get_runner_context()
-    publisher = cast("RTPublisher | None", context.internal_context.publisher)
+    publisher = context.internal_context.publisher
     assert publisher is not None
     assert publisher.is_running()
     await publisher.shutdown()

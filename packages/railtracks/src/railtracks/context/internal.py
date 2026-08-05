@@ -64,11 +64,11 @@ class InternalContext:
         self._parent_id = value
 
     @property
-    def publisher(self):
+    def publisher(self) -> RTPublisher | None:
         return self._publisher
 
     @publisher.setter
-    def publisher(self, value: RTPublisher):
+    def publisher(self, value: RTPublisher | None) -> None:
         self._publisher = value
 
     @property
