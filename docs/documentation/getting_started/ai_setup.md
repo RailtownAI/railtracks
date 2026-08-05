@@ -78,6 +78,7 @@ railtracks add --force claude:agent-builder
 | Skill | Description |
 |---|---|
 | `agent-builder` | Build agents, tools, flows, and multi-agent workflows with railtracks |
+| `middleware` | Add middleware to railtracks nodes and agents, including retries, logging, and guardrails |
 
 
 ## How It Works
