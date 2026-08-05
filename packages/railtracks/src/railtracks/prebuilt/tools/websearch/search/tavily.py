@@ -2,23 +2,21 @@ from __future__ import annotations
 
 import os
 
-import httpx
+from tavily import AsyncTavilyClient
 
 from ..models import SearchResult
 
-_TAVILY_URL = "https://api.tavily.com/search"
-
 
 class TavilySearch:
-    """SearchBackend backed by the Tavily REST API.
+    """SearchBackend backed by the official `tavily-python` SDK.
 
-    Talks to Tavily's single `/search` endpoint directly via httpx rather
-    than depending on the `tavily-python` SDK, since httpx is already
-    required by the default fetch backend.
+    Uses `AsyncTavilyClient` rather than talking to Tavily's REST API
+    directly, so if Tavily changes their API, keeping up with that is
+    their SDK's job to maintain, not ours to track and patch.
     """
 
     def __init__(
-        self, api_key: str | None = None, *, base_url: str = _TAVILY_URL
+        self, api_key: str | None = None, *, base_url: str | None = None
     ) -> None:
         """Create a Tavily-backed search backend.
 
@@ -26,8 +24,9 @@ class TavilySearch:
             api_key: Tavily API key. Falls back to the TAVILY_API_KEY
                 environment variable if not provided; raises if neither is
                 set.
-            base_url: Override the Tavily search endpoint, e.g. to point at
-                a proxy or a mocked server in tests.
+            base_url: Override the Tavily API base URL, e.g. to point at a
+                proxy or a mocked server in tests. Defaults to the SDK's own
+                default when not set.
         """
         self.api_key = api_key or os.getenv("TAVILY_API_KEY")
         if not self.api_key:
@@ -35,26 +34,15 @@ class TavilySearch:
                 "Tavily API key not provided. Pass api_key=, or set the "
                 "TAVILY_API_KEY environment variable."
             )
-        self._base_url = base_url
+        self._client = AsyncTavilyClient(api_key=self.api_key, api_base_url=base_url)
 
     async def search(self, query: str, *, top_k: int = 5) -> list[SearchResult]:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                self._base_url,
-                json={
-                    "api_key": self.api_key,
-                    "query": query,
-                    "max_results": top_k,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-
+        response = await self._client.search(query, max_results=top_k)
         return [
             SearchResult(
                 title=result.get("title", ""),
                 url=result.get("url", ""),
                 snippet=result.get("content", ""),
             )
-            for result in data.get("results", [])
+            for result in response.get("results", [])
         ]

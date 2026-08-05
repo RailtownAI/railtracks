@@ -54,10 +54,13 @@ visual = [
 # For each Integration package dependencies go here.
 portkey = ["portkey_ai >= 2.0.2"]
 
-# Prebuilt WebSearchToolSet: Tavily search (plain REST via httpx) + trafilatura
-# HTML-to-text extraction for the default fetch backend.
+# Prebuilt WebSearchToolSet: the official tavily-python SDK for the default
+# search backend (Brave, an alternate backend, uses httpx directly since
+# Brave has no official SDK), httpx + trafilatura for the default fetch
+# backend's HTML-to-text extraction.
 websearch = [
     "httpx >= 0.27.0",
+    "tavily-python >= 0.7.0",
     "trafilatura >= 1.8.0",
 ]
 

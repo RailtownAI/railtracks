@@ -12,8 +12,11 @@ _BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
 class BraveSearch:
     """SearchBackend backed by the Brave Search API.
 
-    Talks to Brave's `/web/search` endpoint directly via httpx rather than
-    depending on a separate SDK, matching TavilySearch's approach.
+    Talks to Brave's `/web/search` endpoint directly via httpx. Unlike
+    TavilySearch, this isn't a stopgap: Brave doesn't publish its own
+    official Python SDK (only unofficial, community-maintained wrappers
+    exist), so hand-rolling the one endpoint we need is more dependable
+    than depending on a third party that could itself go unmaintained.
     """
 
     def __init__(
