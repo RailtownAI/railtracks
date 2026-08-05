@@ -45,12 +45,18 @@ class SessionContext:
         publisher: RTPublisher | None = None,
         scope: ScopeLink[ScopeEntry] | None = None,
         executor_config: ExecutorConfig,
+        flow_name: str | None = None,
+        flow_id: str | None = None,
+        session_name: str | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
         self._publisher: RTPublisher | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
         self._executor_config: ExecutorConfig = executor_config
+        self._flow_name: str | None = flow_name
+        self._flow_id: str | None = flow_id
+        self._session_name: str | None = session_name
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -131,6 +137,18 @@ class SessionContext:
     def run_id(self) -> str | None:
         return self._run_id
 
+    @property
+    def flow_name(self) -> str | None:
+        return self._flow_name
+
+    @property
+    def flow_id(self) -> str | None:
+        return self._flow_id
+
+    @property
+    def session_name(self) -> str | None:
+        return self._session_name
+
     def with_scope_pushed(
         self, entry: ScopeEntry, *, run_id: str | None = None
     ) -> SessionContext:
@@ -144,4 +162,7 @@ class SessionContext:
             publisher=self._publisher,
             scope=new_scope,
             executor_config=self._executor_config,
+            flow_name=self._flow_name,
+            flow_id=self._flow_id,
+            session_name=self._session_name,
         )

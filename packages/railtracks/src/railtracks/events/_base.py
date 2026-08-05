@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import datetime
 from abc import ABC, abstractmethod
+<<<<<<< HEAD
 from dataclasses import dataclass, field, fields
 from enum import Enum
+=======
+from dataclasses import asdict, dataclass, field, fields
+>>>>>>> feature-branch-observability-update
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 from typing_extensions import Self
@@ -106,36 +110,104 @@ class ParentType(str, Enum):
 
 
 @dataclass(frozen=True)
+<<<<<<< HEAD
+=======
+class SpatialParent:
+    def __post_init__(self):
+        if not hasattr(self, "spatial_type"):
+            raise ValueError(
+                f"SpatialParent subclass {self.__class__.__name__} must define a 'spatial_type' field."
+            )
+
+    def encode(self):
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class MiddlewareSpatialParent(SpatialParent):
+    spatial_type: Literal["middleware"] = field(init=False, default="middleware")
+    middleware_invoke_id: str
+
+
+@dataclass(frozen=True)
+class NodeSpatialParent(SpatialParent):
+    spatial_type: Literal["node"] = field(init=False, default="node")
+    node_id: str | None
+
+
+@dataclass(frozen=True)
+class NodeAndMiddlewareSpatialParent(SpatialParent):
+    spatial_type: Literal["node_and_middleware"] = field(
+        init=False, default="node_and_middleware"
+    )
+    node_id: str
+    middleware_invoke_id: str | None
+
+
+@dataclass(frozen=True)
+class LLMAndMiddlewareSpatialParent(SpatialParent):
+    spatial_type: Literal["llm_and_middleware"] = field(
+        init=False, default="llm_and_middleware"
+    )
+    llm_invoke_id: str
+    middleware_invoke_id: str | None
+
+
+@dataclass(frozen=True)
+class NoSpatialParent(SpatialParent):
+    spatial_type: Literal["none"] = field(init=False, default="none")
+
+
+@dataclass(frozen=True)
+>>>>>>> feature-branch-observability-update
 class Parent:
     def __post_init__(self):
         if not hasattr(self, "parent_type"):
             raise ValueError(
                 f"Parent subclass {self.__class__.__name__} must define a 'parent_type' field."
             )
+<<<<<<< HEAD
+=======
+
+    def encode(self):
+        return asdict(self)
+>>>>>>> feature-branch-observability-update
 
 
 @dataclass(frozen=True)
 class NodeParent(Parent):
+<<<<<<< HEAD
     parent_type: Literal[ParentType.NODE] = field(
         init=False, default=ParentType.NODE
     )
+=======
+    parent_type: Literal["node"] = field(init=False, default="node")
+>>>>>>> feature-branch-observability-update
     node_id: str
 
 
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
+<<<<<<< HEAD
     parent_type: Literal[ParentType.MIDDLEWARE] = field(
         init=False, default=ParentType.MIDDLEWARE
     )
+=======
+    parent_type: Literal["middleware"] = field(init=False, default="middleware")
+>>>>>>> feature-branch-observability-update
     middleware_type_id: str
     middleware_invoke_id: str
 
 
 @dataclass(frozen=True)
 class LLMParent(Parent):
+<<<<<<< HEAD
     parent_type: Literal[ParentType.LLM] = field(
         init=False, default=ParentType.LLM
     )
+=======
+    parent_type: Literal["llm"] = field(init=False, default="llm")
+>>>>>>> feature-branch-observability-update
     llm_type_id: str
     llm_invoke_id: str
 
@@ -146,7 +218,13 @@ TParent = TypeVar("TParent", bound=Parent)
 
 @dataclass(kw_only=True)
 class SessionEventBase(ABC, Generic[TSpatialParent]):
+<<<<<<< HEAD
     spatial_parent: TSpatialParent | Unset = field(init=False, default=UNSET)
+=======
+    spatial_parent: TSpatialParent | Unset = field(
+        init=False, default=UNSET, metadata={"flatten": True}
+    )
+>>>>>>> feature-branch-observability-update
 
     timestamp: datetime.datetime = field(
         init=False,
@@ -188,6 +266,21 @@ class SessionEventBase(ABC, Generic[TSpatialParent]):
         """
         ...
 
+<<<<<<< HEAD
+=======
+    def encode(self):
+        encoded_json = {}
+        for f in fields(self):
+            if f.metadata.get("flatten", False):
+                inner_dict = getattr(self, f.name).encode()
+                for inner_key, inner_value in inner_dict.items():
+                    name = f"{f.name}_{inner_key}"
+                    encoded_json[name] = inner_value
+            else:
+                encoded_json[f.name] = getattr(self, f.name)
+        return encoded_json
+
+>>>>>>> feature-branch-observability-update
 
 @dataclass(kw_only=True)
 class CreationEventBase(SessionEventBase[NoSpatialParent]):
@@ -205,7 +298,13 @@ class ParentEventBase(
     """A parent event is emitted after the created entity enters its own scope,
     so its parent resolves from the caller's ambient chain (no self-skip)."""
 
+<<<<<<< HEAD
     parent: TParent | Unset = field(init=False, default=UNSET)
+=======
+    parent: TParent | Unset = field(
+        init=False, default=UNSET, metadata={"flatten": True}
+    )
+>>>>>>> feature-branch-observability-update
 
     def resolve_relationships(self, scope: ScopeLink[ScopeEntry] | None):
         """Resolve the event's spatial parent and parent from the current scope chain.

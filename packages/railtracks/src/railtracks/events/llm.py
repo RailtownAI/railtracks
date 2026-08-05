@@ -29,7 +29,11 @@ class LLMMessageBase(ParentEventBase[NodeSpatialParent, LLMParent]):
 
 @dataclass(kw_only=True)
 class LLMCreationEvent(CreationEventBase):
+<<<<<<< HEAD
     llm_model_id: str
+=======
+    llm_id: str
+>>>>>>> feature-branch-observability-update
     model_provider: ModelProvider
     model_name: str
 

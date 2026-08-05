@@ -8,7 +8,7 @@ from railtracks.events.middleware import (
     MiddlewareModelOutputInvocationEvent,
     MiddlewareModelOutputResponseEvent,
 )
-from railtracks.events.send import pipe
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
@@ -40,13 +40,13 @@ def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
             response = await llm_call(message_history, schema, tools)
         except Exception as e:
             event = MiddlewareModelOutputFailureEvent.from_exception(e)
-            await pipe(event)
+            await emit(event)
             raise e
 
         input_event = MiddlewareModelOutputInvocationEvent(
             response=response,
         )
-        await pipe(input_event)
+        await emit(input_event)
 
         response = await unpack_async_sync(fn(response))
 
@@ -54,7 +54,7 @@ def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
             response=response,
         )
 
-        await pipe(output_event)
+        await emit(output_event)
 
         return response
 

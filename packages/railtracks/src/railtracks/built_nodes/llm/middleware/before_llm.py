@@ -7,7 +7,7 @@ from railtracks.events.middleware import (
     MiddlewareModelInputInvocationEvent,
     MiddlewareModelInputResponseEvent,
 )
-from railtracks.events.send import pipe
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.unpack import unpack_async_sync
@@ -46,7 +46,7 @@ def before_llm(
             schema=schema,
             tools=tools,
         )
-        await pipe(input_event)
+        await emit(input_event)
 
         try:
             message_history, schema, tools = await unpack_async_sync(
@@ -58,7 +58,7 @@ def before_llm(
                 schema=schema,
                 tools=tools,
             )
-            await pipe(event)
+            await emit(event)
             raise e
 
         output_event = MiddlewareModelInputResponseEvent(
@@ -66,7 +66,7 @@ def before_llm(
             schema=schema,
             tools=tools,
         )
-        await pipe(output_event)
+        await emit(output_event)
 
         return await llm_call(message_history, schema, tools)
 

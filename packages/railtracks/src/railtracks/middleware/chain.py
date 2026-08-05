@@ -14,7 +14,11 @@ from railtracks.events.middleware import (
     MiddlewareInvocationEvent,
     MiddlewareResponseEvent,
 )
+<<<<<<< HEAD
 from railtracks.events.send import pipe
+=======
+from railtracks.events.send import emit
+>>>>>>> feature-branch-observability-update
 from railtracks.middleware.core import Middleware
 from railtracks.scope_manager import ScopeManager, null_scope_manager
 
@@ -39,19 +43,31 @@ def _scoped(
         ):
             invocation_event = MiddlewareInvocationEvent(args=args, kwargs=kwargs)
 
+<<<<<<< HEAD
             await pipe(invocation_event)
+=======
+            await emit(invocation_event)
+>>>>>>> feature-branch-observability-update
             try:
                 result = await wrapped(*args, **kwargs)
 
             except Exception as e:
                 event = MiddlewareFailureEvent.from_exception(e)
+<<<<<<< HEAD
                 await pipe(event)
+=======
+                await emit(event)
+>>>>>>> feature-branch-observability-update
                 raise e
 
             event = MiddlewareResponseEvent(
                 response=result,
             )
+<<<<<<< HEAD
             await pipe(event)
+=======
+            await emit(event)
+>>>>>>> feature-branch-observability-update
 
             return result
 

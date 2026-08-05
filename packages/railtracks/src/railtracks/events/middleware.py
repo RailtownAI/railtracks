@@ -13,7 +13,10 @@ from railtracks.events._base import (
     MiddlewareParent,
     NodeAndMiddlewareSpatialParent,
     ParentEventBase,
+<<<<<<< HEAD
     Unset,
+=======
+>>>>>>> feature-branch-observability-update
 )
 from railtracks.events._resolve import (
     middleware_parent,
@@ -44,8 +47,11 @@ _T = TypeVar("_T", bound=NodeAndMiddlewareSpatialParent | LLMAndMiddlewareSpatia
 
 @dataclass(kw_only=True)
 class MiddlewareEventBase(ParentEventBase[_T, MiddlewareParent], Generic[_T]):
+<<<<<<< HEAD
     parent: MiddlewareParent | Unset = UNSET
 
+=======
+>>>>>>> feature-branch-observability-update
     def verify(self) -> None:
         super().verify()
         assert self.parent != UNSET, (

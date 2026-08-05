@@ -17,7 +17,7 @@ from railtracks.events.middleware import (
     MiddlewareGuardOutputInvocationEvent,
     MiddlewareGuardOutputResponseEvent,
 )
-from railtracks.events.send import pipe
+from railtracks.events.send import emit
 from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, Message
@@ -74,7 +74,7 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
             message_history=message_history,
         )
 
-        await pipe(input_event)
+        await emit(input_event)
 
         try:
             new_messages, traces, decision = self.run(
@@ -82,7 +82,7 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
             )
         except Exception as e:
             failure_event = MiddlewareGuardInputFailureEvent.from_exception(e)
-            await pipe(failure_event)
+            await emit(failure_event)
             raise e
 
         result_event = MiddlewareGuardInputResponseEvent(
@@ -90,7 +90,7 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
             message_history=new_messages,
         )
 
-        await pipe(result_event)
+        await emit(result_event)
 
         self._raise_if_blocked(decision, traces)
 
@@ -204,19 +204,19 @@ class OutputGuard(BaseLLMGuardrail[Message]):
             response=result.message,
         )
 
-        await pipe(input_event)
+        await emit(input_event)
         try:
             new_message, traces, decision = self.run(event=event, value=result.message)
         except Exception as e:
             failure_event = MiddlewareGuardOutputFailureEvent.from_exception(e)
-            await pipe(failure_event)
+            await emit(failure_event)
             raise e
 
         output_event = MiddlewareGuardOutputResponseEvent(
             decision=decision,
             response=new_message,
         )
-        await pipe(output_event)
+        await emit(output_event)
 
         self._raise_if_blocked(decision, traces)
 
