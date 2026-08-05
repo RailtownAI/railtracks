@@ -155,6 +155,16 @@ def test_extract_tool_details_call_fields(agent_node, tool_nodes, edges):
     assert call_by_name["tool_one"].arguments.kwargs == {"ticker": "AMZN"}
 
 
+def test_extract_tool_details_null_internals(agent_node, tool_nodes, edges):
+    tool_nodes[TOOL1_ID].details = {"internals": None}
+    nodes = {AGENT_ID: agent_node, **tool_nodes}
+    graph, _ = construct_graph(edges)
+    details = extract_tool_details(nodes, edges, graph, AGENT_ID)
+    call_by_name = {c.name: c for c in details.calls}
+    assert call_by_name["tool_one"].runtime is None
+    assert call_by_name["tool_two"].runtime == 0.2
+
+
 # ── extract_agent_io ──────────────────────────────────────────────────────────
 
 
@@ -265,6 +275,19 @@ def test_extract_agent_data_points_from_multiple_payloads(session_json):
     data_points = extract_agent_data_points([session_json, session_json])
     assert len(data_points) == 2
     assert all(dp.session_id == SESSION_ID for dp in data_points)
+
+
+def test_extract_agent_data_points_null_internals(session_json):
+    """A session with null internals yields data points with empty LLM details.
+
+    Regression guard for the observability rewrite, which writes
+    {"internals": None} on every node.
+    """
+    for node in session_json["runs"][0]["nodes"]:
+        node["details"] = {"internals": None}
+    data_points = extract_agent_data_points([session_json])
+    assert len(data_points) == 1
+    assert data_points[0].llm_details.calls == []
 
 
 def test_extract_agent_data_points_empty_list_raises():

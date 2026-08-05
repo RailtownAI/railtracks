@@ -220,7 +220,7 @@ def extract_tool_details(
                     kwargs=edge.details.get("input_kwargs", {}),
                 ),
                 output=edge.details.get("output", None),
-                runtime=target.details.get("internals", {})
+                runtime=(target.details.get("internals") or {})
                 .get("latency", {})
                 .get("total_time"),
                 status=Status(edge.details.get("status")),
@@ -365,7 +365,7 @@ def _data_points_from_payload(payload: dict) -> list[AgentDataPoint]:
 
         for node in nodes.values():
             if node.node_type == NodeType.AGENT:
-                llm_details_dict = node.details.get("internals", {}).get(
+                llm_details_dict = (node.details.get("internals") or {}).get(
                     "llm_details", []
                 )
                 llm_details = (
