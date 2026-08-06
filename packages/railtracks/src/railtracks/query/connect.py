@@ -55,8 +55,9 @@ def _require_duckdb():
 
 
 def connect(path: Path | str, namespaces: list[str]) -> EventQuery:
-    """Requested namespaces backed by an event dataclass are registered as views;
-    the rest land in ``EventQuery.namespaces_missing``."""
+    """Open an ``EventQuery`` over the JSONL at ``path``, registering one view
+    per requested namespace. Every entry in ``namespaces`` must be present in
+    the registry's ``NAMESPACE_COLUMNS`` — unknown names raise ``ValueError``."""
     duckdb = _require_duckdb()
     return EventQuery(duckdb.connect(), path, namespaces)
 
@@ -68,11 +69,17 @@ class EventQuery:
         path: Path | str,
         namespaces: list[str],
     ) -> None:
+        known = set(_registry_namespaces())
+        unknown = sorted(set(namespaces) - known)
+        if unknown:
+            raise ValueError(
+                f"Unknown namespace(s): {unknown}. Known: {sorted(known)}. "
+                "To add a new namespace, update NAMESPACE_COLUMNS in "
+                "railtracks/events/registry.py."
+            )
         self.con = con
-        self.namespaces: list[str] = []
-        self.namespaces_missing: list[str] = []
+        self.namespaces: list[str] = list(namespaces)
         self._path = Path(path)
-        self._requested = list(namespaces)
         self.refresh()
 
     def close(self) -> None:
@@ -85,21 +92,21 @@ class EventQuery:
         self.close()
 
     def refresh(self) -> None:
-        """Re-read the data files and rebuild the views. Mutates ``namespaces`` /
-        ``namespaces_missing`` in place."""
+        """Re-read data files and rebuild views. If the path has no data files,
+        teardown runs but no views are (re)built — queries against namespace
+        views will fail until data lands and ``refresh()`` is called again."""
         data_files = resolve_data_files(self._path)
 
         self._teardown_views()
         if not data_files:
-            self.namespaces, self.namespaces_missing = [], list(self._requested)
             return
 
         self._build_events_view(data_files)
         self._build_namespace_views()
 
     def _teardown_views(self) -> None:
-        """Drop any views that were created for the requested namespaces, and the events view."""
-        for ns in self._requested:
+        """Drop the namespace views this query owns, plus the events view."""
+        for ns in self.namespaces:
             self.con.execute(f"DROP VIEW IF EXISTS {_sql_identifier(ns)}")
         self.con.execute("DROP VIEW IF EXISTS events")
 
@@ -112,20 +119,11 @@ class EventQuery:
         ).create_view("events", replace=True)
 
     def _build_namespace_views(self) -> None:
-        """Create views for each requested namespace that has a dataclass backing it."""
-        registry_ns = set(_registry_namespaces())
-        registered, missing = [], []
-        for ns in self._requested:
-            if ns in registry_ns:
-                _register_namespace_view(self.con, ns)
-                registered.append(ns)
-            else:
-                missing.append(ns)
-        self.namespaces = registered
-        self.namespaces_missing = missing
+        """Create one view per validated namespace on top of ``events``."""
+        for ns in self.namespaces:
+            _register_namespace_view(self.con, ns)
         print_status(
-            f"Registered {len(registered)} namespaces: {registered}; "
-            f"missing {len(missing)} namespaces: {missing}"
+            f"Registered {len(self.namespaces)} namespaces: {self.namespaces}"
         )
 
 

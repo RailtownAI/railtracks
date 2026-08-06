@@ -33,7 +33,6 @@ class TestConnectSingleFile:
         _write(f, [NODE_CREATION, LLM_RESPONSE])
         with closing(connect(f, ["node", "llm"])) as q:
             assert set(q.namespaces) == {"node", "llm"}
-            assert q.namespaces_missing == []
             assert {"events", "node", "llm"} <= _tables(q.con)
 
     def test_returns_real_row_counts(self, tmp_path: Path):
@@ -60,7 +59,6 @@ class TestEmptyRegisteredNamespace:
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["node", "llm"])) as q:
             assert set(q.namespaces) == {"node", "llm"}
-            assert q.namespaces_missing == []
             (n,) = q.con.execute("SELECT COUNT(*) FROM node").fetchone()
             assert n == 0
 
@@ -74,21 +72,32 @@ class TestEventsView:
             assert ids == ["evt_llm_1"]
 
 
-class TestUnregisteredNamespaces:
-    def test_unknown_namespace_lands_in_missing(self, tmp_path: Path):
+class TestUnknownNamespace:
+    def test_raises_valueerror_pointing_at_the_registry(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"
         _write(f, [LLM_RESPONSE])
-        with closing(connect(f, ["retrieval"])) as q:
-            assert q.namespaces == []
-            assert q.namespaces_missing == ["retrieval"]
+        with pytest.raises(ValueError) as exc:
+            connect(f, ["retrieval"])
+        msg = str(exc.value)
+        assert "retrieval" in msg
+        assert "NAMESPACE_COLUMNS" in msg
+        assert "registry.py" in msg
+
+    def test_lists_known_namespaces_in_the_message(self, tmp_path: Path):
+        f = tmp_path / "e.jsonl"
+        _write(f, [LLM_RESPONSE])
+        with pytest.raises(ValueError) as exc:
+            connect(f, ["retrieval"])
+        msg = str(exc.value)
+        for known in ("llm", "middleware", "node", "session"):
+            assert known in msg
 
     def test_custom_events_in_data_do_not_auto_register(self, tmp_path: Path):
-        # No more scan-based fallback: only registry-backed namespaces materialize views.
+        # No scan-based fallback: only registry-known names are accepted.
         f = tmp_path / "e.jsonl"
         _write(f, [CUSTOM_NS_EVENT])
-        with closing(connect(f, ["custom"])) as q:
-            assert q.namespaces == []
-            assert q.namespaces_missing == ["custom"]
+        with pytest.raises(ValueError, match="custom"):
+            connect(f, ["custom"])
 
 
 class TestRefresh:
@@ -118,7 +127,6 @@ class TestEmptyNamespaces:
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, [])) as q:
             assert q.namespaces == []
-            assert q.namespaces_missing == []
             assert _tables(q.con) == {"events"}
 
 

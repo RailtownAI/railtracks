@@ -21,8 +21,9 @@ _KIND_TO_DUCKDB: dict[ColumnKind, str] = {
 def _duckdb_type(spec: ColumnSpec) -> str:
     """Render a ``ColumnSpec`` as a DuckDB type string."""
     if spec.kind is ColumnKind.ENUM:
-        members = spec.enum_members or ()
-        rendered = ", ".join("'" + m.replace("'", "''") + "'" for m in members)
+        rendered = ", ".join(
+            "'" + m.replace("'", "''") + "'" for m in spec.enum_members
+        )
         return f"ENUM({rendered})"
     return _KIND_TO_DUCKDB[spec.kind]
 
