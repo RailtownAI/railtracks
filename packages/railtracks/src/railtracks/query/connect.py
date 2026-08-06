@@ -3,10 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from railtracks.cli.io import print_error, print_status, print_warning
+from railtracks.cli.io import print_error, print_status
+from railtracks.events.registry import NAMESPACE_COLUMNS
 from railtracks.events.registry import namespaces as _registry_namespaces
 
-from .read import _resolve_data_files
+from .read import resolve_data_files
 from .schema import duckdb_columns
 
 if TYPE_CHECKING:
@@ -24,6 +25,23 @@ _ENVELOPE_COLUMNS: dict[str, str] = {
     "stamp": "TIMESTAMP WITH TIME ZONE",
     "payload": "JSON",
 }
+
+
+def _assert_no_envelope_collisions() -> None:
+    """The registry must not declare payload columns that share a name with an
+    envelope column, or ``CREATE VIEW`` would emit duplicate columns. Runs at
+    import time so a bad registry fails fast."""
+    reserved = frozenset(_ENVELOPE_COLUMNS)
+    for ns, cols in NAMESPACE_COLUMNS.items():
+        clash = set(cols) & reserved
+        if clash:
+            raise RuntimeError(
+                f"registry namespace {ns!r} declares payload keys that collide "
+                f"with envelope columns: {sorted(clash)}"
+            )
+
+
+_assert_no_envelope_collisions()
 
 
 def _require_duckdb():
@@ -69,7 +87,7 @@ class EventQuery:
     def refresh(self) -> None:
         """Re-read the data files and rebuild the views. Mutates ``namespaces`` /
         ``namespaces_missing`` in place."""
-        data_files = _resolve_data_files(self._path)
+        data_files = resolve_data_files(self._path)
 
         self._teardown_views()
         if not data_files:
@@ -115,16 +133,7 @@ def _register_namespace_view(con, namespace: str) -> None:
     """Create a view for a namespace, exposing envelope columns and typed payload columns."""
     envelope_cols = [c for c in _ENVELOPE_COLUMNS if c != "payload"]
     projections = list(envelope_cols)
-
-    registry_cols = duckdb_columns(namespace)
-    collided = [k for k in registry_cols if k in _ENVELOPE_COLUMNS]
-    if collided:
-        print_warning(
-            f"namespace {namespace!r}: payload keys {collided} collide with envelope columns and were dropped"
-        )
-    for key, duckdb_type in registry_cols.items():
-        if key in _ENVELOPE_COLUMNS:
-            continue
+    for key, duckdb_type in duckdb_columns(namespace).items():
         projections.append(_project_payload_key(key, duckdb_type))
 
     try:
