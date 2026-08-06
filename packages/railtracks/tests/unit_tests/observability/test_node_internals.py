@@ -8,6 +8,7 @@ SESSION = "sess-1"
 AGENT = "node-agent"
 TOOL = "node-tool"
 LLM_CALL = "llm-invoke-1"
+LLM_TYPE = "llm-type-1"
 GUARD_MW = "mw-type-guard"
 
 
@@ -29,14 +30,21 @@ def _node_destruction(node_id: str, duration: float) -> Event:
     return _event("node.destruction", parent_node_id=node_id, duration_seconds=duration)
 
 
+def _llm_creation(model_name="claude-sonnet-4-6", provider="Anthropic") -> Event:
+    # model identity lives here; the round-trip events reference it by id
+    return _event(
+        "llm.creation", llm_id=LLM_TYPE, model_name=model_name, model_provider=provider
+    )
+
+
 def _llm_response(node_id: str, **overrides) -> Event:
     payload = {
         "spatial_parent_node_id": node_id,
         "parent_llm_invoke_id": LLM_CALL,
+        "parent_llm_type_id": LLM_TYPE,
         "message_input": ["in"],
         "output": "out",
-        "model_name": "claude-sonnet-4-6",
-        "model_provider": "Anthropic",
+        "reported_model_name": "claude-sonnet-4-6",
         "input_tokens": 10,
         "output_tokens": 5,
         "total_cost": 0.001,
@@ -57,6 +65,7 @@ def _collect(*events: Event) -> NodeInternalsCollector:
 async def test_llm_node_gets_the_legacy_three_key_block():
     collector = _collect(
         _node_creation(AGENT, "My-Agent", "Agent"),
+        _llm_creation(),
         _llm_response(AGENT),
         _node_destruction(AGENT, 2.5),
     )
@@ -106,9 +115,10 @@ async def test_llm_details_preserve_call_order():
     """The visualizer reads llm_details[-1] as the node's headline model."""
     collector = _collect(
         _node_creation(AGENT, "My-Agent", "Agent"),
-        _llm_response(AGENT, model_name="first"),
-        _llm_response(AGENT, model_name="second"),
-        _llm_response(AGENT, model_name="third"),
+        _llm_creation(),
+        _llm_response(AGENT, reported_model_name="first"),
+        _llm_response(AGENT, reported_model_name="second"),
+        _llm_response(AGENT, reported_model_name="third"),
     )
 
     names = [
@@ -120,13 +130,13 @@ async def test_llm_details_preserve_call_order():
 async def test_llm_failure_becomes_an_entry_with_a_null_output():
     collector = _collect(
         _node_creation(AGENT, "My-Agent", "Agent"),
+        _llm_creation(),
         _event(
             "llm.failure",
             spatial_parent_node_id=AGENT,
             parent_llm_invoke_id=LLM_CALL,
+            parent_llm_type_id=LLM_TYPE,
             message_input=["in"],
-            model_name="claude-sonnet-4-6",
-            model_provider="Anthropic",
             exception_name="RuntimeError",
             exception_message="boom",
         ),
@@ -135,7 +145,9 @@ async def test_llm_failure_becomes_an_entry_with_a_null_output():
     entry = collector.internals_for(SESSION)[AGENT]["llm_details"][0]
     assert entry["output"] is None
     assert entry["input_tokens"] is None
+    # a failure has no reported name, so identity falls back to llm.creation
     assert entry["model_name"] == "claude-sonnet-4-6"
+    assert entry["model_provider"] == "Anthropic"
 
 
 async def test_guard_traces_attach_to_the_node_that_made_the_call():

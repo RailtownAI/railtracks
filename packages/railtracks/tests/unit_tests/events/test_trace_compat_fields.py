@@ -87,39 +87,56 @@ def _of_type(events: list[Event], event_type: str) -> list[Event]:
     return [e for e in events if e.event_type == event_type]
 
 
-async def test_llm_response_carries_the_provider_reported_model_name():
-    """The legacy trace recorded the unprefixed name, so prefer what the provider echoed."""
+async def test_llm_response_reports_the_model_the_provider_served_with():
+    """Distinct from the configured slug on llm.creation, and what the legacy trace
+    recorded; response metadata in the same category as system_fingerprint."""
     _register()
     events = await _run_model_invoker(_FakeModel())
 
     responses = _of_type(events, "llm.response")
     assert len(responses) == 1
-    payload = responses[0].payload
-    assert payload["model_name"] == "claude-sonnet-4-6"
-    assert payload["model_provider"] == "Anthropic"
+    assert responses[0].payload["reported_model_name"] == "claude-sonnet-4-6"
 
 
-async def test_llm_response_falls_back_to_the_model_name_when_none_reported():
-    """Not every provider echoes a name back; the routing slug is better than nothing."""
+async def test_llm_response_reports_none_when_the_provider_says_nothing():
+    """Consumers fall back to llm.creation rather than the event inventing a value."""
     _register()
     events = await _run_model_invoker(_FakeModel(echoed_name=None))
 
-    payload = _of_type(events, "llm.response")[0].payload
-    assert payload["model_name"] == "anthropic/claude-sonnet-4-6"
-    assert payload["model_provider"] == "Anthropic"
+    assert _of_type(events, "llm.response")[0].payload["reported_model_name"] is None
 
 
-async def test_llm_failure_carries_the_model_identity():
-    """The legacy trace recorded a failed call as an entry too, model and all."""
+async def test_round_trip_events_do_not_restate_model_identity():
+    """They reference llm.creation by id instead, so no event reaches for state that
+    isn't its own."""
+    _register()
+    events = await _run_model_invoker(_FakeModel())
+
+    creation = _of_type(events, "llm.creation")[0].payload
+    assert creation["model_name"] == "anthropic/claude-sonnet-4-6"
+    assert creation["model_provider"] == "Anthropic"
+
+    for event_type in ("llm.invocation", "llm.response"):
+        payload = _of_type(events, event_type)[0].payload
+        assert "model_provider" not in payload
+        assert "model_name" not in payload
+        # the join key back to llm.creation
+        assert payload["parent_llm_type_id"] == creation["llm_id"]
+
+
+async def test_llm_failure_is_still_attributable_to_its_model():
+    """The failure path records an entry in the legacy trace, so it needs the join key."""
     _register()
     events = await _run_model_invoker(_FakeModel(raises=RuntimeError("boom")))
 
     failures = _of_type(events, "llm.failure")
     assert len(failures) == 1
     payload = failures[0].payload
-    assert payload["model_name"] == "anthropic/claude-sonnet-4-6"
-    assert payload["model_provider"] == "Anthropic"
     assert payload["exception_name"] == "RuntimeError"
+    assert (
+        payload["parent_llm_type_id"]
+        == _of_type(events, "llm.creation")[0].payload["llm_id"]
+    )
     assert _of_type(events, "llm.response") == []
 
 

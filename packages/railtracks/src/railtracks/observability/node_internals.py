@@ -14,6 +14,7 @@ _RELEVANT: frozenset[str] = frozenset(
     {
         "node.creation",
         "node.destruction",
+        "llm.creation",
         "llm.invocation",
         "llm.response",
         "llm.failure",
@@ -69,6 +70,7 @@ class NodeInternalsCollector:
 
 def _fold(events: list[Event]) -> dict[str, dict[str, Any]]:
     llm_owner = _llm_call_owners(events)
+    models = _model_identities(events)
     middleware_names = {
         e.payload["middleware_type_id"]: e.payload["middleware_name"]
         for e in events
@@ -102,7 +104,9 @@ def _fold(events: list[Event]) -> dict[str, dict[str, Any]]:
             node_id = payload.get("spatial_parent_node_id")
             if node_id is not None:
                 entry = internals.setdefault(node_id, {})
-                entry.setdefault("llm_details", []).append(_request_details(payload))
+                entry.setdefault("llm_details", []).append(
+                    _request_details(payload, models)
+                )
 
         elif event_type.startswith("middleware.guard."):
             node_id = llm_owner.get(payload.get("spatial_parent_llm_invoke_id"))
@@ -132,15 +136,32 @@ def _llm_call_owners(events: list[Event]) -> dict[str, str]:
     return owners
 
 
-def _request_details(payload: dict[str, Any]) -> dict[str, Any]:
+def _model_identities(events: list[Event]) -> dict[str, tuple[str | None, str | None]]:
+    """Map each model id to its ``(model_name, model_provider)``."""
+    return {
+        e.payload["llm_id"]: (
+            e.payload.get("model_name"),
+            e.payload.get("model_provider"),
+        )
+        for e in events
+        if e.event_type == "llm.creation"
+    }
+
+
+def _request_details(
+    payload: dict[str, Any], models: dict[str, tuple[str | None, str | None]]
+) -> dict[str, Any]:
     """One ``llm_details`` entry, matching the legacy ``RequestDetails`` encoding.
 
     Message values are passed through as the raw objects the event carried; the
     session document's encoder renders them to the same shape the old one did.
     """
+    model_name, model_provider = models.get(
+        payload.get("parent_llm_type_id"), (None, None)
+    )
     return {
-        "model_name": payload.get("model_name"),
-        "model_provider": payload.get("model_provider"),
+        "model_name": payload.get("reported_model_name") or model_name,
+        "model_provider": model_provider,
         "input": payload.get("message_input"),
         "output": payload.get("output"),
         "input_tokens": payload.get("input_tokens"),

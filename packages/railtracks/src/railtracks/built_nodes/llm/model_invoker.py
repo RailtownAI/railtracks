@@ -24,62 +24,40 @@ from railtracks.middleware.chain import MiddlewareChain
 from railtracks.scope_manager import ScopeManager, null_scope_manager
 
 
-def _make_llm_observe(get_model: Callable[[], ModelBase]):
-    """Build the observation middleware bound to the model it observes.
-
-    The model is needed for the provider (and as the fallback model name), and a
-    ``wrap_llm`` middleware only sees the call arguments. So the identity is
-    closed over here rather than looked up from the middleware signature.
-    """
-
-    @wrap_llm
-    async def _llm_observe(
-        call: Callable[
-            [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-            Awaitable[Response],
-        ],
-        message_history: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ) -> Response:
-        prev_message_history = deepcopy(message_history)
-        model = get_model()
-        model_name = model.model_name()
-        model_provider = model.model_provider()
-
-        invocation_event = LLMInvocationEvent(
-            message_input=prev_message_history,
-            model_name=model_name,
-            model_provider=model_provider,
-        )
-        await emit(invocation_event)
-        try:
-            response: Response = await call(message_history, schema, tools)
-        except Exception as e:
-            event = LLMFailureEvent.from_exception(
-                e,
-                message_input=prev_message_history,
-                model_name=model_name,
-                model_provider=model_provider,
-            )
-            await emit(event)
-            raise e
-
-        event = LLMResponseEvent(
-            message_input=prev_message_history,
-            output=response.message,
-            model_name=response.message_info.model_name or model_name,
-            model_provider=model_provider,
-            input_tokens=response.message_info.input_tokens,
-            output_tokens=response.message_info.output_tokens,
-            total_cost=response.message_info.total_cost,
-            system_fingerprint=response.message_info.system_fingerprint,
-            latency=response.message_info.latency,
-        )
+@wrap_llm
+async def _llm_observe(
+    call: Callable[
+        [MessageHistory, type[BaseModel] | None, list[Tool] | None],
+        Awaitable[Response],
+    ],
+    message_history: MessageHistory,
+    schema: type[BaseModel] | None,
+    tools: list[Tool] | None,
+) -> Response:
+    prev_message_history = deepcopy(message_history)
+    invocation_event = LLMInvocationEvent(
+        message_input=prev_message_history,
+    )
+    await emit(invocation_event)
+    try:
+        response: Response = await call(message_history, schema, tools)
+    except Exception as e:
+        event = LLMFailureEvent.from_exception(e, message_input=prev_message_history)
         await emit(event)
-        return response
+        raise e
 
-    return _llm_observe
+    event = LLMResponseEvent(
+        message_input=prev_message_history,
+        output=response.message,
+        reported_model_name=response.message_info.model_name,
+        input_tokens=response.message_info.input_tokens,
+        output_tokens=response.message_info.output_tokens,
+        total_cost=response.message_info.total_cost,
+        system_fingerprint=response.message_info.system_fingerprint,
+        latency=response.message_info.latency,
+    )
+    await emit(event)
+    return response
 
 
 class ModelInvoker:
@@ -123,10 +101,9 @@ class ModelInvoker:
         Creates a new :class:`ModelInvoker` with the given model and middleware, inserting the obersvation middleware as the last element run.
         """
         unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
-        get_model = model if callable(model) else (lambda: model)
         return cls(
             model,
-            [*unwrapped_middleware, _make_llm_observe(get_model)],
+            [*unwrapped_middleware, _llm_observe],
             get_scope_manager=get_scope_manager,
         )
 
