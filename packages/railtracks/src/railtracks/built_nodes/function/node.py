@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-import warnings
 from types import BuiltinFunctionType
 from typing import (
     Callable,
@@ -84,30 +83,6 @@ def function_node(
     RTFunction[_P, _TOutput],
 ]:
     pass
-
-
-def validate_function_parameters(
-    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
-    manifest: ToolManifest | None = None,
-):
-    """
-    Validates that the parameters of the function are valid for use in a node.
-    """
-    if hasattr(func, "node_type"):
-        warnings.warn(
-            "The provided function has already been converted to a node.",
-            UserWarning,
-        )
-        return func
-
-    if not isinstance(
-        func, BuiltinFunctionType
-    ):  # we don't require dict validation for builtin functions, that is handled separately.
-        validate_function(func)  # checks for dict or Dict parameters
-
-    # Validate tool manifest against function signature if manifest is provided
-    if manifest is not None:
-        validate_tool_manifest_against_function(func, manifest.parameters)
 
 
 def _single_function_node(

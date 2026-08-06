@@ -73,7 +73,7 @@ def wrap_llm(
     """
 
     def decorator(fn):
-        @wrap_node(name=name)
+        @wrap_node(name=name or fn.__name__)
         async def wrapped(
             llm_call: LLM_CALL,
             message_history: MessageHistory,

@@ -79,7 +79,7 @@ def before_llm(
     """
 
     def decorator(fn):
-        @wrap_llm(name=name)
+        @wrap_llm(name=name or fn.__name__)
         async def wrapper(
             llm_call: LLM_CALL,
             message_history: MessageHistory,

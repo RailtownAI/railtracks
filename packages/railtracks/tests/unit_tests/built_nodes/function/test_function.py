@@ -6,6 +6,7 @@ from railtracks.built_nodes.function.node import (
     _function_preserving_metadata,
     function_node,
 )
+from railtracks.exceptions import NodeCreationError
 
 
 @pytest.mark.asyncio
@@ -83,3 +84,30 @@ def test_function_preserving_metadata():
     wrapped = _function_preserving_metadata(f)
     assert wrapped.__name__ == f.__name__
     assert wrapped(2) == 3
+
+
+def test_function_node_rejects_sync_bound_method():
+    """A sync bound method is neither a coroutine function nor `inspect.isfunction`
+    (it's `inspect.ismethod`), so it's rejected -- a deliberate tightening from the
+    old easy_usage_wrappers implementation, which used to warn-and-passthrough for
+    any object with a stray `node_type` attribute (methods included)."""
+
+    class Foo:
+        def method(self, x: int) -> int:
+            return x
+
+    with pytest.raises(NodeCreationError):
+        function_node(Foo().method)
+
+
+@pytest.mark.asyncio
+async def test_function_node_accepts_async_bound_method():
+    """An async bound method passes `asyncio.iscoroutinefunction` (there's no
+    `inspect.isfunction`-style gate on that branch), so it's still accepted."""
+
+    class Foo:
+        async def method(self, x: int) -> int:
+            return x + 1
+
+    node = function_node(Foo().method)
+    assert isinstance(node, CallableAsyncRTFunction)

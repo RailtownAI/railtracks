@@ -5,16 +5,8 @@ from typing import TYPE_CHECKING, Type, TypeVar
 from railtracks.built_nodes.llm.response import LLMResponse
 from railtracks.nodes.nodes import Node
 
-from ..human_in_the_loop import HILMessage
-from ..llm.history import MessageHistory
-from ..llm.message import AssistantMessage, UserMessage
-from ..utils.logging.create import get_rt_logger
-from ._call import call
-
 if TYPE_CHECKING:
     from ..human_in_the_loop.local_chat_ui import UserMessageAttachment
-
-logger = get_rt_logger(__name__)
 
 _TOutput = TypeVar("_TOutput", bound=LLMResponse)
 
@@ -64,42 +56,6 @@ async def _chat_ui_interactive(
     raise NotImplementedError(
         "This function is not yet implemented. Please implement the logic for the interactive session."
     )
-    msg_history = MessageHistory([])
-
-    if initial_message_to_user is not None:
-        await chat_ui.send_message(HILMessage(content=initial_message_to_user))
-        msg_history.append(AssistantMessage(content=initial_message_to_user))
-    if initial_message_to_agent is not None:
-        msg_history.append(UserMessage(content=initial_message_to_agent))
-
-    last_tool_idx = 0
-
-    while chat_ui.is_connected:
-        message = await chat_ui.receive_message()
-        if message is None:
-            continue
-
-        attachments = []
-        if message.attachments is not None:
-            attachments = _process_attachment(message.attachments)
-        msg_history.append(UserMessage(content=message.content, attachment=attachments))
-
-        response = await call(node, msg_history, *args, **kwargs)
-
-        msg_history = response.message_history.copy()
-
-        await chat_ui.send_message(HILMessage(content=response.content))
-        await chat_ui.update_tools(response.tool_invocations[last_tool_idx:])
-
-        last_tool_idx = len(response.tool_invocations)
-        if turns is not None:
-            turns -= 1
-            if turns <= 0:
-                await chat_ui.disconnect()
-
-    logger.info("Ended Local Chat Session")
-
-    return response  # type: ignore
 
 
 async def local_chat(
@@ -143,44 +99,3 @@ async def local_chat(
     raise NotImplementedError(
         "This function is not yet implemented. Please implement the logic for starting the local chat session."
     )
-    chat_ui_kwargs = {}
-    if port is not None:
-        chat_ui_kwargs["port"] = port
-    if host is not None:
-        chat_ui_kwargs["host"] = host
-    if auto_open is not None:
-        chat_ui_kwargs["auto_open"] = auto_open
-
-    interactive_interface = kwargs.pop("interactive_interface", None)
-
-    if not issubclass(node, Node):
-        raise ValueError(
-            "Interactive sessions only support nodes that are children of LLMBase."
-        )
-    response = None
-    try:
-        logger.info("Connecting with Local Chat Session")
-
-        if interactive_interface is not None:
-            chat_ui = interactive_interface(**chat_ui_kwargs)
-        else:
-            from ..human_in_the_loop import ChatUI
-
-            chat_ui = ChatUI(**chat_ui_kwargs)
-
-        await chat_ui.connect()
-
-        response = await _chat_ui_interactive(
-            chat_ui,
-            node,
-            initial_message_to_user,
-            initial_message_to_agent,
-            turns,
-            *args,
-            **kwargs,
-        )
-
-    except Exception as e:
-        logger.error(f"Error during interactive session: {e}")
-    finally:
-        return response  # type: ignore

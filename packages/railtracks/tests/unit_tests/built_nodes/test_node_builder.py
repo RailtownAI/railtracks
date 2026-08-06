@@ -13,7 +13,7 @@ from railtracks.built_nodes.llm.middleware import after_llm
 from railtracks.built_nodes.llm.node_builder import LLMNodeBuilder
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.guardrails.core import GuardrailDecision, InputGuard, OutputGuard
-from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage
+from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage, Tool
 from railtracks.llm.message import AssistantMessage, Role
 from railtracks.llm.response import Response
 from railtracks.middleware import wrap_node
@@ -151,6 +151,22 @@ def test_nodebuilder_function_tool_info_detail():
         tool_params=params,
     ).build()
     assert node_cls.tool_info().detail == "Does a thing"
+
+
+def test_nodebuilder_function_uses_supplied_tool_info_bypassing_from_function():
+    """`tool_info=<Tool>` bypasses Tool.from_function entirely -- the resulting
+    node's tool_info() is exactly the supplied object, not a re-derived one."""
+    explicit_tool = Tool(name="explicit-name", detail="explicit detail", parameters=[])
+
+    node_cls = FunctionNodeBuilder.function(
+        async_func,
+        tool_details="ignored because tool_info is supplied",
+        tool_info=explicit_tool,
+    ).build()
+
+    assert node_cls.tool_info() is explicit_tool
+    assert node_cls.tool_info().name == "explicit-name"
+    assert node_cls.tool_info().detail == "explicit detail"
 
 
 def test_nodebuilder_function_invoke_calls_func():
