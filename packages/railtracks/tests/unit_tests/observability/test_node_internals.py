@@ -2,7 +2,8 @@
 
 import pytest
 from railtracks.guardrails.core.decision import GuardrailDecision
-from railtracks.observability import Event, NodeInternalsCollector
+from railtracks.observability import Event
+from railtracks.observability.node_internals import NodeInternalsCollector
 
 SESSION = "sess-1"
 AGENT = "node-agent"
