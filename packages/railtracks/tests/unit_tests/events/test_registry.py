@@ -1,11 +1,20 @@
-"""Tests for the event registry — dataclass-driven column typing for the query layer."""
+"""Tests for the event registry — namespace-keyed column table.
+
+The registry is hand-maintained. The completeness test below is the safety net:
+it walks every concrete event class and asserts each of its dataclass fields
+is reachable through ``payload_columns`` (either directly or via
+``spatial_parent_*`` / ``parent_*`` flattening).
+"""
 
 from __future__ import annotations
 
 from dataclasses import fields
 
+# Importing the event modules populates ``SessionEventBase.__subclasses__()``
+# for the concrete-subclass walk used in ``TestRegistryCompleteness``.
+from railtracks.events import llm, middleware, node, session  # noqa: F401
+from railtracks.events._base import SessionEventBase
 from railtracks.events.registry import (
-    EVENT_CLASSES,
     ColumnKind,
     ColumnSpec,
     namespaces,
@@ -15,6 +24,20 @@ from railtracks.events.registry import (
 
 def _kind(cols: dict[str, ColumnSpec], key: str) -> ColumnKind:
     return cols[key].kind
+
+
+def _concrete_event_classes() -> list[type[SessionEventBase]]:
+    """Every leaf subclass of ``SessionEventBase`` (skips abstract intermediaries)."""
+    seen: set[type[SessionEventBase]] = set()
+
+    def walk(cls: type) -> None:
+        for sub in cls.__subclasses__():
+            if not getattr(sub, "__abstractmethods__", None):
+                seen.add(sub)
+            walk(sub)
+
+    walk(SessionEventBase)
+    return sorted(seen, key=lambda c: c.__name__)
 
 
 class TestNamespaces:
@@ -40,7 +63,7 @@ class TestPayloadColumnsLLM:
         cols = payload_columns("llm")
         assert _kind(cols, "message_input") == ColumnKind.JSON
         assert _kind(cols, "output") == ColumnKind.JSON
-        assert _kind(cols, "model_provider") == ColumnKind.JSON  # ModelProvider enum
+        assert _kind(cols, "model_provider") == ColumnKind.JSON
 
     def test_failure_mixin_fields_present(self):
         cols = payload_columns("llm")
@@ -57,7 +80,6 @@ class TestSpatialParentFlattening:
         assert _kind(cols, "spatial_parent_llm_invoke_id") == ColumnKind.STRING
 
     def test_spatial_type_enum_covers_every_subclass_value(self):
-        # The union of Literal[SpatialType.X] across every SpatialParent subclass.
         spec = payload_columns("llm")["spatial_parent_spatial_type"]
         assert spec.kind == ColumnKind.ENUM
         assert set(spec.enum_members or ()) == {
@@ -141,8 +163,6 @@ class TestPayloadColumnsSession:
         assert _kind(cols, "save_state") == ColumnKind.BOOLEAN
 
     def test_status_is_enum_of_success_and_failure(self):
-        # SessionCompleted.status: Literal["success", "failure"] — a plain-string
-        # Literal picks up ENUM detection too, not just str-Enum-based ones.
         spec = payload_columns("session")["status"]
         assert spec.kind == ColumnKind.ENUM
         assert set(spec.enum_members or ()) == {"success", "failure"}
@@ -155,18 +175,22 @@ class TestUnknownNamespace:
 
 
 class TestRegistryCompleteness:
-    def test_every_event_class_contributes_at_least_one_column(self):
-        seen_namespaces = {n for n in namespaces() if payload_columns(n)}
-        assert seen_namespaces == {"llm", "middleware", "node", "session"}
-        assert len(EVENT_CLASSES) >= 32  # sanity — matches the current taxonomy
+    """Drift check — the hand-maintained table has to keep pace with the event dataclasses.
+
+    Fires if you added a field or a new event class and forgot to update
+    ``NAMESPACE_COLUMNS`` in ``registry.py``.
+    """
+
+    def test_taxonomy_has_expected_size(self):
+        classes = _concrete_event_classes()
+        assert len(classes) >= 32
 
     def test_every_dataclass_field_appears_as_a_column(self):
-        """Every field on every event class must be reachable via ``payload_columns``,
-        either as a top-level column or via ``spatial_parent_*`` / ``parent_*``."""
-        from railtracks.events.registry import _namespace_of
-
-        for cls in EVENT_CLASSES:
-            cols = payload_columns(_namespace_of(cls))
+        for cls in _concrete_event_classes():
+            # Concrete events implement ``event_type()`` as a literal, so an
+            # uninitialized instance is enough to read the namespace off it.
+            namespace = cls.__new__(cls).event_type().split(".", 1)[0]
+            cols = payload_columns(namespace)
             for f in fields(cls):
                 if f.name == "spatial_parent":
                     assert "spatial_parent_spatial_type" in cols, cls
