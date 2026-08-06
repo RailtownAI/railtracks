@@ -164,6 +164,28 @@ class TestTypedColumns:
             assert provider_type == "JSON"
 
 
+class TestEnumColumns:
+    def test_discriminator_column_lands_in_the_view_as_a_duckdb_enum(self, tmp_path: Path):
+        f = tmp_path / "e.jsonl"
+        _write(f, [LLM_RESPONSE])
+        with closing(connect(f, ["llm"])) as q:
+            (col_type,) = q.con.execute(
+                "SELECT typeof(spatial_parent_spatial_type) FROM llm LIMIT 1"
+            ).fetchone()
+            assert col_type.startswith("ENUM(")
+            for member in ("'none'", "'node'", "'middleware'"):
+                assert member in col_type
+
+    def test_enum_value_readable_from_a_flat_column(self, tmp_path: Path):
+        f = tmp_path / "e.jsonl"
+        _write(f, [LLM_RESPONSE])
+        with closing(connect(f, ["llm"])) as q:
+            (value,) = q.con.execute(
+                "SELECT spatial_parent_spatial_type FROM llm LIMIT 1"
+            ).fetchone()
+            assert value == "node"  # enum compares equal to its string value
+
+
 class TestFlatSpatialParent:
     def test_flat_spatial_parent_columns_returned_directly(self, tmp_path: Path):
         f = tmp_path / "e.jsonl"

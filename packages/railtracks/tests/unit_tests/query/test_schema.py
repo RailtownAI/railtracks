@@ -24,15 +24,37 @@ class TestDuckdbColumnsLLM:
 
 
 class TestDuckdbColumnsFlattening:
-    def test_spatial_parent_subfields_are_flat_varchar_columns(self):
+    def test_spatial_parent_id_subfields_stay_varchar(self):
         cols = duckdb_columns("llm")
-        assert cols["spatial_parent_spatial_type"] == "VARCHAR"
         assert cols["spatial_parent_node_id"] == "VARCHAR"
+        assert cols["spatial_parent_middleware_invoke_id"] == "VARCHAR"
 
-    def test_parent_subfields_are_flat_varchar_columns(self):
+    def test_parent_id_subfields_stay_varchar(self):
         cols = duckdb_columns("llm")
-        assert cols["parent_parent_type"] == "VARCHAR"
+        assert cols["parent_node_id"] == "VARCHAR"
         assert cols["parent_llm_invoke_id"] == "VARCHAR"
+
+
+class TestDuckdbEnumColumns:
+    def test_spatial_type_discriminator_is_enum(self):
+        col = duckdb_columns("llm")["spatial_parent_spatial_type"]
+        assert col.startswith("ENUM(")
+        # Every SpatialParent subclass value must be represented.
+        for member in ("'none'", "'node'", "'middleware'", "'node_and_middleware'", "'llm_and_middleware'"):
+            assert member in col
+
+    def test_parent_type_discriminator_is_enum(self):
+        col = duckdb_columns("llm")["parent_parent_type"]
+        assert col.startswith("ENUM(")
+        for member in ("'node'", "'middleware'", "'llm'"):
+            assert member in col
+
+    def test_bare_string_literal_becomes_enum(self):
+        # SessionCompleted.status: Literal["success", "failure"]
+        col = duckdb_columns("session")["status"]
+        assert col.startswith("ENUM(")
+        for member in ("'success'", "'failure'"):
+            assert member in col
 
 
 class TestDuckdbColumnsUnknownNamespace:

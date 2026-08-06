@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime
 import types
-from dataclasses import fields
+from dataclasses import dataclass, fields
 from enum import Enum
 from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
@@ -103,6 +103,9 @@ class ColumnKind(str, Enum):
     Storage layers translate this to a concrete column type (DuckDB VARCHAR,
     Parquet UTF8, Postgres TEXT, …). Kept as a ``str`` enum so it serializes
     cleanly if anyone needs to hand it across a boundary.
+
+    ``ENUM`` is always paired with ``ColumnSpec.enum_members`` — the closed set
+    of allowed string values. Other kinds have ``enum_members = None``.
     """
 
     STRING = "string"
@@ -111,6 +114,15 @@ class ColumnKind(str, Enum):
     BOOLEAN = "boolean"
     TIMESTAMP_TZ = "timestamp_tz"
     JSON = "json"
+    ENUM = "enum"
+
+
+@dataclass(frozen=True)
+class ColumnSpec:
+    """A single payload column's kind plus, for ``ENUM`` columns, its allowed values."""
+
+    kind: ColumnKind
+    enum_members: tuple[str, ...] | None = None
 
 
 _TYPE_LOCALS: dict[str, Any] = {
@@ -164,55 +176,84 @@ def _unwrap(annotation: Any) -> Any:
     return Union[args]
 
 
-def _annotation_to_kind(annotation: Any) -> ColumnKind:
-    """Map a Python annotation to a ``ColumnKind``.
+def _annotation_to_spec(annotation: Any) -> ColumnSpec:
+    """Map a Python annotation to a ``ColumnSpec``.
 
-    Falls back to ``JSON`` for anything structured, ie dataclasses, Pydantic models,
-    ``list``/``dict``/``tuple``, ``Any``, enums, ``type[BaseModel]``, etc.
+    ``Literal`` of str-Enum members or bare strings → ``ENUM`` with those values as
+    members. Falls back to ``JSON`` for anything structured (dataclasses, Pydantic
+    models, ``list``/``dict``/``tuple``, ``Any``, enums, ``type[BaseModel]``, etc).
     """
     annotation = _unwrap(annotation)
 
-    # Some funky logic for Literal types: if all args are str, int, or bool, we can map to a scalar kind.
     if get_origin(annotation) is Literal:
         literal_args = get_args(annotation)
-        if all(isinstance(a, str) for a in literal_args):
-            return ColumnKind.STRING
+        # ``bool`` before ``int`` — bool subclasses int in Python.
         if all(isinstance(a, bool) for a in literal_args):
-            return ColumnKind.BOOLEAN
+            return ColumnSpec(kind=ColumnKind.BOOLEAN)
         if all(isinstance(a, int) for a in literal_args):
-            return ColumnKind.INTEGER
-        return ColumnKind.JSON
+            return ColumnSpec(kind=ColumnKind.INTEGER)
+        if all(isinstance(a, str) for a in literal_args):
+            # ``str, Enum`` members subclass ``str`` but ``str(member)`` isn't
+            # guaranteed to return the value on older Python, so normalize.
+            members = tuple(
+                a.value if isinstance(a, Enum) else a for a in literal_args
+            )
+            return ColumnSpec(kind=ColumnKind.ENUM, enum_members=members)
+        return ColumnSpec(kind=ColumnKind.JSON)
 
     if annotation in _SCALAR_KINDS:
-        return _SCALAR_KINDS[annotation]
+        return ColumnSpec(kind=_SCALAR_KINDS[annotation])
 
-    return ColumnKind.JSON
+    return ColumnSpec(kind=ColumnKind.JSON)
 
 
-def _flatten_tagged_union(prefix: str, base: type) -> dict[str, ColumnKind]:
+def _merge_specs(existing: ColumnSpec, new: ColumnSpec, *, column: str, context: str) -> ColumnSpec:
+    """Combine two specs for the same column across sibling classes.
+
+    Same-kind non-ENUM specs just re-use ``existing``. ENUM specs union their
+    member sets. Conflicting kinds raise.
+    """
+    if existing.kind != new.kind:
+        raise ValueError(
+            f"Kind conflict in {context}: "
+            f"{column} declared as both {existing.kind.value} and {new.kind.value}"
+        )
+    if existing.kind is ColumnKind.ENUM:
+        merged = tuple(
+            sorted(set(existing.enum_members or ()) | set(new.enum_members or ()))
+        )
+        return ColumnSpec(kind=ColumnKind.ENUM, enum_members=merged)
+    return existing
+
+
+def _flatten_tagged_union(prefix: str, base: type) -> dict[str, ColumnSpec]:
     """Union of ``{prefix}_{subfield}`` columns across every concrete subclass of ``base``.
 
-    On-write the payload gets each ``SpatialParent`` / ``Parent`` leaf field emitted as
+    On-write the payload gets each ``SpatialParent`` / ``Parent`` field emitted as
     ``<prefix>_<subfield>``. A given event only produces the subset matching its own
     subtype; the missing keys become SQL NULL at read time.
+
+    For ``ENUM`` discriminator subfields (e.g. ``spatial_type``), members are unioned
+    across every subtype so the column's ENUM covers every possible value.
     """
-    columns: dict[str, ColumnKind] = {}
+    columns: dict[str, ColumnSpec] = {}
     for subclass in _all_subclasses(base):
         hints = get_type_hints(subclass, localns=_TYPE_LOCALS, include_extras=False)
         for f in fields(subclass):
             col = f"{prefix}_{f.name}"
-            kind = _annotation_to_kind(hints.get(f.name, f.type))
+            spec = _annotation_to_spec(hints.get(f.name, f.type))
             existing = columns.get(col)
-            if existing is not None and existing != kind:
-                raise ValueError(
-                    f"Kind conflict flattening {base.__name__}: "
-                    f"{col} declared as both {existing.value} and {kind.value}"
+            if existing is None:
+                columns[col] = spec
+            else:
+                columns[col] = _merge_specs(
+                    existing, spec, column=col, context=f"flattening {base.__name__}"
                 )
-            columns[col] = kind
     return columns
 
 
 def _all_subclasses(base: type) -> list[type]:
+    """Return a list of every concrete subclass of ``base``, recursively."""
     seen: list[type] = []
     for sub in base.__subclasses__():
         seen.append(sub)
@@ -220,12 +261,14 @@ def _all_subclasses(base: type) -> list[type]:
     return seen
 
 
-def payload_columns(namespace: str) -> dict[str, ColumnKind]:
-    """Union of ``{payload_key: ColumnKind}`` across every event class in ``namespace``.
+def payload_columns(namespace: str) -> dict[str, ColumnSpec]:
+    """Union of ``{payload_key: ColumnSpec}`` across every event class in ``namespace``.
 
-    Unknown namespaces return ``{}``.
+    ENUM members are unioned across event classes so a namespace-level discriminator
+    (e.g. ``spatial_parent_spatial_type``) covers every possible value. Unknown
+    namespaces return ``{}``.
     """
-    columns: dict[str, ColumnKind] = {}
+    columns: dict[str, ColumnSpec] = {}
     for cls in EVENT_CLASSES:
         if _namespace_of(cls) != namespace:
             continue
@@ -234,16 +277,16 @@ def payload_columns(namespace: str) -> dict[str, ColumnKind]:
             if f.name in _TAGGED_UNION_FIELDS:
                 new_cols = _flatten_tagged_union(f.name, _TAGGED_UNION_FIELDS[f.name])
             else:
-                new_cols = {f.name: _annotation_to_kind(hints.get(f.name, f.type))}
+                new_cols = {f.name: _annotation_to_spec(hints.get(f.name, f.type))}
 
-            for col, kind in new_cols.items():
+            for col, spec in new_cols.items():
                 existing = columns.get(col)
-                if existing is not None and existing != kind:
-                    raise ValueError(
-                        f"Kind conflict in namespace {namespace!r}: "
-                        f"{col} declared as both {existing.value} and {kind.value}"
+                if existing is None:
+                    columns[col] = spec
+                else:
+                    columns[col] = _merge_specs(
+                        existing, spec, column=col, context=f"namespace {namespace!r}"
                     )
-                columns[col] = kind
 
     return columns
 

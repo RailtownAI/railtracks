@@ -6,7 +6,7 @@ translates them into DuckDB type strings for the SQL projections in ``connect.py
 
 from __future__ import annotations
 
-from railtracks.events.registry import ColumnKind, payload_columns
+from railtracks.events.registry import ColumnKind, ColumnSpec, payload_columns
 
 _KIND_TO_DUCKDB: dict[ColumnKind, str] = {
     ColumnKind.STRING: "VARCHAR",
@@ -18,6 +18,17 @@ _KIND_TO_DUCKDB: dict[ColumnKind, str] = {
 }
 
 
+def _duckdb_type(spec: ColumnSpec) -> str:
+    """Render a ``ColumnSpec`` as a DuckDB type string."""
+    if spec.kind is ColumnKind.ENUM:
+        members = spec.enum_members or ()
+        rendered = ", ".join("'" + m.replace("'", "''") + "'" for m in members)
+        return f"ENUM({rendered})"
+    return _KIND_TO_DUCKDB[spec.kind]
+
+
 def duckdb_columns(namespace: str) -> dict[str, str]:
     """Return ``{payload_key: duckdb_type_string}`` for a namespace."""
-    return {key: _KIND_TO_DUCKDB[kind] for key, kind in payload_columns(namespace).items()}
+    return {
+        key: _duckdb_type(spec) for key, spec in payload_columns(namespace).items()
+    }
