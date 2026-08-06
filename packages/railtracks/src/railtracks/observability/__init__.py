@@ -2,7 +2,12 @@
 plus a process-wide default Observer.
 """
 
-from .configure import configure_writers, ensure_started, shutdown
+from .configure import (
+    add_inline_listener,
+    configure_writers,
+    ensure_started,
+    shutdown,
+)
 from .models import (
     SCOPE_EVALUATION,
     SCOPE_RETRIEVAL,
@@ -10,9 +15,10 @@ from .models import (
     Event,
     Timestamp,
 )
+from .node_internals import NodeInternalsCollector
 from .observer import Observer, QueuePolicy
 from .publish import publish_event
-from .writers import JsonlWriter, NodeInternalsCollector, Writer
+from .writers import JsonlWriter, Writer
 
 __all__ = [
     "Event",
@@ -26,6 +32,7 @@ __all__ = [
     "SCOPE_RETRIEVAL",
     "SCOPE_EVALUATION",
     "configure_writers",
+    "add_inline_listener",
     "publish_event",
     "ensure_started",
     "shutdown",
