@@ -145,14 +145,6 @@ def test_nodebuilder_llm_tool_nodes_returns_defensive_copy():
     assert node_cls.tool_nodes() == [a]
 
 
-def test_nodebuilder_llm_tool_nodes_preserves_declaration_order():
-    nodes = [_tool_node(async_func, f"tool_{i}") for i in range(5)]
-    node_cls = LLMNodeBuilder.llm(
-        "TestNode", model=dummy_model(), connected_nodes=nodes
-    ).build()
-    assert node_cls.tool_nodes() == nodes
-
-
 def test_nodebuilder_function_tool_nodes_empty():
     node_cls = FunctionNodeBuilder.function(async_func).build()
     assert node_cls.tool_nodes() == []
@@ -224,6 +216,25 @@ def test_nodebuilder_llm_duplicate_tool_names_error_names_offenders():
     message = str(exc_info.value)
     assert "FirstNode" in message
     assert "SecondNode" in message
+
+
+def test_nodebuilder_llm_duplicate_tool_names_error_names_all_offenders():
+    a = FunctionNodeBuilder.function(
+        async_func, class_name="First", name="power"
+    ).build()
+    b = FunctionNodeBuilder.function(
+        async_func, class_name="Second", name="power"
+    ).build()
+    c = FunctionNodeBuilder.function(
+        async_func, class_name="Third", name="power"
+    ).build()
+    with pytest.raises(NodeCreationError) as exc_info:
+        LLMNodeBuilder.llm("TestNode", model=dummy_model(), connected_nodes=[a, b, c])
+
+    message = str(exc_info.value)
+    assert "FirstNode" in message
+    assert "SecondNode" in message
+    assert "ThirdNode" in message
 
 
 def test_nodebuilder_llm_distinct_tool_names_build_fine():

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import functools
 import inspect
 import warnings
@@ -32,9 +31,6 @@ from .node_builder import FunctionNodeBuilder
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
-
-# Where a callable remembers the RTFunction it was already converted into.
-_RT_FUNCTION_ATTR = "_rt_function"
 
 
 # note there is an intentional overlap in overloads
@@ -209,15 +205,6 @@ def _single_function_node(
     ):
         return func
 
-    # Converting the same callable twice with default options reuses the first result, so
-    # it dedupes instead of colliding as two identical tools with the same name.
-    reusable = name is None and manifest is None and middleware is None
-    original = func
-    if reusable:
-        cached = getattr(original, _RT_FUNCTION_ATTR, None)
-        if cached is not None:
-            return cached
-
     # `func` is an un-narrowed union here, so restate it; narrowed just below
     func = cast(
         "Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]",
@@ -259,11 +246,6 @@ def _single_function_node(
         else:
             new_func = cast(Callable[_P, Coroutine[None, None, _TOutput]], func)
             rt_function = CallableAsyncRTFunction(new_func, completed_node_type)
-
-        if reusable:
-            # Builtins and other C-level callables reject attributes; caching is best-effort.
-            with contextlib.suppress(AttributeError, TypeError):
-                setattr(original, _RT_FUNCTION_ATTR, rt_function)
 
         return rt_function
 
