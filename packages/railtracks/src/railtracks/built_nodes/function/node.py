@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 import asyncio
 import functools
 import inspect
@@ -85,6 +86,96 @@ def function_node(
     pass
 
 
+def validate_function_parameters(
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
+    manifest: ToolManifest | None = None,
+):
+    """
+    Validates that the parameters of the function are valid for use in a node.
+    """
+    if hasattr(func, "node_type"):
+        warnings.warn(
+            "The provided function has already been converted to a node.",
+            UserWarning,
+        )
+        return func
+
+    if not isinstance(
+        func, BuiltinFunctionType
+    ):  # we don't require dict validation for builtin functions, that is handled separately.
+        validate_function(func)  # checks for dict or Dict parameters
+
+    # Validate tool manifest against function signature if manifest is provided
+    if manifest is not None:
+        validate_tool_manifest_against_function(func, manifest.parameters)
+
+
+# intentional overload overlap, as in `function_node` above: async is checked first
+@overload
+def _validate_and_normalize_callable(  # pyright: ignore[reportOverlappingOverload]
+    func: Callable[_P, Coroutine[None, None, _TOutput]],
+    manifest: ToolManifest | None,
+) -> Callable[_P, Coroutine[None, None, _TOutput]]: ...
+
+
+@overload
+def _validate_and_normalize_callable(
+    func: Callable[_P, _TOutput],
+    manifest: ToolManifest | None,
+) -> Callable[_P, _TOutput]: ...
+
+
+def _validate_and_normalize_callable(
+    func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
+    manifest: ToolManifest | None,
+) -> Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]:
+    """Validate ``func`` and normalise it into a node-ready callable.
+
+    Resolves partial metadata, validates parameters against an optional
+    ``manifest``, wraps builtins, and rejects unsupported callables. Overloaded so
+    the sync/async character of ``func`` is preserved in the return type.
+
+    Args:
+        func: The callable to validate and normalise.
+        manifest: Optional tool manifest to validate against ``func``'s signature.
+
+    Returns:
+        A callable equivalent to ``func`` that is safe to hand to the node builder.
+
+    Raises:
+        NodeCreationError: If ``func`` is not a supported callable type.
+    """
+    # partials lack real __name__/__qualname__/__doc__; recover them onto a copy
+    if isinstance(func, functools.partial):
+        func = _partial_with_resolved_metadata(func)
+
+    # dict-parameter validation; builtins are validated separately
+    if not isinstance(func, BuiltinFunctionType):
+        validate_function(func)
+
+    if manifest is not None:
+        validate_tool_manifest_against_function(func, manifest.parameters)
+
+    if inspect.isbuiltin(func):
+        # builtins are C-level and can't hold our node-type attribute; wrap them
+        return _function_preserving_metadata(func)
+
+    if not (
+        asyncio.iscoroutinefunction(func)
+        or inspect.isfunction(func)
+        or inspect.ismethod(func)  # bound (and class) methods
+        or isinstance(func, functools.partial)
+    ):
+        raise NodeCreationError(
+            message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
+            notes=[
+                "You must provide a valid function or coroutine function to make a node.",
+            ],
+        )
+
+    return func
+
+
 def _single_function_node(
     func: Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput],
     /,
@@ -114,36 +205,21 @@ def _single_function_node(
     ):
         return func
 
-    if not isinstance(
-        func, BuiltinFunctionType
-    ):  # we don't require dict validation for builtin functions, that is handled separately.
-        validate_function(func)  # checks for dict or Dict parameters
-
-    # Validate tool manifest against function signature if manifest is provided
-    if manifest is not None:
-        validate_tool_manifest_against_function(func, manifest.parameters)
-
-    if inspect.isbuiltin(func):
-        # builtin functions are written in C and do not have space for the addition of metadata like our node type.
-        # so instead we wrap them in a function that allows for the addition of the node type.
-        # this logic preserved details like the function name, docstring, and signature, but allows us to add the node type.
-        func = _function_preserving_metadata(func)
-
-    elif not asyncio.iscoroutinefunction(func) and not inspect.isfunction(func):
-        raise NodeCreationError(
-            message=f"The provided function is not a valid coroutine or sync function it is {type(func)}.",
-            notes=[
-                "You must provide a valid function or coroutine function to make a node.",
-            ],
-        )
+    # `func` is an un-narrowed union here, so restate it; narrowed just below
+    func = cast(
+        "Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]",
+        _validate_and_normalize_callable(func, manifest),
+    )
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
     is_sync = False
     if not asyncio.iscoroutinefunction(func):
         is_sync = True
+        # narrowed: the guard above means `func` returns _TOutput, not a coroutine
+        sync_func = cast(Callable[_P, _TOutput], func)
 
         async def wrapped_function(*args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-            return await asyncio.to_thread(func, *args, **kwargs)
+            return await asyncio.to_thread(sync_func, *args, **kwargs)
 
         functools.update_wrapper(wrapped_function, func)
         unwrapped_func = wrapped_function
@@ -264,3 +340,36 @@ def _function_preserving_metadata(
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def _partial_with_resolved_metadata(
+    func: "functools.partial[_TOutput]",
+) -> "functools.partial[_TOutput]":
+    """Return a copy of a ``functools.partial`` with real name/qualname/doc.
+
+    Sources ``__name__``/``__qualname__``/``__doc__`` from the wrapped callable
+    (unwrapping nested partials) onto a fresh copy, leaving the caller's object
+    untouched. The copy keeps the partial's reduced signature.
+
+    Args:
+        func: The ``functools.partial`` to normalise.
+
+    Returns:
+        A copy of ``func`` with metadata sourced from the underlying callable.
+    """
+    underlying: Callable = func
+    while isinstance(underlying, functools.partial):
+        underlying = underlying.func
+
+    # discard the partial's boilerplate __doc__ in favour of the underlying one
+    name = getattr(underlying, "__name__", "partial")
+    qualname = getattr(underlying, "__qualname__", name)
+    doc = getattr(underlying, "__doc__", None)
+
+    resolved: "functools.partial[_TOutput]" = functools.partial(
+        func.func, *func.args, **func.keywords
+    )
+    resolved.__name__ = name  # type: ignore[attr-defined]
+    resolved.__qualname__ = qualname  # type: ignore[attr-defined]
+    resolved.__doc__ = doc
+    return resolved

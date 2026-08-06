@@ -119,7 +119,7 @@ class TestStructuredToolCalling:
         with rt.Session():
             response = await rt.call(
                 agent,
-                user_input="What is the secret phrase? Only return the structured output, no other text.",
+                "What is the secret phrase? Only return the structured output, no other text.",
             )
             assert isinstance(response.content, simple_output_model)
             assert response.content.text == "Constantinople"

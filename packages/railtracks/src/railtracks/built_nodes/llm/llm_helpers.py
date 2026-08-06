@@ -1,6 +1,7 @@
 import asyncio
 from copy import deepcopy
 from typing import (
+    Coroutine,
     Literal,
     Protocol,
     TypeVar,
