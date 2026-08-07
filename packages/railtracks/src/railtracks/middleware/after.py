@@ -1,3 +1,4 @@
+import functools
 from typing import Awaitable, Callable, TypeVar, overload
 
 from railtracks.utils.unpack import unpack_async_sync
@@ -45,6 +46,7 @@ def after_node(
 
 
 def _wrapper(func: Callable[[_R], Awaitable[_R]] | Callable[[_R], _R], /):
+    @functools.wraps(func)
     async def wrapper(call: Callable[..., Awaitable[_R]], *args, **kwargs):
         result = await call(*args, **kwargs)
         post_after_result = func(result)

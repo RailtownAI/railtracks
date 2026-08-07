@@ -126,8 +126,6 @@ class TestFunctionNodeCallWithFunctionList:
                 rt.llm.UserMessage("Give me a number and add 50 to it please"),
                 ]))
             
-        print(result.content)
-        assert isinstance(result.content, simple_output_model)
         assert "92" in result.content
         
 

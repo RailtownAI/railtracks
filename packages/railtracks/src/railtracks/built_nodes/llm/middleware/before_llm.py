@@ -1,3 +1,4 @@
+import functools
 from typing import Awaitable, Callable, overload
 
 from pydantic import BaseModel
@@ -79,7 +80,8 @@ def before_llm(
     """
 
     def decorator(fn):
-        @wrap_llm(name=name or fn.__name__)
+        @wrap_llm(name=name)
+        @functools.wraps(fn)
         async def wrapper(
             llm_call: LLM_CALL,
             message_history: MessageHistory,
