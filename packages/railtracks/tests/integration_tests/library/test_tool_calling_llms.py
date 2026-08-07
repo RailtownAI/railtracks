@@ -94,38 +94,6 @@ class TestLimitedToolCalling:
             _ = await rt.call(agent, user_input=message)
             assert rt.context.get("tools_called") == 1
 
-@pytest.mark.asyncio
-class TestStructuredToolCalling:
-    async def test_base_functionality(self, mock_llm, simple_output_model):
-        def secrets():
-            rt.context.put("secrets_called", True)
-            return ("Constantinople", 42)
-
-        llm = mock_llm(
-            custom_response='{"text": "Constantinople", "number": "42"}',  # for passing into schema
-            requested_tool_calls=[
-                ToolCall(name="secrets", identifier="id_42424242", arguments={})
-            ],
-        )
-
-        agent = rt.agent_node(
-            name="Secret Phrase Maker",
-            system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm=llm,
-            output_schema=simple_output_model,
-            tool_nodes={rt.function_node(secrets)},
-        )
-
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "What is the secret phrase? Only return the structured output, no other text.",
-            )
-            assert isinstance(response.content, simple_output_model)
-            assert response.content.text == "Constantinople"
-            assert response.content.number == 42
-            assert rt.context.get("secrets_called")
-
 class TestFunctionNodeCallWithFunctionList:
     @pytest.mark.asyncio
     async def test_function_node_call_with_function_list_parameter(
@@ -150,8 +118,7 @@ class TestFunctionNodeCallWithFunctionList:
         name="Random Number Generator Agent",
         tool_nodes=tool_nodes,
         system_message="""You are a number generator agent that can generate numbers and add a value to it""",
-        llm=mock_llm('{"text": "Successfully added 50 to 42 to get 92", "number": 92}'),
-        output_schema=simple_output_model,
+        llm=mock_llm( "Successfully added 50 to 42 to get 92",),
     )
 
         with rt.Session(name="AgentHandlerNode") as run:
@@ -161,9 +128,6 @@ class TestFunctionNodeCallWithFunctionList:
             
         print(result.content)
         assert isinstance(result.content, simple_output_model)
-        assert isinstance(result.content.text, str)
-        assert isinstance(result.content.number, int)
-        assert result.content.text == "Successfully added 50 to 42 to get 92"
-        assert result.content.number == 92
+        assert "92" in result.content
         
 

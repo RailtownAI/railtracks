@@ -37,8 +37,7 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         *,
         model: ModelSource,
         system_message: SystemMessage | None = None,
-        schema: None = None,
-        connected_nodes: Iterable[Type[Node]] | None = None,
+        connected_nodes: Iterable[Type[Node]] | None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], StringResponse]] | None = None,
@@ -55,7 +54,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         model: ModelSource,
         system_message: SystemMessage | None = None,
         schema: Type[_TStructured],
-        connected_nodes: Iterable[Type[Node]] | None = None,
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[Middleware[[UserInput], StructuredResponse[_TStructured]]]
@@ -76,11 +74,10 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         tool_details: str | None = None,
         tool_params: list[Parameter] | None = None,
         middleware: Iterable[
-            Middleware[[UserInput], StructuredResponse[_TStructured] | StringResponse]
-        ]
+            Middleware[[UserInput], StructuredResponse[_TStructured]]] | Iterable[Middleware[[UserInput], StringResponse]]
         | None = None,
         model_middleware: Iterable[ModelMiddleware] | None = None,
-    ) -> LLMNodeBuilder[StructuredResponse[_TStructured] | StringResponse]:
+    ) -> LLMNodeBuilder[StructuredResponse[_TStructured]] | LLMNodeBuilder[StringResponse]:
         instance = cls()
         casted_instance = cast(LLMNodeBuilder, instance)
         casted_instance._class_name = class_name or name

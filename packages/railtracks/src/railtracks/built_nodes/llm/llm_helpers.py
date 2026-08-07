@@ -47,25 +47,6 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
     ) -> StructuredResponse[_TStructured]: ...
 
 
-@overload
-def llm_invoke_factory(
-    model_source: ModelSource,
-    system_message: SystemMessage | None,
-    *,
-    tool_nodes: list[type[Node]] | None = None,
-    schema: None = None,
-) -> StringLLMInvoke: ...
-
-
-@overload
-def llm_invoke_factory(
-    model_source: ModelSource,
-    system_message: SystemMessage | None,
-    *,
-    tool_nodes: list[type[Node]] | None = None,
-    schema: type[_TStructured],
-) -> StructuredLLMInvoke[_TStructured]: ...
-
 
 class LLMCallProtocol(Protocol):
     async def __call__(

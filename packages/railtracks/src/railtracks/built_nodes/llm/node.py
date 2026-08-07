@@ -45,7 +45,7 @@ def _build_dynamic_agent(
     system_message: SystemMessage | str | None,
     tool_details: str | None,
     tool_params: list[Parameter] | None,
-    middleware: list[Middleware[[UserInput], _R]] | None = None,
+    middleware: list[Middleware[[UserInput], StringResponse]] | list[Middleware[[UserInput], StructuredResponse[_TBaseModel]]] | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
 ):
     resolved_system = (
@@ -71,7 +71,6 @@ def _build_dynamic_agent(
             model=llm,
             system_message=resolved_system,
             schema=output_schema,
-            connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
             tool_params=tool_params,
             middleware=middleware,
@@ -88,8 +87,7 @@ def _build_dynamic_agent(
 def agent_node(
     name: str | None = None,
     *,
-    tool_nodes: Iterable[Type[Node] | RTFunction] | None = None,
-    output_schema: None = None,
+    tool_nodes: Iterable[Type[Node] | RTFunction],
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
@@ -102,7 +100,6 @@ def agent_node(
 def agent_node(
     name: str | None = None,
     *,
-    tool_nodes: Iterable[Type[Node] | RTFunction] | None = None,
     output_schema: Type[_TBaseModel],
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
@@ -122,7 +119,7 @@ def agent_node(
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
     middleware: list[
-        Middleware[[UserInput], StructuredResponse[_TBaseModel] | StringResponse]
+        Middleware[[UserInput], StructuredResponse[_TBaseModel]]] | list[Middleware[[UserInput], StringResponse]
     ]
     | None = None,
     model_middleware: list[ModelMiddleware] | None = None,
