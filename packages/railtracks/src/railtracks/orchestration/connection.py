@@ -26,8 +26,8 @@ class NodeMessageHistory:
     One node's conversation with its model.
 
     Args:
-        node_name: Display name of the node that held the conversation, or
-            `"<unknown>"` if its type could not be resolved.
+        node_name: Node that held the conversation, or
+            `"<unknown>"` if cannot resolve type.
         node_id: Identifier of that node within the run.
         request_id: Identifier of the request that produced it.
         message_history: The messages exchanged, system prompt first.
@@ -41,16 +41,9 @@ class NodeMessageHistory:
 
 class FlowConnection(Generic[_P, _TOutput]):
     """
-    A connection to a flow, through which it can be invoked and inspected.
+    A connection to a flow, through which it can be invoked.
 
-    Each invocation runs in its own session. The
-    accessors describe the most recent invocation and stay readable.
-
-    A connection runs one invocation at a time; use one per concurrent run.
-
-        conn = flow.connect()
-        result = await conn.ainvoke("text")
-        conn.context.get("progress")
+    Same invoke and behaviour as `Flow` object.
     """
 
     def __init__(self, flow: Flow[_P, _TOutput]) -> None:
@@ -68,8 +61,7 @@ class FlowConnection(Generic[_P, _TOutput]):
         if self._in_flight:
             raise RuntimeError(
                 "This connection is already running an invocation. A connection "
-                "handles one at a time -- use a separate `flow.connect()` per "
-                "concurrent run."
+                "handles one at a time\n use a separate `flow.connect()`"
             )
 
         flow = self._flow
@@ -121,18 +113,10 @@ class FlowConnection(Generic[_P, _TOutput]):
             raise RuntimeError(
                 "Nothing has run on this connection yet, so it has no context to read.\n"
                 "\n"
-                "A common cause is invoking the flow rather than the connection. The "
-                "flow opens its own connection each time, so its context lands there "
-                "instead of here:\n"
+                "Ensure FlowConnection is invoked instead of base Flow instance:\n"
                 "\n"
                 "    conn = flow.connect()\n"
-                '    result = await flow.ainvoke("text")   # runs on a different connection\n'
-                "    conn.context                          # nothing ran here\n"
-                "\n"
-                "Invoke the connection itself:\n"
-                "\n"
-                "    conn = flow.connect()\n"
-                '    result = await conn.ainvoke("text")\n'
+                '    result = await conn.ainvoke("text") # NOT flow.ainvoke if context is desired\n'
                 '    conn.context.get("progress")\n'
             )
         return self._session
@@ -142,10 +126,8 @@ class FlowConnection(Generic[_P, _TOutput]):
         """
         The context of the most recent invocation.
 
-        A live reference, not a copy: while an invocation is in flight, this
-        reflects writes as nodes make them.
-
-        Context is not intended to be modified.
+        A live reference, not a copy. Context is not intended to be modified.
+        
         """
         return self._require_session().context
 

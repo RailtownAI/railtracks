@@ -196,9 +196,8 @@ def register_globals(
     Register the global variables for the current thread.
 
     Returns:
-        MutableExternalContext: the live context object backing this run. The caller
-            should hold onto it if the context needs to outlive `delete_globals()`,
-            which drops the ContextVar's only reference to it.
+        MutableExternalContext: the live context object backing this run, used if context needs to outlive 
+        session context (`delete_globals()`).
     """
     i_c = InternalContext(
         publisher=rt_publisher,

@@ -76,12 +76,13 @@ class Flow(Generic[_P, _TOutput]):
         Opens a connection to this flow.
 
         A `FlowConnection` invokes the flow exactly as `invoke`/`ainvoke` do, and
-        additionally keeps the run's context and message histories reachable once
-        it finishes.
+        additionally keeps the run's context reachable.
 
             conn = flow.connect()
-            result = await conn.ainvoke("text")
-            conn.context.get("progress")
+            result = await conn.ainvoke("text") # not flow.ainvoke if context is desired
+           
+        Returns:
+            FlowConnection: A connection to current flow.
         """
         return FlowConnection(self)
 
