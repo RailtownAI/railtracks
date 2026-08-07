@@ -122,9 +122,7 @@ class EventQuery:
         """Create one view per validated namespace on top of ``events``."""
         for ns in self.namespaces:
             _register_namespace_view(self.con, ns)
-        print_status(
-            f"Registered {len(self.namespaces)} namespaces: {self.namespaces}"
-        )
+        print_status(f"Registered {len(self.namespaces)} namespaces: {self.namespaces}")
 
 
 def _register_namespace_view(con, namespace: str) -> None:
@@ -142,9 +140,7 @@ def _register_namespace_view(con, namespace: str) -> None:
             f"WHERE event_type LIKE {_sql_string(namespace + '.%')}"
         )
     except Exception as e:
-        print_error(
-            f"Failed to create view for namespace {namespace!r}: {e}"
-        )
+        print_error(f"Failed to create view for namespace {namespace!r}: {e}")
         raise
 
 
@@ -163,7 +159,9 @@ def _project_payload_key(key: str, duckdb_type: str) -> str:
         return f"payload->{_sql_string(key)} AS {_sql_identifier(key)}"
     if duckdb_type.startswith("ENUM("):
         return f"CAST(payload->>{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
-    return f"CAST(payload->{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
+    return (
+        f"CAST(payload->{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
+    )
 
 
 def _sql_string(value: str) -> str:

@@ -30,6 +30,4 @@ def _duckdb_type(spec: ColumnSpec) -> str:
 
 def duckdb_columns(namespace: str) -> dict[str, str]:
     """Return ``{payload_key: duckdb_type_string}`` for a namespace."""
-    return {
-        key: _duckdb_type(spec) for key, spec in payload_columns(namespace).items()
-    }
+    return {key: _duckdb_type(spec) for key, spec in payload_columns(namespace).items()}

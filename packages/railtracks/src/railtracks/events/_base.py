@@ -122,9 +122,7 @@ class Parent:
 
 @dataclass(frozen=True)
 class NodeParent(Parent):
-    parent_type: Literal[ParentType.NODE] = field(
-        init=False, default=ParentType.NODE
-    )
+    parent_type: Literal[ParentType.NODE] = field(init=False, default=ParentType.NODE)
     node_id: str
 
 
@@ -139,9 +137,7 @@ class MiddlewareParent(Parent):
 
 @dataclass(frozen=True)
 class LLMParent(Parent):
-    parent_type: Literal[ParentType.LLM] = field(
-        init=False, default=ParentType.LLM
-    )
+    parent_type: Literal[ParentType.LLM] = field(init=False, default=ParentType.LLM)
     llm_type_id: str
     llm_invoke_id: str
 

@@ -10,4 +10,3 @@ def resolve_data_files(path: Path | str) -> list[Path]:
     if p.is_dir():
         return sorted(p.glob("*.jsonl"))
     return []
-

@@ -4,15 +4,14 @@
 namespace. ``ColumnSpec`` stays storage-agnostic; ``query/schema.py`` translates
 it to a DuckDB type string.
 
-MAINTENANCE INVARIANT
+MAINTENANCE NOTE
 ---------------------
 This file is a hand-maintained table, not derived from the event dataclasses.
 If you rename or remove a field on any event class, add a new field, add a new
 event class, or add a new discriminator value on ``SpatialType`` / ``ParentType``,
 update ``NAMESPACE_COLUMNS`` below. The completeness test in
 ``tests/unit_tests/events/test_registry.py`` walks every event class and asserts
-each of its dataclass fields is reachable here — it's the safety net that catches
-drift at CI time, but the update itself is manual.
+each of its dataclass fields is reachable here to verify
 """
 
 from __future__ import annotations
@@ -52,10 +51,6 @@ def _enum(*members: str) -> ColumnSpec:
 
 
 # ---- reusable blocks -------------------------------------------------------
-# The tagged-union flattening is shape-identical for every event that carries
-# a ``spatial_parent`` / ``parent``. ENUM member lists come straight off the
-# discriminator enums in _base — those are the closed set by construction.
-
 _SPATIAL_PARENT: dict[str, ColumnSpec] = {
     "spatial_parent_spatial_type": _enum(*(m.value for m in SpatialType)),
     "spatial_parent_node_id": STRING,
