@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import warnings
 import asyncio
 import functools
 import inspect
+import warnings
 from types import BuiltinFunctionType
 from typing import (
     Callable,

@@ -1,11 +1,9 @@
 import asyncio
 from copy import deepcopy
 from typing import (
-    Coroutine,
     Literal,
     Protocol,
     TypeVar,
-    overload,
 )
 
 from pydantic import BaseModel
@@ -45,7 +43,6 @@ class StructuredLLMInvoke(Protocol[_TStructured]):
         self: Node,
         user_input: MessageHistory | UserMessage | str | list[Message],
     ) -> StructuredResponse[_TStructured]: ...
-
 
 
 class LLMCallProtocol(Protocol):

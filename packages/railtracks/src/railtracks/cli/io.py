@@ -1,4 +1,3 @@
-
 """CLI stdout helpers (stdlib + colorama only)."""
 
 from colorama import Fore, Style
