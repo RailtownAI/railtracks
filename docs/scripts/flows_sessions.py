@@ -40,3 +40,53 @@ flow = rt.Flow(
 context_injected_flow = flow.update_context({"run_specific_key": "run_specific_value"})
 response = context_injected_flow.invoke("What is the value of shared_key and run_specific_key?")
 # --8<-- [end: injecting_context]
+
+
+# --8<-- [start: connecting]
+# .connect() gives you a FlowConnection, which you invoke in place of the Flow.
+connection = flow.connect()
+response = connection.invoke("What is the capital of France?")
+
+# The run's context is still readable afterwards.
+print(connection.context.get("shared_key"))
+# --8<-- [end: connecting]
+
+
+# --8<-- [start: connection_message_histories]
+connection = flow.connect()
+response = connection.invoke("What is the capital of France?")
+
+for history in connection.message_histories:
+    print(history.node_name)
+    for message in history.message_history:
+        print(f"  {message.role}: {message.content}")
+# --8<-- [end: connection_message_histories]
+
+
+# --8<-- [start: connection_failure]
+connection = flow.connect()
+
+try:
+    connection.invoke("What is the capital of France?")
+except Exception:
+    # The context is readable even though the run raised.
+    print("failed at stage:", connection.context.get("stage", default="unknown"))
+# --8<-- [end: connection_failure]
+
+
+# --8<-- [start: connection_concurrent]
+import asyncio  # noqa: E402
+
+questions = ["Capital of France?", "Capital of Japan?", "Capital of Peru?"]
+
+
+async def ask_all():
+    # One connection per concurrent run.
+    connections = [flow.connect() for _ in questions]
+    await asyncio.gather(*(c.ainvoke(q) for c, q in zip(connections, questions)))
+    return connections
+
+
+for connection in asyncio.run(ask_all()):
+    print(connection.session_id, connection.context.get("shared_key"))
+# --8<-- [end: connection_concurrent]

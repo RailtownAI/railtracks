@@ -119,7 +119,8 @@ class Session:
 
         self.coordinator.start(self.publisher)
         self._setup_subscriber()
-        register_globals(
+        # held so the context survives `delete_globals()` on close
+        self.context = register_globals(
             session_id=self._identifier,
             rt_publisher=self.publisher,
             parent_id=None,
