@@ -95,10 +95,20 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
             list(deepcopy(middleware)) if middleware is not None else []
         )
 
-        tool_nodes = list(connected_nodes) if connected_nodes else []
+        # deepcopy for consistency with the middleware lists above; in practice this is
+        # equivalent to a shallow list() here since the elements are classes, and
+        # copy.deepcopy treats `type` as atomic (returns the same class object rather than
+        # trying to duplicate it) -- see https://docs.python.org/3/library/copy.html.
+        # The container itself is still a fresh list either way, which is what tool_nodes()
+        # actually needs to protect against caller mutation.
+        tool_nodes = list(deepcopy(connected_nodes)) if connected_nodes else []
         _check_duplicate_tool_names(tool_nodes)
 
-        # Kept on the builder so the built class can expose it via tool_nodes().
+        # Kept on the builder so the built class can expose it via tool_nodes(). This list is
+        # a frozen snapshot taken at construction time -- there is currently no supported way
+        # to add/remove tools on an already-built agent. If dynamic tool mutation is added
+        # later, it will need its own synchronization; don't assume this attribute is safe to
+        # write to concurrently.
         casted_instance._tool_nodes = tool_nodes
 
         casted_instance._invoke = llm_invoke_factory(

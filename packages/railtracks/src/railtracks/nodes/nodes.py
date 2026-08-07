@@ -191,6 +191,9 @@ class Node(ABC, Generic[_P, _TOutput]):
 
         Returns a fresh list so callers cannot mutate the node's internal state.
         Nodes with no tools return an empty list, never ``None``.
+
+        This is a frozen snapshot taken at node-creation time -- there is currently no
+        supported way to add or remove tools on an already-built node.
         """
         return []
 
