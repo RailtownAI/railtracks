@@ -44,21 +44,19 @@ def _assert_no_envelope_collisions() -> None:
 _assert_no_envelope_collisions()
 
 
-def _require_duckdb():
+def connect(path: Path | str, namespaces: list[str]) -> EventQuery:
+    """Open an ``EventQuery`` over the JSONL at ``path``, registering one view
+    per requested namespace. Every entry in ``namespaces`` must be present in
+    the registry's ``NAMESPACE_COLUMNS`` — unknown names raise ``ValueError``.
+
+    ``duckdb`` is imported lazily so ``railtracks.query`` stays importable
+    without the ``[visual]`` extra installed."""
     try:
         import duckdb
     except ImportError as e:
         raise ImportError(
             f"railtracks.query requires the 'duckdb' package. Install with: {_INSTALL_HINT}"
         ) from e
-    return duckdb
-
-
-def connect(path: Path | str, namespaces: list[str]) -> EventQuery:
-    """Open an ``EventQuery`` over the JSONL at ``path``, registering one view
-    per requested namespace. Every entry in ``namespaces`` must be present in
-    the registry's ``NAMESPACE_COLUMNS`` — unknown names raise ``ValueError``."""
-    duckdb = _require_duckdb()
     return EventQuery(duckdb.connect(), path, namespaces)
 
 
