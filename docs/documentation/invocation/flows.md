@@ -35,7 +35,7 @@ Sometimes you may want generic context items to be available across all runs of 
 Nothing about your flow or its return type has to change, and the plain `invoke`/`ainvoke` path is unaffected.
 
 ### Message Histories
-`connection.message_histories` gives you every model conversation in the run, oldest first. This includes nested agents — an `LLMResponse` carries only its own history, so a flow that delegates to sub-agents cannot surface theirs through its return value.
+`connection.message_histories` gives you every model conversation in the run, oldest first. This includes nested agents: an `LLMResponse` carries only its own history, so a flow that delegates to sub-agents cannot surface theirs through its return value.
 
 ```python
 --8<-- "docs/scripts/flows_sessions.py:connection_message_histories"
@@ -59,7 +59,8 @@ A connection handles one invocation at a time and raises if you start a second w
 
 !!! note
     A connection can be invoked repeatedly. Its accessors always describe the **most recent** invocation.
-
+    
+<!-- 
 ### Reaching Further
 `connection.session` exposes the underlying `Session` for anything without a dedicated accessor.
 
@@ -69,4 +70,4 @@ connection.session.payload() # the JSON that save_state writes
 ```
 
 !!! warning
-    `Session.info` and `Session.payload()` expose the run's state representation, whose shape is not yet stable. Prefer an accessor on `FlowConnection` where one exists.
+    `Session.info` and `Session.payload()` expose the run's state representation, whose shape is not yet stable. Prefer an accessor on `FlowConnection` where one exists. -->
