@@ -45,11 +45,10 @@ def test_agent_node_minimal(mock_llm):
     assert isinstance(node_cls, type)
     assert node_cls.name() == "MinimalAgent"
 
-def test_agent_node_with_manifest(mock_tool_node, mock_llm, mock_manifest, mock_schema, mock_sys_mes):
+def test_agent_node_with_manifest(mock_tool_node, mock_llm, mock_manifest, mock_sys_mes):
     node_cls = agent_node(
         name="AgentWithManifest",
         tool_nodes={mock_tool_node},
-        output_schema=mock_schema,
         llm=mock_llm,
         system_message=mock_sys_mes,
         manifest=mock_manifest

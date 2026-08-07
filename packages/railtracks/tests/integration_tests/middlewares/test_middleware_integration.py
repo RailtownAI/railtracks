@@ -6,6 +6,7 @@ import pytest
 import railtracks as rt
 from jsonschema import validate
 from pydantic import BaseModel, Field
+from railtracks.built_nodes.llm.middleware import before_llm
 from railtracks.exceptions.errors import LLMError
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
@@ -16,6 +17,7 @@ from railtracks.guardrails.core import (
 from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
 from railtracks.llm.retries.fixed import FixedRetry
+from railtracks.prebuilt.middleware import Retry
 
 # ---------------------------------------------------------------------------
 # TestFunctionNodeMiddleware
@@ -646,6 +648,162 @@ class TestGuardrailsEndToEnd:
             await rt.Flow("ObservedGuardedAgent", agent).ainvoke("hi")
 
         assert seen["exc_type"] is GuardrailBlockedError
+
+    async def test_multiple_guards_and_plain_middleware_combined_in_tool_loop(
+        self, mock_llm
+    ):
+        """2+ guardrails and a plain (non-guard) middleware together through a real
+        multi-turn tool-calling loop -- ordering (list position) and the
+        fire-only-on-final-reply semantic for output guards both hold with more
+        than one guard/middleware combined, not just a single pair."""
+        trace = []
+
+        class TracingInputA(InputGuard):
+            def __call__(self, event):
+                trace.append("input-a")
+                return GuardrailDecision.allow()
+
+        class TracingInputB(InputGuard):
+            def __call__(self, event):
+                trace.append("input-b")
+                return GuardrailDecision.allow()
+
+        class TracingOutput(OutputGuard):
+            def __call__(self, event):
+                trace.append("output")
+                return GuardrailDecision.allow()
+
+        @before_llm
+        async def plain_tracer(message_history, schema, tools):
+            trace.append("plain")
+            return message_history, schema, tools
+
+        def increment(n: int) -> int:
+            """Increments a number.
+
+            Args:
+                n (int): The number.
+
+            Returns:
+                int: n + 1.
+            """
+            return n + 1
+
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(name="increment", identifier="id1", arguments={"n": 1})
+            ]
+        )
+        agent = rt.agent_node(
+            "MultiGuardToolAgent",
+            llm=llm,
+            tool_nodes=[rt.function_node(increment)],
+            model_middleware=[
+                plain_tracer,
+                TracingInputA(),
+                TracingInputB(),
+                TracingOutput(),
+            ],
+        )
+
+        result = await rt.Flow("MultiGuardToolAgent", agent).ainvoke("increment 1")
+
+        assert "2" in result.content
+        # first raw call (tool-call request -- intermediate turn): all "before"-side
+        # entries fire in list order; the output guard is skipped. Second raw call
+        # (final reply): before-side fires again, then the output guard fires once.
+        assert trace == [
+            "plain",
+            "input-a",
+            "input-b",
+            "plain",
+            "input-a",
+            "input-b",
+            "output",
+        ]
+
+    async def test_retry_middleware_does_not_retry_a_guardrail_block(self, mock_llm):
+        """Retry's default retry_on is the transient-provider-error tuple, which
+        excludes GuardrailBlockedError/NodeInvocationError -- a blocking guard
+        combined with Retry still fails on the first attempt, it is not retried."""
+        call_count = {"n": 0}
+
+        class CountingBlockOutput(OutputGuard):
+            def __call__(self, event):
+                call_count["n"] += 1
+                return GuardrailDecision.block(reason="always blocked")
+
+        agent = rt.agent_node(
+            "RetryGuardAgent",
+            llm=mock_llm(custom_response="hi"),
+            model_middleware=[Retry(3), CountingBlockOutput()],
+        )
+
+        with pytest.raises(GuardrailBlockedError):
+            await rt.Flow("RetryGuardAgent", agent).ainvoke("hi")
+
+        assert call_count["n"] == 1
+
+    async def test_input_guard_transforms_messages_on_every_tool_loop_iteration(
+        self, mock_llm
+    ):
+        """InputGuard runs before every raw model call inside the tool-calling
+        loop, not just the first -- a transform is freshly recomputed from (and
+        visible on top of) the real accumulating history on each round trip."""
+
+        class AppendMarkerInput(InputGuard):
+            def __call__(self, event):
+                # insert right after the system message (not at the end) so the
+                # mock model's trailing-tool-result detection still sees the real
+                # tail of the history on each round trip.
+                new_history = MessageHistory(event.messages)
+                new_history.insert(1, UserMessage("[seen]"))
+                return GuardrailDecision.transform_messages(
+                    messages=new_history, reason="mark"
+                )
+
+        def increment(n: int) -> int:
+            """Increments a number.
+
+            Args:
+                n (int): The number.
+
+            Returns:
+                int: n + 1.
+            """
+            return n + 1
+
+        llm = mock_llm(
+            requested_tool_calls=[
+                ToolCall(name="increment", identifier="id1", arguments={"n": 1})
+            ]
+        )
+
+        marker_counts_per_call = []
+        original_chat_with_tools = llm._chat_with_tools
+
+        def recording_chat_with_tools(messages, tools, **kwargs):
+            marker_counts_per_call.append(
+                sum(1 for m in messages if getattr(m, "content", None) == "[seen]")
+            )
+            return original_chat_with_tools(messages, tools, **kwargs)
+
+        llm._chat_with_tools = recording_chat_with_tools
+
+        agent = rt.agent_node(
+            "MarkedToolAgent",
+            llm=llm,
+            tool_nodes=[rt.function_node(increment)],
+            model_middleware=[AppendMarkerInput()],
+        )
+
+        result = await rt.Flow("MarkedToolAgent", agent).ainvoke("increment 1")
+
+        # two raw model calls happen for one tool round trip (request + final
+        # reply); the guard fires before each one, appending exactly one fresh
+        # marker on top of the (unmutated, growing) real history each time.
+        assert marker_counts_per_call == [1, 1]
+        assert "2" in result.content
 
 
 # ---------------------------------------------------------------------------

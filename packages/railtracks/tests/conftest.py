@@ -136,6 +136,45 @@ class MockLLM(rt.llm.ModelBase):
             message_info=self.mocked_message_info,
         )
 
+    async def _astream_chat_with_tools(self, messages, tools=None, **kwargs):
+        tool_results = self._extract_pending_tool_results(messages)
+        if tool_results:
+            final_message = ""
+            for tool_message in tool_results:
+                tool_response = tool_message.content
+                final_message += (
+                    f"Tool {tool_response.name} returned: '{tool_response.result}'"
+                    + "\n"
+                )
+            for char in final_message:
+                yield char
+            yield Response(
+                message=AssistantMessage(content=final_message),
+                message_info=self.mocked_message_info,
+            )
+        else:
+            # requesting tool calls has no incremental text to stream: the calls are
+            # accumulated internally by a real model and only surface on the final Response.
+            return_message = self.requested_tool_calls or "mocked tool message"
+            yield Response(
+                message=AssistantMessage(return_message),
+                message_info=self.mocked_message_info,
+            )
+
+    async def _astream_structured(self, messages, schema, **kwargs):
+        class DummyStructured(BaseModel):
+            dummy_attr: str = "mocked"
+
+        if self.custom_response:
+            response_model = schema(**json.loads(self.custom_response))
+        else:
+            response_model = DummyStructured()
+
+        yield Response(
+            message=AssistantMessage(response_model),
+            message_info=self.mocked_message_info,
+        )
+
     def _chat(self, messages, **kwargs):
         return self._base_chat()
 

@@ -9,6 +9,7 @@ from railtracks.built_nodes.function.node import (
     _partial_with_resolved_metadata,
     function_node,
 )
+from railtracks.exceptions import NodeCreationError
 
 
 @pytest.mark.asyncio
@@ -88,6 +89,17 @@ def test_function_preserving_metadata():
     assert wrapped(2) == 3
 
 
+@pytest.mark.asyncio
+async def test_function_node_accepts_async_bound_method():
+    """An async bound method passes `asyncio.iscoroutinefunction` (there's no
+    `inspect.isfunction`-style gate on that branch), so it's still accepted."""
+
+    class Foo:
+        async def method(self, x: int) -> int:
+            return x + 1
+
+    node = function_node(Foo().method)
+    assert isinstance(node, CallableAsyncRTFunction)
 # ---------------------------------------------------------------------------
 # Bound methods test
 # ---------------------------------------------------------------------------
