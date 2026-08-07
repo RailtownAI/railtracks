@@ -49,6 +49,7 @@ async def _llm_observe(
     event = LLMResponseEvent(
         message_input=prev_message_history,
         output=response.message,
+        reported_model_name=response.message_info.model_name,
         input_tokens=response.message_info.input_tokens,
         output_tokens=response.message_info.output_tokens,
         total_cost=response.message_info.total_cost,

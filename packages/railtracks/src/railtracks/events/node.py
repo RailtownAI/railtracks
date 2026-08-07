@@ -73,6 +73,7 @@ class NodeDestruction(NodeEventBase):
     """The final response, outside the node's middleware."""
 
     response: Any
+    duration_seconds: float
 
     def event_type(self) -> str:
         return "node.destruction"
