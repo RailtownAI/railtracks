@@ -10,7 +10,6 @@ from typing import (
     Coroutine,
     KeysView,
     MutableMapping,
-    cast,
 )
 
 from railtracks.exceptions import ContextError
@@ -148,7 +147,7 @@ def get_parent_id() -> str | None:
         ContextError: If the global variables have not been registered.
     """
     context = safe_get_runner_context()
-    return cast("str | None", context.internal_context.parent_id)
+    return context.internal_context.parent_id
 
 
 def get_run_id() -> str | None:
