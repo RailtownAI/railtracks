@@ -41,13 +41,13 @@ def _parse_glmocr_response(raw: dict) -> OCRResult:
 class GLMOCRLoader(BaseOCRLoader):
     """Loads image files as ``Document`` objects using GLM-OCR for structured extraction.
 
-    Supports two deployment modes:
+    Selects cloud or local execution based on ``endpoint``:
 
-    - ``cloud`` *(default)*: delegates to the Zhipu cloud API via the ``glmocr``
-      SDK. Requires an API key configured in the environment per the glmocr SDK
-      docs. The blocking SDK call is offloaded to a thread pool.
-    - ``local``: POSTs images to a self-hosted vLLM/Ollama endpoint at
-      ``endpoint``. The endpoint must accept
+    - ``endpoint=None`` *(default)*: delegates to the Zhipu cloud API via the
+      ``glmocr`` SDK. Requires an API key configured in the environment per the
+      glmocr SDK docs. The blocking SDK call is offloaded to a thread pool.
+    - ``endpoint="https://…"`` (non-empty URL): POSTs images to a self-hosted
+      vLLM/Ollama server. The endpoint must accept
       ``{"image": <base64-PNG>, "format": "markdown"}`` and return the same JSON
       schema as the cloud API. Uses ``httpx.AsyncClient`` for the async HTTP call.
 
@@ -73,16 +73,14 @@ class GLMOCRLoader(BaseOCRLoader):
         file_path: Path to an image file or a directory of image files.
             Supported extensions: ``.bmp``, ``.jpeg``, ``.jpg``, ``.png``,
             ``.tif``, ``.tiff``, ``.webp``.
-        mode: Deployment mode — ``"cloud"`` or ``"local"``. Defaults to
-            ``"cloud"``.
-        endpoint: Base URL of the local OCR endpoint. Required when
-            ``mode="local"``; ignored otherwise.
+        endpoint: Base URL of a self-hosted vLLM/Ollama OCR server. Pass
+            ``None`` (default) to use the Zhipu cloud API via the ``glmocr``
+            SDK; pass a non-empty URL string to POST to a local endpoint instead.
         breakdown_strategy: How to aggregate results across files in a
             directory. Defaults to ``"page"``.
 
     Raises:
-        ValueError: If ``mode`` is not ``"cloud"`` or ``"local"``.
-        ValueError: If ``mode="local"`` and ``endpoint`` is ``None``.
+        ValueError: If ``endpoint`` is an empty string.
         ValueError: If ``breakdown_strategy`` is not ``"page"`` or
             ``"document"``.
         FileNotFoundError: If ``file_path`` does not exist (raised from
@@ -94,23 +92,23 @@ class GLMOCRLoader(BaseOCRLoader):
     def __init__(
         self,
         file_path: str,
-        mode: Literal["cloud", "local"] = "cloud",
         endpoint: str | None = None,
         breakdown_strategy: BreakdownStrategy = "page",
     ) -> None:
         self._path = Path(file_path)
-        if mode not in ("cloud", "local"):
-            raise ValueError(f"mode must be 'cloud' or 'local', got {mode!r}")
-        if mode == "local" and endpoint is None:
-            raise ValueError("endpoint is required when mode='local'")
+        if endpoint is not None and not endpoint:
+            raise ValueError("endpoint must be a non-empty string or None")
         if breakdown_strategy not in ("page", "document"):
             raise ValueError(
                 f"breakdown_strategy must be 'page' or 'document', "
                 f"got {breakdown_strategy!r}"
             )
-        self._mode = mode
         self._endpoint = endpoint
         self._breakdown_strategy = breakdown_strategy
+        if self._endpoint is None:
+            self._call = self._call_cloud
+        else:
+            self._call = self._call_local
 
     async def _ocr_image(self, image: Image) -> str:
         """Return flat text by delegating to the structured path.
@@ -125,9 +123,7 @@ class GLMOCRLoader(BaseOCRLoader):
 
     async def _ocr_image_structured(self, image: Image) -> OCRResult:
         """OCR a single image using GLM-OCR, returning structured output."""
-        if self._mode == "cloud":
-            return await self._call_cloud(image)
-        return await self._call_local(image)
+        return await self._call(image)
 
     async def _call_cloud(self, image: Image) -> OCRResult:
         """Send a PIL image to the Zhipu cloud API via the glmocr SDK.
@@ -267,10 +263,9 @@ class GLMOCRPDFLoader(GLMOCRLoader):
 
     Args:
         file_path: Path to a ``.pdf`` file or a directory of ``.pdf`` files.
-        mode: Deployment mode — ``"cloud"`` or ``"local"``. Defaults to
-            ``"cloud"``.
-        endpoint: Base URL of the local OCR endpoint. Required when
-            ``mode="local"``.
+        endpoint: Base URL of a self-hosted vLLM/Ollama OCR server. Pass
+            ``None`` (default) to use the Zhipu cloud API; pass a non-empty
+            URL string to POST to a local endpoint instead.
         breakdown_strategy: Controls directory-level aggregation. Defaults to
             ``"page"``.
 
@@ -281,11 +276,23 @@ class GLMOCRPDFLoader(GLMOCRLoader):
             ``astream()``).
     """
 
+    def __init__(
+        self,
+        file_path: str,
+        endpoint: str | None = None,
+        breakdown_strategy: BreakdownStrategy = "page",
+    ) -> None:
+        super().__init__(
+            file_path, endpoint=endpoint, breakdown_strategy=breakdown_strategy
+        )
+        if self._endpoint is None:
+            self._call_pdf = self._call_cloud_pdf
+        else:
+            self._call_pdf = self._call_local_pdf
+
     async def _ocr_pdf_structured(self, pdf_bytes: bytes) -> OCRResult:
         """Send raw PDF bytes to GLM-OCR and return structured output."""
-        if self._mode == "cloud":
-            return await self._call_cloud_pdf(pdf_bytes)
-        return await self._call_local_pdf(pdf_bytes)
+        return await self._call_pdf(pdf_bytes)
 
     async def _call_cloud_pdf(self, pdf_bytes: bytes) -> OCRResult:
         """Send PDF bytes to the Zhipu cloud API via the glmocr SDK."""
