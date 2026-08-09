@@ -68,12 +68,12 @@ websearch = [
 # `railtracks[retrieval]` to opt in.
 tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
 semantic = ["scikit-learn>=1.3.0"]
-pdf = ["pypdf >= 4.0.0, <= 6.10.2"]
+pdf = ["pypdf >= 4.0.0, <= 6.14.2"]
 ocr = [
     "pypdfium2 >= 4.30.0",
     "pytesseract >= 0.3.10",
     "pillow >= 10.0.0",
-    "pypdf >= 4.0.0, <= 6.10.2",
+    "pypdf >= 4.0.0, <= 6.14.2",
 ]
 huggingface = ["datasets >= 2.14.0, <= 4.8.5"]
 chroma = [
