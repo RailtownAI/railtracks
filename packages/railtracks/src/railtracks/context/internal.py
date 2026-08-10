@@ -46,8 +46,12 @@ class InternalContext:
 
     # Not super pythonic but it allows us to slap in debug statements on the getters and setters with ease
     @property
-    def parent_id(self):
+    def parent_id(self) -> str | None:
         return self._parent_id
+
+    @parent_id.setter
+    def parent_id(self, value: str) -> None:
+        self._parent_id = value
 
     @property
     def is_active(self) -> bool:
@@ -59,16 +63,12 @@ class InternalContext:
 
         return self._publisher.is_running()
 
-    @parent_id.setter
-    def parent_id(self, value: str):
-        self._parent_id = value
-
     @property
-    def publisher(self):
+    def publisher(self) -> RTPublisher | None:
         return self._publisher
 
     @publisher.setter
-    def publisher(self, value: RTPublisher):
+    def publisher(self, value: RTPublisher) -> None:
         self._publisher = value
 
     @property

@@ -36,7 +36,7 @@ async def test_activate_publisher(monkeypatch, make_runner_context_vars, make_in
 @pytest.mark.asyncio
 async def test_shutdown_publisher(monkeypatch, make_runner_context_vars, make_internal_context_mock):
     pub = mock.AsyncMock()
-    pub.is_running.return_value = True
+    pub.is_running = mock.Mock(return_value=True)
     ic = make_internal_context_mock(publisher=pub)
     rt = make_runner_context_vars(internal_context=ic)
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
@@ -91,13 +91,15 @@ def test_get_and_set_global_config(monkeypatch):
 
 def test_get_and_set_local_config(monkeypatch, make_runner_context_vars, make_internal_context_mock):
     config = mock.Mock()
-    rt = make_runner_context_vars(internal_context=make_internal_context_mock(executor_config=config))
+    updated_config = mock.Mock()
+    internal_context = make_internal_context_mock(executor_config=config)
+    rt = make_runner_context_vars(internal_context=internal_context)
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
     assert central.get_local_config() is config
-    # set_local_config should update context.executor_config and set runner_context
     monkeypatch.setattr(central, "runner_context", mock.Mock(set=mock.Mock()))
-    central.set_local_config(config)
-    central.runner_context.set.assert_called()
+    central.set_local_config(updated_config)
+    assert internal_context.executor_config is updated_config
+    central.runner_context.set.assert_called_once_with(rt)
 
 def test_set_config_warns(monkeypatch):
     config = mock.Mock()
