@@ -127,7 +127,7 @@ class FlowConnection(Generic[_P, _TOutput]):
         The context of the most recent invocation.
 
         A live reference, not a copy. Context is not intended to be modified.
-        
+
         """
         return self._require_session().context
 
@@ -149,7 +149,8 @@ class FlowConnection(Generic[_P, _TOutput]):
     @property
     def message_histories(self) -> List[NodeMessageHistory]:
         """
-        Every model conversation from the most recent invocation, oldest first.
+        Every model conversation from the most recent invocation, in the order the
+        runs were recorded. Concurrently called nodes have no guaranteed order.
 
         Covers nested agents, unlike an `LLMResponse`, which carries only its
         own. Nodes that made no model calls are omitted.
@@ -161,6 +162,7 @@ class FlowConnection(Generic[_P, _TOutput]):
         node_forest = info.node_forest
 
         histories: List[NodeMessageHistory] = []
+        # a request is inserted into the heap when it is opened
         for request in info.request_forest.heap().values():
             history = getattr(request.output, "message_history", None)
             if history is None:
@@ -177,8 +179,6 @@ class FlowConnection(Generic[_P, _TOutput]):
                 )
             )
 
-        # heap ordering is insertion-based; step ordering is the run's own
-        histories.sort(key=lambda h: info.request_forest[h.request_id].stamp.step)
         return histories
 
     def __repr__(self) -> str:

@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import pytest
 import railtracks as rt
@@ -225,6 +226,48 @@ class TestMessageHistories:
             assert history.node_id
             assert history.request_id
             assert history.node_id != history.request_id
+
+    async def test_not_ordered_by_completion(self, mock_llm):
+        """
+        Agents called A, B, C whose models finish C, B, A must not come back C, B, A.
+
+        `asyncio.gather` does not promise scheduling order, so the exact sequence
+        is not contractual -- but it must not be completion order, which would
+        reverse the common fan-out.
+        """
+
+        class SlowLLM(mock_llm):
+            def __init__(self, delay: float, **kwargs):
+                super().__init__(**kwargs)
+                self.delay = delay
+
+            def _chat(self, messages, **kwargs):
+                # model.chat runs via asyncio.to_thread, so this really overlaps
+                time.sleep(self.delay)
+                return self._base_chat()
+
+        agents = [
+            rt.agent_node(
+                name=name,
+                system_message="s",
+                llm=SlowLLM(delay, custom_response=name),
+            )
+            for name, delay in [("A", 0.30), ("B", 0.15), ("C", 0.01)]
+        ]
+
+        @rt.function_node
+        async def fan_out(topic: str) -> str:
+            await asyncio.gather(*(rt.call(a, topic) for a in agents))
+            return "done"
+
+        conn = rt.Flow(
+            name="conn_fan_out", entry_point=fan_out, save_state=False
+        ).connect()
+        await conn.ainvoke("topic")
+
+        names = [h.node_name for h in conn.message_histories]
+        assert sorted(names) == ["A", "B", "C"]
+        assert names != ["C", "B", "A"]
 
 
 class TestSession:
