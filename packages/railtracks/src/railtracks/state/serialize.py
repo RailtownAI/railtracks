@@ -189,10 +189,15 @@ def encode_message(message: Message) -> dict[str, Any]:
             "content": [{"type": "text", "text": message.content}, *attachment],
         }
     else:
-        return {
+        encoded = {
             "role": message.role.value,
             "content": message.content,
         }
+        # prose the assistant returned alongside its tool calls
+        text = getattr(message, "text", None)
+        if text is not None:
+            encoded["text"] = text
+        return encoded
 
 
 def encode_content(content: ToolResponse):

@@ -477,7 +477,10 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             )
         elif len(tools) > 0:
             r = Response(
-                message=AssistantMessage(content=tools), message_info=message_info
+                message=AssistantMessage(
+                    content=tools, text=accumulated_content or None
+                ),
+                message_info=message_info,
             )
         else:
             r = Response(
@@ -568,7 +571,10 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             )
         elif len(tools) > 0:
             r = Response(
-                message=AssistantMessage(content=tools), message_info=message_info
+                message=AssistantMessage(
+                    content=tools, text=accumulated_content or None
+                ),
+                message_info=message_info,
             )
         else:
             r = Response(
@@ -680,7 +686,9 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
             )
 
-        assistant_msg = AssistantMessage(content=calls)
+        # Keep any prose the model returned alongside the tool calls (e.g. "I will
+        # check the weather in London for you"), it is part of the answer.
+        assistant_msg = AssistantMessage(content=calls, text=choice.message.content)
 
         # Preserve the raw litellm message so that provider-specific metadata
         # (e.g. Gemini thought_signature) is round-tripped back verbatim.
@@ -867,7 +875,9 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         # only time this is true is tool calls, need to return litellm.utils.Message
         elif isinstance(msg.content, list):
             assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
-            base["content"] = ""
+            # Send back any prose that came with the tool calls so the model sees
+            # its own full turn on the next request.
+            base["content"] = getattr(msg, "text", None) or ""
             base["tool_calls"] = [
                 litellm.utils.ChatCompletionMessageToolCall(
                     function=litellm.utils.Function(

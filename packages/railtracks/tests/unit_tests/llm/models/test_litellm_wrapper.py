@@ -14,7 +14,7 @@ from railtracks.llm.models._litellm_wrapper import (
     _to_litellm_tool,
 )
 from railtracks.llm.providers import ModelProvider
-from railtracks.llm.response import Response
+from railtracks.llm.response import MessageInfo, Response
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper[Literal[False]]):
@@ -116,6 +116,20 @@ class TestHelpers:
         assert litellm_message["role"] == "assistant"
         assert len(litellm_message["tool_calls"]) == 1
         assert litellm_message["tool_calls"][0].function.name == "example_tool"
+
+    def test_to_litellm_message_tool_call_list_with_text(
+        self, mock_litellm_wrapper, tool_call
+    ):
+        """
+        Test _to_litellm_message sends back the text that came with the tool calls.
+        """
+        message = AssistantMessage(
+            content=[tool_call], text="I will call example_tool for you."
+        )
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
+        assert litellm_message["content"] == "I will call example_tool for you."
+        assert len(litellm_message["tool_calls"]) == 1
 
     def test_to_litellm_message_user_message_with_attachments(
         self,
@@ -458,6 +472,59 @@ class TestCompletionMethods:
             assert calls[0].name == "tool_x"
             assert calls[0].arguments == {"foo": 1}
             assert calls[0].identifier == "id123"
+
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat_with_tools", False),
+            ("_achat_with_tools", True),
+        ],
+        ids=["sync_chat_with_tools", "async_chat_with_tools"],
+    )
+    @pytest.mark.asyncio
+    async def test_chat_with_tools_keeps_text_returned_with_tool_calls(
+        self, mock_litellm_wrapper, message_history, tool, method_name, is_async
+    ):
+        """
+        Models often answer with prose and a tool call in the same message. The prose
+        must survive alongside the tool calls instead of being dropped.
+        """
+        wrapper = mock_litellm_wrapper(
+            content="I will call tool_x with foo=1.",
+            tool_calls=[
+                litellm.ChatCompletionMessageToolCall(
+                    function=litellm.Function(arguments='{"foo": 1}', name="tool_x"),
+                    id="id123",
+                    type="function",
+                )
+            ],
+        )
+
+        method = getattr(wrapper, method_name)
+        if is_async:
+            result = await method(message_history, [tool])
+        else:
+            result = method(message_history, [tool])
+
+        assert result.message.content[0].name == "tool_x"
+        assert result.message.text == "I will call tool_x with foo=1."
+
+    def test_prepare_response_keeps_streamed_text_with_tool_calls(
+        self, mock_litellm_wrapper, tool_call
+    ):
+        """
+        The same applies to the streaming path, where the text arrives as content deltas.
+        """
+        wrapper = mock_litellm_wrapper()
+        response = wrapper._prepare_response(
+            accumulated_content="I will call example_tool for you.",
+            tools=[tool_call],
+            output_schema=None,
+            message_info=MessageInfo(),
+        )
+
+        assert response.message.content == [tool_call]
+        assert response.message.text == "I will call example_tool for you."
 
 
 def test_temperature_passed_to_litellm_completion(message_history):

@@ -26,6 +26,21 @@ def test_encoder_extension_encodes_types_correctly(request, fixture_name, expect
     assert isinstance(d, expected_type)
     assert set(d.keys()).issuperset(expected_keys)
 
+def test_encode_message_keeps_text_sent_with_tool_calls():
+    from railtracks.llm import AssistantMessage, ToolCall
+
+    message = AssistantMessage(
+        content=[ToolCall(identifier="tid", name="tool", arguments={})],
+        text="I will call tool for you.",
+    )
+    d = serialize.encode_message(message)
+    assert d["text"] == "I will call tool for you."
+
+
+def test_encode_message_omits_text_when_there_is_none(fake_message):
+    assert "text" not in serialize.encode_message(fake_message)
+
+
 def test_encoder_extender_raises_on_unknown():
     class Unk: pass
     with pytest.raises(TypeError):

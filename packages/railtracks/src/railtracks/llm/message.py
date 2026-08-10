@@ -360,12 +360,19 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     Args:
         content (_T): The content of the assistant message.
         inject_prompt (bool, optional): Whether to inject prompt with context  variables. Defaults to True.
+        text (str | None, optional): The text the model returned alongside `content`. Models often
+            answer with prose and tool calls in the same message, so this keeps that prose attached
+            to the tool calls instead of dropping it. Only set when `content` is a list of tool calls.
     """
 
-    def __init__(self, content: _T, inject_prompt: bool = True):
+    def __init__(
+        self, content: _T, inject_prompt: bool = True, text: str | None = None
+    ):
         super().__init__(
             content=content, role=Role.assistant, inject_prompt=inject_prompt
         )
+
+        self.text = text
 
         # Optionally stores the raw litellm message object so providers that
         # attach extra metadata (e.g. Gemini thought_signature) can round-trip

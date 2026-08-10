@@ -203,7 +203,7 @@ class OutputLessToolCallLLMBase(
             tool_calls = message.content
 
             hist_msg = AssistantMessage(
-                content=tool_calls
+                content=tool_calls, text=getattr(message, "text", None)
             )  # Preserve provider-specific metadata from the original message
 
             raw = getattr(message, "raw_litellm_message", None)

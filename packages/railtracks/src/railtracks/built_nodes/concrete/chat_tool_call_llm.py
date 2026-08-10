@@ -48,7 +48,12 @@ class ChatToolCallLLM(StringOutputMixIn, OutputLessToolCallLLM[StringResponse], 
                     tool_calls = returned_mess.message.content
 
                     # append the requested tool calls assistant message, once the tool calls have been verified and truncated (if needed)
-                    self.message_hist.append(AssistantMessage(content=tool_calls))
+                    self.message_hist.append(
+                        AssistantMessage(
+                            content=tool_calls,
+                            text=getattr(returned_mess.message, "text", None),
+                        )
+                    )
 
                     contracts = []
                     for t_c in tool_calls:
