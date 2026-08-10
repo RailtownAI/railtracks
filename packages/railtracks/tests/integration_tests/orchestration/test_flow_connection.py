@@ -155,11 +155,15 @@ class TestBeforeAnythingRuns:
 
     @pytest.mark.parametrize(
         "accessor",
-        ["context", "session", "session_id", "message_histories"],
+        ["context", "session", "session_id"],
     )
     def test_accessors_raise(self, flow, accessor):
         with pytest.raises(RuntimeError, match="Nothing has run on this connection"):
             getattr(flow.connect(), accessor)
+
+    def test_message_histories_raises(self, flow):
+        with pytest.raises(RuntimeError, match="Nothing has run on this connection"):
+            flow.connect().message_histories()
 
     async def test_connected_is_true_afterwards(self, flow):
         conn = flow.connect()
@@ -197,13 +201,13 @@ class TestMessageHistories:
     async def test_empty_when_no_model_was_called(self, flow):
         conn = flow.connect()
         await conn.ainvoke("x")
-        assert conn.message_histories == []
+        assert conn.message_histories() == []
 
     async def test_includes_nested_agents_in_order(self, mock_llm):
         conn = nested_flow(mock_llm).connect()
         await conn.ainvoke("topic")
 
-        histories = conn.message_histories
+        histories = conn.message_histories()
         assert [h.node_name for h in histories] == ["Researcher", "Writer"]
         assert all(isinstance(h, NodeMessageHistory) for h in histories)
 
@@ -211,7 +215,7 @@ class TestMessageHistories:
         conn = nested_flow(mock_llm).connect()
         await conn.ainvoke("topic")
 
-        researcher = conn.message_histories[0]
+        researcher = conn.message_histories()[0]
         roles = [str(m.role) for m in researcher.message_history]
         contents = [str(m.content) for m in researcher.message_history]
 
@@ -222,7 +226,7 @@ class TestMessageHistories:
         conn = nested_flow(mock_llm).connect()
         await conn.ainvoke("topic")
 
-        for history in conn.message_histories:
+        for history in conn.message_histories():
             assert history.node_id
             assert history.request_id
             assert history.node_id != history.request_id
@@ -265,7 +269,7 @@ class TestMessageHistories:
         ).connect()
         await conn.ainvoke("topic")
 
-        names = [h.node_name for h in conn.message_histories]
+        names = [h.node_name for h in conn.message_histories()]
         assert sorted(names) == ["A", "B", "C"]
         assert names != ["C", "B", "A"]
 

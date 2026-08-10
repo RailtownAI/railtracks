@@ -80,7 +80,7 @@ class Flow(Generic[_P, _TOutput]):
 
             conn = flow.connect()
             result = await conn.ainvoke("text") # not flow.ainvoke if context is desired
-           
+
         Returns:
             FlowConnection: A connection to current flow.
         """

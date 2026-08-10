@@ -56,7 +56,7 @@ print(connection.context.get("shared_key"))
 connection = flow.connect()
 response = connection.invoke("What is the capital of France?")
 
-for history in connection.message_histories:
+for history in connection.message_histories():
     print(history.node_name)
     for message in history.message_history:
         print(f"  {message.role}: {message.content}")
@@ -77,16 +77,17 @@ except Exception:
 # --8<-- [start: connection_concurrent]
 import asyncio
 
-questions = ["Capital of France?", "Capital of Japan?", "Capital of Peru?"]
+connections = []
+futures = []
 
+# One connection per concurrent run.
+for question in ["Capital of France?", "Capital of Japan?", "Capital of Peru?"]:
+    connection = flow.connect()
+    connections.append(connection)
+    futures.append(connection.ainvoke(question))
 
-async def ask_all():
-    # One connection per concurrent run.
-    connections = [flow.connect() for _ in questions]
-    await asyncio.gather(*(c.ainvoke(q) for c, q in zip(connections, questions)))
-    return connections
+results = await asyncio.gather(*futures)
 
-
-for connection in asyncio.run(ask_all()):
+for connection in connections:
     print(connection.session_id, connection.context.get("shared_key"))
 # --8<-- [end: connection_concurrent]

@@ -134,7 +134,7 @@ class FlowConnection(Generic[_P, _TOutput]):
     @property
     def session_id(self) -> str:
         """Identifier of the session backing the most recent invocation."""
-        return self._require_session()._identifier
+        return self._require_session().identifier
 
     @property
     def session(self) -> Session:
@@ -146,7 +146,6 @@ class FlowConnection(Generic[_P, _TOutput]):
         """
         return self._require_session()
 
-    @property
     def message_histories(self) -> List[NodeMessageHistory]:
         """
         Every model conversation from the most recent invocation, in the order the
@@ -155,8 +154,14 @@ class FlowConnection(Generic[_P, _TOutput]):
         Covers nested agents, unlike an `LLMResponse`, which carries only its
         own. Nodes that made no model calls are omitted.
 
-            for h in conn.message_histories:
+        Walks the run's requests on every call rather than caching, so hold the
+        result if you need it more than once.
+
+            for h in conn.message_histories():
                 print(h.node_name, len(h.message_history))
+
+        Returns:
+            List[NodeMessageHistory]: One entry per node that called a model.
         """
         info = self._require_session().info
         node_forest = info.node_forest

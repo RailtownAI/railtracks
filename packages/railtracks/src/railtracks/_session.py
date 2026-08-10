@@ -265,6 +265,11 @@ class Session:
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
 
     @property
+    def identifier(self) -> str:
+        """The unique identifier assigned to this session."""
+        return self._identifier
+
+    @property
     def info(self) -> ExecutionInfo:
         """
         Returns the current state of the runner.
