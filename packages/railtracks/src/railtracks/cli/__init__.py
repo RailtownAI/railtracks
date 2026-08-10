@@ -301,7 +301,7 @@ def _add_claude(skill_name: str, meta: dict, content: str, force: bool) -> None:
         "---\n\n"
     )
     target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Claude Code → {target}")
+    print_success(f"Installed '{skill_name}' for Claude Code -> {target}")
 
 
 def _add_codex(skill_name: str, meta: dict, content: str, force: bool) -> None:
@@ -317,7 +317,7 @@ def _add_codex(skill_name: str, meta: dict, content: str, force: bool) -> None:
         f"---\nname: {meta['name']}\ndescription: {meta['description']}\n---\n\n"
     )
     target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Codex → {target}")
+    print_success(f"Installed '{skill_name}' for Codex -> {target}")
 
 
 def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None:  # noqa: ARG001
@@ -346,7 +346,7 @@ def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None
     section = f"\n\n{start_marker}\n{content.strip()}\n{end_marker}\n"
     with open(target, "a", encoding="utf-8") as f:
         f.write(section)
-    print_success(f"Installed '{skill_name}' for GitHub Copilot → {target}")
+    print_success(f"Installed '{skill_name}' for GitHub Copilot -> {target}")
 
 
 def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
@@ -362,7 +362,7 @@ def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
         f"---\ndescription: {meta['description']}\nalwaysApply: false\n---\n\n"
     )
     target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Cursor → {target}")
+    print_success(f"Installed '{skill_name}' for Cursor -> {target}")
 
 
 _TOOL_HANDLERS = {
