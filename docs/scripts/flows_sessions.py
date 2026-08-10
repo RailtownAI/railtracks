@@ -75,7 +75,7 @@ except Exception:
 
 
 # --8<-- [start: connection_concurrent]
-import asyncio  # noqa: E402
+import asyncio
 
 questions = ["Capital of France?", "Capital of Japan?", "Capital of Peru?"]
 
