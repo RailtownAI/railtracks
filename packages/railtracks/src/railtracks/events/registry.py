@@ -88,6 +88,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "llm_id": STRING,
         "model_provider": _enum(*(m.value for m in ModelProvider)),
         "model_name": STRING,
+        "reported_model_name": STRING,
         "message_input": JSON,
         "output": JSON,
         "input_tokens": INTEGER,
@@ -105,6 +106,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "args": JSON,
         "kwargs": JSON,
         "response": JSON,
+        "duration_seconds": FLOAT,
         **_FAILURE,
     },
     "middleware": {
