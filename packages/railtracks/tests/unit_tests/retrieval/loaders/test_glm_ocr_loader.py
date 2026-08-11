@@ -1,21 +1,14 @@
 from __future__ import annotations
 
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Skip the whole module if Pillow is not installed — tests that exercise
-# _stream_image reach PIL.Image.open via patch; the target must resolve.
-pytest.importorskip("PIL")
-
-# Stub optional [glm] dependencies before the loader module is imported —
-# both are imported at module level in glm_ocr_loader.py and will re-raise
-# ImportError if absent, which would prevent collection.
+# Stub glmocr before the loader module is imported — it is imported at module
+# level and will re-raise ImportError if absent, preventing collection.
 if "glmocr" not in sys.modules:
     sys.modules["glmocr"] = MagicMock()
-if "httpx" not in sys.modules:
-    sys.modules["httpx"] = MagicMock()
 
 from railtracks.retrieval.loaders.glm_ocr_loader import (  # noqa: E402
     CloudOCRStrategy,
@@ -24,20 +17,21 @@ from railtracks.retrieval.loaders.glm_ocr_loader import (  # noqa: E402
 )
 from railtracks.retrieval.models import OCRResult  # noqa: E402
 
-_FAKE_RESPONSE = {
-    "markdown": "# Hello\n\nWorld",
-    "bboxes": [{"x": 0, "y": 0, "w": 100, "h": 20}],
-    "tables": [{"rows": [["cell"]]}],
-}
 
-
-def _make_image() -> MagicMock:
-    """Return a minimal PIL Image stand-in."""
-    return MagicMock()
+def _make_pipeline_result(markdown: str = "# Hello\n\nWorld") -> MagicMock:
+    """Return a minimal PipelineResult stand-in."""
+    result = MagicMock()
+    result.markdown_result = markdown
+    result.to_dict.return_value = {
+        "markdown_result": markdown,
+        "json_result": {"pages": []},
+        "original_images": [],
+    }
+    return result
 
 
 async def _fake_to_thread(func, *args, **kwargs):
-    """Drop-in for asyncio.to_thread that executes func in the calling thread."""
+    """Drop-in for asyncio.to_thread that runs func synchronously."""
     return func(*args, **kwargs)
 
 
@@ -100,39 +94,39 @@ class TestGLMOCRLoaderOCRDelegation:
     async def test_ocr_image_returns_str(self):
         """_ocr_image() must return a plain str (satisfies the abstract contract)."""
         loader = GLMOCRLoader(file_path="test.png")
-        mock_result = OCRResult(markdown="# Hello\n\nWorld", bboxes=[], tables=[])
-        with patch.object(
-            loader.strategy, "ocr_image", new=AsyncMock(return_value=mock_result)
+        pipeline_result = _make_pipeline_result("# Hello\n\nWorld")
+        with (
+            patch("railtracks.retrieval.loaders.glm_ocr_loader.glmocr") as mock_glmocr,
+            patch("asyncio.to_thread", new=_fake_to_thread),
         ):
-            result = await loader._ocr_image(_make_image())
+            mock_glmocr.parse.return_value = pipeline_result
+            result = await loader._ocr_image(MagicMock())
         assert isinstance(result, str)
 
     async def test_ocr_image_structured_returns_ocr_result(self):
-        """_ocr_image_structured() must return an OCRResult with all fields populated."""
+        """_ocr_image_structured() must return an OCRResult with markdown populated."""
         loader = GLMOCRLoader(file_path="test.png")
-        mock_result = OCRResult(
-            markdown=_FAKE_RESPONSE["markdown"],
-            bboxes=_FAKE_RESPONSE["bboxes"],
-            tables=_FAKE_RESPONSE["tables"],
-        )
-        with patch.object(
-            loader.strategy, "ocr_image", new=AsyncMock(return_value=mock_result)
+        pipeline_result = _make_pipeline_result("# Hello\n\nWorld")
+        with (
+            patch("railtracks.retrieval.loaders.glm_ocr_loader.glmocr") as mock_glmocr,
+            patch("asyncio.to_thread", new=_fake_to_thread),
         ):
-            result = await loader._ocr_image_structured(_make_image())
+            mock_glmocr.parse.return_value = pipeline_result
+            result = await loader._ocr_image_structured(MagicMock())
         assert isinstance(result, OCRResult)
-        assert result.markdown == _FAKE_RESPONSE["markdown"]
-        assert result.bboxes == _FAKE_RESPONSE["bboxes"]
-        assert result.tables == _FAKE_RESPONSE["tables"]
+        assert result.markdown == "# Hello\n\nWorld"
 
     async def test_ocr_image_flattens_structured_output(self):
         """_ocr_image() must return the same text as _ocr_image_structured().to_text()."""
         loader = GLMOCRLoader(file_path="test.png")
-        mock_result = OCRResult(markdown="# Hello\n\nWorld", bboxes=[], tables=[])
-        with patch.object(
-            loader.strategy, "ocr_image", new=AsyncMock(return_value=mock_result)
+        pipeline_result = _make_pipeline_result("# Hello\n\nWorld")
+        with (
+            patch("railtracks.retrieval.loaders.glm_ocr_loader.glmocr") as mock_glmocr,
+            patch("asyncio.to_thread", new=_fake_to_thread),
         ):
-            text = await loader._ocr_image(_make_image())
-            structured = await loader._ocr_image_structured(_make_image())
+            mock_glmocr.parse.return_value = pipeline_result
+            text = await loader._ocr_image(MagicMock())
+            structured = await loader._ocr_image_structured(MagicMock())
         assert text == structured.to_text()
 
 
@@ -143,12 +137,12 @@ class TestGLMOCRLoaderPageStrategy:
         (tmp_path / "a.png").touch()
         (tmp_path / "b.png").touch()
         loader = GLMOCRLoader(str(tmp_path))
+        pipeline_result = _make_pipeline_result()
         with (
             patch("railtracks.retrieval.loaders.glm_ocr_loader.glmocr") as mock_glmocr,
             patch("asyncio.to_thread", new=_fake_to_thread),
-            patch("PIL.Image.open", return_value=_make_image()),
         ):
-            mock_glmocr.ocr.return_value = _FAKE_RESPONSE
+            mock_glmocr.parse.return_value = pipeline_result
             docs = await loader.aload()
         assert len(docs) == 2
 
@@ -156,12 +150,12 @@ class TestGLMOCRLoaderPageStrategy:
         (tmp_path / "doc.png").touch()
         (tmp_path / "readme.txt").write_text("text", encoding="utf-8")
         loader = GLMOCRLoader(str(tmp_path))
+        pipeline_result = _make_pipeline_result()
         with (
             patch("railtracks.retrieval.loaders.glm_ocr_loader.glmocr") as mock_glmocr,
             patch("asyncio.to_thread", new=_fake_to_thread),
-            patch("PIL.Image.open", return_value=_make_image()),
         ):
-            mock_glmocr.ocr.return_value = _FAKE_RESPONSE
+            mock_glmocr.parse.return_value = pipeline_result
             docs = await loader.aload()
         assert len(docs) == 1
 
@@ -177,12 +171,12 @@ class TestGLMOCRLoaderDocumentStrategy:
         (tmp_path / "a.png").touch()
         (tmp_path / "b.png").touch()
         loader = GLMOCRLoader(str(tmp_path), breakdown_strategy="document")
+        pipeline_result = _make_pipeline_result()
         with (
             patch("railtracks.retrieval.loaders.glm_ocr_loader.glmocr") as mock_glmocr,
             patch("asyncio.to_thread", new=_fake_to_thread),
-            patch("PIL.Image.open", return_value=_make_image()),
         ):
-            mock_glmocr.ocr.return_value = _FAKE_RESPONSE
+            mock_glmocr.parse.return_value = pipeline_result
             docs = await loader.aload()
         assert len(docs) == 1
 
@@ -191,16 +185,12 @@ class TestGLMOCRLoaderDocumentStrategy:
         (tmp_path / "b.png").touch()
         markdown = "page content"
         loader = GLMOCRLoader(str(tmp_path), breakdown_strategy="document")
+        pipeline_result = _make_pipeline_result(markdown)
         with (
             patch("railtracks.retrieval.loaders.glm_ocr_loader.glmocr") as mock_glmocr,
             patch("asyncio.to_thread", new=_fake_to_thread),
-            patch("PIL.Image.open", return_value=_make_image()),
         ):
-            mock_glmocr.ocr.return_value = {
-                "markdown": markdown,
-                "bboxes": [],
-                "tables": [],
-            }
+            mock_glmocr.parse.return_value = pipeline_result
             docs = await loader.aload()
         assert docs[0].content == f"{markdown}\n\n{markdown}"
 
@@ -209,7 +199,6 @@ class TestOCRResult:
     """Tests for the OCRResult dataclass (public API surface)."""
 
     def test_to_text_returns_markdown(self):
-        """OCRResult.to_text() must return the markdown field verbatim."""
         result = OCRResult(markdown="# Hello")
         assert result.to_text() == "# Hello"
 
@@ -221,6 +210,10 @@ class TestOCRResult:
         result = OCRResult(markdown="text")
         assert result.tables == []
 
+    def test_json_result_defaults_to_none(self):
+        result = OCRResult(markdown="text")
+        assert result.json_result is None
+
 
 class TestMissingDependency:
     """The loader module must raise ImportError with an install hint if glmocr is absent."""
@@ -229,13 +222,18 @@ class TestMissingDependency:
         import importlib
 
         loader_key = "railtracks.retrieval.loaders.glm_ocr_loader"
-        saved_glmocr = sys.modules.pop("glmocr", None)
+        saved_glmocr = sys.modules.get("glmocr")
         saved_loader = sys.modules.pop(loader_key, None)
+        # Setting a key to None blocks the import regardless of whether the
+        # package is physically installed — "import glmocr" raises ImportError.
+        sys.modules["glmocr"] = None  # type: ignore[assignment]
         try:
             with pytest.raises(ImportError, match=r"railtracks\[glm\]"):
                 importlib.import_module(loader_key)
         finally:
             if saved_glmocr is not None:
                 sys.modules["glmocr"] = saved_glmocr
+            else:
+                sys.modules.pop("glmocr", None)
             if saved_loader is not None:
                 sys.modules[loader_key] = saved_loader
