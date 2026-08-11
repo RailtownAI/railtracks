@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -12,10 +13,11 @@ from railtracks.retrieval.models import Document, DocumentType, OCRResult
 
 try:
     import glmocr
+    import httpx
     from PIL import Image as PILImage
 except ImportError as exc:
     raise ImportError(
-        "glmocr and pillow are required for GLMOCRLoader. "
+        "glmocr, httpx, and pillow are required for GLMOCRLoader. "
         'Install them with: pip install "railtracks[glm]".'
     ) from exc
 
@@ -40,16 +42,108 @@ def _parse_glmocr_response(raw: dict) -> OCRResult:
     )
 
 
+class GLMOCRStrategy(ABC):
+    """Abstract interface for GLM-OCR execution strategies.
+
+    Concrete subclasses implement cloud and local execution modes.
+    The :class:`GLMOCRLoader` context selects one at construction time
+    based on whether an ``endpoint`` URL is provided.
+    """
+
+    @abstractmethod
+    async def ocr_image(self, image: Image) -> OCRResult:
+        """OCR a single PIL image, returning structured output."""
+        ...
+
+    @abstractmethod
+    async def ocr_pdf(self, pdf_bytes: bytes) -> OCRResult:
+        """OCR a PDF from raw bytes, returning structured output."""
+        ...
+
+
+class CloudOCRStrategy(GLMOCRStrategy):
+    """Delegates OCR calls to the Zhipu cloud API via the glmocr SDK.
+
+    Blocking SDK calls are offloaded to a thread pool via
+    :func:`asyncio.to_thread`. Requires an API key configured in the
+    environment per the glmocr SDK docs.
+    """
+
+    async def ocr_image(self, image: Image) -> OCRResult:
+        """Send a PIL image to the cloud API, encoded as PNG bytes."""
+        buf = io.BytesIO()
+        await asyncio.to_thread(image.save, buf, format="PNG")
+        image_bytes = buf.getvalue()
+        raw: dict = await asyncio.to_thread(glmocr.ocr, image_bytes)
+        return _parse_glmocr_response(raw)
+
+    async def ocr_pdf(self, pdf_bytes: bytes) -> OCRResult:
+        """Send PDF bytes to the cloud API."""
+        raw: dict = await asyncio.to_thread(glmocr.ocr, pdf_bytes, format="pdf")
+        return _parse_glmocr_response(raw)
+
+
+class LocalOCRStrategy(GLMOCRStrategy):
+    """POSTs OCR requests to a self-hosted vLLM/Ollama endpoint.
+
+    Uses :class:`httpx.AsyncClient` so the event loop is not blocked.
+    The endpoint must accept JSON bodies and return the same schema as
+    the cloud API.
+
+    Args:
+        endpoint: Base URL of the self-hosted OCR server. Validated as
+            non-empty by :class:`GLMOCRLoader` before this object is
+            constructed.
+    """
+
+    def __init__(self, endpoint: str) -> None:
+        self._endpoint = endpoint
+
+    async def ocr_image(self, image: Image) -> OCRResult:
+        """POST a PIL image (base64-encoded PNG) to the local endpoint."""
+        buf = io.BytesIO()
+        await asyncio.to_thread(image.save, buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode()
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self._endpoint,
+                json={"image": b64, "format": "markdown"},
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            raw: dict = response.json()
+
+        return _parse_glmocr_response(raw)
+
+    async def ocr_pdf(self, pdf_bytes: bytes) -> OCRResult:
+        """POST PDF bytes (base64-encoded) to the local endpoint."""
+        b64 = base64.b64encode(pdf_bytes).decode()
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self._endpoint,
+                json={"pdf": b64, "format": "pdf"},
+                timeout=120.0,
+            )
+            response.raise_for_status()
+            raw: dict = response.json()
+        return _parse_glmocr_response(raw)
+
+
 class GLMOCRLoader(BaseOCRLoader):
     """Loads image and PDF files as ``Document`` objects using GLM-OCR.
 
-    Selects cloud or local execution based on ``endpoint``:
+    Acts as the Strategy *context*: selects a :class:`GLMOCRStrategy`
+    at construction time based on ``endpoint`` and delegates all API
+    calls through it.
 
-    - ``endpoint=None`` *(default)*: delegates to the Zhipu cloud API via the
-      ``glmocr`` SDK. Requires an API key configured in the environment per the
-      glmocr SDK docs. Blocking SDK calls are offloaded to a thread pool.
-    - ``endpoint="https://…"`` (non-empty URL): POSTs files to a self-hosted
-      vLLM/Ollama server using ``httpx.AsyncClient``.
+    - ``endpoint=None`` *(default)*: uses :class:`CloudOCRStrategy`
+      (Zhipu cloud API via the ``glmocr`` SDK).
+    - ``endpoint="https://…"`` (non-empty URL): uses
+      :class:`LocalOCRStrategy` (self-hosted vLLM/Ollama server).
+
+    The active strategy can be swapped at runtime via the
+    :attr:`strategy` property setter.
 
     Handles both file types:
 
@@ -80,7 +174,7 @@ class GLMOCRLoader(BaseOCRLoader):
             ``.png``, ``.tif``, ``.tiff``, ``.webp``.
         endpoint: Base URL of a self-hosted vLLM/Ollama OCR server. Pass
             ``None`` (default) to use the Zhipu cloud API via the ``glmocr``
-            SDK; pass a non-empty URL string to POST to a local endpoint instead.
+            SDK; pass a non-empty URL string to use a local endpoint instead.
         breakdown_strategy: How to aggregate results across files in a
             directory. Defaults to ``"page"``.
 
@@ -111,12 +205,18 @@ class GLMOCRLoader(BaseOCRLoader):
         self._endpoint = endpoint
         self._breakdown_strategy = breakdown_strategy
         self._is_pdf = self._path.suffix.lower() == ".pdf"
-        if self._endpoint is None:
-            self._call = self._call_cloud
-            self._call_pdf = self._call_cloud_pdf
-        else:
-            self._call = self._call_local
-            self._call_pdf = self._call_local_pdf
+        self._strategy: GLMOCRStrategy = (
+            CloudOCRStrategy() if endpoint is None else LocalOCRStrategy(endpoint)
+        )
+
+    @property
+    def strategy(self) -> GLMOCRStrategy:
+        """The active OCR strategy; can be replaced at runtime."""
+        return self._strategy
+
+    @strategy.setter
+    def strategy(self, strategy: GLMOCRStrategy) -> None:
+        self._strategy = strategy
 
     async def _ocr_image(self, image: Image) -> str:
         """Return flat text by delegating to the structured path.
@@ -131,66 +231,11 @@ class GLMOCRLoader(BaseOCRLoader):
 
     async def _ocr_image_structured(self, image: Image) -> OCRResult:
         """OCR a single image using GLM-OCR, returning structured output."""
-        return await self._call(image)
+        return await self._strategy.ocr_image(image)
 
     async def _ocr_pdf_structured(self, pdf_bytes: bytes) -> OCRResult:
         """Send raw PDF bytes to GLM-OCR and return structured output."""
-        return await self._call_pdf(pdf_bytes)
-
-    async def _call_cloud(self, image: Image) -> OCRResult:
-        """Send a PIL image to the Zhipu cloud API via the glmocr SDK.
-
-        Encodes the image as PNG bytes in the calling thread, then offloads
-        the blocking network call to a worker thread.
-        """
-        buf = io.BytesIO()
-        await asyncio.to_thread(image.save, buf, format="PNG")
-        image_bytes = buf.getvalue()
-        raw: dict = await asyncio.to_thread(glmocr.ocr, image_bytes)
-        return _parse_glmocr_response(raw)
-
-    async def _call_local(self, image: Image) -> OCRResult:
-        """POST a PIL image to a local vLLM/Ollama endpoint.
-
-        Sends the image as a base64-encoded PNG in a JSON body and reads the
-        response with ``httpx.AsyncClient`` so the event loop is not blocked.
-        """
-        import httpx
-
-        buf = io.BytesIO()
-        await asyncio.to_thread(image.save, buf, format="PNG")
-        b64 = base64.b64encode(buf.getvalue()).decode()
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self._endpoint,  # type: ignore[arg-type]  # non-None guaranteed by __init__
-                json={"image": b64, "format": "markdown"},
-                timeout=60.0,
-            )
-            response.raise_for_status()
-            raw: dict = response.json()
-
-        return _parse_glmocr_response(raw)
-
-    async def _call_cloud_pdf(self, pdf_bytes: bytes) -> OCRResult:
-        """Send PDF bytes to the Zhipu cloud API via the glmocr SDK."""
-        raw: dict = await asyncio.to_thread(glmocr.ocr, pdf_bytes, format="pdf")
-        return _parse_glmocr_response(raw)
-
-    async def _call_local_pdf(self, pdf_bytes: bytes) -> OCRResult:
-        """POST PDF bytes (base64-encoded) to the local endpoint."""
-        import httpx
-
-        b64 = base64.b64encode(pdf_bytes).decode()
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self._endpoint,  # type: ignore[arg-type]  # non-None guaranteed by __init__
-                json={"pdf": b64, "format": "pdf"},
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            raw: dict = response.json()
-        return _parse_glmocr_response(raw)
+        return await self._strategy.ocr_pdf(pdf_bytes)
 
     async def _stream_image(self, path: Path) -> AsyncGenerator[Document, None]:
         """Yield a single Document from one image file."""
