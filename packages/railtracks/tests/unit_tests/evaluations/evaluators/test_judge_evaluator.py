@@ -7,7 +7,12 @@ from railtracks.evaluations.evaluators.judge_evaluator import (
     JudgeEvaluator,
     JudgeResponseSchema,
 )
-from railtracks.evaluations.evaluators.metrics import Categorical, Metric, Numerical
+from railtracks.evaluations.evaluators.metrics import (
+    Categorical,
+    Category,
+    Metric,
+    Numerical,
+)
 from railtracks.evaluations.result import AggregateForest, MetricResult
 
 from .conftest import make_agent_data_point
@@ -121,6 +126,35 @@ def test_generate_system_prompt_without_reasoning():
         j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS], reasoning=False)
     prompt = j._generate_system_prompt(HELPFULNESS)
     assert "reasoning" not in prompt.lower()
+
+
+def test_generate_system_prompt_lists_category_names_with_string_input(judge):
+    """HELPFULNESS is built from plain strings; the prompt must still name them."""
+    prompt = judge._generate_system_prompt(HELPFULNESS)
+    assert "good" in prompt
+    assert "bad" in prompt
+    assert "metric_value must be exactly one of these category names" in prompt
+
+
+def test_generate_system_prompt_lists_category_names_with_category_object_input():
+    """Same check, but the metric is built from Category objects instead of strings."""
+    llm = make_mock_llm()
+    metric = Categorical(
+        name="Helpfulness",
+        categories=[Category(name="good", label="pass"), Category(name="bad", label="fail")],
+    )
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "good" in prompt
+    assert "bad" in prompt
+    assert "metric_value must be exactly one of these category names" in prompt
+    # the internal pass/fail label must not leak into the instruction line
+    instruction_line = next(
+        line for line in prompt.splitlines() if "metric_value must be" in line
+    )
+    assert "pass" not in instruction_line
+    assert "fail" not in instruction_line
 
 
 # ── _aggregate_metrics ────────────────────────────────────────────────────────

@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field, model_serializer
 
-from ..evaluators.metrics import Category, Categorical, Numerical
+from ..evaluators.metrics import Categorical, Category, Numerical
 from .metric_results import LLMMetricResult, MetricResult, ToolMetricResult
 
 TMetric = TypeVar("TMetric", Numerical, Categorical)

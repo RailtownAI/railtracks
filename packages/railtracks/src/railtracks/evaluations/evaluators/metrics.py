@@ -9,7 +9,9 @@ def _json_default(value):
     """Fallback serializer for identifier hashing (e.g. Category instances)."""
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json")
-    raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
+    raise TypeError(
+        f"Object of type {value.__class__.__name__} is not JSON serializable"
+    )
 
 
 class Metric(BaseModel):
@@ -56,6 +58,7 @@ class Metric(BaseModel):
         fields_str = ", ".join(f"{k}={repr(v)}" for k, v in fields.items())
         return f"{self.__class__.__name__}({fields_str})"
 
+
 class Category(BaseModel):
     name: str
     label: Literal["pass", "fail", "partial"] | None = None
@@ -74,19 +77,26 @@ class Category(BaseModel):
     def __str__(self) -> str:
         return self.name
 
+
 def _to_category(category: str | Category) -> Category:
     if isinstance(category, str):
         return Category(name=category)
     return category
 
+
 CategoryLike = Annotated[
-    Category,
+    Category | str,
     BeforeValidator(_to_category, json_schema_input_type=str | Category),
 ]
+
 
 class Categorical(Metric):
     metric_type: Literal["Categorical"] = "Categorical"  # type: ignore[assignment]
     categories: list[CategoryLike]
+
+    @property
+    def category_names(self) -> list[str]:
+        return [str(c) for c in self.categories]
 
 
 T = TypeVar("T", int, float)

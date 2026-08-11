@@ -202,7 +202,7 @@ class JudgeEvaluator(Evaluator):
         system_prompt += "\n" + self._template["metric"].format(metric=str(metric))
 
         if isinstance(metric, Categorical):
-            category_names = ", ".join(repr(c.name) for c in metric.categories)
+            category_names = ", ".join(c for c in metric.category_names)
             system_prompt += (
                 f"\nYour metric_value must be exactly one of these category "
                 f"names: {category_names}."
