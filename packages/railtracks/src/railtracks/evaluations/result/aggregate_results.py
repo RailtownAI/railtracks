@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field, model_serializer
 
-from ..evaluators.metrics import Categorical, Numerical
+from ..evaluators.metrics import Category, Categorical, Numerical
 from .metric_results import LLMMetricResult, MetricResult, ToolMetricResult
 
 TMetric = TypeVar("TMetric", Numerical, Categorical)
@@ -193,7 +193,7 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
 
     @computed_field
     @property
-    def categories(self) -> list[str]:
+    def categories(self) -> list[Category]:
         """Unique categories from all labels (including from children)."""
         return list(self.metric.categories)
 
@@ -212,13 +212,13 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
     @property
     def most_common_label(self) -> str | None:
         """Most common label across all data (including from children)."""
-        return self.counts.most_common(1)[0][0]
+        return self.counts.most_common(1)[0][0].name
 
     @computed_field
     @property
     def least_common_label(self) -> str | None:
         """Least common label across all data (including from children)."""
-        return self.counts.most_common()[-1][0]
+        return self.counts.most_common()[-1][0].name
 
     def _get_all_labels(self) -> list[str]:
         """Recursively collect all labels from this node and descendants."""

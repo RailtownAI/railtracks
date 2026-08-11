@@ -2,7 +2,14 @@ import hashlib
 import json
 from typing import Annotated, Generic, Literal, TypeVar, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
+
+
+def _json_default(value):
+    """Fallback serializer for identifier hashing (e.g. Category instances)."""
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="json")
+    raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
 
 
 class Metric(BaseModel):
@@ -27,7 +34,7 @@ class Metric(BaseModel):
             if isinstance(value, type):
                 config[key] = value.__name__
 
-        config_str = json.dumps(config, sort_keys=True)
+        config_str = json.dumps(config, sort_keys=True, default=_json_default)
         identifier = hashlib.sha256(config_str.encode()).hexdigest()
 
         values["identifier"] = identifier
@@ -49,10 +56,37 @@ class Metric(BaseModel):
         fields_str = ", ".join(f"{k}={repr(v)}" for k, v in fields.items())
         return f"{self.__class__.__name__}({fields_str})"
 
+class Category(BaseModel):
+    name: str
+    label: Literal["pass", "fail", "partial"] | None = None
+    model_config = ConfigDict(frozen=True)
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.name == other
+        if isinstance(other, Category):
+            return self.name == other.name
+        return NotImplemented
+
+    def __str__(self) -> str:
+        return self.name
+
+def _to_category(category: str | Category) -> Category:
+    if isinstance(category, str):
+        return Category(name=category)
+    return category
+
+CategoryLike = Annotated[
+    Category,
+    BeforeValidator(_to_category, json_schema_input_type=str | Category),
+]
 
 class Categorical(Metric):
     metric_type: Literal["Categorical"] = "Categorical"  # type: ignore[assignment]
-    categories: list[str]
+    categories: list[CategoryLike]
 
 
 T = TypeVar("T", int, float)

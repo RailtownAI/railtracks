@@ -73,7 +73,7 @@ class JudgeEvaluator(Evaluator):
     def run(
         self, data: list[AgentDataPoint]
     ) -> EvaluatorResult[Metric, MetricResult, CategoricalAggregateNode]:
-        # (metric_id, adp_id, JudgeResponseSchema)
+        # (metric_id, adp_id, JudgeResponseSchema) <- use a named tuple then (Logan)
         judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = self._invoke(data)
 
         self.agent_data_ids = {adp.identifier for adp in data}
@@ -200,6 +200,13 @@ class JudgeEvaluator(Evaluator):
         system_prompt: str = self._template["system_prompt"]
 
         system_prompt += "\n" + self._template["metric"].format(metric=str(metric))
+
+        if isinstance(metric, Categorical):
+            category_names = ", ".join(repr(c.name) for c in metric.categories)
+            system_prompt += (
+                f"\nYour metric_value must be exactly one of these category "
+                f"names: {category_names}."
+            )
 
         if self._reasoning:
             system_prompt += self._template["reasoning"]
