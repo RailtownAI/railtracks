@@ -83,7 +83,7 @@ class NodeBuilder(Generic[_P, _T]):
 
         self._tool_info: Callable[[], Tool] | None = None
         self._prepare_arguments: Callable[..., dict[str, Any]] | None = None
-        self._tool_nodes: list[Type[Node]] = []
+        self._tool_nodes: list[Type[Node]] | None = None
 
         self._user_middleware: list[Middleware[_P, _T]] = []
         self._exterior_middleware: list[Middleware[_P, _T]] = []
@@ -125,8 +125,11 @@ class NodeBuilder(Generic[_P, _T]):
         )
 
     def _construct_tool_nodes(self):
-        # Fresh list per call so callers cannot mutate the builder's list.
-        return classmethod_preserving_function_meta(lambda: list(self._tool_nodes))
+        # Fresh list per call so callers cannot mutate the builder's list. The builder may
+        # hold None internally (no tools connected); tool_nodes() always returns [], never None.
+        return classmethod_preserving_function_meta(
+            lambda: list(self._tool_nodes or [])
+        )
 
     def _construct_tool_info(self):
         if self._tool_info is None:

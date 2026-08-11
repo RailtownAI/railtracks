@@ -9,7 +9,6 @@ from railtracks.built_nodes.function.node import (
     _partial_with_resolved_metadata,
     function_node,
 )
-from railtracks.exceptions import NodeCreationError
 
 
 @pytest.mark.asyncio
@@ -284,6 +283,6 @@ def test_get_node_from_name_raises_on_ambiguous_name():
 
     # Agent creation rejects this list up front; this is the defensive backstop for
     # tool lists assembled by other means.
-    with pytest.raises(RuntimeError, match="power"):
+    with pytest.raises(AssertionError, match="power"):
         get_node_from_name("power", [sq.node_type, cb.node_type])
 

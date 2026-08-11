@@ -174,11 +174,9 @@ def get_node_from_name(tool_name: str, tool_nodes: list[type[Node]]) -> type[Nod
         raise RuntimeError(
             f"LLM called tool '{tool_name}' which was not found in the provided tool nodes {[x.tool_info().name for x in tool_nodes]}",
         )
-    # This is a cirtical issue that breaks all tools, Agent should not allow this, a hard Error
-    if len(candidate_list) > 1:
-        raise RuntimeError(
-            f"Multiple tool nodes found with name '{tool_name}'. Please ensure all tool nodes have unique names. Offending nodes: {candidate_list}"
-        )
+    assert len(candidate_list) == 1, (
+        f"Multiple tool nodes found with name '{tool_name}'. This should not happen, please ensure all tool nodes have unique names. Offending nodes: {candidate_list}"
+    )
 
     return candidate_list[0]
 
