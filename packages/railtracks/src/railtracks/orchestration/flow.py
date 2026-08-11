@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
-from railtracks._session import Session
 from railtracks.built_nodes.function.base import RTFunction
-from railtracks.interaction._call import call
 
 from ..nodes.nodes import Node
+from .connection import FlowConnection
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -73,31 +71,26 @@ class Flow(Generic[_P, _TOutput]):
         new_obj._context.update(context)
         return new_obj
 
-    async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-        with Session(
-            context=deepcopy(self._context),
-            flow_name=self.name,
-            flow_id=self.equality_hash(),
-            name=None,
-            timeout=self._timeout,
-            end_on_error=self._end_on_error,
-            broadcast_callback=self._broadcast_callback,
-            prompt_injection=self._prompt_injection,
-            save_state=self._save_state,
-            payload_callback=self._payload_callback,
-        ):
-            result = await call(self.entry_point, *args, **kwargs)
+    def connect(self) -> FlowConnection[_P, _TOutput]:
+        """
+        Opens a connection to this flow.
 
-        return result
+        A `FlowConnection` invokes the flow exactly as `invoke`/`ainvoke` do, and
+        additionally keeps the run's context reachable.
+
+            conn = flow.connect()
+            result = await conn.ainvoke("text") # not flow.ainvoke if context is desired
+
+        Returns:
+            FlowConnection: A connection to current flow.
+        """
+        return FlowConnection(self)
+
+    async def ainvoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
+        return await self.connect().ainvoke(*args, **kwargs)
 
     def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
-        try:
-            return asyncio.run(self.ainvoke(*args, **kwargs))
-
-        except RuntimeError:
-            raise RuntimeError(
-                "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
-            )
+        return self.connect().invoke(*args, **kwargs)
 
     def equality_hash(self) -> str:
         """

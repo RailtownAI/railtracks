@@ -119,7 +119,8 @@ class Session:
 
         self.coordinator.start(self.publisher)
         self._setup_subscriber()
-        register_globals(
+        # held so the context survives `delete_globals()` on close
+        self.context = register_globals(
             session_id=self._identifier,
             rt_publisher=self.publisher,
             parent_id=None,
@@ -262,6 +263,11 @@ class Session:
 
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
+
+    @property
+    def identifier(self) -> str:
+        """The unique identifier assigned to this session."""
+        return self._identifier
 
     @property
     def info(self) -> ExecutionInfo:
