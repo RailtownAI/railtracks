@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -9,13 +9,19 @@ import pytest
 # _stream_image reach PIL.Image.open via patch; the target must resolve.
 pytest.importorskip("PIL")
 
-# Stub glmocr before the loader module is imported — the module-level
-# `import glmocr` re-raises ImportError if the package is missing, which
-# would prevent collection. The real SDK is not required for unit tests.
+# Stub optional [glm] dependencies before the loader module is imported —
+# both are imported at module level in glm_ocr_loader.py and will re-raise
+# ImportError if absent, which would prevent collection.
 if "glmocr" not in sys.modules:
     sys.modules["glmocr"] = MagicMock()
+if "httpx" not in sys.modules:
+    sys.modules["httpx"] = MagicMock()
 
-from railtracks.retrieval.loaders.glm_ocr_loader import GLMOCRLoader  # noqa: E402
+from railtracks.retrieval.loaders.glm_ocr_loader import (  # noqa: E402
+    CloudOCRStrategy,
+    GLMOCRLoader,
+    LocalOCRStrategy,
+)
 from railtracks.retrieval.models import OCRResult  # noqa: E402
 
 _FAKE_RESPONSE = {
@@ -49,15 +55,19 @@ class TestGLMOCRLoaderInit:
                 breakdown_strategy="chapter",  # type: ignore[arg-type]
             )
 
-    def test_strategy_cloud_inferred_when_no_endpoint(self):
+    def test_cloud_strategy_selected_when_no_endpoint(self):
         loader = GLMOCRLoader(file_path="test.png")
-        assert loader._call == loader._call_cloud
-        assert loader._call_pdf == loader._call_cloud_pdf
+        assert isinstance(loader.strategy, CloudOCRStrategy)
 
-    def test_strategy_local_inferred_when_endpoint_provided(self):
+    def test_local_strategy_selected_when_endpoint_provided(self):
         loader = GLMOCRLoader(file_path="test.png", endpoint="http://localhost:8080")
-        assert loader._call == loader._call_local
-        assert loader._call_pdf == loader._call_local_pdf
+        assert isinstance(loader.strategy, LocalOCRStrategy)
+
+    def test_strategy_can_be_swapped_at_runtime(self):
+        loader = GLMOCRLoader(file_path="test.png")
+        assert isinstance(loader.strategy, CloudOCRStrategy)
+        loader.strategy = LocalOCRStrategy("http://localhost:8080")
+        assert isinstance(loader.strategy, LocalOCRStrategy)
 
     def test_pdf_detected_from_extension(self):
         assert GLMOCRLoader(file_path="doc.pdf")._is_pdf is True
@@ -82,6 +92,48 @@ class TestGLMOCRLoaderErrors:
         loader = GLMOCRLoader(str(f))
         with pytest.raises(ValueError, match="GLMOCRLoader expects an image or PDF file"):
             await loader.aload()
+
+
+class TestGLMOCRLoaderOCRDelegation:
+    """Tests that OCR methods delegate correctly through the active strategy."""
+
+    async def test_ocr_image_returns_str(self):
+        """_ocr_image() must return a plain str (satisfies the abstract contract)."""
+        loader = GLMOCRLoader(file_path="test.png")
+        mock_result = OCRResult(markdown="# Hello\n\nWorld", bboxes=[], tables=[])
+        with patch.object(
+            loader.strategy, "ocr_image", new=AsyncMock(return_value=mock_result)
+        ):
+            result = await loader._ocr_image(_make_image())
+        assert isinstance(result, str)
+
+    async def test_ocr_image_structured_returns_ocr_result(self):
+        """_ocr_image_structured() must return an OCRResult with all fields populated."""
+        loader = GLMOCRLoader(file_path="test.png")
+        mock_result = OCRResult(
+            markdown=_FAKE_RESPONSE["markdown"],
+            bboxes=_FAKE_RESPONSE["bboxes"],
+            tables=_FAKE_RESPONSE["tables"],
+        )
+        with patch.object(
+            loader.strategy, "ocr_image", new=AsyncMock(return_value=mock_result)
+        ):
+            result = await loader._ocr_image_structured(_make_image())
+        assert isinstance(result, OCRResult)
+        assert result.markdown == _FAKE_RESPONSE["markdown"]
+        assert result.bboxes == _FAKE_RESPONSE["bboxes"]
+        assert result.tables == _FAKE_RESPONSE["tables"]
+
+    async def test_ocr_image_flattens_structured_output(self):
+        """_ocr_image() must return the same text as _ocr_image_structured().to_text()."""
+        loader = GLMOCRLoader(file_path="test.png")
+        mock_result = OCRResult(markdown="# Hello\n\nWorld", bboxes=[], tables=[])
+        with patch.object(
+            loader.strategy, "ocr_image", new=AsyncMock(return_value=mock_result)
+        ):
+            text = await loader._ocr_image(_make_image())
+            structured = await loader._ocr_image_structured(_make_image())
+        assert text == structured.to_text()
 
 
 class TestGLMOCRLoaderPageStrategy:
