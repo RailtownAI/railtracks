@@ -117,11 +117,15 @@ class OCRResult:
             schema across engines.
         tables: Structured table data extracted from the page. Each entry
             is an engine-specific dict representing one table.
+        json_result: Raw structured layout data from the engine, if available.
+            Schema is engine-specific; ``None`` when the engine does not
+            return structured layout data.
     """
 
     markdown: str
     bboxes: list[dict[str, Any]] = field(default_factory=list)
     tables: list[dict[str, Any]] = field(default_factory=list)
+    json_result: dict[str, Any] | list[Any] | None = None
 
     def to_text(self) -> str:
         return self.markdown

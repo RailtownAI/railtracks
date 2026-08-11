@@ -1,28 +1,22 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import io
+import tempfile
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import Any, Literal
 
 from railtracks.retrieval.loaders.base_ocr import BaseOCRLoader
 from railtracks.retrieval.models import Document, DocumentType, OCRResult
 
 try:
     import glmocr
-    import httpx
-    from PIL import Image as PILImage
 except ImportError as exc:
     raise ImportError(
-        "glmocr, httpx, and pillow are required for GLMOCRLoader. "
-        'Install them with: pip install "railtracks[glm]".'
+        "glmocr is required for GLMOCRLoader. "
+        'Install it with: pip install "railtracks[glm]".'
     ) from exc
-
-if TYPE_CHECKING:
-    from PIL.Image import Image
 
 
 BreakdownStrategy = Literal["page", "document"]
@@ -30,117 +24,72 @@ BreakdownStrategy = Literal["page", "document"]
 _SUPPORTED_IMAGE_SUFFIXES = frozenset(
     {".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"}
 )
-
 _SUPPORTED_SUFFIXES = _SUPPORTED_IMAGE_SUFFIXES | frozenset({".pdf"})
 
 
-def _parse_glmocr_response(raw: dict) -> OCRResult:
+def _parse_glmocr_response(result: Any) -> OCRResult:
+    data = result.to_dict()
     return OCRResult(
-        markdown=raw.get("markdown", ""),
-        bboxes=raw.get("bboxes", []),
-        tables=raw.get("tables", []),
+        markdown=result.markdown_result or "",
+        bboxes=[],
+        tables=[],
+        json_result=data.get("json_result"),
     )
 
 
 class GLMOCRStrategy(ABC):
-    """Abstract interface for GLM-OCR execution strategies.
-
-    Concrete subclasses implement cloud and local execution modes.
-    The :class:`GLMOCRLoader` context selects one at construction time
-    based on whether an ``endpoint`` URL is provided.
-    """
+    """Abstract interface for GLM-OCR execution strategies."""
 
     @abstractmethod
-    async def ocr_image(self, image: Image) -> OCRResult:
-        """OCR a single PIL image, returning structured output."""
-        ...
+    async def ocr_image(self, path: Path) -> OCRResult: ...
 
     @abstractmethod
-    async def ocr_pdf(self, pdf_bytes: bytes) -> OCRResult:
-        """OCR a PDF from raw bytes, returning structured output."""
-        ...
+    async def ocr_pdf(self, path: Path) -> OCRResult: ...
 
 
 class CloudOCRStrategy(GLMOCRStrategy):
-    """Delegates OCR calls to the Zhipu cloud API via the glmocr SDK.
+    """Delegates OCR to the Zhipu cloud API via glmocr.parse(mode='maas')."""
 
-    Blocking SDK calls are offloaded to a thread pool via
-    :func:`asyncio.to_thread`. Requires an API key configured in the
-    environment per the glmocr SDK docs.
-    """
+    async def ocr_image(self, path: Path) -> OCRResult:
+        result = await asyncio.to_thread(glmocr.parse, path, mode="maas")
+        return _parse_glmocr_response(result)
 
-    async def ocr_image(self, image: Image) -> OCRResult:
-        """Send a PIL image to the cloud API, encoded as PNG bytes."""
-        buf = io.BytesIO()
-        await asyncio.to_thread(image.save, buf, format="PNG")
-        image_bytes = buf.getvalue()
-        raw: dict = await asyncio.to_thread(glmocr.ocr, image_bytes)
-        return _parse_glmocr_response(raw)
-
-    async def ocr_pdf(self, pdf_bytes: bytes) -> OCRResult:
-        """Send PDF bytes to the cloud API."""
-        raw: dict = await asyncio.to_thread(glmocr.ocr, pdf_bytes, format="pdf")
-        return _parse_glmocr_response(raw)
+    async def ocr_pdf(self, path: Path) -> OCRResult:
+        result = await asyncio.to_thread(glmocr.parse, path, mode="maas")
+        return _parse_glmocr_response(result)
 
 
 class LocalOCRStrategy(GLMOCRStrategy):
-    """POSTs OCR requests to a self-hosted vLLM/Ollama endpoint.
-
-    Uses :class:`httpx.AsyncClient` so the event loop is not blocked.
-    The endpoint must accept JSON bodies and return the same schema as
-    the cloud API.
-
-    Args:
-        endpoint: Base URL of the self-hosted OCR server. Validated as
-            non-empty by :class:`GLMOCRLoader` before this object is
-            constructed.
-    """
+    """Routes OCR to a self-hosted vLLM/SGLang/Ollama endpoint via the SDK."""
 
     def __init__(self, endpoint: str) -> None:
         self._endpoint = endpoint
 
-    async def ocr_image(self, image: Image) -> OCRResult:
-        """POST a PIL image (base64-encoded PNG) to the local endpoint."""
-        buf = io.BytesIO()
-        await asyncio.to_thread(image.save, buf, format="PNG")
-        b64 = base64.b64encode(buf.getvalue()).decode()
+    async def ocr_image(self, path: Path) -> OCRResult:
+        result = await asyncio.to_thread(
+            glmocr.parse, path, mode="selfhosted", api_url=self._endpoint
+        )
+        return _parse_glmocr_response(result)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self._endpoint,
-                json={"image": b64, "format": "markdown"},
-                timeout=60.0,
-            )
-            response.raise_for_status()
-            raw: dict = response.json()
-
-        return _parse_glmocr_response(raw)
-
-    async def ocr_pdf(self, pdf_bytes: bytes) -> OCRResult:
-        """POST PDF bytes (base64-encoded) to the local endpoint."""
-        b64 = base64.b64encode(pdf_bytes).decode()
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self._endpoint,
-                json={"pdf": b64, "format": "pdf"},
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            raw: dict = response.json()
-        return _parse_glmocr_response(raw)
+    async def ocr_pdf(self, path: Path) -> OCRResult:
+        result = await asyncio.to_thread(
+            glmocr.parse, path, mode="selfhosted", api_url=self._endpoint
+        )
+        return _parse_glmocr_response(result)
 
 
 class GLMOCRLoader(BaseOCRLoader):
     """Loads image and PDF files as ``Document`` objects using GLM-OCR.
 
     Acts as the Strategy *context*: selects a :class:`GLMOCRStrategy`
-    at construction time based on ``endpoint`` and delegates all API
+    at construction time based on ``endpoint`` and delegates all SDK
     calls through it.
 
     - ``endpoint=None`` *(default)*: uses :class:`CloudOCRStrategy`
-      (Zhipu cloud API via the ``glmocr`` SDK).
+      (Zhipu cloud API, ``mode='maas'``).
     - ``endpoint="https://…"`` (non-empty URL): uses
-      :class:`LocalOCRStrategy` (self-hosted vLLM/Ollama server).
+      :class:`LocalOCRStrategy` (self-hosted vLLM/SGLang/Ollama,
+      ``mode='selfhosted'``).
 
     The active strategy can be swapped at runtime via the
     :attr:`strategy` property setter.
@@ -148,33 +97,23 @@ class GLMOCRLoader(BaseOCRLoader):
     Handles both file types:
 
     - **Image files** (``.bmp``, ``.jpeg``, ``.jpg``, ``.png``, ``.tif``,
-      ``.tiff``, ``.webp``): opened with PIL and sent as base64-encoded PNG.
-      The delegation between ``_ocr_image`` and ``_ocr_image_structured`` is
-      *inverted* from the base-class default: ``_ocr_image_structured`` is the
-      real implementation and ``_ocr_image`` derives flat text from it via
-      ``to_text()``.
-    - **PDF files** (``.pdf``): read as raw bytes and sent to GLM-OCR's native
-      PDF endpoint. This avoids rasterization and preserves layout-aware output
-      (headings, tables, column order) in a single round-trip.
+      ``.tiff``, ``.webp``): passed directly to ``glmocr.parse()`` by path.
+    - **PDF files** (``.pdf``): passed directly to ``glmocr.parse()`` by path.
+      Format is auto-detected by the SDK from file bytes.
 
     Breakdown strategies:
 
-    - ``page`` *(default)*: one ``Document`` per file. ``metadata`` includes
-      ``file_type``, ``bboxes``, and ``tables``.
-    - ``document``: all files in a directory are concatenated into one
-      ``Document`` with pages joined by ``\\n\\n``. ``metadata`` aggregates
-      ``bboxes`` and ``tables`` from every file.
+    - ``page`` *(default)*: one ``Document`` per file.
+    - ``document``: all files in a directory concatenated into one
+      ``Document`` with pages joined by ``\\n\\n``.
 
     Requires:
         ``pip install "railtracks[glm]"``
 
     Args:
         file_path: Path to an image or PDF file, or a directory of such files.
-            Supported extensions: ``.bmp``, ``.jpeg``, ``.jpg``, ``.pdf``,
-            ``.png``, ``.tif``, ``.tiff``, ``.webp``.
-        endpoint: Base URL of a self-hosted vLLM/Ollama OCR server. Pass
-            ``None`` (default) to use the Zhipu cloud API via the ``glmocr``
-            SDK; pass a non-empty URL string to use a local endpoint instead.
+        endpoint: Full URL of a self-hosted OCR server, or ``None`` to use
+            the Zhipu cloud API.
         breakdown_strategy: How to aggregate results across files in a
             directory. Defaults to ``"page"``.
 
@@ -218,29 +157,34 @@ class GLMOCRLoader(BaseOCRLoader):
     def strategy(self, strategy: GLMOCRStrategy) -> None:
         self._strategy = strategy
 
-    async def _ocr_image(self, image: Image) -> str:
-        """Return flat text by delegating to the structured path.
-
-        Inverts the base-class default: ``_ocr_image_structured`` is the real
-        implementation here; this method exists only to satisfy the abstract
-        contract and preserve backward compatibility with callers that expect
-        a plain ``str``.
-        """
+    async def _ocr_image(self, image: Any) -> str:
+        """Return flat text from a PIL Image (satisfies BaseOCRLoader contract)."""
         result = await self._ocr_image_structured(image)
         return result.to_text()
 
-    async def _ocr_image_structured(self, image: Image) -> OCRResult:
-        """OCR a single image using GLM-OCR, returning structured output."""
-        return await self._strategy.ocr_image(image)
+    async def _ocr_image_structured(self, image: Any) -> OCRResult:
+        """OCR a PIL Image by writing it to a temp file and passing the path."""
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        await asyncio.to_thread(image.save, tmp_path, format="PNG")
+        try:
+            return await self._strategy.ocr_image(tmp_path)
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
     async def _ocr_pdf_structured(self, pdf_bytes: bytes) -> OCRResult:
-        """Send raw PDF bytes to GLM-OCR and return structured output."""
-        return await self._strategy.ocr_pdf(pdf_bytes)
+        """OCR PDF bytes by writing them to a temp file and passing the path."""
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = Path(tmp.name)
+        try:
+            return await self._strategy.ocr_pdf(tmp_path)
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
     async def _stream_image(self, path: Path) -> AsyncGenerator[Document, None]:
         """Yield a single Document from one image file."""
-        image = await asyncio.to_thread(PILImage.open, path)
-        result = await self._ocr_image_structured(image)
+        result = await self._strategy.ocr_image(path)
         if not result.markdown or not result.markdown.strip():
             return
         yield Document(
@@ -255,9 +199,8 @@ class GLMOCRLoader(BaseOCRLoader):
         )
 
     async def _stream_pdf(self, path: Path) -> AsyncGenerator[Document, None]:
-        """Yield a Document from one PDF file by passing its bytes to GLM-OCR."""
-        pdf_bytes = await asyncio.to_thread(path.read_bytes)
-        result = await self._ocr_pdf_structured(pdf_bytes)
+        """Yield a Document from one PDF file."""
+        result = await self._strategy.ocr_pdf(path)
         if not result.markdown or not result.markdown.strip():
             return
         yield Document(
@@ -281,10 +224,7 @@ class GLMOCRLoader(BaseOCRLoader):
                 yield doc
 
     async def _stream_dir(self) -> AsyncGenerator[Document, None]:
-        """Stream Documents from a directory of image and PDF files.
-
-        Handles both breakdown strategies so ``astream()`` stays simple.
-        """
+        """Stream Documents from a directory of image and PDF files."""
         paths = sorted(
             p
             for p in self._path.rglob("*")
@@ -313,10 +253,6 @@ class GLMOCRLoader(BaseOCRLoader):
 
     async def astream(self) -> AsyncGenerator[Document, None]:
         """Stream Documents from image and PDF files using GLM-OCR.
-
-        For the ``page`` strategy, yields one ``Document`` per non-empty file
-        as soon as it is processed. For the ``document`` strategy, yields one
-        ``Document`` per directory after all files are collected.
 
         If initialised with a directory, iterates all supported image and PDF
         files in sorted order (recursively).
