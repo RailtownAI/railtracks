@@ -14,6 +14,7 @@ from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
     _check_duplicate_param_names,
+    _check_duplicate_tool_names,
     _check_tool_params_and_details,
 )
 
@@ -94,10 +95,20 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
             list(deepcopy(middleware)) if middleware is not None else []
         )
 
+        tool_nodes = list(deepcopy(connected_nodes)) if connected_nodes else None
+        _check_duplicate_tool_names(tool_nodes)
+
+        # Kept on the builder so the built class can expose it via tool_nodes(). This is a
+        # frozen snapshot taken at construction time -- there is currently no supported way
+        # to add/remove tools on an already-built agent. If dynamic tool mutation is added
+        # later, it will need its own synchronization; don't assume this attribute is safe to
+        # write to concurrently.
+        casted_instance._tool_nodes = tool_nodes
+
         casted_instance._invoke = llm_invoke_factory(
             model_source=model,
             system_message=system_message,
-            tool_nodes=list(connected_nodes) if connected_nodes else None,
+            tool_nodes=tool_nodes,
             schema=schema,
         )
 
