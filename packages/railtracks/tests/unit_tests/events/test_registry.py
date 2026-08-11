@@ -63,7 +63,13 @@ class TestPayloadColumnsLLM:
         cols = payload_columns("llm")
         assert _kind(cols, "message_input") == ColumnKind.JSON
         assert _kind(cols, "output") == ColumnKind.JSON
-        assert _kind(cols, "model_provider") == ColumnKind.JSON
+
+    def test_model_provider_enum_covers_every_value(self):
+        from railtracks.llm.providers import ModelProvider
+
+        spec = payload_columns("llm")["model_provider"]
+        assert spec.kind == ColumnKind.ENUM
+        assert set(spec.enum_members or ()) == {m.value for m in ModelProvider}
 
     def test_failure_mixin_fields_present(self):
         cols = payload_columns("llm")

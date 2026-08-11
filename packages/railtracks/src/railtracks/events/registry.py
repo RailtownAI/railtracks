@@ -19,6 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from railtracks.llm.providers import ModelProvider
+
 from ._base import ParentType, SpatialType
 
 
@@ -84,7 +86,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
     "llm": {
         **_PARENT_EVENT,
         "llm_id": STRING,
-        "model_provider": JSON,
+        "model_provider": _enum(*(m.value for m in ModelProvider)),
         "model_name": STRING,
         "message_input": JSON,
         "output": JSON,

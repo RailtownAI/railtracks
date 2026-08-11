@@ -147,7 +147,9 @@ def _project_payload_key(key: str, duckdb_type: str) -> str:
 
     - ``VARCHAR`` uses ``payload->>'key'`` so the raw text comes back without JSON quotes.
     - ``JSON`` uses ``payload->'key'`` — keeps the native JSON so nested access works.
-    - ``ENUM(...)`` casts ``payload->>'key'`` (unquoted text) into the enum; casting
+    - ``ENUM(...)`` uses ``TRY_CAST`` on ``payload->>'key'`` (unquoted text) — a value
+      outside the enum members returns ``NULL`` instead of raising, so one stale row
+      (schema evolution, older session file) doesn't take down ``SELECT *``. Casting
       from JSON keeps the surrounding quotes and would break the enum lookup.
     - Everything else casts ``payload->'key'`` (native JSON) to the target duckdb type.
     """
@@ -156,7 +158,7 @@ def _project_payload_key(key: str, duckdb_type: str) -> str:
     if duckdb_type == "JSON":
         return f"payload->{_sql_string(key)} AS {_sql_identifier(key)}"
     if duckdb_type.startswith("ENUM("):
-        return f"CAST(payload->>{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
+        return f"TRY_CAST(payload->>{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
     return (
         f"CAST(payload->{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
     )

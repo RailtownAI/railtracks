@@ -162,14 +162,14 @@ class TestTypedColumns:
             assert model_name == "claude-opus-4-7"
 
     def test_json_column_stays_native_json(self, tmp_path: Path):
-        # `model_provider` is JSON in the registry; make sure we get JSON back.
+        # `output` is JSON in the registry; make sure we get JSON back.
         f = tmp_path / "e.jsonl"
-        _write(f, [LLM_CREATION])
+        _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["llm"])) as q:
-            (provider_type,) = q.con.execute(
-                "SELECT typeof(model_provider) FROM llm"
+            (output_type,) = q.con.execute(
+                "SELECT typeof(output) FROM llm"
             ).fetchone()
-            assert provider_type == "JSON"
+            assert output_type == "JSON"
 
 
 class TestEnumColumns:
@@ -192,6 +192,28 @@ class TestEnumColumns:
                 "SELECT spatial_parent_spatial_type FROM llm LIMIT 1"
             ).fetchone()
             assert value == "node"  # enum compares equal to its string value
+
+    def test_unknown_enum_value_becomes_null_not_a_query_error(self, tmp_path: Path):
+        # An older/newer session file with a spatial_type outside the current enum
+        # (renamed, removed, added) must not take down `SELECT *`.
+        stale = {
+            **LLM_RESPONSE,
+            "event_id": "evt_stale",
+            "payload": {
+                **LLM_RESPONSE["payload"],
+                "spatial_parent_spatial_type": "some_future_kind",
+            },
+        }
+        f = tmp_path / "e.jsonl"
+        _write(f, [LLM_RESPONSE, stale])
+        with closing(connect(f, ["llm"])) as q:
+            rows = q.con.execute(
+                "SELECT event_id, spatial_parent_spatial_type FROM llm ORDER BY event_id"
+            ).fetchall()
+            assert rows == [
+                ("evt_llm_1", "node"),
+                ("evt_stale", None),
+            ]
 
 
 class TestFlatSpatialParent:
