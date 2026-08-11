@@ -141,7 +141,7 @@ def test_generate_system_prompt_lists_category_names_with_category_object_input(
     llm = make_mock_llm()
     metric = Categorical(
         name="Helpfulness",
-        categories=[Category(name="good", label="pass"), Category(name="bad", label="fail")],
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
     )
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         j = JudgeEvaluator(llm=llm, metrics=[metric])

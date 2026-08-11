@@ -61,7 +61,7 @@ class Metric(BaseModel):
 
 class Category(BaseModel):
     name: str
-    label: Literal["pass", "fail", "partial"] | None = None
+    status: Literal["pass", "fail", "partial"] | None = None
     model_config = ConfigDict(frozen=True)
 
     def __hash__(self):

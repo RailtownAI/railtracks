@@ -95,23 +95,23 @@ def test_categorical_accepts_category_objects():
     c = Categorical(
         name="quality",
         categories=[
-            Category(name="good", label="pass"),
-            Category(name="bad", label="fail"),
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
         ],
     )
-    assert c.categories == [Category(name="good", label="pass"), Category(name="bad", label="fail")]
-    assert c.categories[0].label == "pass"
-    assert c.categories[1].label == "fail"
+    assert c.categories == [Category(name="good", status="pass"), Category(name="bad", status="fail")]
+    assert c.categories[0].status == "pass"
+    assert c.categories[1].status == "fail"
 
 
 def test_categorical_accepts_mixed_strings_and_categories():
     c = Categorical(
         name="quality",
-        categories=["good", Category(name="bad", label="fail")],
+        categories=["good", Category(name="bad", status="fail")],
     )
     assert c.categories == ["good", "bad"]
-    assert c.categories[0].label is None
-    assert c.categories[1].label == "fail"
+    assert c.categories[0].status is None
+    assert c.categories[1].status == "fail"
 
 
 def test_categorical_string_and_category_inputs_produce_equivalent_categories():
@@ -126,7 +126,7 @@ def test_categorical_string_and_category_inputs_produce_equivalent_categories():
 def test_categorical_identifier_generation_does_not_crash_with_category_objects():
     """Regression test: constructing with raw Category objects used to fail during
     identifier hashing because Category isn't JSON-serializable by default."""
-    c = Categorical(name="quality", categories=[Category(name="good", label="pass")])
+    c = Categorical(name="quality", categories=[Category(name="good", status="pass")])
     assert isinstance(c.identifier, str)
     assert len(c.identifier) == 64
 
@@ -139,7 +139,7 @@ def test_categorical_category_names_with_string_input():
 def test_categorical_category_names_with_category_object_input():
     c = Categorical(
         name="quality",
-        categories=[Category(name="good", label="pass"), Category(name="bad", label="fail")],
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
     )
     assert c.category_names == ["good", "bad"]
 
@@ -157,7 +157,7 @@ def test_category_not_equal_mismatched_string():
 
 
 def test_category_equality_ignores_label():
-    assert Category(name="good", label="pass") == Category(name="good", label="fail")
+    assert Category(name="good", status="pass") == Category(name="good", status="fail")
 
 
 def test_category_hash_matches_name_hash():
@@ -171,7 +171,7 @@ def test_category_usable_as_dict_key_via_string():
 
 
 def test_category_str_returns_name():
-    assert str(Category(name="good", label="pass")) == "good"
+    assert str(Category(name="good", status="pass")) == "good"
 
 
 # ── LLMMetric / ToolMetric ────────────────────────────────────────────────────
