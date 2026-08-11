@@ -20,18 +20,24 @@ from .context.central import (
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
+from .observability.configure import add_inline_listener
+from .observability.node_internals import NodeInternalsCollector
 from .pubsub import RTPublisher, stream_subscriber
 from .state.info import (
     ExecutionInfo,
 )
 from .state.state import RTState
 from .utils.config import ExecutorConfig
+from .utils.json.encoder import RTJSONEncoder
 from .utils.logging.create import get_rt_logger
 
 logger = get_rt_logger(__name__)
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
+
+# Shared across sessions (it keys its state by session id)
+_node_internals = NodeInternalsCollector()
 
 
 class Session:
@@ -124,6 +130,10 @@ class Session:
 
         self.coordinator.start(self.publisher)
         self._setup_subscriber()
+
+        # NOTE: `payload` still reports per-node details.internals
+        add_inline_listener(_node_internals.record)
+
         register_globals(
             session_id=self._identifier,
             rt_publisher=self.publisher,
@@ -133,6 +143,9 @@ class Session:
             flow_id=self.flow_id,
             session_name=self.name,
         )
+
+        # set at exit, so payload() still works once the events have been released
+        self._internals: dict[str, Any] | None = None
 
         self._start_time = time.time()
 
@@ -218,6 +231,10 @@ class Session:
             # TODO: add logging here.
             pass
 
+        # Keep the folded result and release only the buffered events (the collector is shared)
+        self._internals = _node_internals.internals_for(self._identifier)
+        _node_internals.discard(self._identifier)
+
         self._close()
 
     def _setup_subscriber(self):
@@ -287,6 +304,7 @@ class Session:
         info = self.info
 
         run_list = info.graph_serialization()
+        self._attach_node_internals(run_list)
 
         full_dict = {
             "flow_name": self.flow_name,
@@ -298,7 +316,35 @@ class Session:
             "runs": run_list,
         }
 
-        return json.loads(json.dumps(full_dict))
+        return json.loads(json.dumps(full_dict, cls=RTJSONEncoder))
+
+    def _attach_node_internals(self, runs: list[dict[str, Any]]) -> None:
+        """Refill each serialized node's ``details.internals`` from the event stream.
+
+        NOTE: Backward compatibility shim
+        """
+
+        if not isinstance(runs, list):
+            return
+
+        internals = (
+            self._internals
+            if self._internals is not None
+            else _node_internals.internals_for(self._identifier)
+        )
+
+        for run in runs:
+            if not isinstance(run, dict):
+                continue
+            for node in run.get("nodes", []):
+                block = internals.get(node.get("identifier")) or {}
+                node.setdefault("details", {})["internals"] = block
+
+                earlier = {k: v for k, v in block.items() if k != "latency"}
+                snapshot = node.get("parent")
+                while snapshot is not None:
+                    snapshot.setdefault("details", {})["internals"] = earlier
+                    snapshot = snapshot.get("parent")
 
 
 @overload

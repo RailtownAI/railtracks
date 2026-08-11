@@ -18,6 +18,8 @@ from ._base import (
 
 @dataclass(kw_only=True)
 class LLMMessageBase(ParentEventBase[NodeSpatialParent, LLMParent]):
+    """Base for events about a single LLM round trip."""
+
     message_input: MessageHistory
 
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
@@ -45,7 +47,10 @@ class LLMInvocationEvent(LLMMessageBase):
 
 @dataclass(kw_only=True)
 class LLMResponseEvent(LLMMessageBase):
+    """A completed round trip, plus what the provider reported about it."""
+
     output: Message | None
+    reported_model_name: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
     total_cost: float | None = None
