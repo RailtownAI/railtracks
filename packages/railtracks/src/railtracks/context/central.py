@@ -191,9 +191,13 @@ def register_globals(
     parent_id: str | None,
     executor_config: ExecutorConfig,
     global_context_vars: dict[str, Any],
-):
+) -> MutableExternalContext:
     """
     Register the global variables for the current thread.
+
+    Returns:
+        MutableExternalContext: the live context object backing this run, used if context needs to outlive
+        session context (`delete_globals()`).
     """
     i_c = InternalContext(
         publisher=rt_publisher,
@@ -209,6 +213,8 @@ def register_globals(
     )
 
     runner_context.set(runner_context_vars)
+
+    return e_c
 
 
 async def activate_publisher():

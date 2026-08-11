@@ -14,6 +14,7 @@ from railtracks.guardrails.core import (
     OutputGuard,
 )
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
+from railtracks.middleware.core import Middleware
 
 
 class FnInputGuard(InputGuard):
@@ -236,3 +237,77 @@ def test_run_output_transform(sample_history):
     assert blocked is None
     assert value == new_message
     assert traces[-1].action == "transform"
+
+
+# ---------------------------------------------------------------------------
+# BaseGuardrail IS-A Middleware — the load-bearing contract that lets a guard be
+# dropped directly into a plain `model_middleware=[...]` list with no special
+# slot. Covered only indirectly elsewhere (via InputGuard/OutputGuard wiring
+# tests); this asserts the base-class relationship itself.
+# ---------------------------------------------------------------------------
+
+
+def test_input_guard_instance_is_a_middleware():
+    guard = FnInputGuard(lambda _e: GuardrailDecision.allow())
+    assert isinstance(guard, Middleware)
+
+
+def test_output_guard_instance_is_a_middleware():
+    guard = FnOutputGuard(lambda _e: GuardrailDecision.allow())
+    assert isinstance(guard, Middleware)
+
+
+async def test_guard_composes_via_plain_middleware_wrap(sample_history):
+    """A guard's `.wrap(inner)` behaves like any other Middleware -- composable
+    without any LLM/agent-specific plumbing."""
+    guard = FnInputGuard(lambda _e: GuardrailDecision.allow())
+
+    async def inner(message_history, schema, tools):
+        return "core-result"
+
+    wrapped = guard.wrap(inner)
+    result = await wrapped(sample_history, None, None)
+
+    assert result == "core-result"
+
+
+def test_record_guard_traces_logs_at_debug_level_only(caplog):
+    """Guard traces are currently sunk to a debug log only (not attached to node
+    DebugDetails/session state -- a known, separately-tracked design point, out
+    of scope here). This just pins down today's actual behavior."""
+    import logging
+
+    from railtracks.guardrails.core.trace import GuardrailTrace
+    from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
+
+    trace = GuardrailTrace(
+        rail_name="MyRail", phase="llm_input", action="allow", reason="ok"
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="RT.guardrails"):
+        BaseLLMGuardrail._record_guard_traces([trace])
+
+    debug_records = [r for r in caplog.records if r.name == "RT.guardrails"]
+    assert any(r.levelno == logging.DEBUG for r in debug_records)
+    assert any("MyRail" in r.getMessage() for r in debug_records)
+
+
+async def test_guard_wrap_short_circuits_on_block(sample_history):
+    guard = FnInputGuard(lambda _e: GuardrailDecision.block(reason="no"))
+
+    calls = {"n": 0}
+
+    async def inner(message_history, schema, tools):
+        calls["n"] += 1
+        return "core-result"
+
+    from railtracks.guardrails.core import GuardrailBlockedError
+
+    wrapped = guard.wrap(inner)
+    try:
+        await wrapped(sample_history, None, None)
+        assert False, "expected GuardrailBlockedError"
+    except GuardrailBlockedError:
+        pass
+
+    assert calls["n"] == 0

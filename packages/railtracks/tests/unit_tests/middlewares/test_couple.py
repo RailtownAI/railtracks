@@ -22,7 +22,6 @@ def _make_agent(mock_llm, response="hi"):
         "TestAgent",
         llm=mock_llm(custom_response=response),
         system_message="you are a helpful assistant",
-        context_injection=False,
     )
 
 
