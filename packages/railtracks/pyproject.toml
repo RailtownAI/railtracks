@@ -50,6 +50,7 @@ dependencies = [
 visual = [
     "fastapi >= 0.121.0",
     "uvicorn[standard] >= 0.24.0",
+    "duckdb >= 1.5.0, < 1.5.5",
 ]
 # For each Integration package dependencies go here.
 portkey = ["portkey_ai >= 2.0.2"]
