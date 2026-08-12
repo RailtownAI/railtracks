@@ -134,9 +134,7 @@ class JudgeEvaluator(Evaluator):
             f"reasoning={self._reasoning})"
         )
 
-    def _invoke(
-        self, data: list[AgentDataPoint]
-    ) -> list[JudgeOutput]:
+    def _invoke(self, data: list[AgentDataPoint]) -> list[JudgeOutput]:
         @rt.function_node
         async def judge_flow():
             output: list[JudgeOutput] = []

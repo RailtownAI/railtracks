@@ -116,7 +116,11 @@ class Categorical(Metric):
         return [str(c) for c in self.categories]
 
     def _names_with_status(self, status: str) -> list[str]:
-        return [c.name for c in self.categories if isinstance(c, Category) and c.status == status]
+        return [
+            c.name
+            for c in self.categories
+            if isinstance(c, Category) and c.status == status
+        ]
 
     @computed_field
     @property
