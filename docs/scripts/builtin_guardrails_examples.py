@@ -14,7 +14,7 @@ from railtracks.guardrails import (
 
 # --8<-- [end:core_imports]
 # --8<-- [start:llm_builtin_imports]
-from railtracks.guardrails.llm import (
+from railtracks.prebuilt.guardrails import (
     BlockTextInputGuard,
     BlockTextOutputGuard,
     InputLengthGuard,

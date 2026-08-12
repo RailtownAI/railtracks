@@ -1,5 +1,11 @@
 # Built-in guardrails
 
+!!! warning "Changing in 1.5.0"
+    These guards move from `railtracks.guardrails.llm` to **`railtracks.prebuilt.guardrails`**.
+    The classes are unchanged and the new import path already works; switch to it now and
+    the upgrade is a no-op. The `Guard` container shown on this page is removed in 1.5.0,
+    where guards attach as middleware instead. See [Upgrading to 1.5.0](../../upgrading/1_5_0.md).
+
 This page describes guardrails shipped with Railtracks, how they are organized, and how to try them in isolation with `decide()`. For attaching rails to agents and the `Guard` container, see [Overview](overview.md) and [Quickstart](quickstart.md).
 
 ## Introduction
