@@ -26,6 +26,7 @@ from railtracks.llm.model import ModelBase
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
+from railtracks.utils.deprecation import warn_pending_change
 
 from .helpers import (
     structured_llm,
@@ -318,10 +319,23 @@ def agent_node(
         tool_nodes (set[Type[Node] | Callable | RTFunction] | None): If your agent is a LLM with access to tools, what does it have access to?
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
         llm (ModelBase): The LLM model to use. If None it will need to be passed in at instance time.
+            Deferring the model this way is going away: `llm` becomes a required keyword in
+            railtracks 1.5.0.
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
         guardrails (Guard | None): Guardrail config. When provided, the agent runs input/output guardrails.
     """
+    if llm is None:
+        warn_pending_change(
+            "Creating an agent without an `llm`",
+            change="stops working",
+            detail=(
+                "Pass `llm=` when building the agent; it becomes a required keyword. "
+                "If you rely on supplying the model at instance time, 1.5.0 replaces "
+                "that with a zero-argument model factory."
+            ),
+        )
+
     unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
     # See issue (___) this logic should be migrated soon.
