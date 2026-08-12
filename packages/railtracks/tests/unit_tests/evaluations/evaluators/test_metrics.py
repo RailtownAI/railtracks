@@ -144,6 +144,49 @@ def test_categorical_category_names_with_category_object_input():
     assert c.category_names == ["good", "bad"]
 
 
+def test_categorical_serializes_categories_as_strings():
+    c = Categorical(
+        name="quality",
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+    )
+    dumped = c.model_dump(mode="json")
+    assert dumped["categories"] == ["good", "bad"]
+
+
+def test_categorical_status_category_lists():
+    c = Categorical(
+        name="quality",
+        categories=[
+            Category(name="great", status="pass"),
+            Category(name="acceptable", status="pass"),
+            Category(name="meh", status="partial"),
+            Category(name="bad", status="fail"),
+            Category(name="unrated"),
+        ],
+    )
+    assert c.pass_categories == ["great", "acceptable"]
+    assert c.fail_categories == ["bad"]
+    assert c.partial_categories == ["meh"]
+
+
+def test_categorical_status_lists_empty_when_no_statuses():
+    c = Categorical(name="quality", categories=["good", "bad"])
+    assert c.pass_categories == []
+    assert c.fail_categories == []
+    assert c.partial_categories == []
+
+
+def test_categorical_status_lists_appear_in_serialization():
+    c = Categorical(
+        name="quality",
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+    )
+    dumped = c.model_dump(mode="json")
+    assert dumped["pass_categories"] == ["good"]
+    assert dumped["fail_categories"] == ["bad"]
+    assert dumped["partial_categories"] == []
+
+
 # ── Category ──────────────────────────────────────────────────────────────────
 
 
@@ -172,6 +215,17 @@ def test_category_usable_as_dict_key_via_string():
 
 def test_category_str_returns_name():
     assert str(Category(name="good", status="pass")) == "good"
+
+
+@pytest.mark.parametrize("status", ["pass", "fail", "partial", None])
+def test_category_accepts_valid_status(status):
+    Category(name="c", status=status)
+
+
+@pytest.mark.parametrize("status", ["passed", "PASS", "success", "", "warn"])
+def test_category_rejects_invalid_status(status):
+    with pytest.raises(Exception):
+        Category(name="c", status=status)
 
 
 # ── LLMMetric / ToolMetric ────────────────────────────────────────────────────

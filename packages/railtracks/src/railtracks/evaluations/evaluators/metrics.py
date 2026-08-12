@@ -2,7 +2,15 @@ import hashlib
 import json
 from typing import Annotated, Generic, Literal, TypeVar, Union
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_serializer,
+    model_validator,
+)
 
 
 def _json_default(value):
@@ -59,10 +67,19 @@ class Metric(BaseModel):
         return f"{self.__class__.__name__}({fields_str})"
 
 
+_ALLOWED_CATEGORY_STATUSES = (None, "pass", "fail", "partial")
+
+
 class Category(BaseModel):
     name: str
     status: Literal["pass", "fail", "partial"] | None = None
     model_config = ConfigDict(frozen=True)
+
+    def model_post_init(self, __context) -> None:
+        if self.status not in _ALLOWED_CATEGORY_STATUSES:
+            raise ValueError(
+                f"Category.status must be one of 'pass', 'fail', 'partial', or None; got {self.status!r}"
+            )
 
     def __hash__(self):
         return hash(self.name)
@@ -97,6 +114,28 @@ class Categorical(Metric):
     @property
     def category_names(self) -> list[str]:
         return [str(c) for c in self.categories]
+
+    def _names_with_status(self, status: str) -> list[str]:
+        return [c.name for c in self.categories if isinstance(c, Category) and c.status == status]
+
+    @computed_field
+    @property
+    def pass_categories(self) -> list[str]:
+        return self._names_with_status("pass")
+
+    @computed_field
+    @property
+    def fail_categories(self) -> list[str]:
+        return self._names_with_status("fail")
+
+    @computed_field
+    @property
+    def partial_categories(self) -> list[str]:
+        return self._names_with_status("partial")
+
+    @field_serializer("categories")
+    def _serialize_categories(self, categories: list[CategoryLike]) -> list[str]:
+        return [str(c) for c in categories]
 
 
 T = TypeVar("T", int, float)
