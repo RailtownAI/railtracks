@@ -3,6 +3,7 @@ from uuid import uuid4
 import pytest
 from railtracks.evaluations.evaluators.metrics import (
     Categorical,
+    Category,
     LLMMetric,
     Numerical,
     ToolMetric,
@@ -328,6 +329,105 @@ def test_categorical_node_empty_counts_all_zero(categorical_metric, categorical_
         name="Agg", metric=categorical_metric, children=[], forest=categorical_forest,
     )
     assert all(v == 0 for v in node.counts.values())
+
+
+def test_categorical_node_status_counts():
+    metric = Categorical(
+        name="Quality",
+        categories=[
+            Category(name="great", status="pass"),
+            Category(name="ok", status="partial"),
+            Category(name="bad", status="fail"),
+        ],
+    )
+    forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
+    mrs = [make_metric_result(v) for v in ["great", "great", "ok", "bad"]]
+    for mr in mrs:
+        forest.add_node(mr)
+
+    node = CategoricalAggregateNode(
+        name="Agg", metric=metric,
+        children=[mr.identifier for mr in mrs], forest=forest,
+    )
+    assert node.status_counts == {"pass": 2, "partial": 1, "fail": 1}
+
+
+def test_categorical_node_status_counts_skips_unstatused_categories():
+    metric = Categorical(
+        name="Quality",
+        categories=[
+            Category(name="great", status="pass"),
+            Category(name="unrated"),
+        ],
+    )
+    forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
+    mrs = [make_metric_result(v) for v in ["great", "unrated", "unrated"]]
+    for mr in mrs:
+        forest.add_node(mr)
+
+    node = CategoricalAggregateNode(
+        name="Agg", metric=metric,
+        children=[mr.identifier for mr in mrs], forest=forest,
+    )
+    assert node.status_counts == {"pass": 1}
+
+
+def test_categorical_node_status_counts_empty_when_no_status():
+    metric = Categorical(name="Quality", categories=["good", "bad"])
+    forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
+    mr = make_metric_result("good")
+    forest.add_node(mr)
+
+    node = CategoricalAggregateNode(
+        name="Agg", metric=metric, children=[mr.identifier], forest=forest,
+    )
+    assert node.status_counts == {}
+
+
+def test_categorical_node_status_counts_sums_across_same_status():
+    metric = Categorical(
+        name="Quality",
+        categories=[
+            Category(name="great", status="pass"),
+            Category(name="acceptable", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
+    )
+    forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
+    mrs = [make_metric_result(v) for v in ["great", "great", "acceptable", "bad"]]
+    for mr in mrs:
+        forest.add_node(mr)
+
+    node = CategoricalAggregateNode(
+        name="Agg", metric=metric,
+        children=[mr.identifier for mr in mrs], forest=forest,
+    )
+    assert node.status_counts == {"pass": 3, "fail": 1}
+
+
+def test_categorical_node_serializes_to_json(categorical_metric, categorical_forest):
+    """counts must serialize with string keys; status_counts must appear in the dump."""
+    metric = Categorical(
+        name="Quality",
+        categories=[
+            Category(name="great", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
+    )
+    forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
+    mrs = [make_metric_result(v) for v in ["great", "great", "bad"]]
+    for mr in mrs:
+        forest.add_node(mr)
+
+    node = CategoricalAggregateNode(
+        name="Agg", metric=metric,
+        children=[mr.identifier for mr in mrs], forest=forest,
+    )
+    dumped = node.model_dump(mode="json")
+    assert dumped["counts"] == {"great": 2, "bad": 1}
+    assert dumped["status_counts"] == {"pass": 2, "fail": 1}
+    assert dumped["most_common_label"] == "great"
+    assert dumped["least_common_label"] == "bad"
 
 
 # ── ToolAggregateNode ─────────────────────────────────────────────────────────

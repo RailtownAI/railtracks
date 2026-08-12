@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field, model_serializer
 
-from ..evaluators.metrics import Categorical, Category, Numerical
+from ..evaluators.metrics import Category, Categorical, CategoryLike, Numerical
 from .metric_results import LLMMetricResult, MetricResult, ToolMetricResult
 
 TMetric = TypeVar("TMetric", Numerical, Categorical)
@@ -193,16 +193,16 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
 
     @computed_field
     @property
-    def categories(self) -> list[Category]:
+    def categories(self) -> list[CategoryLike]:
         """Unique categories from all labels (including from children)."""
         return list(self.metric.categories)
 
     @computed_field
     @property
     def counts(self) -> Counter:
-        """Category counts from all labels (including from children)."""
+        """Category counts from all labels (including from children), keyed by category name."""
         all_labels = self._get_all_labels()
-        counts = dict.fromkeys(self.categories, 0)
+        counts = dict.fromkeys(self.metric.category_names, 0)
         for label in all_labels:
             if label in counts:
                 counts[label] += 1
@@ -212,13 +212,25 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
     @property
     def most_common_label(self) -> str | None:
         """Most common label across all data (including from children)."""
-        return self.counts.most_common(1)[0][0].name
+        return self.counts.most_common(1)[0][0]
 
     @computed_field
     @property
     def least_common_label(self) -> str | None:
         """Least common label across all data (including from children)."""
-        return self.counts.most_common()[-1][0].name
+        return self.counts.most_common()[-1][0]
+
+    @computed_field
+    @property
+    def status_counts(self) -> dict[str, int]:
+        """Label counts grouped by Category.status (pass/fail/partial). Categories without a status are excluded."""
+        status_counts: dict[str, int] = {}
+        for category in self.metric.categories:
+            if not isinstance(category, Category) or category.status is None:
+                continue
+            count = self.counts.get(category.name, 0)
+            status_counts[category.status] = status_counts.get(category.status, 0) + count
+        return status_counts
 
     def _get_all_labels(self) -> list[str]:
         """Recursively collect all labels from this node and descendants."""

@@ -5,6 +5,7 @@ import pytest
 
 from railtracks.evaluations.evaluators.judge_evaluator import (
     JudgeEvaluator,
+    JudgeOutput,
     JudgeResponseSchema,
 )
 from railtracks.evaluations.evaluators.metrics import (
@@ -197,7 +198,7 @@ def test_aggregate_metrics_skips_base_metric(judge):
 
 
 def _mock_invoke(judge_instance, adp, metric):
-    return [(metric.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning="looks good"))]
+    return [JudgeOutput(metric.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning="looks good"))]
 
 
 def test_run_returns_evaluator_result(judge):
@@ -222,7 +223,7 @@ def test_run_no_reasoning_when_disabled():
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS], reasoning=False)
     adp = make_agent_data_point()
-    fake_output = [(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good"))]
+    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good"))]
     with patch.object(j, "_invoke", return_value=fake_output):
         result = j.run([adp])
     names = [r.result_name for r in result.metric_results]
@@ -232,7 +233,7 @@ def test_run_no_reasoning_when_disabled():
 def test_run_reasoning_none_does_not_add_result(judge):
     """When reasoning is enabled but judge returns None reasoning, no reasoning result added."""
     adp = make_agent_data_point()
-    fake_output = [(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning=None))]
+    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning=None))]
     with patch.object(judge, "_invoke", return_value=fake_output):
         result = judge.run([adp])
     names = [r.result_name for r in result.metric_results]
