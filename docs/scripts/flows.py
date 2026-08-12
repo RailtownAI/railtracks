@@ -135,14 +135,14 @@ ProductExpertAgent = rt.agent_node(
 BillingAgent = rt.agent_node(
     name="Billing Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o", stream=False),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
     
 TechnicalAgent = rt.agent_node(
     name="Technical Support Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o", stream=False),
+    llm=rt.llm.OpenAILLM("gpt-4o"),
     #adding all other arguments as needed
     )
 

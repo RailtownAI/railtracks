@@ -12,7 +12,6 @@ vs = rt.vector_stores.ChromaVectorStore("My Vector Store", embedding_function)
 
 Agent = rt.agent_node(
     "Simple Rag Agent",
-    rag=rt.RagConfig(vector_store=vs, top_k=3),
     system_message="You are a helpful assistant",
     llm=rt.llm.OpenAILLM("gpt-4o"),
 )
