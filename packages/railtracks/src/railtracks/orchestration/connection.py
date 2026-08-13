@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
+import contextvars
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, List, ParamSpec, TypeVar
@@ -90,18 +92,22 @@ class FlowConnection(Generic[_P, _TOutput]):
         """
         Synchronous `ainvoke`.
 
-        Raises:
-            RuntimeError: If an event loop is already running in this thread, as
-                in a notebook or inside async code. Use `ainvoke` there.
+        Note:
+            When no event loop is running, blocks until the flow finishes.
+            When called from inside a running event loop (e.g. a notebook or
+            async framework), the run is dispatched to a worker thread with its
+            own event loop; `contextvars.copy_context()` keeps Session and
+            logging context visible there.
         """
-        coro = self.ainvoke(*args, **kwargs)
         try:
-            return asyncio.run(coro)
+            asyncio.get_running_loop()
         except RuntimeError:
-            coro.close()
-            raise RuntimeError(
-                "Cannot invoke flow synchronously within an active event loop. Use 'ainvoke' instead."
-            )
+            return asyncio.run(self.ainvoke(*args, **kwargs))
+
+        ctx = contextvars.copy_context()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(ctx.run, asyncio.run, self.ainvoke(*args, **kwargs))
+            return future.result()
 
     @property
     def connected(self) -> bool:

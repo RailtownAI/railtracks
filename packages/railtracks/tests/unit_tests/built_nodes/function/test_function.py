@@ -16,11 +16,11 @@ class _SimpleCalc:
     def __init__(self, offset: int = 0):
         self.offset = offset
 
-    def add(self, x: int, y: int) -> int:
+    def add(self, x: int) -> int:
         """Add two numbers and apply offset."""
-        return x + y + self.offset
+        return x + self.offset
 
-    async def async_add(self, x: int, y: int) -> int:
+    async def async_add(self, x: int) -> int:
         """Async variant."""
         return x + y + self.offset
 
@@ -116,7 +116,7 @@ def test_function_node_sync_bound_method_preserves_name():
 def test_function_node_sync_bound_method_remains_callable():
     calc = _SimpleCalc(offset=10)
     node = function_node(calc.add)
-    assert node(1, 2) == 13
+    assert node(1) == 11
 
 
 def test_function_node_sync_bound_method_with_manifest(mock_manifest):

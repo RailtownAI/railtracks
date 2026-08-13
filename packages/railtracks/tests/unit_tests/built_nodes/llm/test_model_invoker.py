@@ -15,6 +15,14 @@ class _FakeModel:
     def chat(self, messages):
         return Response(message=Message(role=Role.assistant, content="hi"))
 
+    id = "fake-model"
+
+    def model_name(self):
+        return "fake-model"
+
+    def model_provider(self):
+        return "fake-provider"
+
 
 @pytest.fixture(autouse=True)
 def cleanup_globals():
@@ -117,6 +125,10 @@ def _make_tool() -> Tool:
 
 class _StubModel:
     """Minimal ModelBase-shaped stub recording every buffered/streaming call made on it."""
+
+    id = "stub-model"
+    def model_name(self):
+        return "stub-model"
 
     def __init__(
         self,

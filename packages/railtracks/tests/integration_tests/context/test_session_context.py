@@ -176,4 +176,4 @@ async def test_middleware_fired_call_lands_under_the_middleware_not_the_node_bod
     assert CAPTURED["middleware_parent_id"] is not None
     assert CAPTURED["middleware_id_at_entry"] is not None
     assert CAPTURED["child_immediate_ancestor_kind"] == ScopeKind.MIDDLEWARE
-    assert CAPTURED["child_immediate_ancestor_id"] == CAPTURED["middleware_id_at_entry"]
+    assert CAPTURED["child_immediate_ancestor_id"] == CAPTURED["middleware_id_at_entry"].call_id

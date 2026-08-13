@@ -124,3 +124,5 @@ include = ["docs/", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = 30
+timeout_method = "thread"

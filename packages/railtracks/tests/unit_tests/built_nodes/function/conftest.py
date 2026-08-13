@@ -17,6 +17,7 @@ def mock_manifest():
                 name="x",
                 description="Input to the tool",
                 param_type="integer",
-            )]
+            ),
+            ],
             )
     return tool_manifest

@@ -99,7 +99,7 @@ def test_with_scope_pushed_keeps_run_id_when_not_provided(dummy_executor_config)
 def test_current_node_id_walks_past_middleware_entry(dummy_executor_config):
     ctx = SessionContext(session_id="r", publisher=None, executor_config=dummy_executor_config)
     ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.NODE, "node-1"))
-    ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.MIDDLEWARE, "mw-1", name="guard"))
+    ctx = ctx.with_scope_pushed(ScopeEntry(ScopeKind.MIDDLEWARE, "mw-1", type_id="guard"))
     assert ctx.current_node_id.id == "node-1"
     assert ctx.current_middleware_id.id == "mw-1"
 

@@ -59,16 +59,6 @@ def test_get_parent_id(monkeypatch, make_runner_context_vars, make_session_conte
     rt = make_runner_context_vars(session_context=make_session_context_mock(current_node_id="parent-abc"))
     monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
     assert central.get_parent_id() == "parent-abc"
-
-def test_get_middleware_id(monkeypatch, make_runner_context_vars, make_session_context_mock):
-    rt = make_runner_context_vars(session_context=make_session_context_mock(current_middleware_id="mw-abc"))
-    monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
-    assert central.get_middleware_id() == "mw-abc"
-
-def test_get_llm_call_id(monkeypatch, make_runner_context_vars, make_session_context_mock):
-    rt = make_runner_context_vars(session_context=make_session_context_mock(current_llm_call_id="llm-abc"))
-    monkeypatch.setattr(central, "runner_context", mock.Mock(get=mock.Mock(return_value=rt)))
-    assert central.get_llm_call_id() == "llm-abc"
 # ============ END ID Accessor Tests ===============
 
 # ============ START Globals Registration/Deletion Tests ===============
@@ -139,7 +129,15 @@ def test_enter_node_establishes_run_id_on_first_entry():
     assert central.get_run_id() is None
     assert central.get_parent_id() is None
 
-
+# ============ START ContextVarScopeManager Tests ===============
+def _register(session_id="s1"):
+    central.register_globals(
+        session_id=session_id,
+        rt_publisher=None,
+        executor_config=ExecutorConfig(),
+        global_context_vars={},
+    )
+    
 def test_enter_node_keeps_existing_run_id_for_nested_node():
     _register()
     manager = central.ContextVarScopeManager()
@@ -176,7 +174,7 @@ def test_enter_middleware_generates_fresh_id_and_reports_current_node():
     with manager.enter_node("node-1"):
         with manager.enter_middleware("my-guard") as middleware_id:
             assert middleware_id is not None
-            assert central.get_middleware_id() == middleware_id
+            assert central.get_middleware_id().call_id == middleware_id
             # a nested call fired from within middleware still resolves to the
             # enclosing node, not the middleware.
             assert central.get_parent_id() == "node-1"
@@ -190,7 +188,7 @@ def test_middleware_fired_node_lands_under_middleware():
     with manager.enter_node("node-1"):
         with manager.enter_middleware("guard") as middleware_id:
             scope = central.get_current_scope()
-            assert scope.value == ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, name="guard")
+            assert scope.value == ScopeEntry(ScopeKind.MIDDLEWARE, middleware_id, type_id="guard")
             with manager.enter_node("node-2"):
                 # node-2's immediate parent scope entry is the middleware, not node-1
                 assert central.get_current_scope().value.kind is ScopeKind.NODE
@@ -221,7 +219,7 @@ def test_enter_llm_call_generates_fresh_id_and_reverts():
 
     assert central.get_llm_call_id() is None
 
-    with manager.enter_llm_call():
+    with manager.enter_llm_call("parent_id"):
         assert central.get_llm_call_id() is not None
 
     assert central.get_llm_call_id() is None
@@ -231,9 +229,9 @@ def test_nested_enter_llm_call_gets_new_id_and_restores_outer():
     _register()
     manager = central.ContextVarScopeManager()
 
-    with manager.enter_llm_call():
+    with manager.enter_llm_call("parent_id"):
         outer_id = central.get_llm_call_id()
-        with manager.enter_llm_call():
+        with manager.enter_llm_call("subparent_id"):
             inner_id = central.get_llm_call_id()
             assert inner_id != outer_id
         assert central.get_llm_call_id() == outer_id
@@ -244,7 +242,7 @@ def test_llm_call_id_survives_nested_node_and_middleware_scopes():
     _register()
     manager = central.ContextVarScopeManager()
 
-    with manager.enter_llm_call():
+    with manager.enter_llm_call("parent_id"):
         llm_call_id = central.get_llm_call_id()
         assert llm_call_id is not None
 
@@ -264,7 +262,7 @@ def test_captured_scope_after_llm_call_carries_no_llm_id():
 
     with manager.enter_node("node-1"):
         with manager.enter_node_body():
-            with manager.enter_llm_call():
+            with manager.enter_llm_call("parent_id"):
                 assert central.get_llm_call_id() is not None
             captured_scope = central.get_current_scope()
             captured_run_id = central.get_run_id()

@@ -66,7 +66,7 @@ class AsyncioExecutionStrategy(TaskExecutionStrategy):
             if response is not None:
                 await publisher.publish(response)
 
-        return
+        return response
 
 
 class ConcurrentFuturesExecutor(TaskExecutionStrategy):

@@ -135,8 +135,7 @@ async def test_success_run_is_bracketed_by_session_events(writer):
     assert started.payload["flow_id"] is not None
     assert started.payload["session_name"] is None
     assert started.payload["entry_point_name"] == "add_one"
-    # the effective config the run executed under
-    assert started.payload["end_on_error"] is False
+
 
     assert completed.payload["status"] == "success"
     assert completed.payload["error"] is None

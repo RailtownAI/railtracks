@@ -23,7 +23,6 @@ def _run_in_session(session_id: str, fn: Callable[[], T]) -> T:
         register_globals(
             session_id=session_id,
             rt_publisher=None,
-            parent_id=None,
             executor_config=ExecutorConfig(),
             global_context_vars={},
         )
@@ -88,7 +87,6 @@ def test_scope_id_propagates_across_copy_context_boundary():
         register_globals(
             session_id="propagated-session-xyz",
             rt_publisher=None,
-            parent_id=None,
             executor_config=ExecutorConfig(),
             global_context_vars={},
         )

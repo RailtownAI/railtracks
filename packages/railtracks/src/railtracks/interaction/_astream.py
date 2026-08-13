@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from railtracks.context.central import (
     activate_publisher,
+    get_current_scope,
     get_local_config,
     get_parent_id,
     get_publisher,
@@ -151,6 +152,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             RequestCreation(
                 current_node_id=get_parent_id(),
                 current_run_id=get_run_id(),
+                current_scope=get_current_scope(),
                 new_request_id=request_id,
                 running_mode="async",
                 new_node_type=self._node,

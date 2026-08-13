@@ -27,7 +27,7 @@ def test_event_type_strings():
     )
     assert NodeInvocation(args=(), kwargs={}).event_type() == "node.invocation"
     assert NodeResponse(response="r").event_type() == "node.response"
-    assert NodeFailure(failure="boom").event_type() == "node.failure"
+    assert NodeFailure(exception_name="boom", exception_message="boom").event_type() == "node.failure"
     assert (
         NodeDestruction(response="r", duration_seconds=0.0).event_type()
         == "node.destruction"

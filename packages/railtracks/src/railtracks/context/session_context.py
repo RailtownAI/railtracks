@@ -169,6 +169,7 @@ class SessionContext:
             flow_name=self._flow_name,
             flow_id=self._flow_id,
             session_name=self._session_name,
+            stream_queue=self._stream_queue,
         )
 
     @property
