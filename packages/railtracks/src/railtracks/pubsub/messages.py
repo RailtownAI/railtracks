@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from abc import ABC
 from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, Type, TypeVar
 
@@ -110,7 +111,10 @@ class RequestFailure(RequestFinishedBase):
         )
 
     def log_message(self) -> str:
-        return f"{self.node_state.node.name()} FAILED with error {self.error}"
+        node_name = (
+            self.node_state.node.name() if self.node_state is not None else "<unknown>"
+        )
+        return f"{node_name} FAILED with error {self.error}"
 
 
 class RequestCreationFailure(RequestFinishedBase):
@@ -135,6 +139,19 @@ class RequestCreationFailure(RequestFinishedBase):
 class RequestCreation(RequestCompletionMessage):
     """
     A message that describes the creation of a new request in the system.
+
+    Args:
+        current_node_id: The id of the node creating this request (None for a top level request).
+        current_run_id: The run id of the tree this request belongs to (None for a top level request).
+        new_request_id: The unique identifier of the request being created.
+        running_mode: The execution mode used to run this request.
+        new_node_type: The node type to instantiate for this request.
+        args: The positional arguments to pass to the node.
+        kwargs: The keyword arguments to pass to the node.
+        stream_queue: When set, the created node is the entry of a streamed invocation (see
+            `rt.astream`): its LLM node writes each token chunk directly onto this queue, which
+            the `Stream` handle drains. Frame-local — it applies only to the node created by
+            this request, never to its children (nested `rt.call` children run buffered).
     """
 
     def __init__(
@@ -148,6 +165,7 @@ class RequestCreation(RequestCompletionMessage):
         new_node_type: Type[Node],
         args,
         kwargs,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         self.current_node_id = current_node_id
         self.current_run_id = current_run_id
@@ -157,6 +175,7 @@ class RequestCreation(RequestCompletionMessage):
         self.new_node_type = new_node_type
         self.args = args
         self.kwargs = kwargs
+        self.stream_queue = stream_queue
 
     def __repr__(self):
         return (
@@ -181,14 +200,26 @@ class FatalFailure(RequestCompletionMessage):
         return f"{self.__class__.__name__}(error={self.error})"
 
 
-class Streaming(RequestCompletionMessage):
+class BroadcastEvent(RequestCompletionMessage):
     """
-    A message that indicates a streaming operation in the request completion system.
+    A message carrying a single one-off event published with `rt.broadcast`.
+
+    This drives the `broadcast_callback` lane: a user emits a discrete event from inside a
+    node and any attached callback receives it. Each event stands alone.
+
+    Args:
+        item: The event being broadcast (typically a `str`).
+        node_id: The id of the node that emitted the event.
     """
 
-    def __init__(self, *, streamed_object: Any, node_id: str):
-        self.streamed_object = streamed_object
+    def __init__(
+        self,
+        *,
+        item: Any,
+        node_id: str | None,
+    ):
+        self.item = item
         self.node_id = node_id
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(streamed_object={self.streamed_object}, node_id={self.node_id})"
+        return f"{self.__class__.__name__}(item={self.item}, node_id={self.node_id})"

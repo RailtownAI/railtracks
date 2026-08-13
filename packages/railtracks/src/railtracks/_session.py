@@ -22,7 +22,7 @@ from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
 from .observability.configure import add_inline_listener
 from .observability.node_internals import NodeInternalsCollector
-from .pubsub import RTPublisher, stream_subscriber
+from .pubsub import RTPublisher, event_subscriber
 from .state.info import (
     ExecutionInfo,
 )
@@ -55,7 +55,7 @@ class Session:
     - `name`: None
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
-    - `broadcast_callback`: None (no callback for broadcast messages)
+    - `broadcast_callback`: None (no event listener)
     - `prompt_injection`: True (the prompt will be automatically injected from context variables)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
 
@@ -67,7 +67,7 @@ class Session:
         flow_id (str | None, optional): The unique identifier of the flow this session is associated with.
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
-        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
+        broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A passive listener for one-off events published with `rt.broadcast`.
         prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
     """
@@ -134,7 +134,8 @@ class Session:
         # NOTE: `payload` still reports per-node details.internals
         add_inline_listener(_node_internals.record)
 
-        register_globals(
+        # held so the context survives `delete_globals()` on close
+        self.context = register_globals(
             session_id=self._identifier,
             rt_publisher=self.publisher,
             executor_config=self.executor_config,
@@ -239,13 +240,14 @@ class Session:
 
     def _setup_subscriber(self):
         """
-        Prepares and attaches the saved broadcast_callback to the publisher attached to this runner.
+        Prepares and attaches the saved `broadcast_callback` to the publisher: it listens on
+        the event lane for one-off `rt.broadcast` items.
         """
 
         if self.executor_config.subscriber is not None:
             self.publisher.subscribe(
-                stream_subscriber(self.executor_config.subscriber),
-                name="Streaming Subscriber",
+                event_subscriber(self.executor_config.subscriber),
+                name="Broadcast Callback Subscriber",
             )
 
     def _close(self):
@@ -285,6 +287,11 @@ class Session:
 
         delete_globals()
         # by deleting all of the state variables we are ensuring that the next time we create a runner it is fresh
+
+    @property
+    def identifier(self) -> str:
+        """The unique identifier assigned to this session."""
+        return self._identifier
 
     @property
     def info(self) -> ExecutionInfo:

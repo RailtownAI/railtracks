@@ -7,7 +7,6 @@ from .core import (
     LLMGuardrailEvent,
     LLMGuardrailPhase,
 )
-from .llm.concrete import InputGuard, OutputGuard
 from .llm.decorators import input_guard, output_guard
 
 # Primitives only.
@@ -16,8 +15,6 @@ __all__ = [
     "GuardrailBlockedError",
     "GuardrailDecision",
     "GuardrailTrace",
-    "InputGuard",
-    "OutputGuard",
     "LLMGuardrailEvent",
     "LLMGuardrailPhase",
     "input_guard",

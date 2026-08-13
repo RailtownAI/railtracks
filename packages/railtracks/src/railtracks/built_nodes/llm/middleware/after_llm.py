@@ -1,4 +1,5 @@
-from typing import Awaitable, Callable
+import functools
+from typing import Awaitable, Callable, overload
 
 from pydantic import BaseModel
 
@@ -12,11 +13,35 @@ from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware.core import wrap_node
 from railtracks.utils.unpack import unpack_async_sync
 
+from .core import ModelMiddleware
+from .wrap_llm import wrap_llm
 
-def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
+
+@overload
+def after_llm(
+    fn: Callable[[Response], Response | Awaitable[Response]], /
+) -> ModelMiddleware: ...
+
+
+@overload
+def after_llm(
+    *, name: str | None = None
+) -> Callable[
+    [Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware
+]: ...
+
+
+def after_llm(
+    fn: Callable[[Response], Response | Awaitable[Response]] | None = None,
+    /,
+    *,
+    name: str | None = None,
+) -> (
+    ModelMiddleware
+    | Callable[[Callable[[Response], Response | Awaitable[Response]]], ModelMiddleware]
+):
     """
     A special decorator to create a middleware that runs after every successful call to the model.
 
@@ -29,33 +54,20 @@ def after_llm(fn: Callable[[Response], Response | Awaitable[Response]]):
     ```
     """
 
-    @wrap_node
-    async def wrapper(
-        llm_call: LLM_CALL,
-        message_history: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ):
-        try:
+    def decorator(fn):
+        @wrap_llm(name=name)
+        @functools.wraps(fn)
+        async def wrapper(
+            llm_call: LLM_CALL,
+            message_history: MessageHistory,
+            schema: type[BaseModel] | None,
+            tools: list[Tool] | None,
+        ):
             response = await llm_call(message_history, schema, tools)
-        except Exception as e:
-            event = MiddlewareModelOutputFailureEvent.from_exception(e)
-            await emit(event)
-            raise e
+            return await unpack_async_sync(fn(response))
 
-        input_event = MiddlewareModelOutputInvocationEvent(
-            response=response,
-        )
-        await emit(input_event)
+        return wrapper
 
-        response = await unpack_async_sync(fn(response))
-
-        output_event = MiddlewareModelOutputResponseEvent(
-            response=response,
-        )
-
-        await emit(output_event)
-
-        return response
-
-    return wrapper
+    if fn is None:
+        return decorator
+    return decorator(fn)

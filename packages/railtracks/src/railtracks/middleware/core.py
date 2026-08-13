@@ -8,7 +8,9 @@ from typing import (
     Concatenate,
     Generic,
     ParamSpec,
+    TypeAlias,
     TypeVar,
+    overload,
 )
 
 from railtracks.events.middleware import MiddlewareCreationEvent
@@ -94,10 +96,27 @@ class Middleware(Generic[_P, _R]):
         return "General"
 
 
+_Wrapper: TypeAlias = Callable[
+    Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]
+]
+
+
+@overload
 def wrap_node(
-    fn: Callable[Concatenate[Callable[_P, Awaitable[_R]], _P], Awaitable[_R]],
-) -> Middleware[_P, _R]:
-    """
-    Decorator to wrap any async wrapper function into a Middleware object. The wrapped function will accept
-    """
-    return Middleware(fn)
+    fn: _Wrapper[_P, _R], /, *, name: str | None = None
+) -> Middleware[_P, _R]: ...
+@overload
+def wrap_node(
+    *, name: str | None = None
+) -> Callable[[_Wrapper[_P, _R]], Middleware[_P, _R]]: ...
+
+
+def wrap_node(
+    fn: _Wrapper[_P, _R] | None = None,
+    /,
+    *,
+    name: str | None = None,
+) -> Middleware[_P, _R] | Callable[[_Wrapper[_P, _R]], Middleware[_P, _R]]:
+    if fn is None:
+        return lambda f: Middleware(f, name=name)
+    return Middleware(fn, name=name)

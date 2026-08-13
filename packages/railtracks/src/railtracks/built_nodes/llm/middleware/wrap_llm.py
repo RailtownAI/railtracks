@@ -1,4 +1,5 @@
-from typing import Awaitable, Callable
+import functools
+from typing import Awaitable, Callable, overload
 
 from pydantic import BaseModel
 
@@ -14,20 +15,62 @@ from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.core import wrap_node
 
 from ..._types import LLM_CALL
+from .core import ModelMiddleware
+
+
+@overload
+def wrap_llm(
+    fn: Callable[
+        [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
+        Awaitable[Response],
+    ],
+    /,
+    *,
+    name: str | None = None,
+) -> ModelMiddleware: ...
+
+
+@overload
+def wrap_llm(
+    *, name: str | None = None
+) -> Callable[
+    [
+        Callable[
+            [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
+            Awaitable[Response],
+        ]
+    ],
+    ModelMiddleware,
+]: ...
 
 
 def wrap_llm(
     fn: Callable[
         [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
         Awaitable[Response],
-    ],
+    ]
+    | None = None,
+    /,
+    *,
+    name: str | None = None,
+) -> (
+    ModelMiddleware
+    | Callable[
+        [
+            Callable[
+                [LLM_CALL, MessageHistory, type[BaseModel] | None, list[Tool] | None],
+                Awaitable[Response],
+            ]
+        ],
+        ModelMiddleware,
+    ]
 ):
     """
     A special decorator to create a middleware wrapper that wraps every call to an llm
 
     Example usage:
     ```python
-    @wrap_model
+    @wrap_llm
     async def my_middleware(llm_call, message_history, schema, tools):
         # do something with the inputs
         response = await llm_call(message_history, schema, tools)
@@ -36,33 +79,19 @@ def wrap_llm(
     ```
     """
 
-    @wrap_node
-    async def _pipe_wrapped(
-        llm_call: LLM_CALL,
-        message_history: MessageHistory,
-        schema: type[BaseModel] | None,
-        tools: list[Tool] | None,
-    ):
-        input_event = MiddlewareModelInvocationEvent(
-            message_history=message_history,
-            schema=schema,
-            tools=tools,
-        )
-        await emit(input_event)
+    def decorator(fn):
+        @wrap_node(name=name)
+        @functools.wraps(fn)
+        async def wrapped(
+            llm_call: LLM_CALL,
+            message_history: MessageHistory,
+            schema: type[BaseModel] | None,
+            tools: list[Tool] | None,
+        ):
+            return await fn(llm_call, message_history, schema, tools)
 
-        try:
-            response = await fn(llm_call, message_history, schema, tools)
-        except Exception as e:
-            event = MiddlewareModelFailureEvent.from_exception(e)
-            await emit(event)
-            raise e
+        return wrapped
 
-        output_event = MiddlewareModelResponseEvent(
-            response=response,
-        )
-
-        await emit(output_event)
-
-        return response
-
-    return _pipe_wrapped
+    if fn is None:
+        return decorator
+    return decorator(fn)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextvars
 import logging
 import uuid
@@ -32,6 +33,7 @@ class RunnerContextVars:
     ):
         self.session_context = session_context
         self.external_context = external_context
+
 
 
 runner_context: contextvars.ContextVar[RunnerContextVars | None] = (
@@ -90,10 +92,20 @@ def get_publisher() -> RTPublisher:
         RTPublisher: The publisher associated with the current thread's global variables.
 
     Raises:
-        RuntimeError: If the global variables have not been registered.
+        ContextError: If the global variables have not been registered or no publisher is
+            attached to the current context.
     """
     context = safe_get_runner_context()
-    return context.session_context.publisher
+    publisher = context.session_context.publisher
+    if publisher is None:
+        raise ContextError(
+            message="No publisher is attached to the current context.",
+            notes=[
+                "You need to have an active runner to access the publisher.",
+                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
+            ],
+        )
+    return publisher
 
 
 def get_session_id() -> str | None:
@@ -263,6 +275,25 @@ def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
         runner_context.reset(token)
 
 
+def get_stream_queue() -> asyncio.Queue[Any] | None:
+    """
+    Returns the queue the current frame streams its LLM chunks onto, or None.
+
+    An LLM node uses this to decide whether to stream its model response token-by-token: when
+    a queue is present the node writes each chunk onto it (drained by the `rt.astream` handle).
+    Set only on the entry frame of a streamed invocation.
+    """
+    context = runner_context.get()
+    if context is None:
+        return None
+    return context.session_context.stream_queue
+
+def push_stream_queue(stream_queue: asyncio.Queue[Any]):
+    context = safe_get_runner_context()
+
+    context.session_context.stream_queue = stream_queue
+
+
 def register_globals(
     *,
     session_id: str,
@@ -272,9 +303,13 @@ def register_globals(
     flow_name: str | None = None,
     flow_id: str | None = None,
     session_name: str | None = None,
-):
+) -> MutableExternalContext:
     """
     Register the global variables for the current thread.
+
+    Returns:
+        MutableExternalContext: the live context object backing this run, used if context needs to outlive
+        session context (`delete_globals()`).
     """
     s_c = SessionContext(
         publisher=rt_publisher,
@@ -292,6 +327,8 @@ def register_globals(
     )
 
     runner_context.set(runner_context_vars)
+
+    return e_c
 
 
 async def activate_publisher():
@@ -319,8 +356,10 @@ async def shutdown_publisher():
     context = context.session_context
     assert context is not None
 
-    assert context.publisher.is_running()
-    await context.publisher.shutdown()
+    publisher = context.publisher
+    assert publisher is not None, "Cannot shutdown a publisher that was never attached."
+    assert publisher.is_running()
+    await publisher.shutdown()
 
 
 def get_global_config() -> ExecutorConfig:
@@ -357,7 +396,8 @@ def set_local_config(
     """
     context = safe_get_runner_context()
 
-    context.executor_config = executor_config
+    # the config lives on the internal context (RunnerContextVars has no such attribute)
+    context.session_context.executor_config = executor_config
     runner_context.set(context)
 
 
@@ -371,6 +411,7 @@ def set_global_config(
         executor_config (ExecutorConfig): The executor configuration to set.
     """
     global_executor_config.set(executor_config)
+
 
 
 def _push_scope(entry: ScopeEntry, *, run_id: str | None = None) -> contextvars.Token:
@@ -411,7 +452,7 @@ class ContextVarScopeManager:
             raise RuntimeError(
                 "Cannot enter a node-body scope outside of an active node scope"
             )
-
+    
         token = _push_scope(ScopeEntry(ScopeKind.NODE_BODY, node_id.id))
         try:
             yield
@@ -437,6 +478,7 @@ class ContextVarScopeManager:
             yield
         finally:
             runner_context.reset(token)
+
 
 
 def delete_globals():
@@ -532,7 +574,8 @@ def set_config(
     - If you call this function after the runner has been created, it will not affect the current runner.
     - This function will only overwrite the values that are provided, leaving the rest unchanged.
 
-
+    Args:
+        broadcast_callback: A passive listener for one-off events published with `rt.broadcast`.
     """
 
     if is_context_active():

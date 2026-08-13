@@ -55,7 +55,9 @@ class FunctionNodeBuilder(NodeBuilder):
         resolved_tool = (
             tool_info
             if tool_info is not None
-            else Tool.from_function(function, details=tool_details, params=tool_params)
+            else Tool.from_function(
+                function, name=name, details=tool_details, params=tool_params
+            )
         )
         casted_instance._tool_info = lambda: resolved_tool
 

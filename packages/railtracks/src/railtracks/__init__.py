@@ -15,6 +15,7 @@ __all__ = [
     "Session",
     "session",
     "call",
+    "astream",
     "broadcast",
     "call_batch",
     "ExecutionInfo",
@@ -41,6 +42,8 @@ __all__ = [
     "vector_stores",
     "rag",
     "Flow",
+    "FlowConnection",
+    "NodeMessageHistory",
     "enable_logging",
     "wrap_node",
     "after_node",
@@ -75,9 +78,10 @@ from ._session import ExecutionInfo, Session, session
 from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
 from .guardrails import input_guard, output_guard
-from .interaction import broadcast, call, call_batch, couple
+from .interaction import astream, broadcast, call, call_batch, couple
 from .middleware import after_node, wrap_node
 from .nodes.manifest import ToolManifest
+from .orchestration.connection import FlowConnection, NodeMessageHistory
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig

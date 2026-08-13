@@ -330,7 +330,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         Opens, iterates, and closes the blocking stream entirely on the calling thread (so the
         network stream object is never touched from more than one thread), marshaling each item
-        — or a terminal `_STREAM_DONE` / exception — back to the loop thread via `queue`.
+        or a terminal `_STREAM_DONE` / exception  back to the loop thread via `queue`.
         """
         try:
             gen = make_stream()
@@ -502,11 +502,10 @@ class LiteLLMWrapper(ModelBase, ABC):
     # ================ END Streaming Handlers ===============
 
     # ================ START Per-call Streaming LLM calls ===============
-    # These implement the ModelBase._astream_* extension points. Each one forces a streamed
-    # request (regardless of the deprecated constructor-level stream flag) and returns an async
-    # generator yielding `str` chunks followed by a single final `Response`. They ride litellm's
-    # synchronous `completion(stream=True)` API, bridged onto the event loop by
-    # `_bridge_sync_stream` (a dedicated worker thread), so the loop never blocks.
+    # These implement the ModelBase._astream_* extension points. Each one requests a streamed
+    # response and returns an async generator yielding `str` chunks followed by a single final
+    # `Response`. They ride litellm's synchronous `completion(stream=True)` API, bridged onto the
+    # event loop by `_bridge_sync_stream` (a dedicated worker thread), so the loop never blocks.
 
     async def _astream_chat(self, messages: MessageHistory):
         def _open() -> Generator[str | Response, None, Response]:

@@ -1,4 +1,4 @@
-"""Integration tests for the prebuilt add-ons (`rt.prebuilt.middleware.Retry`,
+"""Integration tests for the prebuilt middleware (`rt.prebuilt.middleware.Retry`,
 `rt.prebuilt.middleware.ContextInjection`) wired through real nodes.
 
 ContextInjection's session/config gating is covered in

@@ -102,7 +102,13 @@ class Node(ABC, Generic[_P, _TOutput]):
 
         # ================= Checks for Creation ================
         # 1. Check if the class methods are all classmethods, else raise an exception
-        class_method_checklist = ["tool_info", "prepare_tool", "prepare_args", "name"]
+        class_method_checklist = [
+            "tool_info",
+            "prepare_tool",
+            "prepare_args",
+            "name",
+            "tool_nodes",
+        ]
         for method_name in class_method_checklist:
             if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
                 method = cls.__dict__[method_name]
@@ -179,9 +185,9 @@ class Node(ABC, Generic[_P, _TOutput]):
         cls, *middleware: Middleware[_P, _TOutput]
     ) -> type[Node[_P, _TOutput]]:
         new_middleware = [
-            *deepcopy(cls._user_middleware),
             *middleware,
-        ]  # fresh list a nice protection around things
+            *deepcopy(cls._user_middleware),
+        ]  # new middleware goes outermost; fresh list as a nice protection around things
         return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
 
     @classmethod
@@ -189,9 +195,9 @@ class Node(ABC, Generic[_P, _TOutput]):
         cls, *middleware: ModelMiddleware
     ) -> type[Node[_P, _TOutput]]:
         new_middleware = [
-            *deepcopy(cls._user_model_middleware),
             *middleware,
-        ]  # fresh list a nice protection around things
+            *deepcopy(cls._user_model_middleware),
+        ]  # new middleware goes outermost; fresh list as a nice protection around things
         return type(cls.__name__, (cls,), {"_user_model_middleware": new_middleware})
 
     def __repr__(self):
@@ -212,6 +218,19 @@ class Node(ABC, Generic[_P, _TOutput]):
         raise NotImplementedError(
             "You must implement the tool_info method in your node"
         )
+
+    @classmethod
+    def tool_nodes(cls) -> list[type[Node]]:
+        """
+        The node types this node can call as tools.
+
+        Returns a fresh list so callers cannot mutate the node's internal state.
+        Nodes with no tools return an empty list, never ``None``.
+
+        This is a frozen snapshot taken at node-creation time -- there is currently no
+        supported way to add or remove tools on an already-built node.
+        """
+        return []
 
     @classmethod
     def prepare_args(cls, **kwargs) -> dict[str, Any]:

@@ -355,20 +355,6 @@ class TestCompletionMethods:
         assert calls[0].arguments == {"foo": 1}
         assert calls[0].identifier == "id123"
 
-        
-        if stream:  # no stream in case the llm requests tool
-            for chunk in result:
-                if isinstance(chunk, Response):
-                    try:
-                        calls = json.loads(chunk.message.content)
-                        assert isinstance(calls, list)
-                        assert calls[0]["name"] == "tool_x"
-                        assert calls[0]["arguments"] == {"foo": 1}
-                        assert calls[0]["identifier"] == "id123"
-                    except Exception:
-                        pytest.fail("Structured response did not match schema")
-                elif not isinstance(chunk, str):
-                    pytest.fail("Stream yielded non-string, non-Response chunk")
 
 # ================= START async streaming (sync bridge) tests =========================
 class TestAsyncStreaming:
@@ -426,6 +412,41 @@ class TestAsyncStreaming:
                 break
 
         assert got is not None
+
+    @pytest.mark.asyncio
+    async def test_astream_chat_with_tools_yields_final_tool_call_response(
+        self, mock_litellm_wrapper
+    ):
+        """astream_chat_with_tools was previously untested -- the fixture already
+        threads `tool_calls` into every streamed delta (mirroring the non-streamed
+        `test_chat_with_tools` above), it just had no direct astream test."""
+        wrapper = mock_litellm_wrapper(
+            content=None,
+            tool_calls=[
+                litellm.ChatCompletionMessageToolCall(
+                    function=litellm.Function(arguments='{"foo": 1}', name="tool_x"),
+                    id="id123",
+                    type="function",
+                )
+            ],
+        )
+
+        chunks: list[str] = []
+        final: Response | None = None
+        async for item in wrapper.astream_chat_with_tools(
+            MessageHistory([UserMessage("hi")]), tools=[]
+        ):
+            if isinstance(item, Response):
+                final = item
+            else:
+                chunks.append(item)
+
+        assert final is not None
+        assert isinstance(final.message, AssistantMessage)
+        calls = final.message.content
+        assert isinstance(calls, list)
+        assert calls[0].name == "tool_x"
+        assert calls[0].identifier == "id123"
 
     @pytest.mark.asyncio
     async def test_astream_chat_propagates_errors(self, mock_litellm_wrapper):

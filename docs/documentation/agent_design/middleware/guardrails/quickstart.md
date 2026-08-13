@@ -1,8 +1,8 @@
 # Guardrails Quickstart
 
-Guardrails are the policy layer around an LLM call in Railtracks. They let you inspect what goes into the model and what comes out, and they can allow, transform, or block the interaction based on your own rules.
+The guardrails let you inspect what goes into the model and what comes out, and they can allow, transform, or block the interaction based on your own rules.
 
-In practice, you attach guardrails with `agent_node(...,  model_middleware=[...])`, then provide one or more rails for the phases you want to control. This quickstart focuses on a small input guard with a real LLM so you can see both outcomes clearly: one request passes through to the model, and one is blocked before inference.
+In practice, you attach guardrails with `agent_node(...,  model_middleware=[...])`, then provide one or more rails for the phases you want to control. This quickstart focuses on a small input guard with a real LLM so you can see both outcomes clearly: one request passes through to the model, and one is blocked before inference. We write the guard with the `@rt.input_guard` decorator; see [Custom Guards](overview.md#custom-guards) for the decorator and subclass APIs in full.
 
 ## Minimal setup
 
@@ -42,7 +42,7 @@ This request contains the blocked keyword, so Railtracks raises `GuardrailBlocke
 
 !!! example "Example output"
     ```text
-    Blocked by guardrails (BlockSensitiveRequests): Requests for passwords are not allowed.
+    Blocked by guardrails (block_sensitive_requests): Requests for passwords are not allowed.
     Tips to debug:
     - user_message='Ask for something else instead.'
     ```

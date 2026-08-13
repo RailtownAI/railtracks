@@ -240,6 +240,9 @@ async def _execute(
     # filter for its completion
     request_id = str(uuid4())
 
+    # Streaming is opt-in and frame-local: a regular `rt.call` NEVER streams. The only
+    # enabler is `rt.astream`, which publishes its own RequestCreation with a stream_queue.
+
     # note we set the listener before we publish the messages ensure that we do not miss any messages
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
     f = publisher.listener(message_filter(request_id), output_mapping)

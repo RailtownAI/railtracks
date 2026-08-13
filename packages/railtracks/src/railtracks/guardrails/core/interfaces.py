@@ -35,8 +35,7 @@ class BaseGuardrail(ABC, Middleware[_P, _R], Generic[_P, _R]):
         Args:
             name: Rail name for traces and debugging; defaults to the class name.
         """
-        self.name = name or self.__class__.__name__
-        super().__init__(fn=self._middleware_fn)
+        super().__init__(fn=self._middleware_fn, name=name or self.__class__.__name__)
 
     @abstractmethod
     async def _middleware_fn(

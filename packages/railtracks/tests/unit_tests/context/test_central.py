@@ -121,14 +121,8 @@ def test_set_config_warns(monkeypatch):
 
 # ============ END Config Tests ===============
 
-# ============ START ContextVarScopeManager Tests ===============
-def _register(session_id="s1"):
-    central.register_globals(
-        session_id=session_id,
-        rt_publisher=None,
-        executor_config=ExecutorConfig(),
-        global_context_vars={},
-    )
+# ============ START Parent/Context Update Tests ===============
+
 
 
 def test_enter_node_establishes_run_id_on_first_entry():

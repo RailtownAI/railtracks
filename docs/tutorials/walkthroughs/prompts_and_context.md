@@ -21,7 +21,7 @@ Once an agent opts in, injection can still be suppressed at several levels, from
 
 #### Precedence
 
-The agent-level middleware is the master switch: with no `ContextInjection` entry, nothing is injected regardless of the other settings. When it *is* present, the remaining levels act as independent gates — a placeholder is filled **only when injection is enabled at every applicable level**. The most restrictive setting wins, and a narrower scope cannot re-enable injection that a broader scope has turned off.
+The agent-level middleware is the master switch: with no `ContextInjection` entry, nothing is injected regardless of the other settings. When it *is* present, the remaining levels act as independent gates: a placeholder is filled **only when injection is enabled at every applicable level**. The most restrictive setting wins, and a narrower scope cannot re-enable injection that a broader scope has turned off.
 
 The one exception is the run-wide flag itself: a **Flow's `prompt_injection` overrides the global `rt.set_config` value**. If the flow does not set it, the global value applies; if neither is set, the default (`True`) is used.
 

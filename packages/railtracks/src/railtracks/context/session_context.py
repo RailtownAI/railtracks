@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING
+import queue
+from typing import TYPE_CHECKING, Any
 
 from railtracks.context.scope_link import ScopeLink
 from railtracks.utils.config import ExecutorConfig
@@ -48,6 +50,7 @@ class SessionContext:
         flow_name: str | None = None,
         flow_id: str | None = None,
         session_name: str | None = None,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
         self._publisher: RTPublisher | None = publisher
@@ -57,6 +60,7 @@ class SessionContext:
         self._flow_name: str | None = flow_name
         self._flow_id: str | None = flow_id
         self._session_name: str | None = session_name
+        self._stream_queue: asyncio.Queue[Any] | None = stream_queue
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -166,3 +170,17 @@ class SessionContext:
             flow_id=self._flow_id,
             session_name=self._session_name,
         )
+
+    @property
+    def stream_queue(self) -> asyncio.Queue[Any] | None:
+        """The queue that this frame's streamed LLM chunks are written to, or None.
+
+        When set, the frame is the entry of a streamed invocation (see `rt.astream`): its
+        LLM node writes each token chunk directly onto this queue, which the `Stream` handle
+        on the calling side drains.
+        """
+        return self._stream_queue
+
+    @stream_queue.setter
+    def stream_queue(self, value: asyncio.Queue[Any]):
+        self._stream_queue = value

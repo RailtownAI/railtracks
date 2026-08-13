@@ -22,7 +22,6 @@ def _make_agent(mock_llm, response="hi"):
         "TestAgent",
         llm=mock_llm(custom_response=response),
         system_message="you are a helpful assistant",
-        context_injection=False,
     )
 
 
@@ -145,7 +144,7 @@ def test_couple_twice_from_same_original_produces_independent_siblings():
     assert log == []
 
 
-def test_couple_chained_composes_first_outer_second_inner():
+def test_couple_chained_composes_second_outer_first_inner():
     """To compose middleware across multiple `couple()` calls, chain off the
     previous result rather than calling `couple()` repeatedly against the same
     original -- each call wraps a fresh layer around whatever it's given."""
@@ -156,8 +155,9 @@ def test_couple_chained_composes_first_outer_second_inner():
 
     asyncio.run(_run(twice, 1, 1))
 
-    # first-coupled is outer, second-coupled is inner
-    assert log == ["first-in", "second-in", "second-out", "first-out"]
+    # second-coupled is outer (it wraps the result of the first couple() call),
+    # first-coupled is inner
+    assert log == ["second-in", "first-in", "first-out", "second-out"]
 
 
 def test_couple_with_multiple_middleware_in_one_call_preserves_list_order():
@@ -331,7 +331,7 @@ def test_couple_middleware_alone_leaves_model_middleware_untouched(mock_llm):
     assert new_cls._user_model_middleware == agent_cls._user_model_middleware == []
 
 
-def test_couple_model_middleware_chained_composes_first_outer_second_inner(mock_llm):
+def test_couple_model_middleware_chained_composes_second_outer_first_inner(mock_llm):
     log = []
     agent_cls = _make_agent(mock_llm)
 
@@ -340,7 +340,9 @@ def test_couple_model_middleware_chained_composes_first_outer_second_inner(mock_
 
     asyncio.run(_run_agent(twice))
 
-    assert log == ["first-in", "second-in", "second-out", "first-out"]
+    # second-coupled is outer (it wraps the result of the first couple() call),
+    # first-coupled is inner
+    assert log == ["second-in", "first-in", "first-out", "second-out"]
 
 
 def test_couple_model_middleware_on_rt_function_is_a_documented_no_op():

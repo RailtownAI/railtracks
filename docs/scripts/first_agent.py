@@ -72,13 +72,25 @@ StructuredWeatherAgent = rt.agent_node(
 # --8<-- [end: first_agent_model]
 
 # --8<-- [start: first_agent_all]
-StructuredToolCallWeatherAgent = rt.agent_node(
+WeatherToolCallAgent = rt.agent_node(
     name="Weather Agent",
     llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[weather_tool],
+)
+
+WeatherStructuredAgent = rt.agent_node(
+    name="Weather Formatter Agent",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    system_message="Extract the temperature and condition from the assistant's answer.",
     output_schema=WeatherResponse,
 )
+
+# Call the ToolCall agent first, then hand its answer to the structured agent, wrapped by an rt function
+@rt.function_node
+async def StructuredToolCallWeatherAgent(prompt: str):
+    tool_response = await rt.call(WeatherToolCallAgent, user_input=prompt)
+    return await rt.call(WeatherStructuredAgent, user_input=tool_response.text)
 # --8<-- [end: first_agent_all]
 
 # --8<-- [start: call]

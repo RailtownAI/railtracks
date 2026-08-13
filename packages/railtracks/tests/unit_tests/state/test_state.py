@@ -48,6 +48,51 @@ def test_create_node_and_request(dummy_execution_info, dummy_executor_config, mo
     assert request_id == "reqid"
     assert node_instance is node_type  # node() returns node_type (constructs to itself)
     state._node_heap.update.assert_called()
+
+
+def test_create_node_and_request_constructs_node_with_no_arguments(
+    dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher
+):
+    """Regression test for the `node(*args, **kwargs)` -> `node()` instantiation
+    contract change: node construction must take zero arguments (args/kwargs are
+    threaded separately, via Task.arguments, at invoke time). The existing
+    `test_create_node_and_request` above can't catch a regression here because a
+    bare MagicMock() accepts any call signature."""
+
+    class StrictNode:
+        def __init__(self, *args, **kwargs):
+            if args or kwargs:
+                raise TypeError(
+                    f"node() must be constructed with no arguments, got "
+                    f"args={args!r} kwargs={kwargs!r}"
+                )
+            self.uuid = "strict-node-uuid"
+
+        def name(self):
+            return "StrictNode"
+
+    state = RTState(
+        dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher
+    )
+    state._node_heap.get_node_type = lambda x: MagicMock(
+        pretty_name=lambda: "ParentNode"
+    )
+    state._node_heap.update = MagicMock()
+    state._request_heap.create = MagicMock(side_effect=lambda *args, **kwargs: "reqid")
+    state._create_new_request_set = MagicMock(return_value=["reqid"])
+
+    # would raise TypeError here if _create_node_and_request still did
+    # node(*args, **kwargs) instead of node()
+    result = state._create_node_and_request(
+        parent_node_id="parent",
+        request_id="reqid",
+        node=StrictNode,
+        args=(1, 2),
+        kwargs={"foo": "bar"},
+    )
+
+    assert result == "reqid"
+    state._node_heap.update.assert_called()
 # ================= END RTState: Node and Request Creation ======================
 
 # ================= START RTState: Cancel/Info =====================

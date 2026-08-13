@@ -21,6 +21,11 @@ def sync_upper(text: str) -> str:
 
 
 @rt.function_node
+async def boom(text: str) -> str:
+    raise ValueError("database connection pool exhausted")
+
+
+@rt.function_node
 def read_context_value(key: str, default: str | None = None):
     return rt.context.get(key, default=default)
 
@@ -83,6 +88,23 @@ async def test_flow_ainvoke_async_returns_value():
     result = await flow.ainvoke(1, 2)
     assert result == 3
 
+
+def test_flow_invoke_surfaces_internal_runtime_error():
+    
+    flow = Flow(name="boom-flow", entry_point=boom, save_state=False)
+
+    with pytest.raises(ValueError, match="database connection pool exhausted"):
+        flow.invoke("x")
+
+
+@pytest.mark.asyncio
+async def test_flow_ainvoke_surfaces_internal_runtime_error():
+    flow = Flow(name="boom-flow", entry_point=boom, save_state=False)
+
+    with pytest.raises(ValueError, match="database connection pool exhausted"):
+        await flow.ainvoke("x")
+
+
 @pytest.mark.asyncio
 async def test_flow_invoke_in_an_event_loop():
     # invoke() must work transparently even when called from inside a running
@@ -103,7 +125,6 @@ async def test_flow_invoke_in_event_loop_preserves_context():
     )
     result = flow.invoke("env")
     assert result == "notebook"
-
 
 
 def test_flow_context_is_passed_to_node():
