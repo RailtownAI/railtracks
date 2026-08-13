@@ -14,7 +14,8 @@ from dotenv import load_dotenv
 
 if TYPE_CHECKING:
     from railtracks import retrieval
-    from railtracks.interaction import interactive  # type checker still recognize
+
+    from railtracks.interaction import interactive as interactive
 
 __all__ = [
     "Session",
