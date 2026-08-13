@@ -6,7 +6,7 @@ import pytest
 
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.llm import PIIRedactOutputGuard
+from railtracks.prebuilt.guardrails import PIIRedactOutputGuard
 from railtracks.llm import MessageHistory
 from railtracks.llm.message import AssistantMessage, UserMessage
 
