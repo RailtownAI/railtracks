@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 from .content import Content, ToolCall, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
-from .prompt_injection_utils import KeyOnlyFormatter, ValueDict
+from .prompt_injection_utils import ValueDict, fill_template
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +272,7 @@ class _StringOnlyContent(Message[str, _TRole], Generic[_TRole]):
             raise TypeError(f"A {cls.__name__} needs a string but got {type(content)}")
 
     def fill_prompt(self, value_dict: ValueDict) -> None:
-        self._content = KeyOnlyFormatter().vformat(self._content, (), value_dict)
+        self._content = fill_template(self._content, value_dict)
 
 
 class UserMessage(_StringOnlyContent[Role.user]):
