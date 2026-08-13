@@ -37,6 +37,14 @@ If you need to include literal curly braces in your prompt without triggering co
 "Use the {{variable}} placeholder in your code."
 ```
 
+For a string you did not write yourself, such as user input or a fetched document, use
+`rt.escape_braces` to double its braces for you. This lets one message hold both a template you wrote
+and text that is delivered as written:
+
+```python
+prompt = f"The current time is {{time}}:\nUser Message:\n{rt.escape_braces(user_text)}"
+```
+
 ### Debugging Prompts
 
 If your prompts aren't producing the expected results:
