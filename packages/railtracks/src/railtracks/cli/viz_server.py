@@ -14,8 +14,12 @@ from railtracks.paths import resolve_railtracks_home
 
 from .constants import DEFAULT_PORT
 from .io import print_error, print_status, print_success, print_warning
+from .viz_api import router as viz_api_router
 
 app = FastAPI()
+# Session endpoints backed by the event-stream query layer. Must be included
+# before the catch-all below, which matches every remaining path.
+app.include_router(viz_api_router)
 
 
 def get_railtracks_dir() -> Path:
@@ -44,49 +48,6 @@ async def get_evaluations():
                 print_error(f"Error reading evaluation file {file_path.name}: {e}")
 
     return JSONResponse(content=evaluations)
-
-
-@app.get("/api/sessions")
-async def get_sessions():
-    """Get all session JSON files from .railtracks/data/sessions/"""
-    sessions_dir = get_data_dir("sessions")
-    sessions = []
-
-    if sessions_dir.exists():
-        for file_path in sessions_dir.glob("*.json"):
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    content = json.load(f)
-                    sessions.append(content)
-            except (json.JSONDecodeError, OSError) as e:
-                print_error(f"Error reading session file {file_path.name}: {e}")
-
-    return JSONResponse(content=sessions)
-
-
-@app.get("/api/sessions/{guid}")
-async def get_session(guid: str):
-    """Get a specific session JSON file by GUID from .railtracks/data/sessions/"""
-    sessions_dir = get_data_dir("sessions")
-    file_path = sessions_dir / f"{guid}.json"
-    if not file_path.exists():
-        matches = list(sessions_dir.glob(f"*_{guid}.json"))
-        if matches:
-            file_path = matches[0]
-
-    if not file_path.exists():
-        return JSONResponse(content={"error": "Session not found"}, status_code=404)
-
-    try:
-        with open(file_path, encoding="utf-8") as f:
-            content = json.load(f)
-        return JSONResponse(content=content)
-    except json.JSONDecodeError as e:
-        print_error(f"Invalid JSON in {file_path.name}: {e}")
-        return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
-    except Exception as e:
-        print_error(f"Error reading session file {file_path.name}: {e}")
-        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
 
 
 @app.get("/{full_path:path}")
@@ -121,8 +82,11 @@ class RailtracksServer:
         print_status(f"📁 Serving files from: {get_railtracks_dir() / 'ui'}")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
-        print_status("   GET  /api/sessions - Get all session JSON files")
-        print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
+        print_status("   GET  /api/sessions - List sessions from the event stream")
+        print_status("   GET  /api/sessions/{session_id} - Session detail + tree")
+        print_status("   GET  /api/sessions/{session_id}/nodes/{node_id} - Node detail")
+        print_status("   GET  /api/sessions/{session_id}/graph - Session graph")
+        print_status("   GET  /api/traces - LLM calls across sessions")
         print_status("Press Ctrl+C to stop the server")
 
         def open_browser():
