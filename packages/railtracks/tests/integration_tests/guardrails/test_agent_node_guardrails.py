@@ -16,8 +16,12 @@ from railtracks.built_nodes.concrete import (
     GuardedToolCallLLM,
 )
 from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.guardrails import Guard, GuardrailBlockedError, GuardrailDecision, InputGuard, LLMGuardrailEvent, OutputGuard
+from railtracks.guardrails.core import Guard
+from railtracks.guardrails import GuardrailBlockedError, GuardrailDecision, InputGuard, LLMGuardrailEvent, OutputGuard
 from railtracks.llm import AssistantMessage
+
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 
 
 class FnInputGuard(InputGuard):

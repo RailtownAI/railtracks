@@ -12,6 +12,9 @@ from railtracks.llm._exceptions import RTLLMError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import UserMessage
 
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
+
 @pytest.fixture
 def mock_response():
     """Fixture for mocking successful API response"""

@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING
 from dotenv import load_dotenv
 
 if TYPE_CHECKING:
-    import railtracks.interaction.interactive as interactive
     from railtracks import retrieval
+    from railtracks.interaction import interactive as interactive
 
 __all__ = [
     "Session",
@@ -22,7 +22,6 @@ __all__ = [
     "call",
     "broadcast",
     "call_batch",
-    "interactive",
     "ExecutionInfo",
     "ExecutorConfig",
     "llm",
@@ -48,7 +47,7 @@ __all__ = [
     "escape_braces",
 ]
 
-from railtracks.built_nodes.easy_usage_wrappers import (
+from railtracks.built_nodes import (
     agent_node,
     function_node,
 )
@@ -70,6 +69,7 @@ from .nodes.manifest import ToolManifest
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .utils.config import ExecutorConfig
+from .utils.deprecation import warn_pending_change
 from .utils.logging.config import enable_logging
 
 load_dotenv()
@@ -84,9 +84,13 @@ __version__ = "1.0.0"
 
 def __getattr__(name: str):
     if name == "interactive":
-        module = importlib.import_module("railtracks.interaction.interactive")
-        globals()[name] = module
-        return module
+        # Not cached in globals()
+        warn_pending_change(
+            "rt.interactive",
+            change="is removed",
+            detail="There is no replacement; the local chat UI is going away.",
+        )
+        return importlib.import_module("railtracks.interaction.interactive")
     if name == "retrieval":
         try:
             module = importlib.import_module("railtracks.retrieval")
@@ -101,4 +105,5 @@ def __getattr__(name: str):
 
 
 def __dir__() -> list[str]:
-    return sorted(set(__all__))
+    # "interactive" is not in __all__ but is still reachable
+    return sorted({*__all__, "interactive"})

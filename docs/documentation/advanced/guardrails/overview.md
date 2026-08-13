@@ -1,5 +1,12 @@
 # Guardrails Overview
 
+!!! warning "Changing in 1.5.0"
+    The `Guard` container and `agent_node(guardrails=...)` described on this page are
+    removed in 1.5.0, where guards attach as **model middleware** instead. The built-in
+    guards also move to `railtracks.prebuilt.guardrails`. Guard authoring
+    (`InputGuard` / `OutputGuard` and the decision types) is unchanged.
+    See [Upgrading to 1.5.0](../../upgrading/1_5_0.md).
+
 Guardrails are a policy layer around agent execution. They inspect requests before they reach a model and responses before they are returned, letting you enforce rules for safety, reliability, and product behavior.
 
 Guardrails aren't just about blocking unsafe content. They can also:
