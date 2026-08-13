@@ -135,7 +135,18 @@ SELECT s.scope_id                                    AS session_id,
        COALESCE(l.input_tokens, 0)                   AS input_tokens,
        COALESCE(l.output_tokens, 0)                  AS output_tokens,
        COALESCE(l.total_cost, 0.0)                   AS total_cost,
-       COALESCE(n.node_count, 0)                     AS node_count
+       COALESCE(n.node_count, 0)                     AS node_count,
+       -- The rolled-up status, in SQL rather than Python, so the same
+       -- definition serves the row, the status filter and the stat tiles. Two
+       -- copies of this CASE would eventually disagree about what "Failed"
+       -- counts, and the tiles would contradict the table they sit above.
+       CASE
+         WHEN c.status IS NULL AND c.ended_at IS NULL   THEN 'Running'
+         WHEN c.status IS NULL                          THEN 'Completed'
+         WHEN LOWER(CAST(c.status AS VARCHAR)) = 'success' THEN 'Completed'
+         WHEN LOWER(CAST(c.status AS VARCHAR)) = 'failure' THEN 'Failed'
+         ELSE 'Running'
+       END                                           AS status
 FROM started s
 LEFT JOIN completed c USING (scope_id)
 LEFT JOIN llm_agg   l USING (scope_id)
@@ -143,12 +154,117 @@ LEFT JOIN node_agg  n USING (scope_id)
 """
 
 
-def list_session_rows(con) -> list[dict[str, Any]]:
+def _session_filters(
+    flow_names: list[str] | None,
+    entry_point_names: list[str] | None,
+    statuses: list[str] | None,
+) -> tuple[str, list[Any]]:
+    """Build the ``WHERE`` clause shared by the session list and its stats.
+
+    Both go through here so a stat tile can never describe a different set of
+    sessions than the table underneath it. Predicates are written against the
+    outer query's columns, so callers must wrap ``_SESSION_SUMMARY_CTE`` in a
+    subquery aliased ``s`` — see :func:`_filtered_sessions_sql`.
+    """
+    predicates: list[str] = []
+    params: list[Any] = []
+    if flow_names:
+        placeholders = ", ".join("?" for _ in flow_names)
+        predicates.append(f"s.flow_name IN ({placeholders})")
+        params.extend(flow_names)
+    if entry_point_names:
+        placeholders = ", ".join("?" for _ in entry_point_names)
+        predicates.append(f"s.entry_point_name IN ({placeholders})")
+        params.extend(entry_point_names)
+    if statuses:
+        placeholders = ", ".join("?" for _ in statuses)
+        predicates.append(f"s.status IN ({placeholders})")
+        params.extend(statuses)
+    return ("WHERE " + " AND ".join(predicates) if predicates else "", params)
+
+
+def _filtered_sessions_sql(where_clause: str) -> str:
+    """``_SESSION_SUMMARY_CTE`` wrapped so the filters can see its derived
+    columns — ``status`` is a CASE expression and cannot be filtered inside the
+    query that computes it."""
+    return f"SELECT * FROM ({_SESSION_SUMMARY_CTE}) s {where_clause}"
+
+
+def list_session_rows(
+    con,
+    *,
+    flow_names: list[str] | None = None,
+    entry_point_names: list[str] | None = None,
+    statuses: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Session rows, newest first, narrowed server-side.
+
+    The filters used to run in the browser over the full list. That was
+    survivable while the endpoint returned every session, but it cannot produce
+    honest stat tiles — those have to be computed over the same predicate, not
+    over whatever the client happened to hold.
+    """
+    where_clause, params = _session_filters(flow_names, entry_point_names, statuses)
     return _rows(
         con,
-        _SESSION_SUMMARY_CTE + "ORDER BY start_time DESC",
+        _filtered_sessions_sql(where_clause) + " ORDER BY start_time DESC",
+        tuple(params),
         label="list_session_rows",
     )
+
+
+def get_session_stats(
+    con,
+    *,
+    flow_names: list[str] | None = None,
+    entry_point_names: list[str] | None = None,
+    statuses: list[str] | None = None,
+) -> dict[str, Any]:
+    """Roll-up across every session matching the filters, ignoring paging.
+
+    Computed here rather than by summing the rows in the browser: the client
+    would be re-deriving what the server already knows, and it would silently
+    start lying the day this list is paginated.
+    """
+    where_clause, params = _session_filters(flow_names, entry_point_names, statuses)
+    sql = f"""
+    SELECT COUNT(*)                                           AS total_runs,
+           COUNT(*) FILTER (WHERE s.status = 'Completed')      AS successes,
+           COUNT(*) FILTER (WHERE s.status = 'Failed')         AS failures,
+           COUNT(*) FILTER (WHERE s.status = 'Running')        AS running,
+           COALESCE(SUM(s.input_tokens), 0)                    AS input_tokens,
+           COALESCE(SUM(s.output_tokens), 0)                   AS output_tokens,
+           COALESCE(SUM(s.total_cost), 0.0)                    AS total_cost
+    FROM ({_filtered_sessions_sql(where_clause)}) s
+    """
+    rows = _rows(con, sql, tuple(params), label="get_session_stats")
+    return rows[0] if rows else {}
+
+
+def list_session_filter_options(con) -> dict[str, list[str]]:
+    """Distinct flow names, entry points and statuses across every session.
+
+    Like the trace filters, these come from the whole stream rather than the
+    rows in hand, so a selection can always be widened again.
+    """
+    rows = _rows(
+        con,
+        f"""
+        SELECT DISTINCT flow_name, entry_point_name, status
+        FROM ({_SESSION_SUMMARY_CTE}) s
+        """,
+        label="list_session_filter_options",
+    )
+    flow_names = sorted({r["flow_name"] for r in rows if r["flow_name"]})
+    entry_points = sorted(
+        {r["entry_point_name"] for r in rows if r["entry_point_name"]}
+    )
+    statuses = sorted({r["status"] for r in rows if r["status"]})
+    return {
+        "flow_names": flow_names,
+        "entry_point_names": entry_points,
+        "statuses": statuses,
+    }
 
 
 def get_session_row(con, session_id: str) -> dict[str, Any] | None:
@@ -682,6 +798,56 @@ def list_trace_rows(
         row["inputs"] = _parse_json(row.pop("message_input_json"))
         row["output"] = _parse_json(row.pop("output_json"))
     return rows
+
+
+def get_trace_stats(
+    con,
+    *,
+    session_id: str | None = None,
+    node_id: str | None = None,
+    flow_names: list[str] | None = None,
+    node_names: list[str] | None = None,
+    model_names: list[str] | None = None,
+) -> dict[str, Any]:
+    """Roll-up across every LLM call matching the filters, ignoring paging.
+
+    Shares ``_trace_filters`` with the listing and its count, so the tiles, the
+    pager total and the rows can never describe three different sets.
+
+    ``AVG`` skips nulls, so a provider that reports no latency lowers neither the
+    average nor the count it is drawn from; the result is null only when nothing
+    matching reported a latency at all.
+    """
+    where_clause, params = _trace_filters(
+        session_id, node_id, flow_names, node_names, model_names
+    )
+    sql = f"""
+    WITH llm_responses AS (
+      SELECT event_id,
+             scope_id,
+             spatial_parent_node_id,
+             parent_llm_type_id,
+             reported_model_name,
+             input_tokens,
+             output_tokens,
+             total_cost,
+             latency
+      FROM llm
+      WHERE event_type = 'llm.response'
+    ),
+    {_TRACE_JOIN_CTES}
+    SELECT COUNT(*)                                AS total_calls,
+           COALESCE(SUM(r.input_tokens), 0)        AS input_tokens,
+           COALESCE(SUM(r.output_tokens), 0)       AS output_tokens,
+           COALESCE(SUM(r.total_cost), 0.0)        AS total_cost,
+           AVG(r.latency)                          AS avg_latency_seconds,
+           MAX(r.latency)                          AS max_latency_seconds
+    FROM llm_responses r
+    {_TRACE_JOINS}
+    {where_clause}
+    """
+    rows = _rows(con, sql, tuple(params), label="get_trace_stats")
+    return rows[0] if rows else {}
 
 
 def list_trace_filter_options(con) -> dict[str, list[str]]:

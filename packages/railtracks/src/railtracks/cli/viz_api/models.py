@@ -231,6 +231,53 @@ class TracePage(BaseModel):
     offset: int = 0
 
 
+class SessionStats(BaseModel):
+    """Roll-up across every session matching the filters.
+
+    Computed server-side and over the whole filtered set, not the rows a client
+    happens to hold. Summing in the browser would re-derive what the server
+    already knows, and would start lying the day the sessions list is paginated.
+
+    ``successes + failures + running == total_runs``; the three statuses are
+    exhaustive because the roll-up has no fourth outcome.
+    """
+
+    total_runs: int = 0
+    successes: int = 0
+    failures: int = 0
+    running: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_cost: float = 0.0
+
+
+class SessionFilterOptions(BaseModel):
+    """Values the session filters accept, across every session in the stream."""
+
+    flow_names: list[str] = Field(default_factory=list)
+    entry_point_names: list[str] = Field(default_factory=list)
+    #: Rolled-up status values — "Completed" | "Failed" | "Running".
+    statuses: list[str] = Field(default_factory=list)
+
+
+class TraceStats(BaseModel):
+    """Roll-up across every LLM call matching the trace filters.
+
+    Counts only the calls the traces table can show — successful
+    ``llm.response`` events. ``llm.failure`` events are not in this total,
+    because they are not rows in the table either; a tile that counted them
+    would not reconcile with what is listed underneath it.
+    """
+
+    total_calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_cost: float = 0.0
+    #: Null when nothing matching reported a latency.
+    avg_latency_seconds: float | None = None
+    max_latency_seconds: float | None = None
+
+
 class TraceFilterOptions(BaseModel):
     """Every value the ``/api/traces`` filters can usefully take.
 

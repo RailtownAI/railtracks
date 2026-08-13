@@ -20,7 +20,9 @@ from .models import (
     NodeRef,
     NodeStatus,
     SessionDetail,
+    SessionFilterOptions,
     SessionGraph,
+    SessionStats,
     SessionStatus,
     SessionSummary,
     SortOrder,
@@ -28,6 +30,7 @@ from .models import (
     TracePage,
     TraceRow,
     TraceSortField,
+    TraceStats,
     TreeNode,
 )
 
@@ -44,21 +47,95 @@ def _events_dir() -> Path:
 
 
 @router.get("/sessions", response_model=list[SessionSummary])
-async def list_sessions() -> list[SessionSummary]:
-    """List every session in the events home, most recent first."""
-    print_status("GET /api/sessions")
+async def list_sessions(
+    flow_name: list[str] | None = Query(None),
+    entry_point_name: list[str] | None = Query(None),
+    status: list[str] | None = Query(None),
+) -> list[SessionSummary]:
+    """List sessions in the events home, most recent first.
+
+    Filters apply server-side. They used to run in the browser over the full
+    list, which worked only because this endpoint returns every session — and
+    could not produce honest stat tiles, since those must be computed over the
+    same predicate rather than over whatever the client happened to hold.
+    Repeating a param ORs its values; separate params AND.
+    """
+    print_status(
+        f"GET /api/sessions flow_name={flow_name} "
+        f"entry_point_name={entry_point_name} status={status}"
+    )
     events_dir = _events_dir()
     if not events_dir.exists():
         return []
 
     try:
         q = queries.get_query(events_dir)
-        rows = queries.list_session_rows(q.con)
+        rows = queries.list_session_rows(
+            q.con,
+            flow_names=flow_name,
+            entry_point_names=entry_point_name,
+            statuses=status,
+        )
     except Exception as e:  # noqa: BLE001 - keep the endpoint resilient
         print_error(f"list_sessions query failed: {e}")
         raise HTTPException(status_code=500, detail="failed to query events") from e
 
     return [_row_to_summary(r) for r in rows]
+
+
+# NB: the two literal `/sessions/...` routes below must stay ahead of
+# `/sessions/{session_id}`. FastAPI matches in registration order, so declaring
+# them after it would have "stats" and "filters" swallowed as session ids and
+# answered with a 404 for a session that does not exist.
+
+
+@router.get("/sessions/stats", response_model=SessionStats)
+async def get_session_stats(
+    flow_name: list[str] | None = Query(None),
+    entry_point_name: list[str] | None = Query(None),
+    status: list[str] | None = Query(None),
+) -> SessionStats:
+    """Roll-up across every session matching the filters.
+
+    Takes the same filter params as ``/api/sessions`` — tiles that narrowed
+    differently from the table beneath them would be worse than no tiles.
+    """
+    print_status(
+        f"GET /api/sessions/stats flow_name={flow_name} "
+        f"entry_point_name={entry_point_name} status={status}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return SessionStats()
+
+    q = queries.get_query(events_dir)
+    stats = queries.get_session_stats(
+        q.con,
+        flow_names=flow_name,
+        entry_point_names=entry_point_name,
+        statuses=status,
+    )
+    return SessionStats(
+        total_runs=int(stats.get("total_runs") or 0),
+        successes=int(stats.get("successes") or 0),
+        failures=int(stats.get("failures") or 0),
+        running=int(stats.get("running") or 0),
+        input_tokens=int(stats.get("input_tokens") or 0),
+        output_tokens=int(stats.get("output_tokens") or 0),
+        total_cost=float(stats.get("total_cost") or 0.0),
+    )
+
+
+@router.get("/sessions/filters", response_model=SessionFilterOptions)
+async def get_session_filter_options() -> SessionFilterOptions:
+    """Values the session filters accept, across every session in the stream."""
+    print_status("GET /api/sessions/filters")
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return SessionFilterOptions()
+
+    q = queries.get_query(events_dir)
+    return SessionFilterOptions(**queries.list_session_filter_options(q.con))
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetail)
@@ -217,6 +294,49 @@ async def list_traces(
     )
 
 
+@router.get("/traces/stats", response_model=TraceStats)
+async def get_trace_stats(
+    session_id: str | None = Query(None),
+    node_id: str | None = Query(None),
+    flow_name: list[str] | None = Query(None),
+    node_name: list[str] | None = Query(None),
+    model_name: list[str] | None = Query(None),
+) -> TraceStats:
+    """Roll-up across every LLM call matching the filters.
+
+    Takes the same filters as ``/api/traces`` and no paging params: the point of
+    the tiles is to describe the whole filtered set, which is exactly what the
+    fifty rows on the current page cannot tell you.
+    """
+    print_status(
+        f"GET /api/traces/stats session_id={session_id} node_id={node_id} "
+        f"flow_name={flow_name} node_name={node_name} model_name={model_name}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return TraceStats()
+
+    q = queries.get_query(events_dir)
+    stats = queries.get_trace_stats(
+        q.con,
+        session_id=session_id,
+        node_id=node_id,
+        flow_names=flow_name,
+        node_names=node_name,
+        model_names=model_name,
+    )
+    avg_latency = stats.get("avg_latency_seconds")
+    max_latency = stats.get("max_latency_seconds")
+    return TraceStats(
+        total_calls=int(stats.get("total_calls") or 0),
+        input_tokens=int(stats.get("input_tokens") or 0),
+        output_tokens=int(stats.get("output_tokens") or 0),
+        total_cost=float(stats.get("total_cost") or 0.0),
+        avg_latency_seconds=float(avg_latency) if avg_latency is not None else None,
+        max_latency_seconds=float(max_latency) if max_latency is not None else None,
+    )
+
+
 @router.get("/traces/filters", response_model=TraceFilterOptions)
 async def get_trace_filter_options() -> TraceFilterOptions:
     """Every value the ``/api/traces`` filters can take.
@@ -306,7 +426,10 @@ def _row_to_summary(row: dict[str, Any]) -> SessionSummary:
         start_time=start_time,
         end_time=end_time,
         duration=float(duration) if duration is not None else None,
-        status=_roll_up_status(row["raw_status"], end_time is not None),
+        # Rolled up in SQL — see _SESSION_SUMMARY_CTE. Repeating the CASE here
+        # would give the status filter and the stat tiles a second definition to
+        # drift from.
+        status=SessionStatus(row["status"]),
         total_cost=float(row["total_cost"] or 0.0),
         input_tokens=int(row["input_tokens"] or 0),
         output_tokens=int(row["output_tokens"] or 0),
@@ -344,17 +467,6 @@ def _resolve_session_name(row: dict[str, Any]) -> str:
         if val:
             return val
     return ""
-
-
-def _roll_up_status(raw_status: str | None, completed: bool) -> SessionStatus:
-    if raw_status is None:
-        return SessionStatus.RUNNING if not completed else SessionStatus.COMPLETED
-    status = raw_status.lower()
-    if status == "success":
-        return SessionStatus.COMPLETED
-    if status == "failure":
-        return SessionStatus.FAILED
-    return SessionStatus.RUNNING
 
 
 def _node_status(row: dict[str, Any]) -> NodeStatus:
