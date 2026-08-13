@@ -118,8 +118,8 @@ def agent_node(
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: list[Middleware[_P, StringResponse]] | None = None,
-    model_middleware: list[ModelMiddleware] | None = None,
+    middleware: Iterable[Middleware[_P, StringResponse]] | None = None,
+    model_middleware: Iterable[ModelMiddleware] | None = None,
     _shape: Callable[_P, object] = _user_input_shape,
 ) -> type[Node[_P, StringResponse]]: ...
 
@@ -132,8 +132,8 @@ def agent_node(
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: list[Middleware[_P, StructuredResponse[_TBaseModel]]] | None = None,
-    model_middleware: list[ModelMiddleware] | None = None,
+    middleware: Iterable[Middleware[_P, StructuredResponse[_TBaseModel]]] | None = None,
+    model_middleware: Iterable[ModelMiddleware] | None = None,
     _shape: Callable[_P, object] = _user_input_shape,
 ) -> type[Node[_P, StructuredResponse[_TBaseModel]]]: ...
 
@@ -146,10 +146,10 @@ def agent_node(
     llm: ModelSource,
     system_message: SystemMessage | str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: list[Middleware[_P, StructuredResponse[_TBaseModel]]]
-    | list[Middleware[_P, StringResponse]]
+    middleware: Iterable[Middleware[_P, StructuredResponse[_TBaseModel]]]
+    | Iterable[Middleware[_P, StringResponse]]
     | None = None,
-    model_middleware: list[ModelMiddleware] | None = None,
+    model_middleware: Iterable[ModelMiddleware] | None = None,
     _shape: Callable[_P, object] = _user_input_shape,
 ) -> type[Node[_P, StringResponse]] | type[Node[_P, StructuredResponse[_TBaseModel]]]:
     """

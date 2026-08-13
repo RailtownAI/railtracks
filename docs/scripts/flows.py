@@ -16,27 +16,36 @@ def weather_tool(city: str):
     # Simulate a weather API call
     return f"{city} is sunny with a temperature of 25°C."
 
-weather_manifest = rt.ToolManifest(
-description="A tool you can call to see what the weather in a specified city",
-    parameters=[rt.llm.Parameter(name="prompt", param_type="string", description="This is the prompt that you should provide that tells the CodeAgent what you would like to code.")]
-)
 
 #As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it
-WeatherAgent = rt.agent_node(
+WeatherToolCallAgent = rt.agent_node(
     name="Weather Agent",
     llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[rt.function_node(weather_tool)],
-    output_schema=WeatherResponse,
-    manifest=weather_manifest
 )
+
+WeatherStructuredAgent = rt.agent_node(
+    name="Weather Formatter Agent",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    system_message="Extract the temperature and condition from the assistant's answer.",
+    output_schema=WeatherResponse,
+)
+
+#Call the ToolCall agent first, then hand its answer to the structured agent, wrapped by an rt function so it can be used as a tool
+@rt.function_node
+async def weather_agent(prompt: str):
+    tool_response = await rt.call(WeatherToolCallAgent, user_input=prompt)
+    return await rt.call(WeatherStructuredAgent, user_input=tool_response.text)
+
+
 
 #Now lets create a hiking planner agent
 HikingAgent = rt.agent_node(
     name="Hiking Agent",
     llm=rt.llm.OpenAILLM("gpt-4o"),
     system_message="You are a helpful assistant that answers questions about which cities have the best conditions for hiking. The user should specify multiple cities near them.",
-    tool_nodes=[WeatherAgent],
+    tool_nodes=[weather_agent],
 )
 # --8<-- [end: hiking_example]
 
