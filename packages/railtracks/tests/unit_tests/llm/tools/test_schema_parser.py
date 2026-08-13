@@ -61,6 +61,15 @@ class TestParseJsonSchemaToParameter:
         assert param.description == "A boolean parameter"
         assert param.required is True
 
+    def test_nullable_string_union_preserves_schema_types(self):
+        schema = {"type": ["string", "null"]}
+
+        param = parse_json_schema_to_parameter("test_param", schema, True)
+
+        assert param.to_json_schema() == {
+            "anyOf": [{"type": "string"}, {"type": "null"}]
+        }
+
     def test_array_parameter(self):
         """Test parsing an array parameter."""
         schema = {

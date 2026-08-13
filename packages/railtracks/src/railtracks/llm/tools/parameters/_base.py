@@ -32,26 +32,33 @@ class ParameterType(str, Enum):
 _JSON_SCHEMA_TYPES = tuple(parameter_type.value for parameter_type in ParameterType)
 
 
+def _invalid_param_type_message(param_type: object, parameter_name: str) -> str:
+    valid_types = ", ".join(repr(value) for value in _JSON_SCHEMA_TYPES)
+    return (
+        f"Invalid param_type {param_type!r} provided for parameter "
+        f"{parameter_name!r}. Expected one of: {valid_types}."
+    )
+
+
+def _validate_param_type(param_type: object, parameter_name: str) -> None:
+    if param_type not in _JSON_SCHEMA_TYPES:
+        raise ValueError(_invalid_param_type_message(param_type, parameter_name))
+
+
 def _normalize_param_type_scalar(
-    param_type: Union[str, ParameterType, type],
+    param_type: Union[str, ParameterType, type], parameter_name: str
 ) -> str:
     """Map ParameterType enum, JSON schema type string, or Python type to a schema type string."""
     if isinstance(param_type, ParameterType):
         return param_type.value
     if isinstance(param_type, type):
-        return ParameterType.from_python_type(param_type).value
+        normalized_type = ParameterType.from_python_type(param_type)
+        if normalized_type is ParameterType.OBJECT and param_type is not dict:
+            raise ValueError(_invalid_param_type_message(param_type, parameter_name))
+        return normalized_type.value
     if param_type == "none":
         return ParameterType.NONE.value
     return param_type
-
-
-def _validate_param_type(param_type: str, parameter_name: str) -> None:
-    if param_type not in _JSON_SCHEMA_TYPES:
-        valid_types = ", ".join(repr(value) for value in _JSON_SCHEMA_TYPES)
-        raise ValueError(
-            f"Invalid param_type {param_type!r} provided for parameter "
-            f"{parameter_name!r}. Expected one of: {valid_types}."
-        )
 
 
 # Generic Type for subclass methods that return Parameter
@@ -105,13 +112,13 @@ class Parameter(ABC):
         if param_type is not None:
             if isinstance(param_type, list):
                 normalized_types = [
-                    _normalize_param_type_scalar(pt) for pt in param_type
+                    _normalize_param_type_scalar(pt, name) for pt in param_type
                 ]
                 for normalized_type in normalized_types:
                     _validate_param_type(normalized_type, name)
                 self.param_type = normalized_types
             else:
-                normalized_type = _normalize_param_type_scalar(param_type)
+                normalized_type = _normalize_param_type_scalar(param_type, name)
                 _validate_param_type(normalized_type, name)
                 self.param_type = normalized_type
         elif hasattr(self, "param_type") and self.param_type is None:

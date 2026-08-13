@@ -61,3 +61,11 @@ def test_parameter_rejects_invalid_json_schema_type(param_type):
         match="Invalid param_type 'bool' provided for parameter 'enabled'",
     ):
         Parameter("enabled", param_type=param_type)
+
+
+def test_parameter_rejects_unmapped_python_type():
+    with pytest.raises(
+        ValueError,
+        match="Invalid param_type .*bytes.* provided for parameter 'payload'",
+    ):
+        Parameter("payload", param_type=bytes)
