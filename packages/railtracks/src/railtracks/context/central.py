@@ -35,7 +35,6 @@ class RunnerContextVars:
         self.external_context = external_context
 
 
-
 runner_context: contextvars.ContextVar[RunnerContextVars | None] = (
     contextvars.ContextVar("runner_context", default=None)
 )
@@ -288,6 +287,7 @@ def get_stream_queue() -> asyncio.Queue[Any] | None:
         return None
     return context.session_context.stream_queue
 
+
 def push_stream_queue(stream_queue: asyncio.Queue[Any]):
     context = safe_get_runner_context()
 
@@ -413,7 +413,6 @@ def set_global_config(
     global_executor_config.set(executor_config)
 
 
-
 def _push_scope(entry: ScopeEntry, *, run_id: str | None = None) -> contextvars.Token:
     """Pushes `entry` onto the scope chain, returning the token needed to revert it."""
     ctx = safe_get_runner_context()
@@ -452,7 +451,7 @@ class ContextVarScopeManager:
             raise RuntimeError(
                 "Cannot enter a node-body scope outside of an active node scope"
             )
-    
+
         token = _push_scope(ScopeEntry(ScopeKind.NODE_BODY, node_id.id))
         try:
             yield
@@ -478,7 +477,6 @@ class ContextVarScopeManager:
             yield
         finally:
             runner_context.reset(token)
-
 
 
 def delete_globals():

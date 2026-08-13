@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from enum import Enum
-import queue
 from typing import TYPE_CHECKING, Any
 
 from railtracks.context.scope_link import ScopeLink

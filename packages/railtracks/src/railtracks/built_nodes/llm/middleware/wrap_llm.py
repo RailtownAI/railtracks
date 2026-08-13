@@ -3,12 +3,6 @@ from typing import Awaitable, Callable, overload
 
 from pydantic import BaseModel
 
-from railtracks.events.middleware import (
-    MiddlewareModelFailureEvent,
-    MiddlewareModelInvocationEvent,
-    MiddlewareModelResponseEvent,
-)
-from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool

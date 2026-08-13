@@ -31,8 +31,8 @@ class Task(Generic[_TOutput]):
     async def invoke(self):
         """The callable that this task is representing."""
         if self.stream_queue is not None:
-           push_stream_queue(self.stream_queue)
-           
+            push_stream_queue(self.stream_queue)
+
         result = await self.node.wrapped_invoke(*self.arguments[0], **self.arguments[1])
 
         return result
