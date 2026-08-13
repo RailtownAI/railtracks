@@ -46,7 +46,7 @@ class Publisher(Generic[_T]):
     - Calling the shutdown method will kill the publisher forever. You will have to make a new one after.
     """
 
-    timeout = 0.02
+    timeout = 0.005
 
     def __init__(
         self,
