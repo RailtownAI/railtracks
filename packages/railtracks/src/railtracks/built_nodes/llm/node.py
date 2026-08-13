@@ -55,11 +55,11 @@ def _build_dynamic_agent(
     llm: ModelSource,
     system_message: SystemMessage | str | None,
     tool_details: str | None,
-    tool_params: list[Parameter] | None,
-    middleware: list[Middleware[_P, StringResponse]]
-    | list[Middleware[_P, StructuredResponse[_TBaseModel]]]
+    tool_params: Iterable[Parameter] | None,
+    middleware: Iterable[Middleware[_P, StringResponse]]
+    | Iterable[Middleware[_P, StructuredResponse[_TBaseModel]]]
     | None = None,
-    model_middleware: list[ModelMiddleware] | None = None,
+    model_middleware: Iterable[ModelMiddleware] | None = None,
 ) -> type[Node[_P, StringResponse]] | type[Node[_P, StructuredResponse[_TBaseModel]]]:
     resolved_system = (
         SystemMessage(content=system_message)
@@ -80,9 +80,9 @@ def _build_dynamic_agent(
             system_message=resolved_system,
             connected_nodes=unpacked_tool_nodes,
             tool_details=tool_details,
-            tool_params=tool_params,
+            tool_params=list(tool_params) if tool_params is not None else None,
             middleware=cast(
-                "Iterable[Middleware[[UserInput], StringResponse]] | None", middleware
+                Iterable[Middleware[[UserInput], StringResponse]] | None, middleware
             ),
             model_middleware=model_middleware,
         )
@@ -93,16 +93,16 @@ def _build_dynamic_agent(
             system_message=resolved_system,
             schema=output_schema,
             tool_details=tool_details,
-            tool_params=tool_params,
+            tool_params=list(tool_params) if tool_params is not None else None,
             middleware=cast(
-                "Iterable[Middleware[[UserInput], StructuredResponse[_TBaseModel]]] | None",
+                Iterable[Middleware[[UserInput], StructuredResponse[_TBaseModel]]] | None,
                 middleware,
             ),
             model_middleware=model_middleware,
         )
 
     return cast(
-        "type[Node[_P, StringResponse]] | type[Node[_P, StructuredResponse[_TBaseModel]]]",
+        type[Node[_P, StringResponse]] | type[Node[_P, StructuredResponse[_TBaseModel]]],
         nb.build(),
     )
 
