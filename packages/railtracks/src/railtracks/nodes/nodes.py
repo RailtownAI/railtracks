@@ -150,9 +150,9 @@ class Node(ABC, Generic[_P, _TOutput]):
         cls, *middleware: Middleware[_P, _TOutput]
     ) -> type[Node[_P, _TOutput]]:
         new_middleware = [
-            *deepcopy(cls._user_middleware),
             *middleware,
-        ]  # fresh list a nice protection around things
+            *deepcopy(cls._user_middleware),
+        ]  # new middleware goes outermost; fresh list as a nice protection around things
         return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
 
     @classmethod
@@ -160,9 +160,9 @@ class Node(ABC, Generic[_P, _TOutput]):
         cls, *middleware: ModelMiddleware
     ) -> type[Node[_P, _TOutput]]:
         new_middleware = [
-            *deepcopy(cls._user_model_middleware),
             *middleware,
-        ]  # fresh list a nice protection around things
+            *deepcopy(cls._user_model_middleware),
+        ]  # new middleware goes outermost; fresh list as a nice protection around things
         return type(cls.__name__, (cls,), {"_user_model_middleware": new_middleware})
 
     def __repr__(self):

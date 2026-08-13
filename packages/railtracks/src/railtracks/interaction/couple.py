@@ -73,8 +73,9 @@ def couple(
 
     Ordering:
     - Middleware = [A, B, C] -> A wraps B, B wraps C, C wraps the node. A -> B -> C -> Node -> C -> B -> A
-    - Existing middleware on `node` is preserved and wraps around the newly added middleware
-      (the new middleware ends up innermost, closest to the node).
+    - Newly added middleware wraps around any existing middleware already on `node`
+      (the new middleware ends up outermost, farthest from the node). Call `couple()`
+      again on the result to add another, even-more-outer layer.
     """
     from railtracks.built_nodes.function.base import RTFunction
 
