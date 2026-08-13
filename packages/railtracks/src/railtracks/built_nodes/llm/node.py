@@ -95,14 +95,16 @@ def _build_dynamic_agent(
             tool_details=tool_details,
             tool_params=list(tool_params) if tool_params is not None else None,
             middleware=cast(
-                Iterable[Middleware[[UserInput], StructuredResponse[_TBaseModel]]] | None,
+                Iterable[Middleware[[UserInput], StructuredResponse[_TBaseModel]]]
+                | None,
                 middleware,
             ),
             model_middleware=model_middleware,
         )
 
     return cast(
-        type[Node[_P, StringResponse]] | type[Node[_P, StructuredResponse[_TBaseModel]]],
+        type[Node[_P, StringResponse]]
+        | type[Node[_P, StructuredResponse[_TBaseModel]]],
         nb.build(),
     )
 
