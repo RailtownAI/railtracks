@@ -324,7 +324,18 @@ def agent_node(
         system_message (SystemMessage | str | None): System message for the agent.
         manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
         guardrails (Guard | None): Guardrail config. When provided, the agent runs input/output guardrails.
+            Removed in railtracks 1.5.0, where guards attach as model middleware instead.
     """
+    if guardrails is not None:
+        warn_pending_change(
+            "The `guardrails=` argument of agent_node",
+            change="is removed",
+            detail=(
+                "Guards attach as model middleware in 1.5.0. Writing a guard is "
+                "unchanged; only the way it is attached to the agent changes."
+            ),
+        )
+
     if llm is None:
         warn_pending_change(
             "Creating an agent without an `llm`",
