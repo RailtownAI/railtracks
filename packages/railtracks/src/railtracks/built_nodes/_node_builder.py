@@ -19,9 +19,11 @@ from typing import (
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.concrete._llm_base import LLMBase
+from railtracks.built_nodes.concrete import (
+    DynamicFunctionNode,
+    LLMBase,
+)
 from railtracks.built_nodes.concrete._tool_call_base import OutputLessToolCallLLMBase
-from railtracks.built_nodes.concrete.function_base import DynamicFunctionNode
 from railtracks.llm import (
     ModelBase,
     Parameter,

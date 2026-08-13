@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.concrete._llm_base import RequestDetails
+from railtracks.built_nodes.concrete import RequestDetails
 from railtracks.built_nodes.concrete.response import LLMResponse
 from railtracks.llm import Message, ToolCall, ToolResponse, UserMessage
 from railtracks.nodes.nodes import LatencyDetails

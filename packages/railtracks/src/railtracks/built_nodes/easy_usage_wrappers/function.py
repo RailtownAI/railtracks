@@ -8,7 +8,7 @@ from types import BuiltinFunctionType
 from typing import Callable, Coroutine, List, ParamSpec, TypeVar, overload
 
 from railtracks.built_nodes._node_builder import NodeBuilder
-from railtracks.built_nodes.concrete.function_base import (
+from railtracks.built_nodes.concrete import (
     AsyncDynamicFunctionNode,
     RTAsyncFunction,
     RTSyncFunction,
