@@ -951,11 +951,6 @@ class TestCoupleAndComposition:
 
 
     async def test_full_stack_composition_order(self, mock_llm):
-        """Node-level middleware + model_middleware + guardrails + a post-hoc couple()
-        all compose in the actual documented append order. Guardrails are ordinary
-        model_middleware entries with no automatic slot: reproducing the classic
-        "input guard closest to the model, output guard has the final say" shape now
-        requires the caller to order the model_middleware list that way explicitly."""
         trace = []
 
         @rt.wrap_node
@@ -1000,10 +995,10 @@ class TestCoupleAndComposition:
         await rt.Flow("FullStackAgent", agent).ainvoke("hello")
 
         assert (
-            trace.index("node_a-in")
-            < trace.index("node_c-in")
-            < trace.index("node_c-out")
+            trace.index("node_c-in")
+            < trace.index("node_a-in")
             < trace.index("node_a-out")
+            < trace.index("node_c-out")
         )
 
         assert (

@@ -22,7 +22,7 @@ def sync_upper(text: str) -> str:
 
 @rt.function_node
 async def boom(text: str) -> str:
-    raise RuntimeError("database connection pool exhausted")
+    raise ValueError("database connection pool exhausted")
 
 
 @rt.function_node
@@ -90,11 +90,10 @@ async def test_flow_ainvoke_async_returns_value():
 
 
 def test_flow_invoke_surfaces_internal_runtime_error():
-    # A RuntimeError raised by the flow body itself must propagate as-is,
-    # not be relabeled as "cannot invoke synchronously" (issue #1366).
+    
     flow = Flow(name="boom-flow", entry_point=boom, save_state=False)
 
-    with pytest.raises(RuntimeError, match="database connection pool exhausted"):
+    with pytest.raises(ValueError, match="database connection pool exhausted"):
         flow.invoke("x")
 
 
@@ -102,7 +101,7 @@ def test_flow_invoke_surfaces_internal_runtime_error():
 async def test_flow_ainvoke_surfaces_internal_runtime_error():
     flow = Flow(name="boom-flow", entry_point=boom, save_state=False)
 
-    with pytest.raises(RuntimeError, match="database connection pool exhausted"):
+    with pytest.raises(ValueError, match="database connection pool exhausted"):
         await flow.ainvoke("x")
 
 

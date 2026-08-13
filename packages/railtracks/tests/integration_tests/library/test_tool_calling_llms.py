@@ -118,7 +118,16 @@ class TestFunctionNodeCallWithFunctionList:
         name="Random Number Generator Agent",
         tool_nodes=tool_nodes,
         system_message="""You are a number generator agent that can generate numbers and add a value to it""",
-        llm=mock_llm( "Successfully added 50 to 42 to get 92",),
+        llm=mock_llm(
+            requested_tool_calls=[
+                ToolCall(name="get_number", identifier="id_1", arguments={}),
+                ToolCall(
+                    name="add_value",
+                    identifier="id_2",
+                    arguments={"number": 42, "value": 50},
+                ),
+            ]
+        ),
     )
 
         with rt.Session(name="AgentHandlerNode") as run:
