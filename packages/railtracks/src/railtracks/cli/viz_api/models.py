@@ -38,6 +38,25 @@ class NodeStatus(str, Enum):
     RUNNING = "running"
 
 
+class TraceSortField(str, Enum):
+    """Sortable columns on ``GET /api/traces``.
+
+    Names are the user-facing measure, not the storage column: ``tokens`` sorts
+    on input + output combined, because that is the number the table renders as
+    one cell.
+    """
+
+    TIMESTAMP = "timestamp"
+    COST = "cost"
+    TOKENS = "tokens"
+    LATENCY = "latency"
+
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 class LLMContent(BaseModel):
     """One message in an LLM exchange. ``content`` is deliberately untyped: it
     may be a string, a tool-call list, a tool response, or arbitrary JSON."""
@@ -210,6 +229,28 @@ class TracePage(BaseModel):
     total: int = 0
     limit: int = 0
     offset: int = 0
+
+
+class TraceFilterOptions(BaseModel):
+    """Every value the ``/api/traces`` filters can usefully take.
+
+    Computed over the whole event stream rather than the current page, so a
+    dropdown offers what the *data* holds and not what the last query happened
+    to return. The lists are independent of each other and of any active filter
+    — narrowing them per selection would make a chosen value vanish from its own
+    dropdown.
+
+    ``node_names`` and ``model_names`` come from nodes and models that actually
+    made an LLM call; a Tool node can never appear in the traces table, so
+    offering it as a filter would only promise empty results. ``flow_names``
+    deliberately lists *every* flow, including ones that made no LLM calls —
+    "this flow made no calls" is a real answer to a real question.
+    """
+
+    flow_names: list[str] = Field(default_factory=list)
+    #: Agent node names, as rendered in the table's Agent column.
+    node_names: list[str] = Field(default_factory=list)
+    model_names: list[str] = Field(default_factory=list)
 
 
 TreeNode.model_rebuild()

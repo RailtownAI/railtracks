@@ -17,6 +17,7 @@ from typing import Any
 from railtracks.query import EventQuery, connect
 
 from ..io import print_status
+from .models import SortOrder, TraceSortField
 
 _NAMESPACES = ["session", "node", "llm", "middleware"]
 
@@ -443,16 +444,32 @@ def get_tool_io(con, session_id: str, node_id: str) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 
+#: SQL for each sortable measure, in terms of the ``llm_responses`` alias ``r``.
+#: Lookups are keyed by :class:`TraceSortField`, so nothing user-supplied ever
+#: reaches the ``ORDER BY`` — the enum is validated at the route boundary and a
+#: miss here would raise, not interpolate.
+_TRACE_SORT_COLUMNS = {
+    TraceSortField.TIMESTAMP: "r.timestamp",
+    TraceSortField.COST: "COALESCE(r.total_cost, 0.0)",
+    TraceSortField.TOKENS: "COALESCE(r.input_tokens, 0) + COALESCE(r.output_tokens, 0)",
+    TraceSortField.LATENCY: "r.latency",
+}
+
+
 def _trace_filters(
     session_id: str | None,
     node_id: str | None,
     flow_names: list[str] | None,
+    node_names: list[str] | None,
     model_names: list[str] | None,
 ) -> tuple[str, list[Any]]:
     """Build the shared ``WHERE`` clause for the trace queries.
 
     Both :func:`list_trace_rows` and :func:`count_trace_rows` go through here so
-    a page and its total can never be computed over different predicates.
+    a page and its total can never be computed over different predicates. That
+    also means both queries must expose the same aliases — ``r`` for the LLM
+    responses, ``s`` for the session, ``cr`` for the LLM creation and ``n`` for
+    the node.
     """
     predicates: list[str] = []
     params: list[Any] = []
@@ -466,6 +483,10 @@ def _trace_filters(
         placeholders = ", ".join("?" for _ in flow_names)
         predicates.append(f"s.flow_name IN ({placeholders})")
         params.extend(flow_names)
+    if node_names:
+        placeholders = ", ".join("?" for _ in node_names)
+        predicates.append(f"n.node_name IN ({placeholders})")
+        params.extend(node_names)
     if model_names:
         placeholders = ", ".join("?" for _ in model_names)
         predicates.append(
@@ -476,12 +497,81 @@ def _trace_filters(
     return ("WHERE " + " AND ".join(predicates) if predicates else "", params)
 
 
+def _trace_order_clause(sort_by: TraceSortField, order: SortOrder) -> str:
+    """``ORDER BY`` for the trace listing, with deterministic tie-breaking.
+
+    Two details that matter:
+
+    * **NULLS LAST in both directions.** A null latency means the provider
+      reported none, not that the call was instant — sorting it to the top of an
+      ascending list would read as "fastest".
+    * **``event_id`` breaks every remaining tie.** Without a unique final key,
+      two rows with the same cost can swap places between two queries, and a
+      paged client then sees one row twice and another not at all.
+    """
+    column = _TRACE_SORT_COLUMNS[sort_by]
+    direction = "ASC" if order is SortOrder.ASC else "DESC"
+    terms = [f"{column} {direction} NULLS LAST"]
+    if sort_by is not TraceSortField.TIMESTAMP:
+        terms.append("r.timestamp DESC")
+    terms.append("r.event_id ASC")
+    return "ORDER BY " + ", ".join(terms)
+
+
+#: The denormalizing CTEs shared by the trace listing and its count.
+#:
+#: Every one of them is grouped by its join key. The stream can carry a repeated
+#: ``llm.creation``, ``session.started`` or ``node.creation`` for the same
+#: entity, and an ungrouped join then fans a single LLM response out into as
+#: many rows as it matched — the bug that once had ``/api/traces`` reporting 44
+#: rows for a 30-call stream. Add a join here and group it the same way.
+_TRACE_JOIN_CTES = """
+    creations AS (
+      SELECT scope_id,
+             llm_id,
+             ANY_VALUE(model_provider) AS model_provider,
+             ANY_VALUE(model_name)     AS model_name
+      FROM llm
+      WHERE event_type = 'llm.creation'
+      GROUP BY scope_id, llm_id
+    ),
+    sessions AS (
+      SELECT scope_id,
+             ANY_VALUE(flow_name) AS flow_name,
+             ANY_VALUE(flow_id)   AS flow_id
+      FROM session
+      WHERE event_type = 'session.started'
+      GROUP BY scope_id
+    ),
+    nodes AS (
+      SELECT scope_id,
+             node_id,
+             ANY_VALUE(name) AS node_name
+      FROM node
+      WHERE event_type = 'node.creation'
+      GROUP BY scope_id, node_id
+    )
+"""
+
+#: The joins that pair with :data:`_TRACE_JOIN_CTES`, binding the aliases the
+#: filter predicates in :func:`_trace_filters` are written against.
+_TRACE_JOINS = """
+    LEFT JOIN creations cr
+      ON cr.scope_id = r.scope_id AND cr.llm_id = r.parent_llm_type_id
+    LEFT JOIN sessions s
+      ON s.scope_id = r.scope_id
+    LEFT JOIN nodes n
+      ON n.scope_id = r.scope_id AND n.node_id = r.spatial_parent_node_id
+"""
+
+
 def count_trace_rows(
     con,
     *,
     session_id: str | None = None,
     node_id: str | None = None,
     flow_names: list[str] | None = None,
+    node_names: list[str] | None = None,
     model_names: list[str] | None = None,
 ) -> int:
     """Count LLM-call rows matching the filters, ignoring paging.
@@ -490,7 +580,9 @@ def count_trace_rows(
     are the expensive part of :func:`list_trace_rows`, and a count needs none
     of them.
     """
-    where_clause, params = _trace_filters(session_id, node_id, flow_names, model_names)
+    where_clause, params = _trace_filters(
+        session_id, node_id, flow_names, node_names, model_names
+    )
     sql = f"""
     WITH llm_responses AS (
       SELECT event_id,
@@ -501,26 +593,10 @@ def count_trace_rows(
       FROM llm
       WHERE event_type = 'llm.response'
     ),
-    creations AS (
-      -- One row per (scope_id, llm_id). The stream can carry more than one
-      -- llm.creation for the same llm_id, and without this the join below
-      -- multiplies every response by however many creations it matched.
-      SELECT scope_id, llm_id, ANY_VALUE(model_name) AS model_name
-      FROM llm
-      WHERE event_type = 'llm.creation'
-      GROUP BY scope_id, llm_id
-    ),
-    sessions AS (
-      SELECT scope_id, flow_name
-      FROM session
-      WHERE event_type = 'session.started'
-    )
+    {_TRACE_JOIN_CTES}
     SELECT COUNT(*) AS total
     FROM llm_responses r
-    LEFT JOIN creations cr
-      ON cr.scope_id = r.scope_id AND cr.llm_id = r.parent_llm_type_id
-    LEFT JOIN sessions s
-      ON s.scope_id = r.scope_id
+    {_TRACE_JOINS}
     {where_clause}
     """
     rows = _rows(con, sql, tuple(params), label="count_trace_rows")
@@ -535,15 +611,25 @@ def list_trace_rows(
     session_id: str | None = None,
     node_id: str | None = None,
     flow_names: list[str] | None = None,
+    node_names: list[str] | None = None,
     model_names: list[str] | None = None,
+    sort_by: TraceSortField = TraceSortField.TIMESTAMP,
+    order: SortOrder = SortOrder.DESC,
 ) -> list[dict[str, Any]]:
-    """Return LLM-call rows, newest first, with server-side filtering and paging.
+    """Return LLM-call rows with server-side filtering, sorting and paging.
 
     Denormalizes ``flow_name`` / ``flow_id`` from the session and ``node_name``
     from the node onto every row so the client can render, filter, and deep-link
     without a second lookup.
+
+    Sorting is server-side for the same reason the filters are: ordering the
+    fifty rows that happened to land on the current page would answer a
+    different question than "the most expensive calls in this run".
     """
-    where_clause, params = _trace_filters(session_id, node_id, flow_names, model_names)
+    where_clause, params = _trace_filters(
+        session_id, node_id, flow_names, node_names, model_names
+    )
+    order_clause = _trace_order_clause(sort_by, order)
 
     sql = f"""
     WITH llm_responses AS (
@@ -562,27 +648,7 @@ def list_trace_rows(
       FROM llm
       WHERE event_type = 'llm.response'
     ),
-    creations AS (
-      -- See count_trace_rows: deduplicated so a repeated llm.creation cannot
-      -- fan a single response out into several trace rows.
-      SELECT scope_id,
-             llm_id,
-             ANY_VALUE(model_provider) AS model_provider,
-             ANY_VALUE(model_name)     AS model_name
-      FROM llm
-      WHERE event_type = 'llm.creation'
-      GROUP BY scope_id, llm_id
-    ),
-    sessions AS (
-      SELECT scope_id, flow_name, flow_id
-      FROM session
-      WHERE event_type = 'session.started'
-    ),
-    nodes AS (
-      SELECT scope_id, node_id, name AS node_name
-      FROM node
-      WHERE event_type = 'node.creation'
-    )
+    {_TRACE_JOIN_CTES}
     SELECT
       r.event_id                                     AS trace_id,
       r.scope_id                                     AS session_id,
@@ -600,14 +666,9 @@ def list_trace_rows(
       CAST(r.message_input AS VARCHAR)               AS message_input_json,
       CAST(r.output AS VARCHAR)                      AS output_json
     FROM llm_responses r
-    LEFT JOIN creations cr
-      ON cr.scope_id = r.scope_id AND cr.llm_id = r.parent_llm_type_id
-    LEFT JOIN sessions s
-      ON s.scope_id = r.scope_id
-    LEFT JOIN nodes n
-      ON n.scope_id = r.scope_id AND n.node_id = r.spatial_parent_node_id
+    {_TRACE_JOINS}
     {where_clause}
-    ORDER BY r.timestamp DESC
+    {order_clause}
     LIMIT ? OFFSET ?
     """
     params.extend([limit, offset])
@@ -615,12 +676,91 @@ def list_trace_rows(
         con,
         sql,
         tuple(params),
-        label=f"list_trace_rows(limit={limit}, offset={offset})",
+        label=f"list_trace_rows(limit={limit}, offset={offset}, sort={sort_by.value}:{order.value})",
     )
     for row in rows:
         row["inputs"] = _parse_json(row.pop("message_input_json"))
         row["output"] = _parse_json(row.pop("output_json"))
     return rows
+
+
+def list_trace_filter_options(con) -> dict[str, list[str]]:
+    """Distinct values for the trace filters, computed over the whole stream.
+
+    Three cheap queries rather than one wide one: the lists are unrelated, and
+    a single query would either cross-join them or need three passes anyway.
+
+    ``flow_names`` comes from the sessions and so includes flows that made no
+    LLM calls at all; ``node_names`` and ``model_names`` come from the calls
+    themselves, so they never offer a filter that cannot match — a Tool node has
+    no LLM call to list.
+    """
+    flow_rows = _rows(
+        con,
+        """
+        SELECT DISTINCT flow_name
+        FROM session
+        WHERE event_type = 'session.started'
+          AND flow_name IS NOT NULL
+          AND flow_name <> ''
+        ORDER BY flow_name
+        """,
+        label="trace_filter_options.flow_names",
+    )
+
+    node_rows = _rows(
+        con,
+        """
+        WITH resp AS (
+          SELECT DISTINCT scope_id, spatial_parent_node_id AS node_id
+          FROM llm
+          WHERE event_type = 'llm.response'
+        ),
+        nodes AS (
+          SELECT scope_id, node_id, ANY_VALUE(name) AS node_name
+          FROM node
+          WHERE event_type = 'node.creation'
+          GROUP BY scope_id, node_id
+        )
+        SELECT DISTINCT n.node_name
+        FROM resp r
+        JOIN nodes n
+          ON n.scope_id = r.scope_id AND n.node_id = r.node_id
+        WHERE n.node_name IS NOT NULL AND n.node_name <> ''
+        ORDER BY n.node_name
+        """,
+        label="trace_filter_options.node_names",
+    )
+
+    model_rows = _rows(
+        con,
+        """
+        WITH resp AS (
+          SELECT scope_id, parent_llm_type_id, reported_model_name
+          FROM llm
+          WHERE event_type = 'llm.response'
+        ),
+        creations AS (
+          SELECT scope_id, llm_id, ANY_VALUE(model_name) AS model_name
+          FROM llm
+          WHERE event_type = 'llm.creation'
+          GROUP BY scope_id, llm_id
+        )
+        SELECT DISTINCT COALESCE(r.reported_model_name, cr.model_name) AS model_name
+        FROM resp r
+        LEFT JOIN creations cr
+          ON cr.scope_id = r.scope_id AND cr.llm_id = r.parent_llm_type_id
+        WHERE COALESCE(r.reported_model_name, cr.model_name) IS NOT NULL
+        ORDER BY model_name
+        """,
+        label="trace_filter_options.model_names",
+    )
+
+    return {
+        "flow_names": [r["flow_name"] for r in flow_rows],
+        "node_names": [r["node_name"] for r in node_rows],
+        "model_names": [r["model_name"] for r in model_rows],
+    }
 
 
 # ---------------------------------------------------------------------------

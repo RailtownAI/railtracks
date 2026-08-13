@@ -23,8 +23,11 @@ from .models import (
     SessionGraph,
     SessionStatus,
     SessionSummary,
+    SortOrder,
+    TraceFilterOptions,
     TracePage,
     TraceRow,
+    TraceSortField,
     TreeNode,
 )
 
@@ -155,13 +158,22 @@ async def list_traces(
     session_id: str | None = Query(None),
     node_id: str | None = Query(None),
     flow_name: list[str] | None = Query(None),
+    node_name: list[str] | None = Query(None),
     model_name: list[str] | None = Query(None),
+    sort_by: TraceSortField = Query(TraceSortField.TIMESTAMP),
+    order: SortOrder = Query(SortOrder.DESC),
 ) -> TracePage:
-    """List LLM calls across sessions, newest first.
+    """List LLM calls across sessions, newest first by default.
 
-    Filters (``flow_name``, ``session_id``, ``node_id``, ``model_name``) apply
-    server-side, before paging. Repeating ``flow_name`` / ``model_name`` ORs the
-    values. An offset past the end returns no rows, not an error.
+    Filters (``flow_name``, ``node_name``, ``model_name``, ``session_id``,
+    ``node_id``) and sorting (``sort_by`` / ``order``) both apply server-side,
+    before paging. Repeating ``flow_name`` / ``node_name`` / ``model_name`` ORs
+    the values within that filter and ANDs across filters. An offset past the
+    end returns no rows, not an error.
+
+    Sorting the page in the browser would be a different question: "the ten
+    priciest calls" is not "the priciest of the fifty most recent". See
+    :func:`queries.list_trace_rows`.
 
     Returns a :class:`TracePage`, so ``total`` reflects every matching row and a
     client can size its pager without over-fetching to probe for a next page.
@@ -169,7 +181,8 @@ async def list_traces(
     print_status(
         f"GET /api/traces limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
-        f"flow_name={flow_name} model_name={model_name}"
+        f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
+        f"sort_by={sort_by.value} order={order.value}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
@@ -183,13 +196,17 @@ async def list_traces(
         session_id=session_id,
         node_id=node_id,
         flow_names=flow_name,
+        node_names=node_name,
         model_names=model_name,
+        sort_by=sort_by,
+        order=order,
     )
     total = queries.count_trace_rows(
         q.con,
         session_id=session_id,
         node_id=node_id,
         flow_names=flow_name,
+        node_names=node_name,
         model_names=model_name,
     )
     return TracePage(
@@ -198,6 +215,24 @@ async def list_traces(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/traces/filters", response_model=TraceFilterOptions)
+async def get_trace_filter_options() -> TraceFilterOptions:
+    """Every value the ``/api/traces`` filters can take.
+
+    A dropdown built from the rows on the current page can only ever offer what
+    the current filter already matched, which makes the filters unable to widen
+    a selection. These lists come from the whole stream instead.
+    """
+    print_status("GET /api/traces/filters")
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return TraceFilterOptions()
+
+    q = queries.get_query(events_dir)
+    options = queries.list_trace_filter_options(q.con)
+    return TraceFilterOptions(**options)
 
 
 @router.get("/sessions/{session_id}/graph", response_model=SessionGraph)

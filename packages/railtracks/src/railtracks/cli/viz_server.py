@@ -87,6 +87,7 @@ class RailtracksServer:
         print_status("   GET  /api/sessions/{session_id}/nodes/{node_id} - Node detail")
         print_status("   GET  /api/sessions/{session_id}/graph - Session graph")
         print_status("   GET  /api/traces - LLM calls across sessions")
+        print_status("   GET  /api/traces/filters - Values the trace filters accept")
         print_status("Press Ctrl+C to stop the server")
 
         def open_browser():
