@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from railtracks.llm.tools.parameters._base import Parameter, ParameterType
 
 
@@ -46,3 +47,17 @@ def test_parameter_accepts_python_type_int():
 def test_parameter_list_accepts_mixed_python_and_schema_types():
     p = Parameter("x", param_type=[str, "null"])
     assert p.param_type == ["string", "null"]
+
+
+def test_parameter_normalizes_none_alias():
+    p = Parameter("x", param_type="none")
+    assert p.param_type == "null"
+
+
+@pytest.mark.parametrize("param_type", ["bool", ["string", "bool"]])
+def test_parameter_rejects_invalid_json_schema_type(param_type):
+    with pytest.raises(
+        ValueError,
+        match="Invalid param_type 'bool' provided for parameter 'enabled'",
+    ):
+        Parameter("enabled", param_type=param_type)

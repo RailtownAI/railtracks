@@ -29,6 +29,9 @@ class ParameterType(str, Enum):
         return mapping.get(py_type, cls.OBJECT)
 
 
+_JSON_SCHEMA_TYPES = tuple(parameter_type.value for parameter_type in ParameterType)
+
+
 def _normalize_param_type_scalar(
     param_type: Union[str, ParameterType, type],
 ) -> str:
@@ -37,7 +40,18 @@ def _normalize_param_type_scalar(
         return param_type.value
     if isinstance(param_type, type):
         return ParameterType.from_python_type(param_type).value
+    if param_type == "none":
+        return ParameterType.NONE.value
     return param_type
+
+
+def _validate_param_type(param_type: str, parameter_name: str) -> None:
+    if param_type not in _JSON_SCHEMA_TYPES:
+        valid_types = ", ".join(repr(value) for value in _JSON_SCHEMA_TYPES)
+        raise ValueError(
+            f"Invalid param_type {param_type!r} provided for parameter "
+            f"{parameter_name!r}. Expected one of: {valid_types}."
+        )
 
 
 # Generic Type for subclass methods that return Parameter
@@ -78,6 +92,9 @@ class Parameter(ABC):
             default_present (bool): Whether a default value is explicitly set.
             param_type: JSON schema type string (e.g. ``\"string\"``), :class:`ParameterType`,
                 a Python builtin type (e.g. ``str`` → ``\"string\"``), or a list for unions.
+
+        Raises:
+            ValueError: If ``param_type`` contains an invalid JSON Schema type name.
         """
         self.name = name
         self.description = description or ""
@@ -87,11 +104,16 @@ class Parameter(ABC):
         self.default_present = default_present
         if param_type is not None:
             if isinstance(param_type, list):
-                self.param_type = [
+                normalized_types = [
                     _normalize_param_type_scalar(pt) for pt in param_type
                 ]
+                for normalized_type in normalized_types:
+                    _validate_param_type(normalized_type, name)
+                self.param_type = normalized_types
             else:
-                self.param_type = _normalize_param_type_scalar(param_type)
+                normalized_type = _normalize_param_type_scalar(param_type)
+                _validate_param_type(normalized_type, name)
+                self.param_type = normalized_type
         elif hasattr(self, "param_type") and self.param_type is None:
             self.param_type = None
 
@@ -113,7 +135,10 @@ class Parameter(ABC):
         # default can be None, 0, False; None means optional parameter
         if self.default_present:
             schema_dict["default"] = self.default
-        elif isinstance(self.param_type, list) and "none" in self.param_type:
+        elif (
+            isinstance(self.param_type, list)
+            and ParameterType.NONE.value in self.param_type
+        ):
             schema_dict["default"] = None
 
         return schema_dict
