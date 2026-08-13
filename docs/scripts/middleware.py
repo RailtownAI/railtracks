@@ -88,7 +88,7 @@ ExtendedAgent = rt.couple(BaseAgent, middleware=[retry, log_result])
 
 
 # --8<-- [start: function_node_demo]
-# The same middleware works unchanged on a function_node — only the node-level
+# The same middleware works unchanged on a function_node. Only the node-level
 # `middleware=` slot applies, since a function node never calls a model.
 @rt.function_node(middleware=[retry])
 def add(a: int, b: int) -> int:
@@ -128,7 +128,7 @@ OrderedAgent = rt.agent_node(
 # --8<-- [start: ordering_couple_demo]
 # couple() adds its middleware as the new outermost layer, so calling it twice
 # nests in reverse call order: whatever you couple() last wraps everything
-# coupled before it — regardless of what the middleware happens to be named.
+# coupled before it, regardless of what the middleware happens to be named.
 StepOne = rt.couple(BaseAgent, middleware=[outer])
 StepTwo = rt.couple(StepOne, middleware=[inner])
 # calling StepTwo prints, in order:

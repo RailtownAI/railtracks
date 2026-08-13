@@ -1,8 +1,8 @@
 """Runnable examples for authoring custom guardrails.
 
 Two ways to build a guard:
-  1. the decorator API (``@rt.input_guard`` / ``@rt.output_guard``) — quickest,
-  2. subclassing ``InputGuard`` / ``OutputGuard`` — for reusable, configurable rails.
+  1. the decorator API (``@rt.input_guard`` / ``@rt.output_guard``), quickest,
+  2. subclassing ``InputGuard`` / ``OutputGuard``, for reusable, configurable rails.
 
 Snippet regions (--8<-- [start:name]) are pulled into the guardrails docs by
 MkDocs. Type-checked in CI via scripts/docs_validation.sh.

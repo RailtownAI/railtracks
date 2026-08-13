@@ -74,7 +74,7 @@ For a reusable, configurable rail, subclass `InputGuard` or `OutputGuard` and im
 ```
 
 !!! tip "Testing a guard in isolation"
-    Both bases provide `decide(value)`, which builds the event for you from a `str`, `Message`, or `MessageHistory` and returns the `GuardrailDecision` — handy for unit tests without running a model.
+    Both bases provide `decide(value)`, which builds the event for you from a `str`, `Message`, or `MessageHistory` and returns the `GuardrailDecision`, handy for unit tests without running a model.
 
 To publish a guard for others to reuse, see [Contributing a Guardrail](contributions.md).
 

@@ -24,7 +24,7 @@ def block_sensitive_requests(event: LLMGuardrailEvent) -> GuardrailDecision:
     return GuardrailDecision.allow()
 
 
-# Guards are model middleware — attach them with model_middleware=[...].
+# Guards are model middleware. Attach them with model_middleware=[...].
 Agent = rt.agent_node(
     name="guardrails-quickstart-agent",
     llm=rt.llm.GeminiLLM("gemini-2.5-flash"),

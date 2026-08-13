@@ -23,10 +23,10 @@ Most middleware will wrap an entire node or function call, including `rt.functio
 
 | Decorator | Runs |
 |---|---|
-| `rt.wrap_node` | Wraps the whole node call — you decide if/how many times the inner call runs 
+| `rt.wrap_node` | Wraps the whole node call; you decide if/how many times the inner call runs 
 | `rt.after_node` | Once, after the node completes successfully (skipped if the node raises)
 
-`rt.wrap_node` is the general-purpose form — the retry example above is built on it. `rt.after_node` is a narrower convenience for the common "do something with the result and pass it through" case:
+`rt.wrap_node` is the general-purpose form. The retry example above is built on it. `rt.after_node` is a narrower convenience for the common "do something with the result and pass it through" case:
 
 ```python
 --8<-- "docs/scripts/middleware.py:after_node_demo"
@@ -39,7 +39,7 @@ The same middleware attaches to a `function_node` exactly the same way, via `mid
 ```
 
 ### Model Middleware
-Sometimes you want your middleware to wrap around the model call itself, rather than the whole node. This lets you build retry logic specific to the LLM, message history compression, PII detection guards, or similar. Model middleware only applies to `rt.agent_node` — a `function_node` never calls a model, so it has no `model_middleware=` slot to attach to. We support several prebuilt middlewares for the LLM, plus the same kind of decorator API to build your own.
+Sometimes you want your middleware to wrap around the model call itself, rather than the whole node. This lets you build retry logic specific to the LLM, message history compression, PII detection guards, or similar. Model middleware only applies to `rt.agent_node`. A `function_node` never calls a model, so it has no `model_middleware=` slot to attach to. We support several prebuilt middlewares for the LLM, plus the same kind of decorator API to build your own.
 
 | Decorator | Runs |
 |---|---|
@@ -52,7 +52,7 @@ Sometimes you want your middleware to wrap around the model call itself, rather 
 ```
 
 !!! note "`wrap_node` / `wrap_llm` functions must be `async def`"
-    `wrap_node` and `wrap_llm` re-invoke the inner call directly, so the function you decorate must be defined with `async def` — a plain `def` raises `TypeError` immediately for `wrap_node`, or fails with a confusing "can't be used in 'await' expression" error at call time for `wrap_llm`. `after_node`, `before_llm`, and `after_llm` are more forgiving: they accept either a plain `def` or an `async def`.
+    `wrap_node` and `wrap_llm` re-invoke the inner call directly, so the function you decorate must be defined with `async def`. A plain `def` raises `TypeError` immediately for `wrap_node`, or fails with a confusing "can't be used in 'await' expression" error at call time for `wrap_llm`. `after_node`, `before_llm`, and `after_llm` are more forgiving: they accept either a plain `def` or an `async def`.
 
 !!! note "Guardrails are Model Middleware"
     Built-in guardrails (PII redaction, length limits, blocked text, ...) are implemented as model middleware under the hood. See [Guardrails](../middleware/guardrails/overview.md).

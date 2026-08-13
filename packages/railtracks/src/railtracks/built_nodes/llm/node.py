@@ -67,12 +67,6 @@ def _build_dynamic_agent(
         else system_message
     )
 
-    # `LLMNodeBuilder` still fixes its ParamSpec as the positional-only literal list
-    # `[UserInput]` (see node_builder.py) -- it's an internal builder never exposed to
-    # callers, so it doesn't need the name-preserving `_P` this module's public
-    # `agent_node()` overloads use. The two casts below bridge that one seam: pyright
-    # can't see through `type(...)`-based dynamic class construction either way, so it
-    # was already trusting the declared return annotation here, not verifying it.
     if output_schema is None:
         nb = LLMNodeBuilder.llm(
             name=name if name is not None else "LLM Agent",

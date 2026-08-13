@@ -5,7 +5,7 @@ import railtracks as rt
 system_message = "You are a {role} assistant specialized in {domain}."
 
 # Create an LLM node with this prompt. ContextInjection() enables placeholder
-# substitution from rt.context — without it the {placeholders} are left as-is.
+# substitution from rt.context; without it the {placeholders} are left as-is.
 assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
