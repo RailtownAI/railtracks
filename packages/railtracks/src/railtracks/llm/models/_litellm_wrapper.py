@@ -344,8 +344,6 @@ class LiteLLMWrapper(ModelBase, ABC):
             messages: The message history to send to the model.
             response_format: An optional response format (e.g. a pydantic schema).
             tools: The tools to make available to the model, if any.
-            stream: When True, requests a streamed response and returns a `CustomStreamWrapper`;
-                when False (the default), returns a buffered `ModelResponse`.
 
         Returns:
             A `(completion, time)` tuple. When `stream=True`, `completion` is a
@@ -368,6 +366,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             return litellm.completion(
                 model=self._model_name,
                 messages=litellm_messages,
+                stream=stream,
                 **merged,
             )
 
@@ -608,7 +607,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     def _handle_content_delta(self, content) -> str:
         """Process content delta and return validated content string."""
-        assert isinstance(content, str)
+        assert isinstance(content, str), "Content is not string"
         return content or ""
 
     # ================ END Streaming Handlers ===============
@@ -622,7 +621,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     async def _astream_chat(self, messages: MessageHistory):
         def _open() -> Generator[str | Response, None, Response]:
             raw, start_time = self._invoke(messages, stream=True)
-            assert isinstance(raw, CustomStreamWrapper)
+            assert isinstance(raw, CustomStreamWrapper), f"did not return streamed response, instead {type(raw)}"
             return self._stream_handler_base(raw, start_time)
 
         async for item in self._bridge_sync_stream(_open):
@@ -633,7 +632,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     ):
         def _open() -> Generator[str | Response, None, Response]:
             raw, start_time = self._invoke(messages, tools=tools, stream=True)
-            assert isinstance(raw, CustomStreamWrapper)
+            assert isinstance(raw, CustomStreamWrapper), f"did not return streamed response, instead {type(raw)}"
             return self._stream_handler_base(raw, start_time)
 
         async for item in self._bridge_sync_stream(_open):
@@ -646,7 +645,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             raw, start_time = self._invoke(
                 messages, response_format=schema, stream=True
             )
-            assert isinstance(raw, CustomStreamWrapper)
+            assert isinstance(raw, CustomStreamWrapper), f"did not return streamed response, instead {type(raw)}"
             return self._stream_handler_base(raw, start_time, schema)
 
         async for item in self._bridge_sync_stream(_open):
