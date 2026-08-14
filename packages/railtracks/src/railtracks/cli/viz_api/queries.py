@@ -158,6 +158,8 @@ def _session_filters(
     flow_names: list[str] | None,
     entry_point_names: list[str] | None,
     statuses: list[str] | None,
+    since: float | None = None,
+    until: float | None = None,
 ) -> tuple[str, list[Any]]:
     """Build the ``WHERE`` clause shared by the session list and its stats.
 
@@ -165,6 +167,14 @@ def _session_filters(
     sessions than the table underneath it. Predicates are written against the
     outer query's columns, so callers must wrap ``_SESSION_SUMMARY_CTE`` in a
     subquery aliased ``s`` — see :func:`_filtered_sessions_sql`.
+
+    ``since`` / ``until`` are unix seconds and bound ``start_time``: a session
+    is in the window if it *started* in it. A run still going after eight days
+    therefore drops out of "last 7 days", which is what that phrase means — the
+    alternative, matching on overlap, would keep one long-running session in
+    every window it touched and make the counts above the table unexplainable.
+    ``since`` is inclusive and ``until`` exclusive, so adjacent windows tile the
+    timeline without double-counting a row on the boundary.
     """
     predicates: list[str] = []
     params: list[Any] = []
@@ -180,6 +190,12 @@ def _session_filters(
         placeholders = ", ".join("?" for _ in statuses)
         predicates.append(f"s.status IN ({placeholders})")
         params.extend(statuses)
+    if since is not None:
+        predicates.append("s.start_time >= ?")
+        params.append(since)
+    if until is not None:
+        predicates.append("s.start_time < ?")
+        params.append(until)
     return ("WHERE " + " AND ".join(predicates) if predicates else "", params)
 
 
@@ -196,6 +212,8 @@ def list_session_rows(
     flow_names: list[str] | None = None,
     entry_point_names: list[str] | None = None,
     statuses: list[str] | None = None,
+    since: float | None = None,
+    until: float | None = None,
 ) -> list[dict[str, Any]]:
     """Session rows, newest first, narrowed server-side.
 
@@ -204,7 +222,9 @@ def list_session_rows(
     honest stat tiles — those have to be computed over the same predicate, not
     over whatever the client happened to hold.
     """
-    where_clause, params = _session_filters(flow_names, entry_point_names, statuses)
+    where_clause, params = _session_filters(
+        flow_names, entry_point_names, statuses, since, until
+    )
     return _rows(
         con,
         _filtered_sessions_sql(where_clause) + " ORDER BY start_time DESC",
@@ -219,6 +239,8 @@ def get_session_stats(
     flow_names: list[str] | None = None,
     entry_point_names: list[str] | None = None,
     statuses: list[str] | None = None,
+    since: float | None = None,
+    until: float | None = None,
 ) -> dict[str, Any]:
     """Roll-up across every session matching the filters, ignoring paging.
 
@@ -226,7 +248,9 @@ def get_session_stats(
     would be re-deriving what the server already knows, and it would silently
     start lying the day this list is paginated.
     """
-    where_clause, params = _session_filters(flow_names, entry_point_names, statuses)
+    where_clause, params = _session_filters(
+        flow_names, entry_point_names, statuses, since, until
+    )
     sql = f"""
     SELECT COUNT(*)                                           AS total_runs,
            COUNT(*) FILTER (WHERE s.status = 'Completed')      AS successes,
@@ -579,6 +603,8 @@ def _trace_filters(
     node_names: list[str] | None,
     model_names: list[str] | None,
     statuses: list[TraceStatus] | None = None,
+    since: float | None = None,
+    until: float | None = None,
 ) -> tuple[str, list[Any]]:
     """Build the shared ``WHERE`` clause for the trace queries.
 
@@ -587,6 +613,13 @@ def _trace_filters(
     also means both queries must expose the same aliases — ``r`` for the LLM
     calls, ``s`` for the session, ``cr`` for the LLM creation and ``n`` for the
     node.
+
+    ``since`` / ``until`` are unix seconds, inclusive and exclusive
+    respectively, and bound the call's own timestamp — a call is in the window
+    if it was *made* in it, regardless of when the session around it started.
+    ``r.timestamp`` is a SQL ``TIMESTAMP``, so the comparison goes through
+    ``EPOCH()`` rather than casting the parameter; the ordering clause still
+    sorts on the raw column.
     """
     predicates: list[str] = []
     params: list[Any] = []
@@ -616,6 +649,12 @@ def _trace_filters(
         # ``status`` is derived inside ``_LLM_CALLS_CTE``, so the values compared
         # against it are that CASE's own strings, not the event types.
         params.extend(s.value for s in statuses)
+    if since is not None:
+        predicates.append("EPOCH(r.timestamp) >= ?")
+        params.append(since)
+    if until is not None:
+        predicates.append("EPOCH(r.timestamp) < ?")
+        params.append(until)
 
     return ("WHERE " + " AND ".join(predicates) if predicates else "", params)
 
@@ -743,6 +782,8 @@ def count_trace_rows(
     node_names: list[str] | None = None,
     model_names: list[str] | None = None,
     statuses: list[TraceStatus] | None = None,
+    since: float | None = None,
+    until: float | None = None,
 ) -> int:
     """Count LLM-call rows matching the filters, ignoring paging.
 
@@ -751,7 +792,7 @@ def count_trace_rows(
     of them.
     """
     where_clause, params = _trace_filters(
-        session_id, node_id, flow_names, node_names, model_names, statuses
+        session_id, node_id, flow_names, node_names, model_names, statuses, since, until
     )
     sql = f"""
     WITH {_llm_calls_cte(with_payload=False)}
@@ -776,6 +817,8 @@ def list_trace_rows(
     node_names: list[str] | None = None,
     model_names: list[str] | None = None,
     statuses: list[TraceStatus] | None = None,
+    since: float | None = None,
+    until: float | None = None,
     sort_by: TraceSortField = TraceSortField.TIMESTAMP,
     order: SortOrder = SortOrder.DESC,
 ) -> list[dict[str, Any]]:
@@ -795,7 +838,7 @@ def list_trace_rows(
     different question than "the most expensive calls in this run".
     """
     where_clause, params = _trace_filters(
-        session_id, node_id, flow_names, node_names, model_names, statuses
+        session_id, node_id, flow_names, node_names, model_names, statuses, since, until
     )
     order_clause = _trace_order_clause(sort_by, order)
 
@@ -849,6 +892,8 @@ def get_trace_stats(
     node_names: list[str] | None = None,
     model_names: list[str] | None = None,
     statuses: list[TraceStatus] | None = None,
+    since: float | None = None,
+    until: float | None = None,
 ) -> dict[str, Any]:
     """Roll-up across every LLM call matching the filters, ignoring paging.
 
@@ -862,7 +907,7 @@ def get_trace_stats(
     rule, and no tokens or cost to add.
     """
     where_clause, params = _trace_filters(
-        session_id, node_id, flow_names, node_names, model_names, statuses
+        session_id, node_id, flow_names, node_names, model_names, statuses, since, until
     )
     sql = f"""
     WITH {_llm_calls_cte(with_payload=False)}

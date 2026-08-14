@@ -52,6 +52,8 @@ async def list_sessions(
     flow_name: list[str] | None = Query(None),
     entry_point_name: list[str] | None = Query(None),
     status: list[str] | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
 ) -> list[SessionSummary]:
     """List sessions in the events home, most recent first.
 
@@ -60,10 +62,14 @@ async def list_sessions(
     could not produce honest stat tiles, since those must be computed over the
     same predicate rather than over whatever the client happened to hold.
     Repeating a param ORs its values; separate params AND.
+
+    ``since`` / ``until`` are unix seconds bounding ``start_time`` — a session
+    is in the window if it started in it. See :func:`queries._session_filters`.
     """
     print_status(
         f"GET /api/sessions flow_name={flow_name} "
-        f"entry_point_name={entry_point_name} status={status}"
+        f"entry_point_name={entry_point_name} status={status} "
+        f"since={since} until={until}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
@@ -76,6 +82,8 @@ async def list_sessions(
             flow_names=flow_name,
             entry_point_names=entry_point_name,
             statuses=status,
+            since=since,
+            until=until,
         )
     except Exception as e:  # noqa: BLE001 - keep the endpoint resilient
         print_error(f"list_sessions query failed: {e}")
@@ -95,6 +103,8 @@ async def get_session_stats(
     flow_name: list[str] | None = Query(None),
     entry_point_name: list[str] | None = Query(None),
     status: list[str] | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
 ) -> SessionStats:
     """Roll-up across every session matching the filters.
 
@@ -103,7 +113,8 @@ async def get_session_stats(
     """
     print_status(
         f"GET /api/sessions/stats flow_name={flow_name} "
-        f"entry_point_name={entry_point_name} status={status}"
+        f"entry_point_name={entry_point_name} status={status} "
+        f"since={since} until={until}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
@@ -115,6 +126,8 @@ async def get_session_stats(
         flow_names=flow_name,
         entry_point_names=entry_point_name,
         statuses=status,
+        since=since,
+        until=until,
     )
     return SessionStats(
         total_runs=int(stats.get("total_runs") or 0),
@@ -239,6 +252,8 @@ async def list_traces(
     node_name: list[str] | None = Query(None),
     model_name: list[str] | None = Query(None),
     status: list[TraceStatus] | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
     sort_by: TraceSortField = Query(TraceSortField.TIMESTAMP),
     order: SortOrder = Query(SortOrder.DESC),
 ) -> TracePage:
@@ -251,7 +266,8 @@ async def list_traces(
     scrolling for them is not a plan.
 
     Filters (``flow_name``, ``node_name``, ``model_name``, ``status``,
-    ``session_id``, ``node_id``) and sorting (``sort_by`` / ``order``) both
+    ``session_id``, ``node_id``, and the ``since`` / ``until`` window over the
+    call's own timestamp) and sorting (``sort_by`` / ``order``) both
     apply server-side, before paging. Repeating ``flow_name`` / ``node_name`` /
     ``model_name`` / ``status`` ORs the values within that filter and ANDs
     across filters. An offset past the end returns no rows, not an error.
@@ -267,7 +283,8 @@ async def list_traces(
         f"GET /api/traces limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
-        f"status={status} sort_by={sort_by.value} order={order.value}"
+        f"status={status} since={since} until={until} "
+        f"sort_by={sort_by.value} order={order.value}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
@@ -284,6 +301,8 @@ async def list_traces(
         node_names=node_name,
         model_names=model_name,
         statuses=status,
+        since=since,
+        until=until,
         sort_by=sort_by,
         order=order,
     )
@@ -295,6 +314,8 @@ async def list_traces(
         node_names=node_name,
         model_names=model_name,
         statuses=status,
+        since=since,
+        until=until,
     )
     return TracePage(
         rows=[_row_to_trace(r) for r in rows],
@@ -312,19 +333,21 @@ async def get_trace_stats(
     node_name: list[str] | None = Query(None),
     model_name: list[str] | None = Query(None),
     status: list[TraceStatus] | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
 ) -> TraceStats:
     """Roll-up across every LLM call matching the filters.
 
-    Takes the same filters as ``/api/traces`` — ``status`` included, so the
-    tiles keep describing the rows underneath them once the reader narrows to
-    errors — and no paging params: the point of the tiles is to describe the
+    Takes the same filters as ``/api/traces`` — ``status`` and the
+    ``since`` / ``until`` window included, so the tiles keep describing the rows
+    underneath them once the reader narrows — and no paging params: the point of the tiles is to describe the
     whole filtered set, which is exactly what the fifty rows on the current page
     cannot tell you.
     """
     print_status(
         f"GET /api/traces/stats session_id={session_id} node_id={node_id} "
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
-        f"status={status}"
+        f"status={status} since={since} until={until}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
@@ -339,6 +362,8 @@ async def get_trace_stats(
         node_names=node_name,
         model_names=model_name,
         statuses=status,
+        since=since,
+        until=until,
     )
     avg_latency = stats.get("avg_latency_seconds")
     max_latency = stats.get("max_latency_seconds")
