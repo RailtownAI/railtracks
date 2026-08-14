@@ -17,7 +17,7 @@ from typing import Any
 from railtracks.query import EventQuery, connect
 
 from ..io import print_status
-from .models import SortOrder, TraceSortField
+from .models import SortOrder, TraceSortField, TraceStatus
 
 _NAMESPACES = ["session", "node", "llm", "middleware"]
 
@@ -556,11 +556,11 @@ def get_tool_io(con, session_id: str, node_id: str) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
-# LLM traces — one row per llm.response, denormalized with session & node
+# LLM traces — one row per round trip, denormalized with session & node
 # ---------------------------------------------------------------------------
 
 
-#: SQL for each sortable measure, in terms of the ``llm_responses`` alias ``r``.
+#: SQL for each sortable measure, in terms of the ``llm_calls`` alias ``r``.
 #: Lookups are keyed by :class:`TraceSortField`, so nothing user-supplied ever
 #: reaches the ``ORDER BY`` — the enum is validated at the route boundary and a
 #: miss here would raise, not interpolate.
@@ -578,14 +578,15 @@ def _trace_filters(
     flow_names: list[str] | None,
     node_names: list[str] | None,
     model_names: list[str] | None,
+    statuses: list[TraceStatus] | None = None,
 ) -> tuple[str, list[Any]]:
     """Build the shared ``WHERE`` clause for the trace queries.
 
     Both :func:`list_trace_rows` and :func:`count_trace_rows` go through here so
     a page and its total can never be computed over different predicates. That
     also means both queries must expose the same aliases — ``r`` for the LLM
-    responses, ``s`` for the session, ``cr`` for the LLM creation and ``n`` for
-    the node.
+    calls, ``s`` for the session, ``cr`` for the LLM creation and ``n`` for the
+    node.
     """
     predicates: list[str] = []
     params: list[Any] = []
@@ -609,6 +610,12 @@ def _trace_filters(
             f"COALESCE(r.reported_model_name, cr.model_name) IN ({placeholders})"
         )
         params.extend(model_names)
+    if statuses:
+        placeholders = ", ".join("?" for _ in statuses)
+        predicates.append(f"r.status IN ({placeholders})")
+        # ``status`` is derived inside ``_LLM_CALLS_CTE``, so the values compared
+        # against it are that CASE's own strings, not the event types.
+        params.extend(s.value for s in statuses)
 
     return ("WHERE " + " AND ".join(predicates) if predicates else "", params)
 
@@ -632,6 +639,52 @@ def _trace_order_clause(sort_by: TraceSortField, order: SortOrder) -> str:
         terms.append("r.timestamp DESC")
     terms.append("r.event_id ASC")
     return "ORDER BY " + ", ".join(terms)
+
+
+def _llm_calls_cte(*, with_payload: bool) -> str:
+    """The rows the trace endpoints are built from: one per LLM round trip,
+    whether it returned or raised.
+
+    ``llm.failure`` carries the message history it was sent, the node and LLM it
+    belongs to, and the exception — but none of the response columns, which the
+    view leaves null. That is exactly the shape we want downstream: tokens and
+    cost ``COALESCE`` to zero (nothing was reported, and nothing is billed for a
+    call that never came back), and latency stays null so an error sorts last in
+    both directions rather than reading as the fastest call in the run.
+
+    All three trace queries build on this one CTE so a row can't be listed
+    without being counted, or counted without being listed. The payload columns
+    are opt-in: the JSON blobs are the expensive part of a listing, and neither
+    the count nor the stats touch them.
+    """
+    payload = (
+        """,
+             message_input,
+             output"""
+        if with_payload
+        else ""
+    )
+    return f"""
+    llm_calls AS (
+      SELECT event_id,
+             scope_id,
+             spatial_parent_node_id,
+             timestamp,
+             parent_llm_type_id,
+             reported_model_name,
+             input_tokens,
+             output_tokens,
+             total_cost,
+             latency,
+             exception_name,
+             exception_message,
+             CASE WHEN event_type = 'llm.failure'
+                  THEN '{TraceStatus.ERROR.value}'
+                  ELSE '{TraceStatus.SUCCESS.value}'
+             END AS status{payload}
+      FROM llm
+      WHERE event_type IN ('llm.response', 'llm.failure')
+    ),"""
 
 
 #: The denormalizing CTEs shared by the trace listing and its count.
@@ -689,6 +742,7 @@ def count_trace_rows(
     flow_names: list[str] | None = None,
     node_names: list[str] | None = None,
     model_names: list[str] | None = None,
+    statuses: list[TraceStatus] | None = None,
 ) -> int:
     """Count LLM-call rows matching the filters, ignoring paging.
 
@@ -697,21 +751,13 @@ def count_trace_rows(
     of them.
     """
     where_clause, params = _trace_filters(
-        session_id, node_id, flow_names, node_names, model_names
+        session_id, node_id, flow_names, node_names, model_names, statuses
     )
     sql = f"""
-    WITH llm_responses AS (
-      SELECT event_id,
-             scope_id,
-             spatial_parent_node_id,
-             parent_llm_type_id,
-             reported_model_name
-      FROM llm
-      WHERE event_type = 'llm.response'
-    ),
+    WITH {_llm_calls_cte(with_payload=False)}
     {_TRACE_JOIN_CTES}
     SELECT COUNT(*) AS total
-    FROM llm_responses r
+    FROM llm_calls r
     {_TRACE_JOINS}
     {where_clause}
     """
@@ -729,6 +775,7 @@ def list_trace_rows(
     flow_names: list[str] | None = None,
     node_names: list[str] | None = None,
     model_names: list[str] | None = None,
+    statuses: list[TraceStatus] | None = None,
     sort_by: TraceSortField = TraceSortField.TIMESTAMP,
     order: SortOrder = SortOrder.DESC,
 ) -> list[dict[str, Any]]:
@@ -738,32 +785,22 @@ def list_trace_rows(
     from the node onto every row so the client can render, filter, and deep-link
     without a second lookup.
 
+    A failed call takes its model name from the ``llm.creation`` it was made
+    through, since it never got far enough to report one back — which is what
+    keeps it inside the model filter instead of vanishing from a stream it
+    belongs to.
+
     Sorting is server-side for the same reason the filters are: ordering the
     fifty rows that happened to land on the current page would answer a
     different question than "the most expensive calls in this run".
     """
     where_clause, params = _trace_filters(
-        session_id, node_id, flow_names, node_names, model_names
+        session_id, node_id, flow_names, node_names, model_names, statuses
     )
     order_clause = _trace_order_clause(sort_by, order)
 
     sql = f"""
-    WITH llm_responses AS (
-      SELECT event_id,
-             scope_id,
-             spatial_parent_node_id,
-             timestamp,
-             parent_llm_type_id,
-             message_input,
-             output,
-             input_tokens,
-             output_tokens,
-             total_cost,
-             reported_model_name,
-             latency
-      FROM llm
-      WHERE event_type = 'llm.response'
-    ),
+    WITH {_llm_calls_cte(with_payload=True)}
     {_TRACE_JOIN_CTES}
     SELECT
       r.event_id                                     AS trace_id,
@@ -775,13 +812,16 @@ def list_trace_rows(
       EPOCH(r.timestamp)                             AS timestamp,
       COALESCE(r.reported_model_name, cr.model_name) AS model_name,
       CAST(cr.model_provider AS VARCHAR)             AS model_provider,
+      r.status,
+      r.exception_name                               AS error_name,
+      r.exception_message                            AS error_message,
       COALESCE(r.input_tokens, 0)                    AS input_tokens,
       COALESCE(r.output_tokens, 0)                   AS output_tokens,
       COALESCE(r.total_cost, 0.0)                    AS total_cost,
       r.latency                                      AS latency_seconds,
       CAST(r.message_input AS VARCHAR)               AS message_input_json,
       CAST(r.output AS VARCHAR)                      AS output_json
-    FROM llm_responses r
+    FROM llm_calls r
     {_TRACE_JOINS}
     {where_clause}
     {order_clause}
@@ -808,41 +848,34 @@ def get_trace_stats(
     flow_names: list[str] | None = None,
     node_names: list[str] | None = None,
     model_names: list[str] | None = None,
+    statuses: list[TraceStatus] | None = None,
 ) -> dict[str, Any]:
     """Roll-up across every LLM call matching the filters, ignoring paging.
 
-    Shares ``_trace_filters`` with the listing and its count, so the tiles, the
-    pager total and the rows can never describe three different sets.
+    Shares ``_trace_filters`` and ``_llm_calls_cte`` with the listing and its
+    count, so the tiles, the pager total and the rows can never describe three
+    different sets — including when the filter is the status itself.
 
     ``AVG`` skips nulls, so a provider that reports no latency lowers neither the
     average nor the count it is drawn from; the result is null only when nothing
-    matching reported a latency at all.
+    matching reported a latency at all. A failed call has no latency by the same
+    rule, and no tokens or cost to add.
     """
     where_clause, params = _trace_filters(
-        session_id, node_id, flow_names, node_names, model_names
+        session_id, node_id, flow_names, node_names, model_names, statuses
     )
     sql = f"""
-    WITH llm_responses AS (
-      SELECT event_id,
-             scope_id,
-             spatial_parent_node_id,
-             parent_llm_type_id,
-             reported_model_name,
-             input_tokens,
-             output_tokens,
-             total_cost,
-             latency
-      FROM llm
-      WHERE event_type = 'llm.response'
-    ),
+    WITH {_llm_calls_cte(with_payload=False)}
     {_TRACE_JOIN_CTES}
-    SELECT COUNT(*)                                AS total_calls,
-           COALESCE(SUM(r.input_tokens), 0)        AS input_tokens,
-           COALESCE(SUM(r.output_tokens), 0)       AS output_tokens,
-           COALESCE(SUM(r.total_cost), 0.0)        AS total_cost,
-           AVG(r.latency)                          AS avg_latency_seconds,
-           MAX(r.latency)                          AS max_latency_seconds
-    FROM llm_responses r
+    SELECT COUNT(*)                                       AS total_calls,
+           COUNT(*) FILTER (WHERE r.status = '{TraceStatus.ERROR.value}')
+                                                          AS failed_calls,
+           COALESCE(SUM(r.input_tokens), 0)               AS input_tokens,
+           COALESCE(SUM(r.output_tokens), 0)              AS output_tokens,
+           COALESCE(SUM(r.total_cost), 0.0)               AS total_cost,
+           AVG(r.latency)                                 AS avg_latency_seconds,
+           MAX(r.latency)                                 AS max_latency_seconds
+    FROM llm_calls r
     {_TRACE_JOINS}
     {where_clause}
     """
@@ -860,6 +893,10 @@ def list_trace_filter_options(con) -> dict[str, list[str]]:
     LLM calls at all; ``node_names`` and ``model_names`` come from the calls
     themselves, so they never offer a filter that cannot match — a Tool node has
     no LLM call to list.
+
+    "The calls themselves" means responses *and* failures, matching what the
+    listing shows. Drawn from responses alone, an agent whose only call raised
+    would be missing from the dropdown while its error sat in the table.
     """
     flow_rows = _rows(
         con,
@@ -880,7 +917,7 @@ def list_trace_filter_options(con) -> dict[str, list[str]]:
         WITH resp AS (
           SELECT DISTINCT scope_id, spatial_parent_node_id AS node_id
           FROM llm
-          WHERE event_type = 'llm.response'
+          WHERE event_type IN ('llm.response', 'llm.failure')
         ),
         nodes AS (
           SELECT scope_id, node_id, ANY_VALUE(name) AS node_name
@@ -904,7 +941,7 @@ def list_trace_filter_options(con) -> dict[str, list[str]]:
         WITH resp AS (
           SELECT scope_id, parent_llm_type_id, reported_model_name
           FROM llm
-          WHERE event_type = 'llm.response'
+          WHERE event_type IN ('llm.response', 'llm.failure')
         ),
         creations AS (
           SELECT scope_id, llm_id, ANY_VALUE(model_name) AS model_name

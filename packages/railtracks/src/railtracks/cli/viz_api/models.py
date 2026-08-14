@@ -52,6 +52,19 @@ class TraceSortField(str, Enum):
     LATENCY = "latency"
 
 
+class TraceStatus(str, Enum):
+    """How one LLM round trip ended.
+
+    Lowercase like :class:`NodeStatus` and unlike :class:`SessionStatus`, and
+    the vocabulary is the call's own rather than the run's: a call that raised
+    did not "fail to complete a run", it returned an error — which is what the
+    row then carries, under ``error_name`` / ``error_message``.
+    """
+
+    SUCCESS = "success"
+    ERROR = "error"
+
+
 class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
@@ -191,9 +204,24 @@ class TraceRow(BaseModel):
 
     Feeds the LLM Traces tab (cross-session listing) and, when queried with a
     ``node_id`` filter, the per-call breakdown for one node.
+
+    A row is one round trip, ended or raised: ``llm.response`` and
+    ``llm.failure`` both produce one. A call that raised was invisible here
+    until it did — the request that broke a run was the one thing the traces
+    could not show, and a looping agent's failed turn read as a turn that never
+    happened.
+
+    On an error row the provider reported no usage, so ``input_tokens``,
+    ``output_tokens`` and ``total_cost`` are zero and ``output`` is null.
+    ``inputs`` is still the message history that was sent, which is the point:
+    it is what you look at to see what broke. ``latency_seconds`` stays null
+    rather than being filled from the wall clock — the successful rows carry a
+    provider-reported figure, and two different measures in one column would
+    make its sort meaningless.
     """
 
-    #: Stable identifier for this call — the ``llm.response`` envelope id.
+    #: Stable identifier for this call — the ``llm.response`` / ``llm.failure``
+    #: envelope id.
     trace_id: str
     session_id: str
     flow_id: str | None = None
@@ -203,11 +231,18 @@ class TraceRow(BaseModel):
     timestamp: float
     model_name: str | None = None
     model_provider: str | None = None
+    #: How the round trip ended. Older clients that ignore it still read every
+    #: other field correctly; the zeros on an error row are honest.
+    status: TraceStatus = TraceStatus.SUCCESS
+    #: Exception type, e.g. ``AuthenticationError``. Null unless ``status`` is
+    #: ``error``.
+    error_name: str | None = None
+    error_message: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     total_cost: float = 0.0
     #: Per-call latency reported by the provider, in seconds. Null when the
-    #: provider did not report one.
+    #: provider did not report one, and always null on an error row.
     latency_seconds: float | None = None
     inputs: list[LLMContent] = Field(default_factory=list)
     output: LLMContent | None = None
@@ -263,13 +298,22 @@ class SessionFilterOptions(BaseModel):
 class TraceStats(BaseModel):
     """Roll-up across every LLM call matching the trace filters.
 
-    Counts only the calls the traces table can show — successful
-    ``llm.response`` events. ``llm.failure`` events are not in this total,
-    because they are not rows in the table either; a tile that counted them
-    would not reconcile with what is listed underneath it.
+    Counts exactly the calls the traces table can show, which now includes the
+    ones that raised: ``total_calls`` covers ``llm.response`` and
+    ``llm.failure`` alike, and ``failed_calls`` breaks out the second group.
+    The two must move together — a tile counting a set the table cannot list
+    (or listing rows the tile does not count) contradicts the rows underneath
+    it the moment a filter is touched.
+
+    Tokens and cost are unaffected by the addition: an error row reports no
+    usage and contributes zero to both. ``AVG`` and ``MAX`` skip nulls, so an
+    error's null latency neither lowers the average nor counts toward it.
     """
 
     total_calls: int = 0
+    #: Calls that raised. ``total_calls - failed_calls`` is the number that
+    #: returned a response.
+    failed_calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
     total_cost: float = 0.0
@@ -288,10 +332,18 @@ class TraceFilterOptions(BaseModel):
     dropdown.
 
     ``node_names`` and ``model_names`` come from nodes and models that actually
-    made an LLM call; a Tool node can never appear in the traces table, so
-    offering it as a filter would only promise empty results. ``flow_names``
-    deliberately lists *every* flow, including ones that made no LLM calls —
-    "this flow made no calls" is a real answer to a real question.
+    made an LLM call — responses *and* failures, so an agent whose only call
+    raised is still offered rather than being filtered out of its own error.
+    A Tool node can never appear in the traces table, so offering it would only
+    promise empty results. ``flow_names`` deliberately lists *every* flow,
+    including ones that made no LLM calls — "this flow made no calls" is a real
+    answer to a real question.
+
+    There is no ``statuses`` list to match :class:`SessionFilterOptions`: a
+    session's status is a SQL ``CASE`` over the stream and has to be discovered
+    from it, where a trace's is the two-valued :class:`TraceStatus` the contract
+    already names. "No calls failed" is also a useful thing for that filter to
+    report, which an options list computed from the data could never say.
     """
 
     flow_names: list[str] = Field(default_factory=list)

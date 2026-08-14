@@ -31,6 +31,7 @@ from .models import (
     TraceRow,
     TraceSortField,
     TraceStats,
+    TraceStatus,
     TreeNode,
 )
 
@@ -38,7 +39,7 @@ router = APIRouter(prefix="/api")
 
 
 def _events_dir() -> Path:
-    return resolve_railtracks_home() / "data"
+    return resolve_railtracks_home() / "data/new-ones"
 
 
 # ---------------------------------------------------------------------------
@@ -237,16 +238,23 @@ async def list_traces(
     flow_name: list[str] | None = Query(None),
     node_name: list[str] | None = Query(None),
     model_name: list[str] | None = Query(None),
+    status: list[TraceStatus] | None = Query(None),
     sort_by: TraceSortField = Query(TraceSortField.TIMESTAMP),
     order: SortOrder = Query(SortOrder.DESC),
 ) -> TracePage:
     """List LLM calls across sessions, newest first by default.
 
-    Filters (``flow_name``, ``node_name``, ``model_name``, ``session_id``,
-    ``node_id``) and sorting (``sort_by`` / ``order``) both apply server-side,
-    before paging. Repeating ``flow_name`` / ``node_name`` / ``model_name`` ORs
-    the values within that filter and ANDs across filters. An offset past the
-    end returns no rows, not an error.
+    One row per round trip, whether it returned or raised — see
+    :class:`TraceRow`. ``status`` narrows to one outcome, which is what makes
+    three errors among four hundred calls findable at all: they cannot be
+    sorted to the top (an error has no cost, tokens or latency to rank on) and
+    scrolling for them is not a plan.
+
+    Filters (``flow_name``, ``node_name``, ``model_name``, ``status``,
+    ``session_id``, ``node_id``) and sorting (``sort_by`` / ``order``) both
+    apply server-side, before paging. Repeating ``flow_name`` / ``node_name`` /
+    ``model_name`` / ``status`` ORs the values within that filter and ANDs
+    across filters. An offset past the end returns no rows, not an error.
 
     Sorting the page in the browser would be a different question: "the ten
     priciest calls" is not "the priciest of the fifty most recent". See
@@ -259,7 +267,7 @@ async def list_traces(
         f"GET /api/traces limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
-        f"sort_by={sort_by.value} order={order.value}"
+        f"status={status} sort_by={sort_by.value} order={order.value}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
@@ -275,6 +283,7 @@ async def list_traces(
         flow_names=flow_name,
         node_names=node_name,
         model_names=model_name,
+        statuses=status,
         sort_by=sort_by,
         order=order,
     )
@@ -285,6 +294,7 @@ async def list_traces(
         flow_names=flow_name,
         node_names=node_name,
         model_names=model_name,
+        statuses=status,
     )
     return TracePage(
         rows=[_row_to_trace(r) for r in rows],
@@ -301,16 +311,20 @@ async def get_trace_stats(
     flow_name: list[str] | None = Query(None),
     node_name: list[str] | None = Query(None),
     model_name: list[str] | None = Query(None),
+    status: list[TraceStatus] | None = Query(None),
 ) -> TraceStats:
     """Roll-up across every LLM call matching the filters.
 
-    Takes the same filters as ``/api/traces`` and no paging params: the point of
-    the tiles is to describe the whole filtered set, which is exactly what the
-    fifty rows on the current page cannot tell you.
+    Takes the same filters as ``/api/traces`` — ``status`` included, so the
+    tiles keep describing the rows underneath them once the reader narrows to
+    errors — and no paging params: the point of the tiles is to describe the
+    whole filtered set, which is exactly what the fifty rows on the current page
+    cannot tell you.
     """
     print_status(
         f"GET /api/traces/stats session_id={session_id} node_id={node_id} "
-        f"flow_name={flow_name} node_name={node_name} model_name={model_name}"
+        f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
+        f"status={status}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
@@ -324,11 +338,13 @@ async def get_trace_stats(
         flow_names=flow_name,
         node_names=node_name,
         model_names=model_name,
+        statuses=status,
     )
     avg_latency = stats.get("avg_latency_seconds")
     max_latency = stats.get("max_latency_seconds")
     return TraceStats(
         total_calls=int(stats.get("total_calls") or 0),
+        failed_calls=int(stats.get("failed_calls") or 0),
         input_tokens=int(stats.get("input_tokens") or 0),
         output_tokens=int(stats.get("output_tokens") or 0),
         total_cost=float(stats.get("total_cost") or 0.0),
@@ -448,6 +464,9 @@ def _row_to_trace(row: dict[str, Any]) -> TraceRow:
         timestamp=float(row["timestamp"]),
         model_name=row.get("model_name"),
         model_provider=row.get("model_provider"),
+        status=TraceStatus(row.get("status") or TraceStatus.SUCCESS.value),
+        error_name=row.get("error_name"),
+        error_message=row.get("error_message"),
         input_tokens=int(row["input_tokens"] or 0),
         output_tokens=int(row["output_tokens"] or 0),
         total_cost=float(row["total_cost"] or 0.0),
