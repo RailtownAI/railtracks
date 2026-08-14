@@ -233,7 +233,7 @@ def test_run_output_transform(sample_history):
         event=_output_event(sample_history, output_message), value=output_message
     )
 
-    assert blocked.reason = "fix"
+    assert blocked.reason == "fix"
     assert value == new_message
     assert traces[-1].action == "transform"
 
