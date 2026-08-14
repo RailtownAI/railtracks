@@ -6,7 +6,6 @@ import logging
 import uuid
 import warnings
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView, NamedTuple
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -14,6 +13,7 @@ from typing import (
     Coroutine,
     KeysView,
     MutableMapping,
+    NamedTuple,
 )
 
 from railtracks.exceptions import ContextError

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal
 
 from ...providers import ModelProvider
 from ...retries import RetryApproach

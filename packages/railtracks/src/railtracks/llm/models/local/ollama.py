@@ -5,8 +5,6 @@ from typing import Literal
 import requests
 from litellm.utils import supports_function_calling
 
-from railtracks.utils.deprecation import warn_pending_change
-
 from ...providers import ModelProvider
 from ...retries.base import RetryApproach
 from .._litellm_wrapper import LiteLLMWrapper
@@ -74,7 +72,6 @@ class OllamaLLM(LiteLLMWrapper):
                 - specified model is not available on the server
             RequestException: If connection to Ollama server fails
         """
-        
 
         if not model_name.startswith("ollama/"):
             logger.warning(

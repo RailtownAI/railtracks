@@ -1,5 +1,5 @@
 import logging
-from typing import List, Literal, TypeVar
+from typing import List, Literal
 
 from litellm.exceptions import InternalServerError
 

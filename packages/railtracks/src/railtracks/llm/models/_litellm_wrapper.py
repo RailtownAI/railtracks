@@ -5,7 +5,6 @@ import json
 import mimetypes
 import threading
 import time
-import warnings
 from abc import ABC
 from json import JSONDecodeError
 from typing import (
@@ -621,7 +620,9 @@ class LiteLLMWrapper(ModelBase, ABC):
     async def _astream_chat(self, messages: MessageHistory):
         def _open() -> Generator[str | Response, None, Response]:
             raw, start_time = self._invoke(messages, stream=True)
-            assert isinstance(raw, CustomStreamWrapper), f"did not return streamed response, instead {type(raw)}"
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
             return self._stream_handler_base(raw, start_time)
 
         async for item in self._bridge_sync_stream(_open):
@@ -632,7 +633,9 @@ class LiteLLMWrapper(ModelBase, ABC):
     ):
         def _open() -> Generator[str | Response, None, Response]:
             raw, start_time = self._invoke(messages, tools=tools, stream=True)
-            assert isinstance(raw, CustomStreamWrapper), f"did not return streamed response, instead {type(raw)}"
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
             return self._stream_handler_base(raw, start_time)
 
         async for item in self._bridge_sync_stream(_open):
@@ -645,7 +648,9 @@ class LiteLLMWrapper(ModelBase, ABC):
             raw, start_time = self._invoke(
                 messages, response_format=schema, stream=True
             )
-            assert isinstance(raw, CustomStreamWrapper), f"did not return streamed response, instead {type(raw)}"
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
             return self._stream_handler_base(raw, start_time, schema)
 
         async for item in self._bridge_sync_stream(_open):
