@@ -7,6 +7,7 @@ from .configure import (
     ensure_started,
     shutdown,
 )
+from .configure import configure_writers, ensure_started, shutdown
 from .models import (
     SCOPE_EVALUATION,
     SCOPE_RETRIEVAL,

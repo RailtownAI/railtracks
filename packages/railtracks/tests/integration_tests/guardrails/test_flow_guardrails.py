@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
-from railtracks.guardrails import GuardrailDecision, InputGuard, LLMGuardrailEvent
+from railtracks.guardrails import GuardrailDecision, LLMGuardrailEvent
+from railtracks.guardrails.llm.concrete import InputGuard
 from railtracks.orchestration.flow import Flow
 
 

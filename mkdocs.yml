@@ -96,12 +96,14 @@ nav:
                   - Overview: documentation/agent_design/tools/prebuilt/overview.md
                   - To Do Tool: documentation/agent_design/tools/prebuilt/todos.md
                   - Key-Value Memory Tool: documentation/agent_design/tools/prebuilt/key_value_memory.md
+                  - Web Search Tool: documentation/agent_design/tools/prebuilt/websearch.md
               - Function Tools: documentation/agent_design/tools/function_tools.md
               - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
               - MCP: documentation/agent_design/tools/mcp.md
           - LLMs:
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
+              - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
           - Middleware:
               - Overview: documentation/agent_design/middleware/overview.md
               - Custom: documentation/agent_design/middleware/custom.md
@@ -112,6 +114,8 @@ nav:
               - Prebuilt:
                 - Overview: documentation/agent_design/middleware/prebuilt/overview.md
                 - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
+              
+
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
           - Flow Invocation: documentation/invocation/flows.md

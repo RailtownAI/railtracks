@@ -1,30 +1,33 @@
 """Direct unit tests for `events/send.py`'s parent-resolution logic.
 
-`pipe()` -> `_resolve_parent()` is the piece of the observability system that
-decides where a middleware/LLM event sits in the call graph: its
-`spatial_parent` (a node, an LLM call, or nothing) and its `parent` (the
-middleware/LLM invocation that owns it). It reads off the contextvars-backed
-scope stack in `context/central.py` / `context/session_context.py`.
+`pipe()` -> `event.resolve_relationships()` -> each event family's own
+`_get_spatial_parent`/`_get_parent` (see `events/_resolve.py`) is the piece of
+the observability system that decides where a middleware/LLM event sits in
+the call graph: its `spatial_parent` (a node, an LLM call, or nothing) and its
+`parent` (the middleware/LLM invocation that owns it). It reads off the
+contextvars-backed scope stack in `context/central.py` /
+`context/session_context.py`.
 
 These tests drive the real `ContextVarScopeManager` (not mocks) to push actual
 scope stacks, then inspect the resolved `spatial_parent`/`parent` on the event
 object after `pipe()` mutates it in place. This is the only place these fields
 are exercised directly -- integration tests only see the effect indirectly.
+`events/_resolve.py`'s resolver functions get more exhaustive, synthetic-chain
+coverage in `test_resolve.py`.
 """
 
 from __future__ import annotations
 
 from contextlib import ExitStack
-from dataclasses import dataclass
 
 import pytest
 import railtracks.context.central as central
 from railtracks.context.central import ContextVarScopeManager
 from railtracks.events._base import (
-    LLMSpatialParent,
+    LLMAndMiddlewareSpatialParent,
+    NodeAndMiddlewareSpatialParent,
     NodeSpatialParent,
     NoSpatialParent,
-    SessionEventBase,
 )
 from railtracks.events.llm import LLMCreationEvent, LLMInvocationEvent, LLMParent
 from railtracks.events.middleware import (
@@ -32,7 +35,7 @@ from railtracks.events.middleware import (
     MiddlewareInvocationEvent,
     MiddlewareParent,
 )
-from railtracks.events.send import _resolve_parent, pipe
+from railtracks.events.send import pipe
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.providers import ModelProvider
 from railtracks.observability import configure
@@ -84,23 +87,27 @@ async def test_middleware_event_under_node_only_resolves_node_spatial_parent():
         with mgr.enter_middleware("mw-A") as call_id:
             event = await _pipe(MiddlewareInvocationEvent(args=(), kwargs={}))
 
-    assert event.spatial_parent == NodeSpatialParent(node_id="node-1", middleware_id=None)
+    assert event.spatial_parent == NodeAndMiddlewareSpatialParent(
+        node_id="node-1", middleware_invoke_id=None
+    )
     assert event.parent == MiddlewareParent(
         middleware_type_id="mw-A", middleware_invoke_id=call_id
     )
 
 
-async def test_nested_middleware_event_records_enclosing_middleware_type_id():
-    """Node -> mw-A -> mw-B (nested): B's spatial parent records A's *type* id."""
+async def test_nested_middleware_event_records_enclosing_middleware_invoke_id():
+    """Node -> mw-A -> mw-B (nested): B's spatial parent records A's *invoke* id."""
     _register()
     mgr = ContextVarScopeManager()
 
     with mgr.enter_node("node-1"):
-        with mgr.enter_middleware("mw-A"):
+        with mgr.enter_middleware("mw-A") as a_call_id:
             with mgr.enter_middleware("mw-B") as b_call_id:
                 event = await _pipe(MiddlewareInvocationEvent(args=(), kwargs={}))
 
-    assert event.spatial_parent == NodeSpatialParent(node_id="node-1", middleware_id="mw-A")
+    assert event.spatial_parent == NodeAndMiddlewareSpatialParent(
+        node_id="node-1", middleware_invoke_id=a_call_id
+    )
     assert event.parent == MiddlewareParent(
         middleware_type_id="mw-B", middleware_invoke_id=b_call_id
     )
@@ -114,34 +121,41 @@ async def test_nested_middleware_event_records_enclosing_middleware_type_id():
 async def test_middleware_event_under_llm_scope_resolves_llm_spatial_parent():
     """Model-level middleware (guards, before_llm/wrap_llm) sits *inside* the LLM
     scope -- see `ModelInvoker.invoke`, which enters `enter_llm_call` before
-    running its middleware chain. Its events must resolve `LLMSpatialParent`,
-    never `NodeSpatialParent`, even though a node is further up the stack.
+    running its middleware chain. Its events must resolve
+    `LLMAndMiddlewareSpatialParent`, never `NodeSpatialParent`, even though a
+    node is further up the stack.
     """
     _register()
     mgr = ContextVarScopeManager()
 
     with mgr.enter_node("node-1"):
         with mgr.enter_llm_call("model-x"):
+            llm_call_data = central.get_llm_call_id()
             with mgr.enter_middleware("guard-A") as call_id:
                 event = await _pipe(MiddlewareInvocationEvent(args=(), kwargs={}))
 
-    assert event.spatial_parent == LLMSpatialParent(llm_id="model-x", middleware_id=None)
+    assert event.spatial_parent == LLMAndMiddlewareSpatialParent(
+        llm_invoke_id=llm_call_data.call_id, middleware_invoke_id=None
+    )
     assert event.parent == MiddlewareParent(
         middleware_type_id="guard-A", middleware_invoke_id=call_id
     )
 
 
-async def test_nested_model_middleware_under_llm_scope_records_enclosing_type_id():
+async def test_nested_model_middleware_under_llm_scope_records_enclosing_invoke_id():
     _register()
     mgr = ContextVarScopeManager()
 
     with mgr.enter_node("node-1"):
         with mgr.enter_llm_call("model-x"):
-            with mgr.enter_middleware("guard-A"):
+            llm_call_data = central.get_llm_call_id()
+            with mgr.enter_middleware("guard-A") as a_call_id:
                 with mgr.enter_middleware("guard-B") as b_call_id:
                     event = await _pipe(MiddlewareInvocationEvent(args=(), kwargs={}))
 
-    assert event.spatial_parent == LLMSpatialParent(llm_id="model-x", middleware_id="guard-A")
+    assert event.spatial_parent == LLMAndMiddlewareSpatialParent(
+        llm_invoke_id=llm_call_data.call_id, middleware_invoke_id=a_call_id
+    )
     assert event.parent == MiddlewareParent(
         middleware_type_id="guard-B", middleware_invoke_id=b_call_id
     )
@@ -163,10 +177,13 @@ async def test_parent_middleware_does_not_cross_the_llm_boundary():
     with mgr.enter_node("node-1"):
         with mgr.enter_middleware("node-mw-A"):
             with mgr.enter_llm_call("model-x"):
+                llm_call_data = central.get_llm_call_id()
                 with mgr.enter_middleware("model-mw-B") as b_call_id:
                     event = await _pipe(MiddlewareInvocationEvent(args=(), kwargs={}))
 
-    assert event.spatial_parent == LLMSpatialParent(llm_id="model-x", middleware_id=None)
+    assert event.spatial_parent == LLMAndMiddlewareSpatialParent(
+        llm_invoke_id=llm_call_data.call_id, middleware_invoke_id=None
+    )
     assert event.parent == MiddlewareParent(
         middleware_type_id="model-mw-B", middleware_invoke_id=b_call_id
     )
@@ -196,9 +213,9 @@ async def test_llm_message_event_always_resolves_to_nearest_node(middleware_dept
         llm_call_data = central.get_llm_call_id()
         event = await _pipe(LLMInvocationEvent(message_input=MessageHistory([])))
 
-    assert event.spatial_parent == NodeSpatialParent(node_id="node-1", middleware_id=None)
+    assert event.spatial_parent == NodeSpatialParent(node_id="node-1")
     assert event.parent == LLMParent(
-        llm_invoke_id=llm_call_data.call_id, llm_model_id=llm_call_data.type_id
+        llm_invoke_id=llm_call_data.call_id, llm_type_id=llm_call_data.type_id
     )
 
 
@@ -217,7 +234,7 @@ async def test_creation_events_have_no_spatial_parent_and_need_no_active_scope()
 
     llm_event = await _pipe(
         LLMCreationEvent(
-            model_id="model-x",
+            llm_id="model-x",
             model_provider=ModelProvider.OPENAI,
             model_name="gpt-x",
         )
@@ -235,7 +252,7 @@ async def test_middleware_event_with_no_node_or_llm_context_raises():
     _register()
     event = MiddlewareInvocationEvent(args=(), kwargs={})
 
-    with pytest.raises(AssertionError, match="node or LLM"):
+    with pytest.raises(AssertionError, match="Expected a scope chain"):
         await _pipe(event)
 
 
@@ -245,7 +262,7 @@ async def test_middleware_event_without_active_middleware_scope_raises():
 
     with mgr.enter_node("node-1"):
         event = MiddlewareInvocationEvent(args=(), kwargs={})
-        with pytest.raises(AssertionError, match="Middleware ID"):
+        with pytest.raises(AssertionError, match="Expected a scope chain"):
             await _pipe(event)
 
 
@@ -255,7 +272,7 @@ async def test_llm_message_event_without_active_llm_call_scope_raises():
 
     with mgr.enter_node("node-1"):
         event = LLMInvocationEvent(message_input=MessageHistory([]))
-        with pytest.raises(AssertionError, match="LLM call ID"):
+        with pytest.raises(AssertionError, match="Expected an LLM scope entry"):
             await _pipe(event)
 
 
@@ -265,29 +282,5 @@ async def test_llm_message_event_without_active_node_scope_raises():
 
     with mgr.enter_llm_call("model-x"):
         event = LLMInvocationEvent(message_input=MessageHistory([]))
-        with pytest.raises(AssertionError, match="Node ID"):
+        with pytest.raises(AssertionError, match="Expected a node scope entry"):
             await _pipe(event)
-
-
-# ---------------------------------------------------------------------------
-# pipe() guards
-# ---------------------------------------------------------------------------
-
-
-async def test_pipe_rejects_an_event_whose_spatial_parent_is_already_set():
-    _register()
-    event = MiddlewareCreationEvent(middleware_type_id="mw-A", middleware_name="A")
-    event.spatial_parent = NoSpatialParent()  # pretend this was already resolved
-
-    with pytest.raises(RuntimeError, match="not supported"):
-        await _pipe(event)
-
-
-def test_resolve_parent_raises_for_an_unrecognized_event_type():
-    @dataclass(kw_only=True)
-    class _UnknownEvent(SessionEventBase):
-        def event_type(self) -> str:
-            return "unknown.event"
-
-    with pytest.raises(RuntimeError, match="Unknown event type"):
-        _resolve_parent(_UnknownEvent())

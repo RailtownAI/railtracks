@@ -15,6 +15,22 @@ pip install 'railtracks[visual]'
 
 ## Supported Assistants
 
+=== "Codex"
+
+    Installs a repository-scoped skill at `.agents/skills/agent-builder/SKILL.md`. Codex automatically discovers skills in `.agents/skills` when working in the repository.
+
+    ```bash
+    railtracks add codex:agent-builder
+    ```
+
+    ??? success "What gets created"
+        ```
+        .agents/
+        └── skills/
+            └── agent-builder/
+                └── SKILL.md   ← railtracks agent-building knowledge
+        ```
+
 === "Claude Code"
 
     Installs a skill file at `.claude/skills/agent-builder/SKILL.md`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.

@@ -79,8 +79,7 @@ SKILLS = {
     },
 }
 
-
-SUPPORTED_TOOLS = ("claude", "copilot", "cursor")
+SUPPORTED_TOOLS = ("claude", "codex", "copilot", "cursor")
 
 
 def __getattr__(name: str):
@@ -309,7 +308,23 @@ def _add_claude(skill_name: str, meta: dict, content: str, force: bool) -> None:
         "---\n\n"
     )
     target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Claude Code → {target}")
+    print_success(f"Installed '{skill_name}' for Claude Code -> {target}")
+
+
+def _add_codex(skill_name: str, meta: dict, content: str, force: bool) -> None:
+    """Install a skill for Codex as a repository-scoped SKILL.md file."""
+    target = Path(".agents") / "skills" / skill_name / "SKILL.md"
+    if target.exists() and not force:
+        if not _confirm_overwrite(target):
+            print_status("Aborted.")
+            sys.exit(0)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frontmatter = (
+        f"---\nname: {meta['name']}\ndescription: {meta['description']}\n---\n\n"
+    )
+    target.write_text(frontmatter + content, encoding="utf-8")
+    print_success(f"Installed '{skill_name}' for Codex -> {target}")
 
 
 def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None:  # noqa: ARG001
@@ -338,7 +353,7 @@ def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None
     section = f"\n\n{start_marker}\n{content.strip()}\n{end_marker}\n"
     with open(target, "a", encoding="utf-8") as f:
         f.write(section)
-    print_success(f"Installed '{skill_name}' for GitHub Copilot → {target}")
+    print_success(f"Installed '{skill_name}' for GitHub Copilot -> {target}")
 
 
 def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
@@ -354,11 +369,12 @@ def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
         f"---\ndescription: {meta['description']}\nalwaysApply: false\n---\n\n"
     )
     target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Cursor → {target}")
+    print_success(f"Installed '{skill_name}' for Cursor -> {target}")
 
 
 _TOOL_HANDLERS = {
     "claude": _add_claude,
+    "codex": _add_codex,
     "copilot": _add_copilot,
     "cursor": _add_cursor,
 }
@@ -437,6 +453,12 @@ def _print_help():
         example(
             f"{cli_name} add claude:agent-builder",
             "Install agent-builder skill for Claude Code",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add codex:agent-builder",
+            "Install agent-builder skill for Codex",
         )
     )
     print(

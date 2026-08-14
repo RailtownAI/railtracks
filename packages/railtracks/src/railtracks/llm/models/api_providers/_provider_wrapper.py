@@ -4,6 +4,8 @@ from typing import List
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
+from typing import Any, Literal
+
 from ...history import MessageHistory
 from ...providers import ModelProvider
 from ...response import Response
@@ -20,15 +22,81 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
+        service_tier: str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
+        """Initialize a provider-backed LLM instance.
+
+        Args:
+            model_name (str): Name of the model to use, with or without the provider
+                prefix (e.g. "gpt-4o" or "openai/gpt-4o").
+            stream (bool): Whether to stream the response.
+            api_base (str | None, optional): Override the provider's API base URL.
+            api_key (str | None, optional): Override the provider's API key.
+            temperature (float | None, optional): Sampling temperature. Valid range is
+                provider/model-specific (e.g. 0-2 for OpenAI) and enforced server-side,
+                not by railtracks.
+            top_p (float | None, optional): Nucleus sampling threshold. Same caveat as
+                `temperature` on valid range. Anthropic rejects specifying `temperature`
+                and `top_p` together on every model tested — use only one.
+            max_tokens (int | None, optional): Maximum tokens to generate.
+            frequency_penalty (float | None, optional): Penalizes tokens by how often
+                they've already appeared. Provider/model-specific support and range.
+            presence_penalty (float | None, optional): Penalizes tokens that have
+                already appeared at all. Provider/model-specific support and range.
+            reasoning_effort (Literal["minimal", "low", "medium", "high"] | None, optional):
+                Requested reasoning effort for reasoning-capable models.
+            service_tier (str | None, optional): Requested service tier. Provider-specific,
+                no railtracks-side enum.
+            verbosity (Literal["low", "medium", "high"] | None, optional): Requested
+                output verbosity for models that support it (currently OpenAI GPT-5-series,
+                excluding Codex variants). Note: at least one provider (OpenAI, confirmed on
+                `gpt-5-mini`) silently accepts an invalid value here with no error — pass a
+                valid value, don't rely on validation.
+            retry_approach (RetryApproach | None, optional): Retry strategy for transient
+                failures.
+            **kwargs: Any other litellm-supported completion param not named above
+                (e.g. `seed`, `logprobs`) — held as-is and merged into every completion
+                call. Never checked against `_hyperparameter_support`.
+
+        Raises:
+            ModelNotFoundError: If `model_name` doesn't belong to this provider.
+            UnsupportedHyperparameterError: If a common hyperparameter above isn't
+                supported by the resolved model (per litellm's schema, patched by a
+                manual denylist for known-stale cases — see
+                `llm/models/_hyperparameter_support.py`).
+            MutuallyExclusiveHyperparametersError: If two common hyperparameters can't
+                be combined for this provider (currently: Anthropic `temperature` +
+                `top_p`).
+
+        Note:
+            railtracks does not validate hyperparameter *values* (ranges, types, enum
+            members) — invalid values are passed through and will surface as a
+            provider-native error (see `verbosity` caveat above for the one known
+            exception).
+        """
         model_name = self._pre_init_provider_check(model_name)
         super().__init__(
             model_name=self.full_model_name(model_name),
             api_base=api_base,
             api_key=api_key,
             temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            reasoning_effort=reasoning_effort,
+            service_tier=service_tier,
+            verbosity=verbosity,
             retry_approach=retry_approach,
+            **kwargs,
         )
 
     def _pre_init_provider_check(self, model_name: str):

@@ -30,6 +30,11 @@ class LLMResponse(Generic[_T]):
             "content": self.content,
             "message_history": self.message_history,
         }
+    
+    def __str__(self):
+        # The content is what consumers (notably a parent agent reading this node's
+        # output as a tool result) care about, so it must not carry the class wrapper.
+        return str(self.content)
 
     @property
     def tool_invocations(self) -> list[tuple[ToolCall, ToolResponse]]:

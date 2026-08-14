@@ -52,6 +52,7 @@ line-length = 88
 
 format.indent-style = "space"
 format.docstring-code-format = true
+format.exclude = ["*.md"]
 
 lint.select = [
     "E",

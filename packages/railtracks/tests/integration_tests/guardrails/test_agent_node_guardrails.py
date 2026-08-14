@@ -9,10 +9,9 @@ from railtracks.built_nodes.llm.response import StringResponse, StructuredRespon
 from railtracks.guardrails import (
     GuardrailBlockedError,
     GuardrailDecision,
-    InputGuard,
     LLMGuardrailEvent,
-    OutputGuard,
 )
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm import AssistantMessage
 
 

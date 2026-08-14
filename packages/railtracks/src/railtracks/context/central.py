@@ -7,11 +7,23 @@ import uuid
 import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, KeysView, NamedTuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    KeysView,
+    MutableMapping,
+)
 
 from railtracks.exceptions import ContextError
 
 if TYPE_CHECKING:
     from railtracks.pubsub.publisher import RTPublisher
+
+    _LoggerAdapter = logging.LoggerAdapter[logging.Logger]
+else:
+    _LoggerAdapter = logging.LoggerAdapter
 
 from railtracks.utils.config import ExecutorConfig
 
@@ -66,13 +78,13 @@ def safe_get_runner_context() -> RunnerContextVars:
     return context
 
 
-def is_context_present():
+def is_context_present() -> bool:
     """Returns true if a context exists."""
     t_c = runner_context.get()
     return t_c is not None
 
 
-def is_context_active():
+def is_context_active() -> bool:
     """
     Check if the global variables for the current thread are active.
 
@@ -331,7 +343,7 @@ def register_globals(
     return e_c
 
 
-async def activate_publisher():
+async def activate_publisher() -> None:
     """
     Activate the publisher for the current thread's global variables.
 
@@ -346,7 +358,7 @@ async def activate_publisher():
     await session_context.publisher.start()
 
 
-async def shutdown_publisher():
+async def shutdown_publisher() -> None:
     """
     Shutdown the publisher for the current thread's global variables.
 
@@ -387,7 +399,7 @@ def get_local_config() -> ExecutorConfig:
 
 def set_local_config(
     executor_config: ExecutorConfig,
-):
+) -> None:
     """
     Set the executor configuration for the current thread's global variables.
 
@@ -403,7 +415,7 @@ def set_local_config(
 
 def set_global_config(
     executor_config: ExecutorConfig,
-):
+) -> None:
     """
     Set the executor configuration for the current thread's global variables.
 
@@ -479,7 +491,7 @@ class ContextVarScopeManager:
             runner_context.reset(token)
 
 
-def delete_globals():
+def delete_globals() -> None:
     """Resets the globals to None."""
     runner_context.set(None)
 
@@ -488,7 +500,7 @@ def get(
     key: str,
     /,
     default: Any | None = None,
-):
+) -> Any:
     """
     Get a value from context
 
@@ -508,7 +520,7 @@ def get(
 def put(
     key: str,
     value: Any,
-):
+) -> None:
     """
     Set a value in the context.
 
@@ -520,7 +532,7 @@ def put(
     context.external_context.put(key, value)
 
 
-def update(data: dict[str, Any]):
+def update(data: dict[str, Any]) -> None:
     """
     Sets the values in the context. If the context already has values, this will overwrite them, but it will not delete any existing keys.
 
@@ -531,7 +543,7 @@ def update(data: dict[str, Any]):
     context.external_context.update(data)
 
 
-def delete(key: str):
+def delete(key: str) -> None:
     """
     Delete a key from the context.
 
@@ -565,7 +577,7 @@ def set_config(
     ) = None,
     prompt_injection: bool | None = None,
     save_state: bool | None = None,
-):
+) -> None:
     """
     Sets the global configuration for the executor. This will be propagated to all new runners created after this call.
 
@@ -594,8 +606,10 @@ def set_config(
     global_executor_config.set(new_config)
 
 
-class RTContextLoggingAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
+class RTContextLoggingAdapter(_LoggerAdapter):
+    def process(
+        self, msg: object, kwargs: MutableMapping[str, Any]
+    ) -> tuple[object, MutableMapping[str, Any]]:
         try:
             parent_id = get_parent_id()
             run_id = get_run_id()
@@ -639,7 +653,7 @@ class RTContextLoggingAdapter(logging.LoggerAdapter):
         return msg, kwargs
 
 
-def session_id():
+def session_id() -> str | None:
     """
     Gets the current session ID if it exists, otherwise returns None.
     """

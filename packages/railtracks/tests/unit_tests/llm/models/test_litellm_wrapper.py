@@ -29,8 +29,8 @@ class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper):
     def model_provider(self):
         return ModelProvider.UNKNOWN
 
-class TestHelpers:
 
+class TestHelpers:
     # =================================== START _parameters_to_json_schema Tests ==================================
     # parameters_to_json_schema is guaranteed to get only a set of Parameter objects
     def test_parameters_to_json_schema_with_parameters_set(
@@ -85,7 +85,9 @@ class TestHelpers:
         assert litellm_message["role"] == "user"
         assert litellm_message["content"] == "This is a user message."
 
-    def test_to_litellm_message_assistant_message(self, mock_litellm_wrapper, assistant_message):
+    def test_to_litellm_message_assistant_message(
+        self, mock_litellm_wrapper, assistant_message
+    ):
         """
         Test _to_litellm_message with an AssistantMessage instance.
         """
@@ -193,7 +195,9 @@ class TestHelpers:
         file_block = litellm_message["content"][1]
         assert file_block["type"] == "file"
         assert file_block["file"]["filename"] == "report.pdf"
-        assert file_block["file"]["file_data"].startswith("data:application/pdf;base64,")
+        assert file_block["file"]["file_data"].startswith(
+            "data:application/pdf;base64,"
+        )
 
     def test_to_litellm_message_pdf_attachment_rejected_for_unsupported_model(
         self,
@@ -214,6 +218,28 @@ class TestHelpers:
 
         with pytest.raises(ValueError, match="does not support PDF attachments"):
             wrapper._to_litellm_message(message)
+
+    def test_to_litellm_message_pdf_attachment_allowed_for_unroutable_model(
+        self,
+        mock_litellm_wrapper,
+    ):
+        """
+        A custom deployment name (Azure Foundry etc.) that litellm can't identify
+        must NOT be pre-rejected — the API is the source of truth for capability
+        in that case. Regression for the AzureAILLM custom-deployment path.
+        """
+        import base64 as _b64
+
+        wrapper = mock_litellm_wrapper(model_name="azure/my-custom-deployment")
+        pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
+        b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+        data_uri = f"data:application/pdf;base64,{b64}"
+        message = UserMessage(content="Summarize this.", attachment=[data_uri])
+
+        litellm_message = wrapper._to_litellm_message(message)
+
+        file_block = litellm_message["content"][1]
+        assert file_block["type"] == "file"
 
     # =================================== END _to_litellm_message Tests ====================================
 
@@ -283,10 +309,14 @@ class TestCompletionMethods:
         assert result.message.content.field == "VAL"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_structured", False),
-        ("_astructured", True),
-    ], ids=["sync_structured", "async_structured"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_structured", False),
+            ("_astructured", True),
+        ],
+        ids=["sync_structured", "async_structured"],
+    )
     async def test_structured_schema_jsondecode_error(
         self, mock_litellm_wrapper, message_history, method_name, is_async
     ):
@@ -302,17 +332,24 @@ class TestCompletionMethods:
                 result = method(message_history, schema=Schema)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_structured", False),
-        ("_astructured", True),
-    ], ids=["sync_structured", "async_structured"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_structured", False),
+            ("_astructured", True),
+        ],
+        ids=["sync_structured", "async_structured"],
+    )
     async def test_structured_invalid_json_raises_llm_error(
         self, mock_litellm_wrapper, message_history, method_name, is_async
     ):
         class Schema(BaseModel):
             val: int
+
         with pytest.raises(LLMError, match="Structured LLM call failed"):
-            wrapper = mock_litellm_wrapper(content='{"field": "VAL", "invalid": "json"}')
+            wrapper = mock_litellm_wrapper(
+                content='{"field": "VAL", "invalid": "json"}'
+            )
             method = getattr(wrapper, method_name)
             if is_async:
                 result = await method(message_history, schema=Schema)
@@ -495,3 +532,36 @@ async def test_temperature_passed_through_async_chat(message_history):
 
 
 # ================= END completion methods tests =========================
+
+# ================= START common hyperparameter support tests =========================
+
+
+@pytest.mark.parametrize(
+    "kwarg_name,kwarg_value",
+    [
+        ("top_p", 0.9),
+        ("max_tokens", 256),
+        ("frequency_penalty", 0.3),
+        ("presence_penalty", 0.2),
+        ("reasoning_effort", "high"),
+        ("service_tier", "FAST"),
+        ("verbosity", "low"),
+    ],
+)
+def test_common_hyperparameter_passed_to_litellm_completion(
+    kwarg_name, kwarg_value, message_history
+):
+    """Assert that new common hyperparameters are threaded through to litellm.completion when set."""
+    with patch.object(litellm, "completion") as mock_completion:
+        mock_completion.return_value = litellm.utils.ModelResponse(
+            choices=[{"message": {"content": "ok"}}]
+        )
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="test-model", stream=False, **{kwarg_name: kwarg_value}
+        )
+        wrapper.chat(message_history)
+        mock_completion.assert_called_once()
+        assert mock_completion.call_args.kwargs.get(kwarg_name) == kwarg_value
+
+
+# ================= END common hyperparameter support tests =========================

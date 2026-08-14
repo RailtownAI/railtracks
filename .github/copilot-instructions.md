@@ -38,6 +38,7 @@ rt.llm.OpenAICompatibleProvider(base_url="...", model="...")
 ```python
 import railtracks as rt
 
+
 @rt.function_node
 def my_tool(param: str) -> str:
     """One-line description.
@@ -47,6 +48,7 @@ def my_tool(param: str) -> str:
         What this returns.
     """
     return f"result for {param}"
+
 
 llm = rt.llm.AnthropicLLM("claude-sonnet-4-6")
 # agent_node returns a class (type), not an instance — use PascalCase
@@ -66,9 +68,11 @@ if __name__ == "__main__":
 ```python
 from pydantic import BaseModel
 
+
 class Output(BaseModel):
     field1: str
     field2: int
+
 
 StructuredAgent = rt.agent_node(
     "Structured Agent",
@@ -86,6 +90,7 @@ async def pipeline(query: str):
     step2 = await rt.call(AgentB, step1)
     return step2
 
+
 flow = rt.Flow(name="Pipeline", entry_point=pipeline)
 ```
 
@@ -100,7 +105,9 @@ SubAgent = rt.agent_node(
     manifest=rt.ToolManifest(
         description="Does X given a topic. Call this when you need X.",
         parameters=[
-            Parameter(name="topic", description="The topic to process", param_type="string"),
+            Parameter(
+                name="topic", description="The topic to process", param_type="string"
+            ),
         ],
     ),
 )
@@ -116,7 +123,9 @@ Orchestrator = rt.agent_node(
 
 #### MCP Tools
 ```python
-server = rt.connect_mcp(rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"]))
+server = rt.connect_mcp(
+    rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"])
+)
 agent = rt.agent_node("MCP Agent", tool_nodes=server.tools, llm=llm)
 ```
 

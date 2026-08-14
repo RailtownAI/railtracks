@@ -34,10 +34,10 @@ def test_init_success():
     assert llm._model_name == TEST_CHAT_MODEL_NAME
 
 
-def test_init_model_not_available():
-    """Test initialization with a model that is not available"""
-    with pytest.raises(RTLLMError, match="Model 'non_existent_model' is not available"):
-        AzureAILLM(model_name="non_existent_model")
+def test_init_accepts_custom_deployment_name():
+    """Custom Foundry deployment names must not be rejected client-side."""
+    llm = AzureAILLM(model_name="azure/my-custom-deployment")
+    assert llm._model_name == "azure/my-custom-deployment"
 
 
 def test_chat_success(message_history):
@@ -98,9 +98,15 @@ def test_chat_with_tools_success(message_history, response, tool):
 
 
 def test_chat_with_tools_failure(message_history, tool):
-    """"""
+    """A litellm InternalServerError during chat_with_tools surfaces as RTLLMError."""
     llm = AzureAILLM(model_name=TEST_CHAT_MODEL_NAME)
 
-    with patch.object(litellm, "supports_function_calling", return_value=False):
+    with patch.object(
+        LiteLLMWrapper,
+        "chat_with_tools",
+        side_effect=litellm.InternalServerError(
+            "Internal server error", "azure_ai", MODEL_NAME
+        ),
+    ):
         with pytest.raises(RTLLMError):
             llm.chat_with_tools(message_history, [tool])

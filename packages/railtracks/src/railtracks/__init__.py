@@ -53,6 +53,7 @@ __all__ = [
     "wrap_llm",
     "input_guard",
     "output_guard",
+    "escape_braces",
 ]
 
 
@@ -80,6 +81,8 @@ from .context.central import session_id, set_config
 from .guardrails import input_guard, output_guard
 from .interaction import astream, broadcast, call, call_batch, couple
 from .middleware import after_node, wrap_node
+from .interaction import broadcast, call, call_batch
+from .llm.prompt_injection_utils import escape_braces
 from .nodes.manifest import ToolManifest
 from .orchestration.connection import FlowConnection, NodeMessageHistory
 from .orchestration.flow import Flow

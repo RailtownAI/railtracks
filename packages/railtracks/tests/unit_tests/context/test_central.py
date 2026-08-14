@@ -95,10 +95,12 @@ def test_get_and_set_local_config(monkeypatch, make_runner_context_vars, make_se
     rt = make_runner_context_vars(session_context=make_session_context_mock(executor_config=config))
     monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
     assert central.get_local_config() is config
-    # set_local_config should update context.executor_config and set runner_context
+
+    updated_config = mock.Mock()
     monkeypatch.setattr(central, "runner_context", mock.Mock(set=mock.Mock()))
-    central.set_local_config(config)
-    central.runner_context.set.assert_called()
+    central.set_local_config(updated_config)
+    assert rt.session_context.executor_config is updated_config
+    central.runner_context.set.assert_called_once_with(rt)
 
 def test_set_config_warns(monkeypatch):
     config = mock.Mock()
