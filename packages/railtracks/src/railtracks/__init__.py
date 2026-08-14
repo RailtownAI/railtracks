@@ -44,7 +44,6 @@ __all__ = [
     "evaluations",
     "observability",
     "retrieval",
-    "vector_stores",
     "Flow",
     "FlowConnection",
     "NodeMessageHistory",
@@ -76,7 +75,6 @@ from . import (
     observability,
     prebuilt,
     retrieval,
-    vector_stores,
 )
 from ._session import Session, session
 from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
