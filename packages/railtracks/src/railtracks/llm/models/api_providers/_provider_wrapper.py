@@ -4,6 +4,8 @@ from typing import Any, Generic, List, Literal, TypeVar
 import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
+from railtracks.utils.deprecation import warn_pending_change
+
 from ...history import MessageHistory
 from ...providers import ModelProvider
 from ...response import Response
@@ -83,6 +85,18 @@ class ProviderLLMWrapper(LiteLLMWrapper[_TStream], ABC, Generic[_TStream]):
             provider-native error (see `verbosity` caveat above for the one known
             exception).
         """
+        if stream:
+            warn_pending_change(
+                "Constructing a model with `stream=True`",
+                change="is removed",
+                instead="rt.astream(agent, ...) to stream an agent run",
+                detail=(
+                    "Streaming becomes async in 1.5.0: per-call model methods "
+                    "(astream_chat, astream_chat_with_tools, astream_structured) "
+                    "replace the streamed return value of chat()."
+                ),
+            )
+
         model_name = self._pre_init_provider_check(model_name)
         super().__init__(
             model_name=self.full_model_name(model_name),

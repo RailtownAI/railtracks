@@ -1,4 +1,5 @@
 import pytest
+import warnings
 from pathlib import Path
 import asyncio
 import railtracks as rt
@@ -92,9 +93,12 @@ async def planner(current_city: str, destination_city: str):
     return {"outbound_booking": outbound_booking, "inbound_booking": inbound_booking}
 
 
-TLLMNode = rt.agent_node(
-    system_message="You are excellent chooser of random items from a list. You never make mistakes and have a god like ability to accomplish tasks.",
-)
+# TODO: Remove with the notices in 1.5.0.
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", FutureWarning)
+    TLLMNode = rt.agent_node(
+        system_message="You are excellent chooser of random items from a list. You never make mistakes and have a god like ability to accomplish tasks.",
+    )
 
 @rt.function_node
 async def planner_with_llm(llm: rt.llm.ModelBase):

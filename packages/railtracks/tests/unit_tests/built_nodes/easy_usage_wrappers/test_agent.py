@@ -6,6 +6,9 @@ from railtracks.llm import Parameter
 from railtracks.built_nodes.concrete import LLMBase
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks import function_node
+
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 class DummyNode(LLMBase):
     @classmethod
     def name(cls): return "DummyNode"

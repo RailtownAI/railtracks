@@ -6,7 +6,7 @@ import pytest
 
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.llm import (
+from railtracks.prebuilt.guardrails import (
     PIIEntity,
     PIIRedactConfig,
     PIIRedactInputGuard,
