@@ -163,7 +163,11 @@ class BaseLLMGuardrail(
 
         _, value, event, decision = step
 
-        return value, traces, decision if decision is not None else GuardrailDecision.allow()
+        return (
+            value,
+            traces,
+            decision if decision is not None else GuardrailDecision.allow(),
+        )
 
     def _eval_one_rail(
         self,
