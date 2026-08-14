@@ -142,8 +142,13 @@ class BaseLLMGuardrail(
     ) -> tuple[_TValue, list[GuardrailTrace], GuardrailDecision]:
         """Run this guard once on event and value.
 
-        Returns the resulting value, the traces recorded, and a blocking decision
-        if the run stopped, or None if it completed.
+        Returns the resulting value, the traces recorded, and the decision that
+        applies. A BLOCK (or a failed TRANSFORM) surfaces its own decision as-is.
+        A successful TRANSFORM also surfaces its own decision (its `reason`/`meta`
+        describe what changed, e.g. a PII redaction count -- callers like
+        `MiddlewareGuardInputResponseEvent` depend on that). A plain ALLOW, or an
+        exception swallowed via `fail_open=True`, has nothing rail-specific worth
+        keeping, so a generic `GuardrailDecision.allow()` is returned instead.
         """
         traces: list[GuardrailTrace] = []
 
@@ -156,9 +161,9 @@ class BaseLLMGuardrail(
         if step[0] == "stop":
             return step[1], traces, step[2]
 
-        _, value, event = step
+        _, value, event, decision = step
 
-        return value, traces, GuardrailDecision.allow()
+        return value, traces, decision if decision is not None else GuardrailDecision.allow()
 
     def _eval_one_rail(
         self,
@@ -166,7 +171,7 @@ class BaseLLMGuardrail(
         value: _TValue,
         traces: list[GuardrailTrace],
     ) -> (
-        tuple[Literal["continue"], _TValue, LLMGuardrailEvent]
+        tuple[Literal["continue"], _TValue, LLMGuardrailEvent, GuardrailDecision | None]
         | tuple[Literal["stop"], _TValue, GuardrailDecision]
     ):
         """Call this guard, validate the returned decision, and dispatch it."""
@@ -184,13 +189,13 @@ class BaseLLMGuardrail(
                 reason_prefix="Guardrail raised exception",
             )
             if outcome[0] == "continue":
-                return ("continue", value, event)
+                return ("continue", value, event, None)
             return ("stop", outcome[1], outcome[2])
 
         traces.append(self._trace_from_decision(decision=decision))
 
         if decision.action == GuardrailAction.ALLOW:
-            return ("continue", value, event)
+            return ("continue", value, event, None)
 
         return self._dispatch_non_allow_decision(
             event=event,
@@ -207,7 +212,7 @@ class BaseLLMGuardrail(
         decision: GuardrailDecision,
         traces: list[GuardrailTrace],
     ) -> (
-        tuple[Literal["continue"], _TValue, LLMGuardrailEvent]
+        tuple[Literal["continue"], _TValue, LLMGuardrailEvent, GuardrailDecision | None]
         | tuple[Literal["stop"], _TValue, GuardrailDecision]
     ):
         """Apply a TRANSFORM, BLOCK, or unknown-action decision returned by this guard."""
@@ -223,9 +228,11 @@ class BaseLLMGuardrail(
                     reason_prefix="Guardrail transform failed",
                 )
                 if outcome[0] == "continue":
-                    return ("continue", value, event)
+                    return ("continue", value, event, None)
                 return ("stop", outcome[1], outcome[2])
-            return ("continue", value, event)
+            # Success: unlike a plain ALLOW, the caller needs this decision's own
+            # reason/meta (e.g. a PII redaction count) -- preserve it as-is.
+            return ("continue", value, event, decision)
 
         if decision.action == GuardrailAction.BLOCK:
             return ("stop", value, decision)
@@ -241,7 +248,7 @@ class BaseLLMGuardrail(
         )
 
         if self.fail_open:
-            return ("continue", value, event)
+            return ("continue", value, event, None)
 
         block = GuardrailDecision.block(
             reason=f"Unknown guardrail action from {self._rail_name()}",
