@@ -557,7 +557,7 @@ def test_common_hyperparameter_passed_to_litellm_completion(
             choices=[{"message": {"content": "ok"}}]
         )
         wrapper = _ConcreteLiteLLMWrapperForTest(
-            model_name="test-model", stream=False, **{kwarg_name: kwarg_value}
+            model_name="test-model", **{kwarg_name: kwarg_value}
         )
         wrapper.chat(message_history)
         mock_completion.assert_called_once()
