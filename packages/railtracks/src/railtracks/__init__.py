@@ -17,8 +17,6 @@ if TYPE_CHECKING:
     from railtracks.interaction import interactive as interactive
 
 __all__ = [
-    "Session",
-    "session",
     "call",
     "broadcast",
     "call_batch",
@@ -61,7 +59,9 @@ from . import (
     observability,
     prebuilt,
 )
-from ._session import ExecutionInfo, Session, session
+from ._session import ExecutionInfo
+from ._session import Session as Session
+from ._session import session as session
 from .context.central import session_id, set_config
 from .interaction import broadcast, call, call_batch
 from .llm.prompt_injection_utils import escape_braces

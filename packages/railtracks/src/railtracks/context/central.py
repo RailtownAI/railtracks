@@ -83,7 +83,7 @@ def safe_get_runner_context() -> RunnerContextVars:
             message="Context is not available. But some function tried to access it.",
             notes=[
                 "You need to have an active runner to access context.",
-                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
+                "Eg.-\n flow = rt.Flow('my-agent', entry_point=my_node)\n result = await flow.ainvoke(query)",
             ],
         )
     return context
