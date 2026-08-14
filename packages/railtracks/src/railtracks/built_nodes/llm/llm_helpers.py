@@ -309,7 +309,7 @@ def prepare_structured_response(
         "Content of the last message must be a dict to be converted into a structured response"
     )
 
-    return StructuredResponse(content=content, message_history=message_history)
+    return StructuredResponse(content=content, message_history=message_history.removed_system_messages())
 
 
 def prepare_string_response(
@@ -323,4 +323,4 @@ def prepare_string_response(
         "Content of the last message must be a string to be returned as is"
     )
 
-    return StringResponse(content=content, message_history=message_history)
+    return StringResponse(content=content, message_history=message_history.removed_system_messages())
