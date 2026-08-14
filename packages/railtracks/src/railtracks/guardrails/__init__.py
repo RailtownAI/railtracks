@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
 
 from railtracks.utils.deprecation import warn_pending_change
 
