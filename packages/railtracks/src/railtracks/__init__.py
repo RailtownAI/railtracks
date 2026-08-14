@@ -45,7 +45,6 @@ __all__ = [
     "observability",
     "retrieval",
     "vector_stores",
-    "rag",
     "Flow",
     "FlowConnection",
     "NodeMessageHistory",
@@ -76,7 +75,6 @@ from . import (
     middleware,
     observability,
     prebuilt,
-    rag,
     retrieval,
     vector_stores,
 )
