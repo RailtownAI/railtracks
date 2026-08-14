@@ -45,6 +45,7 @@ __all__ = [
     "enable_logging",
     "wrap_node",
     "after_node",
+    "verifier",
     "couple",
     "before_llm",
     "after_llm",
@@ -75,7 +76,7 @@ from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
 from .guardrails import input_guard, output_guard
 from .interaction import astream, broadcast, call, call_batch, couple
-from .middleware import after_node, wrap_node
+from .middleware import after_node, verifier, wrap_node
 from .nodes.manifest import ToolManifest
 from .orchestration.connection import FlowConnection, NodeMessageHistory
 from .orchestration.flow import Flow
