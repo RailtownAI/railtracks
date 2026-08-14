@@ -3,6 +3,8 @@ from typing import List, Literal, TypeVar
 
 from litellm.exceptions import InternalServerError
 
+from railtracks.utils.deprecation import warn_pending_change
+
 from ...history import MessageHistory
 from ...providers import ModelProvider
 from ...retries import RetryApproach
@@ -81,6 +83,18 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
         Raises:
             AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.
         """
+        if kwargs.get("stream"):
+            warn_pending_change(
+                "Constructing a model with `stream=True`",
+                change="is removed",
+                instead="rt.astream(agent, ...) to stream an agent run",
+                detail=(
+                    "Streaming becomes async in 1.5.0: per-call model methods "
+                    "(astream_chat, astream_chat_with_tools, astream_structured) "
+                    "replace the streamed return value of chat()."
+                ),
+            )
+
         super().__init__(
             model_name,
             temperature=temperature,

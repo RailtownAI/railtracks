@@ -5,6 +5,8 @@ from typing import Literal, TypeVar
 import requests
 from litellm.utils import supports_function_calling
 
+from railtracks.utils.deprecation import warn_pending_change
+
 from ...providers import ModelProvider
 from ...retries.base import RetryApproach
 from .._litellm_wrapper import LiteLLMWrapper
@@ -76,6 +78,18 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 - specified model is not available on the server
             RequestException: If connection to Ollama server fails
         """
+        if stream:
+            warn_pending_change(
+                "Constructing a model with `stream=True`",
+                change="is removed",
+                instead="rt.astream(agent, ...) to stream an agent run",
+                detail=(
+                    "Streaming becomes async in 1.5.0: per-call model methods "
+                    "(astream_chat, astream_chat_with_tools, astream_structured) "
+                    "replace the streamed return value of chat()."
+                ),
+            )
+
         if not model_name.startswith("ollama/"):
             logger.warning(
                 f"Prepending 'ollama/' to model name '{model_name}' for Ollama"

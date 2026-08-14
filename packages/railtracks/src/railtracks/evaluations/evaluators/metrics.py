@@ -2,7 +2,24 @@ import hashlib
 import json
 from typing import Annotated, Generic, Literal, TypeVar, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_serializer,
+    model_validator,
+)
+
+
+def _json_default(value):
+    """Fallback serializer for identifier hashing (e.g. Category instances)."""
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="json")
+    raise TypeError(
+        f"Object of type {value.__class__.__name__} is not JSON serializable"
+    )
 
 
 class Metric(BaseModel):
@@ -27,7 +44,7 @@ class Metric(BaseModel):
             if isinstance(value, type):
                 config[key] = value.__name__
 
-        config_str = json.dumps(config, sort_keys=True)
+        config_str = json.dumps(config, sort_keys=True, default=_json_default)
         identifier = hashlib.sha256(config_str.encode()).hexdigest()
 
         values["identifier"] = identifier
@@ -50,9 +67,79 @@ class Metric(BaseModel):
         return f"{self.__class__.__name__}({fields_str})"
 
 
+_ALLOWED_CATEGORY_STATUSES = (None, "pass", "fail", "partial")
+
+
+class Category(BaseModel):
+    name: str
+    status: Literal["pass", "fail", "partial"] | None = None
+    model_config = ConfigDict(frozen=True)
+
+    def model_post_init(self, __context) -> None:
+        if self.status not in _ALLOWED_CATEGORY_STATUSES:
+            raise ValueError(
+                f"Category.status must be one of 'pass', 'fail', 'partial', or None; got {self.status!r}"
+            )
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.name == other
+        if isinstance(other, Category):
+            return self.name == other.name
+        return NotImplemented
+
+    def __str__(self) -> str:
+        return self.name
+
+
+def _to_category(category: str | Category) -> Category:
+    if isinstance(category, str):
+        return Category(name=category)
+    return category
+
+
+CategoryLike = Annotated[
+    Category | str,
+    BeforeValidator(_to_category, json_schema_input_type=str | Category),
+]
+
+
 class Categorical(Metric):
     metric_type: Literal["Categorical"] = "Categorical"  # type: ignore[assignment]
-    categories: list[str]
+    categories: list[CategoryLike]
+
+    @property
+    def category_names(self) -> list[str]:
+        return [str(c) for c in self.categories]
+
+    def _names_with_status(self, status: str) -> list[str]:
+        return [
+            c.name
+            for c in self.categories
+            if isinstance(c, Category) and c.status == status
+        ]
+
+    @computed_field
+    @property
+    def pass_categories(self) -> list[str]:
+        return self._names_with_status("pass")
+
+    @computed_field
+    @property
+    def fail_categories(self) -> list[str]:
+        return self._names_with_status("fail")
+
+    @computed_field
+    @property
+    def partial_categories(self) -> list[str]:
+        return self._names_with_status("partial")
+
+    @field_serializer("categories")
+    def _serialize_categories(self, categories: list[CategoryLike]) -> list[str]:
+        return [str(c) for c in categories]
 
 
 T = TypeVar("T", int, float)

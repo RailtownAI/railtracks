@@ -6,7 +6,11 @@ import pytest
 import railtracks as rt
 from railtracks.orchestration.flow import Flow
 
-from railtracks.guardrails import Guard, GuardrailDecision, InputGuard, LLMGuardrailEvent
+from railtracks.guardrails.core import Guard
+from railtracks.guardrails import GuardrailDecision, InputGuard, LLMGuardrailEvent
+
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 
 
 class FnInputGuard(InputGuard):

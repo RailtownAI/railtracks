@@ -6,8 +6,8 @@ import pytest
 
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.guardrails.llm.input import InputLengthGuard
-from railtracks.guardrails.llm.output import OutputLengthGuard
+from railtracks.prebuilt.guardrails import InputLengthGuard
+from railtracks.prebuilt.guardrails import OutputLengthGuard
 from railtracks.llm import MessageHistory, UserMessage
 from railtracks.llm.message import AssistantMessage
 
