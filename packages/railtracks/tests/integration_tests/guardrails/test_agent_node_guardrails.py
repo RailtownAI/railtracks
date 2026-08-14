@@ -14,6 +14,9 @@ from railtracks.guardrails import (
 from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm import AssistantMessage
 
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
+
 
 class FnInputGuard(InputGuard):
     """Wrap a plain callable as an InputGuard for testing."""

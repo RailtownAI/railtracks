@@ -1,6 +1,11 @@
 # Guardrails Quickstart
 
-The guardrails let you inspect what goes into the model and what comes out, and they can allow, transform, or block the interaction based on your own rules.
+!!! warning "Changing in 1.5.0"
+    The way guards attach to an agent changes: `agent_node(guardrails=Guard(...))` is
+    replaced by `model_middleware=[...]`. Writing a guard is unchanged.
+    See [Upgrading to 1.5.0](../../upgrading/1_5_0.md).
+
+Guardrails are the policy layer around an LLM call in Railtracks. They let you inspect what goes into the model and what comes out, and they can allow, transform, or block the interaction based on your own rules.
 
 In practice, you attach guardrails with `agent_node(...,  model_middleware=[...])`, then provide one or more rails for the phases you want to control. This quickstart focuses on a small input guard with a real LLM so you can see both outcomes clearly: one request passes through to the model, and one is blocked before inference. We write the guard with the `@rt.input_guard` decorator; see [Custom Guards](overview.md#custom-guards) for the decorator and subclass APIs in full.
 

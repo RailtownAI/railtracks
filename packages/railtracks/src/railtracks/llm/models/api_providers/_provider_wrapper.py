@@ -5,6 +5,7 @@ import litellm
 from litellm.litellm_core_utils.get_llm_provider_logic import get_llm_provider
 
 from typing import Any, Literal
+from railtracks.utils.deprecation import warn_pending_change
 
 from ...history import MessageHistory
 from ...providers import ModelProvider
@@ -82,6 +83,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
             provider-native error (see `verbosity` caveat above for the one known
             exception).
         """
+
         model_name = self._pre_init_provider_check(model_name)
         super().__init__(
             model_name=self.full_model_name(model_name),

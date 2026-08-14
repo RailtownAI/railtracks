@@ -4,6 +4,9 @@ from railtracks.llm import Message, ToolCall
 from railtracks.llm.response import Response
 import asyncio
 
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
+
 # ================================================ START terminal_llm as tools =========================================================== 
 @pytest.mark.asyncio
 @pytest.mark.timeout(30)

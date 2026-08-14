@@ -17,6 +17,13 @@ __all__ = [
 
 def __getattr__(name: str):
     if name == "local_chat":
+        from railtracks.utils.deprecation import warn_pending_change
+
+        warn_pending_change(
+            "local_chat",
+            change="is removed",
+            detail="There is no replacement; the local chat UI is going away.",
+        )
         from .interactive import local_chat
 
         return local_chat
