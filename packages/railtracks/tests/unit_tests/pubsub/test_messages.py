@@ -1,6 +1,6 @@
 from railtracks.pubsub.messages import (
     RequestCompletionMessage, RequestSuccess, RequestFailure, RequestCreationFailure,
-    RequestCreation, FatalFailure, Streaming, RequestFinishedBase
+    RequestCreation, FatalFailure, BroadcastEvent, RequestFinishedBase
 )
 
 # ================= START RequestCompletionMessage base tests ============
@@ -62,6 +62,7 @@ def test_request_creation_fields(dummy_node_class):
     m = RequestCreation(
         current_node_id="A",
         current_run_id="B",
+        current_scope=None,
         new_request_id="N",
         running_mode="async",
         new_node_type=dummy_node_class,
@@ -70,6 +71,7 @@ def test_request_creation_fields(dummy_node_class):
     )
     assert m.current_node_id == "A"
     assert m.current_run_id == "B"
+    assert m.current_scope is None
     assert m.new_request_id == "N"
     assert m.running_mode == "async"
     assert m.new_node_type is dummy_node_class
@@ -90,20 +92,20 @@ def test_fatal_failure_repr(dummy_exception):
 
 # ================ END FatalFailure tests ===============
 
-# ================= START Streaming tests ============
+# ================= START BroadcastEvent tests ============
 
-def test_streaming_repr():
-    streamed_object = object()
-    m = Streaming(streamed_object=streamed_object, node_id="Z1")
+def test_broadcast_event_repr():
+    item = object()
+    m = BroadcastEvent(item=item, node_id="Z1")
     s = repr(m)
-    assert "Streaming" in s
+    assert "BroadcastEvent" in s
     assert "node_id=Z1" in s
-    assert str(id(streamed_object)) in s or "streamed_object" in s
+    assert str(id(item)) in s or "item" in s
 
-def test_streaming_is_a_message():
-    m = Streaming(streamed_object="abc", node_id="some_id")
+def test_broadcast_event_is_a_message():
+    m = BroadcastEvent(item="abc", node_id="some_id")
     assert isinstance(m, RequestCompletionMessage)
-    assert m.streamed_object == "abc"
+    assert m.item == "abc"
     assert m.node_id == "some_id"
 
-# ================ END Streaming tests ===============
+# ================ END BroadcastEvent tests ===============

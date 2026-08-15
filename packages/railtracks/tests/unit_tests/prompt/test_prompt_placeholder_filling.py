@@ -11,6 +11,7 @@ import railtracks as rt
 from railtracks.llm import Message, MessageHistory, UserMessage
 from railtracks.llm.message import Role
 from railtracks.llm.response import Response
+from railtracks.prebuilt.middleware.context_injection import ContextInjection
 
 
 class _Holder:
@@ -30,7 +31,7 @@ def echo_agent(mock_llm):
 
         model = mock_llm()
         model._chat = return_message
-        return rt.agent_node(system_message=system_message, llm=model)
+        return rt.agent_node(system_message=system_message, model_middleware=[ContextInjection()], llm=model)
 
     return build
 
@@ -101,7 +102,7 @@ def test_system_message_is_still_filled(mock_llm, context):
 
     model = mock_llm()
     model._chat = return_message
-    agent = rt.agent_node(system_message="Helping {value} at {time}.", llm=model)
+    agent = rt.agent_node(system_message="Helping {value} at {time}.", llm=model, model_middleware=[ContextInjection()])
 
     flow = rt.Flow("EchoFlow", agent, context=context)
     asyncio.run(flow.ainvoke(MessageHistory([UserMessage("hi")])))

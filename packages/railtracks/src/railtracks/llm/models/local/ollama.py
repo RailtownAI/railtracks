@@ -1,11 +1,9 @@
 import logging
 import os
-from typing import Literal, TypeVar
+from typing import Literal
 
 import requests
 from litellm.utils import supports_function_calling
-
-from railtracks.utils.deprecation import warn_pending_change
 
 from ...providers import ModelProvider
 from ...retries.base import RetryApproach
@@ -16,19 +14,16 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DOMAIN = "http://localhost:11434"
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-
 
 class OllamaError(ModelError):
     def __init__(self, reason: str):
         super().__init__(reason=reason)
 
 
-class OllamaLLM(LiteLLMWrapper[_TStream]):
+class OllamaLLM(LiteLLMWrapper):
     def __init__(
         self,
         model_name: str,
-        stream: _TStream = False,
         domain: Literal["default", "auto", "custom"] = "default",
         custom_domain: str | None = None,
         temperature: float | None = None,
@@ -46,7 +41,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
 
         Args:
             model_name (str): Name of the Ollama model to use.
-            stream (bool): Whether to stream the response.
             domain (Literal["default", "auto", "custom"], optional): The domain configuration mode.
                 - "default": Uses the default localhost domain (http://localhost:11434)
                 - "auto": Uses the OLLAMA_HOST environment variable, raises OllamaError if not set
@@ -78,17 +72,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
                 - specified model is not available on the server
             RequestException: If connection to Ollama server fails
         """
-        if stream:
-            warn_pending_change(
-                "Constructing a model with `stream=True`",
-                change="is removed",
-                instead="rt.astream(agent, ...) to stream an agent run",
-                detail=(
-                    "Streaming becomes async in 1.5.0: per-call model methods "
-                    "(astream_chat, astream_chat_with_tools, astream_structured) "
-                    "replace the streamed return value of chat()."
-                ),
-            )
 
         if not model_name.startswith("ollama/"):
             logger.warning(
@@ -97,7 +80,6 @@ class OllamaLLM(LiteLLMWrapper[_TStream]):
             model_name = f"ollama/{model_name}"
         super().__init__(
             model_name=model_name,
-            stream=stream,
             temperature=temperature,
             top_p=top_p,
             max_tokens=max_tokens,

@@ -74,6 +74,12 @@ extra_css:
 extra:
   generator: false
 
+# Per-middleware prebuilt pages are intentionally kept out of the sidebar (they are
+# reached from the prebuilt Overview catalog) so the nav stays clean as the
+# catalog grows. Listing them here silences the "not in nav" build warning.
+not_in_nav: |
+  /documentation/agent_design/middleware/prebuilt/list/*.md
+
 nav:
   - Home: index.md
 
@@ -98,16 +104,23 @@ nav:
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
               - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
+          - Middleware:
+              - Overview: documentation/agent_design/middleware/overview.md
+              - Custom: documentation/agent_design/middleware/custom.md
+              - Guardrails:
+                - Overview: documentation/agent_design/middleware/guardrails/overview.md
+                - Quickstart: documentation/agent_design/middleware/guardrails/quickstart.md
+                - Contributing: documentation/agent_design/middleware/guardrails/contributions.md
+              - Prebuilt:
+                - Overview: documentation/agent_design/middleware/prebuilt/overview.md
+                - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
+              
 
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
           - Flow Invocation: documentation/invocation/flows.md
       - Advanced:
-          - Guardrails:
-              - Overview: documentation/advanced/guardrails/overview.md
-              - Quickstart: documentation/advanced/guardrails/quickstart.md
-              - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
-          - Agent Context: documentation/advanced/context.md
+          - Context: documentation/advanced/context.md
 
   - Retrieval:
     - Retrieval Runtime:
@@ -181,36 +194,36 @@ nav:
         - Websearch: integrations/other/websearch_integration.md
 
   - Tutorials:
-    - Walkthroughs:
-      - Guides:
-        - Building your first agent: tutorials/walkthroughs/byfa.md
-        - Running your first agent: tutorials/walkthroughs/ryfa.md
-        - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
-        - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
-        - Flows: tutorials/walkthroughs/flows.md
-        - FastAPI Integration: tutorials/walkthroughs/fastapi.md
-      - Videos:
-          - Multiagent Systems: tutorials/videos/multiagent.md
-          - Multimodal Agent: tutorials/videos/multimodal_agent.md
-          - AgentHub: tutorials/videos/agenthub.md
-          - Evaluation: tutorials/videos/evaluation.md
-    - Notebooks:
-      - Agent Architectures: tutorials/notebooks/architectures.md
-      - Retrieval Tutorial: tutorials/notebooks/retrieval-benchmark.md
-      - FastAPI Integration: tutorials/notebooks/fastapi.md
-      - File Embedding (RAG): tutorials/notebooks/file_embedding.md
-    - Concepts:
-      - Core: 
-          - Agents: tutorials/concepts/agents.md
-          - Tools: tutorials/concepts/tools.md
-          - MCP: tutorials/concepts/mcp.md
-          - Prompts and Context: tutorials/concepts/prompts_and_context.md
-          - RAG: tutorials/concepts/RAG.md
-          - Async/Await: tutorials/concepts/async_await.md
-          - Vector Stores: tutorials/concepts/vector_store.md
-      - Architectures: 
-          - Overview: tutorials/concepts/architectures/overview.md
-          - Validation Loops: tutorials/concepts/architectures/validation_loop.md
-          - Sequential Flows: tutorials/concepts/architectures/sequential.md
+      - Walkthroughs:
+          - Guides:
+              - Building your first agent: tutorials/walkthroughs/byfa.md
+              - Running your first agent: tutorials/walkthroughs/ryfa.md
+              - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
+              - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
+              - Flows: tutorials/walkthroughs/flows.md
+              - RAG system: tutorials/walkthroughs/rag_tutorial.md
+              - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
+              - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+          - Videos:
+              - Multiagent Systems: tutorials/videos/multiagent.md
+              - Multimodal Agent: tutorials/videos/multimodal_agent.md
+              - AgentHub: tutorials/videos/agenthub.md
+              - Evaluation: tutorials/videos/evaluation.md
+      - Notebooks:
+          - Agent Architectures: tutorials/notebooks/architectures.md
+          - FastAPI Integration: tutorials/notebooks/fastapi.md
+      - Concepts:
+          - Core:
+              - Agents: tutorials/concepts/agents.md
+              - Tools: tutorials/concepts/tools.md
+              - MCP: tutorials/concepts/mcp.md
+              - Prompts and Context: tutorials/concepts/prompts_and_context.md
+              - RAG: tutorials/concepts/RAG.md
+              - Async/Await: tutorials/concepts/async_await.md
+              - Vector Stores: tutorials/concepts/vector_store.md
+          - Architectures:
+              - Overview: tutorials/concepts/architectures/overview.md
+              - Validation Loops: tutorials/concepts/architectures/validation_loop.md
+              - Sequential Flows: tutorials/concepts/architectures/sequential.md
 
   - API Reference: api_reference.md

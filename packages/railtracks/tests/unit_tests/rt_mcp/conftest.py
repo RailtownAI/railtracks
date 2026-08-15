@@ -31,7 +31,13 @@ def patch_stdio_client():
 def mock_client_session():
     mock = MagicMock(spec=ClientSession)
     mock.initialize = AsyncMock()
-    mock.list_tools = AsyncMock(return_value=MagicMock(tools=[{"name": "toolA"}]))
+
+    mock_tool = MagicMock()
+    mock_tool.name = "toolA"
+    mock_tool.description = "A test tool"
+    mock_tool.inputSchema = {"type": "object", "properties": {}, "required": []}
+
+    mock.list_tools = AsyncMock(return_value=MagicMock(tools=[mock_tool]))
     mock.call_tool = AsyncMock(return_value=MagicMock(content="output"))
     return mock
 
@@ -48,7 +54,7 @@ def patch_streamablehttp_client():
     cm_mock = AsyncMock()
     cm_mock.__aenter__.return_value = (AsyncMock(), AsyncMock())
     cm_mock.__aexit__.return_value = None
-    with patch("railtracks.rt_mcp.main.streamablehttp_client", return_value=cm_mock) as p:
+    with patch("railtracks.rt_mcp.main.streamable_http_client", return_value=cm_mock) as p:
         yield p
 
 @pytest.fixture
@@ -91,6 +97,14 @@ def stdio_config():
 def fake_tool():
     obj = MagicMock()
     obj.name = "abc"
+    obj.description = "A fake tool for testing"
+    obj.inputSchema = {
+        "type": "object",
+        "properties": {
+            "bar": {"type": "integer", "description": "A bar parameter"},
+        },
+        "required": ["bar"],
+    }
     obj.to_dict = MagicMock(return_value={"name": "abc"})
     return obj
 

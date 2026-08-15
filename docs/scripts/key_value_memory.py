@@ -2,7 +2,7 @@
 import railtracks as rt
 
 # create your key-value memory toolset (defaults to an in-process store)
-memory = rt.prebuilt.KeyValueMemoryToolSet()
+memory = rt.prebuilt.tools.KeyValueMemoryToolSet()
 
 agent = rt.agent_node(
     name="Memory Agent",
@@ -14,7 +14,7 @@ agent = rt.agent_node(
 
 # --8<-- [start: kv_memory_prompt]
 # the tool set provides a class method returning a prompt that guides the agent.
-rt.prebuilt.KeyValueMemoryToolSet.prompt()
+rt.prebuilt.tools.KeyValueMemoryToolSet.prompt()
 # --8<-- [end: kv_memory_prompt]
 
 # --8<-- [start: kv_memory_persistent]
@@ -22,7 +22,7 @@ import railtracks as rt
 from railtracks.retrieval.stores.key_value import InMemoryKeyValueStore
 
 # pass a store with a snapshot_path to persist memory across runs
-memory = rt.prebuilt.KeyValueMemoryToolSet(
+memory = rt.prebuilt.tools.KeyValueMemoryToolSet(
     store=InMemoryKeyValueStore(snapshot_path="memory.json"),
 )
 
@@ -30,7 +30,7 @@ agent = rt.agent_node(
     name="Memory Agent",
     tool_nodes=[*memory.tool_set()],
     llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message=rt.prebuilt.KeyValueMemoryToolSet.prompt(),
+    system_message=rt.prebuilt.tools.KeyValueMemoryToolSet.prompt(),
 )
 # --8<-- [end: kv_memory_persistent]
 
@@ -41,7 +41,7 @@ from railtracks.retrieval.embedding import OpenAIEmbedding
 from railtracks.retrieval.stores.vector.backends import InMemoryBackend
 
 # swap the default lexical ranker for meaning-based (vector) search
-memory = rt.prebuilt.KeyValueMemoryToolSet(
+memory = rt.prebuilt.tools.KeyValueMemoryToolSet(
     search=SemanticSearch(
         embedding=OpenAIEmbedding(),
         # optional: persist the embeddings so they survive across runs
@@ -54,7 +54,7 @@ memory = rt.prebuilt.KeyValueMemoryToolSet(
 from railtracks.prebuilt.tools.memory import LexicalSearch, LexicalSearchConfig
 
 # tune the default lexical ranker's scoring weights
-memory = rt.prebuilt.KeyValueMemoryToolSet(
+memory = rt.prebuilt.tools.KeyValueMemoryToolSet(
     search=LexicalSearch(LexicalSearchConfig(value_coverage=8.0, fuzzy_threshold=0.7)),
 )
 # --8<-- [end: kv_memory_search_lexical]
@@ -70,7 +70,7 @@ def on_change(key: str, value: str | None):
     else:
         print(f"Agent remembered {key!r} = {value!r}")
 
-memory = rt.prebuilt.KeyValueMemoryToolSet(on_change=on_change)
+memory = rt.prebuilt.tools.KeyValueMemoryToolSet(on_change=on_change)
 # --8<-- [end: kv_memory_callback]
 
 # --8<-- [start: kv_memory_inspection]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from types import FunctionType
+import time
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -14,15 +14,20 @@ from uuid import uuid4
 
 from railtracks.context.central import (
     activate_publisher,
+    get_current_scope,
     get_local_config,
     get_parent_id,
     get_publisher,
     get_run_id,
+    get_session_identity,
     is_context_active,
     is_context_present,
 )
+from railtracks.events.send import emit
+from railtracks.events.session import SessionCompleted, SessionStarted, format_error
 from railtracks.exceptions import GlobalTimeOutError
 from railtracks.nodes.utils import extract_node_from_function
+from railtracks.observability.configure import ensure_started, shutdown
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -32,11 +37,19 @@ from railtracks.pubsub.messages import (
 from railtracks.pubsub.utils import output_mapping
 
 if TYPE_CHECKING:
-    from railtracks.built_nodes.concrete import RTFunction
+    from railtracks.built_nodes.function.base import RTFunction
     from railtracks.nodes.nodes import Node
 
 _P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
+
+
+@overload
+async def call(
+    node_: type[Node[_P, _TOutput]],
+    *args: _P.args,
+    **kwargs: _P.kwargs,
+) -> _TOutput: ...
 
 
 @overload
@@ -47,16 +60,8 @@ async def call(
 ) -> _TOutput: ...
 
 
-@overload
 async def call(
-    node_: Callable[_P, Node[_TOutput]],
-    *args: _P.args,
-    **kwargs: _P.kwargs,
-) -> _TOutput: ...
-
-
-async def call(
-    node_: Callable[_P, Node[_TOutput]] | RTFunction[_P, _TOutput],
+    node_: type[Node[_P, _TOutput]] | RTFunction[_P, _TOutput],
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _TOutput:
@@ -79,12 +84,17 @@ async def call(
         *args: The arguments to pass to the node
         **kwargs: The keyword arguments to pass to the node
     """
-    node: Callable[_P, Node[_TOutput]]
-    # this entire section is a bit of a typing nightmare becuase all overloads we provide.
-    if isinstance(node_, FunctionType):
+    node: type[Node[_P, _TOutput]]
+
+    if hasattr(node_, "node_type"):
+        # local import to prevent circular import issues (note it is a purely type checking import)
+        from railtracks.built_nodes.function.base import RTFunction
+
+        assert isinstance(node_, RTFunction)
         node = extract_node_from_function(node_)
     else:
         node = node_
+
     # if the context is none then we will need to create a wrapper for the state object to work with.
     if not is_context_present():
         # we have to use lazy import here to prevent a circular import issue. This is a must have unfortunately.
@@ -135,11 +145,29 @@ def _top_level_message_filter(request_id: str):
 
 
 async def _start(
-    node: Callable[_P, Node[_TOutput]],
+    node: type[Node[_P, _TOutput]],
     args,
     kwargs,
 ):
+    await ensure_started()
     await activate_publisher()
+
+    config = get_local_config()
+    identity = get_session_identity()
+
+    await emit(
+        SessionStarted(
+            session_id=identity.session_id,
+            flow_name=identity.flow_name,
+            flow_id=identity.flow_id,
+            session_name=identity.session_name,
+            entry_point_name=node.name() if hasattr(node, "name") else "Unknown",
+            timeout=config.timeout,
+            end_on_error=config.end_on_error,
+            save_state=config.save_state,
+        )
+    )
+    start_time = time.perf_counter()
 
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
     #  exception. It should be handled differently then the global timeout exception.
@@ -153,26 +181,42 @@ async def _start(
             timeout_exception_flag["value"] = True
             raise error
 
-    timeout = get_local_config().timeout
+    timeout = config.timeout
     fut = _execute(
         node, args=args, kwargs=kwargs, message_filter=_top_level_message_filter
     )
-    # Here we wait the completion of the future with timeouts.
-    try:
-        result = await asyncio.wait_for(wrapped_fut(fut), timeout=timeout)
-    except asyncio.TimeoutError as e:
-        # if the internal flag is set then the coroutine itself raised a timeout error and it was not the wait
-        #  for function.
-        if timeout_exception_flag["value"]:
-            raise e
 
-        raise GlobalTimeOutError(timeout=timeout)
+    error: BaseException | None = None
+    try:
+        # Here we wait the completion of the future with timeouts.
+        try:
+            result = await asyncio.wait_for(wrapped_fut(fut), timeout=timeout)
+        except asyncio.TimeoutError as e:
+            # if the internal flag is set then the coroutine itself raised a timeout error and it was not the wait
+            #  for function.
+            if timeout_exception_flag["value"]:
+                raise e
+
+            raise GlobalTimeOutError(timeout=timeout)
+    except BaseException as e:
+        error = e
+        raise
+    finally:
+        await emit(
+            SessionCompleted(
+                session_id=identity.session_id,
+                status="success" if error is None else "failure",
+                error=None if error is None else format_error(error),
+                duration_seconds=time.perf_counter() - start_time,
+            )
+        )
+        await shutdown()
 
     return result
 
 
 async def _run(
-    node: Callable[_P, Node[_TOutput]],
+    node: type[Node[_P, _TOutput]],
     args,
     kwargs,
 ):
@@ -185,7 +229,7 @@ async def _run(
 
 
 async def _execute(
-    node: Callable[_P, Node[_TOutput]],
+    node: type[Node[_P, _TOutput]],
     args,
     kwargs,
     message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
@@ -196,6 +240,9 @@ async def _execute(
     # filter for its completion
     request_id = str(uuid4())
 
+    # Streaming is opt-in and frame-local: a regular `rt.call` NEVER streams. The only
+    # enabler is `rt.astream`, which publishes its own RequestCreation with a stream_queue.
+
     # note we set the listener before we publish the messages ensure that we do not miss any messages
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
     f = publisher.listener(message_filter(request_id), output_mapping)
@@ -204,6 +251,7 @@ async def _execute(
         RequestCreation(
             current_node_id=get_parent_id(),
             current_run_id=get_run_id(),
+            current_scope=get_current_scope(),
             new_request_id=request_id,
             running_mode="async",
             new_node_type=node,

@@ -4,14 +4,9 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
-
-from railtracks.built_nodes.concrete.response import StringResponse
-from railtracks.guardrails.core import Guard
+from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.guardrails import GuardrailBlockedError
 from railtracks.prebuilt.guardrails import BlockTextInputGuard, BlockTextOutputGuard
-
-# TODO: Remove with the notices in 1.5.0.
-pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 
 
 @pytest.mark.asyncio
@@ -20,9 +15,7 @@ async def test_input_guard_blocks_request(mock_llm):
     Agent = rt.agent_node(
         name="block-input",
         llm=llm,
-        guardrails=Guard(
-            input=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
-        ),
+        model_middleware=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -35,9 +28,7 @@ async def test_input_guard_allows_clean_request(mock_llm):
     Agent = rt.agent_node(
         name="allow-input",
         llm=llm,
-        guardrails=Guard(
-            input=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
-        ),
+        model_middleware=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
     )
     with rt.Session():
         result = await rt.call(Agent, user_input="Hello, how are you?")
@@ -51,9 +42,7 @@ async def test_output_guard_blocks_response(mock_llm):
     Agent = rt.agent_node(
         name="block-output",
         llm=llm,
-        guardrails=Guard(
-            output=[BlockTextOutputGuard(pattern=r"API_KEY")],
-        ),
+        model_middleware=[BlockTextOutputGuard(pattern=r"API_KEY")],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -66,9 +55,7 @@ async def test_output_guard_allows_clean_response(mock_llm):
     Agent = rt.agent_node(
         name="allow-output",
         llm=llm,
-        guardrails=Guard(
-            output=[BlockTextOutputGuard(pattern=r"API_KEY")],
-        ),
+        model_middleware=[BlockTextOutputGuard(pattern=r"API_KEY")],
     )
     with rt.Session():
         result = await rt.call(Agent, user_input="Hello")
@@ -82,10 +69,10 @@ async def test_input_and_output_guards_together(mock_llm):
     Agent = rt.agent_node(
         name="both-guards",
         llm=llm,
-        guardrails=Guard(
-            input=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
-            output=[BlockTextOutputGuard(pattern=r"SECRET")],
-        ),
+        model_middleware=[
+            BlockTextInputGuard(pattern=r"\bjailbreak\b"),
+            BlockTextOutputGuard(pattern=r"SECRET"),
+        ],
     )
     with rt.Session():
         result = await rt.call(Agent, user_input="Hello there")

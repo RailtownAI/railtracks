@@ -1,6 +1,7 @@
-from typing import Generic, TypeVar
+import asyncio
+from typing import Any, Generic, TypeVar
 
-from railtracks.context.central import get_run_id, update_parent_id
+from railtracks.context.central import push_stream_queue
 from railtracks.nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput")
@@ -16,21 +17,22 @@ class Task(Generic[_TOutput]):
     def __init__(
         self,
         request_id: str,
-        node: Node[_TOutput],
+        node: Node[..., _TOutput],
+        arguments: tuple[tuple, dict[str, Any]],
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         self.request_id = request_id
         self.node = node
+        self.arguments = arguments
+        # when set, this frame is the entry of a streamed invocation: its LLM node writes each
+        # token chunk onto this queue, which the rt.astream handle drains (frame-local).
+        self.stream_queue = stream_queue
 
     async def invoke(self):
         """The callable that this task is representing."""
-        # if there is no parent run_id then this is the root
+        if self.stream_queue is not None:
+            push_stream_queue(self.stream_queue)
 
-        if get_run_id() is None:
-            # note critically that since these variables only this tree of requests will see this run_id.
-            update_parent_id(self.node.uuid, self.node.uuid)
+        result = await self.node.wrapped_invoke(*self.arguments[0], **self.arguments[1])
 
-        # otherwise we are already in a run so we just use the previous one.
-        else:
-            update_parent_id(self.node.uuid)
-
-        return await self.node.tracked_invoke()
+        return result

@@ -4,15 +4,21 @@ from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import Any
 
+import httpx
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
+from mcp.types import Tool as MCPTool
 from pydantic import BaseModel
-from typing_extensions import Self, Type
+from typing_extensions import Type
 
+from railtracks.built_nodes.function.node_builder import FunctionNodeBuilder
 from railtracks.llm import Tool
 from railtracks.nodes.nodes import Node
+from railtracks.utils.logging import get_rt_logger
+
+logger = get_rt_logger(__name__)
 
 
 class MCPStdioParams(StdioServerParameters):
@@ -51,13 +57,17 @@ class MCPHttpParams(BaseModel):
         timeout: Connection timeout (default: 30 seconds)
         sse_read_timeout: SSE read timeout (default: 5 minutes)
         terminate_on_close: Whether to terminate connection on close (default: True)
+        auth: Optional HTTPX authentication handler
     """
+
+    model_config = {"arbitrary_types_allowed": True}
 
     url: str
     headers: dict[str, Any] | None = None
     timeout: timedelta = timedelta(seconds=30)
     sse_read_timeout: timedelta = timedelta(seconds=60 * 5)
     terminate_on_close: bool = True
+    auth: httpx.Auth | None = None
 
 
 class MCPAsyncClient:
@@ -138,11 +148,11 @@ class MCPAsyncClient:
         Returns:
             List of available tools
         """
+        assert self.session is not None, "call connect() before list_tools()"
         if self._tools_cache is not None:
             return self._tools_cache
-        else:
-            resp = await self.session.list_tools()
-            self._tools_cache = resp.tools
+        resp = await self.session.list_tools()
+        self._tools_cache = resp.tools
         return self._tools_cache
 
     async def call_tool(self, tool_name: str, tool_args: dict):
@@ -156,6 +166,7 @@ class MCPAsyncClient:
         Returns:
             Tool execution result
         """
+        assert self.session is not None, "call connect() before call_tool()"
         return await self.session.call_tool(tool_name, tool_args)
 
     async def _init_http(self):
@@ -168,6 +179,7 @@ class MCPAsyncClient:
 
         Supports optional OAuth authentication via the 'auth' attribute.
         """
+        assert isinstance(self.config, MCPHttpParams)
         # Determine transport type from URL
         if self.config.url.rstrip("/").endswith("/sse"):
             self.transport_type = "sse"
@@ -181,16 +193,23 @@ class MCPAsyncClient:
                 headers=self.config.headers,
                 timeout=self.config.timeout.total_seconds(),
                 sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
-                auth=self.config.auth if hasattr(self.config, "auth") else None,
+                auth=self.config.auth,
             )
         else:
-            client = streamablehttp_client(
-                url=self.config.url,
+            http_client = httpx.AsyncClient(
                 headers=self.config.headers,
-                timeout=self.config.timeout.total_seconds(),
-                sse_read_timeout=self.config.sse_read_timeout.total_seconds(),
+                timeout=httpx.Timeout(
+                    connect=self.config.timeout.total_seconds(),
+                    read=self.config.sse_read_timeout.total_seconds(),
+                    write=self.config.timeout.total_seconds(),
+                    pool=self.config.timeout.total_seconds(),
+                ),
+                auth=self.config.auth,
+            )
+            client = streamable_http_client(
+                url=self.config.url,
+                http_client=http_client,
                 terminate_on_close=self.config.terminate_on_close,
-                auth=self.config.auth if hasattr(self.config, "auth") else None,
             )
 
         # Initialize session with the client
@@ -281,8 +300,10 @@ class MCPServer:
                 f"Command: {self.config.command if isinstance(self.config, MCPStdioParams) else self.config.url}"
             )
 
-        # If setup failed with an exception, re-raise it with enhanced context
+        # If setup failed with an exception, clean up the background thread before
+        # re-raising with enhanced context.
         if self._setup_exception is not None:
+            self.close()
             if isinstance(self._setup_exception, FileNotFoundError):
                 if isinstance(self.config, MCPStdioParams):
                     raise FileNotFoundError(
@@ -353,16 +374,33 @@ class MCPServer:
         tools = await self.client.list_tools()
         self._tools = [from_mcp(tool, self.client, self._loop) for tool in tools]
 
-    def close(self):
+    def close(self, join_timeout: float = 5.0):
         """
         Close the MCP server connection and clean up resources.
 
         Signals the background thread to shut down and waits for it to complete.
         Safe to call even if initialization failed early.
+
+        Args:
+            join_timeout: Maximum seconds to wait for the background thread to
+                exit. If `_setup` is itself stuck (e.g. a stdio handshake that
+                never completes), the shutdown signal has no chance to be
+                observed and the thread cannot exit; bounding the join here
+                turns that into a logged warning instead of an indefinite hang.
         """
         if self._loop is not None and self._shutdown_event is not None:
             self._loop.call_soon_threadsafe(self._shutdown_event.set)
-            self._thread.join()
+            self._thread.join(timeout=join_timeout)
+            if self._thread.is_alive():
+                logger.warning(
+                    "MCP server background thread did not exit within %ss; it "
+                    "is likely stuck inside setup and has been abandoned as a "
+                    "daemon thread. Command: %s",
+                    join_timeout,
+                    self.config.command
+                    if isinstance(self.config, MCPStdioParams)
+                    else self.config.url,
+                )
 
     @property
     def tools(self) -> list[Type[Node]]:
@@ -374,22 +412,17 @@ class MCPServer:
             Each Node has:
             - name(): Tool name
             - tool_info(): Tool metadata (description, parameters)
-            - prepare_tool(**kwargs): Create tool instance with arguments
         """
         return self._tools
 
 
 def from_mcp(
-    tool: Tool,
+    tool: MCPTool,
     client: MCPAsyncClient,
     loop: asyncio.AbstractEventLoop,
 ) -> Type[Node]:
     """
     Convert an MCP tool into a Railtracks Node class.
-
-    Creates a Node subclass that bridges between Railtracks' synchronous API
-    and the MCP tool's asynchronous execution. The Node can be used directly
-    with rt.call() or passed to agents as a tool.
 
     Args:
         tool: The MCP tool object with name, description, and schema
@@ -397,11 +430,7 @@ def from_mcp(
         loop: Event loop running in the background thread
 
     Returns:
-        A Node subclass that:
-        - Implements invoke() to call the MCP tool
-        - Provides tool_info() for schema introspection
-        - Supports prepare_tool() for argument binding
-        - Can be used with rt.call() and agent_node()
+        A Node class that can be used with rt.call() and passed to agents as a tool.
 
     Example:
         server = rt.connect_mcp(config)
@@ -409,69 +438,20 @@ def from_mcp(
         result = await rt.call(ToolNode, param1="value1")
     """
 
-    class MCPToolNode(Node):
-        """Dynamic Node class representing an MCP tool."""
+    async def invoke(**kwargs):
+        try:
+            future = asyncio.run_coroutine_threadsafe(
+                client.call_tool(tool.name, kwargs), loop
+            )
+            return await asyncio.wrap_future(future)
+        except Exception as e:
+            raise RuntimeError(
+                f"Tool invocation failed: {type(e).__name__}: {str(e)}"
+            ) from e
 
-        def __init__(self, **kwargs):
-            """Initialize with tool arguments."""
-            super().__init__()
-            self.kwargs = kwargs
-
-        def invoke(self):
-            """
-            Execute the MCP tool with the provided arguments.
-
-            Bridges from sync to async by running the tool call in the
-            background thread's event loop and waiting for the result.
-
-            Returns:
-                The tool's execution result
-
-            Raises:
-                RuntimeError: If tool execution fails
-            """
-            try:
-                future = asyncio.run_coroutine_threadsafe(
-                    client.call_tool(tool.name, self.kwargs), loop
-                )
-                result = future.result(timeout=client.config.timeout.total_seconds())
-                return result
-            except Exception as e:
-                raise RuntimeError(
-                    f"Tool invocation failed: {type(e).__name__}: {str(e)}"
-                ) from e
-
-        @classmethod
-        def name(cls):
-            """Return the tool name."""
-            return tool.name
-
-        @classmethod
-        def tool_info(cls) -> Tool:
-            """
-            Get tool metadata including parameters and description.
-
-            Returns:
-                Tool object with name, description, and parameter schemas
-            """
-            return Tool.from_mcp(tool)
-
-        @classmethod
-        def prepare_tool(cls, **kwargs) -> Self:
-            """
-            Create a tool instance with bound arguments.
-
-            Args:
-                **kwargs: Arguments to pass to the tool
-
-            Returns:
-                Tool instance ready for execution
-            """
-            return cls(**kwargs)
-
-        @classmethod
-        def type(cls):
-            """Return the node type identifier."""
-            return "Tool"
-
-    return MCPToolNode
+    return FunctionNodeBuilder.function(
+        invoke,
+        class_name=tool.name,
+        name=tool.name,
+        tool_info=Tool.from_mcp(tool),
+    ).build()
