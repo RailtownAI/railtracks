@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
 
 from railtracks.utils.deprecation import warn_pending_change
 
@@ -11,27 +10,20 @@ from .core import (
     GuardrailBlockedError,
     GuardrailDecision,
     GuardrailTrace,
-    InputGuard,
     LLMGuardrailEvent,
     LLMGuardrailPhase,
-    OutputGuard,
 )
-
-if TYPE_CHECKING:
-    from .core.config import Guard as Guard
-    from .core.interfaces import BaseGuardrail as BaseGuardrail
-    from .core.interfaces import BaseLLMGuardrail as BaseLLMGuardrail
-    from .core.interfaces import Guardrail as Guardrail
+from .llm.decorators import input_guard, output_guard
 
 __all__ = [
     "GuardrailAction",
     "GuardrailBlockedError",
     "GuardrailDecision",
     "GuardrailTrace",
-    "InputGuard",
-    "OutputGuard",
     "LLMGuardrailEvent",
     "LLMGuardrailPhase",
+    "input_guard",
+    "output_guard",
     "llm",
 ]
 

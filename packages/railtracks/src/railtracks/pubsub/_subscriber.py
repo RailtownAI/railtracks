@@ -1,19 +1,22 @@
 import asyncio
 from typing import Any, Callable, Coroutine, Union
 
-from .messages import RequestCompletionMessage, Streaming
+from .messages import BroadcastEvent, RequestCompletionMessage
 
 
-def stream_subscriber(
+def event_subscriber(
     sub_callback: Callable[[Any], Union[None, Coroutine[None, None, None]]],
 ) -> Callable[[RequestCompletionMessage], Coroutine[None, None, None]]:
     """
-    Converts the basic streamer callback into a broadcast_callback handler designed to take in `RequestCompletionMessage`
+    Wraps a user callback into a bus handler for broadcast events.
+
+    Fires on each `BroadcastEvent` message (published by `rt.broadcast`), forwarding the
+    event to `sub_callback`. This is the only traffic `BroadcastEvent` carries.
     """
 
-    async def subscriber_handler(item: RequestCompletionMessage):
-        if isinstance(item, Streaming):
-            result = sub_callback(item.streamed_object)
+    async def subscriber_handler(message: RequestCompletionMessage):
+        if isinstance(message, BroadcastEvent):
+            result = sub_callback(message.item)
             if asyncio.iscoroutine(result):
                 await result
 

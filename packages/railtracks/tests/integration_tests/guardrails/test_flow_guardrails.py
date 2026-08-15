@@ -4,13 +4,9 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
+from railtracks.guardrails import GuardrailDecision, LLMGuardrailEvent
+from railtracks.guardrails.llm.concrete import InputGuard
 from railtracks.orchestration.flow import Flow
-
-from railtracks.guardrails.core import Guard
-from railtracks.guardrails import GuardrailDecision, InputGuard, LLMGuardrailEvent
-
-# TODO: Remove with the notices in 1.5.0.
-pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 
 
 class FnInputGuard(InputGuard):
@@ -18,10 +14,10 @@ class FnInputGuard(InputGuard):
 
     def __init__(self, fn, name: str | None = None):
         super().__init__(name=name)
-        self._fn = fn
+        self._decision_fn = fn
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        return self._fn(event)
+        return self._decision_fn(event)
 
 
 @pytest.mark.asyncio
@@ -30,7 +26,7 @@ async def test_flow_ainvoke_guarded_terminal_smoke(mock_llm):
     Agent = rt.agent_node(
         name="flow-guarded",
         llm=llm,
-        guardrails=Guard(input=[FnInputGuard(lambda _e: GuardrailDecision.allow())]),
+        model_middleware=[FnInputGuard(lambda _e: GuardrailDecision.allow())],
         system_message="You echo.",
     )
     flow = Flow(name="guard-flow", entry_point=Agent)
@@ -46,7 +42,7 @@ def test_flow_invoke_sync_guarded_terminal_smoke(mock_llm):
     Agent = rt.agent_node(
         name="flow-guarded-sync",
         llm=llm,
-        guardrails=Guard(input=[FnInputGuard(lambda _e: GuardrailDecision.allow())]),
+        model_middleware=[FnInputGuard(lambda _e: GuardrailDecision.allow())],
     )
     flow = Flow(name="guard-flow-sync", entry_point=Agent)
 

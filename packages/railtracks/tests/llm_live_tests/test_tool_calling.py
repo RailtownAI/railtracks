@@ -1,11 +1,10 @@
+
 import pytest
-from railtracks.built_nodes.concrete.response import StringResponse
-from railtracks.exceptions.errors import NodeCreationError
-from railtracks.llm.providers import ModelProvider
-from .llm_map import llm_map
 import railtracks as rt
 from pydantic import BaseModel, Field
-from typing import Optional, final
+
+from .llm_map import llm_map
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
@@ -37,22 +36,9 @@ async def test_function_as_tool(llm):
     )
 
     with rt.Session():
-        if llm.stream and llm.model_provider() != ModelProvider.OPENAI:
-            with pytest.raises(NodeCreationError):
-                response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
+        response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
 
-            return
-        else:
-            response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
-
-        final_resp = None
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse))
-                if isinstance(chunk, StringResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
+        final_resp = response
 
         assert final_resp is not None
         assert '15' in final_resp.content
@@ -100,19 +86,10 @@ async def test_realistic_scenario(llm):
     )
 
     with rt.Session():
-        if llm.stream and llm.model_provider() != ModelProvider.OPENAI:
-            return
-        else:
-            response = await rt.call(
-                agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
-            )
+        await rt.call(
+            agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
+        )
         assert rt.context.get("staff_directory_updated")
-
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse))
-                pass
-
 
     assert DB["John"]["role"] == "Senior Manager"
     assert DB["John"]["phone"] == "5555"
@@ -169,22 +146,12 @@ async def test_agents_as_tools(llm):
 
     # Run the parent tool
     with rt.Session(timeout=100):
-        if llm.stream:
-            return
-        
         response = await rt.call(
             parent_tool, user_input="Get me the secret phrase for id `1`."
         )
 
-        final_resp = None
-        if llm.stream:
-            for chunk in response:
-                assert isinstance(chunk, (str, StringResponse))
-                if isinstance(chunk, StringResponse):
-                    final_resp = chunk
-        else:
-            final_resp = response
-            
+        final_resp = response
+
         assert final_resp is not None
         assert rt.context.get("secret_phrase_called")
 

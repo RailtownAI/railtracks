@@ -20,12 +20,14 @@ __all__ = [
     "Session",
     "session",
     "call",
+    "astream",
     "broadcast",
     "call_batch",
     "ExecutionInfo",
     "ExecutorConfig",
     "llm",
     "guardrails",
+    "middleware",
     "context",
     "set_config",
     "context",
@@ -43,14 +45,25 @@ __all__ = [
     "observability",
     "retrieval",
     "Flow",
+    "FlowConnection",
+    "NodeMessageHistory",
     "enable_logging",
+    "wrap_node",
+    "after_node",
+    "couple",
+    "before_llm",
+    "after_llm",
+    "wrap_llm",
+    "input_guard",
+    "output_guard",
     "escape_braces",
 ]
 
-from railtracks.built_nodes import (
-    agent_node,
+
+from railtracks.built_nodes.function import (
     function_node,
 )
+from railtracks.built_nodes.llm import agent_node
 
 from . import (
     context,
@@ -58,16 +71,23 @@ from . import (
     guardrails,
     integrations,
     llm,
+    middleware,
     observability,
     prebuilt,
+    retrieval,
 )
-from ._session import ExecutionInfo, Session, session
+from ._session import Session, session
+from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
-from .interaction import broadcast, call, call_batch
+from .guardrails import input_guard, output_guard
+from .interaction import astream, broadcast, call, call_batch, couple
 from .llm.prompt_injection_utils import escape_braces
+from .middleware import after_node, wrap_node
 from .nodes.manifest import ToolManifest
+from .orchestration.connection import FlowConnection, NodeMessageHistory
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
+from .state.info import ExecutionInfo
 from .utils.config import ExecutorConfig
 from .utils.deprecation import warn_pending_change
 from .utils.logging.config import enable_logging

@@ -164,6 +164,36 @@ def _check_duplicate_param_names(tool_params: Iterable[Any]) -> None:
             )
 
 
+def _check_duplicate_tool_names(tool_nodes: Iterable[Any] | None) -> None:
+    """
+    Ensure every tool node exposes a distinct ``tool_info().name``.
+
+    Args:
+        tool_nodes: Iterable of Node types intended to be used as tools.
+
+    Raises:
+        NodeCreationError: If two or more nodes share a tool name.
+    """
+    if not tool_nodes:
+        return
+
+    by_name: dict[str, list[Any]] = {}
+    for node in tool_nodes:
+        by_name.setdefault(node.tool_info().name, []).append(node)
+
+    for tool_name, offending_nodes in by_name.items():
+        if len(offending_nodes) > 1:
+            raise NodeCreationError(
+                message=get_message(
+                    ExceptionMessageKey.DUPLICATE_TOOL_NAMES_MSG
+                ).format(
+                    tool_name=tool_name,
+                    offending_nodes=[n.__name__ for n in offending_nodes],
+                ),
+                notes=get_notes(ExceptionMessageKey.DUPLICATE_TOOL_NAMES_NOTES),
+            )
+
+
 def _check_pretty_name(pretty_name: str | None, tool_details: Any) -> None:
     """
     Ensure a name is provided if tool_details exist.

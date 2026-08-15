@@ -3,10 +3,13 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from railtracks.retrieval.loaders.huggingface_loader import (
+
+pytest.importorskip("datasets")
+
+from railtracks.retrieval.loaders.huggingface_loader import (  # noqa: E402
     HuggingFaceDatasetLoader,
 )
-from railtracks.retrieval.models import DocumentType
+from railtracks.retrieval.models import DocumentType  # noqa: E402
 
 
 class _FakeIterableDataset:
