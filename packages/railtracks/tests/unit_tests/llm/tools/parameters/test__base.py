@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from railtracks.llm.tools.parameters._base import Parameter, ParameterType
 
 
@@ -46,3 +47,26 @@ def test_parameter_accepts_python_type_int():
 def test_parameter_list_accepts_mixed_python_and_schema_types():
     p = Parameter("x", param_type=[str, "null"])
     assert p.param_type == ["string", "null"]
+
+
+def test_invalid_param_type_string_raises_descriptive_error():
+    # #1393: a bad param_type like "bool" used to flow through into the
+    # manifest and surface only as a deep LLM-backend BadRequestError.
+    with pytest.raises(ValueError) as excinfo:
+        Parameter("param_name", param_type="bool")
+    message = str(excinfo.value)
+    assert "param_name" in message
+    assert "'bool'" in message
+    assert "string" in message
+
+
+def test_invalid_param_type_in_list_raises_with_parameter_name():
+    with pytest.raises(ValueError) as excinfo:
+        Parameter("items", param_type=["string", "bool"])
+    assert "items" in str(excinfo.value)
+
+
+def test_all_parameter_type_values_are_accepted():
+    for value in (t.value for t in ParameterType):
+        p = Parameter("x", param_type=value)
+        assert p.to_json_schema()["type"] == value
