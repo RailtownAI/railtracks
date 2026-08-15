@@ -25,6 +25,11 @@ DUPLICATE_PARAMETER_NAMES_MSG: "Duplicate parameter names are not allowed."
 DUPLICATE_PARAMETER_NAMES_NOTES:
   - "Parameter names in tool_params must be unique."
 
+DUPLICATE_TOOL_NAMES_MSG: "Multiple tool nodes share the tool name '{tool_name}': {offending_nodes}."
+DUPLICATE_TOOL_NAMES_NOTES:
+  - "Every node in tool_nodes must expose a unique tool_info().name, otherwise the model cannot address them unambiguously."
+  - "Pass an explicit name to disambiguate, e.g. rt.function_node(my_func, name=\"my_unique_name\")."
+
 INVALID_SYSTEM_MESSAGE_MSG: "system_message must be of type string or SystemMessage, not any other type."
 
 MESSAGE_HISTORY_EMPTY_MSG: "Message history must contain at least one message."

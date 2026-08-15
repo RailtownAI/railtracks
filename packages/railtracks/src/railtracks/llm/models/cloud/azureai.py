@@ -1,5 +1,5 @@
 import logging
-from typing import List, Literal, TypeVar
+from typing import List, Literal
 
 from litellm.exceptions import InternalServerError
 
@@ -14,14 +14,12 @@ from .._model_exception_base import ModelError
 
 logger = logging.getLogger(__name__)
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-
 
 class AzureAIError(ModelError):
     pass
 
 
-class AzureAILLM(LiteLLMWrapper[_TStream]):
+class AzureAILLM(LiteLLMWrapper):
     """Azure Foundry LLM wrapper.
 
     Accepts either litellm prefix:

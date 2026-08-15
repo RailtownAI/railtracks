@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 import railtracks as rt
-from railtracks.built_nodes.concrete.function_base import RTFunction
+from railtracks.built_nodes.function.base import RTFunction
 from railtracks.utils.logging.create import get_rt_logger
 
 from .._base import ToolSet

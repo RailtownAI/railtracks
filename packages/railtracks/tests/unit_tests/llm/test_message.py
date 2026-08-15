@@ -104,6 +104,17 @@ def test_tool_message_invalid_content3():
             final_message="Final message",
         ) # ToolMessage expects ToolResponse, not List[ToolResponse]
 
+def test_encode_message_keeps_text_sent_with_tool_calls():
+    message = AssistantMessage(
+        content=[ToolCall(identifier="tid", name="tool", arguments={})],
+        text="I will call tool for you.",
+    )
+    assert message.encode()["text"] == "I will call tool for you."
+
+
+def test_encode_message_omits_text_when_there_is_none():
+    assert "text" not in AssistantMessage(content="hi").encode()
+
 # =================================== END Message Structure Tests ==================================
 
 

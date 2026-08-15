@@ -1,8 +1,12 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-from railtracks.prebuilt.tools.websearch.fetch import FetchBackend
-from railtracks.prebuilt.tools.websearch.fetch.http import HttpFetch
+import pytest
+
+pytest.importorskip("trafilatura")
+
+from railtracks.prebuilt.tools.websearch.fetch import FetchBackend  # noqa: E402
+from railtracks.prebuilt.tools.websearch.fetch.http import HttpFetch  # noqa: E402
 
 _SAMPLE_HTML = """
 <html><head><title>Sample Page</title></head>

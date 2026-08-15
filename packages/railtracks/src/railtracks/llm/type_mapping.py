@@ -21,19 +21,43 @@ class TypeMapper:
                 "Please use a custom function."
             )
 
-    def convert_kwargs_to_appropriate_types(self, kwargs) -> Dict[str, Any]:
-        """Convert kwargs to appropriate types based on function signature."""
-        converted_kwargs = {}
+    def convert_kwargs_to_appropriate_types(self, **kwargs) -> Dict[str, Any]:
+        """Convert kwargs to appropriate types based on function signature.
 
+        Named parameters are converted using their type annotation. If the
+        signature also accepts ``**kwargs`` (VAR_KEYWORD), any extra kwargs that
+        don't match a named parameter are forwarded unconverted -- there is no
+        annotation to coerce against, and dropping them would silently lose
+        arguments (e.g. MCP-derived tool nodes, whose real parameter names come
+        from a dynamic schema rather than the wrapper function's signature).
+        """
+        converted_kwargs = {}
         sig = self.sig
 
-        # Process all parameters from the function signature
-        for param_name, param in sig.parameters.items():
+        named_params = {
+            name: param
+            for name, param in sig.parameters.items()
+            if param.kind
+            not in (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL)
+        }
+        accepts_var_keyword = any(
+            param.kind is inspect.Parameter.VAR_KEYWORD
+            for param in sig.parameters.values()
+        )
+
+        # Process all named parameters from the function signature
+        for param_name, param in named_params.items():
             # If the parameter is in kwargs, convert it
             if param_name in kwargs:
                 converted_kwargs[param_name] = self._convert_value(
                     kwargs[param_name], param.annotation, param_name
                 )
+
+        # Forward anything else unconverted when the function accepts **kwargs
+        if accepts_var_keyword:
+            for key, value in kwargs.items():
+                if key not in named_params:
+                    converted_kwargs[key] = value
 
         return converted_kwargs
 

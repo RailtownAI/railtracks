@@ -5,7 +5,7 @@ import os
 import re
 from copy import deepcopy
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import urlparse
@@ -248,6 +248,12 @@ class Message(Generic[_T, _TRole]):
     def __repr__(self):
         return str(self)
 
+    def encode(self) -> dict[str, Any]:
+        return {
+            "role": self.role.value,
+            "content": self.content,
+        }
+
     @property
     def tool_calls(self):
         """Gets the tool calls attached to this message, if any. If there are none return and empty list."""
@@ -339,6 +345,24 @@ class UserMessage(_StringOnlyContent[Role.user]):
             )
         super().__init__(content=content, role=Role.user, inject_prompt=inject_prompt)
 
+    def encode(self):
+        if self.attachment is not None:
+            attachment = [
+                {
+                    "modality": msg_attachment.modality,
+                    "type": msg_attachment.type,
+                    "info": msg_attachment.url,
+                }
+                for msg_attachment in self.attachment
+            ]
+
+            return {
+                "role": self.role.value,
+                "content": [{"type": "text", "text": self.content}, *attachment],
+            }
+
+        return super().encode()
+
 
 class SystemMessage(_StringOnlyContent[Role.system]):
     """
@@ -377,7 +401,16 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         # Optionally stores the raw litellm message object so providers that
         # attach extra metadata (e.g. Gemini thought_signature) can round-trip
         # it back without any manual reconstruction.
-        self.raw_litellm_message = None
+        self.raw_litellm_message: Any | None = None
+
+    def encode(self):
+        encoded = super().encode()
+
+        # prose the assistant returned alongside its tool calls
+        if self.text is not None:
+            encoded["text"] = self.text
+
+        return encoded
 
 
 # TODO further constrict the possible return type of a ToolMessage.

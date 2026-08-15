@@ -10,5 +10,5 @@ __all__ = [
 ]
 
 
-from .easy_usage_wrappers.agent import agent_node
-from .easy_usage_wrappers.function import function_node
+from .function import function_node
+from .llm import agent_node

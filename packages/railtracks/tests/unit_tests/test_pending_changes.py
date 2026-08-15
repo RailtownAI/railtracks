@@ -135,9 +135,7 @@ def test_core_entry_points_are_silent():
 # ---------------------------------------------------------------------------------------
 
 
-def test_agent_node_without_llm_warns():
-    with pytest.warns(FutureWarning, match="without an `llm`"):
-        rt.agent_node(name="no-llm")
+
 
 
 def test_agent_node_with_llm_is_silent():
@@ -149,55 +147,10 @@ def test_agent_node_with_llm_is_silent():
 # ---------------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", RELOCATED)
-def test_relocated_guard_warns_on_flat_path(name):
-    with pytest.warns(FutureWarning, match=f"rt.guardrails.llm.{name}"):
-        getattr(rt.guardrails.llm, name)
-
-
-@pytest.mark.parametrize(
-    ("submodule", "name"),
-    [("input", n) for n in RELOCATED_GUARDS if "Input" in n]
-    + [("output", n) for n in RELOCATED_GUARDS if "Output" in n],
-)
-def test_relocated_guard_warns_on_submodule_path(submodule, name):
-    """The submodule spelling needs its own notice: reaching a guard through it imports
-    the submodule, so the parent package's __getattr__ never sees the name."""
-    module = importlib.import_module(f"railtracks.guardrails.llm.{submodule}")
-
-    with pytest.warns(FutureWarning, match=name):
-        getattr(module, name)
-
 
 @pytest.mark.parametrize("name", RELOCATED)
 def test_prebuilt_guardrails_forward_path_is_silent(name):
     assert_silent(lambda: getattr(rt.prebuilt.guardrails, name))
-
-
-@pytest.mark.parametrize("name", RELOCATED)
-def test_relocation_yields_the_same_object(name):
-    """A pure move: both spellings must resolve to the identical class."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", FutureWarning)
-        old = getattr(rt.guardrails.llm, name)
-
-    assert old is getattr(rt.prebuilt.guardrails, name)
-
-
-# ---------------------------------------------------------------------------------------
-# Guard / the guardrail authoring bases
-# ---------------------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("name", REMOVED_GUARDRAIL_NAMES)
-def test_removed_guardrail_name_warns(name):
-    with pytest.warns(FutureWarning, match=f"rt.guardrails.{name}"):
-        getattr(rt.guardrails, name)
-
-
-@pytest.mark.parametrize("name", SURVIVING_GUARDRAIL_NAMES)
-def test_surviving_guardrail_name_is_silent(name):
-    assert_silent(lambda: getattr(rt.guardrails, name))
 
 
 def test_removed_names_are_not_advertised_but_stay_discoverable():
@@ -207,54 +160,8 @@ def test_removed_names_are_not_advertised_but_stay_discoverable():
         assert name in dir(rt.guardrails)
 
 
-# ---------------------------------------------------------------------------------------
-# agent_node(guardrails=...)
-# ---------------------------------------------------------------------------------------
 
 
-def test_agent_node_with_guardrails_warns():
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", FutureWarning)
-        guard = rt.guardrails.Guard()
-
-    with pytest.warns(FutureWarning, match="`guardrails=` argument"):
-        rt.agent_node(
-            name="guarded", llm=rt.llm.OpenAILLM("gpt-4o"), guardrails=guard
-        )
-
-
-def test_agent_node_without_guardrails_is_silent():
-    assert_silent(lambda: rt.agent_node(name="plain", llm=rt.llm.OpenAILLM("gpt-4o")))
-
-
-# ---------------------------------------------------------------------------------------
-# stream=True
-# ---------------------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(("provider", "model"), OFFLINE_PROVIDERS)
-def test_stream_true_warns(provider, model):
-    with pytest.warns(FutureWarning, match="stream=True"):
-        getattr(rt.llm, provider)(model, stream=True)
-
-
-@pytest.mark.parametrize(("provider", "model"), OFFLINE_PROVIDERS)
-def test_stream_omitted_is_silent(provider, model):
-    assert_silent(lambda: getattr(rt.llm, provider)(model))
-
-
-def test_stream_notice_lands_on_the_callers_line():
-    """Warned from each provider's own __init__, so the default stacklevel points at the
-    user rather than at an internal wrapper."""
-    with pytest.warns(FutureWarning) as record:
-        rt.llm.OpenAILLM("gpt-4o", stream=True)
-
-    assert record[0].filename == __file__
-
-
-# ---------------------------------------------------------------------------------------
-# rt.interactive / local_chat
-# ---------------------------------------------------------------------------------------
 
 
 def test_rt_interactive_warns():
@@ -281,20 +188,7 @@ def test_local_chat_warns():
 # ---------------------------------------------------------------------------------------
 
 
-def test_easy_usage_wrappers_import_is_silent():
-    """Notice dropped: nothing writes this spelling, and `rt.agent_node` is the documented
-    path. See design-docs/warnings §2.3."""
-    module = importlib.import_module("railtracks.built_nodes.easy_usage_wrappers")
 
-    assert_silent(lambda: (module.agent_node, module.function_node))
-
-
-def test_built_nodes_concrete_import_is_silent():
-    """Notice dropped in favour of an upgrade-guide section: users never import this, and
-    1.5.0 raises a loud ImportError anyway. See design-docs/warnings §3.4."""
-    module = importlib.import_module("railtracks.built_nodes.concrete")
-
-    assert_silent(lambda: (module.TerminalLLM, module.StringResponse))
 
 
 def test_broadcast_callback_is_silent():

@@ -1,14 +1,20 @@
-from railtracks.guardrails.llm._pii.config import (
+######## Prebuilt, ready-to-use guardrails. ########
+#
+# Concrete guards + PII config, re-exported flat. Public import path is
+# ``rt.prebuilt.guardrails.<Name>``. Author custom guards by subclassing
+# ``rt.guardrails.InputGuard`` / ``OutputGuard``.
+
+from railtracks.prebuilt.guardrails._pii.config import (
     PIICustomPattern,
     PIIEntity,
     PIIRedactConfig,
 )
-from railtracks.guardrails.llm.input.block_text import BlockTextInputGuard
-from railtracks.guardrails.llm.input.length_guard import InputLengthGuard
-from railtracks.guardrails.llm.input.pii_redact import PIIRedactInputGuard
-from railtracks.guardrails.llm.output.block_text import BlockTextOutputGuard
-from railtracks.guardrails.llm.output.length_guard import OutputLengthGuard
-from railtracks.guardrails.llm.output.pii_redact import PIIRedactOutputGuard
+from railtracks.prebuilt.guardrails.input.block_text import BlockTextInputGuard
+from railtracks.prebuilt.guardrails.input.length_guard import InputLengthGuard
+from railtracks.prebuilt.guardrails.input.pii_redact import PIIRedactInputGuard
+from railtracks.prebuilt.guardrails.output.block_text import BlockTextOutputGuard
+from railtracks.prebuilt.guardrails.output.length_guard import OutputLengthGuard
+from railtracks.prebuilt.guardrails.output.pii_redact import PIIRedactOutputGuard
 
 __all__ = [
     "BlockTextInputGuard",
