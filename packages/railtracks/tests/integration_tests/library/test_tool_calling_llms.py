@@ -2,7 +2,7 @@
 import pytest
 import railtracks as rt
 from railtracks.exceptions import NodeCreationError
-from railtracks.llm import AssistantMessage, ToolCall
+from railtracks.llm import AssistantMessage, ToolCall, ToolCalls
 from railtracks.llm.message import Role
 from railtracks.llm.response import Response
 
@@ -67,14 +67,16 @@ class TestSimpleToolCalling:
                 )
             return Response(
                 message=AssistantMessage(
-                    content=[
-                        ToolCall(
-                            name="secret_phrase",
-                            identifier="id_42424242",
-                            arguments={},
-                        )
-                    ],
-                    text=preamble,
+                    content=ToolCalls(
+                        [
+                            ToolCall(
+                                name="secret_phrase",
+                                identifier="id_42424242",
+                                arguments={},
+                            )
+                        ],
+                        text=preamble,
+                    )
                 )
             )
 
@@ -93,10 +95,12 @@ class TestSimpleToolCalling:
             response = await rt.call(agent, user_input="What is the secret phrase?")
 
         tool_call_messages = [
-            m for m in response.message_history if isinstance(m.content, list)
+            m for m in response.message_history if isinstance(m.content, ToolCalls)
         ]
         assert len(tool_call_messages) == 1
-        assert tool_call_messages[0].text == preamble
+        assert tool_call_messages[0].content.text == preamble
+        # the calls themselves are still reachable exactly as before
+        assert [tc.name for tc in tool_call_messages[0].content] == ["secret_phrase"]
 
 
 

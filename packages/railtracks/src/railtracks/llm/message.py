@@ -5,12 +5,12 @@ import os
 import re
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import urlparse
 
-from .content import Content, ToolCall, ToolResponse
+from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
 from .prompt_injection_utils import ValueDict, fill_template
 
@@ -201,6 +201,7 @@ class Message(Generic[_T, _TRole]):
         Args:
             content: The content of the message. It can take on any of the following types:
                 - str: A simple string message.
+                - ToolCalls: Tool calls plus any text the model spoke alongside them.
                 - List[ToolCall]: A list of tool calls.
                 - ToolResponse: A tool response.
                 - BaseModel: A custom base model object.
@@ -382,21 +383,22 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     A simple class that represents a message from the assistant.
 
     Args:
-        content (_T): The content of the assistant message.
+        content (_T): The content of the assistant message. A tool-calling turn is a
+            `ToolCalls`, which holds both the calls and any text the model spoke
+            alongside them; a plain `list[ToolCall]` is accepted and normalized to one.
         inject_prompt (bool, optional): Whether to inject prompt with context  variables. Defaults to True.
-        text (str | None, optional): The text the model returned alongside `content`. Models often
-            answer with prose and tool calls in the same message, so this keeps that prose attached
-            to the tool calls instead of dropping it. Only set when `content` is a list of tool calls.
     """
 
-    def __init__(
-        self, content: _T, inject_prompt: bool = True, text: str | None = None
-    ):
+    def __init__(self, content: _T, inject_prompt: bool = True):
+        # Normalizing here means a tool-calling turn is always a ToolCalls, so
+        # nothing downstream has to handle both shapes, while callers that pass a
+        # plain list of tool calls keep working.
+        if isinstance(content, list) and not isinstance(content, ToolCalls):
+            content = cast(_T, ToolCalls(content))
+
         super().__init__(
             content=content, role=Role.assistant, inject_prompt=inject_prompt
         )
-
-        self.text = text
 
         # Optionally stores the raw litellm message object so providers that
         # attach extra metadata (e.g. Gemini thought_signature) can round-trip
@@ -406,9 +408,10 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     def encode(self):
         encoded = super().encode()
 
-        # prose the assistant returned alongside its tool calls
-        if self.text is not None:
-            encoded["text"] = self.text
+        # A ToolCalls encodes as a bare array, which would drop the text the model
+        # spoke with its calls; surface it the way providers put it on the wire.
+        if isinstance(self.content, ToolCalls) and self.content.text is not None:
+            encoded["text"] = self.content.text
 
         return encoded
 

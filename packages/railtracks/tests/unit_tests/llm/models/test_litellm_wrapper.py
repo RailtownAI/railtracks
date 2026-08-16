@@ -8,7 +8,7 @@ import litellm
 import pytest
 from pydantic import BaseModel
 from railtracks.exceptions import LLMError, NodeInvocationError
-from railtracks.llm import AssistantMessage, UserMessage
+from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
@@ -126,7 +126,7 @@ class TestHelpers:
         Test _to_litellm_message sends back the text that came with the tool calls.
         """
         message = AssistantMessage(
-            content=[tool_call], text="I will call example_tool for you."
+            content=ToolCalls([tool_call], text="I will call example_tool for you.")
         )
         wrapper = mock_litellm_wrapper()
         litellm_message = wrapper._to_litellm_message(message)
@@ -548,7 +548,7 @@ class TestAsyncStreaming:
             result = method(message_history, [tool])
 
         assert result.message.content[0].name == "tool_x"
-        assert result.message.text == "I will call tool_x with foo=1."
+        assert result.message.content.text == "I will call tool_x with foo=1."
 
     def test_prepare_response_keeps_streamed_text_with_tool_calls(
         self, mock_litellm_wrapper, tool_call
@@ -565,7 +565,7 @@ class TestAsyncStreaming:
         )
 
         assert response.message.content == [tool_call]
-        assert response.message.text == "I will call example_tool for you."
+        assert response.message.content.text == "I will call example_tool for you."
 
 
 def test_temperature_passed_to_litellm_completion(message_history):

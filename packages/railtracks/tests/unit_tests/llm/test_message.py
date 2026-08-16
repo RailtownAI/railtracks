@@ -1,8 +1,9 @@
+from copy import deepcopy
 from typing import List
 
 import pytest
 from railtracks.llm import AssistantMessage, SystemMessage, ToolMessage, UserMessage
-from railtracks.llm.content import Stream, ToolCall, ToolResponse
+from railtracks.llm.content import Stream, ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.message import Attachment
 
 
@@ -103,17 +104,6 @@ def test_tool_message_invalid_content3():
             streamer="not a generator",
             final_message="Final message",
         ) # ToolMessage expects ToolResponse, not List[ToolResponse]
-
-def test_encode_message_keeps_text_sent_with_tool_calls():
-    message = AssistantMessage(
-        content=[ToolCall(identifier="tid", name="tool", arguments={})],
-        text="I will call tool for you.",
-    )
-    assert message.encode()["text"] == "I will call tool for you."
-
-
-def test_encode_message_omits_text_when_there_is_none():
-    assert "text" not in AssistantMessage(content="hi").encode()
 
 # =================================== END Message Structure Tests ==================================
 
@@ -462,3 +452,53 @@ class TestUserMessageAttachments:
 # =================================== END UserMessage Attachments Tests ==================================
 
 
+
+
+# =================================== START ToolCalls Content Tests ==================================
+class TestToolCallsContent:
+    """A tool-calling turn carries the calls AND whatever the model said with them."""
+
+    @pytest.fixture
+    def call(self):
+        return ToolCall(identifier="id1", name="example_tool", arguments={"foo": 1})
+
+    def test_holds_text_alongside_the_calls(self, call):
+        content = ToolCalls([call], text="I will call example_tool for you.")
+        assert list(content) == [call]
+        assert content.text == "I will call example_tool for you."
+
+    def test_text_defaults_to_none(self, call):
+        assert ToolCalls([call]).text is None
+
+    def test_behaves_as_a_list_of_tool_calls(self, call):
+        content = ToolCalls([call], text="prose")
+        assert isinstance(content, list)
+        assert len(content) == 1
+        assert content[0] is call
+        assert [tc for tc in content] == [call]
+        assert content == [call]  # equality stays list equality
+
+    def test_deepcopy_preserves_text(self, call):
+        content = deepcopy(ToolCalls([call], text="prose"))
+        assert isinstance(content, ToolCalls)
+        assert content.text == "prose"
+
+    def test_assistant_message_normalizes_a_plain_list(self, call):
+        """Passing a bare list of tool calls still works, and becomes a ToolCalls."""
+        message = AssistantMessage(content=[call])
+        assert isinstance(message.content, ToolCalls)
+        assert message.content.text is None
+        assert message.tool_calls == [call]
+
+    def test_assistant_message_keeps_a_tool_calls_as_is(self, call):
+        content = ToolCalls([call], text="prose")
+        assert AssistantMessage(content=content).content is content
+
+    def test_encode_surfaces_the_text(self, call):
+        encoded = AssistantMessage(content=ToolCalls([call], text="prose")).encode()
+        assert encoded["text"] == "prose"
+
+    def test_encode_omits_text_when_there_is_none(self, call):
+        assert "text" not in AssistantMessage(content=[call]).encode()
+        assert "text" not in AssistantMessage(content="hi").encode()
+# =================================== END ToolCalls Content Tests ==================================

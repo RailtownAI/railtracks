@@ -34,7 +34,7 @@ from litellm.types.utils import (
 from pydantic import BaseModel, Field
 
 from ...exceptions.errors import LLMError, NodeInvocationError
-from ..content import ToolCall
+from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
@@ -541,7 +541,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         elif len(tools) > 0:
             r = Response(
                 message=AssistantMessage(
-                    content=tools, text=accumulated_content or None
+                    content=ToolCalls(tools, text=accumulated_content or None)
                 ),
                 message_info=message_info,
             )
@@ -700,9 +700,11 @@ class LiteLLMWrapper(ModelBase, ABC):
                 ToolCall(identifier=tc.id, name=tc.function.name or "", arguments=args)
             )
 
-        # Keep any prose the model returned alongside the tool calls (e.g. "I will
+        # Keep any text the model returned alongside the tool calls (e.g. "I will
         # check the weather in London for you"), it is part of the answer.
-        assistant_msg = AssistantMessage(content=calls, text=choice.message.content)
+        assistant_msg = AssistantMessage(
+            content=ToolCalls(calls, text=choice.message.content)
+        )
 
         # Preserve the raw litellm message so that provider-specific metadata
         # (e.g. Gemini thought_signature) is round-tripped back verbatim.
@@ -850,9 +852,9 @@ class LiteLLMWrapper(ModelBase, ABC):
         # only time this is true is tool calls, need to return litellm.utils.Message
         elif isinstance(msg.content, list):
             assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
-            # Send back any prose that came with the tool calls so the model sees
+            # Send back any text that came with the tool calls so the model sees
             # its own full turn on the next request.
-            base["content"] = getattr(msg, "text", None) or ""
+            base["content"] = getattr(msg.content, "text", None) or ""
             base["tool_calls"] = [
                 ChatCompletionMessageToolCall(
                     function=Function(
