@@ -4,11 +4,13 @@ import railtracks as rt
 # Define a prompt with placeholders
 system_message = "You are a {role} assistant specialized in {domain}."
 
-# Create an LLM node with this prompt
+# Create an LLM node with this prompt. ContextInjection() enables placeholder
+# substitution from rt.context; without it the {placeholders} are left as-is.
 assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
     llm=rt.llm.OpenAILLM("gpt-4o"),
+    model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 
 # Run with context values
@@ -26,9 +28,19 @@ flow = rt.Flow(
     prompt_injection=False
 )
 
-# or globally via 
+# or globally via
 rt.set_config(prompt_injection=False)
 # --8<-- [end: disable_injection]
+
+# --8<-- [start: disable_injection_node_level]
+# Injection is opt-in: an agent that omits rt.prebuilt.middleware.ContextInjection()
+# from its model_middleware leaves {placeholders} untouched.
+literal_assistant = rt.agent_node(
+    name="Literal Assistant",
+    system_message="Always answer using the {placeholder} syntax verbatim.",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+)
+# --8<-- [end: disable_injection_node_level]
 
 # --8<-- [start: injection_at_message_level]
 # This message will have context injection applied
@@ -53,6 +65,7 @@ assistant = rt.agent_node(
     name="Dynamic Assistant",
     system_message=template,
     llm=OpenAILLM("gpt-4o"),
+    model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 
 # Different context for different scenarios

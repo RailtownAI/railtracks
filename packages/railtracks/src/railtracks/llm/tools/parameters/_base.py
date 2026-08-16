@@ -124,6 +124,9 @@ class Parameter(ABC):
         elif hasattr(self, "param_type") and self.param_type is None:
             self.param_type = None
 
+    def encode(self):
+        return self.to_json_schema()
+
     def to_json_schema(self) -> Dict[str, Any]:
         # Base dictionary with type and optional description
         schema_dict: Dict[str, Any] = {

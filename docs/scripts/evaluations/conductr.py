@@ -18,6 +18,18 @@ data = evals.extract_agent_data_points(payload)
 # Continue with evaluations as before
 # --8<-- [end: get]
 
+# --8<-- [start: category_status]
+quality = evals.metrics.Categorical(
+    name="Quality",
+    categories=[
+        evals.metrics.Category(name="great", status="pass"),
+        evals.metrics.Category(name="ok", status="partial"),
+        evals.metrics.Category(name="bad", status="fail"),
+        "unrated",  # plain strings still work; status defaults to None
+    ],
+)
+# --8<-- [end: category_status]
+
 t_evaluator = evals.ToolUseEvaluator()
 llm_evaluator = evals.LLMInferenceEvaluator()
 evaluators = [t_evaluator, llm_evaluator]
@@ -32,7 +44,10 @@ results = evals.evaluate(
 )
 # --8<-- [end: send_evals]
 import railtracks
-SomeAgent = railtracks.agent_node()
+SomeAgent = railtracks.agent_node(
+    name="Some Agent",
+    llm=railtracks.llm.OpenAILLM("gpt-4o"),
+)
 
 # --8<-- [start: send_runs]
 import railtracks as rt

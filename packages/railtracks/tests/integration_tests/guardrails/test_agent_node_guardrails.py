@@ -5,19 +5,17 @@ from __future__ import annotations
 import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
-
-from railtracks.built_nodes.concrete import (
-    GuardedStreamingStructuredLLM,
-    GuardedStreamingTerminalLLM,
-    GuardedStreamingToolCallLLM,
-    GuardedStructuredLLM,
-    GuardedStructuredToolCallLLM,
-    GuardedTerminalLLM,
-    GuardedToolCallLLM,
+from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
+from railtracks.guardrails import (
+    GuardrailBlockedError,
+    GuardrailDecision,
+    LLMGuardrailEvent,
 )
-from railtracks.built_nodes.concrete.response import StringResponse, StructuredResponse
-from railtracks.guardrails import Guard, GuardrailBlockedError, GuardrailDecision, InputGuard, LLMGuardrailEvent, OutputGuard
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm import AssistantMessage
+
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 
 
 class FnInputGuard(InputGuard):
@@ -25,10 +23,10 @@ class FnInputGuard(InputGuard):
 
     def __init__(self, fn, name: str | None = None):
         super().__init__(name=name)
-        self._fn = fn
+        self._decision_fn = fn
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        return self._fn(event)
+        return self._decision_fn(event)
 
 
 class FnOutputGuard(OutputGuard):
@@ -36,10 +34,10 @@ class FnOutputGuard(OutputGuard):
 
     def __init__(self, fn, name: str | None = None):
         super().__init__(name=name)
-        self._fn = fn
+        self._decision_fn = fn
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        return self._fn(event)
+        return self._decision_fn(event)
 def _counting_chat(llm: rt.llm.ModelBase):
     state = {"n": 0}
     real = llm._chat
@@ -77,27 +75,13 @@ def _counting_chat_with_tools(llm: rt.llm.ModelBase):
 
 
 @pytest.mark.asyncio
-async def test_terminal_agent_uses_guarded_base_when_guardrails_set(
-    mock_llm, allow_input
-):
-    llm = mock_llm()
-    Agent = rt.agent_node(
-        name="g-term",
-        llm=llm,
-        guardrails=Guard(input=[allow_input]),
-    )
-    assert issubclass(Agent, GuardedTerminalLLM)
-    assert not issubclass(Agent, GuardedStreamingTerminalLLM)
-
-
-@pytest.mark.asyncio
 async def test_terminal_input_block_skips_llm(mock_llm, block_input):
     llm = mock_llm()
     counts = _counting_chat(llm)
     Agent = rt.agent_node(
         name="block-term",
         llm=llm,
-        guardrails=Guard(input=[block_input]),
+        model_middleware=[block_input],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -112,7 +96,7 @@ async def test_terminal_input_allow_calls_llm(mock_llm, allow_input):
     Agent = rt.agent_node(
         name="allow-term",
         llm=llm,
-        guardrails=Guard(input=[allow_input]),
+        model_middleware=[allow_input],
     )
     with rt.Session():
         out = await rt.call(Agent, user_input="hello")
@@ -121,63 +105,26 @@ async def test_terminal_input_allow_calls_llm(mock_llm, allow_input):
     assert "ok" in out.text
 
 
-@pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.asyncio
-async def test_streaming_terminal_guardrails(mock_llm, allow_input, stream):
-    llm = mock_llm(custom_response="streamed", stream=stream)
+async def test_terminal_guardrails_allow(mock_llm, allow_input):
+    llm = mock_llm(custom_response="streamed")
     counts = _counting_chat(llm)
     Agent = rt.agent_node(
         name="stream-term",
         llm=llm,
-        guardrails=Guard(input=[allow_input]),
+        model_middleware=[allow_input],
     )
-    assert issubclass(Agent, GuardedStreamingTerminalLLM if stream else GuardedTerminalLLM)
 
     with rt.Session():
         result = await rt.call(Agent, user_input="hi")
 
     assert counts["n"] == 1
-    if stream:
-        collected: StringResponse | None = None
-        for chunk in result:
-            if isinstance(chunk, StringResponse):
-                collected = chunk
-        assert collected is not None
-        assert "streamed" in collected.text
-    else:
-        assert isinstance(result, StringResponse)
-        assert "streamed" in result.text
-
-
-@pytest.mark.asyncio
-async def test_streaming_terminal_input_block_skips_llm(mock_llm, block_input):
-    llm = mock_llm(stream=True)
-    counts = _counting_chat(llm)
-    Agent = rt.agent_node(
-        name="block-stream",
-        llm=llm,
-        guardrails=Guard(input=[block_input]),
-    )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="x")
-    assert counts["n"] == 0
+    assert isinstance(result, StringResponse)
+    assert "streamed" in result.text
 
 
 class _Answer(BaseModel):
     text: str = Field(default="ok")
-
-
-@pytest.mark.asyncio
-async def test_structured_agent_uses_guarded_base(mock_llm, allow_input):
-    llm = mock_llm(custom_response='{"text":"from-llm"}')
-    Agent = rt.agent_node(
-        name="g-struct",
-        output_schema=_Answer,
-        llm=llm,
-        guardrails=Guard(input=[allow_input]),
-    )
-    assert issubclass(Agent, GuardedStructuredLLM)
 
 
 @pytest.mark.asyncio
@@ -188,7 +135,7 @@ async def test_structured_input_block_skips_llm(mock_llm, block_input):
         name="block-struct",
         output_schema=_Answer,
         llm=llm,
-        guardrails=Guard(input=[block_input]),
+        model_middleware=[block_input],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -204,48 +151,33 @@ async def test_structured_output_block_after_llm(mock_llm, allow_input):
         name="out-block",
         output_schema=_Answer,
         llm=llm,
-        guardrails=Guard(
-            input=[allow_input],
-            output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="output policy"))],
-        ),
+        model_middleware=[
+            allow_input,
+            FnOutputGuard(lambda _e: GuardrailDecision.block(reason="output policy")),
+        ],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
             await rt.call(Agent, user_input="q")
 
 
-@pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.asyncio
-async def test_structured_streaming_guardrails(mock_llm, allow_input, stream):
-    llm = mock_llm(custom_response='{"text":"s"}', stream=stream)
+async def test_structured_guardrails_allow(mock_llm, allow_input):
+    llm = mock_llm(custom_response='{"text":"s"}')
     counts = _counting_structured(llm)
     Agent = rt.agent_node(
         name="struct-stream",
         output_schema=_Answer,
         llm=llm,
-        guardrails=Guard(input=[allow_input]),
-    )
-    assert issubclass(
-        Agent,
-        GuardedStreamingStructuredLLM if stream else GuardedStructuredLLM,
+        model_middleware=[allow_input],
     )
 
     with rt.Session():
         result = await rt.call(Agent, user_input="hi")
 
     assert counts["n"] == 1
-    if stream:
-        final: StructuredResponse[_Answer] | None = None
-        for chunk in result:
-            if isinstance(chunk, StructuredResponse):
-                final = chunk
-        assert final is not None
-        assert final.structured.text == "s"
-    else:
-        assert isinstance(result, StructuredResponse)
-        assert result.structured.text == "s"
-
-
+    assert isinstance(result, StructuredResponse)
+    assert result.structured.text == "s"
 
 
 @pytest.mark.asyncio
@@ -255,10 +187,10 @@ async def test_terminal_output_block(mock_llm, allow_input):
     Agent = rt.agent_node(
         name="term-out",
         llm=llm,
-        guardrails=Guard(
-            input=[allow_input],
-            output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="no"))],
-        ),
+        model_middleware=[
+            allow_input,
+            FnOutputGuard(lambda _e: GuardrailDecision.block(reason="no")),
+        ],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -268,20 +200,6 @@ async def test_terminal_output_block(mock_llm, allow_input):
 # ============================================================
 # ToolCallLLM guardrail tests
 # ============================================================
-
-
-@pytest.mark.asyncio
-async def test_tool_call_agent_uses_guarded_base(mock_llm, allow_input):
-    def tool_fn() -> str:
-        return "result"
-
-    Agent = rt.agent_node(
-        name="g-tool",
-        tool_nodes={rt.function_node(tool_fn)},
-        llm=mock_llm(),
-        guardrails=Guard(input=[allow_input]),
-    )
-    assert issubclass(Agent, GuardedToolCallLLM)
 
 
 @pytest.mark.asyncio
@@ -295,7 +213,7 @@ async def test_tool_call_input_block_skips_llm(mock_llm, block_input):
         name="block-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=llm,
-        guardrails=Guard(input=[block_input]),
+        model_middleware=[block_input],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -314,7 +232,7 @@ async def test_tool_call_input_allow_calls_llm(mock_llm, allow_input):
         name="allow-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=llm,
-        guardrails=Guard(input=[allow_input]),
+        model_middleware=[allow_input],
     )
     with rt.Session():
         out = await rt.call(Agent, user_input="hello")
@@ -331,10 +249,10 @@ async def test_tool_call_output_block(mock_llm, allow_input):
         name="out-block-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=mock_llm(),
-        guardrails=Guard(
-            input=[allow_input],
-            output=[FnOutputGuard(lambda _e: GuardrailDecision.block(reason="blocked output"))],
-        ),
+        model_middleware=[
+            allow_input,
+            FnOutputGuard(lambda _e: GuardrailDecision.block(reason="blocked output")),
+        ],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):
@@ -353,13 +271,13 @@ async def test_tool_call_output_transform_updates_response_and_history(mock_llm,
         name="out-transform-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=mock_llm(),
-        guardrails=Guard(
-            input=[allow_input],
-            output=[FnOutputGuard(lambda _e: GuardrailDecision.transform_output(
+        model_middleware=[
+            allow_input,
+            FnOutputGuard(lambda _e: GuardrailDecision.transform_output(
                 output_message=AssistantMessage(TRANSFORMED),
                 reason="transform applied",
-            ))],
-        ),
+            )),
+        ],
     )
     with rt.Session():
         result = await rt.call(Agent, user_input="hello")
@@ -369,8 +287,11 @@ async def test_tool_call_output_transform_updates_response_and_history(mock_llm,
 
 
 @pytest.mark.asyncio
-async def test_tool_call_output_guard_fires_once(mock_llm, allow_input):
-    """Output guard fires exactly once — on the final reply, not on intermediate tool-call turns."""
+async def test_tool_call_output_guard_fires_only_on_final_reply(mock_llm, allow_input):
+    """OutputGuard wraps every raw model call inside the tool-calling loop, but
+    intermediate tool-call turns pass through unguarded — output rails fire only on
+    the final replys.
+    """
     @rt.function_node
     async def weather_tool(city: str) -> str:
         """Get weather for a city.
@@ -394,10 +315,7 @@ async def test_tool_call_output_guard_fires_once(mock_llm, allow_input):
         name="fires-once",
         tool_nodes={weather_tool},
         llm=llm,
-        guardrails=Guard(
-            input=[allow_input],
-            output=[FnOutputGuard(_counting_guard)],
-        ),
+        model_middleware=[allow_input, FnOutputGuard(_counting_guard)],
     )
     with rt.Session():
         await rt.call(Agent, user_input="weather?")
@@ -405,75 +323,9 @@ async def test_tool_call_output_guard_fires_once(mock_llm, allow_input):
     assert fire_count["n"] == 1
 
 
-@pytest.mark.asyncio
-async def test_tool_call_no_guardrails_produces_unguarded_node(mock_llm):
-    def tool_fn() -> str:
-        return "result"
-
-    Agent = rt.agent_node(
-        name="no-guard-tool",
-        tool_nodes={rt.function_node(tool_fn)},
-        llm=mock_llm(),
-    )
-    assert not issubclass(Agent, GuardedToolCallLLM)
-
-
-# ============================================================
-# StreamingToolCallLLM guardrail tests
-# ============================================================
-
-
-@pytest.mark.asyncio
-async def test_streaming_tool_call_uses_guarded_base(mock_llm, allow_input):
-    def tool_fn() -> str:
-        return "result"
-
-    Agent = rt.agent_node(
-        name="g-stream-tool",
-        tool_nodes={rt.function_node(tool_fn)},
-        llm=mock_llm(stream=True),
-        guardrails=Guard(input=[allow_input]),
-    )
-    assert issubclass(Agent, GuardedStreamingToolCallLLM)
-
-
-@pytest.mark.asyncio
-async def test_streaming_tool_call_input_block(mock_llm, block_input):
-    def tool_fn() -> str:
-        return "result"
-
-    llm = mock_llm(stream=True)
-    counts = _counting_chat_with_tools(llm)
-    Agent = rt.agent_node(
-        name="block-stream-tool",
-        tool_nodes={rt.function_node(tool_fn)},
-        llm=llm,
-        guardrails=Guard(input=[block_input]),
-    )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="hello")
-    assert counts["n"] == 0
-
-
 # ============================================================
 # StructuredToolCallLLM guardrail tests
 # ============================================================
-
-
-@pytest.mark.asyncio
-async def test_structured_tool_call_agent_uses_guarded_base(mock_llm, allow_input):
-    def tool_fn() -> str:
-        return "result"
-
-    Agent = rt.agent_node(
-        name="g-struct-tool",
-        tool_nodes={rt.function_node(tool_fn)},
-        output_schema=_Answer,
-        llm=mock_llm(custom_response='{"text": "ok"}'),
-        guardrails=Guard(input=[allow_input]),
-    )
-    assert issubclass(Agent, GuardedStructuredToolCallLLM)
 
 
 @pytest.mark.asyncio
@@ -488,7 +340,7 @@ async def test_structured_tool_call_input_block_skips_llm(mock_llm, block_input)
         tool_nodes={rt.function_node(tool_fn)},
         output_schema=_Answer,
         llm=llm,
-        guardrails=Guard(input=[block_input]),
+        model_middleware=[block_input],
     )
     with rt.Session():
         with pytest.raises(GuardrailBlockedError):

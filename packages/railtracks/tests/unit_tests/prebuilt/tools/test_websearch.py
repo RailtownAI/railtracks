@@ -1,10 +1,13 @@
 import re
 
 import pytest
-from railtracks.prebuilt.tools.websearch import WebSearchToolSet
-from railtracks.prebuilt.tools.websearch.fetch import HttpFetch
-from railtracks.prebuilt.tools.websearch.models import FetchResult, SearchResult
-from railtracks.prebuilt.tools.websearch.search import TavilySearch
+
+pytest.importorskip("trafilatura")
+
+from railtracks.prebuilt.tools.websearch import WebSearchToolSet  # noqa: E402
+from railtracks.prebuilt.tools.websearch.fetch import HttpFetch  # noqa: E402
+from railtracks.prebuilt.tools.websearch.models import FetchResult, SearchResult  # noqa: E402
+from railtracks.prebuilt.tools.websearch.search import TavilySearch  # noqa: E402
 
 
 def _contains_url(text: str, url: str) -> bool:

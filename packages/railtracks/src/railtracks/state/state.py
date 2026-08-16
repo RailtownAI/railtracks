@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, ParamSpec, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, List, ParamSpec, Tuple, TypeVar
 
-from ..context.central import runner_context, safe_get_runner_context, update_parent_id
+from ..context.central import restore_scope
+from ..events.node import NodeCreation
+from ..events.send import emit
 from ..execution.coordinator import Coordinator
 from ..execution.task import Task
 from ..pubsub.messages import (
@@ -88,11 +90,7 @@ class RTState:
         if isinstance(item, RequestFinishedBase):
             await self.handle_result(item)
         if isinstance(item, RequestCreation):
-            previous_context = safe_get_runner_context()
-            if item.current_node_id is not None:
-                update_parent_id(item.current_node_id, item.current_run_id)
-
-            try:
+            with restore_scope(item.current_scope, item.current_run_id):
                 assert item.new_request_id not in self._request_heap.heap().keys()
 
                 await self.call_nodes(
@@ -101,10 +99,8 @@ class RTState:
                     node=item.new_node_type,
                     args=item.args,
                     kwargs=item.kwargs,
+                    stream_queue=item.stream_queue,
                 )
-            finally:
-                # restore publisher context after dispatching child tasks so root calls don't inherit stale run IDs
-                runner_context.set(previous_context)
 
     def shutdown(self):
         """
@@ -148,10 +144,10 @@ class RTState:
         *,
         parent_node_id: str,
         request_id: str | None,
-        node: Callable[_P, Node],
-        args: _P.args,
-        kwargs: _P.kwargs,
-    ) -> str:
+        node: type[Node[_P, _TOutput]],
+        args,
+        kwargs,
+    ) -> tuple[str, Node[_P, _TOutput]]:
         """
         Creates a node using the creator function (node).
 
@@ -170,7 +166,7 @@ class RTState:
         """
 
         # 1. Create the node here
-        node = node(*args, **kwargs)
+        node_instance = node()
 
         # 2. Add it to the node heap.
         sc = self._stamper.stamp_creator()
@@ -179,19 +175,19 @@ class RTState:
 
         request_creation_obj = RequestCreationAction(
             parent_node_name=parent_node_name,
-            child_node_name=node.name(),
+            child_node_name=node_instance.name(),
             input_args=args,
             input_kwargs=kwargs,
         )
 
         stamp = sc(request_creation_obj.to_logging_msg())
 
-        self._node_heap.update(node, stamp)
+        self._node_heap.update(node_instance, stamp)
 
         # 3. Attach the requests that will tied to this node.
         request_ids = self._create_new_request_set(
             parent_node=parent_node_id,
-            children=[node.uuid],
+            children=[node_instance.uuid],
             input_args=[args],
             input_kwargs=[kwargs],
             stamp=stamp,
@@ -199,17 +195,18 @@ class RTState:
         )
 
         logger.info(request_creation_obj.to_logging_msg())
-        # 4. Return the request id of the node that was created.
-        return request_ids[0]
+        # 4. Return the request id of the node that was created, plus the instance.
+        return request_ids[0], node_instance
 
     async def call_nodes(
         self,
         *,
         parent_node_id: str | None,
         request_id: str | None,
-        node: Callable[_P, Node[_TOutput]],
-        args: _P.args,
-        kwargs: _P.kwargs,
+        node: type[Node[_P, _TOutput]],
+        args,
+        kwargs,
+        stream_queue: asyncio.Queue[Any] | None = None,
     ):
         """
         This function will handle the creation of the node and the subsequent running of the node returning the result.
@@ -223,19 +220,29 @@ class RTState:
             node: The node you would like to create.
             args: The arguments to pass to the node.
             kwargs: The keyword arguments to pass to the node.
+            stream_queue: When set, the created node is the entry of a streamed invocation and
+                writes its LLM chunks onto this queue (frame-local, see `rt.astream`).
 
         Returns:
             The output of the node that was run. It will match the output type of the child node that was run.
 
         """
+
         try:
-            request_id = self._create_node_and_request(
+            request_id, node_instance = self._create_node_and_request(
                 parent_node_id=parent_node_id,
                 request_id=request_id,
                 node=node,
                 args=args,
                 kwargs=kwargs,
             )
+            creation_event = NodeCreation(
+                node_id=node_instance.uuid,
+                node_type=node_instance.type(),
+                name=node_instance.name(),
+            )
+
+            await emit(creation_event)
         except Exception as e:
             # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
             rfa = RequestFailureAction(
@@ -250,8 +257,11 @@ class RTState:
             )
             logger.exception(rfa.to_logging_msg())
             raise e
+
         # you have to run this in a task so it isn't blocking other completions
-        outputs = asyncio.create_task(self._run_request(request_id))
+        outputs = asyncio.create_task(
+            self._run_request(request_id, stream_queue=stream_queue)
+        )
 
         return outputs
 
@@ -305,7 +315,9 @@ class RTState:
 
         return request_ids
 
-    async def _run_request(self, request_id: str):
+    async def _run_request(
+        self, request_id: str, stream_queue: asyncio.Queue[Any] | None = None
+    ):
         """
         Runs the request for the given request id.
 
@@ -316,13 +328,20 @@ class RTState:
 
         Args:
             request_id: The identifier for the request you would like to run
+            stream_queue: When set, the node's frame streams its LLM chunks onto this queue
+                (frame-local, see `rt.astream`).
 
 
         """
         child_node_id = self._request_heap[request_id].sink_id
         node = self._node_heap[child_node_id].node
         return await self.rc_coordinator.submit(
-            task=Task(request_id=request_id, node=node),
+            task=Task(
+                request_id=request_id,
+                node=node,
+                arguments=self._request_heap[request_id].input,
+                stream_queue=stream_queue,
+            ),
             mode="async",
         )
 

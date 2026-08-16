@@ -4,6 +4,9 @@ from railtracks.llm import Message, ToolCall
 from railtracks.llm.response import Response
 import asyncio
 
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
+
 # ================================================ START terminal_llm as tools =========================================================== 
 @pytest.mark.asyncio
 @pytest.mark.timeout(30)
@@ -181,12 +184,12 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
         response = await rt.call(tool_call_llm, user_input=message_history)
         # Check that there was an error running the tool
         assert any(
-            message.role == "assistant" and "There was an error running the tool" in message.content
+            message.role == "assistant" and "There was an error during tool execution" in message.content
             for message in response.message_history
         )
 
-def test_no_manifest():
-    agent = rt.agent_node(name="not a tool")
+def test_no_manifest(mock_llm):
+    agent = rt.agent_node(name="not a tool", llm=mock_llm)
     with pytest.raises(NotImplementedError):
         agent.tool_info()
 

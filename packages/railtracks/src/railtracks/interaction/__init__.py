@@ -1,24 +1,29 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+from ._astream import astream
 from ._call import call
 from .batch import call_batch
 from .broadcast_ import broadcast
-
-if TYPE_CHECKING:
-    from .interactive import local_chat
+from .couple import couple
 
 __all__ = [
     "call",
     "call_batch",
+    "astream",
     "broadcast",
-    "local_chat",
+    "couple",
 ]
 
 
 def __getattr__(name: str):
     if name == "local_chat":
+        from railtracks.utils.deprecation import warn_pending_change
+
+        warn_pending_change(
+            "local_chat",
+            change="is removed",
+            detail="There is no replacement; the local chat UI is going away.",
+        )
         from .interactive import local_chat
 
         return local_chat

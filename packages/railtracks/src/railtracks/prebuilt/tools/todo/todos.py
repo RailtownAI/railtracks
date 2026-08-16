@@ -4,9 +4,10 @@ import asyncio
 from enum import Enum
 from typing import Callable
 
-import railtracks as rt
 from pydantic import BaseModel, Field
-from railtracks.built_nodes.concrete.function_base import RTFunction
+
+import railtracks as rt
+from railtracks.built_nodes.function.base import RTFunction
 from railtracks.utils.logging.create import get_rt_logger
 
 from .._base import ToolSet

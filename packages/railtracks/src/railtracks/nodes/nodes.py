@@ -6,15 +6,22 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Dict, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, TypeVar
 
-from typing_extensions import Self
-
+from railtracks.events.node import (
+    NodeDestruction,
+)
+from railtracks.events.send import emit
+from railtracks.llm.tools.tool import Tool
+from railtracks.middleware.chain import MiddlewareChain
+from railtracks.middleware.core import Middleware
+from railtracks.scope_manager import NullScopeManager, ScopeManager
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
 
-from .tool_callable import ToolCallable
+if TYPE_CHECKING:
+    from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 
 _TOutput = TypeVar("_TOutput")
 
@@ -63,8 +70,16 @@ class LatencyDetails:
         """
         self.total_time = total_time
 
+    def encode(self) -> dict[str, Any]:
+        return {
+            "total_time": self.total_time,
+        }
 
-class Node(ABC, ToolCallable, Generic[_TOutput]):
+
+_P = ParamSpec("_P")
+
+
+class Node(ABC, Generic[_P, _TOutput]):
     """An abstract base class which defines some the functionality of a node"""
 
     def __init_subclass__(cls):
@@ -76,7 +91,7 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
             # a simple wrapper to convert any async function to a non async one.
             async def async_wrapper(self, *args, **kwargs):
-                if asyncio.iscoroutinefunction(
+                if inspect.iscoroutinefunction(
                     method
                 ):  # check if the method is a coroutine
                     return await method(self, *args, **kwargs)
@@ -87,7 +102,13 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
 
         # ================= Checks for Creation ================
         # 1. Check if the class methods are all classmethods, else raise an exception
-        class_method_checklist = ["tool_info", "prepare_tool", "name"]
+        class_method_checklist = [
+            "tool_info",
+            "prepare_tool",
+            "prepare_args",
+            "name",
+            "tool_nodes",
+        ]
         for method_name in class_method_checklist:
             if method_name in cls.__dict__ and callable(cls.__dict__[method_name]):
                 method = cls.__dict__[method_name]
@@ -96,24 +117,29 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
 
-    pre_invokes: list[Callable[[Self], None]] = []
+    _exterior_middleware: list[Middleware[_P, _TOutput]] = []
+    _user_middleware: list[Middleware[_P, _TOutput]] = []
+    _interior_middleware: list[Middleware[_P, _TOutput]] = []
+
+    _user_model_middleware: list[ModelMiddleware] = []
 
     def __init__(
         self,
-        *,
-        debug_details: DebugDetails | None = None,
     ):
         # each fresh node will have a generated uuid that identifies it.
         self.uuid = str(uuid.uuid4())
-        self._details: DebugDetails = debug_details or DebugDetails()
+        self._scope_manager: ScopeManager = NullScopeManager()
+        self.middleware = MiddlewareChain[_P, _TOutput](
+            middleware=[
+                *self._exterior_middleware,
+                *self._user_middleware,
+                *self._interior_middleware,
+            ],
+        )
 
-    @property
-    def details(self) -> DebugDetails:
-        """
-        Returns a debug details object that contains information about the node.
-        This is used for debugging and logging purposes.
-        """
-        return self._details
+    def bind_scope_manager(self, scope_manager: ScopeManager) -> None:
+        """Binds the real ScopeManager for this node's execution."""
+        self._scope_manager = scope_manager
 
     @classmethod
     @abstractmethod
@@ -124,52 +150,55 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
         pass
 
     @abstractmethod
-    async def invoke(self) -> _TOutput:
+    async def invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
         The main method that runs when this node is called
         """
         pass
 
-    @classmethod
-    def add_pre_invoke(cls, function: Callable[[Self], None]):
+    async def wrapped_invoke(self, *args: _P.args, **kwargs: _P.kwargs) -> _TOutput:
         """
-        Add a method to be run immeadetly prior to the invoke.
+        Runs ``invoke`` through the node-level middleware.
         """
-        cls.pre_invokes.append(function)
 
-    async def tracked_invoke(self) -> _TOutput:
-        """
-        A special method that will track and save the latency of the running of this invoke method.
-        """
-        start_time = time.time()
+        async def body(*a: _P.args, **kw: _P.kwargs) -> _TOutput:
+            with self._scope_manager.enter_node_body():
+                result = await self.invoke(*a, **kw)
+                return result
+
+        # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
+        self.middleware.get_scope_manager = lambda: self._scope_manager
+        result: _TOutput | None = None
+        start_time = time.perf_counter()
         try:
-            for func in self.pre_invokes:
-                result = func(self)
-                if inspect.iscoroutine(result):
-                    await result
-            return await self.invoke()
-        except Exception as e:
-            raise e
+            result = await self.middleware.run(body, *args, **kwargs)
+            return result
         finally:
-            latency = time.time() - start_time
-            self.details["latency"] = LatencyDetails(total_time=latency)
+            destruction_event = NodeDestruction(
+                response=result,
+                duration_seconds=time.perf_counter() - start_time,
+            )
+            await emit(destruction_event)
 
-    def state_details(self) -> Dict[str, str]:
-        """
-        Places the __dict__ of the current object into a dictionary of strings.
-        """
-        di = {k: str(v) for k, v in self.__dict__.items()}
-        return di
+    @classmethod
+    def extend_middleware(
+        cls, *middleware: Middleware[_P, _TOutput]
+    ) -> type[Node[_P, _TOutput]]:
+        new_middleware = [
+            *middleware,
+            *deepcopy(cls._user_middleware),
+        ]  # new middleware goes outermost; fresh list as a nice protection around things
+        return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
 
-    def safe_copy(self) -> Self:
-        """
-        A method used to create a new pass by value copy of every element of the node.
-        """
-        cls = self.__class__
-        result = cls.__new__(cls)
-        for k, v in self.__dict__.items():
-            setattr(result, k, deepcopy(v))
-        return result
+    @classmethod
+    def extend_model_middleware(
+        cls, *middleware: ModelMiddleware
+    ) -> type[Node[_P, _TOutput]]:
+        new_middleware = [
+            *middleware,
+            *deepcopy(cls._user_model_middleware),
+        ]  # new middleware goes outermost; fresh list as a nice protection around things
+        return type(cls.__name__, (cls,), {"_user_model_middleware": new_middleware})
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"
@@ -178,3 +207,48 @@ class Node(ABC, ToolCallable, Generic[_TOutput]):
     @abstractmethod
     def type(cls) -> Literal["Tool", "Agent", "Other"]:
         pass
+
+    @classmethod
+    def tool_info(cls) -> Tool:
+        """
+        A method used to provide information about the node in the form of a tool definition.
+        This is commonly used with LLMs Tool Calling tooling.
+        """
+        # TODO: this should default to interfacing within the init method of the class
+        raise NotImplementedError(
+            "You must implement the tool_info method in your node"
+        )
+
+    @classmethod
+    def tool_nodes(cls) -> list[type[Node]]:
+        """
+        The node types this node can call as tools.
+
+        Returns a fresh list so callers cannot mutate the node's internal state.
+        Nodes with no tools return an empty list, never ``None``.
+
+        This is a frozen snapshot taken at node-creation time -- there is currently no
+        supported way to add or remove tools on an already-built node.
+        """
+        return []
+
+    @classmethod
+    def prepare_args(cls, **kwargs) -> dict[str, Any]:
+        """
+        This method creates a new instance of the node by unpacking the tool parameters.
+
+        If you would like any custom behavior please override this method.
+        """
+        return kwargs
+
+    def safe_copy(self) -> Node[_P, _TOutput]:
+        """
+        Creates a copy of the node that is safe to pass across process barriers. This is done by creating a new instance
+        of the node and copying over any relevant information. Note that this will not copy over any non picklable
+        information such as open file handles or database connections.
+        """
+        cls = self.__class__
+        result = cls.__new__(cls)  # type: ignore
+        for key, value in self.__dict__.items():
+            setattr(result, key, deepcopy(value))
+        return result

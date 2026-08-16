@@ -33,3 +33,18 @@ class ModelProvider(str, Enum):
     TELUS = "Telus"
     PORTKEY = "PortKey"
     UNKNOWN = "Unknown"
+
+
+# Providers we do not support token streaming for when tool calling is involved. A streamed
+# invocation that reaches one of these providers with tools attached falls back to a buffered
+# model call (with a warning) — the final response is unaffected, only incremental chunks are
+# skipped.
+TOOL_CALLING_STREAMING_BLACKLIST = frozenset(
+    {
+        ModelProvider.ANTHROPIC,
+        ModelProvider.AZUREAI,
+        ModelProvider.GEMINI,
+        ModelProvider.OLLAMA,
+        ModelProvider.HUGGINGFACE,
+    }
+)

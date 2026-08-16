@@ -23,6 +23,7 @@ from .models._model_exception_base import (
     UnsupportedHyperparameterError,
 )
 from .providers import ModelProvider
+from .response import Response
 from .tools import (
     ArrayParameter,
     ObjectParameter,
@@ -69,4 +70,5 @@ __all__ = [
     "ObjectParameter",
     "RefParameter",
     "retries",
+    "Response",
 ]

@@ -6,7 +6,7 @@ def callback(short_description: str, description: str, state):
     print(f"Agent planned task: [{state.value}] {short_description} - {description}")
 
 # create your todo toolset
-to_dos = rt.prebuilt.ToDoToolSet(
+to_dos = rt.prebuilt.tools.ToDoToolSet(
     callback=callback
 )
 
@@ -20,7 +20,7 @@ Agent = rt.agent_node(
 
 # --8<-- [start: todo_prompt]
 # the tool set contains a class method that returns a prompt to guide the agent in using the tool effectively.
-rt.prebuilt.ToDoToolSet.prompt()
+rt.prebuilt.tools.ToDoToolSet.prompt()
 # --8<-- [end: todo_prompt]
 
 # --8<-- [start: todo_callback]
@@ -33,13 +33,13 @@ def on_todo_added(short_description: str, description: str, state):
     print(f"Agent planned task: [{state.value}] {short_description} - {description}")
     completed_tasks.append(short_description)
 
-to_dos = rt.prebuilt.ToDoToolSet(callback=on_todo_added)
+to_dos = rt.prebuilt.tools.ToDoToolSet(callback=on_todo_added)
 
 agent = rt.agent_node(
     name="Report Agent",
     tool_nodes=[*to_dos.tool_set()],
     llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message=rt.prebuilt.ToDoToolSet.prompt() + "\nGenerate a monthly sales report.",
+    system_message=rt.prebuilt.tools.ToDoToolSet.prompt() + "\nGenerate a monthly sales report.",
 )
 # --8<-- [end: todo_callback]
 

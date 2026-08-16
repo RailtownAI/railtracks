@@ -1,5 +1,5 @@
 import os
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal
 
 from ...models.api_providers._openai_compatable_provider_wrapper import (
     OpenAICompatibleProvider,
@@ -7,15 +7,12 @@ from ...models.api_providers._openai_compatable_provider_wrapper import (
 from ...providers import ModelProvider
 from ...retries import RetryApproach
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-
-class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
+class PortKeyLLM(OpenAICompatibleProvider):
     def __init__(
         self,
         model_name: str,
         *,
-        stream: _TStream = False,
         api_key: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
@@ -45,7 +42,6 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
 
         super().__init__(
             model_name,
-            stream=stream,
             api_base=portkey.base_url,
             api_key=portkey.api_key,
             temperature=temperature,

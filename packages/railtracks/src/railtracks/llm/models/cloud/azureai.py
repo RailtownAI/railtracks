@@ -1,7 +1,9 @@
 import logging
-from typing import List, Literal, TypeVar
+from typing import List, Literal
 
 from litellm.exceptions import InternalServerError
+
+from railtracks.utils.deprecation import warn_pending_change
 
 from ...history import MessageHistory
 from ...providers import ModelProvider
@@ -12,14 +14,12 @@ from .._model_exception_base import ModelError
 
 logger = logging.getLogger(__name__)
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-
 
 class AzureAIError(ModelError):
     pass
 
 
-class AzureAILLM(LiteLLMWrapper[_TStream]):
+class AzureAILLM(LiteLLMWrapper):
     """Azure Foundry LLM wrapper.
 
     Accepts either litellm prefix:
@@ -81,6 +81,18 @@ class AzureAILLM(LiteLLMWrapper[_TStream]):
         Raises:
             AzureAIError: If the specified model is not available or if there are issues with the Azure AI service.
         """
+        if kwargs.get("stream"):
+            warn_pending_change(
+                "Constructing a model with `stream=True`",
+                change="is removed",
+                instead="rt.astream(agent, ...) to stream an agent run",
+                detail=(
+                    "Streaming becomes async in 1.5.0: per-call model methods "
+                    "(astream_chat, astream_chat_with_tools, astream_structured) "
+                    "replace the streamed return value of chat()."
+                ),
+            )
+
         super().__init__(
             model_name,
             temperature=temperature,

@@ -95,6 +95,7 @@ railtracks add --force claude:agent-builder
 |---|---|
 | `agent-builder` | Build agents, tools, flows, and multi-agent workflows with railtracks |
 | `rag-pipeline` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
+| `middleware` | Add middleware to railtracks nodes and agents, including retries, logging, and guardrails |
 
 
 ## How It Works

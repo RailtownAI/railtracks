@@ -1,5 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
+from typing import NamedTuple
 from uuid import UUID
 
 import yaml
@@ -24,6 +25,12 @@ logger = get_rt_logger(__name__)
 class JudgeResponseSchema(BaseModel):
     metric_value: str | float | int
     reasoning: str | None = None
+
+
+class JudgeOutput(NamedTuple):
+    metric_id: str
+    adp_id: str
+    response: JudgeResponseSchema
 
 
 class JudgeEvaluator(Evaluator):
@@ -73,39 +80,38 @@ class JudgeEvaluator(Evaluator):
     def run(
         self, data: list[AgentDataPoint]
     ) -> EvaluatorResult[Metric, MetricResult, CategoricalAggregateNode]:
-        # (metric_id, adp_id, JudgeResponseSchema)
-        judge_outputs: list[tuple[str, str, JudgeResponseSchema]] = self._invoke(data)
+        judge_outputs: list[JudgeOutput] = self._invoke(data)
 
         self.agent_data_ids = {adp.identifier for adp in data}
         results: dict[Metric, list[MetricResult]] = defaultdict(list)
         forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
 
         for output in judge_outputs:
-            metric = self._metrics[output[0]]
+            metric = self._metrics[output.metric_id]
 
             metric_result = MetricResult(
                 result_name=f"JudgeResult/{metric.name}",
                 metric_id=metric.identifier,
-                agent_data_id=[UUID(output[1])],
-                value=output[2].metric_value,
+                agent_data_id=[UUID(output.adp_id)],
+                value=output.response.metric_value,
             )
             results[metric].append(metric_result)
             forest.add_node(metric_result)
 
             if self._reasoning:
                 reasoning_metric = Metric(name=f"{metric.name}_reasoning")
-                if output[2].reasoning is not None:
+                if output.response.reasoning is not None:
                     results[reasoning_metric].append(
                         MetricResult(
                             result_name=f"JudgeReasoning/{metric.name}",
                             metric_id=reasoning_metric.identifier,
-                            agent_data_id=[UUID(output[1])],
-                            value=output[2].reasoning,
+                            agent_data_id=[UUID(output.adp_id)],
+                            value=output.response.reasoning,
                         )
                     )
                 else:
                     logger.warning(
-                        f"No reasoning returned for Judge Evaluator Metric: {metric.name}, AgentDataPoint ID: {output[1]}"
+                        f"No reasoning returned for Judge Evaluator Metric: {metric.name}, AgentDataPoint ID: {output.adp_id}"
                     )
 
         self._aggregate_metrics(results, forest)
@@ -128,12 +134,10 @@ class JudgeEvaluator(Evaluator):
             f"reasoning={self._reasoning})"
         )
 
-    def _invoke(
-        self, data: list[AgentDataPoint]
-    ) -> list[tuple[str, str, JudgeResponseSchema]]:
+    def _invoke(self, data: list[AgentDataPoint]) -> list[JudgeOutput]:
         @rt.function_node
         async def judge_flow():
-            output = []
+            output: list[JudgeOutput] = []
             for metric in self._metrics.values():
                 logger.info(
                     f"START Evaluating Metric: {metric.name} for {len(data)} AgentDataPoints"
@@ -153,7 +157,11 @@ class JudgeEvaluator(Evaluator):
                         message_history,
                     )
                     output.append(
-                        (metric.identifier, str(adp.identifier), res.structured)
+                        JudgeOutput(
+                            metric_id=metric.identifier,
+                            adp_id=str(adp.identifier),
+                            response=res.structured,
+                        )
                     )
 
                     logger.info(
@@ -200,6 +208,13 @@ class JudgeEvaluator(Evaluator):
         system_prompt: str = self._template["system_prompt"]
 
         system_prompt += "\n" + self._template["metric"].format(metric=str(metric))
+
+        if isinstance(metric, Categorical):
+            category_names = ", ".join(c for c in metric.category_names)
+            system_prompt += (
+                f"\nYour metric_value must be exactly one of these category "
+                f"names: {category_names}."
+            )
 
         if self._reasoning:
             system_prompt += self._template["reasoning"]

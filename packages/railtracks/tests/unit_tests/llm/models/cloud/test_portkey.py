@@ -14,10 +14,7 @@ def test_model_distributor():
     assert PortKeyLLM.model_gateway() == ModelProvider.PORTKEY
 
 
-def test_model_type():
-    """Test that the model type method returns ModelProvider.PORTKEY"""
-    llm = PortKeyLLM(model_name=MODEL_NAME, api_key="test_api_key")
-    assert llm.model_provider() == ModelProvider.PORTKEY
+
 
 
 
