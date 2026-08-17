@@ -4,6 +4,11 @@ from typing import Awaitable, Callable, overload
 from pydantic import BaseModel
 
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
+from railtracks.events.middleware import (
+    MiddlewareModelInputInvocationEvent,
+    MiddlewareModelInputResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.unpack import unpack_async_sync
@@ -88,9 +93,24 @@ def before_llm(
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ):
+            invocation_event = MiddlewareModelInputInvocationEvent(
+                message_history=message_history,
+                schema=schema,
+                tools=tools,
+            )
+            await emit(invocation_event)
+
             message_history, schema, tools = await unpack_async_sync(
                 fn(message_history, schema, tools)
             )
+
+            response_event = MiddlewareModelInputResponseEvent(
+                message_history=message_history,
+                schema=schema,
+                tools=tools,
+            )
+            await emit(response_event)
+
             return await llm_call(message_history, schema, tools)
 
         return wrapper
