@@ -389,7 +389,11 @@ class MCPServer:
                 turns that into a logged warning instead of an indefinite hang.
         """
         if self._loop is not None and self._shutdown_event is not None:
-            self._loop.call_soon_threadsafe(self._shutdown_event.set)
+            try:
+                self._loop.call_soon_threadsafe(self._shutdown_event.set)
+            except RuntimeError:
+                # The background thread already signalled itself and closed the loop
+                pass
             self._thread.join(timeout=join_timeout)
             if self._thread.is_alive():
                 logger.warning(

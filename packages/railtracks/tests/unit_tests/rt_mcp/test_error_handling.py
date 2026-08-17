@@ -8,6 +8,7 @@ including invalid commands, timeouts, and exception propagation from background 
 
 import threading
 import time
+from unittest.mock import patch
 
 import pytest
 from railtracks.rt_mcp import MCPStdioParams
@@ -143,3 +144,29 @@ class TestCloseMethod:
         
         # Should not raise an error
         server.close()
+
+    def test_close_tolerates_loop_closed_by_background_thread(self):
+        """Test that a setup failure surfaces as itself, not 'Event loop is closed'.
+
+        On a setup failure the background thread signals shutdown and then closes its
+        own loop, while __init__ concurrently calls close() to signal that same loop.
+        The two are unordered, so close() must tolerate an already-closed loop. The
+        sleep pins the interleaving that otherwise only shows up intermittently.
+        """
+        original_close = MCPServer.close
+
+        def delayed_close(self, *args, **kwargs):
+            time.sleep(0.3)  # let the background thread reach self._loop.close()
+            return original_close(self, *args, **kwargs)
+
+        with patch.object(MCPServer, "close", delayed_close):
+            with pytest.raises(FileNotFoundError) as exc_info:
+                MCPServer(
+                    config=MCPStdioParams(
+                        command="missing_mcp_server",
+                        args=[]
+                    ),
+                    setup_timeout=5
+                )
+
+        assert "missing_mcp_server" in str(exc_info.value)

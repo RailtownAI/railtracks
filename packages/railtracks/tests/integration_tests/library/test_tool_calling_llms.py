@@ -2,7 +2,8 @@
 import pytest
 import railtracks as rt
 from railtracks.exceptions import NodeCreationError
-from railtracks.llm import AssistantMessage, ToolCall
+from railtracks.llm import AssistantMessage, ToolCall, ToolCalls
+from railtracks.llm.message import Role
 from railtracks.llm.response import Response
 
 
@@ -49,7 +50,57 @@ class TestSimpleToolCalling:
             assert response is not None
             assert "Constantinople" in response.text
             assert rt.context.get("secret_phrase_called")
-            
+
+    @pytest.mark.asyncio
+    async def test_text_returned_with_tool_call_is_kept(self, mock_llm):
+        """A model that speaks before calling a tool should not lose what it said."""
+        preamble = "I will call secret_phrase to find out."
+
+        def secret_phrase():
+            return "Constantinople"
+
+        # ============ mock llm config =========
+        def chat_with_tools(messages, tools):
+            if messages[-1].role == Role.tool:
+                return Response(
+                    message=AssistantMessage("The secret phrase is Constantinople")
+                )
+            return Response(
+                message=AssistantMessage(
+                    content=ToolCalls(
+                        [
+                            ToolCall(
+                                name="secret_phrase",
+                                identifier="id_42424242",
+                                arguments={},
+                            )
+                        ],
+                        text=preamble,
+                    )
+                )
+            )
+
+        llm = mock_llm()
+        llm._chat_with_tools = chat_with_tools
+        # =======================================
+
+        agent = rt.agent_node(
+            tool_nodes={rt.function_node(secret_phrase)},
+            name="Secret Phrase Maker",
+            system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
+            llm=llm,
+        )
+
+        with rt.Session():
+            response = await rt.call(agent, user_input="What is the secret phrase?")
+
+        tool_call_messages = [
+            m for m in response.message_history if isinstance(m.content, ToolCalls)
+        ]
+        assert len(tool_call_messages) == 1
+        assert tool_call_messages[0].content.text == preamble
+        # the calls themselves are still reachable exactly as before
+        assert [tc.name for tc in tool_call_messages[0].content] == ["secret_phrase"]
 
 
 
