@@ -1,6 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, AnyStr, Dict, Generator, Generic, List, TypeVar, Union
+from typing import (
+    Any,
+    AnyStr,
+    Dict,
+    Generator,
+    Generic,
+    Iterable,
+    List,
+    TypeVar,
+    Union,
+)
 
 from pydantic import BaseModel, Field
 
@@ -23,6 +33,33 @@ class ToolCall(BaseModel):
 
     def __str__(self):
         return f"{self.name}({self.arguments})"
+
+
+class ToolCalls(List[ToolCall]):
+    """
+    An assistant turn that calls tools: the calls themselves, plus any text the
+    model spoke alongside them.
+
+    Models routinely answer with both at once — "I'll look that up for you."
+    followed by a call to `search`. Holding that text here rather than in a
+    separate field on the message keeps the model's whole response inside
+    `content`.
+
+    This is a `list[ToolCall]`, so anything that already treats tool-call
+    content as a list — iteration, indexing, `isinstance(content, list)` —
+    keeps working, and `AssistantMessage` accepts a plain list as before.
+    """
+
+    def __init__(
+        self, tool_calls: Iterable[ToolCall] = (), text: str | None = None
+    ) -> None:
+        super().__init__(tool_calls)
+        self.text = text
+
+    def __repr__(self):
+        if self.text is None:
+            return f"ToolCalls({list.__repr__(self)})"
+        return f"ToolCalls({list.__repr__(self)}, text={self.text!r})"
 
 
 class ToolResponse(BaseModel):
@@ -97,4 +134,7 @@ class Stream(Generic[_TOutput]):
         return f"Stream(streamer={self._streamer})"
 
 
-Content = Union[str, List[ToolCall], ToolResponse, BaseModel]
+# ToolCalls is a List[ToolCall] subclass, so it is already covered by the
+# List[ToolCall] member; it is named here because it is the shape an assistant
+# tool-calling turn actually takes.
+Content = Union[str, ToolCalls, List[ToolCall], ToolResponse, BaseModel]
