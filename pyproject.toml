@@ -5,7 +5,9 @@ version = "0.0.0"
 description = "Root workspace for dev tools and workspace packages"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["railtracks"]
+dependencies = [
+    "railtracks",
+]
 
 
 [tool.uv.sources]
@@ -13,7 +15,7 @@ railtracks = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "packages/*",
+    "packages/railtracks",
 ]
 
 
@@ -29,7 +31,7 @@ test = [
     "pytest>=9.0.3",
     "pytest-asyncio",
     "pytest-cov",
-    "pytest-timeout"
+    "pytest-timeout",
 ]
 lint = [
     "mypy>=1.19.1",
@@ -50,6 +52,7 @@ line-length = 88
 
 format.indent-style = "space"
 format.docstring-code-format = true
+format.exclude = ["*.md"]
 
 lint.select = [
     "E",
@@ -81,5 +84,9 @@ asyncio_mode = "auto"
 addopts = [
     "--import-mode=importlib",
     "--ignore=packages/railtracks/tests/llm_live_tests",
-    "--ignore=packages/railtracks/tests/end_to_end/rag",
+    "--ignore=packages/railtracks/tests/end_to_end/retrieval",
+]
+# TODO: Remove this once the notices are gone in 1.5.*.
+filterwarnings = [
+    'error:.*in railtracks 1\.5\.0:FutureWarning',
 ]

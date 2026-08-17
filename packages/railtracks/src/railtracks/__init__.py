@@ -8,8 +8,13 @@ from __future__ import annotations
 
 import importlib
 import logging
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    from railtracks import retrieval
+    from railtracks.interaction import interactive as interactive
 
 __all__ = [
     "Session",
@@ -37,8 +42,8 @@ __all__ = [
     "ToolManifest",
     "session_id",
     "evaluations",
-    "vector_stores",
-    "rag",
+    "observability",
+    "retrieval",
     "Flow",
     "FlowConnection",
     "NodeMessageHistory",
@@ -52,13 +57,14 @@ __all__ = [
     "wrap_llm",
     "input_guard",
     "output_guard",
+    "escape_braces",
 ]
 
 
-from railtracks.built_nodes import (
-    agent_node,
+from railtracks.built_nodes.function import (
     function_node,
 )
+from railtracks.built_nodes.llm import agent_node
 
 from . import (
     context,
@@ -67,21 +73,24 @@ from . import (
     integrations,
     llm,
     middleware,
+    observability,
     prebuilt,
-    rag,
-    vector_stores,
+    retrieval,
 )
-from ._session import ExecutionInfo, Session, session
+from ._session import Session, session
 from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
 from .context.central import session_id, set_config
 from .guardrails import input_guard, output_guard
 from .interaction import astream, broadcast, call, call_batch, couple
+from .llm.prompt_injection_utils import escape_braces
 from .middleware import after_node, verifier, wrap_node
 from .nodes.manifest import ToolManifest
 from .orchestration.connection import FlowConnection, NodeMessageHistory
 from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
+from .state.info import ExecutionInfo
 from .utils.config import ExecutorConfig
+from .utils.deprecation import warn_pending_change
 from .utils.logging.config import enable_logging
 
 load_dotenv()
@@ -96,9 +105,26 @@ __version__ = "1.0.0"
 
 def __getattr__(name: str):
     if name == "interactive":
+        # Not cached in globals()
+        warn_pending_change(
+            "rt.interactive",
+            change="is removed",
+            detail="There is no replacement; the local chat UI is going away.",
+        )
         return importlib.import_module("railtracks.interaction.interactive")
+    if name == "retrieval":
+        try:
+            module = importlib.import_module("railtracks.retrieval")
+        except ImportError as exc:
+            raise ImportError(
+                "railtracks.retrieval requires the retrieval extras. "
+                "Install with: pip install 'railtracks[retrieval]'"
+            ) from exc
+        globals()[name] = module
+        return module
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:
-    return sorted(set(__all__))
+    # "interactive" is not in __all__ but is still reachable
+    return sorted({*__all__, "interactive"})

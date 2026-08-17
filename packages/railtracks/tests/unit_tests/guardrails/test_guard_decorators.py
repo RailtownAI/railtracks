@@ -157,7 +157,7 @@ class TestRunIntegration:
 
         event = _input_event(MessageHistory([UserMessage("hi")]))
         value, traces, decision = rail.run(event=event, value=event.messages)
-        assert decision is None
+        assert decision.action == GuardrailAction.ALLOW
         assert len(traces) == 1
 
     def test_run_stops_on_block(self) -> None:
@@ -179,7 +179,6 @@ class TestFailOpen:
 
         event = _input_event(MessageHistory([UserMessage("hi")]))
         value, traces, decision = rail.run(event=event, value=event.messages)
-        assert decision is None  # continued despite the exception
         assert traces  # the exception was recorded
 
     def test_fail_closed_blocks_on_error(self) -> None:

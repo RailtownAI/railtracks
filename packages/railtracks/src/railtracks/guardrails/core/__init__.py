@@ -1,7 +1,3 @@
-from ..llm.concrete import (
-    InputGuard,
-    OutputGuard,
-)
 from .decision import GuardrailAction, GuardrailDecision
 from .errors import GuardrailBlockedError
 from .event import LLMGuardrailEvent, LLMGuardrailPhase
@@ -12,8 +8,6 @@ __all__ = [
     "GuardrailDecision",
     "GuardrailBlockedError",
     "GuardrailTrace",
-    "InputGuard",
-    "OutputGuard",
     "LLMGuardrailEvent",
     "LLMGuardrailPhase",
 ]

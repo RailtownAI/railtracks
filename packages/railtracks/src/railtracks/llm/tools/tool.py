@@ -83,6 +83,13 @@ class Tool:
             params_str = "{" + ", ".join(str(p) for p in self._parameters) + "}"
         return f"Tool(name={self._name}, detail={self._detail}, parameters={params_str if self._parameters else 'None'})"
 
+    def encode(self):
+        return {
+            "name": self._name,
+            "detail": self._detail,
+            "parameters": self._parameters,
+        }
+
     @classmethod
     def from_function(
         cls,

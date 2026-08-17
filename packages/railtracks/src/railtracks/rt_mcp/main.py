@@ -16,6 +16,9 @@ from typing_extensions import Type
 from railtracks.built_nodes.function.node_builder import FunctionNodeBuilder
 from railtracks.llm import Tool
 from railtracks.nodes.nodes import Node
+from railtracks.utils.logging import get_rt_logger
+
+logger = get_rt_logger(__name__)
 
 
 class MCPStdioParams(StdioServerParameters):
@@ -297,8 +300,10 @@ class MCPServer:
                 f"Command: {self.config.command if isinstance(self.config, MCPStdioParams) else self.config.url}"
             )
 
-        # If setup failed with an exception, re-raise it with enhanced context
+        # If setup failed with an exception, clean up the background thread before
+        # re-raising with enhanced context.
         if self._setup_exception is not None:
+            self.close()
             if isinstance(self._setup_exception, FileNotFoundError):
                 if isinstance(self.config, MCPStdioParams):
                     raise FileNotFoundError(
@@ -369,16 +374,33 @@ class MCPServer:
         tools = await self.client.list_tools()
         self._tools = [from_mcp(tool, self.client, self._loop) for tool in tools]
 
-    def close(self):
+    def close(self, join_timeout: float = 5.0):
         """
         Close the MCP server connection and clean up resources.
 
         Signals the background thread to shut down and waits for it to complete.
         Safe to call even if initialization failed early.
+
+        Args:
+            join_timeout: Maximum seconds to wait for the background thread to
+                exit. If `_setup` is itself stuck (e.g. a stdio handshake that
+                never completes), the shutdown signal has no chance to be
+                observed and the thread cannot exit; bounding the join here
+                turns that into a logged warning instead of an indefinite hang.
         """
         if self._loop is not None and self._shutdown_event is not None:
             self._loop.call_soon_threadsafe(self._shutdown_event.set)
-            self._thread.join()
+            self._thread.join(timeout=join_timeout)
+            if self._thread.is_alive():
+                logger.warning(
+                    "MCP server background thread did not exit within %ss; it "
+                    "is likely stuck inside setup and has been abandoned as a "
+                    "daemon thread. Command: %s",
+                    join_timeout,
+                    self.config.command
+                    if isinstance(self.config, MCPStdioParams)
+                    else self.config.url,
+                )
 
     @property
     def tools(self) -> list[Type[Node]]:

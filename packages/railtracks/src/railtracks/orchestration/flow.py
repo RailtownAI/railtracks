@@ -15,10 +15,16 @@ _P = ParamSpec("_P")
 
 
 class Flow(Generic[_P, _TOutput]):
-    """
-    Initializes a Flow object with a provided entry point and a unique name.
+    """A reusable, configured entry point for running an agent graph.
 
-    A flow object is the configuration where you can run your agent with different input arguments.
+    Binds an entry-point node to a fixed set of runtime options so the same
+    configuration can be invoked repeatedly.  Each invocation is fully isolated.
+
+    Typical usage::
+
+        flow = Flow("my-agent", entry_point=my_node, context={"user": "alice"})
+        result = await flow.ainvoke(query)  # async (preferred)
+        result = flow.invoke(query)  # sync
 
     Args:
         name (str): A unique name for the flow. This is used for logging and state management.
@@ -64,8 +70,16 @@ class Flow(Generic[_P, _TOutput]):
         self._payload_callback = payload_callback
 
     def update_context(self, context: dict[str, Any]) -> Flow[_P, _TOutput]:
-        """
-        Creates a new Flow with the updated context. Note this will include the previous context values.
+        """Return a new Flow with additional context values merged in.
+
+        The original flow is not modified.  Values in ``context`` override
+        any existing keys; keys not present in ``context`` are preserved.
+
+        Args:
+            context: Entries to add or override in the flow's context.
+
+        Returns:
+            A new :class:`Flow` instance with the merged context.
         """
         new_obj = deepcopy(self)
         new_obj._context.update(context)
@@ -93,8 +107,10 @@ class Flow(Generic[_P, _TOutput]):
         return self.connect().invoke(*args, **kwargs)
 
     def equality_hash(self) -> str:
-        """
-        Generates a hash based on the flow's configuration for equality checks.
+        """Return a stable hash that identifies this flow's configuration.
+
+        Two flows with the same name produce the same hash regardless of
+        other parameters (timeout, context, etc.).
         """
         config_string = json.dumps(self._get_hash_content(), sort_keys=True)
         return hashlib.sha256(config_string.encode()).hexdigest()

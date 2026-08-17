@@ -11,6 +11,7 @@ from typing import (
     List,
     Type,
 )
+from uuid import uuid4
 
 from pydantic import BaseModel
 
@@ -59,6 +60,7 @@ class ModelBase(ABC):
         self._post_hooks = post_hooks
         self._exception_hooks = exception_hooks
         self.retry_approach = retry_approach
+        self.id = str(uuid4())
 
     def add_pre_hook(self, hook: Callable[[MessageHistory], MessageHistory]) -> None:
         """Adds a pre-hook to modify messages before sending them to the model."""

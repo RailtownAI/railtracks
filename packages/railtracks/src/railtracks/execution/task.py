@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Generic, TypeVar
 
-from railtracks.context.central import get_run_id, update_parent_id
+from railtracks.context.central import push_stream_queue
 from railtracks.nodes.nodes import Node
 
 _TOutput = TypeVar("_TOutput")
@@ -30,16 +30,8 @@ class Task(Generic[_TOutput]):
 
     async def invoke(self):
         """The callable that this task is representing."""
-        # if there is no parent run_id then this is the root
-        if get_run_id() is None:
-            # note critically that since these variables only this tree of requests will see this run_id.
-            update_parent_id(
-                self.node.uuid, self.node.uuid, stream_queue=self.stream_queue
-            )
-
-        # otherwise we are already in a run so we just use the previous one.
-        else:
-            update_parent_id(self.node.uuid, stream_queue=self.stream_queue)
+        if self.stream_queue is not None:
+            push_stream_queue(self.stream_queue)
 
         result = await self.node.wrapped_invoke(*self.arguments[0], **self.arguments[1])
 

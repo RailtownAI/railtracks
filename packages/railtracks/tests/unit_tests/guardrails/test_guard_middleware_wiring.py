@@ -10,10 +10,9 @@ import pytest
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
-    InputGuard,
     LLMGuardrailEvent,
-    OutputGuard,
 )
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
 

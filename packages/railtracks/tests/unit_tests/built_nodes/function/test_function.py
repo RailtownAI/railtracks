@@ -3,12 +3,26 @@ import functools
 
 import pytest
 from railtracks.built_nodes.function.node import (
-    CallableAsyncRTFunction,
-    CallableSyncRTFunction,
     _function_preserving_metadata,
     _partial_with_resolved_metadata,
     function_node,
 )
+from railtracks.built_nodes.function.base import CallableSyncRTFunction, CallableAsyncRTFunction
+
+
+class _SimpleCalc:
+    """Minimal class used to produce bound methods for testing."""
+
+    def __init__(self, offset: int = 0):
+        self.offset = offset
+
+    def add(self, x: int) -> int:
+        """Add two numbers and apply offset."""
+        return x + self.offset
+
+    async def async_add(self, x: int) -> int:
+        """Async variant."""
+        return x + y + self.offset
 
 
 @pytest.mark.asyncio
@@ -86,6 +100,30 @@ def test_function_preserving_metadata():
     wrapped = _function_preserving_metadata(f)
     assert wrapped.__name__ == f.__name__
     assert wrapped(2) == 3
+
+
+# --- Bound method tests ---
+
+
+
+
+def test_function_node_sync_bound_method_preserves_name():
+    calc = _SimpleCalc()
+    node = function_node(calc.add)
+    assert node.__name__ == "add"
+
+
+def test_function_node_sync_bound_method_remains_callable():
+    calc = _SimpleCalc(offset=10)
+    node = function_node(calc.add)
+    assert node(1) == 11
+
+
+def test_function_node_sync_bound_method_with_manifest(mock_manifest):
+    calc = _SimpleCalc()
+    node = function_node(calc.add, manifest=mock_manifest)
+    assert hasattr(node, "node_type")
+
 
 
 @pytest.mark.asyncio

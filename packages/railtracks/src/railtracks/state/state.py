@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, Dict, List, ParamSpec, Tuple, TypeVar
 
-from ..context.central import runner_context, safe_get_runner_context, update_parent_id
+from ..context.central import restore_scope
+from ..events.node import NodeCreation
+from ..events.send import emit
 from ..execution.coordinator import Coordinator
 from ..execution.task import Task
 from ..pubsub.messages import (
@@ -88,16 +90,7 @@ class RTState:
         if isinstance(item, RequestFinishedBase):
             await self.handle_result(item)
         if isinstance(item, RequestCreation):
-            previous_context = safe_get_runner_context()
-            if item.current_node_id is not None:
-                # restore the creating frame's context so the task created below inherits the
-                # correct lineage.
-                update_parent_id(
-                    item.current_node_id,
-                    item.current_run_id,
-                )
-
-            try:
+            with restore_scope(item.current_scope, item.current_run_id):
                 assert item.new_request_id not in self._request_heap.heap().keys()
 
                 await self.call_nodes(
@@ -108,9 +101,6 @@ class RTState:
                     kwargs=item.kwargs,
                     stream_queue=item.stream_queue,
                 )
-            finally:
-                # restore publisher context after dispatching child tasks so root calls don't inherit stale run IDs
-                runner_context.set(previous_context)
 
     def shutdown(self):
         """
@@ -157,7 +147,7 @@ class RTState:
         node: type[Node[_P, _TOutput]],
         args,
         kwargs,
-    ) -> str:
+    ) -> tuple[str, Node[_P, _TOutput]]:
         """
         Creates a node using the creator function (node).
 
@@ -205,8 +195,8 @@ class RTState:
         )
 
         logger.info(request_creation_obj.to_logging_msg())
-        # 4. Return the request id of the node that was created.
-        return request_ids[0]
+        # 4. Return the request id of the node that was created, plus the instance.
+        return request_ids[0], node_instance
 
     async def call_nodes(
         self,
@@ -239,13 +229,20 @@ class RTState:
         """
 
         try:
-            request_id = self._create_node_and_request(
+            request_id, node_instance = self._create_node_and_request(
                 parent_node_id=parent_node_id,
                 request_id=request_id,
                 node=node,
                 args=args,
                 kwargs=kwargs,
             )
+            creation_event = NodeCreation(
+                node_id=node_instance.uuid,
+                node_type=node_instance.type(),
+                name=node_instance.name(),
+            )
+
+            await emit(creation_event)
         except Exception as e:
             # TODO improve this so we know the name of the node trying to be created in the case of a tool call llm.
             rfa = RequestFailureAction(
@@ -260,6 +257,7 @@ class RTState:
             )
             logger.exception(rfa.to_logging_msg())
             raise e
+
         # you have to run this in a task so it isn't blocking other completions
         outputs = asyncio.create_task(
             self._run_request(request_id, stream_queue=stream_queue)

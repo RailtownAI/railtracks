@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from railtracks.cli import (
     _visual_dependencies_available,
+    add_skill,
     check_for_ui_update,
     create_railtracks_dir,
     get_remote_ui_version,
@@ -309,6 +310,37 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.json())
         self.assertIn("Invalid JSON", response.json()["error"])
+
+
+class TestSkillInstallers(unittest.TestCase):
+    """Test installation of bundled AI coding assistant skills."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    def test_codex_installs_repository_skill(self):
+        """Codex skills are written with valid metadata under .agents/skills."""
+        add_skill("codex:agent-builder")
+
+        target = Path(".agents/skills/agent-builder/SKILL.md")
+        self.assertTrue(target.is_file())
+        content = target.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith("---\nname: agent-builder\n"))
+        self.assertIn("description:", content)
+        self.assertIn("# Build a Railtracks Agent", content)
+
+    def test_codex_does_not_use_claude_directory(self):
+        """Codex installation must use its repository skill discovery path."""
+        add_skill("codex:agent-builder")
+
+        self.assertFalse(Path(".claude").exists())
+        self.assertFalse(Path(".cursor").exists())
 
 
 class TestPortChecking(unittest.TestCase):

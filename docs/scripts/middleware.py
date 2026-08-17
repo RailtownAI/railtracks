@@ -82,6 +82,11 @@ CreationTimeAgent = rt.agent_node(
 # --8<-- [start: attach_after_creation]
 BaseAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"))
 
+ExtendedAgent = rt.couple(BaseAgent, middleware=[retry, log_result])
+
+# --8<-- [end: attach_after_creation]
+
+
 # couple() returns a NEW Node subclass; BaseAgent itself is untouched.
 ExtendedAgent = rt.couple(BaseAgent, middleware=[retry, log_result])
 # --8<-- [end: attach_after_creation]
@@ -95,6 +100,7 @@ def add(a: int, b: int) -> int:
     """Add two numbers."""
     return a + b
 # --8<-- [end: function_node_demo]
+
 
 
 # --8<-- [start: ordering_demo]

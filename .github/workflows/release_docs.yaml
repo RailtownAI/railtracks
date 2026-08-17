@@ -4,16 +4,19 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   release-docs:
     name: Update API Documentation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.10'
 
@@ -24,7 +27,7 @@ jobs:
       - name: Generate API documentation
         run: |
           pip install pdoc==15.0.4
-          pip install -e packages/railtracks[all]
+          pip install -e "packages/railtracks[all,retrieval]"
           ./scripts/generate_api_docs.sh
 
       - name: Install dependencies

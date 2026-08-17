@@ -13,10 +13,9 @@ from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
-    InputGuard,
     LLMGuardrailEvent,
-    OutputGuard,
 )
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 
 
 class RaisingInputGuard(InputGuard):

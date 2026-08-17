@@ -17,10 +17,9 @@ from railtracks.built_nodes.llm.middleware import before_llm
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
-    InputGuard,
     LLMGuardrailEvent,
-    OutputGuard,
 )
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 
 
 class FnInputGuard(InputGuard):

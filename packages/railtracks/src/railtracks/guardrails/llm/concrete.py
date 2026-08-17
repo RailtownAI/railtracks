@@ -9,6 +9,15 @@ from typing import (
 
 from pydantic import BaseModel
 
+from railtracks.events.middleware import (
+    MiddlewareGuardInputFailureEvent,
+    MiddlewareGuardInputInvocationEvent,
+    MiddlewareGuardInputResponseEvent,
+    MiddlewareGuardOutputFailureEvent,
+    MiddlewareGuardOutputInvocationEvent,
+    MiddlewareGuardOutputResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, Message
@@ -42,12 +51,12 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
         tools: list[Tool] | None,
     ):
         """Run this guard on the message history, then call onward with the result."""
-        message_history, schema, tools = self._input_wrapper(
+        message_history, schema, tools = await self._input_wrapper(
             message_history, schema, tools
         )
         return await call(message_history, schema, tools)
 
-    def _input_wrapper(
+    async def _input_wrapper(
         self,
         message_history: MessageHistory,
         schema: type[BaseModel] | None,
@@ -61,9 +70,28 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
             node_uuid=node_uuid,
             run_id=run_id,
         )
+        input_event = MiddlewareGuardInputInvocationEvent(
+            message_history=message_history,
+        )
 
-        new_messages, traces, decision = self.run(event=event, value=message_history)
-        self._record_guard_traces(traces)
+        await emit(input_event)
+
+        try:
+            new_messages, traces, decision = self.run(
+                event=event, value=message_history
+            )
+        except Exception as e:
+            failure_event = MiddlewareGuardInputFailureEvent.from_exception(e)
+            await emit(failure_event)
+            raise e
+
+        result_event = MiddlewareGuardInputResponseEvent(
+            decision=decision,
+            message_history=new_messages,
+        )
+
+        await emit(result_event)
+
         self._raise_if_blocked(decision, traces)
 
         return new_messages, schema, tools
@@ -155,9 +183,10 @@ class OutputGuard(BaseLLMGuardrail[Message]):
         result = await call(message_history, schema, tools)
         if _is_intermediate_tool_call(result):
             return result
-        return self._output_wrapper(result=result)
 
-    def _output_wrapper(
+        return await self._output_wrapper(result=result)
+
+    async def _output_wrapper(
         self,
         result: Response,
     ):
@@ -170,8 +199,25 @@ class OutputGuard(BaseLLMGuardrail[Message]):
             node_uuid=node_uuid,
             run_id=run_id,
         )
-        new_message, traces, decision = self.run(event=event, value=result.message)
-        self._record_guard_traces(traces)
+
+        input_event = MiddlewareGuardOutputInvocationEvent(
+            response=result.message,
+        )
+
+        await emit(input_event)
+        try:
+            new_message, traces, decision = self.run(event=event, value=result.message)
+        except Exception as e:
+            failure_event = MiddlewareGuardOutputFailureEvent.from_exception(e)
+            await emit(failure_event)
+            raise e
+
+        output_event = MiddlewareGuardOutputResponseEvent(
+            decision=decision,
+            response=new_message,
+        )
+        await emit(output_event)
+
         self._raise_if_blocked(decision, traces)
 
         if new_message is result.message:

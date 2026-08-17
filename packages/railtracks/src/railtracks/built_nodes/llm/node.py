@@ -178,7 +178,7 @@ def agent_node(
         tool_details = None
         tool_params = None
 
-    agent = _build_dynamic_agent(
+    return _build_dynamic_agent(
         unpacked_tool_nodes=unpacked_tool_nodes,
         output_schema=output_schema,
         name=name,
@@ -189,5 +189,3 @@ def agent_node(
         middleware=middleware,
         model_middleware=model_middleware,
     )
-
-    return agent

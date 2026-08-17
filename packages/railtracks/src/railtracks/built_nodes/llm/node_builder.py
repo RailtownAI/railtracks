@@ -98,11 +98,6 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         tool_nodes = list(deepcopy(connected_nodes)) if connected_nodes else None
         _check_duplicate_tool_names(tool_nodes)
 
-        # Kept on the builder so the built class can expose it via tool_nodes(). This is a
-        # frozen snapshot taken at construction time -- there is currently no supported way
-        # to add/remove tools on an already-built agent. If dynamic tool mutation is added
-        # later, it will need its own synchronization; don't assume this attribute is safe to
-        # write to concurrently.
         casted_instance._tool_nodes = tool_nodes
 
         casted_instance._invoke = llm_invoke_factory(

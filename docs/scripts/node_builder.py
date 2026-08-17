@@ -41,5 +41,4 @@ Each region is embedded via pymdownx.snippets.
 
 
 # --8<-- [start: context_injection]
-
 # --8<-- [end: context_injection]

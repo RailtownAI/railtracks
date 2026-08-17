@@ -34,8 +34,14 @@ model = rt.llm.GeminiLLM(model_name="gemini-3-flash-preview")
 
 # --8<-- [start: azure]
 import railtracks as rt
-# make sure to configure your environment variables for Azure AI
+# Railtracks loads .env automatically; set AZURE_API_BASE and AZURE_API_KEY there.
 
+# Azure OpenAI Service (deployment-routed) — the string after "azure/" is your
+# Foundry deployment name and can be anything you chose in the portal.
+model = rt.llm.AzureAILLM("azure/my-gpt-5-deployment")
+
+# Azure AI Foundry catalog model (model-routed) — the string after "azure_ai/"
+# is a model identifier from Foundry's model catalog.
 model = rt.llm.AzureAILLM("azure_ai/deepseek-r1")
 # --8<-- [end: azure]
 

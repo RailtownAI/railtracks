@@ -23,6 +23,24 @@ Passing prompt details up the chain can be expensive in both **tokens** and **la
 2. Set values in the Railtracks context (see [Context Management](../../documentation/advanced/context.md) for details)
 3. When the prompt is processed, the placeholders are replaced with the corresponding values from the context
 
+Only a placeholder naming a context key on its own is replaced. A placeholder that reaches into a
+value, such as `{config.host}` or `{config[host]}`, is left in the prompt as written, as is a
+placeholder whose key is not in the context. Write `{{` and `}}` for a literal brace.
+
+### Untrusted text in a prompt
+
+Placeholders are filled in user messages as well as system messages, so text you did not write
+yourself is also a template. Pass such text through `rt.escape_braces` before putting it in a prompt
+so its braces are treated as data:
+
+```python
+prompt = f"The current time is {{time}}:\nUser Message:\n{rt.escape_braces(user_text)}"
+```
+
+`{time}` is filled from the context, while anything inside `user_text` is delivered to the model
+exactly as written. Keep secrets out of the context of any agent that handles untrusted text: a
+context key named in that text is still filled if it is not escaped.
+
 ## Related Topics
 
 * [Tutorials/Prompts and Context](../walkthroughs/prompts_and_context.md)

@@ -11,13 +11,14 @@ from railtracks.exceptions.errors import LLMError
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
-    InputGuard,
-    OutputGuard,
 )
+from railtracks.guardrails.llm.concrete import InputGuard
+from railtracks.guardrails.llm.concrete import OutputGuard
 from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
 from railtracks.llm.retries.fixed import FixedRetry
 from railtracks.prebuilt.middleware import Retry
+
 
 # ---------------------------------------------------------------------------
 # TestFunctionNodeMiddleware

@@ -219,8 +219,8 @@ class TestMessageHistories:
         roles = [str(m.role) for m in researcher.message_history]
         contents = [str(m.content) for m in researcher.message_history]
 
-        assert roles == ["Role.system", "Role.user", "Role.assistant"]
-        assert contents == ["You research.", "topic", "facts"]
+        assert roles == ["Role.user", "Role.assistant"]
+        assert contents == ["topic", "facts"]
 
     async def test_identifies_the_node(self, mock_llm):
         conn = nested_flow(mock_llm).connect()

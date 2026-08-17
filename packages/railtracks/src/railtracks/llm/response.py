@@ -133,3 +133,7 @@ class Response:
 
     def __repr__(self):
         return f"Response(message={self._message}, message_info={self._message_info})"
+
+    def encode(self):
+        # TODO: implement a more expansive serialization of the message info and message content, if needed
+        return {"message": self._message}

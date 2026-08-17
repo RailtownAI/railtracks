@@ -4,8 +4,8 @@ from urllib.error import HTTPError
 
 import pytest
 
-from railtracks.llm.encoding import detect_source, encode, ensure_data_uri, _is_base64_image
-from railtracks.llm.image_formats import detect_image_mime_from_bytes
+from railtracks.llm.encoding import detect_source, encode, ensure_data_uri, _is_base64_attachment
+from railtracks.llm.attachment_formats import detect_image_mime_from_bytes
 
 
 class TestDetectSource:
@@ -147,13 +147,18 @@ class TestAdditionalEncodingCases:
         with pytest.raises(ValueError, match="Provided string is not valid base64"):
             ensure_data_uri("not_base64!!")
 
-    def test_is_base64_image_invalid(self):
-        assert not _is_base64_image("not_base64!!")
+    def test_is_base64_attachment_invalid(self):
+        assert not _is_base64_attachment("not_base64!!")
 
-    def test_is_base64_image_valid_non_image(self):
-        # base64 for "hello world" (not an image)
+    def test_is_base64_attachment_valid_non_attachment(self):
+        # base64 for "hello world" (not an image or PDF)
         b64 = base64.b64encode(b"hello world").decode("utf-8")
-        assert not _is_base64_image(b64)
+        assert not _is_base64_attachment(b64)
+
+    def test_is_base64_attachment_pdf(self):
+        # PDF magic bytes are recognized as a valid attachment
+        b64 = base64.b64encode(b"%PDF-1.4\n%\xc2\xa5\xc2\xb1\xc3\xab").decode("utf-8")
+        assert _is_base64_attachment(b64)
 
     def test_detect_image_mime_from_bytes_unsupported(self):
         # Should return None for random bytes

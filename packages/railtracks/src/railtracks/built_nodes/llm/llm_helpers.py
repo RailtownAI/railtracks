@@ -69,7 +69,9 @@ def llm_invoke_factory(
         user_input: MessageHistory | UserMessage | str | list[Message],
     ):
         model_invoker = ModelInvoker.create_with_llm_observe(
-            model_source, self._user_model_middleware
+            model_source,
+            self._user_model_middleware,
+            get_scope_manager=lambda: self._scope_manager,
         )
         message_history = prepare_message_history(system_message, user_input)
 
@@ -307,7 +309,9 @@ def prepare_structured_response(
         "Content of the last message must be a dict to be converted into a structured response"
     )
 
-    return StructuredResponse(content=content, message_history=message_history)
+    return StructuredResponse(
+        content=content, message_history=message_history.removed_system_messages()
+    )
 
 
 def prepare_string_response(
@@ -321,4 +325,6 @@ def prepare_string_response(
         "Content of the last message must be a string to be returned as is"
     )
 
-    return StringResponse(content=content, message_history=message_history)
+    return StringResponse(
+        content=content, message_history=message_history.removed_system_messages()
+    )

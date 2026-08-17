@@ -4,6 +4,9 @@ from railtracks.llm import Message, ToolCall
 from railtracks.llm.response import Response
 import asyncio
 
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
+
 # ================================================ START terminal_llm as tools =========================================================== 
 @pytest.mark.asyncio
 @pytest.mark.timeout(30)
@@ -116,6 +119,35 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
         response = await rt.call(math_node, user_input=message_history)
         
         assert '[42, 42, 42, 42, 42]' in response.content
+
+@pytest.mark.timeout(30)
+@pytest.mark.asyncio
+async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_message):
+    # The parent should get the child's content, not the repr of its LLMResponse.
+    encoder = rt.agent_node(
+        name="Encoder",
+        system_message=encoder_system_message,
+        llm=mock_llm("encoder check"),
+        manifest=rt.ToolManifest("A tool used to encode text into bytes.", None),
+    )
+
+    caller_llm = mock_llm(requested_tool_calls=[ToolCall(name="Encoder", identifier="id_42424242", arguments={})])
+
+    caller = rt.agent_node(
+        tool_nodes={encoder},
+        llm=caller_llm,
+        name="Caller",
+        system_message="You are a helpful assistant that uses the encoder tool.",
+    )
+
+    with rt.Session():
+        response = await rt.call(caller, user_input="Encode 'hello world'")
+        tool_results = [
+            message.content.result
+            for message in response.message_history
+            if message.role == "tool"
+        ]
+        assert tool_results == ["encoder check"]
 
 @pytest.mark.timeout(30)
 @pytest.mark.asyncio

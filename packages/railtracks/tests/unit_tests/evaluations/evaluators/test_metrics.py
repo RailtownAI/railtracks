@@ -2,6 +2,7 @@ import pytest
 
 from railtracks.evaluations.evaluators.metrics import (
     Categorical,
+    Category,
     LLMMetric,
     Metric,
     Numerical,
@@ -88,6 +89,143 @@ def test_categorical_identifier_includes_categories():
     c1 = Categorical(name="q", categories=["a", "b"])
     c2 = Categorical(name="q", categories=["a", "c"])
     assert c1.identifier != c2.identifier
+
+
+def test_categorical_accepts_category_objects():
+    c = Categorical(
+        name="quality",
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
+    )
+    assert c.categories == [Category(name="good", status="pass"), Category(name="bad", status="fail")]
+    assert c.categories[0].status == "pass"
+    assert c.categories[1].status == "fail"
+
+
+def test_categorical_accepts_mixed_strings_and_categories():
+    c = Categorical(
+        name="quality",
+        categories=["good", Category(name="bad", status="fail")],
+    )
+    assert c.categories == ["good", "bad"]
+    assert c.categories[0].status is None
+    assert c.categories[1].status == "fail"
+
+
+def test_categorical_string_and_category_inputs_produce_equivalent_categories():
+    from_strings = Categorical(name="quality", categories=["good", "bad"])
+    from_categories = Categorical(
+        name="quality",
+        categories=[Category(name="good"), Category(name="bad")],
+    )
+    assert from_strings.categories == from_categories.categories
+
+
+def test_categorical_identifier_generation_does_not_crash_with_category_objects():
+    """Regression test: constructing with raw Category objects used to fail during
+    identifier hashing because Category isn't JSON-serializable by default."""
+    c = Categorical(name="quality", categories=[Category(name="good", status="pass")])
+    assert isinstance(c.identifier, str)
+    assert len(c.identifier) == 64
+
+
+def test_categorical_category_names_with_string_input():
+    c = Categorical(name="quality", categories=["good", "bad", "ugly"])
+    assert c.category_names == ["good", "bad", "ugly"]
+
+
+def test_categorical_category_names_with_category_object_input():
+    c = Categorical(
+        name="quality",
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+    )
+    assert c.category_names == ["good", "bad"]
+
+
+def test_categorical_serializes_categories_as_strings():
+    c = Categorical(
+        name="quality",
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+    )
+    dumped = c.model_dump(mode="json")
+    assert dumped["categories"] == ["good", "bad"]
+
+
+def test_categorical_status_category_lists():
+    c = Categorical(
+        name="quality",
+        categories=[
+            Category(name="great", status="pass"),
+            Category(name="acceptable", status="pass"),
+            Category(name="meh", status="partial"),
+            Category(name="bad", status="fail"),
+            Category(name="unrated"),
+        ],
+    )
+    assert c.pass_categories == ["great", "acceptable"]
+    assert c.fail_categories == ["bad"]
+    assert c.partial_categories == ["meh"]
+
+
+def test_categorical_status_lists_empty_when_no_statuses():
+    c = Categorical(name="quality", categories=["good", "bad"])
+    assert c.pass_categories == []
+    assert c.fail_categories == []
+    assert c.partial_categories == []
+
+
+def test_categorical_status_lists_appear_in_serialization():
+    c = Categorical(
+        name="quality",
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+    )
+    dumped = c.model_dump(mode="json")
+    assert dumped["pass_categories"] == ["good"]
+    assert dumped["fail_categories"] == ["bad"]
+    assert dumped["partial_categories"] == []
+
+
+# ── Category ──────────────────────────────────────────────────────────────────
+
+
+def test_category_equals_matching_string():
+    assert Category(name="good") == "good"
+    assert "good" == Category(name="good")
+
+
+def test_category_not_equal_mismatched_string():
+    assert Category(name="good") != "bad"
+
+
+def test_category_equality_ignores_label():
+    assert Category(name="good", status="pass") == Category(name="good", status="fail")
+
+
+def test_category_hash_matches_name_hash():
+    assert hash(Category(name="good")) == hash("good")
+
+
+def test_category_usable_as_dict_key_via_string():
+    counts = {Category(name="good"): 0}
+    counts["good"] += 1
+    assert counts[Category(name="good")] == 1
+
+
+def test_category_str_returns_name():
+    assert str(Category(name="good", status="pass")) == "good"
+
+
+@pytest.mark.parametrize("status", ["pass", "fail", "partial", None])
+def test_category_accepts_valid_status(status):
+    Category(name="c", status=status)
+
+
+@pytest.mark.parametrize("status", ["passed", "PASS", "success", "", "warn"])
+def test_category_rejects_invalid_status(status):
+    with pytest.raises(Exception):
+        Category(name="c", status=status)
 
 
 # ── LLMMetric / ToolMetric ────────────────────────────────────────────────────

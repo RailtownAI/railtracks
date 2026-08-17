@@ -14,6 +14,7 @@ class TelusLLM(OpenAICompatibleProvider):
         api_key: str | None = None,
         temperature: float | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs,
     ):
         # we need to map the telus API key to the OpenAI API key
         if api_key is None:
@@ -30,6 +31,7 @@ class TelusLLM(OpenAICompatibleProvider):
             api_key=api_key,
             temperature=temperature,
             retry_approach=retry_approach,
+            **kwargs,
         )
 
     @classmethod

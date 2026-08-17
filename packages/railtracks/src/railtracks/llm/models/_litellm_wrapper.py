@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import mimetypes
 import threading
 import time
-import warnings
 from abc import ABC
 from json import JSONDecodeError
 from typing import (
@@ -42,6 +42,14 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
+from ._hyperparameter_support import (
+    find_mutually_exclusive_conflict,
+    is_hyperparameter_supported,
+)
+from ._model_exception_base import (
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
+)
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -53,6 +61,10 @@ _STREAM_DONE = object()
 # Dropped unsupported parameters from the request to the model.
 litellm.drop_params = True
 litellm.modify_params = True
+
+# this flag is only used in two places in litellm
+# https://github.com/search?q=repo%3ABerriAI%2Flitellm%20suppress_debug_info&type=code
+litellm.suppress_debug_info = True
 
 
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
@@ -117,6 +129,24 @@ def _parameters_to_json_schema(
     )
 
 
+def _model_in_litellm_catalog(model_name: str) -> bool:
+    """True if litellm has capability metadata for this model name.
+
+    Custom deployment names (Azure Foundry etc.) route through litellm but
+    have no entry in the capability catalog, so any `supports_*` probe on
+    them returns False regardless of what the underlying model can actually
+    do. This helper lets callers distinguish "litellm knows the answer is
+    False" from "litellm has no idea, don't trust the probe."
+    """
+    if model_name in litellm.model_cost:
+        return True
+    try:
+        routed_model, _, _, _ = litellm.get_llm_provider(model=model_name)
+    except Exception:
+        return False
+    return routed_model in litellm.model_cost
+
+
 def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     """
     Convert your Tool object into the dict format for litellm.completion.
@@ -161,19 +191,115 @@ class LiteLLMWrapper(ModelBase, ABC):
     model of that type.
     """
 
+    _COMMON_HYPERPARAMETERS = (
+        "temperature",
+        "top_p",
+        "max_tokens",
+        "frequency_penalty",
+        "presence_penalty",
+        "reasoning_effort",
+        "service_tier",
+        "verbosity",
+    )
+
     def __init__(
         self,
         model_name: str,
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
+        service_tier: str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
+        """Initialize the litellm-backed model wrapper.
+
+        Most callers construct a provider subclass (e.g. `rt.llm.OpenAILLM`) instead of
+        this base class directly; see `ProviderLLMWrapper.__init__` for the full
+        per-hyperparameter description of the common hyperparameters below (`top_p`,
+        `max_tokens`, `frequency_penalty`, `presence_penalty`, `reasoning_effort`,
+        `service_tier`, `verbosity`) and their known provider gotchas.
+
+        Raises:
+            UnsupportedHyperparameterError: If a common hyperparameter isn't supported
+                by `model_name` (per litellm's schema or the manual denylist in
+                `llm/models/_hyperparameter_support.py`).
+            MutuallyExclusiveHyperparametersError: If two common hyperparameters can't
+                be combined for this provider (currently: Anthropic `temperature` +
+                `top_p`).
+
+        Note:
+            No client-side validation of hyperparameter *values* is performed —
+            invalid values are passed through as-is and surface as a provider-native
+            error, except `verbosity`, which at least one provider (OpenAI) silently
+            accepts even when invalid.
+        """
         super().__init__(retry_approach=retry_approach)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
         self.temperature = temperature
+        self.top_p = top_p
+        self.max_tokens = max_tokens
+        self.frequency_penalty = frequency_penalty
+        self.presence_penalty = presence_penalty
+        self.reasoning_effort = reasoning_effort
+        self.service_tier = service_tier
+        self.verbosity = verbosity
+        self._extra_completion_kwargs = kwargs
+        self._validate_common_hyperparameter_support()
+
+    def _validate_common_hyperparameter_support(self) -> None:
+        provider = (
+            self.model_provider().lower() if hasattr(self, "model_provider") else None
+        )
+        if provider is None:
+            return
+        for name in self._COMMON_HYPERPARAMETERS:
+            value = getattr(self, name)
+            if value is not None and not is_hyperparameter_supported(
+                self._model_name, provider, name
+            ):
+                raise UnsupportedHyperparameterError(self._model_name, name, value)
+
+        hyperparameters_set = frozenset(
+            name
+            for name in self._COMMON_HYPERPARAMETERS
+            if getattr(self, name) is not None
+        )
+        conflict = find_mutually_exclusive_conflict(provider, hyperparameters_set)
+        if conflict:
+            raise MutuallyExclusiveHyperparametersError(
+                self._model_name,
+                sorted(conflict),
+                {name: getattr(self, name) for name in conflict},
+            )
+
+    def _base_completion_kwargs(self) -> Dict[str, Any]:
+        """Common kwargs shared by both `_invoke` and `_ainvoke`, merged in only if set."""
+        kwargs: Dict[str, Any] = dict(self._extra_completion_kwargs)
+        for name in (
+            "api_base",
+            "api_key",
+            "temperature",
+            "top_p",
+            "max_tokens",
+            "frequency_penalty",
+            "presence_penalty",
+            "reasoning_effort",
+            "service_tier",
+            "verbosity",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                kwargs[name] = value
+        return kwargs
 
     @overload
     def _invoke(
@@ -217,8 +343,6 @@ class LiteLLMWrapper(ModelBase, ABC):
             messages: The message history to send to the model.
             response_format: An optional response format (e.g. a pydantic schema).
             tools: The tools to make available to the model, if any.
-            stream: When True, requests a streamed response and returns a `CustomStreamWrapper`;
-                when False (the default), returns a buffered `ModelResponse`.
 
         Returns:
             A `(completion, time)` tuple. When `stream=True`, `completion` is a
@@ -228,7 +352,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         """
         start_time = time.time()
         litellm_messages = [self._to_litellm_message(m) for m in messages]
-        merged = {}
+        merged = self._base_completion_kwargs()
 
         if response_format is not None:
             merged["response_format"] = response_format
@@ -236,19 +360,6 @@ class LiteLLMWrapper(ModelBase, ABC):
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
-
-        if self.api_base is not None:
-            merged["api_base"] = self.api_base
-
-        if self.api_key is not None:
-            merged["api_key"] = self.api_key
-
-        if self.temperature is not None:
-            merged["temperature"] = self.temperature
-
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, module="pydantic.*"
-        )  # Supress pydantic warnings. See issue #204 for more deatils.
 
         def completion_function():
             return litellm.completion(
@@ -495,7 +606,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     def _handle_content_delta(self, content) -> str:
         """Process content delta and return validated content string."""
-        assert isinstance(content, str)
+        assert isinstance(content, str), "Content is not string"
         return content or ""
 
     # ================ END Streaming Handlers ===============
@@ -509,7 +620,9 @@ class LiteLLMWrapper(ModelBase, ABC):
     async def _astream_chat(self, messages: MessageHistory):
         def _open() -> Generator[str | Response, None, Response]:
             raw, start_time = self._invoke(messages, stream=True)
-            assert isinstance(raw, CustomStreamWrapper)
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
             return self._stream_handler_base(raw, start_time)
 
         async for item in self._bridge_sync_stream(_open):
@@ -520,7 +633,9 @@ class LiteLLMWrapper(ModelBase, ABC):
     ):
         def _open() -> Generator[str | Response, None, Response]:
             raw, start_time = self._invoke(messages, tools=tools, stream=True)
-            assert isinstance(raw, CustomStreamWrapper)
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
             return self._stream_handler_base(raw, start_time)
 
         async for item in self._bridge_sync_stream(_open):
@@ -533,7 +648,9 @@ class LiteLLMWrapper(ModelBase, ABC):
             raw, start_time = self._invoke(
                 messages, response_format=schema, stream=True
             )
-            assert isinstance(raw, CustomStreamWrapper)
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
             return self._stream_handler_base(raw, start_time, schema)
 
         async for item in self._bridge_sync_stream(_open):
@@ -677,18 +794,47 @@ class LiteLLMWrapper(ModelBase, ABC):
             # Initiate content list with text component
             content_list: List[Dict[str, Any]] = [{"type": "text", "text": msg.content}]
 
-            # Add image attachments
+            # Add attachments (images or documents)
             for msg_attachment in msg.attachment:
-                content_list.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": msg_attachment.encoding
-                            if msg_attachment.encoding is not None
-                            else msg_attachment.url,
-                        },
-                    }
+                url = (
+                    msg_attachment.encoding
+                    if msg_attachment.encoding is not None
+                    else msg_attachment.url
                 )
+                if msg_attachment.modality == "document":
+                    # Only trust litellm's PDF-support check when the model is in
+                    # litellm's capability catalog. Custom deployment names (Azure
+                    # Foundry etc.) route fine but have no capability metadata,
+                    # so supports_pdf_input returns False by default and would
+                    # falsely reject valid deployments. When the model isn't in
+                    # the catalog, skip the pre-check and let the API decide.
+                    if _model_in_litellm_catalog(
+                        self._model_name
+                    ) and not litellm.utils.supports_pdf_input(self._model_name):
+                        raise ValueError(
+                            f"Model {self._model_name!r} does not support PDF attachments. "
+                            "Use a PDF-capable model or render the PDF pages to images first."
+                        )
+                    fallback_ext = (
+                        mimetypes.guess_extension(msg_attachment.mime_type or "") or ""
+                    )
+                    content_list.append(
+                        {
+                            "type": "file",
+                            "file": {
+                                "file_data": url,
+                                "filename": msg_attachment.filename
+                                or f"attachment{fallback_ext}",
+                            },
+                        }
+                    )
+                else:
+                    content_list.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": url},
+                        }
+                    )
 
             base["content"] = content_list
 

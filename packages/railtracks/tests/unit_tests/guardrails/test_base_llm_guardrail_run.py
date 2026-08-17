@@ -8,11 +8,10 @@ from __future__ import annotations
 from railtracks.guardrails.core import (
     GuardrailAction,
     GuardrailDecision,
-    InputGuard,
     LLMGuardrailEvent,
     LLMGuardrailPhase,
-    OutputGuard,
 )
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm import AssistantMessage, MessageHistory, UserMessage
 from railtracks.middleware.core import Middleware
 
@@ -59,7 +58,7 @@ def test_run_allow_returns_value_unchanged(sample_history):
     value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert value == sample_history
-    assert blocked is None
+    assert blocked == GuardrailDecision.allow()
     assert len(traces) == 1
     assert traces[0].action == "allow"
 
@@ -76,7 +75,7 @@ def test_run_transform_updates_value(sample_history):
     )
     value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
 
-    assert blocked is None
+    assert blocked.reason == "t1"
     assert value == new_hist
     assert traces[-1].action == "transform"
 
@@ -107,7 +106,7 @@ def test_run_transform_missing_messages_fail_open(sample_history):
     guard = BadTransform(fail_open=True)
     value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
 
-    assert blocked is None
+    assert blocked == GuardrailDecision.allow()  # fail_open lets the run continue
     assert value == sample_history  # unchanged: the failed transform never applied
     assert traces[-1].action == "error"
 
@@ -157,7 +156,7 @@ def test_run_rail_raises_fail_open(sample_history):
     guard = FnInputGuard(boom, fail_open=True)
     value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
 
-    assert blocked is None
+    assert blocked == GuardrailDecision.allow()  # fail_open lets the run continue
     assert value == sample_history
     assert traces[0].action == "error"
 
@@ -234,7 +233,7 @@ def test_run_output_transform(sample_history):
         event=_output_event(sample_history, output_message), value=output_message
     )
 
-    assert blocked is None
+    assert blocked.reason == "fix"
     assert value == new_message
     assert traces[-1].action == "transform"
 
@@ -270,26 +269,6 @@ async def test_guard_composes_via_plain_middleware_wrap(sample_history):
 
     assert result == "core-result"
 
-
-def test_record_guard_traces_logs_at_debug_level_only(caplog):
-    """Guard traces are currently sunk to a debug log only (not attached to node
-    DebugDetails/session state -- a known, separately-tracked design point, out
-    of scope here). This just pins down today's actual behavior."""
-    import logging
-
-    from railtracks.guardrails.core.trace import GuardrailTrace
-    from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
-
-    trace = GuardrailTrace(
-        rail_name="MyRail", phase="llm_input", action="allow", reason="ok"
-    )
-
-    with caplog.at_level(logging.DEBUG, logger="RT.guardrails"):
-        BaseLLMGuardrail._record_guard_traces([trace])
-
-    debug_records = [r for r in caplog.records if r.name == "RT.guardrails"]
-    assert any(r.levelno == logging.DEBUG for r in debug_records)
-    assert any("MyRail" in r.getMessage() for r in debug_records)
 
 
 async def test_guard_wrap_short_circuits_on_block(sample_history):

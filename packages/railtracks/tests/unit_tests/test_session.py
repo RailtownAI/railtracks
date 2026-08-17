@@ -17,6 +17,9 @@ def mock_dependencies(monkeypatch):
     m_register_globals = MagicMock()
     m_delete_globals = MagicMock()
 
+    m_get_global_config.return_value.precedence_overwritten.return_value.save_state = False
+    m_get_global_config.return_value.precedence_overwritten.return_value.payload_callback = None
+
     monkeypatch.setattr('railtracks._session.get_global_config', m_get_global_config)
     monkeypatch.setattr('railtracks._session.RTPublisher', m_RTPublisher)
     monkeypatch.setattr('railtracks._session.ExecutionInfo', m_ExecutionInfo)

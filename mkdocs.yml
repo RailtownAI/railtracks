@@ -92,12 +92,18 @@ nav:
       - Agent Design:
           - Overview: documentation/agent_design/overview.md
           - Tools:
+              - Prebuilt Tools:
+                  - Overview: documentation/agent_design/tools/prebuilt/overview.md
+                  - To Do Tool: documentation/agent_design/tools/prebuilt/todos.md
+                  - Key-Value Memory Tool: documentation/agent_design/tools/prebuilt/key_value_memory.md
+                  - Web Search Tool: documentation/agent_design/tools/prebuilt/websearch.md
               - Function Tools: documentation/agent_design/tools/function_tools.md
               - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
               - MCP: documentation/agent_design/tools/mcp.md
           - LLMs:
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
+              - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
           - Middleware:
               - Overview: documentation/agent_design/middleware/overview.md
               - Custom: documentation/agent_design/middleware/custom.md
@@ -108,24 +114,40 @@ nav:
               - Prebuilt:
                 - Overview: documentation/agent_design/middleware/prebuilt/overview.md
                 - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
+              
+
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
           - Flow Invocation: documentation/invocation/flows.md
       - Advanced:
           - Context: documentation/advanced/context.md
 
-  - RAG:
-      - RAG: rag/RAG.md
-      - Vector Stores:
-          - Overview: rag/vector_stores/vector_store_info.md
-          - Filtering: rag/vector_stores/filtering.md
-          - Integrations:
-              - Chroma: rag/vector_stores/integrations/chroma.md
+  - Retrieval:
+    - Retrieval Runtime:
+      - Quickstart: retrieval/runtime/quickstart.md
+      - Ingestion: retrieval/runtime/ingestion.md
+      - Retrieval: retrieval/runtime/retrieval.md
+      - Module Packages: retrieval/runtime/module_packages.md
+    - Components:
+      - Design: retrieval/components/design.md
+      - Loading:
+          - Base Class: retrieval/components/ingestion/base.md
+          - Built-in Loaders: retrieval/components/ingestion/methods.md
+      - Chunking:
+          - Base Class: retrieval/components/chunking/base.md
+          - Built-in Methods: retrieval/components/chunking/methods.md
+      - Embeddings:
+        - Overview: retrieval/components/embeddings/overview.md
+        - Built-in Methods: retrieval/components/embeddings/methods.md
+      - Stores:
+          - Base Class: retrieval/components/stores/base.md
+          - Backends: retrieval/components/stores/backends.md
 
   - Evaluations:
       - Preface: evaluations/preface.md
       - Quickstart: evaluations/quickstart.md
       - Visualization: evaluations/visualization.md
+      - Conductr Agent Observability: evaluations/conductr.md
       - Metrics:
           - Metrics Overview: evaluations/metrics/metrics.md
           - Categorical Metrics: evaluations/metrics/categorical.md
@@ -151,19 +173,25 @@ nav:
           - Error Handling: observability/tracking/error_handling.md
 
   - Integrations:
-      - Overview: integrations/overview.md
-      - Language Models:
-          - Providers: integrations/llms/providers.md
-          - Platforms: integrations/llms/platforms.md
-          - Streaming: integrations/llms/streaming.md
-      - MCP:
-          - Github: integrations/mcps/github.md
-          - Slack: integrations/mcps/slack.md
-          - Email: integrations/mcps/notion.md
-      - Other:
-          - Python Sandbox: integrations/other/python_sandbox.md
-          - Shell: integrations/other/shell_bash.md
-          - Websearch: integrations/other/websearch_integration.md
+    - Overview: integrations/overview.md
+    - Language Models:
+        - Providers: integrations/llms/providers.md
+        - Platforms: integrations/llms/platforms.md
+        - Streaming: integrations/llms/streaming.md
+    - MCP:
+        - Github: integrations/mcps/github.md
+        - Slack: integrations/mcps/slack.md
+        - Email: integrations/mcps/notion.md
+    - Storage & Databases:
+        - Overview: integrations/storage/overview.md
+        - AWS S3: integrations/storage/s3.md
+        - Azure Blob Storage: integrations/storage/azure_blob.md
+        - Google Cloud Storage: integrations/storage/gcs.md
+        - SQL Databases: integrations/storage/sql.md
+    - Other:
+        - Python Sandbox: integrations/other/python_sandbox.md
+        - Shell: integrations/other/shell_bash.md
+        - Websearch: integrations/other/websearch_integration.md
 
   - Tutorials:
       - Walkthroughs:

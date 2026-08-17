@@ -1,0 +1,28 @@
+name: Bug Report
+description: Report a bug or issue with railtracks.
+labels: [bug]
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what you expected to happen and what happened instead. (Include any relevant stack traces)
+      placeholder: |
+        I expected the form to submit successfully, but it throws a 500 error.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducing_steps
+    attributes:
+      label: Reproducing Steps (include code examples if applicable)
+      description: Provide step-by-step instructions to reproduce the bug.
+      placeholder: |
+        1. ...
+        ```python
+        def example_code_here():
+
+        ```
+    validations:
+      required: true

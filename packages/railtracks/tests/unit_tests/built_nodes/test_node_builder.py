@@ -12,7 +12,8 @@ from railtracks.built_nodes.function.node_builder import FunctionNodeBuilder
 from railtracks.built_nodes.llm.middleware import after_llm
 from railtracks.built_nodes.llm.node_builder import LLMNodeBuilder
 from railtracks.exceptions.errors import NodeCreationError
-from railtracks.guardrails.core import GuardrailDecision, InputGuard, OutputGuard
+from railtracks.guardrails.core import GuardrailDecision
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm import Message, MessageHistory, Parameter, SystemMessage, Tool
 from railtracks.llm.message import AssistantMessage, Role
 from railtracks.llm.response import Response

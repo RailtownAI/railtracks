@@ -14,10 +14,12 @@ from typing import (
     TypeVar,
 )
 
+from railtracks.events.node import NodeFailure, NodeInvocation, NodeResponse
+from railtracks.events.send import emit
 from railtracks.llm import (
     Tool,
 )
-from railtracks.middleware.core import Middleware
+from railtracks.middleware.core import Middleware, wrap_node
 from railtracks.nodes.nodes import Node
 
 if TYPE_CHECKING:
@@ -87,7 +89,7 @@ class NodeBuilder(Generic[_P, _T]):
 
         self._user_middleware: list[Middleware[_P, _T]] = []
         self._exterior_middleware: list[Middleware[_P, _T]] = []
-        self._interior_middleware: list[Middleware[_P, _T]] = []
+        self._interior_middleware: list[Middleware[_P, _T]] = [_observe_middleware]
         self._user_model_middleware: list[ModelMiddleware] = []
 
     def construct_required(self) -> dict[str, Any]:
@@ -147,3 +149,21 @@ class NodeBuilder(Generic[_P, _T]):
             self.construct_required(),
             self.construct_optional(),
         )
+
+
+@wrap_node
+async def _observe_middleware(call: Callable, *args, **kwargs):
+    invocation_event = NodeInvocation(args=args, kwargs=kwargs)
+    await emit(invocation_event)
+
+    try:
+        result = await call(*args, **kwargs)
+    except Exception as e:
+        failure_event = NodeFailure.from_exception(e)
+        await emit(failure_event)
+        raise e
+
+    response_event = NodeResponse(response=result)
+    await emit(response_event)
+
+    return result
