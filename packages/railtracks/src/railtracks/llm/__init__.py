@@ -1,5 +1,5 @@
 from . import retries
-from .content import ToolCall, ToolResponse
+from .content import ToolCall, ToolCalls, ToolResponse
 from .history import MessageHistory
 from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
 from .model import ModelBase
@@ -41,6 +41,7 @@ __all__ = [
     "UnsupportedHyperparameterError",
     "MutuallyExclusiveHyperparametersError",
     "ToolCall",
+    "ToolCalls",
     "ToolResponse",
     "UserMessage",
     "SystemMessage",

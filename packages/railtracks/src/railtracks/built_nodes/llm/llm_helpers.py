@@ -13,7 +13,7 @@ from railtracks.built_nodes.llm.model_invoker import ModelInvoker
 from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.interaction._call import call
-from railtracks.llm.content import ToolCall, ToolResponse
+from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
     AssistantMessage,
@@ -112,7 +112,13 @@ async def run_tools(
     assert len(tool_nodes) > 0, "No tool nodes provided to run_tools"
     tool_calls = response.message.tool_calls
 
-    hist_msg = AssistantMessage(content=tool_calls)
+    # `tool_calls` is a copy, so carry the text over from the response's own
+    # content rather than letting it fall off the history message.
+    hist_msg = AssistantMessage(
+        content=ToolCalls(
+            tool_calls, text=getattr(response.message.content, "text", None)
+        )
+    )
 
     raw = getattr(response.message, "raw_content", None)
     if raw is not None:
