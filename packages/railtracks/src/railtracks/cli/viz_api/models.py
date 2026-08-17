@@ -38,8 +38,8 @@ class NodeStatus(str, Enum):
     RUNNING = "running"
 
 
-class TraceSortField(str, Enum):
-    """Sortable columns on ``GET /api/traces``.
+class LLMTraceSortField(str, Enum):
+    """Sortable columns on ``GET /api/llm-traces``.
 
     Names are the user-facing measure, not the storage column: ``tokens`` sorts
     on input + output combined, because that is the number the table renders as
@@ -52,7 +52,21 @@ class TraceSortField(str, Enum):
     LATENCY = "latency"
 
 
-class TraceStatus(str, Enum):
+class EventSortField(str, Enum):
+    """Sortable columns on ``GET /api/events``.
+
+    A log is read chronologically, so ``timestamp`` is the default. The other
+    two are the two questions a chronological order cannot answer: ``event_type``
+    groups the log by kind, and ``payload_bytes`` finds the events carrying the
+    most data.
+    """
+
+    TIMESTAMP = "timestamp"
+    EVENT_TYPE = "event_type"
+    PAYLOAD_BYTES = "payload_bytes"
+
+
+class LLMTraceStatus(str, Enum):
     """How one LLM round trip ended.
 
     Lowercase like :class:`NodeStatus` and unlike :class:`SessionStatus`, and
@@ -199,7 +213,7 @@ class SessionGraph(BaseModel):
     edges: list[GraphEdge] = Field(default_factory=list)
 
 
-class TraceRow(BaseModel):
+class LLMTrace(BaseModel):
     """One LLM call, denormalized with session and node context.
 
     Feeds the LLM Traces tab (cross-session listing) and, when queried with a
@@ -233,7 +247,7 @@ class TraceRow(BaseModel):
     model_provider: str | None = None
     #: How the round trip ended. Older clients that ignore it still read every
     #: other field correctly; the zeros on an error row are honest.
-    status: TraceStatus = TraceStatus.SUCCESS
+    status: LLMTraceStatus = LLMTraceStatus.SUCCESS
     #: Exception type, e.g. ``AuthenticationError``. Null unless ``status`` is
     #: ``error``.
     error_name: str | None = None
@@ -248,8 +262,8 @@ class TraceRow(BaseModel):
     output: LLMContent | None = None
 
 
-class TracePage(BaseModel):
-    """One page of :class:`TraceRow`, with the unpaged total alongside it.
+class LLMTracePage(BaseModel):
+    """One page of :class:`LLMTrace`, with the unpaged total alongside it.
 
     An envelope rather than a bare list plus an ``X-Total-Count`` header: the
     server ships no CORS middleware, so a custom header is invisible to any
@@ -259,7 +273,7 @@ class TracePage(BaseModel):
     """
 
     #: Rows matching the filters, after ``limit`` / ``offset``.
-    rows: list[TraceRow] = Field(default_factory=list)
+    rows: list[LLMTrace] = Field(default_factory=list)
     #: Rows matching the filters, ignoring ``limit`` / ``offset``.
     total: int = 0
     limit: int = 0
@@ -295,7 +309,7 @@ class SessionFilterOptions(BaseModel):
     statuses: list[str] = Field(default_factory=list)
 
 
-class TraceStats(BaseModel):
+class LLMTraceStats(BaseModel):
     """Roll-up across every LLM call matching the trace filters.
 
     Counts exactly the calls the traces table can show, which now includes the
@@ -322,8 +336,121 @@ class TraceStats(BaseModel):
     max_latency_seconds: float | None = None
 
 
-class TraceFilterOptions(BaseModel):
-    """Every value the ``/api/traces`` filters can usefully take.
+class StreamEvent(BaseModel):
+    """One event from the raw stream, denormalized with its session and node.
+
+    This is the event log's grain, and it is deliberately *not* the LLM trace's.
+    A :class:`LLMTrace` row is one LLM round trip — a projection that unions
+    ``llm.response`` with ``llm.failure`` and joins three other event types onto
+    it. One round trip is two or more events here (``llm.creation``,
+    ``llm.invocation``, then the response or failure), so the two endpoints
+    answer different questions and neither is the other under a filter.
+
+    ``payload`` is the event's own body, untouched: the shape differs per event
+    type, so typing it would mean a discriminated union covering every event the
+    registry declares — and would still be wrong for one it does not. The log's
+    job is to show what was written, including a namespace this build has never
+    heard of, so the payload stays the ``dict`` it was written as and the client
+    renders it as a tree.
+
+    The envelope fields (``scope_type``, ``parent_scope_id``) are carried even
+    though every event in a session stream shares them today. They are what
+    distinguishes one scope from another the moment a second scope type exists,
+    and a log that dropped them would be hiding part of the record it exists to
+    show.
+    """
+
+    #: Unique per event — the envelope's own id, and the row key.
+    event_id: str
+    #: Fully-qualified, e.g. ``llm.response``. Its first segment is ``namespace``.
+    event_type: str
+    #: The event type's first segment, split out so it can be filtered on its own.
+    namespace: str
+    #: The enclosing scope's id. For a session stream this is the session id.
+    session_id: str
+    scope_type: str | None = None
+    parent_scope_id: str | None = None
+    #: Unix seconds, from the envelope's ``stamp`` rather than the payload's
+    #: ``timestamp`` — see :func:`queries._event_rows_cte`.
+    timestamp: float
+    flow_id: str | None = None
+    flow_name: str | None = None
+    #: The node this event belongs to. Null for events not attributed to one —
+    #: ``session.*``, ``llm.creation``, ``middleware.creation``.
+    node_id: str | None = None
+    node_name: str | None = None
+    #: Whether this event reported a raised exception (the ``.failure`` suffix).
+    #: Derived in SQL so the tile, the filter and the row marker agree.
+    is_failure: bool = False
+    #: Size of the serialized payload, in bytes. Served because the column is
+    #: sortable and sorting runs before paging.
+    payload_bytes: int = 0
+    #: The event body, as written. ``None`` only if the event carried none.
+    payload: Any = None
+
+
+class EventPage(BaseModel):
+    """One page of :class:`StreamEvent`, with the unpaged total alongside.
+
+    An envelope rather than a bare list plus a header, for the reason
+    :class:`LLMTracePage` gives: the server ships no CORS middleware, so a
+    custom header is invisible to a client on another origin.
+    """
+
+    rows: list[StreamEvent] = Field(default_factory=list)
+    #: Events matching the filters, ignoring ``limit`` / ``offset``.
+    total: int = 0
+    limit: int = 0
+    offset: int = 0
+
+
+class EventStats(BaseModel):
+    """Roll-up across every event matching the event filters.
+
+    Shares the listing's ``WHERE`` clause, so these describe exactly the rows
+    the table can show. ``failures`` counts events that reported an exception —
+    it is the count the Failures tile states and the ``failures_only`` filter
+    narrows to, which is why it is derived once in SQL rather than twice.
+
+    ``sessions`` and ``event_types`` are distinct counts rather than sums: they
+    answer "how much of the stream is in view", which a page of rows cannot say.
+    """
+
+    total_events: int = 0
+    #: Events carrying a raised exception (``llm.failure``, ``node.failure``, …).
+    failures: int = 0
+    #: Distinct sessions represented in the matching events.
+    sessions: int = 0
+    #: Distinct event types represented in the matching events.
+    event_types: int = 0
+    #: Bounds of the matching events. Null when nothing matched.
+    first_timestamp: float | None = None
+    last_timestamp: float | None = None
+
+
+class EventFilterOptions(BaseModel):
+    """Every value the ``/api/events`` filters can take, over the whole stream.
+
+    ``event_types`` is flat and sorted, which groups it by namespace for free
+    since the namespace is each type's first segment — the client can build
+    grouped options from it without a second shape.
+
+    There is no ``statuses`` list, for the reason
+    :class:`LLMTraceFilterOptions` gives about its own: whether an event
+    reported an exception is the two-valued ``failures_only`` flag this contract
+    already names, not something to discover from the data.
+    """
+
+    #: e.g. ``["llm", "middleware", "node", "session"]``.
+    namespaces: list[str] = Field(default_factory=list)
+    event_types: list[str] = Field(default_factory=list)
+    #: Every flow in the stream, including ones that emitted no events of a
+    #: given type — "this flow logged nothing" is a real answer.
+    flow_names: list[str] = Field(default_factory=list)
+
+
+class LLMTraceFilterOptions(BaseModel):
+    """Every value the ``/api/llm-traces`` filters can usefully take.
 
     Computed over the whole event stream rather than the current page, so a
     dropdown offers what the *data* holds and not what the last query happened
@@ -341,7 +468,7 @@ class TraceFilterOptions(BaseModel):
 
     There is no ``statuses`` list to match :class:`SessionFilterOptions`: a
     session's status is a SQL ``CASE`` over the stream and has to be discovered
-    from it, where a trace's is the two-valued :class:`TraceStatus` the contract
+    from it, where a trace's is the two-valued :class:`LLMTraceStatus` the contract
     already names. "No calls failed" is also a useful thing for that filter to
     report, which an options list computed from the data could never say.
     """

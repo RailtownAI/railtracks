@@ -12,10 +12,20 @@ from railtracks.paths import resolve_railtracks_home
 from ..io import print_error, print_status
 from . import queries
 from .models import (
+    EventFilterOptions,
+    EventPage,
+    EventSortField,
+    EventStats,
     GraphEdge,
     GraphNode,
     Guardrail,
     LLMContent,
+    LLMTrace,
+    LLMTraceFilterOptions,
+    LLMTracePage,
+    LLMTraceSortField,
+    LLMTraceStats,
+    LLMTraceStatus,
     NodeDetail,
     NodeRef,
     NodeStatus,
@@ -26,12 +36,7 @@ from .models import (
     SessionStatus,
     SessionSummary,
     SortOrder,
-    TraceFilterOptions,
-    TracePage,
-    TraceRow,
-    TraceSortField,
-    TraceStats,
-    TraceStatus,
+    StreamEvent,
     TreeNode,
 )
 
@@ -242,8 +247,8 @@ async def get_node_detail(session_id: str, node_id: str) -> NodeDetail:
     )
 
 
-@router.get("/traces", response_model=TracePage)
-async def list_traces(
+@router.get("/llm-traces", response_model=LLMTracePage)
+async def list_llm_traces(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     session_id: str | None = Query(None),
@@ -251,16 +256,16 @@ async def list_traces(
     flow_name: list[str] | None = Query(None),
     node_name: list[str] | None = Query(None),
     model_name: list[str] | None = Query(None),
-    status: list[TraceStatus] | None = Query(None),
+    status: list[LLMTraceStatus] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
-    sort_by: TraceSortField = Query(TraceSortField.TIMESTAMP),
+    sort_by: LLMTraceSortField = Query(LLMTraceSortField.TIMESTAMP),
     order: SortOrder = Query(SortOrder.DESC),
-) -> TracePage:
+) -> LLMTracePage:
     """List LLM calls across sessions, newest first by default.
 
     One row per round trip, whether it returned or raised — see
-    :class:`TraceRow`. ``status`` narrows to one outcome, which is what makes
+    :class:`LLMTrace`. ``status`` narrows to one outcome, which is what makes
     three errors among four hundred calls findable at all: they cannot be
     sorted to the top (an error has no cost, tokens or latency to rank on) and
     scrolling for them is not a plan.
@@ -274,13 +279,13 @@ async def list_traces(
 
     Sorting the page in the browser would be a different question: "the ten
     priciest calls" is not "the priciest of the fifty most recent". See
-    :func:`queries.list_trace_rows`.
+    :func:`queries.list_llm_trace_rows`.
 
-    Returns a :class:`TracePage`, so ``total`` reflects every matching row and a
+    Returns a :class:`LLMTracePage`, so ``total`` reflects every matching row and a
     client can size its pager without over-fetching to probe for a next page.
     """
     print_status(
-        f"GET /api/traces limit={limit} offset={offset} "
+        f"GET /api/llm-traces limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
         f"status={status} since={since} until={until} "
@@ -288,10 +293,10 @@ async def list_traces(
     )
     events_dir = _events_dir()
     if not events_dir.exists():
-        return TracePage(rows=[], total=0, limit=limit, offset=offset)
+        return LLMTracePage(rows=[], total=0, limit=limit, offset=offset)
 
     q = queries.get_query(events_dir)
-    rows = queries.list_trace_rows(
+    rows = queries.list_llm_trace_rows(
         q.con,
         limit=limit,
         offset=offset,
@@ -306,7 +311,7 @@ async def list_traces(
         sort_by=sort_by,
         order=order,
     )
-    total = queries.count_trace_rows(
+    total = queries.count_llm_trace_rows(
         q.con,
         session_id=session_id,
         node_id=node_id,
@@ -317,44 +322,44 @@ async def list_traces(
         since=since,
         until=until,
     )
-    return TracePage(
-        rows=[_row_to_trace(r) for r in rows],
+    return LLMTracePage(
+        rows=[_row_to_llm_trace(r) for r in rows],
         total=total,
         limit=limit,
         offset=offset,
     )
 
 
-@router.get("/traces/stats", response_model=TraceStats)
-async def get_trace_stats(
+@router.get("/llm-traces/stats", response_model=LLMTraceStats)
+async def get_llm_trace_stats(
     session_id: str | None = Query(None),
     node_id: str | None = Query(None),
     flow_name: list[str] | None = Query(None),
     node_name: list[str] | None = Query(None),
     model_name: list[str] | None = Query(None),
-    status: list[TraceStatus] | None = Query(None),
+    status: list[LLMTraceStatus] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
-) -> TraceStats:
+) -> LLMTraceStats:
     """Roll-up across every LLM call matching the filters.
 
-    Takes the same filters as ``/api/traces`` — ``status`` and the
+    Takes the same filters as ``/api/llm-traces`` — ``status`` and the
     ``since`` / ``until`` window included, so the tiles keep describing the rows
     underneath them once the reader narrows — and no paging params: the point of the tiles is to describe the
     whole filtered set, which is exactly what the fifty rows on the current page
     cannot tell you.
     """
     print_status(
-        f"GET /api/traces/stats session_id={session_id} node_id={node_id} "
+        f"GET /api/llm-traces/stats session_id={session_id} node_id={node_id} "
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
         f"status={status} since={since} until={until}"
     )
     events_dir = _events_dir()
     if not events_dir.exists():
-        return TraceStats()
+        return LLMTraceStats()
 
     q = queries.get_query(events_dir)
-    stats = queries.get_trace_stats(
+    stats = queries.get_llm_trace_stats(
         q.con,
         session_id=session_id,
         node_id=node_id,
@@ -367,7 +372,7 @@ async def get_trace_stats(
     )
     avg_latency = stats.get("avg_latency_seconds")
     max_latency = stats.get("max_latency_seconds")
-    return TraceStats(
+    return LLMTraceStats(
         total_calls=int(stats.get("total_calls") or 0),
         failed_calls=int(stats.get("failed_calls") or 0),
         input_tokens=int(stats.get("input_tokens") or 0),
@@ -378,22 +383,175 @@ async def get_trace_stats(
     )
 
 
-@router.get("/traces/filters", response_model=TraceFilterOptions)
-async def get_trace_filter_options() -> TraceFilterOptions:
-    """Every value the ``/api/traces`` filters can take.
+@router.get("/llm-traces/filters", response_model=LLMTraceFilterOptions)
+async def get_llm_trace_filter_options() -> LLMTraceFilterOptions:
+    """Every value the ``/api/llm-traces`` filters can take.
 
     A dropdown built from the rows on the current page can only ever offer what
     the current filter already matched, which makes the filters unable to widen
     a selection. These lists come from the whole stream instead.
     """
-    print_status("GET /api/traces/filters")
+    print_status("GET /api/llm-traces/filters")
     events_dir = _events_dir()
     if not events_dir.exists():
-        return TraceFilterOptions()
+        return LLMTraceFilterOptions()
 
     q = queries.get_query(events_dir)
-    options = queries.list_trace_filter_options(q.con)
-    return TraceFilterOptions(**options)
+    options = queries.list_llm_trace_filter_options(q.con)
+    return LLMTraceFilterOptions(**options)
+
+
+@router.get("/events", response_model=EventPage)
+async def list_events(
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    session_id: str | None = Query(None),
+    node_id: str | None = Query(None),
+    namespace: list[str] | None = Query(None),
+    event_type: list[str] | None = Query(None),
+    flow_name: list[str] | None = Query(None),
+    failures_only: bool = Query(False),
+    search: str | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
+    sort_by: EventSortField = Query(EventSortField.TIMESTAMP),
+    order: SortOrder = Query(SortOrder.DESC),
+) -> EventPage:
+    """List raw events from the stream, newest first by default.
+
+    One row per event — see :class:`StreamEvent` for why this is a different
+    grain from ``/api/llm-traces`` rather than the same rows under a filter.
+    This reads the ``events`` view, so it shows every namespace in the stream,
+    including one the registry does not declare.
+
+    Filters (``namespace``, ``event_type``, ``flow_name``, ``session_id``,
+    ``node_id``, ``failures_only``, a ``search`` substring, and the
+    ``since`` / ``until`` window over the event's own stamp) and sorting
+    (``sort_by`` / ``order``) both apply server-side, before paging. Repeating
+    ``namespace`` / ``event_type`` / ``flow_name`` ORs the values within that
+    filter and ANDs across filters. An offset past the end returns no rows, not
+    an error.
+
+    ``search`` is a substring test over the event type, session id, flow name,
+    node name and the payload text — not a ``LIKE`` pattern, so ``%`` and ``_``
+    are searched for literally.
+    """
+    print_status(
+        f"GET /api/events limit={limit} offset={offset} "
+        f"session_id={session_id} node_id={node_id} "
+        f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
+        f"failures_only={failures_only} search={search!r} "
+        f"since={since} until={until} "
+        f"sort_by={sort_by.value} order={order.value}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return EventPage(rows=[], total=0, limit=limit, offset=offset)
+
+    q = queries.get_query(events_dir)
+    rows = queries.list_event_rows(
+        q.con,
+        limit=limit,
+        offset=offset,
+        session_id=session_id,
+        node_id=node_id,
+        namespaces=namespace,
+        event_types=event_type,
+        flow_names=flow_name,
+        failures_only=failures_only,
+        search=search,
+        since=since,
+        until=until,
+        sort_by=sort_by,
+        order=order,
+    )
+    total = queries.count_event_rows(
+        q.con,
+        session_id=session_id,
+        node_id=node_id,
+        namespaces=namespace,
+        event_types=event_type,
+        flow_names=flow_name,
+        failures_only=failures_only,
+        search=search,
+        since=since,
+        until=until,
+    )
+    return EventPage(
+        rows=[_row_to_event(r) for r in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/events/stats", response_model=EventStats)
+async def get_event_stats(
+    session_id: str | None = Query(None),
+    node_id: str | None = Query(None),
+    namespace: list[str] | None = Query(None),
+    event_type: list[str] | None = Query(None),
+    flow_name: list[str] | None = Query(None),
+    failures_only: bool = Query(False),
+    search: str | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
+) -> EventStats:
+    """Roll-up across every event matching the filters.
+
+    Takes the same filters as ``/api/events`` and no paging params: the tiles
+    describe the whole filtered set, which is what the rows on the current page
+    cannot report.
+    """
+    print_status(
+        f"GET /api/events/stats session_id={session_id} node_id={node_id} "
+        f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
+        f"failures_only={failures_only} search={search!r} "
+        f"since={since} until={until}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return EventStats()
+
+    q = queries.get_query(events_dir)
+    stats = queries.get_event_stats(
+        q.con,
+        session_id=session_id,
+        node_id=node_id,
+        namespaces=namespace,
+        event_types=event_type,
+        flow_names=flow_name,
+        failures_only=failures_only,
+        search=search,
+        since=since,
+        until=until,
+    )
+    first = stats.get("first_timestamp")
+    last = stats.get("last_timestamp")
+    return EventStats(
+        total_events=int(stats.get("total_events") or 0),
+        failures=int(stats.get("failures") or 0),
+        sessions=int(stats.get("sessions") or 0),
+        event_types=int(stats.get("event_types") or 0),
+        first_timestamp=float(first) if first is not None else None,
+        last_timestamp=float(last) if last is not None else None,
+    )
+
+
+@router.get("/events/filters", response_model=EventFilterOptions)
+async def get_event_filter_options() -> EventFilterOptions:
+    """Every value the ``/api/events`` filters can take, over the whole stream.
+
+    Options built from the loaded rows could only ever offer what the active
+    filter already matched, which leaves no way to widen a selection.
+    """
+    print_status("GET /api/events/filters")
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return EventFilterOptions()
+
+    q = queries.get_query(events_dir)
+    return EventFilterOptions(**queries.list_event_filter_options(q.con))
 
 
 @router.get("/sessions/{session_id}/graph", response_model=SessionGraph)
@@ -478,8 +636,8 @@ def _row_to_summary(row: dict[str, Any]) -> SessionSummary:
     )
 
 
-def _row_to_trace(row: dict[str, Any]) -> TraceRow:
-    return TraceRow(
+def _row_to_llm_trace(row: dict[str, Any]) -> LLMTrace:
+    return LLMTrace(
         trace_id=row["trace_id"],
         session_id=row["session_id"],
         flow_id=row.get("flow_id"),
@@ -489,7 +647,7 @@ def _row_to_trace(row: dict[str, Any]) -> TraceRow:
         timestamp=float(row["timestamp"]),
         model_name=row.get("model_name"),
         model_provider=row.get("model_provider"),
-        status=TraceStatus(row.get("status") or TraceStatus.SUCCESS.value),
+        status=LLMTraceStatus(row.get("status") or LLMTraceStatus.SUCCESS.value),
         error_name=row.get("error_name"),
         error_message=row.get("error_message"),
         input_tokens=int(row["input_tokens"] or 0),
@@ -502,6 +660,32 @@ def _row_to_trace(row: dict[str, Any]) -> TraceRow:
         ),
         inputs=_to_llm_contents(row.get("inputs")),
         output=_to_llm_content(row.get("output")),
+    )
+
+
+def _row_to_event(row: dict[str, Any]) -> StreamEvent:
+    """A raw event row as a :class:`StreamEvent`.
+
+    ``payload`` passes through as-is. It was parsed from the stored JSON in
+    :func:`queries.list_event_rows` and is whatever the writer wrote — a dict
+    for every event in the registry today, but the log must render an event
+    whose body is anything at all, so nothing here reshapes it.
+    """
+    return StreamEvent(
+        event_id=row["event_id"],
+        event_type=row["event_type"],
+        namespace=row["namespace"],
+        session_id=row["session_id"],
+        scope_type=row.get("scope_type"),
+        parent_scope_id=row.get("parent_scope_id"),
+        timestamp=float(row["timestamp"]),
+        flow_id=row.get("flow_id"),
+        flow_name=row.get("flow_name"),
+        node_id=row.get("node_id"),
+        node_name=row.get("node_name"),
+        is_failure=bool(row.get("is_failure")),
+        payload_bytes=int(row.get("payload_bytes") or 0),
+        payload=row.get("payload"),
     )
 
 

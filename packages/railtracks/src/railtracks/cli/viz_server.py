@@ -86,8 +86,14 @@ class RailtracksServer:
         print_status("   GET  /api/sessions/{session_id} - Session detail + tree")
         print_status("   GET  /api/sessions/{session_id}/nodes/{node_id} - Node detail")
         print_status("   GET  /api/sessions/{session_id}/graph - Session graph")
-        print_status("   GET  /api/traces - LLM calls across sessions")
-        print_status("   GET  /api/traces/filters - Values the trace filters accept")
+        print_status("   GET  /api/llm-traces - LLM calls across sessions")
+        print_status("   GET  /api/llm-traces/stats - Roll-up over the same filters")
+        print_status(
+            "   GET  /api/llm-traces/filters - Values the LLM trace filters accept"
+        )
+        print_status("   GET  /api/events - Raw event stream, one row per event")
+        print_status("   GET  /api/events/stats - Roll-up over the same filters")
+        print_status("   GET  /api/events/filters - Values the event filters accept")
         print_status("Press Ctrl+C to stop the server")
 
         def open_browser():
