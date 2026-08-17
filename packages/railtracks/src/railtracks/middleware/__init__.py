@@ -3,7 +3,8 @@ from railtracks.middleware.core import (
     Middleware,
     wrap_node,
 )
-from railtracks.middleware.verifier import Verdict, VerifierRejectedError, verifier
+from railtracks.middleware.verdict import Verdict
+from railtracks.middleware.verifier import VerifierRejectedError, verifier
 
 __all__ = [
     "Middleware",
