@@ -375,8 +375,11 @@ class StreamEvent(BaseModel):
     timestamp: float
     flow_id: str | None = None
     flow_name: str | None = None
-    #: The node this event belongs to. Null for events not attributed to one —
-    #: ``session.*``, ``llm.creation``, ``middleware.creation``.
+    #: The node this event belongs to, resolved from a direct key or through the
+    #: LLM invocation the event wrapped — see :func:`queries._event_rows_cte`.
+    #: Null only for events that genuinely have none: ``session.*`` belongs to
+    #: the session, and ``llm.creation`` / ``middleware.creation`` create a
+    #: *type* outside any node invocation.
     node_id: str | None = None
     node_name: str | None = None
     #: Whether this event reported a raised exception (the ``.failure`` suffix).

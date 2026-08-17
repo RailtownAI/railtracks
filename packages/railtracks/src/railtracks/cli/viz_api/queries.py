@@ -1133,15 +1133,30 @@ def _event_rows_cte() -> str:
 
     * ``namespace`` is the event type's first segment, which is what the
       registry itself keys namespaces by.
-    * ``node_id`` resolves the node an event *belongs to*, and the COALESCE
-      order is load-bearing. ``node.creation`` carries its own id under
-      ``node_id``; the other ``node.*`` events carry theirs under
+    * ``node_id`` resolves the node an event *belongs to*, from a direct key
+      where the event has one and through the LLM invocation where it does not.
+
+      The direct COALESCE order is load-bearing. ``node.creation`` carries its
+      own id under ``node_id``; the other ``node.*`` events carry theirs under
       ``parent_node_id`` while *also* carrying their tree parent under
-      ``spatial_parent_node_id``; ``llm.*`` and ``middleware.*`` carry only the
-      node they happened inside, under ``spatial_parent_node_id``. Reading the
-      spatial key before the parent key therefore attributes several hundred
-      ``node.*`` events to their parent instead of themselves — measured at 351
-      of them on a 3,887-event stream.
+      ``spatial_parent_node_id``; ``llm.*`` carries only the node it happened
+      inside, under ``spatial_parent_node_id``. Reading the spatial key before
+      the parent key therefore attributes several hundred ``node.*`` events to
+      their parent instead of themselves — measured at 351 of them on a
+      3,887-event stream.
+
+      ``middleware.*`` events carry no node key at all. They name the LLM
+      invocation they wrapped, under ``spatial_parent_llm_invoke_id``, and the
+      LLM events for that invocation name the node — so one hop recovers them,
+      the same hop :func:`list_guardrails_by_node` makes to attribute a
+      guardrail decision. It is worth making: on the same stream it moves 900
+      events out of "no node", a little under a quarter of the whole log.
+
+      What is left genuinely has no node, and the client says so rather than
+      guessing: ``session.started`` / ``session.completed`` belong to the
+      session, and ``llm.creation`` / ``middleware.creation`` create a *type*
+      (keyed by ``llm_id`` / ``middleware_type_id``) outside any node
+      invocation. 926 events on this stream, and correctly unattributed.
     * ``is_failure`` is the ``.failure`` suffix the event namespaces use for a
       raised exception (``llm.failure``, ``node.failure``,
       ``middleware.failure``). It is derived once here so the Failures tile, the
@@ -1162,7 +1177,21 @@ def _event_rows_cte() -> str:
     unused: DuckDB prunes an unreferenced projection out of an inlined CTE.
     """
     return """
-    ev AS (
+    llm_nodes AS (
+      -- The node each LLM invocation was made from, so a middleware event that
+      -- names only the invocation can still find its node. Grouped by the join
+      -- key like every other join here: an ungrouped match would fan one event
+      -- row out into as many nodes as it hit.
+      SELECT scope_id,
+             parent_llm_invoke_id              AS llm_invoke_id,
+             ANY_VALUE(spatial_parent_node_id) AS node_id
+      FROM llm
+      WHERE event_type IN ('llm.invocation', 'llm.response', 'llm.failure')
+        AND parent_llm_invoke_id IS NOT NULL
+        AND spatial_parent_node_id IS NOT NULL
+      GROUP BY scope_id, parent_llm_invoke_id
+    ),
+    ev_raw AS (
       SELECT event_id,
              event_type,
              SPLIT_PART(event_type, '.', 1)                  AS namespace,
@@ -1172,11 +1201,29 @@ def _event_rows_cte() -> str:
              stamp,
              COALESCE(payload->>'node_id',
                       payload->>'parent_node_id',
-                      payload->>'spatial_parent_node_id')    AS node_id,
+                      payload->>'spatial_parent_node_id')    AS direct_node_id,
+             payload->>'spatial_parent_llm_invoke_id'        AS llm_invoke_id,
              event_type LIKE '%.failure'                     AS is_failure,
              CAST(payload AS VARCHAR)                        AS payload_text,
              STRLEN(payload_text)                            AS payload_bytes
       FROM events
+    ),
+    ev AS (
+      SELECT r.event_id,
+             r.event_type,
+             r.namespace,
+             r.session_id,
+             r.scope_type,
+             r.parent_scope_id,
+             r.stamp,
+             -- A direct key always wins; the hop only fills a gap.
+             COALESCE(r.direct_node_id, ln.node_id)          AS node_id,
+             r.is_failure,
+             r.payload_text,
+             r.payload_bytes
+      FROM ev_raw r
+      LEFT JOIN llm_nodes ln
+        ON ln.scope_id = r.session_id AND ln.llm_invoke_id = r.llm_invoke_id
     ),"""
 
 
