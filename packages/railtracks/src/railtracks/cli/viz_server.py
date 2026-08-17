@@ -14,8 +14,15 @@ from railtracks.paths import resolve_railtracks_home
 
 from .constants import DEFAULT_PORT
 from .io import print_error, print_status, print_success, print_warning
+from .viz_api import router as viz_api_router
 
 app = FastAPI()
+# The v2 event-stream API, under its own `/api/v2` prefix so it sits beside the
+# frozen v1 endpoints below rather than shadowing them. Included here, before the
+# catch-all at the bottom of this file, because FastAPI matches in registration
+# order and `/{full_path:path}` matches every remaining path — a router included
+# after it would never be reached.
+app.include_router(viz_api_router)
 
 
 def get_railtracks_dir() -> Path:
@@ -46,9 +53,24 @@ async def get_evaluations():
     return JSONResponse(content=evaluations)
 
 
+# The v1 API, file-based and frozen.
+#
+# These stay exactly where they are, on the bare `/api/...` paths, because the
+# released visualizer build is what calls them and it cannot be changed — if
+# `.railtracks/ui/index.html` is missing at boot, `viz` downloads that build, so
+# this is the UI an ordinary `railtracks viz` serves. v2 is in beta and lives
+# under `/api/v2` instead, which keeps the stable client working untouched and
+# makes "which API am I talking to" answerable from the URL alone.
+#
+# The two shapes are genuinely different, not versions of one thing: v1 returns a
+# `runs` array per session with no rolled-up `status`, and feeding it to the v2
+# SPA crashes it on the first missing field. Serving both is what lets that
+# difference be harmless.
+
+
 @app.get("/api/sessions")
 async def get_sessions():
-    """Get all session JSON files from .railtracks/data/sessions/"""
+    """Get all session JSON files from .railtracks/data/sessions/ (v1)"""
     sessions_dir = get_data_dir("sessions")
     sessions = []
 
@@ -66,7 +88,7 @@ async def get_sessions():
 
 @app.get("/api/sessions/{guid}")
 async def get_session(guid: str):
-    """Get a specific session JSON file by GUID from .railtracks/data/sessions/"""
+    """Get a specific session JSON file by GUID from .railtracks/data/sessions/ (v1)"""
     sessions_dir = get_data_dir("sessions")
     file_path = sessions_dir / f"{guid}.json"
     if not file_path.exists():
@@ -121,8 +143,14 @@ class RailtracksServer:
         print_status(f"📁 Serving files from: {get_railtracks_dir() / 'ui'}")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
+        print_status("   v1 (stable, file-based):")
         print_status("   GET  /api/sessions - Get all session JSON files")
         print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
+        print_status("   v2 (beta, event-stream):")
+        for route in viz_api_router.routes:
+            path = getattr(route, "path", None)
+            if path:
+                print_status(f"   GET  {path}")
         print_status("Press Ctrl+C to stop the server")
 
         def open_browser():

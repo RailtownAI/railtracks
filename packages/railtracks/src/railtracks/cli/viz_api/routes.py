@@ -26,12 +26,21 @@ from .models import (
     LLMTraceSortField,
     LLMTraceStats,
     LLMTraceStatus,
+    MiddlewareBand,
+    MiddlewareFilterOptions,
+    MiddlewareKind,
+    MiddlewareOutcome,
+    MiddlewarePage,
+    MiddlewareSortField,
+    MiddlewareStats,
+    MiddlewareSummary,
     NodeDetail,
     NodeRef,
     NodeStatus,
     SessionDetail,
     SessionFilterOptions,
     SessionGraph,
+    SessionMiddleware,
     SessionStats,
     SessionStatus,
     SessionSummary,
@@ -40,7 +49,12 @@ from .models import (
     TreeNode,
 )
 
-router = APIRouter(prefix="/api")
+#: ``/api/v2``, not ``/api``. The v1 file-based endpoints in ``viz_server.py`` keep
+#: the bare paths because the *released* visualizer build calls them and cannot be
+#: changed — an ordinary ``railtracks viz`` with no staged UI downloads that build.
+#: Everything here is beta and moves; putting the version in the prefix is what
+#: lets the stable client keep working while this one changes underneath it.
+router = APIRouter(prefix="/api/v2")
 
 
 def _events_dir() -> Path:
@@ -90,11 +104,27 @@ async def list_sessions(
             since=since,
             until=until,
         )
+        # Attached in one extra query keyed on the ids just returned, rather than
+        # per row: a lookup inside the loop would be one query per session, and
+        # re-deriving the session filter would give the middleware a second
+        # predicate to drift from the rows it decorates.
+        middleware = queries.list_middleware_by_session(
+            q.con, [r["session_id"] for r in rows]
+        )
     except Exception as e:  # noqa: BLE001 - keep the endpoint resilient
         print_error(f"list_sessions query failed: {e}")
         raise HTTPException(status_code=500, detail="failed to query events") from e
 
-    return [_row_to_summary(r) for r in rows]
+    return [
+        _row_to_summary(
+            r,
+            [
+                _row_to_session_middleware(m)
+                for m in middleware.get(r["session_id"], [])
+            ],
+        )
+        for r in rows
+    ]
 
 
 # NB: the two literal `/sessions/...` routes below must stay ahead of
@@ -410,6 +440,7 @@ async def list_events(
     namespace: list[str] | None = Query(None),
     event_type: list[str] | None = Query(None),
     flow_name: list[str] | None = Query(None),
+    middleware_name: list[str] | None = Query(None),
     failures_only: bool = Query(False),
     search: str | None = Query(None),
     since: float | None = Query(None),
@@ -424,22 +455,33 @@ async def list_events(
     This reads the ``events`` view, so it shows every namespace in the stream,
     including one the registry does not declare.
 
-    Filters (``namespace``, ``event_type``, ``flow_name``, ``session_id``,
-    ``node_id``, ``failures_only``, a ``search`` substring, and the
-    ``since`` / ``until`` window over the event's own stamp) and sorting
+    Filters (``namespace``, ``event_type``, ``flow_name``, ``middleware_name``,
+    ``session_id``, ``node_id``, ``failures_only``, a ``search`` substring, and
+    the ``since`` / ``until`` window over the event's own stamp) and sorting
     (``sort_by`` / ``order``) both apply server-side, before paging. Repeating
-    ``namespace`` / ``event_type`` / ``flow_name`` ORs the values within that
-    filter and ANDs across filters. An offset past the end returns no rows, not
-    an error.
+    ``namespace`` / ``event_type`` / ``flow_name`` / ``middleware_name`` ORs the
+    values within that filter and ANDs across filters. An offset past the end
+    returns no rows, not an error.
 
     ``search`` is a substring test over the event type, session id, flow name,
     node name and the payload text — not a ``LIKE`` pattern, so ``%`` and ``_``
     are searched for literally.
+
+    ``middleware_name`` is an exact match, and it is a filter of its own rather
+    than a ``search`` because a middleware's name appears in exactly one of its
+    events: ``middleware.creation`` records it, and every invocation, response,
+    failure and guard decision identifies its middleware by type id. Searching a
+    name therefore returns the creations and none of the work — 81 rows for a
+    middleware that ran 79 times, on the store this was measured against. The
+    server resolves the id to the name instead (see
+    :data:`~railtracks.cli.viz_api.queries._MIDDLEWARE_NAME_CTE`), which is what
+    lets the Middleware view hand off to the log.
     """
     print_status(
         f"GET /api/events limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
         f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
+        f"middleware_name={middleware_name} "
         f"failures_only={failures_only} search={search!r} "
         f"since={since} until={until} "
         f"sort_by={sort_by.value} order={order.value}"
@@ -458,6 +500,7 @@ async def list_events(
         namespaces=namespace,
         event_types=event_type,
         flow_names=flow_name,
+        middleware_names=middleware_name,
         failures_only=failures_only,
         search=search,
         since=since,
@@ -472,6 +515,7 @@ async def list_events(
         namespaces=namespace,
         event_types=event_type,
         flow_names=flow_name,
+        middleware_names=middleware_name,
         failures_only=failures_only,
         search=search,
         since=since,
@@ -492,6 +536,7 @@ async def get_event_stats(
     namespace: list[str] | None = Query(None),
     event_type: list[str] | None = Query(None),
     flow_name: list[str] | None = Query(None),
+    middleware_name: list[str] | None = Query(None),
     failures_only: bool = Query(False),
     search: str | None = Query(None),
     since: float | None = Query(None),
@@ -506,6 +551,7 @@ async def get_event_stats(
     print_status(
         f"GET /api/events/stats session_id={session_id} node_id={node_id} "
         f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
+        f"middleware_name={middleware_name} "
         f"failures_only={failures_only} search={search!r} "
         f"since={since} until={until}"
     )
@@ -521,6 +567,7 @@ async def get_event_stats(
         namespaces=namespace,
         event_types=event_type,
         flow_names=flow_name,
+        middleware_names=middleware_name,
         failures_only=failures_only,
         search=search,
         since=since,
@@ -552,6 +599,166 @@ async def get_event_filter_options() -> EventFilterOptions:
 
     q = queries.get_query(events_dir)
     return EventFilterOptions(**queries.list_event_filter_options(q.con))
+
+
+@router.get("/middleware", response_model=MiddlewarePage)
+async def list_middleware(
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    session_id: str | None = Query(None),
+    node_id: str | None = Query(None),
+    kind: list[str] | None = Query(None),
+    band: list[str] | None = Query(None),
+    middleware_name: list[str] | None = Query(None),
+    flow_name: list[str] | None = Query(None),
+    blocks_only: bool = Query(False),
+    include_internal: bool = Query(False),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
+    sort_by: MiddlewareSortField = Query(MiddlewareSortField.INVOCATIONS),
+    order: SortOrder = Query(SortOrder.DESC),
+) -> MiddlewarePage:
+    """List middleware, one row per ``(name, kind, band)``, busiest first.
+
+    An aggregate rather than one row per invocation — see
+    :class:`MiddlewareSummary` for why the set is the row. The per-invocation
+    stream is ``/api/events?namespace=middleware``, at event grain.
+
+    ``kind`` is derived rather than served by the framework: it comes from which
+    specialised event types a middleware emits, as a precedence ladder. See
+    :data:`queries._MIDDLEWARE_KIND_CASE`.
+
+    Filters and sorting apply server-side, before paging. Repeating ``kind`` /
+    ``band`` / ``middleware_name`` / ``flow_name`` ORs the values within that
+    filter and ANDs across filters.
+
+    ``include_internal`` surfaces the framework's own ``_observe_middleware`` and
+    ``_llm_observe``, which are hidden by default: they are injected on every node
+    and every model chain, so they appear in every session and say nothing about
+    the code under observation. They are worth being able to see, which is why
+    this is a flag rather than a permanent exclusion.
+
+    ``blocks_only`` narrows to middleware that blocked at least once. It is a
+    ``HAVING`` over the group rather than a row predicate, so a guard that blocked
+    once in forty runs keeps all forty invocations in its totals.
+    """
+    print_status(
+        f"GET /api/middleware limit={limit} offset={offset} "
+        f"session_id={session_id} node_id={node_id} kind={kind} band={band} "
+        f"middleware_name={middleware_name} flow_name={flow_name} "
+        f"blocks_only={blocks_only} include_internal={include_internal} "
+        f"since={since} until={until} "
+        f"sort_by={sort_by.value} order={order.value}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return MiddlewarePage(rows=[], total=0, limit=limit, offset=offset)
+
+    filters: dict[str, Any] = {
+        "session_id": session_id,
+        "node_id": node_id,
+        "kinds": kind,
+        "bands": band,
+        "middleware_names": middleware_name,
+        "flow_names": flow_name,
+        "blocks_only": blocks_only,
+        "include_internal": include_internal,
+        "since": since,
+        "until": until,
+    }
+    q = queries.get_query(events_dir)
+    rows = queries.list_middleware_rows(
+        q.con, limit=limit, offset=offset, sort_by=sort_by, order=order, **filters
+    )
+    total = queries.count_middleware_rows(q.con, **filters)
+    return MiddlewarePage(
+        rows=[_row_to_middleware_summary(r) for r in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+# NB: the two literal `/middleware/...` routes stay ahead of any future
+# `/middleware/{name}` for the reason the `/sessions/...` block gives — FastAPI
+# matches in registration order.
+
+
+@router.get("/middleware/stats", response_model=MiddlewareStats)
+async def get_middleware_stats(
+    session_id: str | None = Query(None),
+    node_id: str | None = Query(None),
+    kind: list[str] | None = Query(None),
+    band: list[str] | None = Query(None),
+    middleware_name: list[str] | None = Query(None),
+    flow_name: list[str] | None = Query(None),
+    blocks_only: bool = Query(False),
+    include_internal: bool = Query(False),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
+) -> MiddlewareStats:
+    """Roll-up across every middleware matching the filters.
+
+    Takes the same filters as ``/api/middleware`` and no paging params, and shares
+    its ``WHERE`` and ``HAVING`` — so a tile can never describe a set the table
+    cannot list.
+    """
+    print_status(
+        f"GET /api/middleware/stats session_id={session_id} node_id={node_id} "
+        f"kind={kind} band={band} middleware_name={middleware_name} "
+        f"flow_name={flow_name} blocks_only={blocks_only} "
+        f"include_internal={include_internal} since={since} until={until}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return MiddlewareStats()
+
+    q = queries.get_query(events_dir)
+    stats = queries.get_middleware_stats(
+        q.con,
+        session_id=session_id,
+        node_id=node_id,
+        kinds=kind,
+        bands=band,
+        middleware_names=middleware_name,
+        flow_names=flow_name,
+        blocks_only=blocks_only,
+        include_internal=include_internal,
+        since=since,
+        until=until,
+    )
+    return MiddlewareStats(
+        total_middleware=int(stats.get("total_middleware") or 0),
+        total_invocations=int(stats.get("total_invocations") or 0),
+        decisions=int(stats.get("decisions") or 0),
+        allows=int(stats.get("allows") or 0),
+        transforms=int(stats.get("transforms") or 0),
+        blocks=int(stats.get("blocks") or 0),
+        exceptions=int(stats.get("exceptions") or 0),
+        sessions=int(stats.get("sessions") or 0),
+    )
+
+
+@router.get("/middleware/filters", response_model=MiddlewareFilterOptions)
+async def get_middleware_filter_options(
+    include_internal: bool = Query(False),
+) -> MiddlewareFilterOptions:
+    """Every value the ``/api/middleware`` filters can take, over the whole stream.
+
+    Options built from the loaded rows could only ever offer what the active
+    filter already matched, which leaves no way to widen a selection.
+    ``include_internal`` is threaded through so the dropdown cannot offer a name
+    the default listing would refuse to show.
+    """
+    print_status(f"GET /api/middleware/filters include_internal={include_internal}")
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return MiddlewareFilterOptions()
+
+    q = queries.get_query(events_dir)
+    return MiddlewareFilterOptions(
+        **queries.list_middleware_filter_options(q.con, include_internal)
+    )
 
 
 @router.get("/sessions/{session_id}/graph", response_model=SessionGraph)
@@ -610,7 +817,43 @@ async def get_session_graph(session_id: str) -> SessionGraph:
 # ---------------------------------------------------------------------------
 
 
-def _row_to_summary(row: dict[str, Any]) -> SessionSummary:
+def _row_to_session_middleware(row: dict[str, Any]) -> SessionMiddleware:
+    return SessionMiddleware(
+        middleware_name=row["middleware_name"],
+        kind=MiddlewareKind(row["kind"]),
+        band=MiddlewareBand(row["band"]),
+        outcome=MiddlewareOutcome(row["outcome"]),
+        invocations=int(row["invocations"] or 0),
+        blocks=int(row["blocks"] or 0),
+        reason=row.get("reason"),
+    )
+
+
+def _row_to_middleware_summary(row: dict[str, Any]) -> MiddlewareSummary:
+    first_seen = row.get("first_seen")
+    last_seen = row.get("last_seen")
+    return MiddlewareSummary(
+        middleware_name=row["middleware_name"],
+        kind=MiddlewareKind(row["kind"]),
+        band=MiddlewareBand(row["band"]),
+        invocations=int(row["invocations"] or 0),
+        decisions=int(row["decisions"] or 0),
+        allows=int(row["allows"] or 0),
+        transforms=int(row["transforms"] or 0),
+        blocks=int(row["blocks"] or 0),
+        exceptions=int(row["exceptions"] or 0),
+        sessions=int(row["sessions"] or 0),
+        nodes=int(row["nodes"] or 0),
+        first_seen=float(first_seen) if first_seen is not None else None,
+        last_seen=float(last_seen) if last_seen is not None else None,
+        reason=row.get("reason"),
+    )
+
+
+def _row_to_summary(
+    row: dict[str, Any],
+    middleware: list[SessionMiddleware] | None = None,
+) -> SessionSummary:
     start_time = float(row["start_time"])
     end_time = float(row["end_time"]) if row["end_time"] is not None else None
     duration = row["duration"]
@@ -633,6 +876,7 @@ def _row_to_summary(row: dict[str, Any]) -> SessionSummary:
         input_tokens=int(row["input_tokens"] or 0),
         output_tokens=int(row["output_tokens"] or 0),
         node_count=int(row["node_count"] or 0),
+        middleware=middleware or [],
     )
 
 
@@ -683,6 +927,7 @@ def _row_to_event(row: dict[str, Any]) -> StreamEvent:
         flow_name=row.get("flow_name"),
         node_id=row.get("node_id"),
         node_name=row.get("node_name"),
+        middleware_name=row.get("middleware_name"),
         is_failure=bool(row.get("is_failure")),
         payload_bytes=int(row.get("payload_bytes") or 0),
         payload=row.get("payload"),

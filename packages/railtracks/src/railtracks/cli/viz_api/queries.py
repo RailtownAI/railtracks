@@ -18,7 +18,14 @@ from typing import Any
 from railtracks.query import EventQuery, connect
 
 from ..io import print_status
-from .models import EventSortField, LLMTraceSortField, LLMTraceStatus, SortOrder
+from .models import (
+    EventSortField,
+    LLMTraceSortField,
+    LLMTraceStatus,
+    MiddlewareKind,
+    MiddlewareSortField,
+    SortOrder,
+)
 
 _NAMESPACES = ["session", "node", "llm", "middleware"]
 
@@ -172,6 +179,31 @@ _NODE_JOIN_CTE = """
       WHERE event_type = 'node.creation'
       GROUP BY scope_id, node_id
     )"""
+
+#: Middleware name per ``middleware_type_id``, the only place a name is recorded.
+#:
+#: ``middleware.creation`` is the *sole* event carrying ``middleware_name``:
+#: every other middleware event — invocation, response, failure, guard decision —
+#: identifies its middleware by ``parent_middleware_type_id`` alone. So filtering
+#: or searching events by a name is impossible without this join, and a text
+#: search for one matches only its creations: 81 rows on a stream where that
+#: middleware ran 79 times.
+#:
+#: Grouped by the join key, and **globally rather than per session**, for the two
+#: reasons :func:`_middleware_rows_cte` documents: a type_id gets a creation
+#: event per process, and a module-level middleware registers once per process so
+#: later sessions carry invocations whose creation lives in another session's
+#: file. Shared by the middleware endpoints and the event log so the two cannot
+#: disagree about which events belong to a name.
+_MIDDLEWARE_NAME_CTE = """
+    mw_names AS (
+      SELECT middleware_type_id         AS type_id,
+             ANY_VALUE(middleware_name) AS middleware_name
+      FROM middleware
+      WHERE event_type = 'middleware.creation'
+        AND middleware_type_id IS NOT NULL
+      GROUP BY middleware_type_id
+    ),"""
 
 
 # ---------------------------------------------------------------------------
@@ -1157,6 +1189,12 @@ def _event_rows_cte() -> str:
       session, and ``llm.creation`` / ``middleware.creation`` create a *type*
       (keyed by ``llm_id`` / ``middleware_type_id``) outside any node
       invocation. 926 events on this stream, and correctly unattributed.
+    * ``middleware_name``, for the middleware events, resolved through
+      :data:`_MIDDLEWARE_NAME_CTE`. It exists so the Middleware view can hand off
+      to the log — "every event this middleware produced" is not something a text
+      search can express, because only ``middleware.creation`` carries the name.
+      Null for every non-middleware event, which is what a name filter then
+      excludes.
     * ``is_failure`` is the ``.failure`` suffix the event namespaces use for a
       raised exception (``llm.failure``, ``node.failure``,
       ``middleware.failure``). It is derived once here so the Failures tile, the
@@ -1176,7 +1214,9 @@ def _event_rows_cte() -> str:
     error the moment a search was passed to it. Carrying it is free where it is
     unused: DuckDB prunes an unreferenced projection out of an inlined CTE.
     """
-    return """
+    return (
+        _MIDDLEWARE_NAME_CTE
+        + """
     llm_nodes AS (
       -- The node each LLM invocation was made from, so a middleware event that
       -- names only the invocation can still find its node. Grouped by the join
@@ -1203,6 +1243,10 @@ def _event_rows_cte() -> str:
                       payload->>'parent_node_id',
                       payload->>'spatial_parent_node_id')    AS direct_node_id,
              payload->>'spatial_parent_llm_invoke_id'        AS llm_invoke_id,
+             -- Its own id on a creation, the wrapped middleware's on everything
+             -- else. Both, so a name filter keeps the creation that named it.
+             COALESCE(payload->>'middleware_type_id',
+                      payload->>'parent_middleware_type_id') AS mw_type_id,
              event_type LIKE '%.failure'                     AS is_failure,
              CAST(payload AS VARCHAR)                        AS payload_text,
              STRLEN(payload_text)                            AS payload_bytes
@@ -1218,13 +1262,17 @@ def _event_rows_cte() -> str:
              r.stamp,
              -- A direct key always wins; the hop only fills a gap.
              COALESCE(r.direct_node_id, ln.node_id)          AS node_id,
+             nm.middleware_name,
              r.is_failure,
              r.payload_text,
              r.payload_bytes
       FROM ev_raw r
       LEFT JOIN llm_nodes ln
         ON ln.scope_id = r.session_id AND ln.llm_invoke_id = r.llm_invoke_id
+      LEFT JOIN mw_names nm
+        ON nm.type_id = r.mw_type_id
     ),"""
+    )
 
 
 def _event_filters(
@@ -1233,6 +1281,7 @@ def _event_filters(
     namespaces: list[str] | None,
     event_types: list[str] | None,
     flow_names: list[str] | None,
+    middleware_names: list[str] | None = None,
     failures_only: bool = False,
     search: str | None = None,
     since: float | None = None,
@@ -1248,6 +1297,11 @@ def _event_filters(
     ``search`` is a plain substring test, not a ``LIKE`` pattern: ``contains``
     has no wildcard characters, so a reader typing ``_`` or ``%`` searches for
     that character instead of accidentally matching everything.
+
+    ``middleware_names`` is an exact match on the resolved name rather than a
+    search for it, which is the whole point: the name lives only on
+    ``middleware.creation``, so a text search for one returns that middleware's
+    creations and none of its work.
 
     ``since`` / ``until`` bound the envelope's own ``stamp`` — an event is in
     the window if it *happened* in it, regardless of when the session around it
@@ -1270,6 +1324,9 @@ def _event_filters(
     if flow_names:
         predicates.append(_in_clause("s.flow_name", flow_names))
         params.extend(flow_names)
+    if middleware_names:
+        predicates.append(_in_clause("e.middleware_name", middleware_names))
+        params.extend(middleware_names)
     if failures_only:
         predicates.append("e.is_failure")
     if search:
@@ -1305,6 +1362,7 @@ def count_event_rows(
     namespaces: list[str] | None = None,
     event_types: list[str] | None = None,
     flow_names: list[str] | None = None,
+    middleware_names: list[str] | None = None,
     failures_only: bool = False,
     search: str | None = None,
     since: float | None = None,
@@ -1321,6 +1379,7 @@ def count_event_rows(
         namespaces,
         event_types,
         flow_names,
+        middleware_names,
         failures_only,
         search,
         since,
@@ -1348,6 +1407,7 @@ def list_event_rows(
     namespaces: list[str] | None = None,
     event_types: list[str] | None = None,
     flow_names: list[str] | None = None,
+    middleware_names: list[str] | None = None,
     failures_only: bool = False,
     search: str | None = None,
     since: float | None = None,
@@ -1373,6 +1433,7 @@ def list_event_rows(
         namespaces,
         event_types,
         flow_names,
+        middleware_names,
         failures_only,
         search,
         since,
@@ -1395,6 +1456,7 @@ def list_event_rows(
       s.flow_name,
       e.node_id,
       n.node_name,
+      e.middleware_name,
       e.is_failure,
       e.payload_bytes,
       e.payload_text                     AS payload_json
@@ -1424,6 +1486,7 @@ def get_event_stats(
     namespaces: list[str] | None = None,
     event_types: list[str] | None = None,
     flow_names: list[str] | None = None,
+    middleware_names: list[str] | None = None,
     failures_only: bool = False,
     search: str | None = None,
     since: float | None = None,
@@ -1440,6 +1503,7 @@ def get_event_stats(
         namespaces,
         event_types,
         flow_names,
+        middleware_names,
         failures_only,
         search,
         since,
@@ -1509,6 +1573,490 @@ def list_event_filter_options(con) -> dict[str, list[str]]:
 
 
 # ---------------------------------------------------------------------------
+# Middleware — one row per middleware, rolled up
+# ---------------------------------------------------------------------------
+#
+# The grain here is a *middleware*, not one of its invocations: the question the
+# page answers ("which middleware ran, how often, and what did they block") is
+# about a set of invocations, so the set is the row. The per-invocation stream is
+# already served, at event grain, by `/api/events?namespace=middleware`.
+#
+# Three derivations happen here that the framework does not serve, and all three
+# are computed over the *whole* store rather than the filtered window, because
+# they are properties of the middleware rather than of the window. A window that
+# happened to exclude a guard's decision events would otherwise reclassify the
+# guard as a plain wrapper.
+
+#: Middleware the framework injects itself, on every node and every model chain
+#: respectively. They exist to emit the very events being read here, so they
+#: appear in every session and carry no information about the code under
+#: observation — a column that says the same thing on every row.
+#:
+#: An explicit list rather than an underscore-prefix rule, deliberately: guards
+#: captured before the naming fix that landed on main report as
+#: ``_middleware_fn``, so a prefix rule would silently swallow real user
+#: guardrails along with these two.
+_INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
+
+#: Kind per ``middleware_type_id``, as a precedence ladder over the *specialised*
+#: event types a middleware emits.
+#:
+#: Most-specific-wins is load-bearing, not defensive. ``@before_llm`` and
+#: ``@after_llm`` are both built on ``@wrap_llm``, so each emits its own
+#: specialised pair *and* the generic ``middleware.model.invocation`` /
+#: ``.response``. Measured on one agent run with every decorator stacked,
+#: ``middleware.model.invocation`` fires four times — once each for the
+#: ``@before_llm``, the ``@after_llm``, the ``@wrap_llm`` and ``_llm_observe``.
+#: Rewriting these ``LIKE``s as equality tests would label a ``@before_llm`` a
+#: plain model wrapper.
+#:
+#: The final band fallback catches a model-band middleware that emits no
+#: specialised event at all. That is not hypothetical: ``@wrap_llm`` only began
+#: emitting ``middleware.model.*`` recently, so every model middleware captured
+#: before that reaches this rung.
+_MIDDLEWARE_KIND_CASE = """
+      CASE
+        WHEN BOOL_OR(event_type LIKE 'middleware.guard.input.%')    THEN 'input_guard'
+        WHEN BOOL_OR(event_type LIKE 'middleware.guard.output.%')   THEN 'output_guard'
+        WHEN BOOL_OR(event_type LIKE 'middleware.model.input.%')    THEN 'request_transform'
+        WHEN BOOL_OR(event_type LIKE 'middleware.model.output.%')   THEN 'response_transform'
+        WHEN BOOL_OR(event_type LIKE 'middleware.regular.output.%') THEN 'result_hook'
+        WHEN BOOL_OR(event_type LIKE 'middleware.model.%')          THEN 'llm_wrapper'
+        WHEN BOOL_OR(spatial_parent_spatial_type = 'llm_and_middleware')
+                                                                    THEN 'llm_wrapper'
+        ELSE 'node_wrapper'
+      END"""
+
+#: SQL for each sortable measure, in terms of the grouped subquery's own columns.
+#: Keyed by the enum, so nothing user-supplied reaches the ``ORDER BY``.
+_MIDDLEWARE_SORT_COLUMNS = {
+    MiddlewareSortField.INVOCATIONS: "g.invocations",
+    MiddlewareSortField.BLOCKS: "g.blocks",
+    MiddlewareSortField.NAME: "g.middleware_name",
+    MiddlewareSortField.LAST_SEEN: "g.last_seen",
+}
+
+
+def _middleware_rows_cte() -> str:
+    """The middleware events every middleware endpoint is built from.
+
+    Four things are resolved here so the listing, its count and its stats read
+    one definition:
+
+    * **Name**, from ``middleware.creation`` joined on ``middleware_type_id`` and
+      **grouped by it**. The grouping is required, not tidiness: a type_id gets a
+      creation event per process, so ``_observe_middleware`` alone has 225
+      creations across 33 type_ids on a 3,887-event store, and an ungrouped join
+      would fan each of its events out 7-fold. The join is global rather than
+      session-scoped for the same reason it resolves at all —
+      ``_llm_observe`` is a module-level singleton whose registration fires once
+      per *process*, so sessions after the first carry invocations whose creation
+      lives in another session's file. Measured: 0 of 1,545 events with a parent
+      type_id fail to resolve globally.
+
+      It stays a ``LEFT`` join with a fallback label anyway. An unresolvable
+      middleware should appear as an unnamed row rather than vanish — a stream
+      truncated mid-session is the case, and silently dropping its events would
+      under-report every count on the page.
+
+    * **Kind and band**, per :data:`_MIDDLEWARE_KIND_CASE`, over every event for
+      the type_id regardless of the request's filters.
+
+    * **The node**, which middleware events do not carry directly. Node-band
+      events name it under ``spatial_parent_node_id``; model-band events name
+      only the LLM invocation they wrapped, under
+      ``spatial_parent_llm_invoke_id``, and the ``llm.*`` events for that
+      invocation name the node — the same hop the event log makes. Grouped by the
+      join key, like every join here.
+
+    * **The decision**, flattened out of the ``decision`` payload into ``action``
+      and ``reason``. Only ``middleware.guard.*.response`` carries one; every
+      other event contributes null, which is what keeps ``allows`` /
+      ``transforms`` / ``blocks`` at zero for a non-guard rather than absent.
+
+    ``is_failure`` is the ``.failure`` suffix, and what it means is narrower than
+    it looks: an exception unwound *through* this middleware. One guardrail block
+    emits one for the guard and one for every enclosing layer, so it ranks "sat
+    in the path of a failure" and never attributes cause. Cause comes from
+    ``action = 'block'`` alone.
+    """
+    return (
+        _MIDDLEWARE_NAME_CTE
+        + """
+    mw_kinds AS (
+      SELECT parent_middleware_type_id           AS type_id,
+             """
+        + _MIDDLEWARE_KIND_CASE
+        + """   AS kind,
+             CASE WHEN BOOL_OR(spatial_parent_spatial_type = 'llm_and_middleware')
+                  THEN 'llm' ELSE 'node' END   AS band
+      FROM middleware
+      WHERE parent_middleware_type_id IS NOT NULL
+      GROUP BY parent_middleware_type_id
+    ),
+    mw_llm_nodes AS (
+      SELECT scope_id,
+             parent_llm_invoke_id                AS llm_invoke_id,
+             ANY_VALUE(spatial_parent_node_id)   AS node_id
+      FROM llm
+      WHERE event_type IN ('llm.invocation', 'llm.response', 'llm.failure')
+        AND parent_llm_invoke_id IS NOT NULL
+        AND spatial_parent_node_id IS NOT NULL
+      GROUP BY scope_id, parent_llm_invoke_id
+    ),
+    m AS (
+      SELECT ev.event_id,
+             ev.event_type,
+             ev.scope_id                                       AS session_id,
+             ev.timestamp,
+             ev.parent_middleware_type_id                      AS type_id,
+             COALESCE(nm.middleware_name,
+                      'middleware ' || SUBSTR(CAST(ev.parent_middleware_type_id
+                                                   AS VARCHAR), 1, 8))
+                                                               AS middleware_name,
+             COALESCE(kd.kind, 'node_wrapper')                 AS kind,
+             COALESCE(kd.band, 'node')                         AS band,
+             COALESCE(ev.spatial_parent_node_id, ln.node_id)   AS node_id,
+             ev.decision->>'action'                            AS action,
+             ev.decision->>'reason'                            AS reason,
+             ev.event_type LIKE '%.failure'                    AS is_failure
+      FROM middleware ev
+      LEFT JOIN mw_llm_nodes ln
+        ON ln.scope_id = ev.scope_id
+       AND ln.llm_invoke_id = ev.spatial_parent_llm_invoke_id
+      LEFT JOIN mw_names nm ON nm.type_id = ev.parent_middleware_type_id
+      LEFT JOIN mw_kinds kd ON kd.type_id = ev.parent_middleware_type_id
+      WHERE ev.parent_middleware_type_id IS NOT NULL
+    ),"""
+    )
+
+
+#: The per-group aggregate. Every middleware endpoint selects from this, so the
+#: table, its pager total and its tiles cannot describe three different sets.
+#:
+#: ``invocations`` counts ``middleware.invocation`` specifically rather than all
+#: events, because the generic invocation is the one event every middleware emits
+#: exactly once per run — counting rows would make a guard (5 events per run)
+#: look five times busier than a wrapper (2 per run) doing the same work.
+_MIDDLEWARE_GROUP_SELECT = """
+    SELECT m.middleware_name,
+           m.kind,
+           m.band,
+           COUNT(*) FILTER (WHERE m.event_type = 'middleware.invocation')
+                                                              AS invocations,
+           COUNT(*) FILTER (WHERE m.action IS NOT NULL)        AS decisions,
+           COUNT(*) FILTER (WHERE m.action = 'allow')          AS allows,
+           COUNT(*) FILTER (WHERE m.action = 'transform')      AS transforms,
+           COUNT(*) FILTER (WHERE m.action = 'block')          AS blocks,
+           COUNT(*) FILTER (WHERE m.is_failure)                AS exceptions,
+           COUNT(DISTINCT m.session_id)                        AS sessions,
+           COUNT(DISTINCT m.node_id)                           AS nodes,
+           MIN(EPOCH(m.timestamp))                             AS first_seen,
+           MAX(EPOCH(m.timestamp))                             AS last_seen,
+           ARG_MAX(m.reason, m.timestamp) FILTER (
+             WHERE m.action IN ('block', 'transform'))         AS reason
+    FROM m
+    LEFT JOIN sessions s ON s.scope_id = m.session_id
+    LEFT JOIN nodes n ON n.scope_id = m.session_id AND n.node_id = m.node_id"""
+
+
+def _middleware_filters(
+    session_id: str | None = None,
+    node_id: str | None = None,
+    kinds: list[str] | None = None,
+    bands: list[str] | None = None,
+    middleware_names: list[str] | None = None,
+    flow_names: list[str] | None = None,
+    blocks_only: bool = False,
+    include_internal: bool = False,
+    since: float | None = None,
+    until: float | None = None,
+) -> tuple[str, str, list[Any]]:
+    """Build the ``WHERE`` and ``HAVING`` the middleware endpoints share.
+
+    Returns both because the two narrow at different grains and the split is not
+    a choice: every filter here selects *events* except ``blocks_only``, which
+    selects *groups* by a count over them. Expressing that as a ``WHERE`` would
+    ask a different question — "invocations that blocked", which for a guard that
+    blocked once in forty runs would keep one row and drop the other thirty-nine
+    from its own totals. All three endpoints apply both clauses through this one
+    function, so the tiles and the rows cannot disagree about which groups
+    survive.
+
+    ``since`` / ``until`` bound each *event's* own timestamp, so a middleware is
+    in the window if it ran there. A group whose events straddle the boundary
+    reports only the invocations inside it, which is the same convention the
+    other list endpoints use and the reason the window is half-open.
+    """
+    predicates: list[str] = []
+    params: list[Any] = []
+
+    if session_id:
+        predicates.append("m.session_id = ?")
+        params.append(session_id)
+    if node_id:
+        predicates.append("m.node_id = ?")
+        params.append(node_id)
+    if kinds:
+        predicates.append(_in_clause("m.kind", kinds))
+        params.extend(kinds)
+    if bands:
+        predicates.append(_in_clause("m.band", bands))
+        params.extend(bands)
+    if middleware_names:
+        predicates.append(_in_clause("m.middleware_name", middleware_names))
+        params.extend(middleware_names)
+    if flow_names:
+        predicates.append(_in_clause("s.flow_name", flow_names))
+        params.extend(flow_names)
+    if not include_internal:
+        predicates.append(
+            f"m.middleware_name NOT IN ({', '.join('?' for _ in _INTERNAL_MIDDLEWARE_NAMES)})"
+        )
+        params.extend(_INTERNAL_MIDDLEWARE_NAMES)
+
+    window, window_params = _window_predicates("EPOCH(m.timestamp)", since, until)
+    predicates.extend(window)
+    params.extend(window_params)
+
+    where = "WHERE " + " AND ".join(predicates) if predicates else ""
+    having = (
+        "HAVING COUNT(*) FILTER (WHERE m.action = 'block') > 0" if blocks_only else ""
+    )
+    return where, having, params
+
+
+def _middleware_groups_sql(where_clause: str, having_clause: str) -> str:
+    """The grouped rows, as a subquery the three endpoints wrap differently.
+
+    Shared rather than repeated so ``COUNT(*)`` over it, ``SUM()`` over it and the
+    page of rows themselves are provably the same set — the listing pages it, the
+    count counts it, the stats sum it.
+    """
+    return f"""
+    WITH {_middleware_rows_cte()}
+    {_SESSION_JOIN_CTE},
+    {_NODE_JOIN_CTE.strip()}
+    {_MIDDLEWARE_GROUP_SELECT}
+    {where_clause}
+    GROUP BY m.middleware_name, m.kind, m.band
+    {having_clause}"""
+
+
+def _middleware_order_clause(sort_by: MiddlewareSortField, order: SortOrder) -> str:
+    """``ORDER BY`` for the middleware listing. See :func:`_order_clause`.
+
+    ``(middleware_name, kind, band)`` is the unique final tiebreaker because it is
+    the group key — nothing finer exists at this grain, and without it two
+    middleware with equal invocation counts could swap between two queries and
+    have a paging client see one twice.
+    """
+    tiebreakers = ["g.middleware_name ASC", "g.kind ASC", "g.band ASC"]
+    return _order_clause(
+        _MIDDLEWARE_SORT_COLUMNS[sort_by],
+        order,
+        tiebreakers,
+    )
+
+
+def count_middleware_rows(con, **filters: Any) -> int:
+    """Count middleware groups matching the filters, ignoring paging."""
+    where_clause, having_clause, params = _middleware_filters(**filters)
+    sql = f"""
+    SELECT COUNT(*) AS total
+    FROM ({_middleware_groups_sql(where_clause, having_clause)}) g
+    """
+    rows = _rows(con, sql, tuple(params), label="count_middleware_rows")
+    return int(rows[0]["total"]) if rows else 0
+
+
+def list_middleware_rows(
+    con,
+    *,
+    limit: int,
+    offset: int,
+    sort_by: MiddlewareSortField = MiddlewareSortField.INVOCATIONS,
+    order: SortOrder = SortOrder.DESC,
+    **filters: Any,
+) -> list[dict[str, Any]]:
+    """Return middleware rows with server-side filtering, sorting and paging."""
+    where_clause, having_clause, params = _middleware_filters(**filters)
+    order_clause = _middleware_order_clause(sort_by, order)
+    sql = f"""
+    SELECT g.*
+    FROM ({_middleware_groups_sql(where_clause, having_clause)}) g
+    {order_clause}
+    LIMIT ? OFFSET ?
+    """
+    params.extend([limit, offset])
+    return _rows(
+        con,
+        sql,
+        tuple(params),
+        label=(
+            f"list_middleware_rows(limit={limit}, offset={offset}, "
+            f"sort={sort_by.value}:{order.value})"
+        ),
+    )
+
+
+def get_middleware_stats(con, **filters: Any) -> dict[str, Any]:
+    """Roll-up across every middleware matching the filters, ignoring paging.
+
+    ``total_middleware`` is the group count and ``total_invocations`` the sum of
+    their invocations — the row count and the work behind it, which are different
+    questions and so are different tiles.
+
+    ``sessions`` is a ``MAX`` over the per-group distinct counts rather than a
+    sum, because summing them would count one session once per middleware that
+    ran in it. It is a floor on "sessions in view" rather than the exact figure,
+    which is the honest thing available without a second pass over the events.
+    """
+    where_clause, having_clause, params = _middleware_filters(**filters)
+    sql = f"""
+    SELECT COUNT(*)                    AS total_middleware,
+           COALESCE(SUM(g.invocations), 0) AS total_invocations,
+           COALESCE(SUM(g.decisions), 0)   AS decisions,
+           COALESCE(SUM(g.allows), 0)      AS allows,
+           COALESCE(SUM(g.transforms), 0)  AS transforms,
+           COALESCE(SUM(g.blocks), 0)      AS blocks,
+           COALESCE(SUM(g.exceptions), 0)  AS exceptions,
+           COALESCE(MAX(g.sessions), 0)    AS sessions
+    FROM ({_middleware_groups_sql(where_clause, having_clause)}) g
+    """
+    rows = _rows(con, sql, tuple(params), label="get_middleware_stats")
+    return rows[0] if rows else {}
+
+
+def list_middleware_filter_options(
+    con, include_internal: bool = False
+) -> dict[str, list[str]]:
+    """Distinct middleware names, kinds and bands across the whole stream.
+
+    Computed over every middleware event rather than the current page, like the
+    other filter-option endpoints: options drawn from the loaded rows could only
+    ever offer what the active filter already matched.
+
+    ``include_internal`` is threaded through so the dropdown cannot offer a name
+    the default listing would then refuse to show.
+
+    ``flow_names`` deliberately lists every flow in the stream, including ones
+    that ran no middleware at all — the same choice the trace filters make, for
+    the same reason: "this flow has no middleware" is a real answer.
+    """
+    internal_clause = (
+        ""
+        if include_internal
+        else " WHERE middleware_name NOT IN ("
+        + ", ".join("?" for _ in _INTERNAL_MIDDLEWARE_NAMES)
+        + ")"
+    )
+    params: tuple[Any, ...] = (
+        () if include_internal else tuple(_INTERNAL_MIDDLEWARE_NAMES)
+    )
+
+    group_rows = _rows(
+        con,
+        f"""
+        WITH {_middleware_rows_cte().rstrip().rstrip(",")}
+        SELECT DISTINCT middleware_name, kind, band
+        FROM m{internal_clause}
+        """,
+        params,
+        label="middleware_filter_options.groups",
+    )
+
+    flow_rows = _rows(
+        con,
+        """
+        SELECT DISTINCT flow_name
+        FROM session
+        WHERE event_type = 'session.started'
+          AND flow_name IS NOT NULL
+          AND flow_name <> ''
+        ORDER BY flow_name
+        """,
+        label="middleware_filter_options.flow_names",
+    )
+
+    #: Sorted by the enum's own declaration order rather than alphabetically, so
+    #: the dropdown reads guards → transforms → wrappers the way the ladder does.
+    kind_order = [k.value for k in MiddlewareKind]
+    kinds = sorted(
+        {r["kind"] for r in group_rows if r["kind"]},
+        key=lambda k: kind_order.index(k) if k in kind_order else len(kind_order),
+    )
+    return {
+        "middleware_names": sorted({r["middleware_name"] for r in group_rows}),
+        "kinds": kinds,
+        "bands": sorted({r["band"] for r in group_rows if r["band"]}),
+        "flow_names": [r["flow_name"] for r in flow_rows],
+    }
+
+
+def list_middleware_by_session(
+    con, session_ids: Sequence[str]
+) -> dict[str, list[dict[str, Any]]]:
+    """Map ``session_id -> middleware that ran in it``, outermost first.
+
+    Feeds the Agent Traces column. Takes the session ids the caller already holds
+    rather than re-deriving the session filter, so the attached middleware is
+    provably for exactly the rows being returned — a second copy of that
+    predicate is the failure the shared-``WHERE`` discipline elsewhere in this
+    module exists to prevent.
+
+    Ordering is by each middleware's first ``middleware.invocation``, which *is*
+    chain order: ``MiddlewareChain.run`` wraps in reversed order so index 0 is
+    the outermost layer, and the outermost layer's invocation therefore fires
+    first. ``MIN`` over all events rather than over the invocation alone, so a
+    middleware that raised before emitting one still lands in position.
+
+    Internal middleware is excluded unconditionally here. The column has no
+    toggle — it is a fixed-width cell in a table of runs, where two glyphs that
+    appear on every row would spend the width saying nothing.
+    """
+    if not session_ids:
+        return {}
+
+    ids = list(session_ids)
+    sql = f"""
+    WITH {_middleware_rows_cte().rstrip().rstrip(",")}
+    SELECT m.session_id,
+           m.middleware_name,
+           m.kind,
+           m.band,
+           CASE
+             WHEN COUNT(*) FILTER (WHERE m.action = 'block') > 0     THEN 'blocked'
+             WHEN COUNT(*) FILTER (WHERE m.action = 'transform') > 0 THEN 'transformed'
+             ELSE 'passed'
+           END                                                       AS outcome,
+           COUNT(*) FILTER (WHERE m.event_type = 'middleware.invocation')
+                                                                     AS invocations,
+           COUNT(*) FILTER (WHERE m.action = 'block')                AS blocks,
+           ARG_MAX(m.reason, m.timestamp) FILTER (
+             WHERE m.action IN ('block', 'transform'))               AS reason,
+           MIN(m.timestamp)                                          AS first_at
+    FROM m
+    WHERE {_in_clause("m.session_id", ids)}
+      AND m.middleware_name NOT IN
+          ({", ".join("?" for _ in _INTERNAL_MIDDLEWARE_NAMES)})
+    GROUP BY m.session_id, m.middleware_name, m.kind, m.band
+    ORDER BY m.session_id, first_at ASC
+    """
+    rows = _rows(
+        con,
+        sql,
+        (*ids, *_INTERNAL_MIDDLEWARE_NAMES),
+        label=f"list_middleware_by_session({len(ids)} sessions)",
+    )
+    result: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        row.pop("first_at", None)
+        result.setdefault(row.pop("session_id"), []).append(row)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Guardrails per node
 # ---------------------------------------------------------------------------
 
@@ -1521,11 +2069,28 @@ def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, An
     invocation in turn sits under a node (``llm.response.parent_llm_invoke_id``
     and ``spatial_parent_node_id``). We hop LLM → node to attribute every
     guardrail to a specific node.
+
+    **The rail's name comes from the middleware, not from the decision.** A
+    ``GuardrailDecision`` carries ``action`` / ``reason`` / ``messages`` /
+    ``output_message`` / ``user_facing_message`` / ``meta`` and has never had a
+    name field, so reading one off it returned ``None`` on all 104 decisions in a
+    3,887-event store — every row. That then tripped a fallback which assigned the
+    whole decision blob to ``meta``, and the UI rendered a rail titled "Guardrail"
+    above a JSON dump of its own decision.
+
+    The name is one join away: the guard event's ``parent_middleware_type_id``
+    names the middleware, and ``middleware.creation`` declares it. That join is
+    global and grouped by the type_id, for the two reasons
+    :func:`_middleware_rows_cte` gives — a creation event fires per process, and
+    an ungrouped join fans each guard event out once per creation.
+
+    ``meta`` is now the decision's own ``meta`` and nothing else.
     """
     sql = """
     WITH guards AS (
       SELECT event_type,
              CAST(spatial_parent_llm_invoke_id AS VARCHAR) AS llm_invoke_id,
+             CAST(parent_middleware_type_id AS VARCHAR)    AS type_id,
              CAST(decision AS VARCHAR)                     AS decision_json,
              timestamp
       FROM middleware
@@ -1542,13 +2107,25 @@ def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, An
       FROM llm
       WHERE scope_id = ?
         AND event_type IN ('llm.invocation', 'llm.response')
+    ),
+    rail_names AS (
+      -- Grouped by the join key, and deliberately not scoped to this session:
+      -- see the docstring.
+      SELECT CAST(middleware_type_id AS VARCHAR) AS type_id,
+             ANY_VALUE(middleware_name)          AS middleware_name
+      FROM middleware
+      WHERE event_type = 'middleware.creation'
+        AND middleware_type_id IS NOT NULL
+      GROUP BY middleware_type_id
     )
     SELECT ln.node_id,
            g.event_type,
            g.decision_json,
+           rn.middleware_name AS rail_name,
            g.timestamp
     FROM guards g
     LEFT JOIN llm_nodes ln USING (llm_invoke_id)
+    LEFT JOIN rail_names rn USING (type_id)
     ORDER BY g.timestamp ASC
     """
     result: dict[str, list[dict[str, Any]]] = {}
@@ -1563,16 +2140,18 @@ def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, An
         if not node_id:
             continue
         decision = _parse_json(row["decision_json"]) or {}
+        if not isinstance(decision, dict):
+            decision = {}
         phase = "input" if "input" in row["event_type"] else "output"
+        meta = decision.get("meta")
         result.setdefault(node_id, []).append(
             {
-                "rail_name": decision.get("rail_name") or decision.get("name"),
+                "rail_name": row["rail_name"],
                 "phase": phase,
                 "action": decision.get("action"),
                 "reason": decision.get("reason"),
-                "meta": decision
-                if not isinstance(decision, dict) or "rail_name" not in decision
-                else None,
+                "user_facing_message": decision.get("user_facing_message"),
+                "meta": meta if isinstance(meta, dict) else None,
             }
         )
     return result
