@@ -59,23 +59,23 @@ fixture.
 ## Architecture
 
 ### Core building blocks
-- **Tool**: a plain Python function wrapped via `rt.function_node` (`built_nodes/function/node.py`). Type
-  hints define the parameter schema the LLM sees; the docstring is the tool description — both matter,
-  don't skip either.
-- **Agent**: created via `rt.agent_node(...)` (`built_nodes/llm/node.py`), which returns a *class* (not an
-  instance — treat it as PascalCase). Presence/absence of `tool_nodes`/`output_schema` changes what
-  `LLMNodeBuilder.llm(...)` (`built_nodes/llm/node_builder.py`) builds internally — there's no separate
-  named class per combination as of railtracks 1.5 (the old `TerminalLLM`/`StructuredLLM`/`ToolCallLLM`/
-  `StructuredToolCallLLM` hierarchy and the `built_nodes/concrete/`/`easy_usage_wrappers/` paths were
-  removed).
-- **Flow**: `rt.Flow(name=..., entry_point=...)` (`orchestration/flow.py`) wraps an agent or async function
-  as the graph entry point and drives execution/config/context. `flow.invoke(...)` / `await
-  flow.ainvoke(...)` run it.
-- **`rt.call(...)`**: used *inside* an async node/tool to invoke another agent/node directly (multi-agent
-  orchestration). Lives in `interaction/` (`interaction/_call.py`), alongside `call_batch`, `astream`,
-  `broadcast`, `couple` — don't set up a second `Flow` for the same run; pick one entry point.
-- **Agent-as-tool**: an `agent_node` can itself be passed in another agent's `tool_nodes`, with a
-  `rt.ToolManifest(...)` (`nodes/manifest.py`) describing it as a callable tool to the parent LLM.
+
+For usage patterns — how to define tools/agents/flows, structured output, agent-as-tool, MCP tools — see
+`packages/railtracks/src/railtracks/cli/skills/agent-builder.md` (the same content bundled for package
+users via `railtracks add claude:agent-builder`); don't re-teach usage here. This section is just where
+things live internally and dev-relevant gotchas that skill doesn't cover:
+
+- **Tool** (`rt.function_node`): `built_nodes/function/node.py`.
+- **Agent** (`rt.agent_node`): `built_nodes/llm/node.py`, returns a *class* (not an instance — treat it as
+  PascalCase); built via `LLMNodeBuilder.llm(...)` (`built_nodes/llm/node_builder.py`) — no separate named
+  class per `tool_nodes`/`output_schema` combination as of railtracks 1.5 (the old `TerminalLLM`/
+  `StructuredLLM`/`ToolCallLLM`/`StructuredToolCallLLM` hierarchy and `built_nodes/concrete/`/
+  `easy_usage_wrappers/` were removed).
+- **Flow**: `orchestration/flow.py`. `flow.invoke(...)` / `await flow.ainvoke(...)` run it.
+- **`rt.call(...)`**: moved to `interaction/` (`interaction/_call.py`) as of the 1.5 merge, alongside
+  `call_batch`, `astream`, `broadcast`, `couple` — don't set up a second `Flow` for the same run; pick one
+  entry point.
+- **Agent-as-tool**: `rt.ToolManifest(...)` lives in `nodes/manifest.py`.
 - **Middleware**: `agent_node(middleware=[...])` wraps the whole node boundary (`user_input -> Response`);
   `agent_node(model_middleware=[...])` wraps each raw model call inside the tool-calling loop — using the
   wrong one silently misses tool-call retries or wraps too broadly. `MiddlewareChain.run`
@@ -126,7 +126,7 @@ fixture.
 
 ## Code conventions
 
-See `.claude/skills/code-consistency/SKILL.md` for this repo's code-consistency conventions. It's a
+See `.claude/skills/code-style/SKILL.md` for this repo's code-style conventions. It's a
 project-scoped Claude Code skill: Claude auto-invokes it based on its description whenever it's writing or
 editing code here — that's a model-driven nudge from the skill matching, not a hard-enforced hook, so still
 sanity-check the diff against it yourself.

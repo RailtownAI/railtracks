@@ -8,13 +8,13 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
 
-### Agent Type Selection
-| Has `tool_nodes`? | Has `output_schema`? | Agent type |
-|---|---|---|
-| No | No | `TerminalLLM` — plain chat |
-| No | Yes | `StructuredLLM` — structured output, no tools |
-| Yes | No | `ToolCallLLM` — tools, text output |
-| Yes | Yes | `StructuredToolCallLLM` — tools + structured output |
+### Agent Behavior
+`rt.agent_node()` builds one node behind the scenes; there's no separate named type to pick. What you pass
+just changes what it does at runtime:
+- Neither `tool_nodes` nor `output_schema` → plain chat, text output.
+- `output_schema` only → structured output, no tools.
+- `tool_nodes` only → tool-calling, text output.
+- Both → tool-calling with structured output.
 
 ### LLM Providers
 

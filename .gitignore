@@ -52,7 +52,7 @@ packages/railtracks/docs/
 .claude/*
 !.claude/skills/
 .claude/skills/*
-!.claude/skills/code-consistency/
+!.claude/skills/code-style/
 graphify-out/
 
 # Local, per-ticket scratch docs (see CLAUDE.md Ticket Workflow) — not shared
