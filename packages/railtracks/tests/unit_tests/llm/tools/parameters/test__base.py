@@ -1,7 +1,18 @@
 import json
+from dataclasses import dataclass
+from typing import TypedDict
 
 import pytest
 from railtracks.llm.tools.parameters._base import Parameter, ParameterType
+
+
+class ExampleTypedDict(TypedDict):
+    field: str
+
+
+@dataclass
+class ExampleDataclass:
+    field: str
 
 
 def test_parameter_init_and_repr():
@@ -63,9 +74,42 @@ def test_parameter_rejects_invalid_json_schema_type(param_type):
         Parameter("enabled", param_type=param_type)
 
 
-def test_parameter_rejects_unmapped_python_type():
-    with pytest.raises(
-        ValueError,
-        match="Invalid param_type .*bytes.* provided for parameter 'payload'",
-    ):
-        Parameter("payload", param_type=bytes)
+@pytest.mark.parametrize("py_type", [bytes, ExampleTypedDict, ExampleDataclass])
+def test_parameter_maps_unmodelled_python_type_to_object(py_type):
+    """Types we cannot describe more precisely still serialize as 'object'."""
+    p = Parameter("payload", param_type=py_type)
+    assert p.param_type == "object"
+
+
+@pytest.mark.parametrize(
+    "schema_type",
+    ["string", "integer", "number", "boolean", "array", "object", "null"],
+)
+def test_from_python_type_passes_through_schema_type_names(schema_type):
+    """A resolved schema type name must survive, not collapse to 'object'."""
+    assert ParameterType.from_python_type(schema_type).value == schema_type
+
+
+@pytest.mark.parametrize(
+    "annotation, expected",
+    [
+        ("str", "string"),
+        ("int", "integer"),
+        ("float", "number"),
+        ("bool", "boolean"),
+        ("list", "array"),
+        ("tuple", "array"),
+        ("set", "array"),
+        ("dict", "object"),
+        ("NoneType", "null"),
+        ("none", "null"),
+    ],
+)
+def test_from_python_type_resolves_postponed_annotations(annotation, expected):
+    """`from __future__ import annotations` makes signatures yield type names as strings."""
+    assert ParameterType.from_python_type(annotation).value == expected
+
+
+@pytest.mark.parametrize("annotation", ["TodoState", "list[str]", "Any"])
+def test_from_python_type_falls_back_to_object_for_unresolved_annotations(annotation):
+    assert ParameterType.from_python_type(annotation) is ParameterType.OBJECT

@@ -91,6 +91,39 @@ class TestParseJsonSchemaToParameter:
         ):
             Tool("test_tool", "A test tool.", schema)
 
+    def test_from_function_types_postponed_annotations(self):
+        """Modules using `from __future__ import annotations` must still get real types.
+
+        `inspect.signature` yields the annotation as the string "str" there, which used
+        to fall through to "object" for every parameter of the tool.
+        """
+
+        def add_todo(short_description: str, count: int, ratio: float, done: bool):
+            """Add a todo.
+
+            Args:
+                short_description: Brief label.
+                count: How many.
+                ratio: How far along.
+                done: Whether it is finished.
+            """
+
+        add_todo.__annotations__ = {
+            "short_description": "str",
+            "count": "int",
+            "ratio": "float",
+            "done": "bool",
+        }
+
+        tool = Tool.from_function(add_todo)
+
+        assert {p.name: p.param_type for p in tool.parameters} == {
+            "short_description": "string",
+            "count": "integer",
+            "ratio": "number",
+            "done": "boolean",
+        }
+
     def test_array_parameter(self):
         """Test parsing an array parameter."""
         schema = {

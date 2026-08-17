@@ -13,7 +13,15 @@ class ParameterType(str, Enum):
     NONE = "null"
 
     @classmethod
-    def from_python_type(cls, py_type: type) -> "ParameterType":
+    def from_python_type(cls, py_type: Union[type, str]) -> "ParameterType":
+        """Map a Python type to the JSON Schema type used to describe it.
+
+        ``py_type`` is usually a type object, but it arrives as a string when a tool's
+        annotations are postponed (``from __future__ import annotations`` makes
+        ``inspect.signature`` yield ``"int"`` rather than ``int``), or when the schema
+        type name has already been resolved (``"integer"``). Types we cannot describe
+        more precisely fall back to :attr:`OBJECT`.
+        """
         mapping = {
             str: cls.STRING,
             int: cls.INTEGER,
@@ -24,9 +32,21 @@ class ParameterType(str, Enum):
             set: cls.ARRAY,
             dict: cls.OBJECT,
             type(None): cls.NONE,
-            "none": cls.NONE,  # in case of recieving a list of string (type = ["object", "none"])
         }
-        return mapping.get(py_type, cls.OBJECT)
+        if not isinstance(py_type, str):
+            return mapping.get(py_type, cls.OBJECT)
+
+        # Falling straight through to OBJECT here would silently retype the parameter.
+        if py_type == "none":  # legacy alias, e.g. type = ["object", "none"]
+            return cls.NONE
+        by_type_name = {py.__name__: schema_type for py, schema_type in mapping.items()}
+        if py_type in by_type_name:
+            return by_type_name[py_type]
+        try:
+            return cls(py_type)
+        except ValueError:
+            # An unresolvable annotation such as a forward reference or a generic.
+            return cls.OBJECT
 
 
 _JSON_SCHEMA_TYPES = tuple(parameter_type.value for parameter_type in ParameterType)
@@ -46,16 +66,13 @@ def _validate_param_type(param_type: object, parameter_name: str) -> None:
 
 
 def _normalize_param_type_scalar(
-    param_type: Union[str, ParameterType, type], parameter_name: str
+    param_type: Union[str, ParameterType, type],
 ) -> str:
     """Map ParameterType enum, JSON schema type string, or Python type to a schema type string."""
     if isinstance(param_type, ParameterType):
         return param_type.value
     if isinstance(param_type, type):
-        normalized_type = ParameterType.from_python_type(param_type)
-        if normalized_type is ParameterType.OBJECT and param_type is not dict:
-            raise ValueError(_invalid_param_type_message(param_type, parameter_name))
-        return normalized_type.value
+        return ParameterType.from_python_type(param_type).value
     if param_type == "none":
         return ParameterType.NONE.value
     return param_type
@@ -112,13 +129,13 @@ class Parameter(ABC):
         if param_type is not None:
             if isinstance(param_type, list):
                 normalized_types = [
-                    _normalize_param_type_scalar(pt, name) for pt in param_type
+                    _normalize_param_type_scalar(pt) for pt in param_type
                 ]
                 for normalized_type in normalized_types:
                     _validate_param_type(normalized_type, name)
                 self.param_type = normalized_types
             else:
-                normalized_type = _normalize_param_type_scalar(param_type, name)
+                normalized_type = _normalize_param_type_scalar(param_type)
                 _validate_param_type(normalized_type, name)
                 self.param_type = normalized_type
         elif hasattr(self, "param_type") and self.param_type is None:
