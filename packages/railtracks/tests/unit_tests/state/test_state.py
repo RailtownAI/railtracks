@@ -136,7 +136,9 @@ def test_create_node_and_request_constructs_node_with_no_arguments(
         kwargs={"foo": "bar"},
     )
 
-    assert result == "reqid"
+    request_id, node_instance = result
+    assert request_id == "reqid"
+    assert node_instance.uuid == "strict-node-uuid"
     state._node_heap.update.assert_called()
 # ================= END RTState: Node and Request Creation ======================
 
