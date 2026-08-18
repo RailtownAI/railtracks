@@ -19,8 +19,10 @@ if TYPE_CHECKING:
         ChromaBackend,
         ChromaCloudBackend,
         DistanceMetric,
-        InMemoryBackend as InMemoryVectorBackend,
         PgvectorBackend,
+    )
+    from .vector.backends import (
+        InMemoryBackend as InMemoryVectorBackend,
     )
 
 __all__ = [
@@ -44,17 +46,22 @@ __all__ = [
 def __getattr__(name: str):
     if name == "ChromaBackend":
         from .vector.backends import ChromaBackend
+
         return ChromaBackend
     elif name == "ChromaCloudBackend":
         from .vector.backends import ChromaCloudBackend
+
         return ChromaCloudBackend
     elif name == "DistanceMetric":
         from .vector.backends import DistanceMetric
+
         return DistanceMetric
     elif name == "PgvectorBackend":
         from .vector.backends import PgvectorBackend
+
         return PgvectorBackend
     elif name == "InMemoryVectorBackend":
         from .vector.backends import InMemoryBackend as InMemoryVectorBackend
+
         return InMemoryVectorBackend
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
