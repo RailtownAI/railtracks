@@ -213,7 +213,8 @@ class LiteLLMWrapper(ModelBase, ABC):
         max_tokens: int | None = None,
         frequency_penalty: float | None = None,
         presence_penalty: float | None = None,
-        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"]
+        | None = None,
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
@@ -363,7 +364,9 @@ class LiteLLMWrapper(ModelBase, ABC):
             merged["tools"] = litellm_tools
 
         effective_reasoning_effort = default_reasoning_effort_for_tools(
-            self._model_name, merged.get("reasoning_effort"), has_tools=tools is not None
+            self._model_name,
+            merged.get("reasoning_effort"),
+            has_tools=tools is not None,
         )
         if effective_reasoning_effort is not None:
             merged["reasoning_effort"] = effective_reasoning_effort

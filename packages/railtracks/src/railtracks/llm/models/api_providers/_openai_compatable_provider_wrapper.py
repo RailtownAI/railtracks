@@ -18,7 +18,8 @@ class OpenAICompatibleProvider(ProviderLLMWrapper, ABC):
         max_tokens: int | None = None,
         frequency_penalty: float | None = None,
         presence_penalty: float | None = None,
-        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"]
+        | None = None,
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
