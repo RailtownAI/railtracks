@@ -10,34 +10,11 @@ Because the agent includes `ContextInjection`, its system message is expanded at
 
 ### Disabling Context Injection
 
-Once an agent opts in, injection can still be suppressed at several levels, from broadest to narrowest scope:
-
-| Scope | How | Applies to |
-| --- | --- | --- |
-| **Global** | `rt.set_config(prompt_injection=False)` | Every flow/run |
-| **Agent / node** | omit `rt.middleware.ContextInjection()` from `model_middleware` on `rt.agent_node(...)` | Every instantiation of that node |
-
-#### Precedence
-
-The agent-level middleware is the master switch: with no `ContextInjection` entry, nothing is injected regardless of the global setting. When it *is* present, the global flag still acts as a gate: a placeholder is filled **only when injection is enabled at both levels**. The most restrictive setting wins, and the agent cannot re-enable injection that `rt.set_config` has turned off.
-
-#### Agent / node level
-
-Only agents whose `model_middleware` contains `rt.middleware.ContextInjection()` substitute placeholders. An agent whose prompt legitimately contains `{}` braces that should be left untouched simply omits the middleware:
+The middleware is the only switch. Only agents whose `model_middleware` contains `rt.middleware.ContextInjection()` substitute placeholders, so an agent whose prompt legitimately contains `{}` braces that should be left untouched simply omits it:
 
 ```python
 --8<-- "docs/scripts/prompts.py:disable_injection_node_level"
 ```
-
-#### Global level
-
-For an agent that *does* use `ContextInjection`, you can still switch injection off globally:
-
-```python
---8<-- "docs/scripts/prompts.py:disable_injection"
-```
-
-This may be useful when formatting prompts that should not change based on the context.
 
 ### Escaping Placeholders
 
@@ -61,7 +38,7 @@ prompt = f"The current time is {{time}}:\nUser Message:\n{rt.escape_braces(user_
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: Check that `prompt_injection` is not disabled globally (`rt.set_config`) and that the agent's `model_middleware` includes `rt.middleware.ContextInjection()`
+2. **Verify prompt injection is enabled**: Check that the agent's `model_middleware` includes `rt.middleware.ContextInjection()`
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 

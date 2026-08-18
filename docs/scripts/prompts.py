@@ -20,11 +20,6 @@ response = assistant_flow.update_context({"role": "technical", "domain": "Python
 
 # --8<-- [end: prompt_basic]
 
-# --8<-- [start: disable_injection]
-# Disable context injection globally
-rt.set_config(prompt_injection=False)
-# --8<-- [end: disable_injection]
-
 # --8<-- [start: disable_injection_node_level]
 # Injection is opt-in: an agent that omits rt.prebuilt.middleware.ContextInjection()
 # from its model_middleware leaves {placeholders} untouched.

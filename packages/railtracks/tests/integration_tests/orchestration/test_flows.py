@@ -247,8 +247,3 @@ def test_flow_equality_hash_changes_with_name():
     second = Flow(name="flow-b", entry_point=echo)
 
     assert first.equality_hash() != second.equality_hash()
-
-
-def test_flow_rejects_prompt_injection():
-    with pytest.raises(TypeError):
-        Flow(name="flow-a", entry_point=echo, prompt_injection=False)
