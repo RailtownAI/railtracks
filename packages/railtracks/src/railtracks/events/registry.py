@@ -54,14 +54,14 @@ def _enum(*members: str) -> ColumnSpec:
 
 # ---- reusable blocks -------------------------------------------------------
 _SPATIAL_PARENT: dict[str, ColumnSpec] = {
-    "spatial_parent_spatial_type": _enum(*(m.value for m in SpatialType)),
+    "spatial_parent_type": _enum(*(m.value for m in SpatialType)),
     "spatial_parent_node_id": STRING,
     "spatial_parent_middleware_invoke_id": STRING,
     "spatial_parent_llm_invoke_id": STRING,
 }
 
 _PARENT: dict[str, ColumnSpec] = {
-    "parent_parent_type": _enum(*(m.value for m in ParentType)),
+    "parent_type": _enum(*(m.value for m in ParentType)),
     "parent_node_id": STRING,
     "parent_middleware_type_id": STRING,
     "parent_middleware_invoke_id": STRING,

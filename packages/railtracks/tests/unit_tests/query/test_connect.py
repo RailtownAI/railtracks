@@ -178,7 +178,7 @@ class TestEnumColumns:
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["llm"])) as q:
             (col_type,) = q.con.execute(
-                "SELECT typeof(spatial_parent_spatial_type) FROM llm LIMIT 1"
+                "SELECT typeof(spatial_parent_type) FROM llm LIMIT 1"
             ).fetchone()
             assert col_type.startswith("ENUM(")
             for member in ("'none'", "'node'", "'middleware'"):
@@ -189,7 +189,7 @@ class TestEnumColumns:
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["llm"])) as q:
             (value,) = q.con.execute(
-                "SELECT spatial_parent_spatial_type FROM llm LIMIT 1"
+                "SELECT spatial_parent_type FROM llm LIMIT 1"
             ).fetchone()
             assert value == "node"  # enum compares equal to its string value
 
@@ -201,14 +201,14 @@ class TestEnumColumns:
             "event_id": "evt_stale",
             "payload": {
                 **LLM_RESPONSE["payload"],
-                "spatial_parent_spatial_type": "some_future_kind",
+                "spatial_parent_type": "some_future_kind",
             },
         }
         f = tmp_path / "e.jsonl"
         _write(f, [LLM_RESPONSE, stale])
         with closing(connect(f, ["llm"])) as q:
             rows = q.con.execute(
-                "SELECT event_id, spatial_parent_spatial_type FROM llm ORDER BY event_id"
+                "SELECT event_id, spatial_parent_type FROM llm ORDER BY event_id"
             ).fetchall()
             assert rows == [
                 ("evt_llm_1", "node"),
@@ -222,7 +222,7 @@ class TestFlatSpatialParent:
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["llm"])) as q:
             row = q.con.execute(
-                "SELECT spatial_parent_spatial_type, spatial_parent_node_id FROM llm"
+                "SELECT spatial_parent_type, spatial_parent_node_id FROM llm"
             ).fetchone()
             assert row == ("node", "node_root")
 
@@ -233,7 +233,7 @@ class TestFlatParent:
         _write(f, [LLM_RESPONSE])
         with closing(connect(f, ["llm"])) as q:
             row = q.con.execute(
-                "SELECT parent_parent_type, parent_llm_type_id, parent_llm_invoke_id FROM llm"
+                "SELECT parent_type, parent_llm_type_id, parent_llm_invoke_id FROM llm"
             ).fetchone()
             assert row == ("llm", "llm_type_a", "llm_invoke_b")
 
