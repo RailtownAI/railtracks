@@ -575,7 +575,6 @@ def set_config(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> None:
     """
@@ -599,7 +598,6 @@ def set_config(
         timeout=timeout,
         end_on_error=end_on_error,
         subscriber=broadcast_callback,
-        prompt_injection=prompt_injection,
         save_state=save_state,
     )
 
