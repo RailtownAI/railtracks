@@ -12,11 +12,3 @@ body:
     validations:
       required: true
 
-  - type: textarea
-    id: additional_context
-    attributes:
-      label: Additional Context
-      description: Any other information that will help us understand your query, concern, or suggestion.
-      placeholder: Related documentation, links, or examples.
-    validations:
-      required: false
