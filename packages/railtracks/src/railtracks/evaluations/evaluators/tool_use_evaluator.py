@@ -114,19 +114,22 @@ class ToolUseEvaluator(Evaluator):
 
                 stats[key]["usage_count"] += 1
 
-                metric_result = ToolMetricResult(
-                    result_name=f"{METRICS['Runtime'].name}/{tool_name}",
-                    agent_data_id=[datapoint.identifier],
-                    metric_id=METRICS["Runtime"].identifier,
-                    tool_name=tool_name,
-                    tool_node_id=tool.identifier,
-                    value=tool.runtime if tool.runtime is not None else 0.0,
-                )
-                forest.add_node(metric_result)
-                results[METRICS["ToolFailure"]].append(metric_result)
-
-                if tool.status == Status.FAILED:
+                failed = tool.status == Status.FAILED
+                if failed:
                     stats[key]["failure_count"] += 1
+
+                # not added to the forest, nothing aggregates per-call failures
+                results[METRICS["ToolFailure"]].append(
+                    ToolMetricResult(
+                        result_name=f"{METRICS['ToolFailure'].name}/{tool_name}",
+                        agent_data_id=[datapoint.identifier],
+                        metric_id=METRICS["ToolFailure"].identifier,
+                        tool_name=tool_name,
+                        tool_node_id=tool.identifier,
+                        value=1 if failed else 0,
+                    )
+                )
+
                 runtime = tool.runtime
 
                 if runtime is not None:
