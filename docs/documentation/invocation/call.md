@@ -1,3 +1,7 @@
+# Direct Invocation (`rt.call`)
+
+**Direct invocation** refers to calling an [Agent Node](../agent_design/overview.md) or [Node](../agent_design/overview.md) directly using `rt.call` without creating a full [Flow](flows.md).
+
 If you are familiar and comfortable with the `async/await` syntax and you do not require any configurations, you can simply use the `railtracks.call` API to invoke your agent:
 ```python
 import railtracks as rt
@@ -18,4 +22,4 @@ resp = await rt.call(AgentName, "user message to the agent")
 
 The `call` API is also useful when you want to use agents as tools by having them wrapped within another a function (see [Agents as Tools](../agent_design/tools/agents_as_tools.md)). 
 
-For configuration management such as context, observability through invocations, and other settings we recommend using [Flows](../invocation/flows.md).
+For configuration management such as context, observability through invocations, and other settings we recommend using [Flows](flows.md).

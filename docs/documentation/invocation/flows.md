@@ -1,8 +1,8 @@
 # Flows (Session Management)
-In Railtracks, flows are the primary way to organize your agent runs. Think of a Flow as a blueprint that you invoke to start a run. A single Flow can be invoked multiple times to execute the same agentic process. This guide provides concrete examples to help you get started with Flows.
+In Railtracks, flows are the primary way to organize your agent runs. Think of a Flow as a blueprint that you invoke to start a run. A single Flow can be invoked multiple times to execute the same agentic process (such as a [Sequential Flow](../../tutorials/concepts/architectures/sequential.md)). Unlike [Direct Invocation](call.md) with `rt.call`, Flows provide session management, context scoping, and connection inspection. This guide provides concrete examples to help you get started with Flows.
 
 ## Quickstart
-To get started with Flows, you simply need to provide an entry point and a name.
+To get started with Flows, you simply need to provide an entry point (such as an [Agent Node](../agent_design/overview.md)) and a name.
 
 ```python
 --8<-- "docs/scripts/flows_sessions.py:quickstart"

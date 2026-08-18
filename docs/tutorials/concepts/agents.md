@@ -46,6 +46,15 @@ graph TB
     class Env envClass;
 ```
 
+# Core Concepts & Terminology
+
+In Railtracks, the core agent abstractions include:
+
+* **[Node](../../documentation/agent_design/overview.md)**: The foundational building block in Railtracks representing an executable unit of work.
+* **[Agent Node](../../documentation/agent_design/overview.md)**: An LLM-powered node created using `rt.agent_node` that manages prompts, model calls, and tools.
+* **[Direct Invocation](../../documentation/invocation/call.md)**: Executing a node directly using `rt.call` without full session configuration.
+* **[Sequential Flow](architectures/sequential.md)**: Executing nodes in sequence step-by-step using [`Flows`](../../documentation/invocation/flows.md).
+
 # Real World Applications
 
 Agents are already being used in real world applications such as:
@@ -63,7 +72,3 @@ Agents are already being used in real world applications such as:
 
 We have build **Railtracks** with developers in mind; with just a simple prompt and a bit of Python, you’re
 already well on your way to building your first agent. Get started [Building with Railtracks](../walkthroughs/byfa.md)
-
-
-
-
