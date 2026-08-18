@@ -38,14 +38,9 @@ class OpenAICompatibleProvider(ProviderLLMWrapper, ABC):
             every hyperparameter, valid or not, is passed straight through and any
             error surfaces from the gateway or upstream provider directly.
         """
-        # litellm's own routing (get_llm_provider) hard-fails on model names it
-        # doesn't recognize unless told what protocol to use, and gateway model
-        # names (Portkey, Telus, arbitrary custom deployments) are never in its
-        # catalog. custom_llm_provider is that hint, forced here (not left to
-        # kwargs) since "openai" is the entire premise of this wrapper class.
-        # Passed as a completion kwarg rather than baked into the model name
-        # string, so self._model_name stays the true model name for telemetry
-        # and visualization (see #1437).
+        # litellm needs to be told this is an OpenAI-compatible endpoint to route the
+        # call at all. Forced as a kwarg here instead of baked into the model name
+        # string, so the true model name survives for telemetry/visualization (#1437).
         kwargs["custom_llm_provider"] = "openai"
         super().__init__(
             model_name,
