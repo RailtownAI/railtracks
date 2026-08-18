@@ -4,7 +4,8 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 
 ## How railtracks works
 - **Tools** are plain Python functions decorated with `@rt.function_node`. Type hints become the parameter schema; the docstring becomes the description.
-- **Agents** are created with `rt.agent_node()`. The type is auto-selected based on whether tools and/or a structured output schema are provided.
+- **Agents** are created with `rt.agent_node()`. It always builds a single node type; what you pass for
+  `tool_nodes`/`output_schema` just changes its runtime behavior (see "Agent Behavior" below).
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
 
