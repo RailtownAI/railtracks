@@ -56,7 +56,6 @@ class Session:
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
     - `broadcast_callback`: None (no event listener)
-    - `prompt_injection`: True (the prompt will be automatically injected from context variables)
     - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
 
 
@@ -68,7 +67,6 @@ class Session:
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A passive listener for one-off events published with `rt.broadcast`.
-        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
     """
 
@@ -84,7 +82,6 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
     ):
@@ -100,7 +97,6 @@ class Session:
             timeout=timeout,
             end_on_error=end_on_error,
             broadcast_callback=broadcast_callback,
-            prompt_injection=prompt_injection,
             save_state=save_state,
             payload_callback=payload_callback,
         )
@@ -160,7 +156,6 @@ class Session:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ),
-        prompt_injection: bool | None,
         save_state: bool | None,
         payload_callback: Callable[[dict[str, Any]], None] | None,
     ) -> ExecutorConfig:
@@ -176,7 +171,6 @@ class Session:
             timeout=timeout,
             end_on_error=end_on_error,
             subscriber=broadcast_callback,
-            prompt_injection=prompt_injection,
             save_state=save_state,
             payload_callback=payload_callback,
         )
@@ -378,7 +372,6 @@ def session(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> Callable[
     [Callable[_P, Coroutine[Any, Any, _TOutput]]],
@@ -398,7 +391,6 @@ def session(
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
     Returns:
@@ -418,7 +410,6 @@ def session(
     broadcast_callback: (
         Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
     ) = None,
-    prompt_injection: bool | None = None,
     save_state: bool | None = None,
 ) -> (
     Callable[_P, Coroutine[Any, Any, Tuple[_TOutput, Session]]]
@@ -449,7 +440,6 @@ def session(
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
     Returns:
@@ -479,7 +469,6 @@ def session(
                 end_on_error=end_on_error,
                 broadcast_callback=broadcast_callback,
                 name=name,
-                prompt_injection=prompt_injection,
                 save_state=save_state,
             )
 
