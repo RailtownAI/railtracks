@@ -4,6 +4,12 @@ from typing import Awaitable, Callable, overload
 from pydantic import BaseModel
 
 from railtracks.built_nodes._types import LLM_CALL
+from railtracks.events.middleware import (
+    MiddlewareModelOutputFailureEvent,
+    MiddlewareModelOutputInvocationEvent,
+    MiddlewareModelOutputResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
@@ -58,7 +64,25 @@ def after_llm(
             tools: list[Tool] | None,
         ):
             response = await llm_call(message_history, schema, tools)
-            return await unpack_async_sync(fn(response))
+
+            invocation_event = MiddlewareModelOutputInvocationEvent(
+                response=response,
+            )
+            await emit(invocation_event)
+
+            try:
+                response = await unpack_async_sync(fn(response))
+            except Exception as e:
+                failure_event = MiddlewareModelOutputFailureEvent.from_exception(e)
+                await emit(failure_event)
+                raise e
+
+            response_event = MiddlewareModelOutputResponseEvent(
+                response=response,
+            )
+            await emit(response_event)
+
+            return response
 
         return wrapper
 

@@ -3,6 +3,12 @@ from typing import Awaitable, Callable, overload
 
 from pydantic import BaseModel
 
+from railtracks.events.middleware import (
+    MiddlewareModelFailureEvent,
+    MiddlewareModelInvocationEvent,
+    MiddlewareModelResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
@@ -82,7 +88,26 @@ def wrap_llm(
             schema: type[BaseModel] | None,
             tools: list[Tool] | None,
         ):
-            return await fn(llm_call, message_history, schema, tools)
+            invocation_event = MiddlewareModelInvocationEvent(
+                message_history=message_history,
+                schema=schema,
+                tools=tools,
+            )
+            await emit(invocation_event)
+
+            try:
+                response = await fn(llm_call, message_history, schema, tools)
+            except Exception as e:
+                failure_event = MiddlewareModelFailureEvent.from_exception(e)
+                await emit(failure_event)
+                raise e
+
+            response_event = MiddlewareModelResponseEvent(
+                response=response,
+            )
+            await emit(response_event)
+
+            return response
 
         return wrapped
 
