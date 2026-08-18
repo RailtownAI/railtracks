@@ -632,3 +632,95 @@ def test_common_hyperparameter_passed_to_litellm_completion(
 
 
 # ================= END common hyperparameter support tests =========================
+
+# ================= START #1394 reasoning_effort-default-for-tools tests =============
+
+
+class TestReasoningEffortDefaultForTools:
+    """#1394 regression: reasoning-capable models (gpt-5.4+ family) reject function tools
+    on /v1/chat/completions when reasoning_effort is left unset, because OpenAI silently
+    substitutes a non-'none' default server-side. The wrapper must default
+    reasoning_effort='none' in exactly that situation and leave every other case alone."""
+
+    @staticmethod
+    def _patch_model_info(monkeypatch, **info):
+        import railtracks.llm.models._hyperparameter_support as hyperparameter_support_module
+
+        monkeypatch.setattr(
+            hyperparameter_support_module.litellm,
+            "get_model_info",
+            lambda model: info,
+        )
+
+    def test_reasoning_effort_defaulted_to_none_for_tool_call(
+        self, message_history, tool, monkeypatch
+    ):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[
+                    {
+                        "message": {"content": "ok", "tool_calls": None},
+                        "finish_reason": "stop",
+                    }
+                ]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(model_name="openai/gpt-5.6-sol")
+            wrapper.chat_with_tools(message_history, [tool])
+            mock_completion.assert_called_once()
+            assert mock_completion.call_args.kwargs.get("reasoning_effort") == "none"
+
+    def test_explicit_reasoning_effort_not_overridden(
+        self, message_history, tool, monkeypatch
+    ):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[
+                    {
+                        "message": {"content": "ok", "tool_calls": None},
+                        "finish_reason": "stop",
+                    }
+                ]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(
+                model_name="openai/gpt-5.6-sol", reasoning_effort="high"
+            )
+            wrapper.chat_with_tools(message_history, [tool])
+            assert mock_completion.call_args.kwargs.get("reasoning_effort") == "high"
+
+    def test_no_default_added_without_tools(self, message_history, monkeypatch):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[{"message": {"content": "ok"}}]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(model_name="openai/gpt-5.6-sol")
+            wrapper.chat(message_history)
+            assert "reasoning_effort" not in mock_completion.call_args.kwargs
+
+    def test_no_default_for_non_reasoning_model(self, message_history, tool, monkeypatch):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=None, supports_none_reasoning_effort=None
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[
+                    {
+                        "message": {"content": "ok", "tool_calls": None},
+                        "finish_reason": "stop",
+                    }
+                ]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(model_name="openai/gpt-4o")
+            wrapper.chat_with_tools(message_history, [tool])
+            assert "reasoning_effort" not in mock_completion.call_args.kwargs
+
+
+# ================= END #1394 reasoning_effort-default-for-tools tests ===============
