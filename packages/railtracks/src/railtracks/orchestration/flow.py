@@ -33,7 +33,6 @@ class Flow(Generic[_P, _TOutput]):
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A passive listener for one-off events published with `rt.broadcast`.
-        prompt_injection (bool, optional): If True, the prompt will be automatically injected from context variables.
         save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
         payload_callback (Callable[[dict[str, Any]], None], optional): A callback function that will run upon completion of the flow with the final payload as an argument.
     """
@@ -49,7 +48,6 @@ class Flow(Generic[_P, _TOutput]):
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        prompt_injection: bool | None = None,
         save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
@@ -65,7 +63,6 @@ class Flow(Generic[_P, _TOutput]):
         self._timeout = timeout
         self._end_on_error = end_on_error
         self._broadcast_callback = broadcast_callback
-        self._prompt_injection = prompt_injection
         self._save_state = save_state
         self._payload_callback = payload_callback
 

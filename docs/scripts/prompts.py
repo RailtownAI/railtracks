@@ -21,14 +21,7 @@ response = assistant_flow.update_context({"role": "technical", "domain": "Python
 # --8<-- [end: prompt_basic]
 
 # --8<-- [start: disable_injection]
-# Disable context injection for a specific run
-flow = rt.Flow(
-    "assistant-flow",
-    entry_point=assistant,
-    prompt_injection=False
-)
-
-# or globally via
+# Disable context injection globally
 rt.set_config(prompt_injection=False)
 # --8<-- [end: disable_injection]
 
@@ -41,14 +34,6 @@ literal_assistant = rt.agent_node(
     llm=rt.llm.OpenAILLM("gpt-4o"),
 )
 # --8<-- [end: disable_injection_node_level]
-
-# --8<-- [start: injection_at_message_level]
-# This message will have context injection applied
-system_msg = rt.llm.SystemMessage(content="You are a {role}.", inject_prompt=True)
-
-# This message will not have context injection applied
-user_msg = rt.llm.UserMessage(content="Tell me about {topic}.", inject_prompt=False)
-# --8<-- [end: injection_at_message_level]
 
 # --8<-- [start: prompt_templates]
 import railtracks as rt

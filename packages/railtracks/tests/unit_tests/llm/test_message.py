@@ -105,6 +105,14 @@ def test_tool_message_invalid_content3():
             final_message="Final message",
         ) # ToolMessage expects ToolResponse, not List[ToolResponse]
 
+@pytest.mark.parametrize("message_cls", [UserMessage, SystemMessage, AssistantMessage])
+def test_message_rejects_inject_prompt(message_cls):
+    with pytest.raises(TypeError):
+        message_cls("Hello, {name}!", inject_prompt=False)
+
+def test_message_has_no_inject_prompt_attribute():
+    assert not hasattr(UserMessage("Hello, {name}!"), "inject_prompt")
+
 # =================================== END Message Structure Tests ==================================
 
 
