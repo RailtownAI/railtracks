@@ -180,6 +180,43 @@ _NODE_JOIN_CTE = """
       GROUP BY scope_id, node_id
     )"""
 
+#: Each node invocation as a half-open interval, so an event with no node key of
+#: its own can be attributed to the node that was running when it fired.
+#:
+#: **Why this exists.** A middleware in the LLM band carries only
+#: ``spatial_parent_llm_invoke_id``, and the node is recovered by hopping through
+#: that invocation's ``llm.*`` events. When a guard *blocks*, there are no such
+#: events — the guard runs before ``llm.invocation`` fires, so the hop finds
+#: nothing and the decision is dropped. That is not a rounding error in the data:
+#: measured over 104 guard decisions, the hop resolved 91 and dropped 13, and
+#: **all 13 were blocks**. The node-level guardrail marker could therefore never
+#: show a block, which is what had a session tree reporting "all allowed" beside a
+#: Middleware column that correctly said one call was stopped.
+#:
+#: **Why containment and not "the most recent invocation".** Node invocations
+#: overlap — 122 overlapping pairs across 47 of 109 sessions on the measured store
+#: — so the latest preceding ``node.invocation`` is often a node that had already
+#: returned. Taking the innermost interval that *contains* the timestamp instead
+#: reproduces what a call stack would say. Both were checked against the LLM hop
+#: wherever both resolve: containment agreed 89 of 89, the latest-preceding rule
+#: 81 of 91.
+#:
+#: ``node.destruction`` closes the interval alongside response/failure because a
+#: node that raised may emit only the former.
+_NODE_SPAN_CTE = """
+    node_spans AS (
+      SELECT scope_id,
+             CAST(parent_node_id AS VARCHAR) AS node_id,
+             MIN(timestamp) FILTER (WHERE event_type = 'node.invocation')  AS opened_at,
+             MAX(timestamp) FILTER (WHERE event_type IN ('node.response',
+                                                        'node.failure',
+                                                        'node.destruction')) AS closed_at
+      FROM node
+      WHERE parent_node_id IS NOT NULL
+      GROUP BY scope_id, parent_node_id
+      HAVING MIN(timestamp) FILTER (WHERE event_type = 'node.invocation') IS NOT NULL
+    ),"""
+
 #: Middleware name per ``middleware_type_id``, the only place a name is recorded.
 #:
 #: ``middleware.creation`` is the *sole* event carrying ``middleware_name``:
@@ -1610,10 +1647,24 @@ _INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
 #: Rewriting these ``LIKE``s as equality tests would label a ``@before_llm`` a
 #: plain model wrapper.
 #:
-#: The final band fallback catches a model-band middleware that emits no
-#: specialised event at all. That is not hypothetical: ``@wrap_llm`` only began
-#: emitting ``middleware.model.*`` recently, so every model middleware captured
-#: before that reaches this rung.
+#: The final band fallback catches an LLM-band middleware that emits no
+#: specialised event at all, and on the current store that is the *common* case
+#: rather than the edge. Counted over 109 sessions: nothing emits
+#: ``middleware.model.input.*`` or ``middleware.model.output.*``, and the only
+#: emitter of the generic ``middleware.model.*`` is the framework's own
+#: ``_llm_observe``. Every user LLM middleware there — ``force_uppercase``,
+#: ``counter``, ``print_message``, ``record_response`` — emits nothing but
+#: ``middleware.invocation`` / ``.response`` under
+#: ``spatial_parent_spatial_type = 'llm_and_middleware'``, so it lands on this rung
+#: as ``llm_wrapper``.
+#:
+#: The consequence is worth stating plainly rather than discovering: a
+#: ``@before_llm`` is reported as a request transform **only when the framework
+#: emits the specialised pair for it**, and where it does not, the honest answer
+#: from the stream is "something wrapped the LLM call". The ladder is not guessing
+#: past what was recorded, and the ``.input.%`` / ``.output.%`` rungs are kept
+#: because they are right the moment those events appear — they carry
+#: ``.invocation``, ``.response`` *and* ``.failure``, all matched by the wildcard.
 _MIDDLEWARE_KIND_CASE = """
       CASE
         WHEN BOOL_OR(event_type LIKE 'middleware.guard.input.%')    THEN 'input_guard'
@@ -1663,25 +1714,44 @@ def _middleware_rows_cte() -> str:
       the type_id regardless of the request's filters.
 
     * **The node**, which middleware events do not carry directly. Node-band
-      events name it under ``spatial_parent_node_id``; model-band events name
-      only the LLM invocation they wrapped, under
-      ``spatial_parent_llm_invoke_id``, and the ``llm.*`` events for that
-      invocation name the node — the same hop the event log makes. Grouped by the
-      join key, like every join here.
+      events name it under ``spatial_parent_node_id``; LLM-band events name only
+      the LLM invocation they wrapped, under ``spatial_parent_llm_invoke_id``, and
+      the ``llm.*`` events for that invocation name the node — the same hop the
+      event log makes. Grouped by the join key, like every join here. When the hop
+      finds nothing, :data:`_NODE_SPAN_CTE` supplies the node that was running;
+      see there for why that is a containment test and not a nearest-preceding one.
 
     * **The decision**, flattened out of the ``decision`` payload into ``action``
       and ``reason``. Only ``middleware.guard.*.response`` carries one; every
       other event contributes null, which is what keeps ``allows`` /
       ``transforms`` / ``blocks`` at zero for a non-guard rather than absent.
 
-    ``is_failure`` is the ``.failure`` suffix, and what it means is narrower than
-    it looks: an exception unwound *through* this middleware. One guardrail block
-    emits one for the guard and one for every enclosing layer, so it ranks "sat
-    in the path of a failure" and never attributes cause. Cause comes from
-    ``action = 'block'`` alone.
+    * **Whether the middleware itself raised**, which is the part that took a
+      correction. Every invocation ends in exactly one of ``middleware.response``
+      or ``middleware.failure`` — that pair is the pass/stop signal, and reading
+      only guard decisions meant a middleware that stopped a run by raising
+      reported "passed". A `@wrap_node` that raises ``Exception("Negative numbers
+      are not allowed.")`` is on this store, and it read as having passed the call
+      it had just killed.
+
+      A failure alone is not enough to blame it, though. An exception unwinds
+      through *every* enclosing middleware, so one guard block emits a failure for
+      the guard and one for each layer outside it — 5 deep on this store, and 34
+      of 71 failures are that collateral. And a middleware wrapping a node that
+      raised on its own reports a failure without having done anything: 45 of
+      ``_observe_middleware``'s failures are the wrapped node's ``ValueError``
+      passing through.
+
+      ``raised_here`` separates them by asking whether what it wrapped failed
+      first: if a ``node.failure`` or ``llm.failure`` in the same session carries
+      the same exception message at or before this event, the exception came from
+      inside and the middleware only sat in its path. Checked against the guard
+      decisions, which are authoritative: all 14 blocks on the store are also
+      ``raised_here`` or carry ``action = 'block'``, and no wrapper is.
     """
     return (
         _MIDDLEWARE_NAME_CTE
+        + _NODE_SPAN_CTE
         + """
     mw_kinds AS (
       SELECT parent_middleware_type_id           AS type_id,
@@ -1704,29 +1774,83 @@ def _middleware_rows_cte() -> str:
         AND spatial_parent_node_id IS NOT NULL
       GROUP BY scope_id, parent_llm_invoke_id
     ),
+    -- What the middleware wrapped, when that failed, and with which exception.
+    -- Only the message is compared: the same exception object is re-reported at
+    -- each layer, so identity is the message plus the session plus the ordering.
+    callee_failures AS (
+      SELECT scope_id, timestamp, exception_message
+      FROM node
+      WHERE event_type = 'node.failure' AND exception_message IS NOT NULL
+      UNION ALL
+      SELECT scope_id, timestamp, exception_message
+      FROM llm
+      WHERE event_type = 'llm.failure' AND exception_message IS NOT NULL
+    ),
+    mw_events AS (
+      SELECT ev.event_id,
+             ev.event_type,
+             ev.scope_id,
+             ev.timestamp,
+             ev.parent_middleware_type_id,
+             ev.parent_middleware_invoke_id,
+             ev.spatial_parent_node_id,
+             ev.spatial_parent_llm_invoke_id,
+             ev.decision->>'action'         AS action,
+             ev.decision->>'reason'         AS reason,
+             ev.event_type LIKE '%.failure' AS is_failure,
+             ev.exception_message,
+             ev.exception_name
+      FROM middleware ev
+      WHERE ev.parent_middleware_type_id IS NOT NULL
+    ),
+    -- The innermost node invocation open when the event fired, for the events that
+    -- name no node and whose LLM invocation produced no `llm.*` to hop through.
+    mw_enclosing AS (
+      SELECT e.event_id,
+             s.node_id,
+             ROW_NUMBER() OVER (PARTITION BY e.event_id ORDER BY s.opened_at DESC) AS depth
+      FROM mw_events e
+      JOIN node_spans s
+        ON s.scope_id = e.scope_id
+       AND e.timestamp >= s.opened_at
+       AND (s.closed_at IS NULL OR e.timestamp <= s.closed_at)
+      WHERE e.spatial_parent_node_id IS NULL
+    ),
     m AS (
       SELECT ev.event_id,
              ev.event_type,
              ev.scope_id                                       AS session_id,
              ev.timestamp,
              ev.parent_middleware_type_id                      AS type_id,
+             ev.parent_middleware_invoke_id                     AS invoke_id,
              COALESCE(nm.middleware_name,
                       'middleware ' || SUBSTR(CAST(ev.parent_middleware_type_id
                                                    AS VARCHAR), 1, 8))
                                                                AS middleware_name,
              COALESCE(kd.kind, 'node_wrapper')                 AS kind,
              COALESCE(kd.band, 'node')                         AS band,
-             COALESCE(ev.spatial_parent_node_id, ln.node_id)   AS node_id,
-             ev.decision->>'action'                            AS action,
-             ev.decision->>'reason'                            AS reason,
-             ev.event_type LIKE '%.failure'                    AS is_failure
-      FROM middleware ev
+             COALESCE(ev.spatial_parent_node_id,
+                      ln.node_id,
+                      en.node_id)                              AS node_id,
+             ev.action,
+             ev.reason,
+             ev.is_failure,
+             ev.exception_message,
+             -- It raised: it failed, and nothing it wrapped had already failed
+             -- with the same exception.
+             ev.is_failure AND NOT EXISTS (
+               SELECT 1 FROM callee_failures cf
+               WHERE cf.scope_id = ev.scope_id
+                 AND cf.exception_message IS NOT DISTINCT FROM ev.exception_message
+                 AND cf.timestamp <= ev.timestamp
+             )                                                 AS raised_here
+      FROM mw_events ev
       LEFT JOIN mw_llm_nodes ln
         ON ln.scope_id = ev.scope_id
        AND ln.llm_invoke_id = ev.spatial_parent_llm_invoke_id
+      LEFT JOIN mw_enclosing en ON en.event_id = ev.event_id AND en.depth = 1
       LEFT JOIN mw_names nm ON nm.type_id = ev.parent_middleware_type_id
       LEFT JOIN mw_kinds kd ON kd.type_id = ev.parent_middleware_type_id
-      WHERE ev.parent_middleware_type_id IS NOT NULL
     ),"""
     )
 
@@ -1738,6 +1862,22 @@ def _middleware_rows_cte() -> str:
 #: events, because the generic invocation is the one event every middleware emits
 #: exactly once per run — counting rows would make a guard (5 events per run)
 #: look five times busier than a wrapper (2 per run) doing the same work.
+#:
+#: **``blocks`` is "it stopped the call", from either of the two ways that happens:**
+#: a guard returning ``action = 'block'``, or any middleware raising an exception of
+#: its own. Counting only the decisions missed the second — a `@wrap_node` that
+#: raised was reported as having passed the call it killed.
+#:
+#: Counted over **distinct invocation ids**, not events: a guard that blocks emits
+#: both a block decision *and* its own failure, so counting the events reported one
+#: block as two.
+#:
+#: **``interruptions`` is the other side of that split** and replaces a plain count
+#: of failures. A failure means the call did not complete through this middleware,
+#: which for the 34-of-71 collateral failures says nothing about the middleware
+#: itself: an exception unwinds through every enclosing layer. Keeping the two
+#: counts apart is what stops every wrapper on a failed run from reading as a
+#: blocker.
 _MIDDLEWARE_GROUP_SELECT = """
     SELECT m.middleware_name,
            m.kind,
@@ -1747,14 +1887,21 @@ _MIDDLEWARE_GROUP_SELECT = """
            COUNT(*) FILTER (WHERE m.action IS NOT NULL)        AS decisions,
            COUNT(*) FILTER (WHERE m.action = 'allow')          AS allows,
            COUNT(*) FILTER (WHERE m.action = 'transform')      AS transforms,
-           COUNT(*) FILTER (WHERE m.action = 'block')          AS blocks,
-           COUNT(*) FILTER (WHERE m.is_failure)                AS exceptions,
+           COUNT(DISTINCT m.invoke_id) FILTER (
+             WHERE m.action = 'block' OR m.raised_here)        AS blocks,
+           COUNT(DISTINCT m.invoke_id) FILTER (
+             WHERE m.is_failure AND NOT m.raised_here)         AS interruptions,
            COUNT(DISTINCT m.session_id)                        AS sessions,
            COUNT(DISTINCT m.node_id)                           AS nodes,
            MIN(EPOCH(m.timestamp))                             AS first_seen,
            MAX(EPOCH(m.timestamp))                             AS last_seen,
-           ARG_MAX(m.reason, m.timestamp) FILTER (
-             WHERE m.action IN ('block', 'transform'))         AS reason
+           COALESCE(
+             ARG_MAX(m.reason, m.timestamp) FILTER (
+               WHERE m.action IN ('block', 'transform')),
+             -- A middleware that raised has no decision to explain itself, so its
+             -- own exception message is the reason it stopped the call.
+             ARG_MAX(m.exception_message, m.timestamp) FILTER (WHERE m.raised_here)
+           )                                                   AS reason
     FROM m
     LEFT JOIN sessions s ON s.scope_id = m.session_id
     LEFT JOIN nodes n ON n.scope_id = m.session_id AND n.node_id = m.node_id"""
@@ -1920,7 +2067,7 @@ def get_middleware_stats(con, **filters: Any) -> dict[str, Any]:
            COALESCE(SUM(g.allows), 0)      AS allows,
            COALESCE(SUM(g.transforms), 0)  AS transforms,
            COALESCE(SUM(g.blocks), 0)      AS blocks,
-           COALESCE(SUM(g.exceptions), 0)  AS exceptions,
+           COALESCE(SUM(g.interruptions), 0) AS interruptions,
            COALESCE(MAX(g.sessions), 0)    AS sessions
     FROM ({_middleware_groups_sql(where_clause, having_clause)}) g
     """
@@ -2014,6 +2161,16 @@ def list_middleware_by_session(
     Internal middleware is excluded unconditionally here. The column has no
     toggle — it is a fixed-width cell in a table of runs, where two glyphs that
     appear on every row would spend the width saying nothing.
+
+    **The outcome is the worst thing this middleware did across the session, and
+    the order of "worst" is deliberate:** blocked, then transformed, then
+    interrupted, then passed. The first two are things the middleware *did*; the
+    third is something that happened to it, so it ranks below them even though it
+    is the more alarming word. A wrapper that an exception unwound through has not
+    blocked anything, and colouring it as though it had would put a red pill on
+    every layer of a failed run — which is the shape of the bug this replaces,
+    where the shield beside these pills reported "all allowed" because the one
+    decision that stopped the call had been dropped for lack of a node.
     """
     if not session_ids:
         return {}
@@ -2026,15 +2183,23 @@ def list_middleware_by_session(
            m.kind,
            m.band,
            CASE
-             WHEN COUNT(*) FILTER (WHERE m.action = 'block') > 0     THEN 'blocked'
-             WHEN COUNT(*) FILTER (WHERE m.action = 'transform') > 0 THEN 'transformed'
+             WHEN COUNT(*) FILTER (WHERE m.action = 'block'
+                                      OR m.raised_here) > 0          THEN 'blocked'
+             WHEN COUNT(*) FILTER (WHERE m.action = 'transform') > 0  THEN 'transformed'
+             WHEN COUNT(*) FILTER (WHERE m.is_failure) > 0            THEN 'interrupted'
              ELSE 'passed'
            END                                                       AS outcome,
            COUNT(*) FILTER (WHERE m.event_type = 'middleware.invocation')
                                                                      AS invocations,
-           COUNT(*) FILTER (WHERE m.action = 'block')                AS blocks,
-           ARG_MAX(m.reason, m.timestamp) FILTER (
-             WHERE m.action IN ('block', 'transform'))               AS reason,
+           COUNT(DISTINCT m.invoke_id) FILTER (
+             WHERE m.action = 'block' OR m.raised_here)              AS blocks,
+           COUNT(DISTINCT m.invoke_id) FILTER (
+             WHERE m.is_failure AND NOT m.raised_here)               AS interruptions,
+           COALESCE(
+             ARG_MAX(m.reason, m.timestamp) FILTER (
+               WHERE m.action IN ('block', 'transform')),
+             ARG_MAX(m.exception_message, m.timestamp) FILTER (WHERE m.raised_here)
+           )                                                         AS reason,
            MIN(m.timestamp)                                          AS first_at
     FROM m
     WHERE {_in_clause("m.session_id", ids)}
@@ -2070,6 +2235,16 @@ def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, An
     and ``spatial_parent_node_id``). We hop LLM → node to attribute every
     guardrail to a specific node.
 
+    **That hop alone loses exactly the decisions that matter**, and it took a
+    screenshot to notice: a guard that blocks does so *before* ``llm.invocation``
+    fires, so its invocation has no ``llm.*`` events to hop through. Measured over
+    104 decisions the hop resolved 91 and dropped 13 — and all 13 were blocks. So
+    the tree's shield could report nothing but "allowed", while the Middleware
+    column beside it correctly showed the call had been stopped. The fallback is
+    :data:`_NODE_SPAN_CTE`: the innermost node invocation whose interval contains
+    the decision. It recovers all 13 and agrees with the hop on 89 of the 89 where
+    both resolve.
+
     **The rail's name comes from the middleware, not from the decision.** A
     ``GuardrailDecision`` carries ``action`` / ``reason`` / ``messages`` /
     ``output_message`` / ``user_facing_message`` / ``meta`` and has never had a
@@ -2086,9 +2261,12 @@ def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, An
 
     ``meta`` is now the decision's own ``meta`` and nothing else.
     """
-    sql = """
-    WITH guards AS (
-      SELECT event_type,
+    sql = f"""
+    WITH {_NODE_SPAN_CTE}
+    guards AS (
+      SELECT scope_id,
+             event_type,
+             CAST(spatial_parent_node_id AS VARCHAR)       AS direct_node_id,
              CAST(spatial_parent_llm_invoke_id AS VARCHAR) AS llm_invoke_id,
              CAST(parent_middleware_type_id AS VARCHAR)    AS type_id,
              CAST(decision AS VARCHAR)                     AS decision_json,
@@ -2117,8 +2295,24 @@ def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, An
       WHERE event_type = 'middleware.creation'
         AND middleware_type_id IS NOT NULL
       GROUP BY middleware_type_id
+    ),
+    -- The innermost node invocation open at the moment of the decision, ranked so
+    -- `depth = 1` is the one a call stack would name. Only consulted when the hop
+    -- above found nothing, which is the blocked case.
+    enclosing AS (
+      SELECT g.timestamp,
+             g.type_id,
+             s.node_id,
+             ROW_NUMBER() OVER (
+               PARTITION BY g.timestamp, g.type_id ORDER BY s.opened_at DESC
+             ) AS depth
+      FROM guards g
+      JOIN node_spans s
+        ON s.scope_id = g.scope_id
+       AND g.timestamp >= s.opened_at
+       AND (s.closed_at IS NULL OR g.timestamp <= s.closed_at)
     )
-    SELECT ln.node_id,
+    SELECT COALESCE(g.direct_node_id, ln.node_id, e.node_id) AS node_id,
            g.event_type,
            g.decision_json,
            rn.middleware_name AS rail_name,
@@ -2126,6 +2320,8 @@ def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, An
     FROM guards g
     LEFT JOIN llm_nodes ln USING (llm_invoke_id)
     LEFT JOIN rail_names rn USING (type_id)
+    LEFT JOIN enclosing e
+      ON e.timestamp = g.timestamp AND e.type_id IS NOT DISTINCT FROM g.type_id AND e.depth = 1
     ORDER BY g.timestamp ASC
     """
     result: dict[str, list[dict[str, Any]]] = {}

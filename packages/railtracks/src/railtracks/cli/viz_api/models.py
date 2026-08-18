@@ -152,23 +152,41 @@ class MiddlewareBand(str, Enum):
 
 
 class MiddlewareOutcome(str, Enum):
-    """What a middleware did to the thing it wrapped, worst outcome first.
+    """What became of the call a middleware wrapped.
 
-    Only guards can produce anything but ``PASSED``: the outcome comes from a
-    ``GuardrailDecision``'s ``action``, and a wrapper or a transform hook emits
-    no decision. That is deliberate rather than a gap — a wrapper's effect is
-    not recorded anywhere in the stream, so claiming one would be inventing it.
+    Every middleware invocation ends in exactly one of ``middleware.response`` or
+    ``middleware.failure``, and that pair — not the guard decisions alone — is the
+    pass/stop signal. Reading only decisions meant a middleware that stopped a run
+    by raising reported ``PASSED``; a `@wrap_node` raising ``Exception("Negative
+    numbers are not allowed.")`` did exactly that.
 
-    Note what this is *not* derived from: ``middleware.failure``. That event
-    fires once per enclosing middleware as an exception unwinds, so a single
-    guardrail block emits one for the guard *and* one for every layer outside
-    it, plus ``node.failure``, plus a failed session. Deriving "blocked" from
-    the failure events would report one block as four and would mark innocent
-    wrappers as the cause.
+    ``BLOCKED`` therefore covers the two ways a middleware stops a call: a guard
+    returning ``action = 'block'``, or any middleware raising an exception of its
+    own.
+
+    ``INTERRUPTED`` is the case a plain reading of ``middleware.failure`` gets
+    wrong. An exception unwinds through every enclosing middleware — 5 layers deep
+    on the measured store, where 34 of 71 failures are that collateral — and a
+    middleware wrapping a node that raised on its own reports a failure without
+    having done anything. Those invocations did not complete, but the middleware
+    neither blocked nor transformed: it sat in the path. Calling that ``BLOCKED``
+    would put a red marker on every layer of every failed run.
+
+    The two are told apart by whether what the middleware wrapped failed first —
+    see ``raised_here`` in :func:`queries._middleware_rows_cte`.
+
+    ``TRANSFORMED`` still comes from a decision alone. A wrapper's effect on what
+    it passed through is recorded nowhere in the stream, so claiming one would be
+    inventing it.
+
+    Roll-ups take the worst outcome in the order ``BLOCKED``, ``TRANSFORMED``,
+    ``INTERRUPTED``, ``PASSED``: the first two are things the middleware did, the
+    third is something that happened to it.
     """
 
     PASSED = "passed"
     TRANSFORMED = "transformed"
+    INTERRUPTED = "interrupted"
     BLOCKED = "blocked"
 
 
@@ -257,11 +275,15 @@ class SessionMiddleware(BaseModel):
     #: Times it ran. A model-band middleware runs once per model round trip, so
     #: this exceeds 1 for any agent that looped through a tool call.
     invocations: int = 0
-    #: Decisions that blocked. Counted from guard decisions, never from
-    #: ``middleware.failure`` — see :class:`MiddlewareOutcome`.
+    #: Invocations where it stopped the call — a guard ``block`` or its own raise.
     blocks: int = 0
-    #: Why it blocked or transformed, from the decision's ``reason``. Null when
-    #: it only ever passed, since a pass has nothing to explain.
+    #: Invocations an exception unwound through without this middleware causing it.
+    #: Separate from ``blocks`` so a wrapper around something that failed is not
+    #: reported as the blocker — see :class:`MiddlewareOutcome`.
+    interruptions: int = 0
+    #: Why it blocked or transformed: the decision's ``reason``, or the exception
+    #: message when it raised rather than decided. Null when it only ever passed,
+    #: since a pass has nothing to explain.
     reason: str | None = None
 
 
@@ -682,20 +704,26 @@ class MiddlewareSummary(BaseModel):
     decisions: int = 0
     allows: int = 0
     transforms: int = 0
+    #: Invocations where this middleware stopped the call, by either of the two
+    #: ways that happens: a guard returning ``block``, or the middleware raising
+    #: an exception of its own. Counting the decisions alone missed the second and
+    #: reported a `@wrap_node` that raised as having passed.
     blocks: int = 0
-    #: Events where an exception unwound *through* this middleware — not
-    #: necessarily raised *by* it. One guardrail block produces one of these for
-    #: the guard and one for every layer enclosing it, so this column ranks
-    #: "sat in the path of a failure", and only ``blocks`` attributes cause.
-    exceptions: int = 0
+    #: Invocations that did not complete *through* this middleware without it being
+    #: the cause: an exception raised deeper unwinding outward. One guard block
+    #: produces one of these for every layer enclosing the guard, 34 of 71 failures
+    #: on the measured store. Split out from ``blocks`` so a wrapper in the path of
+    #: a failure is not reported as having blocked anything.
+    interruptions: int = 0
     #: Distinct sessions and nodes it ran in, which a count of invocations
     #: cannot say — 40 invocations in one session is a loop, in 40 is a default.
     sessions: int = 0
     nodes: int = 0
     first_seen: float | None = None
     last_seen: float | None = None
-    #: Most recent block or transform reason, for the row's detail. Null when it
-    #: only ever passed.
+    #: Why it last blocked or transformed: the decision's reason, or — for a
+    #: middleware that raised rather than decided — its exception message. Null when
+    #: it only ever passed.
     reason: str | None = None
 
 
@@ -737,7 +765,7 @@ class MiddlewareStats(BaseModel):
     allows: int = 0
     transforms: int = 0
     blocks: int = 0
-    exceptions: int = 0
+    interruptions: int = 0
     #: Distinct sessions represented in the matching middleware.
     sessions: int = 0
 

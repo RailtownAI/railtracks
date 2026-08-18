@@ -734,7 +734,7 @@ async def get_middleware_stats(
         allows=int(stats.get("allows") or 0),
         transforms=int(stats.get("transforms") or 0),
         blocks=int(stats.get("blocks") or 0),
-        exceptions=int(stats.get("exceptions") or 0),
+        interruptions=int(stats.get("interruptions") or 0),
         sessions=int(stats.get("sessions") or 0),
     )
 
@@ -825,6 +825,7 @@ def _row_to_session_middleware(row: dict[str, Any]) -> SessionMiddleware:
         outcome=MiddlewareOutcome(row["outcome"]),
         invocations=int(row["invocations"] or 0),
         blocks=int(row["blocks"] or 0),
+        interruptions=int(row["interruptions"] or 0),
         reason=row.get("reason"),
     )
 
@@ -841,7 +842,7 @@ def _row_to_middleware_summary(row: dict[str, Any]) -> MiddlewareSummary:
         allows=int(row["allows"] or 0),
         transforms=int(row["transforms"] or 0),
         blocks=int(row["blocks"] or 0),
-        exceptions=int(row["exceptions"] or 0),
+        interruptions=int(row["interruptions"] or 0),
         sessions=int(row["sessions"] or 0),
         nodes=int(row["nodes"] or 0),
         first_seen=float(first_seen) if first_seen is not None else None,
