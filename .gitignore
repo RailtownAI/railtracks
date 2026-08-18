@@ -51,3 +51,10 @@ packages/railtracks/docs/
 .claude
 CLAUDE.md
 graphify-out/
+
+# Personal ticket scratch docs / playground scripts -- never meant to be pushed
+flow.md
+decisions.md
+middleware_explained.md
+middleware_playground.py
+verifier_playground.py
