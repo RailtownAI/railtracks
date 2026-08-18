@@ -80,13 +80,13 @@ class TestPayloadColumnsLLM:
 class TestSpatialParentFlattening:
     def test_llm_namespace_exposes_every_spatial_parent_subfield(self):
         cols = payload_columns("llm")
-        assert _kind(cols, "spatial_parent_spatial_type") == ColumnKind.ENUM
+        assert _kind(cols, "spatial_parent_type") == ColumnKind.ENUM
         assert _kind(cols, "spatial_parent_node_id") == ColumnKind.STRING
         assert _kind(cols, "spatial_parent_middleware_invoke_id") == ColumnKind.STRING
         assert _kind(cols, "spatial_parent_llm_invoke_id") == ColumnKind.STRING
 
-    def test_spatial_type_enum_covers_every_subclass_value(self):
-        spec = payload_columns("llm")["spatial_parent_spatial_type"]
+    def test_type_enum_covers_every_subclass_value(self):
+        spec = payload_columns("llm")["spatial_parent_type"]
         assert spec.kind == ColumnKind.ENUM
         assert set(spec.enum_members or ()) == {
             "none",
@@ -105,15 +105,15 @@ class TestSpatialParentFlattening:
 class TestParentFlattening:
     def test_llm_namespace_exposes_every_parent_subfield(self):
         cols = payload_columns("llm")
-        assert _kind(cols, "parent_parent_type") == ColumnKind.ENUM
+        assert _kind(cols, "parent_type") == ColumnKind.ENUM
         assert _kind(cols, "parent_node_id") == ColumnKind.STRING
         assert _kind(cols, "parent_middleware_type_id") == ColumnKind.STRING
         assert _kind(cols, "parent_middleware_invoke_id") == ColumnKind.STRING
         assert _kind(cols, "parent_llm_type_id") == ColumnKind.STRING
         assert _kind(cols, "parent_llm_invoke_id") == ColumnKind.STRING
 
-    def test_parent_type_enum_covers_every_subclass_value(self):
-        spec = payload_columns("llm")["parent_parent_type"]
+    def test_type_enum_covers_every_subclass_value(self):
+        spec = payload_columns("llm")["parent_type"]
         assert spec.kind == ColumnKind.ENUM
         assert set(spec.enum_members or ()) == {"node", "middleware", "llm"}
 
@@ -199,8 +199,8 @@ class TestRegistryCompleteness:
             cols = payload_columns(namespace)
             for f in fields(cls):
                 if f.name == "spatial_parent":
-                    assert "spatial_parent_spatial_type" in cols, cls
+                    assert "spatial_parent_type" in cols, cls
                 elif f.name == "parent":
-                    assert "parent_parent_type" in cols, cls
+                    assert "parent_type" in cols, cls
                 else:
                     assert f.name in cols, f"{cls.__name__}.{f.name} missing"

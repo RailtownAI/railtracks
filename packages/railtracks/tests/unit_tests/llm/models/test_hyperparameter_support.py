@@ -1,5 +1,6 @@
 import pytest
 from railtracks.llm.models._hyperparameter_support import (
+    default_reasoning_effort_for_tools,
     find_mutually_exclusive_conflict,
     is_hyperparameter_supported,
 )
@@ -100,4 +101,93 @@ class TestLitellmFallback:
         )
         assert (
             is_hyperparameter_supported("some-model", "openai", "temperature") is True
+        )
+
+
+class TestDefaultReasoningEffortForTools:
+    """#1394: OpenAI reasoning models (gpt-5.4+ family) silently substitute their own
+    non-'none' default `reasoning_effort` server-side when the caller omits it, and that
+    default conflicts with function tools on `/v1/chat/completions`. Force
+    `reasoning_effort='none'` in exactly that situation, and leave every other case alone."""
+
+    @staticmethod
+    def _patch_model_info(monkeypatch, **info):
+        import railtracks.llm.models._hyperparameter_support as hyperparameter_support_module
+
+        monkeypatch.setattr(
+            hyperparameter_support_module.litellm,
+            "get_model_info",
+            lambda model: info,
+        )
+
+    def test_forces_none_when_unset_with_tools_on_reasoning_model(self, monkeypatch):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        assert (
+            default_reasoning_effort_for_tools(
+                "openai/gpt-5.6-sol", None, has_tools=True
+            )
+            == "none"
+        )
+
+    def test_explicit_reasoning_effort_not_overridden(self, monkeypatch):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        assert (
+            default_reasoning_effort_for_tools(
+                "openai/gpt-5.6-sol", "high", has_tools=True
+            )
+            == "high"
+        )
+
+    def test_no_default_without_tools(self, monkeypatch):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        assert (
+            default_reasoning_effort_for_tools(
+                "openai/gpt-5.6-sol", None, has_tools=False
+            )
+            is None
+        )
+
+    def test_non_reasoning_model_untouched(self, monkeypatch):
+        # e.g. gpt-4o: no reasoning capability at all, so no implicit-default problem.
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=None, supports_none_reasoning_effort=None
+        )
+        assert (
+            default_reasoning_effort_for_tools("openai/gpt-4o", None, has_tools=True)
+            is None
+        )
+
+    def test_reasoning_model_without_none_support_untouched(self, monkeypatch):
+        # A reasoning model whose accepted efforts don't include "none" (e.g. only
+        # medium/high/xhigh) -- forcing "none" would just trade one 400 for another.
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=False
+        )
+        assert (
+            default_reasoning_effort_for_tools(
+                "openai/gpt-5.5-pro", None, has_tools=True
+            )
+            is None
+        )
+
+    def test_litellm_error_fails_open(self, monkeypatch):
+        import railtracks.llm.models._hyperparameter_support as hyperparameter_support_module
+
+        def _raise(*args, **kwargs):
+            raise Exception("This model isn't mapped yet.")
+
+        monkeypatch.setattr(
+            hyperparameter_support_module.litellm, "get_model_info", _raise
+        )
+        assert (
+            default_reasoning_effort_for_tools(
+                "openai/some-unknown-model", None, has_tools=True
+            )
+            is None
         )
