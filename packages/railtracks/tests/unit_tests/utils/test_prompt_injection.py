@@ -110,28 +110,25 @@ def test_valuedict_missing_returns_placeholder():
 # ================= START inject_values tests ================
 
 def test_inject_values_injects_value():
-    smsg = SystemMessage(content="System says {system_info}", inject_prompt=True)
-    msg = UserMessage(content="Hello, {name}!", inject_prompt=True)
+    smsg = SystemMessage(content="System says {system_info}")
+    msg = UserMessage(content="Hello, {name}!")
     history = MessageHistory([smsg, msg])
     value_dict = ValueDict({"name": "Alice", "system_info": "All systems operational"})
 
     result = prompt_injection.inject_values(history, value_dict)
     assert result[0].content == "System says All systems operational"
-    assert result[0].inject_prompt is False
     assert result[1].content == "Hello, Alice!"
-    assert result[1].inject_prompt is False
 
-def test_inject_values_ignores_no_inject():
-    msg = Message(role=Role.user, content="Hello!", inject_prompt=False)
+def test_inject_values_ignores_other_roles():
+    msg = Message(role=Role.tool, content="Hello, {name}!")
     history = MessageHistory([msg])
     value_dict = ValueDict({"name": "Alice"})
 
     result = prompt_injection.inject_values(history, value_dict)
-    assert result[0].content == "Hello!"
-    assert result[0].inject_prompt is False
+    assert result[0].content == "Hello, {name}!"
 
 def test_inject_values_ignores_non_string_content():
-    msg = Message(role=Role.user, content=12345, inject_prompt=True)
+    msg = Message(role=Role.user, content=12345)
     history = MessageHistory([msg])
     value_dict = ValueDict({"name": "Alice"})
 
@@ -146,7 +143,7 @@ def test_inject_values_passes_through_unfillable_placeholders():
         "unbalanced { brace",
         "{name:>20}",
     ]
-    history = MessageHistory([UserMessage(content=c, inject_prompt=True) for c in contents])
+    history = MessageHistory([UserMessage(content=c) for c in contents])
     value_dict = ValueDict({"holder": _Holder(), "name": "Alice"})
 
     result = prompt_injection.inject_values(history, value_dict)
