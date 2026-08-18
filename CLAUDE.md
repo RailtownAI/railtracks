@@ -67,10 +67,8 @@ things live internally and dev-relevant gotchas that skill doesn't cover:
 
 - **Tool** (`rt.function_node`): `built_nodes/function/node.py`.
 - **Agent** (`rt.agent_node`): `built_nodes/llm/node.py`, returns a *class* (not an instance, treat it as
-  PascalCase); built via `LLMNodeBuilder.llm(...)` (`built_nodes/llm/node_builder.py`). No separate named
-  class per `tool_nodes`/`output_schema` combination as of railtracks 1.5 (the old `TerminalLLM`/
-  `StructuredLLM`/`ToolCallLLM`/`StructuredToolCallLLM` hierarchy and `built_nodes/concrete/`/
-  `easy_usage_wrappers/` were removed).
+  PascalCase); built via `LLMNodeBuilder.llm(...)` (`built_nodes/llm/node_builder.py`). There's no separate
+  named class per `tool_nodes`/`output_schema` combination; it's always a single dynamically built node.
 - **Flow**: `orchestration/flow.py`. `flow.invoke(...)` / `await flow.ainvoke(...)` run it.
 - **`rt.call(...)`**: moved to `interaction/` (`interaction/_call.py`) as of the 1.5 merge, alongside
   `call_batch`, `astream`, `broadcast`, `couple`. Don't set up a second `Flow` for the same run; pick one
@@ -81,6 +79,9 @@ things live internally and dev-relevant gotchas that skill doesn't cover:
   wrong one silently misses tool-call retries or wraps too broadly. `MiddlewareChain.run`
   (`middleware/chain.py`) composes via `reversed(list)`: the first entry in `middleware=[...]` is
   outermost, the last is innermost/closest to the actual call.
+- **Human-in-the-loop verifier**: `rt.verifier(approve_fn, *, timeout=, name=)` (`middleware/verifier.py`)
+  is a `wrap_node` middleware that gates a node's execution on an approve/reject callback (sync or async),
+  returning a `Verdict` (`middleware/verdict.py`) or raising `VerifierRejectedError` on rejection/timeout.
 
 ### Package layout under `src/railtracks/`
 - `nodes/`: base `Node` class, `ToolManifest`, tool-callable protocol.
@@ -90,13 +91,16 @@ things live internally and dev-relevant gotchas that skill doesn't cover:
 - `execution/`: coordinator/execution-strategy/task running the request graph.
 - `interaction/`: `rt.call`, `call_batch`, `astream`, `broadcast`, `couple` (in-node calls to other
   nodes/agents).
-- `middleware/`: generic node-level `Middleware`/`wrap_node`/`after_node` (wraps whole node invocation).
+- `middleware/`: generic node-level `Middleware`/`wrap_node`/`after_node` (wraps whole node invocation),
+  plus the `verifier`/`Verdict`/`VerifierRejectedError` human-in-the-loop gate.
 - `pubsub/`: internal message bus (request creation/success/failure events).
 - `state/`: execution state/forest tracking, session info.
 - `context/`: `rt.context` get/put/update/delete (run-scoped context vars).
 - `llm/`: model abstractions (`ModelBase`, provider clients: `AnthropicLLM`, `OpenAILLM`, `GeminiLLM`,
   `OpenAICompatibleProvider`, etc.), messages, tool schemas.
 - `rt_mcp/`: MCP client/server integration (`connect_mcp`, `create_mcp_server`).
+- `exceptions/`: the `RTError` hierarchy (`NodeCreationError`, `NodeInvocationError`, `LLMError`,
+  `GlobalTimeOutError`, `ContextError`, `FatalError`, `VisualExtraRequiredError`).
 - `guardrails/`: `input_guard`/`output_guard`, guardrail decisions/traces.
 - `evaluations/`: `evaluate`, `JudgeEvaluator`, `ToolUseEvaluator`, metrics.
 - `observability/`: framework-agnostic event pipeline (`Observer`, writers, `publish_event`).
@@ -114,6 +118,8 @@ things live internally and dev-relevant gotchas that skill doesn't cover:
   `railtracks add claude:<skill>`, unrelated to this repo's own `.claude/skills/`.
 - `integrations/`: currently an empty placeholder package, no functionality yet.
 - `scope_manager.py`: `ScopeManager` protocol for node/middleware scope tracking.
+- `paths.py`: `resolve_railtracks_home()`, resolves the `.railtracks` data directory (env var, then
+  walk-up-from-cwd, then a warned fallback).
 - `_session.py`: `Session`/`session()` decorator.
 
 ### Things to avoid when writing or modifying agent code
