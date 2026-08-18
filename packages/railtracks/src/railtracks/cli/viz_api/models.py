@@ -134,7 +134,7 @@ class MiddlewareKind(str, Enum):
 class MiddlewareBand(str, Enum):
     """Which layer a middleware wrapped.
 
-    Read off ``spatial_parent_spatial_type``: ``node_and_middleware`` wraps a
+    Read off ``spatial_parent_type``: ``node_and_middleware`` wraps a
     whole node invocation, ``llm_and_middleware`` wraps one LLM round trip inside
     the tool-calling loop. The same middleware *name* can appear in both bands
     when it is registered in both slots, which is why the aggregate grain includes

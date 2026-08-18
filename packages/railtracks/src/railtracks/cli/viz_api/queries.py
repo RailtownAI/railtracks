@@ -1655,7 +1655,7 @@ _INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
 #: ``_llm_observe``. Every user LLM middleware there — ``force_uppercase``,
 #: ``counter``, ``print_message``, ``record_response`` — emits nothing but
 #: ``middleware.invocation`` / ``.response`` under
-#: ``spatial_parent_spatial_type = 'llm_and_middleware'``, so it lands on this rung
+#: ``spatial_parent_type = 'llm_and_middleware'``, so it lands on this rung
 #: as ``llm_wrapper``.
 #:
 #: The consequence is worth stating plainly rather than discovering: a
@@ -1673,8 +1673,7 @@ _MIDDLEWARE_KIND_CASE = """
         WHEN BOOL_OR(event_type LIKE 'middleware.model.output.%')   THEN 'response_transform'
         WHEN BOOL_OR(event_type LIKE 'middleware.regular.output.%') THEN 'result_hook'
         WHEN BOOL_OR(event_type LIKE 'middleware.model.%')          THEN 'llm_wrapper'
-        WHEN BOOL_OR(spatial_parent_spatial_type = 'llm_and_middleware')
-                                                                    THEN 'llm_wrapper'
+        WHEN BOOL_OR(spatial_parent_type = 'llm_and_middleware')    THEN 'llm_wrapper'
         ELSE 'node_wrapper'
       END"""
 
@@ -1758,7 +1757,7 @@ def _middleware_rows_cte() -> str:
              """
         + _MIDDLEWARE_KIND_CASE
         + """   AS kind,
-             CASE WHEN BOOL_OR(spatial_parent_spatial_type = 'llm_and_middleware')
+             CASE WHEN BOOL_OR(spatial_parent_type = 'llm_and_middleware')
                   THEN 'llm' ELSE 'node' END   AS band
       FROM middleware
       WHERE parent_middleware_type_id IS NOT NULL
@@ -1823,6 +1822,10 @@ def _middleware_rows_cte() -> str:
              ev.timestamp,
              ev.parent_middleware_type_id                      AS type_id,
              ev.parent_middleware_invoke_id                     AS invoke_id,
+             -- One invocation, named by the pair rather than the id alone: the id
+             -- is a per-process UUID, so the session is what makes it unique.
+             ev.scope_id || '|' ||
+               CAST(ev.parent_middleware_invoke_id AS VARCHAR)   AS invocation_key,
              COALESCE(nm.middleware_name,
                       'middleware ' || SUBSTR(CAST(ev.parent_middleware_type_id
                                                    AS VARCHAR), 1, 8))
@@ -1887,9 +1890,9 @@ _MIDDLEWARE_GROUP_SELECT = """
            COUNT(*) FILTER (WHERE m.action IS NOT NULL)        AS decisions,
            COUNT(*) FILTER (WHERE m.action = 'allow')          AS allows,
            COUNT(*) FILTER (WHERE m.action = 'transform')      AS transforms,
-           COUNT(DISTINCT m.invoke_id) FILTER (
+           COUNT(DISTINCT m.invocation_key) FILTER (
              WHERE m.action = 'block' OR m.raised_here)        AS blocks,
-           COUNT(DISTINCT m.invoke_id) FILTER (
+           COUNT(DISTINCT m.invocation_key) FILTER (
              WHERE m.is_failure AND NOT m.raised_here)         AS interruptions,
            COUNT(DISTINCT m.session_id)                        AS sessions,
            COUNT(DISTINCT m.node_id)                           AS nodes,
@@ -2191,9 +2194,9 @@ def list_middleware_by_session(
            END                                                       AS outcome,
            COUNT(*) FILTER (WHERE m.event_type = 'middleware.invocation')
                                                                      AS invocations,
-           COUNT(DISTINCT m.invoke_id) FILTER (
+           COUNT(DISTINCT m.invocation_key) FILTER (
              WHERE m.action = 'block' OR m.raised_here)              AS blocks,
-           COUNT(DISTINCT m.invoke_id) FILTER (
+           COUNT(DISTINCT m.invocation_key) FILTER (
              WHERE m.is_failure AND NOT m.raised_here)               AS interruptions,
            COALESCE(
              ARG_MAX(m.reason, m.timestamp) FILTER (
