@@ -48,9 +48,9 @@ class SpatialType(str, Enum):
 @dataclass(frozen=True)
 class SpatialParent:
     def __post_init__(self):
-        if not hasattr(self, "spatial_type"):
+        if not hasattr(self, "type"):
             raise ValueError(
-                f"SpatialParent subclass {self.__class__.__name__} must define a 'spatial_type' field."
+                f"SpatialParent subclass {self.__class__.__name__} must define a 'type' field."
             )
 
     def encode(self):
@@ -107,9 +107,9 @@ class ParentType(str, Enum):
 @dataclass(frozen=True)
 class Parent:
     def __post_init__(self):
-        if not hasattr(self, "parent_type"):
+        if not hasattr(self, "type"):
             raise ValueError(
-                f"Parent subclass {self.__class__.__name__} must define a 'parent_type' field."
+                f"Parent subclass {self.__class__.__name__} must define a 'type' field."
             )
 
     def encode(self):
