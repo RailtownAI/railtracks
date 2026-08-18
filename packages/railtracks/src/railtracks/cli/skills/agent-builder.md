@@ -15,7 +15,6 @@ just changes what it does at runtime:
 - Neither `tool_nodes` nor `output_schema` → plain chat, text output.
 - `output_schema` only → structured output, no tools.
 - `tool_nodes` only → tool-calling, text output.
-- Both → tool-calling with structured output.
 
 ### LLM Providers
 
