@@ -1,6 +1,6 @@
 ### Enabling Context Injection
 
-Context injection is **opt-in per agent**: add `rt.middleware.ContextInjection()` to an agent's `model_middleware` to turn on placeholder substitution. Agents without this middleware leave `{placeholders}` untouched.
+Context injection is **opt-in per agent**: add `rt.prebuilt.middleware.ContextInjection()` to an agent's `model_middleware` to turn on placeholder substitution. Agents without this middleware leave `{placeholders}` untouched. See [Context Injection](../../documentation/agent_design/middleware/prebuilt/list/context_injection.md) for the middleware's own reference, including how list position affects what other middleware sees.
 
 ```python
 --8<-- "docs/scripts/prompts.py:prompt_basic"
@@ -10,7 +10,7 @@ Because the agent includes `ContextInjection`, its system message is expanded at
 
 ### Disabling Context Injection
 
-The middleware is the only switch. Only agents whose `model_middleware` contains `rt.middleware.ContextInjection()` substitute placeholders, so an agent whose prompt legitimately contains `{}` braces that should be left untouched simply omits it:
+The middleware is the only switch. Only agents whose `model_middleware` contains `rt.prebuilt.middleware.ContextInjection()` substitute placeholders, so an agent whose prompt legitimately contains `{}` braces that should be left untouched simply omits it:
 
 ```python
 --8<-- "docs/scripts/prompts.py:disable_injection_node_level"
@@ -38,7 +38,7 @@ prompt = f"The current time is {{time}}:\nUser Message:\n{rt.escape_braces(user_
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: Check that the agent's `model_middleware` includes `rt.middleware.ContextInjection()`
+2. **Verify prompt injection is enabled**: It is not on by default — check that the agent's `model_middleware` includes `rt.prebuilt.middleware.ContextInjection()` ([how to add it](../../documentation/agent_design/middleware/prebuilt/list/context_injection.md))
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 
