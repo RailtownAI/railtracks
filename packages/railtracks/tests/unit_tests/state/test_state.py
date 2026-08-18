@@ -50,6 +50,7 @@ def test_create_node_and_request(dummy_execution_info, dummy_executor_config, mo
     state._node_heap.update.assert_called()
 
 
+
 def test_create_node_and_request_constructs_node_with_no_arguments(
     dummy_execution_info, dummy_executor_config, mock_coordinator, mock_publisher
 ):
@@ -91,7 +92,9 @@ def test_create_node_and_request_constructs_node_with_no_arguments(
         kwargs={"foo": "bar"},
     )
 
-    assert result[0] == "reqid"
+    request_id, node_instance = result
+    assert request_id == "reqid"
+    assert node_instance.uuid == "strict-node-uuid"
     state._node_heap.update.assert_called()
 
 
