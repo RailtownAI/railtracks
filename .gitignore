@@ -55,6 +55,9 @@ packages/railtracks/docs/
 !.claude/skills/code-style/
 graphify-out/
 
-# Local, per-ticket scratch docs (see CLAUDE.md Ticket Workflow), not shared
+# Local, per-ticket scratch docs (see CLAUDE.md Ticket Workflow) and playground scripts, not shared
 flow.md
 decisions.md
+middleware_explained.md
+middleware_playground.py
+verifier_playground.py
