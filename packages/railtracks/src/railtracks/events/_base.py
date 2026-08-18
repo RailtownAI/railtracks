@@ -67,9 +67,7 @@ class MiddlewareSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class NodeSpatialParent(SpatialParent):
-    type: Literal[SpatialType.NODE] = field(
-        init=False, default=SpatialType.NODE
-    )
+    type: Literal[SpatialType.NODE] = field(init=False, default=SpatialType.NODE)
     node_id: str | None
 
 
@@ -93,9 +91,7 @@ class LLMAndMiddlewareSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class NoSpatialParent(SpatialParent):
-    type: Literal[SpatialType.NONE] = field(
-        init=False, default=SpatialType.NONE
-    )
+    type: Literal[SpatialType.NONE] = field(init=False, default=SpatialType.NONE)
 
 
 class ParentType(str, Enum):
