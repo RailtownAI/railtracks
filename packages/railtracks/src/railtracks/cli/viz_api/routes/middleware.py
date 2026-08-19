@@ -19,7 +19,9 @@ from ..models import (
 from ..row_mapping import _row_to_middleware_summary
 from ._common import QueryFailureRoute, get_query_or_none
 
-router = APIRouter(prefix="/middleware", route_class=QueryFailureRoute)
+router = APIRouter(
+    prefix="/middleware", tags=["middleware"], route_class=QueryFailureRoute
+)
 
 
 @router.get("", response_model=MiddlewarePage)

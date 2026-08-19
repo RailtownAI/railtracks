@@ -15,8 +15,40 @@ from railtracks.paths import resolve_railtracks_home
 from .constants import DEFAULT_PORT
 from .io import print_error, print_status, print_success, print_warning
 from .viz_api import router as viz_api_router
+from .viz_api._debug import is_debug
 
-app = FastAPI()
+app = FastAPI(
+    title="railtracks visualizer API",
+    description=(
+        "HTTP surface behind the railtracks visualizer.\n\n"
+        "**v1 (stable)** — file-based JSON endpoints on the bare `/api/…` "
+        "paths. Serves the released visualizer build.\n\n"
+        "**v2 (beta)** — event-stream endpoints backed by DuckDB on "
+        "`/api/v2/…`. Under active development; shapes may change."
+    ),
+    openapi_tags=[
+        {
+            "name": "sessions",
+            "description": "Session listing, per-session detail, and graph.",
+        },
+        {
+            "name": "llm-traces",
+            "description": "One row per LLM round trip, across sessions.",
+        },
+        {
+            "name": "events",
+            "description": "Raw event log — one row per event in the stream.",
+        },
+        {
+            "name": "middleware",
+            "description": "Middleware roll-ups, outcomes, and filter options.",
+        },
+        {
+            "name": "v1 (stable)",
+            "description": "Frozen file-based endpoints the released UI depends on.",
+        },
+    ],
+)
 # The v2 event-stream API, under its own `/api/v2` prefix so it sits beside the
 # frozen v1 endpoints below rather than shadowing them. Included here, before the
 # catch-all at the bottom of this file, because FastAPI matches in registration
@@ -40,7 +72,7 @@ def get_data_dir(subdir: str) -> Path:
     return get_railtracks_dir() / "data" / subdir
 
 
-@app.get("/api/evaluations")
+@app.get("/api/evaluations", tags=["v1 (stable)"])
 async def get_evaluations():
     """Get all evaluation JSON files from .railtracks/data/evaluations/"""
     evaluations_dir = get_data_dir("evaluations")
@@ -73,7 +105,7 @@ async def get_evaluations():
 # difference be harmless.
 
 
-@app.get("/api/sessions")
+@app.get("/api/sessions", tags=["v1 (stable)"])
 async def get_sessions():
     """Get all session JSON files from .railtracks/data/sessions/ (v1)"""
     sessions_dir = get_data_dir("sessions")
@@ -91,7 +123,7 @@ async def get_sessions():
     return JSONResponse(content=sessions)
 
 
-@app.get("/api/sessions/{guid}")
+@app.get("/api/sessions/{guid}", tags=["v1 (stable)"])
 async def get_session(guid: str):
     """Get a specific session JSON file by GUID from .railtracks/data/sessions/ (v1)"""
     sessions_dir = get_data_dir("sessions")
@@ -116,7 +148,7 @@ async def get_session(guid: str):
         return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)
 
 
-@app.get("/{full_path:path}")
+@app.get("/{full_path:path}", include_in_schema=False)
 async def serve_ui_or_404(full_path: str):
     """Serve UI files with SPA routing fallback (catch-all route)"""
     if full_path.startswith("api/"):
@@ -154,25 +186,32 @@ class RailtracksServer:
         self.running = True
 
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
+        print_status(f"📁 Serving files from: {get_railtracks_dir() / self.ui_subdir}")
+        print_status(
+            f"📖 Interactive API docs: http://localhost:{self.port}/docs"
+        )
+
+        if is_debug():
+            print_status("📋 API endpoints:")
+            print_status("   GET  /api/evaluations - Get all evaluation JSON files")
+            print_status("   v1 (stable, file-based):")
+            print_status("   GET  /api/sessions - Get all session JSON files")
+            print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
+            print_status("   v2 (beta, event-stream):")
+            for route in viz_api_router.routes:
+                path = getattr(route, "path", None)
+                if path:
+                    print_status(f"   GET  {path}")
+
+        print_status("Press Ctrl+C to stop the server")
+
         if self.beta:
             print_warning(
-                "⚠️  Beta mode — this UI and the /api/v2 endpoints are under active"
-                " development. Shapes, filter params and response fields may change"
-                " between releases without warning. Use `railtracks viz` (no --beta)"
-                " for a stable client."
+                "⚠️  Beta mode — this UI and the /api/v2 endpoints are under active "
+                "development. Shapes, filter params and response fields may change "
+                "between releases without warning. Use `railtracks viz` (no --beta) "
+                "for a stable client."
             )
-        print_status(f"📁 Serving files from: {get_railtracks_dir() / self.ui_subdir}")
-        print_status("📋 API endpoints:")
-        print_status("   GET  /api/evaluations - Get all evaluation JSON files")
-        print_status("   v1 (stable, file-based):")
-        print_status("   GET  /api/sessions - Get all session JSON files")
-        print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
-        print_status("   v2 (beta, event-stream):")
-        for route in viz_api_router.routes:
-            path = getattr(route, "path", None)
-            if path:
-                print_status(f"   GET  {path}")
-        print_status("Press Ctrl+C to stop the server")
 
         def open_browser():
             time.sleep(1)

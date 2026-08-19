@@ -14,11 +14,11 @@ def print_success(message: str) -> None:
 
 
 def print_warning(message: str) -> None:
-    print(f"[{cli_name}] {message}")
+    print(f"{Fore.YELLOW}[{cli_name}] {message}{Style.RESET_ALL}")
 
 
 def print_error(message: str) -> None:
-    print(f"[{cli_name}] {message}")
+    print(f"{Fore.RED}[{cli_name}] {message}{Style.RESET_ALL}")
 
 
 def _print_update_available() -> None:

@@ -18,7 +18,9 @@ from ..models import (
 from ..row_mapping import _row_to_llm_trace
 from ._common import QueryFailureRoute, get_query_or_none
 
-router = APIRouter(prefix="/llm-traces", route_class=QueryFailureRoute)
+router = APIRouter(
+    prefix="/llm-traces", tags=["llm-traces"], route_class=QueryFailureRoute
+)
 
 
 @router.get("", response_model=LLMTracePage)

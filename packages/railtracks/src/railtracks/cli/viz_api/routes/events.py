@@ -17,7 +17,9 @@ from ..models import (
 from ..row_mapping import _row_to_event
 from ._common import QueryFailureRoute, get_query_or_none
 
-router = APIRouter(prefix="/events", route_class=QueryFailureRoute)
+router = APIRouter(
+    prefix="/events", tags=["events"], route_class=QueryFailureRoute
+)
 
 
 @router.get("", response_model=EventPage)

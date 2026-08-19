@@ -40,7 +40,9 @@ from ._common import (
     get_query_or_none,
 )
 
-router = APIRouter(prefix="/sessions", route_class=QueryFailureRoute)
+router = APIRouter(
+    prefix="/sessions", tags=["sessions"], route_class=QueryFailureRoute
+)
 
 
 @router.get("", response_model=list[SessionSummary])
