@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 
 from railtracks.paths import resolve_railtracks_home
 
@@ -61,6 +61,22 @@ router = APIRouter(prefix="/api/v2")
 #: the same place — but named here so the string lives in one spot and reads
 #: as intent rather than as a stray literal at each caller.
 _EVENTS_SUBDIR = "data/new-ones"
+
+#: UUID shape ``{session_id}`` is required to match. Session ids are
+#: ``str(uuid.uuid4())``, so the pattern is characteristic — and it rejects the
+#: sibling literals ``/sessions/stats`` and ``/sessions/filters``, which
+#: otherwise would be swallowed as session ids under a mis-ordered route.
+#: FastAPI matches in registration order, and this router has already had to
+#: comment that convention twice; encoding it at the parameter makes the
+#: ordering non-load-bearing.
+#:
+#: Lookaround would be more permissive than shape-matching, but pydantic-core's
+#: regex engine does not support it — a UUID pattern is what's actually
+#: enforceable here.
+_SESSION_ID_PATTERN = (
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
 
 
 def _events_dir() -> Path:
@@ -133,12 +149,6 @@ async def list_sessions(
     ]
 
 
-# NB: the two literal `/sessions/...` routes below must stay ahead of
-# `/sessions/{session_id}`. FastAPI matches in registration order, so declaring
-# them after it would have "stats" and "filters" swallowed as session ids and
-# answered with a 404 for a session that does not exist.
-
-
 @router.get("/sessions/stats", response_model=SessionStats)
 async def get_session_stats(
     flow_name: list[str] | None = Query(None),
@@ -194,7 +204,9 @@ async def get_session_filter_options() -> SessionFilterOptions:
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetail)
-async def get_session(session_id: str) -> SessionDetail:
+async def get_session(
+    session_id: str = Path(..., pattern=_SESSION_ID_PATTERN),
+) -> SessionDetail:
     """Full session payload: summary + prepared tree + default selection."""
     print_status(f"GET /api/sessions/{session_id}")
     events_dir = _events_dir()
@@ -222,7 +234,10 @@ async def get_session(session_id: str) -> SessionDetail:
     "/sessions/{session_id}/nodes/{node_id}",
     response_model=NodeDetail,
 )
-async def get_node_detail(session_id: str, node_id: str) -> NodeDetail:
+async def get_node_detail(
+    session_id: str = Path(..., pattern=_SESSION_ID_PATTERN),
+    node_id: str = Path(...),
+) -> NodeDetail:
     """Inputs, outputs, cost, latency and guardrails for one node."""
     print_status(f"GET /api/sessions/{session_id}/nodes/{node_id}")
     events_dir = _events_dir()
@@ -685,11 +700,6 @@ async def list_middleware(
     )
 
 
-# NB: the two literal `/middleware/...` routes stay ahead of any future
-# `/middleware/{name}` for the reason the `/sessions/...` block gives — FastAPI
-# matches in registration order.
-
-
 @router.get("/middleware/stats", response_model=MiddlewareStats)
 async def get_middleware_stats(
     session_id: str | None = Query(None),
@@ -768,7 +778,9 @@ async def get_middleware_filter_options(
 
 
 @router.get("/sessions/{session_id}/graph", response_model=SessionGraph)
-async def get_session_graph(session_id: str) -> SessionGraph:
+async def get_session_graph(
+    session_id: str = Path(..., pattern=_SESSION_ID_PATTERN),
+) -> SessionGraph:
     """React-Flow-shaped graph for the session — nodes and parent→child edges."""
     print_status(f"GET /api/sessions/{session_id}/graph")
     events_dir = _events_dir()
