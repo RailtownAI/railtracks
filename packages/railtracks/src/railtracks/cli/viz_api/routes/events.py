@@ -1,0 +1,158 @@
+"""Raw event log — one row per event in the stream."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Query
+
+from ...io import print_status
+from .. import queries
+from ..models import (
+    EventFilterOptions,
+    EventPage,
+    EventSortField,
+    EventStats,
+    SortOrder,
+)
+from ..row_mapping import _row_to_event
+from ._common import _events_dir
+
+router = APIRouter(prefix="/events")
+
+
+@router.get("", response_model=EventPage)
+async def list_events(
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    session_id: str | None = Query(None),
+    node_id: str | None = Query(None),
+    namespace: list[str] | None = Query(None),
+    event_type: list[str] | None = Query(None),
+    flow_name: list[str] | None = Query(None),
+    middleware_name: list[str] | None = Query(None),
+    failures_only: bool = Query(False),
+    search: str | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
+    sort_by: EventSortField = Query(EventSortField.TIMESTAMP),
+    order: SortOrder = Query(SortOrder.DESC),
+) -> EventPage:
+    """List raw events from the stream, newest first by default.
+
+    Reads the ``events`` view, so every namespace shows — including one the
+    registry does not declare. Filters and sort apply server-side, before
+    paging. ``search`` is a substring test (not a ``LIKE`` pattern);
+    ``middleware_name`` is exact match on the resolved name.
+    """
+    print_status(
+        f"GET /api/events limit={limit} offset={offset} "
+        f"session_id={session_id} node_id={node_id} "
+        f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
+        f"middleware_name={middleware_name} "
+        f"failures_only={failures_only} search={search!r} "
+        f"since={since} until={until} "
+        f"sort_by={sort_by.value} order={order.value}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return EventPage(rows=[], total=0, limit=limit, offset=offset)
+
+    q = queries.get_query(events_dir)
+    rows = queries.list_event_rows(
+        q.con,
+        limit=limit,
+        offset=offset,
+        session_id=session_id,
+        node_id=node_id,
+        namespaces=namespace,
+        event_types=event_type,
+        flow_names=flow_name,
+        middleware_names=middleware_name,
+        failures_only=failures_only,
+        search=search,
+        since=since,
+        until=until,
+        sort_by=sort_by,
+        order=order,
+    )
+    total = queries.count_event_rows(
+        q.con,
+        session_id=session_id,
+        node_id=node_id,
+        namespaces=namespace,
+        event_types=event_type,
+        flow_names=flow_name,
+        middleware_names=middleware_name,
+        failures_only=failures_only,
+        search=search,
+        since=since,
+        until=until,
+    )
+    return EventPage(
+        rows=[_row_to_event(r) for r in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/stats", response_model=EventStats)
+async def get_event_stats(
+    session_id: str | None = Query(None),
+    node_id: str | None = Query(None),
+    namespace: list[str] | None = Query(None),
+    event_type: list[str] | None = Query(None),
+    flow_name: list[str] | None = Query(None),
+    middleware_name: list[str] | None = Query(None),
+    failures_only: bool = Query(False),
+    search: str | None = Query(None),
+    since: float | None = Query(None),
+    until: float | None = Query(None),
+) -> EventStats:
+    """Roll-up across every event matching the filters, ignoring paging."""
+    print_status(
+        f"GET /api/events/stats session_id={session_id} node_id={node_id} "
+        f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
+        f"middleware_name={middleware_name} "
+        f"failures_only={failures_only} search={search!r} "
+        f"since={since} until={until}"
+    )
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return EventStats()
+
+    q = queries.get_query(events_dir)
+    stats = queries.get_event_stats(
+        q.con,
+        session_id=session_id,
+        node_id=node_id,
+        namespaces=namespace,
+        event_types=event_type,
+        flow_names=flow_name,
+        middleware_names=middleware_name,
+        failures_only=failures_only,
+        search=search,
+        since=since,
+        until=until,
+    )
+    first = stats.get("first_timestamp")
+    last = stats.get("last_timestamp")
+    return EventStats(
+        total_events=int(stats.get("total_events") or 0),
+        failures=int(stats.get("failures") or 0),
+        sessions=int(stats.get("sessions") or 0),
+        event_types=int(stats.get("event_types") or 0),
+        first_timestamp=float(first) if first is not None else None,
+        last_timestamp=float(last) if last is not None else None,
+    )
+
+
+@router.get("/filters", response_model=EventFilterOptions)
+async def get_event_filter_options() -> EventFilterOptions:
+    """Every value the ``/api/events`` filters can take, over the whole stream."""
+    print_status("GET /api/events/filters")
+    events_dir = _events_dir()
+    if not events_dir.exists():
+        return EventFilterOptions()
+
+    q = queries.get_query(events_dir)
+    return EventFilterOptions(**queries.list_event_filter_options(q.con))
