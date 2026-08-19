@@ -160,7 +160,9 @@ nav:
 
   - Observability:
       - AgentHub:
-          - Local: observability/agenthub/local.md
+          - Local:
+            - V1 (Stable): observability/agenthub/local.md
+            - V2 (Beta): observability/agenthub/local_v2.md
           - Cloud: observability/agenthub/cloud.md
       - Human in the Loop:
           - Overview: observability/human_in_the_loop/overview.md
