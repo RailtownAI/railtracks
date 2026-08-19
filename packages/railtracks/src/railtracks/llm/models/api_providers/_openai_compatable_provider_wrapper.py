@@ -40,7 +40,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper, ABC):
         """
         # litellm needs to be told this is an OpenAI-compatible endpoint to route the
         # call at all. Forced as a kwarg here instead of baked into the model name
-        # string, so the true model name survives for telemetry/visualization (#1437).
+        # string, so the true model name survives for telemetry/visualization.
         kwargs["custom_llm_provider"] = "openai"
         super().__init__(
             model_name,
