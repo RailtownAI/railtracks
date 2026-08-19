@@ -13,7 +13,7 @@ import json
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from railtracks.query import EventQuery, connect
 
@@ -26,6 +26,9 @@ from .models import (
     MiddlewareSortField,
     SortOrder,
 )
+
+if TYPE_CHECKING:
+    from duckdb import DuckDBPyConnection
 
 _NAMESPACES = ["session", "node", "llm", "middleware"]
 
@@ -70,7 +73,7 @@ def close_query() -> None:
 
 
 def _rows(
-    con,
+    con: DuckDBPyConnection,
     sql: str,
     params: tuple[Any, ...] = (),
     label: str | None = None,
@@ -360,7 +363,7 @@ def _filtered_sessions_sql(where_clause: str) -> str:
 
 
 def list_session_rows(
-    con,
+    con: DuckDBPyConnection,
     *,
     flow_names: list[str] | None = None,
     entry_point_names: list[str] | None = None,
@@ -387,7 +390,7 @@ def list_session_rows(
 
 
 def get_session_stats(
-    con,
+    con: DuckDBPyConnection,
     *,
     flow_names: list[str] | None = None,
     entry_point_names: list[str] | None = None,
@@ -418,7 +421,7 @@ def get_session_stats(
     return rows[0] if rows else {}
 
 
-def list_session_filter_options(con) -> dict[str, list[str]]:
+def list_session_filter_options(con: DuckDBPyConnection) -> dict[str, list[str]]:
     """Distinct flow names, entry points and statuses across every session.
 
     Like the trace filters, these come from the whole stream rather than the
@@ -444,7 +447,7 @@ def list_session_filter_options(con) -> dict[str, list[str]]:
     }
 
 
-def get_session_row(con, session_id: str) -> dict[str, Any] | None:
+def get_session_row(con: DuckDBPyConnection, session_id: str) -> dict[str, Any] | None:
     rows = _rows(
         con,
         _SESSION_SUMMARY_CTE + "WHERE s.scope_id = ?",
@@ -459,7 +462,9 @@ def get_session_row(con, session_id: str) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 
-def list_session_node_rows(con, session_id: str) -> list[dict[str, Any]]:
+def list_session_node_rows(
+    con: DuckDBPyConnection, session_id: str
+) -> list[dict[str, Any]]:
     """One row per node in a session: identity, parent, timing, and status.
 
     NB: on the ``node.invocation`` / ``.response`` / ``.destruction`` / ``.failure``
@@ -525,7 +530,9 @@ def list_session_node_rows(con, session_id: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def list_llm_totals_by_node(con, session_id: str) -> list[dict[str, Any]]:
+def list_llm_totals_by_node(
+    con: DuckDBPyConnection, session_id: str
+) -> list[dict[str, Any]]:
     """LLM cost/token roll-up per node, plus the model info of the final
     response for that node."""
     sql = """
@@ -589,7 +596,9 @@ def list_llm_totals_by_node(con, session_id: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def get_node_row(con, session_id: str, node_id: str) -> dict[str, Any] | None:
+def get_node_row(
+    con: DuckDBPyConnection, session_id: str, node_id: str
+) -> dict[str, Any] | None:
     sql = """
     SELECT node_id, name, node_type
     FROM node
@@ -605,7 +614,7 @@ def get_node_row(con, session_id: str, node_id: str) -> dict[str, Any] | None:
 
 
 def get_agent_llm_details(
-    con, session_id: str, node_id: str
+    con: DuckDBPyConnection, session_id: str, node_id: str
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """For an Agent node, return (final_response_row_or_none, totals_dict).
 
@@ -684,7 +693,9 @@ def get_agent_llm_details(
     return final, totals
 
 
-def get_tool_io(con, session_id: str, node_id: str) -> dict[str, Any] | None:
+def get_tool_io(
+    con: DuckDBPyConnection, session_id: str, node_id: str
+) -> dict[str, Any] | None:
     """For a Tool node, return the args/kwargs it was called with and its
     ``response`` from the destruction event."""
     # ``node.invocation`` / ``.response`` / ``.destruction`` carry their owning
@@ -906,7 +917,7 @@ _LLM_TRACE_JOINS = """
 
 
 def count_llm_trace_rows(
-    con,
+    con: DuckDBPyConnection,
     *,
     session_id: str | None = None,
     node_id: str | None = None,
@@ -939,7 +950,7 @@ def count_llm_trace_rows(
 
 
 def list_llm_trace_rows(
-    con,
+    con: DuckDBPyConnection,
     *,
     limit: int,
     offset: int,
@@ -1016,7 +1027,7 @@ def list_llm_trace_rows(
 
 
 def get_llm_trace_stats(
-    con,
+    con: DuckDBPyConnection,
     *,
     session_id: str | None = None,
     node_id: str | None = None,
@@ -1060,7 +1071,7 @@ def get_llm_trace_stats(
     return rows[0] if rows else {}
 
 
-def list_llm_trace_filter_options(con) -> dict[str, list[str]]:
+def list_llm_trace_filter_options(con: DuckDBPyConnection) -> dict[str, list[str]]:
     """Distinct values for the trace filters, computed over the whole stream.
 
     Three cheap queries rather than one wide one: the lists are unrelated, and
@@ -1392,7 +1403,7 @@ def _event_order_clause(sort_by: EventSortField, order: SortOrder) -> str:
 
 
 def count_event_rows(
-    con,
+    con: DuckDBPyConnection,
     *,
     session_id: str | None = None,
     node_id: str | None = None,
@@ -1435,7 +1446,7 @@ def count_event_rows(
 
 
 def list_event_rows(
-    con,
+    con: DuckDBPyConnection,
     *,
     limit: int,
     offset: int,
@@ -1516,7 +1527,7 @@ def list_event_rows(
 
 
 def get_event_stats(
-    con,
+    con: DuckDBPyConnection,
     *,
     session_id: str | None = None,
     node_id: str | None = None,
@@ -1563,7 +1574,7 @@ def get_event_stats(
     return rows[0] if rows else {}
 
 
-def list_event_filter_options(con) -> dict[str, list[str]]:
+def list_event_filter_options(con: DuckDBPyConnection) -> dict[str, list[str]]:
     """Distinct namespaces, event types and flow names across the whole stream.
 
     Computed over every event rather than the current page, like the other
@@ -2009,7 +2020,7 @@ def _middleware_order_clause(sort_by: MiddlewareSortField, order: SortOrder) -> 
     )
 
 
-def count_middleware_rows(con, **filters: Any) -> int:
+def count_middleware_rows(con: DuckDBPyConnection, **filters: Any) -> int:
     """Count middleware groups matching the filters, ignoring paging."""
     where_clause, having_clause, params = _middleware_filters(**filters)
     sql = f"""
@@ -2021,7 +2032,7 @@ def count_middleware_rows(con, **filters: Any) -> int:
 
 
 def list_middleware_rows(
-    con,
+    con: DuckDBPyConnection,
     *,
     limit: int,
     offset: int,
@@ -2050,7 +2061,7 @@ def list_middleware_rows(
     )
 
 
-def get_middleware_stats(con, **filters: Any) -> dict[str, Any]:
+def get_middleware_stats(con: DuckDBPyConnection, **filters: Any) -> dict[str, Any]:
     """Roll-up across every middleware matching the filters, ignoring paging.
 
     ``total_middleware`` is the group count and ``total_invocations`` the sum of
@@ -2079,7 +2090,7 @@ def get_middleware_stats(con, **filters: Any) -> dict[str, Any]:
 
 
 def list_middleware_filter_options(
-    con, include_internal: bool = False
+    con: DuckDBPyConnection, include_internal: bool = False
 ) -> dict[str, list[str]]:
     """Distinct middleware names, kinds and bands across the whole stream.
 
@@ -2145,7 +2156,7 @@ def list_middleware_filter_options(
 
 
 def list_middleware_by_session(
-    con, session_ids: Sequence[str]
+    con: DuckDBPyConnection, session_ids: Sequence[str]
 ) -> dict[str, list[dict[str, Any]]]:
     """Map ``session_id -> middleware that ran in it``, outermost first.
 
@@ -2229,7 +2240,9 @@ def list_middleware_by_session(
 # ---------------------------------------------------------------------------
 
 
-def list_guardrails_by_node(con, session_id: str) -> dict[str, list[dict[str, Any]]]:
+def list_guardrails_by_node(
+    con: DuckDBPyConnection, session_id: str
+) -> dict[str, list[dict[str, Any]]]:
     """Map ``node_id -> list of decision dicts`` for the session.
 
     A guard middleware event carries its decision under ``decision`` and its
