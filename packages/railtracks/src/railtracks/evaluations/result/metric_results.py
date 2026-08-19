@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
-TMetricValue = TypeVar("TMetricValue")
+TMetricValue = TypeVar("TMetricValue", bound=float | int | str | None)
 
 
 class MetricResult(BaseModel, Generic[TMetricValue]):
