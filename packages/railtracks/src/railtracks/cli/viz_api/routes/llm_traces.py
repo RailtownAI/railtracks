@@ -16,9 +16,9 @@ from ..models import (
     SortOrder,
 )
 from ..row_mapping import _row_to_llm_trace
-from ._common import get_query_or_none
+from ._common import QueryFailureRoute, get_query_or_none
 
-router = APIRouter(prefix="/llm-traces")
+router = APIRouter(prefix="/llm-traces", route_class=QueryFailureRoute)
 
 
 @router.get("", response_model=LLMTracePage)

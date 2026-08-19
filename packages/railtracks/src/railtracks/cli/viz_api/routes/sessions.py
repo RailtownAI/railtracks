@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Path as PathParam
 from railtracks.query import EventQuery
 
-from ...io import print_error, print_status
+from ...io import print_status
 from .. import queries
 from ..models import (
     GraphEdge,
@@ -33,9 +33,14 @@ from ..row_mapping import (
     _to_llm_contents,
     _tool_input_messages,
 )
-from ._common import _SESSION_ID_PATTERN, get_query_or_404, get_query_or_none
+from ._common import (
+    QueryFailureRoute,
+    _SESSION_ID_PATTERN,
+    get_query_or_404,
+    get_query_or_none,
+)
 
-router = APIRouter(prefix="/sessions")
+router = APIRouter(prefix="/sessions", route_class=QueryFailureRoute)
 
 
 @router.get("", response_model=list[SessionSummary])
@@ -60,21 +65,17 @@ async def list_sessions(
     if q is None:
         return []
 
-    try:
-        rows = queries.list_session_rows(
-            q.con,
-            flow_names=flow_name,
-            entry_point_names=entry_point_name,
-            statuses=status,
-            since=since,
-            until=until,
-        )
-        middleware = queries.list_middleware_by_session(
-            q.con, [r["session_id"] for r in rows]
-        )
-    except Exception as e:  # noqa: BLE001 - keep the endpoint resilient
-        print_error(f"list_sessions query failed: {e}")
-        raise HTTPException(status_code=500, detail="failed to query events") from e
+    rows = queries.list_session_rows(
+        q.con,
+        flow_names=flow_name,
+        entry_point_names=entry_point_name,
+        statuses=status,
+        since=since,
+        until=until,
+    )
+    middleware = queries.list_middleware_by_session(
+        q.con, [r["session_id"] for r in rows]
+    )
 
     return [
         _row_to_summary(

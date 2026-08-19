@@ -17,9 +17,9 @@ from ..models import (
     SortOrder,
 )
 from ..row_mapping import _row_to_middleware_summary
-from ._common import get_query_or_none
+from ._common import QueryFailureRoute, get_query_or_none
 
-router = APIRouter(prefix="/middleware")
+router = APIRouter(prefix="/middleware", route_class=QueryFailureRoute)
 
 
 @router.get("", response_model=MiddlewarePage)

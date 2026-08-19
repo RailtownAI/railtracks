@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request, Response
+from fastapi.routing import APIRoute
 from railtracks.paths import resolve_railtracks_home
 from railtracks.query import EventQuery
 
+from ...io import print_error
 from .. import queries
 
 _EVENTS_SUBDIR = "data/new-ones"
@@ -46,3 +50,29 @@ def get_query_or_404() -> EventQuery:
     if not d.exists():
         raise HTTPException(status_code=404, detail="no events home")
     return queries.get_query(d)
+
+
+class QueryFailureRoute(APIRoute):
+    """Route class that turns any unhandled query exception into a logged 500.
+
+    Applied at the sub-router level so every endpoint shares one policy — a
+    query that raises reports a clean error to the client instead of leaking
+    the traceback into the response body, and the traceback message lands in
+    the server log for the next reader.
+    """
+
+    def get_route_handler(self) -> Callable[[Request], Any]:
+        original = super().get_route_handler()
+
+        async def wrapped(request: Request) -> Response:
+            try:
+                return await original(request)
+            except HTTPException:
+                raise
+            except Exception as e:  # noqa: BLE001
+                print_error(f"{request.url.path} query failed: {e}")
+                raise HTTPException(
+                    status_code=500, detail="failed to query events"
+                ) from e
+
+        return wrapped
