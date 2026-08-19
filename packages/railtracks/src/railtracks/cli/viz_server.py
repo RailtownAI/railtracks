@@ -24,6 +24,11 @@ app = FastAPI()
 # after it would never be reached.
 app.include_router(viz_api_router)
 
+#: Which UI subdir under the railtracks home the catch-all serves from. The
+#: default is the stable ``ui/``; ``RailtracksServer(ui_subdir="beta-ui")``
+#: swaps it before ``server.run()`` fires.
+_UI_SUBDIR: str = "ui"
+
 
 def get_railtracks_dir() -> Path:
     """Get the .railtracks directory path"""
@@ -117,7 +122,7 @@ async def serve_ui_or_404(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(content={"error": "Not Found"}, status_code=404)
 
-    ui_dir = get_railtracks_dir() / "ui"
+    ui_dir = get_railtracks_dir() / _UI_SUBDIR
     ui_file = ui_dir / full_path
     if ui_file.exists() and ui_file.is_file():
         return FileResponse(str(ui_file))
@@ -130,17 +135,20 @@ async def serve_ui_or_404(full_path: str):
 class RailtracksServer:
     """Main server class"""
 
-    def __init__(self, port=DEFAULT_PORT):
+    def __init__(self, port: int = DEFAULT_PORT, ui_subdir: str = "ui"):
         self.port = port
+        self.ui_subdir = ui_subdir
         self.running = False
         self.config = None
 
     def start(self):
         """Start the FastAPI server"""
+        global _UI_SUBDIR
+        _UI_SUBDIR = self.ui_subdir
         self.running = True
 
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
-        print_status(f"📁 Serving files from: {get_railtracks_dir() / 'ui'}")
+        print_status(f"📁 Serving files from: {get_railtracks_dir() / self.ui_subdir}")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")
         print_status("   v1 (stable, file-based):")
