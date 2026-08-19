@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import socket
+import sys
 import tempfile
 import threading
 import unittest
@@ -16,6 +17,8 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 from railtracks.cli import (
+    SKILLS,
+    SUPPORTED_TOOLS,
     _visual_dependencies_available,
     add_skill,
     check_for_ui_update,
@@ -24,6 +27,7 @@ from railtracks.cli import (
     get_script_directory,
     get_stored_ui_version,
     is_port_in_use,
+    list_skills,
     main,
     save_ui_version,
 )
@@ -341,6 +345,93 @@ class TestSkillInstallers(unittest.TestCase):
 
         self.assertFalse(Path(".claude").exists())
         self.assertFalse(Path(".cursor").exists())
+
+    def test_copilot_resolves_argument_placeholder(self):
+        """Copilot instructions are always-on context, so $ARGUMENTS never survives."""
+        add_skill("copilot:agent-builder")
+
+        content = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+        self.assertNotIn("$ARGUMENTS", content)
+        self.assertIn("<!-- railtracks:agent-builder:start -->", content)
+        self.assertIn("<!-- railtracks:agent-builder:end -->", content)
+
+    def test_copilot_reinstall_is_idempotent(self):
+        """Regenerating a skill in place must not duplicate it or add blank lines."""
+        add_skill("copilot:agent-builder")
+        first = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+
+        add_skill("copilot:agent-builder", force=True)
+        second = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+
+        self.assertEqual(first, second)
+
+    def test_copilot_preserves_surrounding_content(self):
+        """Hand-maintained sections around the markers must survive a regeneration."""
+        target = Path(".github/copilot-instructions.md")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# Hand written preamble\n", encoding="utf-8")
+
+        add_skill("copilot:agent-builder")
+        add_skill("copilot:agent-builder", force=True)
+
+        content = target.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith("# Hand written preamble\n"))
+        self.assertEqual(content.count("<!-- railtracks:agent-builder:start -->"), 1)
+
+    def test_claude_keeps_argument_placeholder(self):
+        """Claude Code substitutes $ARGUMENTS at invocation, so it must be preserved."""
+        add_skill("claude:agent-builder")
+
+        content = Path(".claude/skills/agent-builder/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("$ARGUMENTS", content)
+
+
+class TestListSkills(unittest.TestCase):
+    """Test `railtracks add --list`"""
+
+    @patch('builtins.print')
+    def test_list_skills_prints_every_registered_skill(self, mock_print):
+        """Every skill in the registry shows up with its description"""
+        list_skills()
+
+        output = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        for skill_name, meta in SKILLS.items():
+            self.assertIn(skill_name, output)
+            self.assertIn(meta["description"], output)
+
+    @patch('builtins.print')
+    def test_list_skills_prints_supported_tools(self, mock_print):
+        """The skill list is only actionable alongside the tools it installs for"""
+        list_skills()
+
+        output = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        for tool in SUPPORTED_TOOLS:
+            self.assertIn(tool, output)
+
+    @patch('railtracks.cli.list_skills')
+    def test_add_list_flag_lists_instead_of_installing(self, mock_list):
+        """`add --list` short-circuits before the <tool>:<skill> requirement"""
+        with patch.object(sys, 'argv', ['railtracks', 'add', '--list']):
+            main()
+
+        mock_list.assert_called_once()
+
+    @patch('railtracks.cli.list_skills')
+    def test_add_short_list_flag(self, mock_list):
+        """`-l` is accepted as the short form"""
+        with patch.object(sys, 'argv', ['railtracks', 'add', '-l']):
+            main()
+
+        mock_list.assert_called_once()
+
+    @patch('railtracks.cli.print_error')
+    def test_add_without_spec_still_errors(self, mock_error):
+        """A bare `add`, or a lone unrelated flag, remains a usage error"""
+        with patch.object(sys, 'argv', ['railtracks', 'add', '--force']):
+            with self.assertRaises(SystemExit):
+                main()
+
+        mock_error.assert_called_once()
 
 
 class TestPortChecking(unittest.TestCase):
