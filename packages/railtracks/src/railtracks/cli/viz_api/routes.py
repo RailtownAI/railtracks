@@ -56,9 +56,15 @@ from .models import (
 #: lets the stable client keep working while this one changes underneath it.
 router = APIRouter(prefix="/api/v2")
 
+#: Subdirectory under the railtracks home that holds the event-stream jsonl
+#: files this API reads. Not a config value yet — every deployment writes to
+#: the same place — but named here so the string lives in one spot and reads
+#: as intent rather than as a stray literal at each caller.
+_EVENTS_SUBDIR = "data/new-ones"
+
 
 def _events_dir() -> Path:
-    return resolve_railtracks_home() / "data/new-ones"
+    return resolve_railtracks_home() / _EVENTS_SUBDIR
 
 
 # ---------------------------------------------------------------------------
