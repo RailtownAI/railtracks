@@ -135,9 +135,15 @@ async def serve_ui_or_404(full_path: str):
 class RailtracksServer:
     """Main server class"""
 
-    def __init__(self, port: int = DEFAULT_PORT, ui_subdir: str = "ui"):
+    def __init__(
+        self,
+        port: int = DEFAULT_PORT,
+        ui_subdir: str = "ui",
+        beta: bool = False,
+    ):
         self.port = port
         self.ui_subdir = ui_subdir
+        self.beta = beta
         self.running = False
         self.config = None
 
@@ -148,6 +154,13 @@ class RailtracksServer:
         self.running = True
 
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
+        if self.beta:
+            print_warning(
+                "⚠️  Beta mode — this UI and the /api/v2 endpoints are under active"
+                " development. Shapes, filter params and response fields may change"
+                " between releases without warning. Use `railtracks viz` (no --beta)"
+                " for a stable client."
+            )
         print_status(f"📁 Serving files from: {get_railtracks_dir() / self.ui_subdir}")
         print_status("📋 API endpoints:")
         print_status("   GET  /api/evaluations - Get all evaluation JSON files")

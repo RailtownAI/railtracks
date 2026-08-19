@@ -574,7 +574,7 @@ def main():
         )
         update_thread.start()
 
-        server = RailtracksServer(port=port, ui_subdir=ui_subdir)
+        server = RailtracksServer(port=port, ui_subdir=ui_subdir, beta=beta)
         server.start()
     elif command == "add":
         args = sys.argv[2:]
