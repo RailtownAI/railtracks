@@ -311,6 +311,37 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertIn("error", response.json())
         self.assertIn("Invalid JSON", response.json()["error"])
 
+    def test_get_session_rejects_glob_metacharacters(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        (sessions_dir / "private-guid.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/%2A")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_parent_path_segments(self):
+        Path(".railtracks/data/sessions").mkdir(parents=True)
+        Path(".railtracks/secret.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/..%2F..%2Fsecret")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_symlinks_outside_sessions_directory(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        secret = Path("secret.json").resolve()
+        secret.write_text('{"private": true}')
+        (sessions_dir / "escaped-guid.json").symlink_to(secret)
+
+        response = self.client.get("/api/sessions/escaped-guid")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
     def test_ui_serves_files_inside_selected_bundle(self):
         ui_dir = Path(".railtracks/ui")
         ui_dir.mkdir(parents=True)

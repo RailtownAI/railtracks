@@ -8,6 +8,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -103,6 +104,11 @@ app.include_router(viz_api_router)
 #: swaps it before ``server.run()`` fires.
 _UI_SUBDIR: str = "ui"
 
+# v1 session files are keyed by UUID-like identifiers. Keep legacy alphanumeric
+# ids working, but reject path separators and glob metacharacters before the
+# value reaches the filesystem.
+_SESSION_GUID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$"
+
 
 def get_railtracks_dir() -> Path:
     """Get the .railtracks directory path"""
@@ -166,16 +172,36 @@ async def get_sessions():
 
 
 @app.get("/api/sessions/{guid}", tags=["v1 (stable)"])
-async def get_session(guid: str):
+async def get_session(
+    guid: str = PathParam(..., pattern=_SESSION_GUID_PATTERN),
+):
     """Get a specific session JSON file by GUID from .railtracks/data/sessions/ (v1)"""
-    sessions_dir = get_data_dir("sessions")
-    file_path = sessions_dir / f"{guid}.json"
-    if not file_path.exists():
-        matches = list(sessions_dir.glob(f"*_{guid}.json"))
-        if matches:
-            file_path = matches[0]
+    sessions_dir = get_data_dir("sessions").resolve()
+    try:
+        direct_file = (sessions_dir / f"{guid}.json").resolve()
+        direct_file.relative_to(sessions_dir)
+    except (OSError, RuntimeError, ValueError):
+        return JSONResponse(content={"error": "Session not found"}, status_code=404)
 
-    if not file_path.exists():
+    file_path: Path | None = direct_file if direct_file.is_file() else None
+    if file_path is None:
+        # The stable writer may prefix the GUID with a flow name. Enumerate a
+        # fixed pattern and compare names instead of interpolating user input
+        # into a glob expression.
+        expected_suffix = f"_{guid}.json"
+        for candidate in sessions_dir.glob("*.json"):
+            if not candidate.name.endswith(expected_suffix):
+                continue
+            try:
+                resolved = candidate.resolve()
+                resolved.relative_to(sessions_dir)
+            except (OSError, RuntimeError, ValueError):
+                continue
+            if resolved.is_file():
+                file_path = resolved
+                break
+
+    if file_path is None:
         return JSONResponse(content={"error": "Session not found"}, status_code=404)
 
     try:
