@@ -210,7 +210,7 @@ async def get_session(
         return JSONResponse(content=content)
     except json.JSONDecodeError as e:
         print_error(f"Invalid JSON in {file_path.name}: {e}")
-        return JSONResponse(content={"error": f"Invalid JSON: {e}"}, status_code=400)
+        return JSONResponse(content={"error": "Invalid JSON"}, status_code=400)
     except Exception as e:
         print_error(f"Error reading session file {file_path.name}: {e}")
         return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)

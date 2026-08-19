@@ -295,7 +295,8 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"error": "Session not found"})
 
-    def test_get_session_by_guid_invalid_json(self):
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_session_by_guid_invalid_json(self, mock_print_error):
         """Test /api/sessions/{guid} endpoint with invalid JSON file"""
         # Create sessions directory and invalid JSON file
         sessions_dir = Path(".railtracks/data/sessions")
@@ -308,8 +309,10 @@ class TestFastAPIEndpoints(unittest.TestCase):
 
         response = self.client.get(f"/api/sessions/{guid}")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json())
-        self.assertIn("Invalid JSON", response.json()["error"])
+        self.assertEqual(response.json(), {"error": "Invalid JSON"})
+        logged_error = mock_print_error.call_args.args[0]
+        self.assertIn(invalid_file.name, logged_error)
+        self.assertIn("line 1 column", logged_error)
 
     def test_get_session_rejects_glob_metacharacters(self):
         sessions_dir = Path(".railtracks/data/sessions")
