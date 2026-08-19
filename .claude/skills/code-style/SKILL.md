@@ -20,6 +20,9 @@ recurring, repeated PR review comment on railtracks, not a hypothetical style pr
   behavior change uncovered.
 - **Docstrings**: must match the actual signature (param names, types, `| None` / `Iterable[...]` etc.).
   Update the docstring any time a signature changes.
+- **Tool docstrings/type hints**: for any `@rt.function_node`-wrapped tool, the docstring is the literal
+  tool description the LLM sees and the type hints define its JSON schema parameters; don't write vague
+  docstrings or omit type hints on a tool function.
 - **Module-level comment strings**: a docstring at the top of a file is welcome. Avoid long inline
   paragraph-style comments in the body of the code; keep inline comments short and targeted.
 - **Typing**: no bare `Any` when a concrete type is available or already imported nearby. Don't reach for

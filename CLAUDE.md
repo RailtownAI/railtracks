@@ -15,6 +15,13 @@ Root
 └── scripts/                      # CI helper scripts (dependency sorting, license checks, docs validation)
 ```
 
+## Accessing docs
+
+Full documentation lives at https://docs.railtracks.org/ (works even if this file is read standalone,
+without the repo). Locally, the source is under `docs/documentation/` and `docs/observability/`; preview
+with `mkdocs serve` (see Common Commands below). Doc URLs mirror the source path, e.g.
+`docs/documentation/invocation/flows.md` -> `https://docs.railtracks.org/documentation/invocation/flows/`.
+
 ## Setup
 
 ```bash
@@ -62,26 +69,25 @@ fixture.
 
 For usage patterns (how to define tools/agents/flows, structured output, agent-as-tool, MCP tools), see
 `packages/railtracks/src/railtracks/cli/skills/agent-builder.md` (the same content bundled for package
-users via `railtracks add claude:agent-builder`); don't re-teach usage here. This section is just where
-things live internally and dev-relevant gotchas that skill doesn't cover:
+users via `railtracks add claude:agent-builder`) or the docs linked below; don't re-teach usage here. Just
+where each concept lives internally, plus a doc link for the how-to:
 
 - **Tool** (`rt.function_node`): `built_nodes/function/node.py`.
-- **Agent** (`rt.agent_node`): `built_nodes/llm/node.py`, returns a *class* (not an instance, treat it as
-  PascalCase); built via `LLMNodeBuilder.llm(...)` (`built_nodes/llm/node_builder.py`). There's no separate
-  named class per `tool_nodes`/`output_schema` combination; it's always a single dynamically built node.
-- **Flow**: `orchestration/flow.py`. `flow.invoke(...)` / `await flow.ainvoke(...)` run it.
-- **`rt.call(...)`**: moved to `interaction/` (`interaction/_call.py`) as of the 1.5 merge, alongside
-  `call_batch`, `astream`, `broadcast`, `couple`. Don't set up a second `Flow` for the same run; pick one
-  entry point.
-- **Agent-as-tool**: `rt.ToolManifest(...)` lives in `nodes/manifest.py`.
-- **Middleware**: `agent_node(middleware=[...])` wraps the whole node boundary (`user_input -> Response`);
-  `agent_node(model_middleware=[...])` wraps each raw model call inside the tool-calling loop; using the
-  wrong one silently misses tool-call retries or wraps too broadly. `MiddlewareChain.run`
-  (`middleware/chain.py`) composes via `reversed(list)`: the first entry in `middleware=[...]` is
-  outermost, the last is innermost/closest to the actual call.
-- **Human-in-the-loop verifier**: `rt.verifier(approve_fn, *, timeout=, name=)` (`middleware/verifier.py`)
-  is a `wrap_node` middleware that gates a node's execution on an approve/reject callback (sync or async),
-  returning a `Verdict` (`middleware/verdict.py`) or raising `VerifierRejectedError` on rejection/timeout.
+  [Function Tools](https://docs.railtracks.org/documentation/agent_design/tools/function_tools/).
+- **Agent** (`rt.agent_node`): `built_nodes/llm/node.py`; always a single dynamically built node, no
+  separate class per `tool_nodes`/`output_schema` combination.
+  [Agent Design](https://docs.railtracks.org/documentation/agent_design/overview/).
+- **Flow**: `orchestration/flow.py`.
+  [Flows](https://docs.railtracks.org/documentation/invocation/flows/).
+- **`rt.call(...)`**: `interaction/_call.py`, alongside `call_batch`/`astream`/`broadcast`/`couple`.
+  [Call](https://docs.railtracks.org/documentation/invocation/call/).
+- **Agent-as-tool**: `rt.ToolManifest(...)` in `nodes/manifest.py`.
+  [Agents as Tools](https://docs.railtracks.org/documentation/agent_design/tools/agents_as_tools/).
+- **Middleware**: `middleware/chain.py` (see "Things to avoid" below for the `middleware=`/
+  `model_middleware=` gotcha).
+  [Middleware](https://docs.railtracks.org/documentation/agent_design/middleware/overview/).
+- **Human-in-the-loop verifier**: `rt.verifier(...)` in `middleware/verifier.py`.
+  [Human in the Loop](https://docs.railtracks.org/observability/human_in_the_loop/hil/).
 
 ### Package layout under `src/railtracks/`
 - `nodes/`: base `Node` class, `ToolManifest`, tool-callable protocol.
@@ -123,8 +129,6 @@ things live internally and dev-relevant gotchas that skill doesn't cover:
 - `_session.py`: `Session`/`session()` decorator.
 
 ### Things to avoid when writing or modifying agent code
-- Don't write vague tool docstrings: it's the literal tool description the LLM sees.
-- Don't omit type hints on tool functions: they define the JSON schema parameters.
 - Don't create a `Flow` *and* a manual top-level `await rt.call(...)` for the same agent; pick one entry
   point.
 - Don't add tools an agent doesn't need.

@@ -47,15 +47,6 @@ core-licenses-summary.md
 # Ignore Files copied during release workflow for PyPI packaging (for Flit)
 packages/railtracks/docs/
 
-# .claude/ is personal by default (settings.local.json, personal skills); carve out
-# exceptions below for anything meant to be shared with the team
-.claude/*
-!.claude/skills/
-.claude/skills/*
-!.claude/skills/code-style/
+.claude/settings.local.json
+.claude/**/*.local.*
 graphify-out/
-
-flow.md
-decisions.md
-middleware_playground.py
-verifier_playground.py
