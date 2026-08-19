@@ -77,7 +77,6 @@ class FlowConnection(Generic[_P, _TOutput]):
                 timeout=flow._timeout,
                 end_on_error=flow._end_on_error,
                 broadcast_callback=flow._broadcast_callback,
-                prompt_injection=flow._prompt_injection,
                 save_state=flow._save_state,
                 payload_callback=flow._payload_callback,
             ) as session:

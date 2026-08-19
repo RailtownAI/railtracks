@@ -33,7 +33,7 @@ async def test_raises_timeout_error_and_cancels_call():
         finally:
             cancelled.set()
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises(asyncio.TimeoutError):
         await Timeout(0.01).wrap(slow_call)()
 
     assert cancelled.is_set()

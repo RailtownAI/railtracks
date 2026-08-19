@@ -15,6 +15,7 @@ jobs:
   ruff-lint:
     name: Check Code Formatting and Linting with Ruff
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout Code
@@ -37,6 +38,7 @@ jobs:
   check-licenses:
     name: Check Licenses
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
@@ -64,6 +66,7 @@ jobs:
   documentation_validation:
     name: Documentation Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs:
       - ruff-lint
       - check-licenses
@@ -90,6 +93,7 @@ jobs:
   pyproject_dependency_order:
     name: Validate pyproject.toml Dependency Order
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs:
       - ruff-lint
       - check-licenses
@@ -118,6 +122,7 @@ jobs:
   tests:
     name: Tests
     runs-on: windows-latest
+    timeout-minutes: 30
     needs:
       - ruff-lint
       - check-licenses
@@ -152,6 +157,7 @@ jobs:
   retrieval_tests:
     name: Retrieval Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs:
       - ruff-lint
       - check-licenses
@@ -166,11 +172,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
-
-      - name: Install Tesseract OCR binary
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tesseract-ocr
 
       - name: Install dependencies
         uses: ./.github/actions/install-deps

@@ -1,6 +1,6 @@
 import pytest
 
-from railtracks.evaluations.evaluators.tool_use_evaluator import ToolUseEvaluator
+from railtracks.evaluations.evaluators.tool_use_evaluator import METRICS, ToolUseEvaluator
 from railtracks.evaluations.point import Status
 
 from .conftest import make_agent_data_point, make_tool_call
@@ -76,6 +76,49 @@ def test_run_single_data_point_multiple_calls_same_tool():
 
     runtimes = {r.value for r in result.metric_results if r.result_name.startswith("Runtime")}
     assert runtimes == {0.1, 0.3, 0.5}
+
+
+def test_run_tool_failure_results_are_failure_indicators():
+    adp = make_agent_data_point(
+        tool_calls=[
+            make_tool_call(name="get_price", status=Status.COMPLETED),
+            make_tool_call(name="get_price", status=Status.FAILED),
+        ]
+    )
+    result = ToolUseEvaluator().run([adp])
+
+    failures = [r for r in result.metric_results if r.metric_id == METRICS["ToolFailure"].identifier]
+    assert [r.result_name for r in failures] == ["ToolFailure/get_price"] * 2
+    assert sorted(r.value for r in failures) == [0, 1]
+
+
+def test_run_emits_one_runtime_result_per_tool_call():
+    adp = make_agent_data_point(
+        tool_calls=[
+            make_tool_call(name="get_price", runtime=0.1),
+            make_tool_call(name="get_price", runtime=0.3),
+        ]
+    )
+    result = ToolUseEvaluator().run([adp])
+
+    runtimes = [r for r in result.metric_results if r.metric_id == METRICS["Runtime"].identifier]
+    assert sorted(r.value for r in runtimes) == [0.1, 0.3]
+
+
+def test_run_forest_has_no_orphan_nodes():
+    adp = make_agent_data_point(tool_calls=[make_tool_call(name="get_price")])
+    forest = ToolUseEvaluator().run([adp]).aggregate_results
+
+    reachable = set()
+    stack = list(forest.roots)
+    while stack:
+        node_id = stack.pop()
+        if node_id in reachable:
+            continue
+        reachable.add(node_id)
+        stack.extend(getattr(forest.get(node_id), "children", []))
+
+    assert set(forest.nodes) == reachable
 
 
 def test_run_multiple_tools():

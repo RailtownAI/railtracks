@@ -10,7 +10,6 @@ def test_instantiation_with_all_defaults():
     config = ExecutorConfig()
     assert config.timeout is None
     assert config.end_on_error is False
-    assert config.prompt_injection is True
     assert config.subscriber is None
 
 def test_instantiation_with_custom_values(tmp_path):
@@ -19,12 +18,10 @@ def test_instantiation_with_custom_values(tmp_path):
         timeout=12.0,
         end_on_error=True,
         broadcast_callback=test_subscriber,
-        prompt_injection=False
     )
     assert config.timeout == 12.0
     assert config.end_on_error is True
     assert config.subscriber == test_subscriber
-    assert config.prompt_injection is False
 
 # ================ END ExecutorConfig: Instantiation tests ===============
 
@@ -53,25 +50,12 @@ def test_subscriber_is_none_by_default():
 # ================ END ExecutorConfig: broadcast_callback handling tests ===============
 
 
-# ================= START ExecutorConfig: prompt_injection tests ============
-
-def test_prompt_injection_default_true():
-    config = ExecutorConfig()
-    assert config.prompt_injection is True
-
-def test_prompt_injection_false_when_overridden():
-    config = ExecutorConfig(prompt_injection=False)
-    assert config.prompt_injection is False
-
-# ================ END ExecutorConfig: prompt_injection tests ===============
-
 # ================= START Precedence Overwritten Tests ============
 @pytest.fixture
 def base_config():
     return ExecutorConfig(
         timeout=100.0,
         end_on_error=True,
-        prompt_injection=True,
         save_state=True
     )
 
@@ -79,17 +63,14 @@ def test_updated_timeout(base_config):
     updated_config = base_config.precedence_overwritten(timeout=200.0)
     assert updated_config.timeout == 200.0
     assert updated_config.end_on_error == base_config.end_on_error
-    assert updated_config.prompt_injection == base_config.prompt_injection
 
 def test_multiple_updated(base_config):
     updated_config = base_config.precedence_overwritten(
         timeout=200.0,
         end_on_error=False,
-        prompt_injection=False
     )
     assert updated_config.timeout == 200.0
     assert updated_config.end_on_error is False
-    assert updated_config.prompt_injection is False
 
     assert base_config.timeout == 100.0
 
