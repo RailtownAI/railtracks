@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, Query
 from railtracks.query import EventQuery
 
 from .. import queries
-from .._debug import debug_print
 from ..models import (
     EventFilterOptions,
     EventPage,
@@ -46,15 +45,6 @@ async def list_events(
     paging. ``search`` is a substring test (not a ``LIKE`` pattern);
     ``middleware_name`` is exact match on the resolved name.
     """
-    debug_print(
-        f"GET /api/v2/events limit={limit} offset={offset} "
-        f"session_id={session_id} node_id={node_id} "
-        f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
-        f"middleware_name={middleware_name} "
-        f"failures_only={failures_only} search={search!r} "
-        f"since={since} until={until} "
-        f"sort_by={sort_by.value} order={order.value}"
-    )
     if q is None:
         return EventPage(rows=[], total=0, limit=limit, offset=offset)
 
@@ -111,13 +101,6 @@ async def get_event_stats(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> EventStats:
     """Roll-up across every event matching the filters, ignoring paging."""
-    debug_print(
-        f"GET /api/v2/events/stats session_id={session_id} node_id={node_id} "
-        f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
-        f"middleware_name={middleware_name} "
-        f"failures_only={failures_only} search={search!r} "
-        f"since={since} until={until}"
-    )
     if q is None:
         return EventStats()
 
@@ -151,7 +134,6 @@ async def get_event_filter_options(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> EventFilterOptions:
     """Every value the ``/api/events`` filters can take, over the whole stream."""
-    debug_print("GET /api/v2/events/filters")
     if q is None:
         return EventFilterOptions()
     return EventFilterOptions(**queries.list_event_filter_options(q.con))

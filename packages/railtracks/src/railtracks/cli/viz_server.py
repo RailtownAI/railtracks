@@ -7,7 +7,7 @@ import webbrowser
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -16,7 +16,7 @@ from railtracks.paths import resolve_railtracks_home
 from .constants import DEFAULT_PORT
 from .io import print_error, print_status, print_success, print_warning
 from .viz_api import router as viz_api_router
-from .viz_api._debug import is_debug
+from .viz_api._logging import debug_event, exception_event, is_debug
 
 app = FastAPI(
     title="railtracks visualizer API",
@@ -60,6 +60,37 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_v2_request(request: Request, call_next):
+    """Log one structured completion record for every v2 API request."""
+    if not request.url.path.startswith("/api/v2"):
+        return await call_next(request)
+
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:  # noqa: BLE001
+        exception_event(
+            "request_failed",
+            "Unhandled visualizer request failure",
+            method=request.method,
+            path=request.url.path,
+        )
+        raise
+
+    debug_event(
+        "request_completed",
+        method=request.method,
+        path=request.url.path,
+        query_params=list(request.query_params.multi_items()),
+        status_code=response.status_code,
+        duration_ms=round((time.perf_counter() - started) * 1000, 3),
+    )
+    return response
+
+
 # The v2 event-stream API, under its own `/api/v2` prefix so it sits beside the
 # frozen v1 endpoints below rather than shadowing them. Included here, before the
 # catch-all at the bottom of this file, because FastAPI matches in registration

@@ -566,7 +566,7 @@ def main():
             print_status("Please stop the existing server.")
             sys.exit(1)
 
-        from .viz_api._debug import set_debug
+        from .viz_api._logging import set_debug
         from .viz_server import RailtracksServer
 
         set_debug(debug)

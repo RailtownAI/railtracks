@@ -11,8 +11,8 @@ from fastapi.routing import APIRoute
 from railtracks.observability.storage import resolve_events_dir
 from railtracks.query import EventQuery
 
-from ...io import print_error
 from .. import queries
+from .._logging import exception_event
 
 #: UUID-shape pattern applied to ``{session_id}`` so the sibling literals
 #: ``/sessions/stats`` and ``/sessions/filters`` are not swallowed as ids.
@@ -61,7 +61,14 @@ class QueryFailureRoute(APIRoute):
             except HTTPException:
                 raise
             except Exception as e:  # noqa: BLE001
-                print_error(f"{request.url.path} query failed: {e}")
+                exception_event(
+                    "query_failed",
+                    "Visualizer query failed",
+                    method=request.method,
+                    path=request.url.path,
+                    error_type=type(e).__name__,
+                    error=str(e),
+                )
                 raise HTTPException(
                     status_code=500, detail="failed to query events"
                 ) from e

@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from railtracks.cli.viz_api import queries
+from railtracks.cli.viz_api._logging import set_debug
 from railtracks.cli.viz_api.models import MiddlewareSortField, SortOrder
 from railtracks.cli.viz_server import app
 from railtracks.observability.storage import EVENTS_DIR_ENV
@@ -25,8 +26,9 @@ def _event(
     event_type: str,
     session_id: str,
     payload: dict[str, object],
+    *,
+    stamp: str = "2026-01-01T00:00:00+00:00",
 ) -> dict[str, object]:
-    stamp = "2026-01-01T00:00:00+00:00"
     return {
         "event_id": event_id,
         "event_type": event_type,
@@ -101,7 +103,47 @@ def test_empty_event_directory_returns_empty_api_payload(
     response = TestClient(app).get("/api/v2/sessions")
 
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"rows": [], "total": 0, "limit": 50, "offset": 0}
+
+
+def test_sessions_are_sorted_and_paginated_before_middleware_loading(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    for position, session_id in enumerate(("oldest", "middle", "newest"), start=1):
+        stamp = f"2026-01-0{position}T00:00:00+00:00"
+        _write_events(
+            tmp_path,
+            session_id,
+            _event(
+                session_id,
+                "session.started",
+                session_id,
+                {
+                    "session_id": session_id,
+                    "flow_name": session_id,
+                    "entry_point_name": f"entry-{position}",
+                },
+                stamp=stamp,
+            ),
+        )
+
+    response = TestClient(app).get(
+        "/api/v2/sessions",
+        params={
+            "limit": 1,
+            "offset": 1,
+            "sort_by": "start_time",
+            "order": "desc",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 3
+    assert body["limit"] == 1
+    assert body["offset"] == 1
+    assert [row["session_id"] for row in body["rows"]] == ["middle"]
 
 
 def test_v2_api_allows_local_cross_origin_clients(
@@ -194,3 +236,37 @@ def test_middleware_stats_count_exact_distinct_sessions(tmp_path: Path) -> None:
     assert stats["total_middleware"] == 2
     assert stats["blocks"] == 2
     assert stats["sessions"] == 2
+
+
+def test_query_failures_emit_structured_error_logs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    _write_events(
+        tmp_path,
+        "broken",
+        _event(
+            "broken",
+            "session.started",
+            "broken",
+            {"session_id": "broken", "flow_name": "broken"},
+        ),
+    )
+
+    def fail(*_args: object, **_kwargs: object) -> list[dict[str, object]]:
+        raise RuntimeError("duckdb exploded")
+
+    set_debug(False)
+    monkeypatch.setattr(queries, "list_session_rows", fail)
+
+    response = TestClient(app).get("/api/v2/sessions")
+
+    assert response.status_code == 500
+    payload = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
+    assert payload["level"] == "error"
+    assert payload["event"] == "query_failed"
+    assert payload["path"] == "/api/v2/sessions"
+    assert payload["error_type"] == "RuntimeError"
+    assert payload["error"] == "duckdb exploded"

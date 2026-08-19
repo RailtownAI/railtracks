@@ -10,7 +10,6 @@ from fastapi import Path as PathParam
 from railtracks.query import EventQuery
 
 from .. import queries
-from .._debug import debug_print
 from ..models import (
     GraphEdge,
     GraphNode,
@@ -21,8 +20,10 @@ from ..models import (
     SessionDetail,
     SessionFilterOptions,
     SessionGraph,
+    SessionPage,
+    SessionSortField,
     SessionStats,
-    SessionSummary,
+    SortOrder,
 )
 from ..row_mapping import (
     _build_tree,
@@ -44,50 +45,62 @@ from ._common import (
 router = APIRouter(prefix="/sessions", tags=["sessions"], route_class=QueryFailureRoute)
 
 
-@router.get("", response_model=list[SessionSummary])
+@router.get("", response_model=SessionPage)
 async def list_sessions(
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     flow_name: list[str] | None = Query(None),
     entry_point_name: list[str] | None = Query(None),
     status: list[str] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
+    sort_by: SessionSortField = Query(SessionSortField.START_TIME),
+    order: SortOrder = Query(SortOrder.DESC),
     q: EventQuery | None = Depends(get_query_or_none),
-) -> list[SessionSummary]:
+) -> SessionPage:
     """List sessions in the events home, most recent first.
 
     Filters apply server-side. Repeating a param ORs its values; separate
     params AND. ``since`` / ``until`` are unix seconds bounding ``start_time``.
     """
-    debug_print(
-        f"GET /api/v2/sessions flow_name={flow_name} "
-        f"entry_point_name={entry_point_name} status={status} "
-        f"since={since} until={until}"
-    )
     if q is None:
-        return []
+        return SessionPage(rows=[], total=0, limit=limit, offset=offset)
 
+    filters = {
+        "flow_names": flow_name,
+        "entry_point_names": entry_point_name,
+        "statuses": status,
+        "since": since,
+        "until": until,
+    }
     rows = queries.list_session_rows(
         q.con,
-        flow_names=flow_name,
-        entry_point_names=entry_point_name,
-        statuses=status,
-        since=since,
-        until=until,
+        **filters,
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+        order=order,
     )
     middleware = queries.list_middleware_by_session(
         q.con, [r["session_id"] for r in rows]
     )
 
-    return [
-        _row_to_summary(
-            r,
-            [
-                _row_to_session_middleware(m)
-                for m in middleware.get(r["session_id"], [])
-            ],
-        )
-        for r in rows
-    ]
+    total = queries.count_session_rows(q.con, **filters)
+    return SessionPage(
+        rows=[
+            _row_to_summary(
+                r,
+                [
+                    _row_to_session_middleware(m)
+                    for m in middleware.get(r["session_id"], [])
+                ],
+            )
+            for r in rows
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/stats", response_model=SessionStats)
@@ -103,11 +116,6 @@ async def get_session_stats(
 
     Takes the same filter params as ``/api/v2/sessions``.
     """
-    debug_print(
-        f"GET /api/v2/sessions/stats flow_name={flow_name} "
-        f"entry_point_name={entry_point_name} status={status} "
-        f"since={since} until={until}"
-    )
     if q is None:
         return SessionStats()
 
@@ -135,7 +143,6 @@ async def get_session_filter_options(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> SessionFilterOptions:
     """Values the session filters accept, across every session in the stream."""
-    debug_print("GET /api/v2/sessions/filters")
     if q is None:
         return SessionFilterOptions()
     return SessionFilterOptions(**queries.list_session_filter_options(q.con))
@@ -147,7 +154,6 @@ async def get_session(
     q: EventQuery = Depends(get_query_or_404),
 ) -> SessionDetail:
     """Full session payload: summary + prepared tree + default selection."""
-    debug_print(f"GET /api/v2/sessions/{session_id}")
     summary_row = queries.get_session_row(q.con, session_id)
     if summary_row is None:
         raise HTTPException(status_code=404, detail="session not found")
@@ -171,7 +177,6 @@ async def get_node_detail(
     q: EventQuery = Depends(get_query_or_404),
 ) -> NodeDetail:
     """Inputs, outputs, cost, latency and guardrails for one node."""
-    debug_print(f"GET /api/v2/sessions/{session_id}/nodes/{node_id}")
     node_row = queries.get_node_row(q.con, session_id, node_id)
     if node_row is None:
         raise HTTPException(status_code=404, detail="node not found")
@@ -231,7 +236,6 @@ async def get_session_graph(
     q: EventQuery = Depends(get_query_or_404),
 ) -> SessionGraph:
     """React-Flow-shaped graph for the session — nodes and parent→child edges."""
-    debug_print(f"GET /api/v2/sessions/{session_id}/graph")
     summary_row = queries.get_session_row(q.con, session_id)
     if summary_row is None:
         raise HTTPException(status_code=404, detail="session not found")

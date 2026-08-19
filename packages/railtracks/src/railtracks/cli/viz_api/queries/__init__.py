@@ -36,6 +36,7 @@ from .nodes import (
     list_session_node_rows,
 )
 from .sessions import (
+    count_session_rows,
     get_session_row,
     get_session_stats,
     list_session_filter_options,
@@ -47,6 +48,7 @@ __all__ = [
     "count_event_rows",
     "count_llm_trace_rows",
     "count_middleware_rows",
+    "count_session_rows",
     "get_agent_llm_details",
     "get_event_stats",
     "get_llm_trace_stats",

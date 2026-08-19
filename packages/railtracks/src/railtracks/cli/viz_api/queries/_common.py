@@ -21,8 +21,7 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from ...io import print_warning
-from .._debug import debug_print
+from .._logging import debug_event, warning_event
 from ..models import SortOrder
 
 if TYPE_CHECKING:
@@ -48,7 +47,12 @@ def _rows(
     rows = [dict(zip(cols, row)) for row in cur.fetchall()]
     if label:
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        debug_print(f"  ↳ {label}: {len(rows)} row(s) in {elapsed_ms:.1f}ms")
+        debug_event(
+            "query_completed",
+            query=label,
+            rows=len(rows),
+            duration_ms=round(elapsed_ms, 3),
+        )
     return rows
 
 
@@ -122,8 +126,11 @@ def _parse_json(value: Any) -> Any:
             return json.loads(value)
         except (json.JSONDecodeError, ValueError) as e:
             preview = value[:120] + ("…" if len(value) > 120 else "")
-            print_warning(
-                f"_parse_json: invalid JSON ({e}); returning raw string: {preview!r}"
+            warning_event(
+                "invalid_json",
+                "Invalid JSON payload; returning the raw string",
+                error=str(e),
+                preview=preview,
             )
             return value
     return value

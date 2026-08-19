@@ -25,6 +25,20 @@ class SessionStatus(str, Enum):
     RUNNING = "Running"
 
 
+class SessionSortField(str, Enum):
+    """Sortable columns on ``GET /api/v2/sessions``.
+
+    ``tokens`` ranks the combined input and output count shown by the table.
+    """
+
+    START_TIME = "start_time"
+    STATUS = "status"
+    ENTRY_POINT = "entry_point"
+    COST = "cost"
+    TOKENS = "tokens"
+    DURATION = "duration"
+
+
 class NodeStatus(str, Enum):
     """Terminal state of a single node.
 
@@ -309,6 +323,15 @@ class SessionSummary(BaseModel):
     #: no user middleware, which is most of them — the column renders an em dash
     #: rather than nothing, because "none ran" is a fact worth stating.
     middleware: list[SessionMiddleware] = Field(default_factory=list)
+
+
+class SessionPage(BaseModel):
+    """One page of session summaries, with the unpaged total alongside it."""
+
+    rows: list[SessionSummary] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 0
+    offset: int = 0
 
 
 class NodeRef(BaseModel):

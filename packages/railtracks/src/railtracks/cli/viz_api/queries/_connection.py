@@ -14,6 +14,8 @@ from pathlib import Path
 
 from railtracks.query import EventQuery, connect
 
+from .._logging import debug_event
+
 _NAMESPACES = ["session", "node", "llm", "middleware"]
 
 
@@ -66,10 +68,20 @@ class _ConnectionRegistry:
                 self._query = connect(events_dir, _NAMESPACES)
                 self._events_dir = events_dir
                 self._signature = signature
+                debug_event(
+                    "event_store_opened",
+                    events_dir=str(events_dir),
+                    file_count=len(signature),
+                )
                 return self._query
             if signature != self._signature:
                 self._query.refresh()
                 self._signature = signature
+                debug_event(
+                    "event_store_refreshed",
+                    events_dir=str(events_dir),
+                    file_count=len(signature),
+                )
             return self._query
 
     def close(self) -> None:
@@ -80,6 +92,7 @@ class _ConnectionRegistry:
         if self._query is not None:
             self._query.close()
             self._query = None
+            debug_event("event_store_closed")
         self._events_dir = None
         self._signature = ()
 

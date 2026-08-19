@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ._common import _in_clause, _rows, _window_predicates
+from ..models import SessionSortField, SortOrder
+from ._common import _in_clause, _order_clause, _rows, _window_predicates
 
 if TYPE_CHECKING:
     from duckdb import DuckDBPyConnection
@@ -80,6 +81,15 @@ LEFT JOIN llm_agg   l USING (scope_id)
 LEFT JOIN node_agg  n USING (scope_id)
 """
 
+_SESSION_SORT_COLUMNS = {
+    SessionSortField.START_TIME: "s.start_time",
+    SessionSortField.STATUS: "s.status",
+    SessionSortField.ENTRY_POINT: "s.entry_point_name",
+    SessionSortField.COST: "s.total_cost",
+    SessionSortField.TOKENS: "s.input_tokens + s.output_tokens",
+    SessionSortField.DURATION: "s.duration",
+}
+
 
 def _session_filters(
     flow_names: list[str] | None,
@@ -135,8 +145,12 @@ def list_session_rows(
     statuses: list[str] | None = None,
     since: float | None = None,
     until: float | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    sort_by: SessionSortField = SessionSortField.START_TIME,
+    order: SortOrder = SortOrder.DESC,
 ) -> list[dict[str, Any]]:
-    """Session rows, newest first, narrowed server-side.
+    """One deterministically ordered page of session rows.
 
     The filters used to run in the browser over the full list. That was
     survivable while the endpoint returned every session, but it cannot produce
@@ -146,12 +160,37 @@ def list_session_rows(
     where_clause, params = _session_filters(
         flow_names, entry_point_names, statuses, since, until
     )
+    order_clause = _order_clause(
+        _SESSION_SORT_COLUMNS[sort_by], order, ["s.session_id ASC"]
+    )
     return _rows(
         con,
-        _filtered_sessions_sql(where_clause) + " ORDER BY start_time DESC",
-        tuple(params),
+        f"{_filtered_sessions_sql(where_clause)} {order_clause} LIMIT ? OFFSET ?",
+        (*params, limit, offset),
         label="list_session_rows",
     )
+
+
+def count_session_rows(
+    con: DuckDBPyConnection,
+    *,
+    flow_names: list[str] | None = None,
+    entry_point_names: list[str] | None = None,
+    statuses: list[str] | None = None,
+    since: float | None = None,
+    until: float | None = None,
+) -> int:
+    """Number of sessions matching the listing filters, before paging."""
+    where_clause, params = _session_filters(
+        flow_names, entry_point_names, statuses, since, until
+    )
+    rows = _rows(
+        con,
+        f"SELECT COUNT(*) AS total FROM ({_filtered_sessions_sql(where_clause)}) s",
+        tuple(params),
+        label="count_session_rows",
+    )
+    return int(rows[0]["total"]) if rows else 0
 
 
 def get_session_stats(
