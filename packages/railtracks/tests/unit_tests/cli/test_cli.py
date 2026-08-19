@@ -311,6 +311,37 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertIn("error", response.json())
         self.assertIn("Invalid JSON", response.json()["error"])
 
+    def test_ui_serves_files_inside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "asset.txt").write_text("public asset")
+
+        response = self.client.get("/asset.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "public asset")
+
+    def test_ui_rejects_percent_encoded_parent_traversal(self):
+        Path(".railtracks/ui").mkdir(parents=True)
+        Path("secret.txt").write_text("must stay private")
+
+        response = self.client.get("/..%2F..%2Fsecret.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
+
+    def test_ui_rejects_symlinks_outside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        secret = Path("secret.txt").resolve()
+        secret.write_text("must stay private")
+        (ui_dir / "escaped.txt").symlink_to(secret)
+
+        response = self.client.get("/escaped.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
+
 
 class TestSkillInstallers(unittest.TestCase):
     """Test installation of bundled AI coding assistant skills."""
