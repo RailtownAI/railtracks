@@ -50,13 +50,13 @@ app = FastAPI(
         },
     ],
 )
-# The standalone browser build is same-origin, while Vite and Electron load the
-# UI from a different local origin and point it back at this server. The server
-# binds only to localhost and exposes a read-only API, so allowing those local
-# clients does not widen its network reach.
+# The standalone browser and packaged Electron builds are same-origin. Local
+# development servers may use another port, so permit HTTP origins only when
+# their host is an explicit loopback name/address. In particular, never reflect
+# arbitrary web origins: traces can contain prompts, tool output, and secrets.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"^http://(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$",
     allow_methods=["GET"],
     allow_headers=["*"],
 )

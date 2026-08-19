@@ -146,21 +146,51 @@ def test_sessions_are_sorted_and_paginated_before_middleware_loading(
     assert [row["session_id"] for row in body["rows"]] == ["middle"]
 
 
-def test_v2_api_allows_local_cross_origin_clients(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("origin", ("http://localhost:3001", "http://127.0.0.1:4317"))
+def test_v2_api_allows_loopback_cross_origin_clients(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, origin: str
 ) -> None:
     monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
 
     response = TestClient(app).options(
         "/api/v2/sessions",
         headers={
-            "Origin": "http://localhost:3001",
+            "Origin": origin,
             "Access-Control-Request-Method": "GET",
         },
     )
 
     assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "*"
+    assert response.headers["access-control-allow-origin"] == origin
+
+
+@pytest.mark.parametrize(
+    "origin",
+    (
+        "https://untrusted.example",
+        "http://localhost.evil.example:3001",
+        "null",
+    ),
+)
+def test_v2_api_rejects_untrusted_cross_origin_clients(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, origin: str
+) -> None:
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    client = TestClient(app)
+
+    preflight = client.options(
+        "/api/v2/sessions",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    response = client.get("/api/v2/sessions", headers={"Origin": origin})
+
+    assert preflight.status_code == 400
+    assert "access-control-allow-origin" not in preflight.headers
+    assert response.status_code == 200
+    assert "access-control-allow-origin" not in response.headers
 
 
 def test_connection_refreshes_when_older_file_is_added_or_removed(
