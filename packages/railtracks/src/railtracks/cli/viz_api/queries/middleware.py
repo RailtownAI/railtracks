@@ -17,7 +17,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from ..models import MiddlewareKind, MiddlewareSortField, SortOrder
+from ..models import (
+    MiddlewareBand,
+    MiddlewareKind,
+    MiddlewareOutcome,
+    MiddlewareSortField,
+    SortOrder,
+)
 from ._common import (
     _MIDDLEWARE_NAME_CTE,
     _NODE_JOIN_CTE,
@@ -74,17 +80,38 @@ _INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
 #: past what was recorded, and the ``.input.%`` / ``.output.%`` rungs are kept
 #: because they are right the moment those events appear — they carry
 #: ``.invocation``, ``.response`` *and* ``.failure``, all matched by the wildcard.
-_MIDDLEWARE_KIND_CASE = """
-      CASE
-        WHEN BOOL_OR(event_type LIKE 'middleware.guard.input.%')    THEN 'input_guard'
-        WHEN BOOL_OR(event_type LIKE 'middleware.guard.output.%')   THEN 'output_guard'
-        WHEN BOOL_OR(event_type LIKE 'middleware.model.input.%')    THEN 'request_transform'
-        WHEN BOOL_OR(event_type LIKE 'middleware.model.output.%')   THEN 'response_transform'
-        WHEN BOOL_OR(event_type LIKE 'middleware.regular.output.%') THEN 'result_hook'
-        WHEN BOOL_OR(event_type LIKE 'middleware.model.%')          THEN 'llm_wrapper'
-        WHEN BOOL_OR(spatial_parent_type = 'llm_and_middleware')    THEN 'llm_wrapper'
-        ELSE 'node_wrapper'
-      END"""
+#: Quoted SQL literals for the enum values, derived once so a rename in
+#: ``models.py`` propagates into the SQL without a second edit.
+_BAND_LLM_LITERAL = f"'{MiddlewareBand.LLM.value}'"
+_BAND_NODE_LITERAL = f"'{MiddlewareBand.NODE.value}'"
+_KIND_NODE_WRAPPER_LITERAL = f"'{MiddlewareKind.NODE_WRAPPER.value}'"
+_OUTCOME_BLOCKED_LITERAL = f"'{MiddlewareOutcome.BLOCKED.value}'"
+_OUTCOME_TRANSFORMED_LITERAL = f"'{MiddlewareOutcome.TRANSFORMED.value}'"
+_OUTCOME_INTERRUPTED_LITERAL = f"'{MiddlewareOutcome.INTERRUPTED.value}'"
+_OUTCOME_PASSED_LITERAL = f"'{MiddlewareOutcome.PASSED.value}'"
+
+#: Event-pattern → kind, in precedence order. The SQL CASE below is generated
+#: from this list so the enum values remain the single source of truth: rename
+#: ``MiddlewareKind.INPUT_GUARD.value`` and the SQL updates with it.
+_MIDDLEWARE_KIND_LADDER: list[tuple[str, MiddlewareKind]] = [
+    ("event_type LIKE 'middleware.guard.input.%'", MiddlewareKind.INPUT_GUARD),
+    ("event_type LIKE 'middleware.guard.output.%'", MiddlewareKind.OUTPUT_GUARD),
+    ("event_type LIKE 'middleware.model.input.%'", MiddlewareKind.REQUEST_TRANSFORM),
+    ("event_type LIKE 'middleware.model.output.%'", MiddlewareKind.RESPONSE_TRANSFORM),
+    ("event_type LIKE 'middleware.regular.output.%'", MiddlewareKind.RESULT_HOOK),
+    ("event_type LIKE 'middleware.model.%'", MiddlewareKind.LLM_WRAPPER),
+    ("spatial_parent_type = 'llm_and_middleware'", MiddlewareKind.LLM_WRAPPER),
+]
+
+_MIDDLEWARE_KIND_CASE = (
+    "\n      CASE\n"
+    + "".join(
+        f"        WHEN BOOL_OR({predicate}) THEN '{kind.value}'\n"
+        for predicate, kind in _MIDDLEWARE_KIND_LADDER
+    )
+    + f"        ELSE {_KIND_NODE_WRAPPER_LITERAL}\n"
+    + "      END"
+)
 
 #: SQL for each sortable measure, in terms of the grouped subquery's own columns.
 #: Keyed by the enum, so nothing user-supplied reaches the ``ORDER BY``.
@@ -162,14 +189,12 @@ def _middleware_rows_cte() -> str:
         + ","
         + _NODE_SPAN_CTE
         + ","
-        + """
+        + f"""
     mw_kinds AS (
       SELECT parent_middleware_type_id           AS type_id,
-             """
-        + _MIDDLEWARE_KIND_CASE
-        + """   AS kind,
+             {_MIDDLEWARE_KIND_CASE}   AS kind,
              CASE WHEN BOOL_OR(spatial_parent_type = 'llm_and_middleware')
-                  THEN 'llm' ELSE 'node' END   AS band
+                  THEN {_BAND_LLM_LITERAL} ELSE {_BAND_NODE_LITERAL} END   AS band
       FROM middleware
       WHERE parent_middleware_type_id IS NOT NULL
       GROUP BY parent_middleware_type_id
@@ -241,8 +266,8 @@ def _middleware_rows_cte() -> str:
                       'middleware ' || SUBSTR(CAST(ev.parent_middleware_type_id
                                                    AS VARCHAR), 1, 8))
                                                                AS middleware_name,
-             COALESCE(kd.kind, 'node_wrapper')                 AS kind,
-             COALESCE(kd.band, 'node')                         AS band,
+             COALESCE(kd.kind, {_KIND_NODE_WRAPPER_LITERAL})   AS kind,
+             COALESCE(kd.band, {_BAND_NODE_LITERAL})           AS band,
              COALESCE(ev.spatial_parent_node_id,
                       ln.node_id,
                       en.node_id)                              AS node_id,
@@ -598,10 +623,10 @@ def list_middleware_by_session(
            m.band,
            CASE
              WHEN COUNT(*) FILTER (WHERE m.action = 'block'
-                                      OR m.raised_here) > 0          THEN 'blocked'
-             WHEN COUNT(*) FILTER (WHERE m.action = 'transform') > 0  THEN 'transformed'
-             WHEN COUNT(*) FILTER (WHERE m.is_failure) > 0            THEN 'interrupted'
-             ELSE 'passed'
+                                      OR m.raised_here) > 0          THEN {_OUTCOME_BLOCKED_LITERAL}
+             WHEN COUNT(*) FILTER (WHERE m.action = 'transform') > 0  THEN {_OUTCOME_TRANSFORMED_LITERAL}
+             WHEN COUNT(*) FILTER (WHERE m.is_failure) > 0            THEN {_OUTCOME_INTERRUPTED_LITERAL}
+             ELSE {_OUTCOME_PASSED_LITERAL}
            END                                                       AS outcome,
            COUNT(*) FILTER (WHERE m.event_type = 'middleware.invocation')
                                                                      AS invocations,

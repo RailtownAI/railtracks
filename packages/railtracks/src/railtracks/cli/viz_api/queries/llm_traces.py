@@ -38,6 +38,12 @@ _LLM_TRACE_SORT_COLUMNS = {
     LLMTraceSortField.LATENCY: "r.latency",
 }
 
+#: Quoted SQL literals for the two ``LLMTraceStatus`` values, derived once so
+#: renaming the enum value keeps the CASE branches and the failed-call filter
+#: in step.
+_STATUS_ERROR_LITERAL = f"'{LLMTraceStatus.ERROR.value}'"
+_STATUS_SUCCESS_LITERAL = f"'{LLMTraceStatus.SUCCESS.value}'"
+
 
 def _llm_trace_filters(
     session_id: str | None,
@@ -148,8 +154,8 @@ def _llm_calls_cte(*, with_payload: bool) -> str:
              exception_name,
              exception_message,
              CASE WHEN event_type = 'llm.failure'
-                  THEN '{LLMTraceStatus.ERROR.value}'
-                  ELSE '{LLMTraceStatus.SUCCESS.value}'
+                  THEN {_STATUS_ERROR_LITERAL}
+                  ELSE {_STATUS_SUCCESS_LITERAL}
              END AS status{payload}
       FROM llm
       WHERE event_type IN ('llm.response', 'llm.failure')
@@ -319,7 +325,7 @@ def get_llm_trace_stats(
     WITH {_llm_calls_cte(with_payload=False)}
     {_LLM_TRACE_JOIN_CTES}
     SELECT COUNT(*)                                       AS total_calls,
-           COUNT(*) FILTER (WHERE r.status = '{LLMTraceStatus.ERROR.value}')
+           COUNT(*) FILTER (WHERE r.status = {_STATUS_ERROR_LITERAL})
                                                           AS failed_calls,
            COALESCE(SUM(r.input_tokens), 0)               AS input_tokens,
            COALESCE(SUM(r.output_tokens), 0)              AS output_tokens,
