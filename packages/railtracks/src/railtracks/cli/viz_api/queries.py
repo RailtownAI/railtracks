@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from railtracks.query import EventQuery, connect
 
-from ..io import print_status
+from ..io import print_status, print_warning
 from .models import (
     EventSortField,
     LLMTraceSortField,
@@ -2375,6 +2375,14 @@ def list_guardrails_by_node(
 
 
 def _parse_json(value: Any) -> Any:
+    """Best-effort JSON decode of a value stored as text.
+
+    Malformed JSON is logged and returned as the raw string rather than
+    raised: a single corrupted payload should not blank out an entire
+    listing. The warning is the only signal that something in the stream
+    was written as invalid JSON — without it the client silently receives a
+    string where a dict was promised.
+    """
     if value is None:
         return None
     if isinstance(value, (dict, list)):
@@ -2382,6 +2390,8 @@ def _parse_json(value: Any) -> Any:
     if isinstance(value, str):
         try:
             return json.loads(value)
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError) as e:
+            preview = value[:120] + ("…" if len(value) > 120 else "")
+            print_warning(f"_parse_json: invalid JSON ({e}); returning raw string: {preview!r}")
             return value
     return value
