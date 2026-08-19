@@ -972,6 +972,10 @@ def _build_tree(
     Only Agent and Tool nodes appear in the tree. A node's parent is the value
     of ``spatial_parent_node_id`` on its invocation; nulls, or references to
     excluded nodes, become tree roots.
+
+    Iterative post-order build: recursion would hit Python's default limit
+    (~1000) on a deep session, and the log is one of the few surfaces that can
+    genuinely receive arbitrary depths from user code.
     """
     tree_types = {"Agent", "Tool"}
     kept = {r["node_id"]: r for r in node_rows if r["node_type"] in tree_types}
@@ -983,27 +987,37 @@ def _build_tree(
     for siblings in children_of.values():
         siblings.sort(key=lambda nid: kept[nid]["created_at"] or 0.0)
 
+    roots = children_of.get(None, [])
+    # Two-pass DFS on a stack of ``(node_id, expanded)``: the first visit pushes
+    # the node back with ``expanded=True`` and pushes its children, so by the
+    # time it is popped again every descendant is already built. ``visited``
+    # keeps a cycle from looping — the input is a DAG in practice, but the log
+    # must not lock up on a malformed stream.
+    built: dict[str, TreeNode] = {}
     visited: set[str] = set()
-
-    def build(nid: str) -> TreeNode:
+    stack: list[tuple[str, bool]] = [(nid, False) for nid in reversed(roots)]
+    while stack:
+        nid, expanded = stack.pop()
+        if expanded:
+            row = kept[nid]
+            built[nid] = TreeNode(
+                node_id=nid,
+                display_name=row["name"] or nid,
+                node_type=row["node_type"],
+                latency_seconds=_latency(row) or 0.0,
+                failed=bool(row["failed"]),
+                guardrails=[Guardrail(**g) for g in guardrails_by_node.get(nid, [])],
+                children=[built[c] for c in children_of.get(nid, []) if c in built],
+            )
+            continue
+        if nid in visited:
+            continue
         visited.add(nid)
-        row = kept[nid]
-        children: list[TreeNode] = []
-        for child in children_of.get(nid, []):
-            if child in visited:
-                continue
-            children.append(build(child))
-        return TreeNode(
-            node_id=nid,
-            display_name=row["name"] or nid,
-            node_type=row["node_type"],
-            latency_seconds=_latency(row) or 0.0,
-            failed=bool(row["failed"]),
-            guardrails=[Guardrail(**g) for g in guardrails_by_node.get(nid, [])],
-            children=children,
-        )
-
-    return [build(nid) for nid in children_of.get(None, [])]
+        stack.append((nid, True))
+        for child in reversed(children_of.get(nid, [])):
+            if child not in visited:
+                stack.append((child, False))
+    return [built[nid] for nid in roots if nid in built]
 
 
 def _to_llm_content(payload: Any) -> LLMContent | None:
