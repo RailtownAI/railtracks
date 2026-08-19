@@ -29,19 +29,12 @@ railtracks viz --beta
 
 `railtracks init` creates the `.railtracks` directory and installs the stable
 UI. `railtracks update --beta` installs the beta build alongside it in
-`.railtracks/beta-ui`.
+`.railtracks/beta-ui`. If the beta UI is missing, `railtracks viz --beta`
+downloads it automatically before starting the server.
 
 The beta server opens at `http://localhost:3031`. Its API uses `/api/v2/...`
 routes, and interactive API documentation is available at
 `http://localhost:3031/docs`.
-
-!!! note "Private beta builds"
-    If your Railtracks installation does not provide a beta download URL, set
-    `RAILTRACKS_BETA_UI_URL` to the beta UI zip URL before running
-    `railtracks update --beta` or the first `railtracks viz --beta` launch.
-
-    You can instead place a built UI directly in `.railtracks/beta-ui` and
-    start it without downloading a build.
 
 ## Record event-stream data
 
