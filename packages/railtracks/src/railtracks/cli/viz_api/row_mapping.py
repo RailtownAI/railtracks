@@ -184,9 +184,7 @@ def _build_tree(
     of ``spatial_parent_node_id`` on its invocation; nulls, or references to
     excluded nodes, become tree roots.
 
-    Iterative post-order build: recursion would hit Python's default limit
-    (~1000) on a deep session, and the log is one of the few surfaces that can
-    genuinely receive arbitrary depths from user code.
+    Iterative to avoid Python's recursion limit on a deep session.
     """
     tree_types = {"Agent", "Tool"}
     kept = {r["node_id"]: r for r in node_rows if r["node_type"] in tree_types}
@@ -199,11 +197,6 @@ def _build_tree(
         siblings.sort(key=lambda nid: kept[nid]["created_at"] or 0.0)
 
     roots = children_of.get(None, [])
-    # Two-pass DFS on a stack of ``(node_id, expanded)``: the first visit pushes
-    # the node back with ``expanded=True`` and pushes its children, so by the
-    # time it is popped again every descendant is already built. ``visited``
-    # keeps a cycle from looping — the input is a DAG in practice, but the log
-    # must not lock up on a malformed stream.
     built: dict[str, TreeNode] = {}
     visited: set[str] = set()
     stack: list[tuple[str, bool]] = [(nid, False) for nid in reversed(roots)]

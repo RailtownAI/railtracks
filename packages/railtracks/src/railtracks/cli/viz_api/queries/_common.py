@@ -172,13 +172,6 @@ _NODE_JOIN_CTE = """
 #:
 #: ``node.destruction`` closes the interval alongside response/failure because a
 #: node that raised may emit only the former.
-#:
-#: This constant carries no trailing comma. Composers insert commas between
-#: CTE fragments explicitly (via ``",".join`` or ``+ ","``), so a fragment
-#: chained differently — as the last CTE, or the first — needs no per-caller
-#: fix-up. The old convention embedded a trailing comma here and forced two
-#: callers to strip it back off with ``.rstrip(",")``, which broke silently
-#: the moment the constant's punctuation changed.
 _NODE_SPAN_CTE = """
     node_spans AS (
       SELECT scope_id,
@@ -218,15 +211,10 @@ _MIDDLEWARE_NAME_CTE = """
       GROUP BY middleware_type_id
     )"""
 
-#: Model name/provider per (session, LLM), grouped by the join key.
-#:
-#: Every ``llm.creation`` reader shares this one CTE — the trace listing, the
-#: per-node totals, the details panel, and the model-name filter option. It
-#: used to be inlined four different ways, three of them session-scoped by a
-#: ``WHERE scope_id = ?`` inside the CTE and one global. The join key now
-#: always carries ``scope_id``, so a caller filters by joining rather than by
-#: re-parameterising the CTE, and a repeated ``llm.creation`` cannot duplicate
-#: a decorated row from either direction.
+#: Model name/provider per (session, LLM), grouped by the join key so a
+#: repeated ``llm.creation`` cannot fan a decorated row out. Shared by the
+#: trace listing, the per-node totals, the details panel, and the model-name
+#: filter option — callers filter by adding ``scope_id`` to the join.
 _LLM_CREATION_JOIN_CTE = """
     creations AS (
       SELECT scope_id,

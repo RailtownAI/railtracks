@@ -59,23 +59,10 @@ from .row_mapping import (
 #: lets the stable client keep working while this one changes underneath it.
 router = APIRouter(prefix="/api/v2")
 
-#: Subdirectory under the railtracks home that holds the event-stream jsonl
-#: files this API reads. Not a config value yet — every deployment writes to
-#: the same place — but named here so the string lives in one spot and reads
-#: as intent rather than as a stray literal at each caller.
 _EVENTS_SUBDIR = "data/new-ones"
 
-#: UUID shape ``{session_id}`` is required to match. Session ids are
-#: ``str(uuid.uuid4())``, so the pattern is characteristic — and it rejects the
-#: sibling literals ``/sessions/stats`` and ``/sessions/filters``, which
-#: otherwise would be swallowed as session ids under a mis-ordered route.
-#: FastAPI matches in registration order, and this router has already had to
-#: comment that convention twice; encoding it at the parameter makes the
-#: ordering non-load-bearing.
-#:
-#: Lookaround would be more permissive than shape-matching, but pydantic-core's
-#: regex engine does not support it — a UUID pattern is what's actually
-#: enforceable here.
+#: UUID-shape pattern applied to ``{session_id}`` so the sibling literals
+#: ``/sessions/stats`` and ``/sessions/filters`` are not swallowed as ids.
 _SESSION_ID_PATTERN = (
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
