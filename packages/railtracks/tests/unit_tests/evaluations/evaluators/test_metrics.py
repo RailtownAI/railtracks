@@ -77,6 +77,32 @@ def test_numerical_no_bounds():
     assert n.max_value is None
 
 
+def test_numerical_shots():
+    n = Numerical(
+        name="score",
+        min_value=0,
+        max_value=10,
+        shots=[(0, "bad"), (5, "ok"), (10, "great")],
+    )
+    assert n.shots == [(0, "bad"), (5, "ok"), (10, "great")]
+
+
+def test_numerical_identifier_includes_shots():
+    n1 = Numerical(name="score", min_value=0, max_value=10, shots=[(0, "bad")])
+    n2 = Numerical(name="score", min_value=0, max_value=10, shots=[(0, "terrible")])
+    assert n1.identifier != n2.identifier
+
+
+def test_numerical_shot_below_min_raises():
+    with pytest.raises(Exception):
+        Numerical(name="score", min_value=0, max_value=10, shots=[(-1, "bad")])
+
+
+def test_numerical_shot_above_max_raises():
+    with pytest.raises(Exception):
+        Numerical(name="score", min_value=0, max_value=10, shots=[(11, "great")])
+
+
 # ── Categorical ───────────────────────────────────────────────────────────────
 
 

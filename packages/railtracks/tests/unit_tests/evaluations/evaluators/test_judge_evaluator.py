@@ -51,16 +51,29 @@ def test_init_name(judge):
     assert judge.name == "JudgeEvaluator"
 
 
-def test_init_filters_non_categorical_metrics(caplog):
-    """Non-Categorical metrics generate a warning but are still stored."""
+def test_init_accepts_categorical_and_numerical_metrics(caplog):
+    """Categorical and Numerical metrics are both accepted without a warning."""
     import logging
     llm = make_mock_llm()
-    numerical = Numerical(name="score", min_value=0.0)
+    numerical = Numerical(name="score", min_value=0.0, max_value=10.0)
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         with caplog.at_level(logging.WARNING):
             j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS, numerical])
     assert HELPFULNESS.identifier in j._metrics
     assert numerical.identifier in j._metrics
+    assert not any("will be skipped" in r.message for r in caplog.records)
+
+
+def test_init_filters_non_categorical_metrics(caplog):
+    """Plain Metric (not Categorical/Numerical) generates a warning and is skipped."""
+    import logging
+    llm = make_mock_llm()
+    base = Metric(name="some_metric")
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        with caplog.at_level(logging.WARNING):
+            j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS, base])
+    assert HELPFULNESS.identifier in j._metrics
+    assert base.identifier not in j._metrics
     assert any("will be skipped" in r.message for r in caplog.records)
 
 
@@ -158,6 +171,45 @@ def test_generate_system_prompt_lists_category_names_with_category_object_input(
     assert "fail" not in instruction_line
 
 
+def test_generate_system_prompt_numerical_bounded():
+    llm = make_mock_llm()
+    metric = Numerical(name="Usefulness", min_value=0, max_value=10)
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "metric_value must be a single number between 0 and 10 inclusive" in prompt
+
+
+def test_generate_system_prompt_numerical_unbounded():
+    llm = make_mock_llm()
+    metric = Numerical(name="Usefulness")
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "metric_value must be a single number" in prompt
+
+
+def test_generate_system_prompt_numerical_with_shots():
+    llm = make_mock_llm()
+    metric = Numerical(
+        name="Usefulness",
+        min_value=0,
+        max_value=10,
+        shots=[
+            (0, "not useful at all"),
+            (5, "somewhat useful"),
+            (10, "extremely useful"),
+        ],
+    )
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "not useful at all" in prompt
+    assert "somewhat useful" in prompt
+    assert "extremely useful" in prompt
+    assert "interpolate" in prompt.lower()
+
+
 # ── _aggregate_metrics ────────────────────────────────────────────────────────
 
 
@@ -245,3 +297,25 @@ def test_run_agent_data_ids(judge):
     with patch.object(judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)):
         result = judge.run([adp])
     assert adp.identifier in result.agent_data_ids
+
+
+def test_run_numerical_metric():
+    """A Numerical metric produces a numerical MetricResult."""
+    llm = make_mock_llm()
+    metric = Numerical(name="Usefulness", min_value=0, max_value=10)
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    adp = make_agent_data_point()
+    fake_output = [
+        JudgeOutput(
+            metric.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value=7, reasoning="decent"),
+        )
+    ]
+    with patch.object(j, "_invoke", return_value=fake_output):
+        result = j.run([adp])
+    values = [
+        r.value for r in result.metric_results if r.result_name.startswith("JudgeResult")
+    ]
+    assert values == [7]

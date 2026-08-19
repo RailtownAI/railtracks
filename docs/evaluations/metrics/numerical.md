@@ -2,6 +2,7 @@ Numerical metrics are key in reporting evaluations that relate to system level r
 
 - [`ToolUseEvaluator`](../evaluators/tool_use_evaluator.md): To report invocation count and failure rate for the tools of an agent.
 - [`LLMInferenceEvaluator`](../evaluators/llm_inference_evaluator.md): To report LLM calls and their corresponding usage statistics for agent invocations.
+- [`JudgeEvaluator`](../evaluators/judge_evaluator.md): To have an LLM grade agent outputs on a numerical scale.
 
 ## Usage
 
@@ -16,3 +17,20 @@ latency = eval.metrics.Numerical(
 ```
 
 `Numerical` metrics also support optional `min_value` and `max_value` bounds, which are used by the visualizer to scale results correctly.
+
+When used with the `JudgeEvaluator`, you can provide `shots` (also known as anchor points) to calibrate how the LLM assigns scores. Each shot maps a score to what it means, and the judge is told to interpolate between shots:
+
+```python
+quality = eval.metrics.Numerical(
+    name="Quality",
+    min_value=0,
+    max_value=10,
+    shots=[
+        (0, "Completely incorrect and unhelpful."),
+        (5, "Partially correct but missing key details."),
+        (10, "Correct, complete, and well-structured."),
+    ],
+)
+```
+
+You do not need to provide a shot for every score; the judge interpolates between the provided anchor points.

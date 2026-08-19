@@ -149,6 +149,7 @@ class Numerical(Metric, Generic[T]):
     metric_type: Literal["Numerical"] = "Numerical"  # type: ignore[assignment]
     min_value: T | None = None
     max_value: T | None = None
+    shots: list[tuple[int | float, str]] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -158,6 +159,17 @@ class Numerical(Metric, Generic[T]):
         if min_value is not None and max_value is not None:
             if min_value >= max_value:
                 raise ValueError("min_value must be less than max_value")
+        shots = values.get("shots")
+        if shots:
+            for value, _description in shots:
+                if min_value is not None and value < min_value:
+                    raise ValueError(
+                        f"shot value {value} must be greater than or equal to min_value {min_value}"
+                    )
+                if max_value is not None and value > max_value:
+                    raise ValueError(
+                        f"shot value {value} must be less than or equal to max_value {max_value}"
+                    )
         return values
 
 

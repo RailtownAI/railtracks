@@ -52,13 +52,13 @@ class JudgeEvaluator(Evaluator):
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
         # These are config not state
-        self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
+        self._metrics: dict[str, Metric] = {}
         for m in metrics:
-            if isinstance(m, Categorical):
+            if isinstance(m, (Categorical, Numerical)):
                 self._metrics[m.identifier] = m
             else:
                 logger.warning(
-                    f"JudgeEvaluator currently only supports Categorical metrics, metric {m.name} of type {type(m)} will be skipped."
+                    f"JudgeEvaluator currently only supports Categorical and Numerical metrics, metric {m.name} of type {type(m)} will be skipped."
                 )
         self._llm = llm
         self._reasoning: bool = reasoning
@@ -215,6 +215,36 @@ class JudgeEvaluator(Evaluator):
                 f"\nYour metric_value must be exactly one of these category "
                 f"names: {category_names}."
             )
+        elif isinstance(metric, Numerical):
+            if metric.min_value is not None and metric.max_value is not None:
+                system_prompt += (
+                    f"\nYour metric_value must be a single number between "
+                    f"{metric.min_value} and {metric.max_value} inclusive."
+                )
+            elif metric.min_value is not None:
+                system_prompt += (
+                    f"\nYour metric_value must be a single number of at least "
+                    f"{metric.min_value}."
+                )
+            elif metric.max_value is not None:
+                system_prompt += (
+                    f"\nYour metric_value must be a single number of at most "
+                    f"{metric.max_value}."
+                )
+            else:
+                system_prompt += "\nYour metric_value must be a single number."
+
+            if metric.shots:
+                system_prompt += (
+                    "\nUse the following anchor points to calibrate your scoring:"
+                )
+                for value, description in metric.shots:
+                    system_prompt += f"\n- A score of {value} means: {description}"
+                system_prompt += (
+                    "\nFor scores between the provided anchor points, "
+                    "interpolate based on how closely the agent's output "
+                    "matches the descriptions of the nearest anchors."
+                )
 
         if self._reasoning:
             system_prompt += self._template["reasoning"]
