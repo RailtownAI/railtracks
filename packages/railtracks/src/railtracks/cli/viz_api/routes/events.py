@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+
 from railtracks.query import EventQuery
 
-from .._debug import debug_print
 from .. import queries
+from .._debug import debug_print
 from ..models import (
     EventFilterOptions,
     EventPage,
@@ -17,9 +18,7 @@ from ..models import (
 from ..row_mapping import _row_to_event
 from ._common import QueryFailureRoute, get_query_or_none
 
-router = APIRouter(
-    prefix="/events", tags=["events"], route_class=QueryFailureRoute
-)
+router = APIRouter(prefix="/events", tags=["events"], route_class=QueryFailureRoute)
 
 
 @router.get("", response_model=EventPage)
@@ -48,7 +47,7 @@ async def list_events(
     ``middleware_name`` is exact match on the resolved name.
     """
     debug_print(
-        f"GET /api/events limit={limit} offset={offset} "
+        f"GET /api/v2/events limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
         f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
         f"middleware_name={middleware_name} "
@@ -113,7 +112,7 @@ async def get_event_stats(
 ) -> EventStats:
     """Roll-up across every event matching the filters, ignoring paging."""
     debug_print(
-        f"GET /api/events/stats session_id={session_id} node_id={node_id} "
+        f"GET /api/v2/events/stats session_id={session_id} node_id={node_id} "
         f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
         f"middleware_name={middleware_name} "
         f"failures_only={failures_only} search={search!r} "
@@ -152,7 +151,7 @@ async def get_event_filter_options(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> EventFilterOptions:
     """Every value the ``/api/events`` filters can take, over the whole stream."""
-    debug_print("GET /api/events/filters")
+    debug_print("GET /api/v2/events/filters")
     if q is None:
         return EventFilterOptions()
     return EventFilterOptions(**queries.list_event_filter_options(q.con))

@@ -35,6 +35,7 @@ from railtracks.paths import resolve_railtracks_home
 
 from .constants import (
     BETA_PORT,
+    BETA_UI_URL_ENV,
     DEFAULT_PORT,
     beta_ui_url,
     cli_directory,
@@ -160,7 +161,9 @@ def _ui_subdir(beta: bool) -> str:
 
 
 def _ui_url(beta: bool) -> str:
-    return beta_ui_url if beta else latest_ui_url
+    if beta:
+        return os.environ.get(BETA_UI_URL_ENV, beta_ui_url)
+    return latest_ui_url
 
 
 def _ui_version_filename(beta: bool) -> str:
@@ -221,8 +224,8 @@ def download_and_extract_ui(beta: bool = False):
     if not ui_url:
         print_error(
             f"No download URL configured for the {label}. "
-            "Set `beta_ui_url` in railtracks/cli/constants.py once the "
-            "hosted asset is available."
+            f"Set {BETA_UI_URL_ENV} to a beta UI zip URL, or stage a build in "
+            f"{resolve_railtracks_home() / _ui_subdir(beta)}."
         )
         sys.exit(1)
 
@@ -468,7 +471,12 @@ def _print_help():
             f"Initialize {cli_name} environment (setup directories, download portable UI)",
         )
     )
-    print(cmd("update", f"Update the stable UI  {dim}(add --beta to update the beta UI){rst}"))
+    print(
+        cmd(
+            "update",
+            f"Update the stable UI  {dim}(add --beta to update the beta UI){rst}",
+        )
+    )
     print(
         cmd(
             "viz",

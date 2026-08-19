@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException, Request, Response
 from fastapi.routing import APIRoute
-from railtracks.paths import resolve_railtracks_home
+
+from railtracks.observability.storage import resolve_events_dir
 from railtracks.query import EventQuery
 
 from ...io import print_error
 from .. import queries
-
-_EVENTS_SUBDIR = "data/new-ones"
 
 #: UUID-shape pattern applied to ``{session_id}`` so the sibling literals
 #: ``/sessions/stats`` and ``/sessions/filters`` are not swallowed as ids.
@@ -24,20 +22,13 @@ _SESSION_ID_PATTERN = (
 )
 
 
-def _events_dir() -> Path:
-    return resolve_railtracks_home() / _EVENTS_SUBDIR
-
-
 def get_query_or_none() -> EventQuery | None:
     """FastAPI dependency: shared query connection, or ``None`` if no events home.
 
     Used by list/stats/filter endpoints, which return an empty payload rather
     than a 404 when nothing has been recorded yet.
     """
-    d = _events_dir()
-    if not d.exists():
-        return None
-    return queries.get_query(d)
+    return queries.get_query(resolve_events_dir())
 
 
 def get_query_or_404() -> EventQuery:
@@ -46,10 +37,10 @@ def get_query_or_404() -> EventQuery:
     Used by detail endpoints, where "no events home" is not a valid state to
     answer from.
     """
-    d = _events_dir()
-    if not d.exists():
+    query = queries.get_query(resolve_events_dir())
+    if query is None:
         raise HTTPException(status_code=404, detail="no events home")
-    return queries.get_query(d)
+    return query
 
 
 class QueryFailureRoute(APIRoute):

@@ -122,6 +122,11 @@ _MIDDLEWARE_SORT_COLUMNS = {
     MiddlewareSortField.LAST_SEEN: "g.last_seen",
 }
 
+# One definition for the two ways middleware can stop an invocation. It is
+# reused by the row aggregate, the blocks-only filter, and the per-session
+# outcome so those surfaces cannot disagree.
+_BLOCK_CONDITION = "m.action = 'block' OR m.raised_here"
+
 
 def _middleware_rows_cte() -> str:
     """The middleware events every middleware endpoint is built from.
@@ -317,7 +322,7 @@ def _middleware_rows_cte() -> str:
 #: itself: an exception unwinds through every enclosing layer. Keeping the two
 #: counts apart is what stops every wrapper on a failed run from reading as a
 #: blocker.
-_MIDDLEWARE_GROUP_SELECT = """
+_MIDDLEWARE_GROUP_SELECT = f"""
     SELECT m.middleware_name,
            m.kind,
            m.band,
@@ -327,10 +332,11 @@ _MIDDLEWARE_GROUP_SELECT = """
            COUNT(*) FILTER (WHERE m.action = 'allow')          AS allows,
            COUNT(*) FILTER (WHERE m.action = 'transform')      AS transforms,
            COUNT(DISTINCT m.invocation_key) FILTER (
-             WHERE m.action = 'block' OR m.raised_here)        AS blocks,
+             WHERE {_BLOCK_CONDITION})                         AS blocks,
            COUNT(DISTINCT m.invocation_key) FILTER (
              WHERE m.is_failure AND NOT m.raised_here)         AS interruptions,
            COUNT(DISTINCT m.session_id)                        AS sessions,
+           LIST(DISTINCT m.session_id)                         AS session_ids,
            COUNT(DISTINCT m.node_id)                           AS nodes,
            MIN(EPOCH(m.timestamp))                             AS first_seen,
            MAX(EPOCH(m.timestamp))                             AS last_seen,
@@ -407,7 +413,9 @@ def _middleware_filters(
 
     where = "WHERE " + " AND ".join(predicates) if predicates else ""
     having = (
-        "HAVING COUNT(*) FILTER (WHERE m.action = 'block') > 0" if blocks_only else ""
+        f"HAVING COUNT(DISTINCT m.invocation_key) FILTER (WHERE {_BLOCK_CONDITION}) > 0"
+        if blocks_only
+        else ""
     )
     return where, having, params
 
@@ -493,22 +501,30 @@ def get_middleware_stats(con: DuckDBPyConnection, **filters: Any) -> dict[str, A
     their invocations — the row count and the work behind it, which are different
     questions and so are different tiles.
 
-    ``sessions`` is a ``MAX`` over the per-group distinct counts rather than a
-    sum, because summing them would count one session once per middleware that
-    ran in it. It is a floor on "sessions in view" rather than the exact figure,
-    which is the honest thing available without a second pass over the events.
+    ``sessions`` is the exact union of the session ids carried by the surviving
+    groups. Summing the per-group counts would count a session once for every
+    middleware that ran in it, while taking their maximum would under-count
+    whenever different middleware ran in different sessions.
     """
     where_clause, having_clause, params = _middleware_filters(**filters)
     sql = f"""
-    SELECT COUNT(*)                    AS total_middleware,
-           COALESCE(SUM(g.invocations), 0) AS total_invocations,
-           COALESCE(SUM(g.decisions), 0)   AS decisions,
-           COALESCE(SUM(g.allows), 0)      AS allows,
-           COALESCE(SUM(g.transforms), 0)  AS transforms,
-           COALESCE(SUM(g.blocks), 0)      AS blocks,
-           COALESCE(SUM(g.interruptions), 0) AS interruptions,
-           COALESCE(MAX(g.sessions), 0)    AS sessions
-    FROM ({_middleware_groups_sql(where_clause, having_clause)}) g
+    WITH grouped AS ({_middleware_groups_sql(where_clause, having_clause)}),
+    totals AS (
+      SELECT COUNT(*)                         AS total_middleware,
+             COALESCE(SUM(invocations), 0)    AS total_invocations,
+             COALESCE(SUM(decisions), 0)      AS decisions,
+             COALESCE(SUM(allows), 0)         AS allows,
+             COALESCE(SUM(transforms), 0)     AS transforms,
+             COALESCE(SUM(blocks), 0)         AS blocks,
+             COALESCE(SUM(interruptions), 0)  AS interruptions
+      FROM grouped
+    ),
+    session_totals AS (
+      SELECT COUNT(DISTINCT session_id) AS sessions
+      FROM grouped, UNNEST(session_ids) AS ids(session_id)
+    )
+    SELECT totals.*, session_totals.sessions
+    FROM totals CROSS JOIN session_totals
     """
     rows = _rows(con, sql, tuple(params), label="get_middleware_stats")
     return rows[0] if rows else {}
@@ -622,8 +638,7 @@ def list_middleware_by_session(
            m.kind,
            m.band,
            CASE
-             WHEN COUNT(*) FILTER (WHERE m.action = 'block'
-                                      OR m.raised_here) > 0          THEN {_OUTCOME_BLOCKED_LITERAL}
+             WHEN COUNT(*) FILTER (WHERE {_BLOCK_CONDITION}) > 0   THEN {_OUTCOME_BLOCKED_LITERAL}
              WHEN COUNT(*) FILTER (WHERE m.action = 'transform') > 0  THEN {_OUTCOME_TRANSFORMED_LITERAL}
              WHEN COUNT(*) FILTER (WHERE m.is_failure) > 0            THEN {_OUTCOME_INTERRUPTED_LITERAL}
              ELSE {_OUTCOME_PASSED_LITERAL}
@@ -631,7 +646,7 @@ def list_middleware_by_session(
            COUNT(*) FILTER (WHERE m.event_type = 'middleware.invocation')
                                                                      AS invocations,
            COUNT(DISTINCT m.invocation_key) FILTER (
-             WHERE m.action = 'block' OR m.raised_here)              AS blocks,
+             WHERE {_BLOCK_CONDITION})                                AS blocks,
            COUNT(DISTINCT m.invocation_key) FILTER (
              WHERE m.is_failure AND NOT m.raised_here)               AS interruptions,
            COALESCE(

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+
 from railtracks.query import EventQuery
 
-from .._debug import debug_print
 from .. import queries
+from .._debug import debug_print
 from ..models import (
     LLMTraceFilterOptions,
     LLMTracePage,
@@ -46,7 +47,7 @@ async def list_llm_traces(
     values; separate filters AND.
     """
     debug_print(
-        f"GET /api/llm-traces limit={limit} offset={offset} "
+        f"GET /api/v2/llm-traces limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
         f"status={status} since={since} until={until} "
@@ -103,7 +104,7 @@ async def get_llm_trace_stats(
 ) -> LLMTraceStats:
     """Roll-up across every LLM call matching the filters, ignoring paging."""
     debug_print(
-        f"GET /api/llm-traces/stats session_id={session_id} node_id={node_id} "
+        f"GET /api/v2/llm-traces/stats session_id={session_id} node_id={node_id} "
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
         f"status={status} since={since} until={until}"
     )
@@ -139,7 +140,7 @@ async def get_llm_trace_filter_options(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> LLMTraceFilterOptions:
     """Every value the ``/api/llm-traces`` filters can take."""
-    debug_print("GET /api/llm-traces/filters")
+    debug_print("GET /api/v2/llm-traces/filters")
     if q is None:
         return LLMTraceFilterOptions()
     return LLMTraceFilterOptions(**queries.list_llm_trace_filter_options(q.con))

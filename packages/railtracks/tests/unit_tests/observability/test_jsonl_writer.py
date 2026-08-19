@@ -3,8 +3,8 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-
 from railtracks.observability import (
+    EVENTS_DIR_ENV,
     SCOPE_RETRIEVAL,
     SCOPE_SESSION,
     Event,
@@ -37,6 +37,21 @@ async def test_start_creates_directory(tmp_path: Path):
         assert target.is_dir()
     finally:
         await writer.shutdown()
+
+
+async def test_default_directory_matches_visualizer_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    writer = JsonlWriter()
+
+    await writer.start()
+    try:
+        await writer.write(_make_session_event(SCOPE_SESSION, scope_id="default"))
+    finally:
+        await writer.shutdown()
+
+    assert (tmp_path / "default.jsonl").exists()
 
 
 async def test_write_creates_per_scope_id_files(tmp_path: Path):
@@ -141,7 +156,9 @@ async def test_write_rejects_unsafe_scope_id(tmp_path: Path, bad_scope_id: str):
     await writer.start()
     try:
         with pytest.raises(ValueError, match="unsafe scope_id"):
-            await writer.write(_make_session_event(SCOPE_SESSION, scope_id=bad_scope_id))
+            await writer.write(
+                _make_session_event(SCOPE_SESSION, scope_id=bad_scope_id)
+            )
         assert list(tmp_path.iterdir()) == []
     finally:
         await writer.shutdown()

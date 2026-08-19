@@ -8,6 +8,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from railtracks.paths import resolve_railtracks_home
@@ -48,6 +49,16 @@ app = FastAPI(
             "description": "Frozen file-based endpoints the released UI depends on.",
         },
     ],
+)
+# The standalone browser build is same-origin, while Vite and Electron load the
+# UI from a different local origin and point it back at this server. The server
+# binds only to localhost and exposes a read-only API, so allowing those local
+# clients does not widen its network reach.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
 )
 # The v2 event-stream API, under its own `/api/v2` prefix so it sits beside the
 # frozen v1 endpoints below rather than shadowing them. Included here, before the
@@ -187,16 +198,16 @@ class RailtracksServer:
 
         print_success(f"🚀 railtracks server running at http://localhost:{self.port}")
         print_status(f"📁 Serving files from: {get_railtracks_dir() / self.ui_subdir}")
-        print_status(
-            f"📖 Interactive API docs: http://localhost:{self.port}/docs"
-        )
+        print_status(f"📖 Interactive API docs: http://localhost:{self.port}/docs")
 
         if is_debug():
             print_status("📋 API endpoints:")
             print_status("   GET  /api/evaluations - Get all evaluation JSON files")
             print_status("   v1 (stable, file-based):")
             print_status("   GET  /api/sessions - Get all session JSON files")
-            print_status("   GET  /api/sessions/{guid} - Get a specific session by GUID")
+            print_status(
+                "   GET  /api/sessions/{guid} - Get a specific session by GUID"
+            )
             print_status("   v2 (beta, event-stream):")
             for route in viz_api_router.routes:
                 path = getattr(route, "path", None)

@@ -2,9 +2,8 @@
 
 A single :class:`~railtracks.query.EventQuery` is kept alive for the life of
 the process. Callers reach it through :func:`get_query`, which reopens the
-connection on first use and after that only re-scans the ``*.jsonl`` files
-when their newest mtime has moved. The scan lands once per write, not once
-per read.
+connection on first use and refreshes it whenever the set of ``*.jsonl`` files
+or one of their sizes or modification times changes.
 """
 
 from __future__ import annotations
@@ -18,12 +17,26 @@ from railtracks.query import EventQuery, connect
 _NAMESPACES = ["session", "node", "llm", "middleware"]
 
 
-def _dir_mtime(events_dir: Path) -> float | None:
-    """Newest mtime across ``events_dir/*.jsonl``, or ``None`` when empty."""
-    files = list(events_dir.glob("*.jsonl"))
-    if not files:
-        return None
-    return max(f.stat().st_mtime for f in files)
+FileSignature = tuple[tuple[str, int, int], ...]
+
+
+def _file_signature(events_dir: Path) -> FileSignature:
+    """Snapshot the files that define an ``EventQuery`` view.
+
+    DuckDB's view contains the concrete file list present at refresh time, so
+    tracking only the newest mtime misses deletion of an older file and import
+    of a file whose preserved timestamp predates the current newest file.
+    """
+    signature: list[tuple[str, int, int]] = []
+    for file in sorted(events_dir.glob("*.jsonl")):
+        try:
+            stat = file.stat()
+        except FileNotFoundError:
+            # A writer or cleanup may race the directory scan. The next request
+            # will see the settled file set and refresh if necessary.
+            continue
+        signature.append((str(file), stat.st_size, stat.st_mtime_ns))
+    return tuple(signature)
 
 
 class _ConnectionRegistry:
@@ -38,33 +51,44 @@ class _ConnectionRegistry:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._query: EventQuery | None = None
-        self._scanned_mtime: float | None = None
+        self._events_dir: Path | None = None
+        self._signature: FileSignature = ()
 
-    def get(self, events_dir: Path) -> EventQuery:
-        mtime = _dir_mtime(events_dir)
+    def get(self, events_dir: Path) -> EventQuery | None:
         with self._lock:
-            if self._query is None:
+            signature = _file_signature(events_dir)
+            if not signature:
+                self._close_unlocked()
+                return None
+
+            if self._query is None or events_dir != self._events_dir:
+                self._close_unlocked()
                 self._query = connect(events_dir, _NAMESPACES)
-                self._scanned_mtime = mtime
+                self._events_dir = events_dir
+                self._signature = signature
                 return self._query
-            if mtime != self._scanned_mtime:
+            if signature != self._signature:
                 self._query.refresh()
-                self._scanned_mtime = mtime
+                self._signature = signature
             return self._query
 
     def close(self) -> None:
         with self._lock:
-            if self._query is not None:
-                self._query.close()
-                self._query = None
-            self._scanned_mtime = None
+            self._close_unlocked()
+
+    def _close_unlocked(self) -> None:
+        if self._query is not None:
+            self._query.close()
+            self._query = None
+        self._events_dir = None
+        self._signature = ()
 
 
 _registry = _ConnectionRegistry()
 
 
-def get_query(events_dir: Path) -> EventQuery:
-    """Return the shared :class:`EventQuery`, refreshing when files change."""
+def get_query(events_dir: Path) -> EventQuery | None:
+    """Return the shared query, or ``None`` when no event files exist."""
     return _registry.get(events_dir)
 
 

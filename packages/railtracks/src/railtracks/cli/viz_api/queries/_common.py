@@ -122,7 +122,9 @@ def _parse_json(value: Any) -> Any:
             return json.loads(value)
         except (json.JSONDecodeError, ValueError) as e:
             preview = value[:120] + ("…" if len(value) > 120 else "")
-            print_warning(f"_parse_json: invalid JSON ({e}); returning raw string: {preview!r}")
+            print_warning(
+                f"_parse_json: invalid JSON ({e}); returning raw string: {preview!r}"
+            )
             return value
     return value
 

@@ -577,6 +577,15 @@ class TestUIVersionTracking(unittest.TestCase):
             f"Version file not found at expected location: {version_file}",
         )
 
+    @patch.dict(os.environ, {"RAILTRACKS_BETA_UI_URL": "https://example.test/beta.zip"})
+    def test_beta_ui_url_can_be_configured_at_runtime(self):
+        """Beta builds do not require patching an installed package."""
+        import railtracks.cli as cli_module
+
+        self.assertEqual(
+            cli_module._ui_url(beta=True), "https://example.test/beta.zip"
+        )
+
     # --- temp file cleanup on failure ---
 
     @patch('railtracks.cli.sys.exit')

@@ -454,11 +454,9 @@ class LLMTrace(BaseModel):
 class LLMTracePage(BaseModel):
     """One page of :class:`LLMTrace`, with the unpaged total alongside it.
 
-    An envelope rather than a bare list plus an ``X-Total-Count`` header: the
-    server ships no CORS middleware, so a custom header is invisible to any
-    client on another origin (the Electron shell points at
-    ``VITE_API_ORIGIN``). The count also lets a client render "1-50 of 412"
-    without asking for ``page_size + 1`` rows to probe for a next page.
+    An envelope rather than a bare list plus an ``X-Total-Count`` header keeps
+    the contract self-contained and lets a client render "1-50 of 412" without
+    asking for ``page_size + 1`` rows to probe for a next page.
     """
 
     #: Rows matching the filters, after ``limit`` / ``offset``.
@@ -594,8 +592,7 @@ class EventPage(BaseModel):
     """One page of :class:`StreamEvent`, with the unpaged total alongside.
 
     An envelope rather than a bare list plus a header, for the reason
-    :class:`LLMTracePage` gives: the server ships no CORS middleware, so a
-    custom header is invisible to a client on another origin.
+    :class:`LLMTracePage` gives: paging metadata belongs to the response body.
     """
 
     rows: list[StreamEvent] = Field(default_factory=list)
@@ -731,8 +728,7 @@ class MiddlewarePage(BaseModel):
     """One page of :class:`MiddlewareSummary`, with the unpaged total alongside.
 
     An envelope rather than a bare list plus a header, for the reason
-    :class:`LLMTracePage` gives: the server ships no CORS middleware, so a custom
-    header is invisible to a client on another origin.
+    :class:`LLMTracePage` gives: paging metadata belongs to the response body.
     """
 
     rows: list[MiddlewareSummary] = Field(default_factory=list)
@@ -766,7 +762,7 @@ class MiddlewareStats(BaseModel):
     transforms: int = 0
     blocks: int = 0
     interruptions: int = 0
-    #: Distinct sessions represented in the matching middleware.
+    #: Exact number of distinct sessions represented in the matching middleware.
     sessions: int = 0
 
 
