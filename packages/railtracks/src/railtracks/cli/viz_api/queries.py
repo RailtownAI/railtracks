@@ -541,9 +541,10 @@ def list_llm_totals_by_node(
 ) -> list[dict[str, Any]]:
     """LLM cost/token roll-up per node, plus the model info of the final
     response for that node."""
-    sql = """
+    sql = f"""
     WITH resp AS (
-      SELECT spatial_parent_node_id AS node_id,
+      SELECT scope_id,
+             spatial_parent_node_id AS node_id,
              timestamp,
              parent_llm_type_id,
              input_tokens,
@@ -562,17 +563,10 @@ def list_llm_totals_by_node(
       FROM resp
       GROUP BY node_id
     ),
-    creations AS (
-      -- Deduplicated per llm_id; a repeated llm.creation would otherwise
-      -- duplicate the decorated row. Totals are aggregated above this join,
-      -- so they were already correct — this keeps the row count honest too.
-      SELECT llm_id, ANY_VALUE(model_provider) AS model_provider, ANY_VALUE(model_name) AS model_name
-      FROM llm
-      WHERE event_type = 'llm.creation' AND scope_id = ?
-      GROUP BY llm_id
-    ),
+    {_LLM_CREATION_JOIN_CTE.lstrip()},
     last_resp AS (
-      SELECT r.node_id,
+      SELECT r.scope_id,
+             r.node_id,
              r.parent_llm_type_id,
              r.reported_model_name
       FROM resp r
@@ -587,12 +581,13 @@ def list_llm_totals_by_node(
            CAST(cr.model_provider AS VARCHAR)              AS model_provider
     FROM agg a
     LEFT JOIN last_resp lr USING (node_id)
-    LEFT JOIN creations cr ON cr.llm_id = lr.parent_llm_type_id
+    LEFT JOIN creations cr
+      ON cr.scope_id = lr.scope_id AND cr.llm_id = lr.parent_llm_type_id
     """
     return _rows(
         con,
         sql,
-        (session_id, session_id),
+        (session_id,),
         label=f"list_llm_totals_by_node({session_id[:8]})",
     )
 
@@ -628,9 +623,10 @@ def get_agent_llm_details(
     panel. Totals sum tokens/cost across every LLM response emitted from the
     node's scope.
     """
-    sql = """
+    sql = f"""
     WITH resp AS (
-      SELECT timestamp,
+      SELECT scope_id,
+             timestamp,
              parent_llm_type_id,
              message_input,
              output,
@@ -649,13 +645,7 @@ def get_agent_llm_details(
              SUM(COALESCE(total_cost, 0.0))   AS total_cost
       FROM resp
     ),
-    creations AS (
-      -- Deduplicated per llm_id — see list_llm_totals_by_node.
-      SELECT llm_id, ANY_VALUE(model_provider) AS model_provider, ANY_VALUE(model_name) AS model_name
-      FROM llm
-      WHERE event_type = 'llm.creation' AND scope_id = ?
-      GROUP BY llm_id
-    )
+    {_LLM_CREATION_JOIN_CTE.lstrip()}
     SELECT r.timestamp,
            CAST(r.message_input AS VARCHAR)    AS message_input_json,
            CAST(r.output AS VARCHAR)           AS output_json,
@@ -666,14 +656,15 @@ def get_agent_llm_details(
            t.total_cost
     FROM resp r
     CROSS JOIN totals t
-    LEFT JOIN creations cr ON cr.llm_id = r.parent_llm_type_id
+    LEFT JOIN creations cr
+      ON cr.scope_id = r.scope_id AND cr.llm_id = r.parent_llm_type_id
     ORDER BY r.timestamp DESC
     LIMIT 1
     """
     rows = _rows(
         con,
         sql,
-        (session_id, node_id, session_id),
+        (session_id, node_id),
         label=f"get_agent_llm_details({node_id[:8]})",
     )
     if not rows:
@@ -883,7 +874,15 @@ def _llm_calls_cte(*, with_payload: bool) -> str:
     ),"""
 
 
-#: Model name/provider per (session, LLM). Grouped by the join key.
+#: Model name/provider per (session, LLM), grouped by the join key.
+#:
+#: Every ``llm.creation`` reader shares this one CTE — the trace listing, the
+#: per-node totals, the details panel, and the model-name filter option. It
+#: used to be inlined four different ways, three of them session-scoped by a
+#: ``WHERE scope_id = ?`` inside the CTE and one global. The join key now
+#: always carries ``scope_id``, so a caller filters by joining rather than by
+#: re-parameterising the CTE, and a repeated ``llm.creation`` cannot duplicate
+#: a decorated row from either direction.
 _LLM_CREATION_JOIN_CTE = """
     creations AS (
       SELECT scope_id,
@@ -1131,18 +1130,13 @@ def list_llm_trace_filter_options(con: DuckDBPyConnection) -> dict[str, list[str
 
     model_rows = _rows(
         con,
-        """
+        f"""
         WITH resp AS (
           SELECT scope_id, parent_llm_type_id, reported_model_name
           FROM llm
           WHERE event_type IN ('llm.response', 'llm.failure')
         ),
-        creations AS (
-          SELECT scope_id, llm_id, ANY_VALUE(model_name) AS model_name
-          FROM llm
-          WHERE event_type = 'llm.creation'
-          GROUP BY scope_id, llm_id
-        )
+        {_LLM_CREATION_JOIN_CTE.lstrip()}
         SELECT DISTINCT COALESCE(r.reported_model_name, cr.model_name) AS model_name
         FROM resp r
         LEFT JOIN creations cr
