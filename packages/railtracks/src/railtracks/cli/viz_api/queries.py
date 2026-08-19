@@ -206,6 +206,12 @@ _NODE_JOIN_CTE = """
 #:
 #: ``node.destruction`` closes the interval alongside response/failure because a
 #: node that raised may emit only the former.
+#: This constant carries no trailing comma. Composers insert commas between
+#: CTE fragments explicitly (via ``",".join`` or ``+ ","``), so a fragment
+#: chained differently — as the last CTE, or the first — needs no per-caller
+#: fix-up. The old convention embedded a trailing comma here and forced two
+#: callers to strip it back off with ``.rstrip(",")``, which broke silently
+#: the moment the constant's punctuation changed.
 _NODE_SPAN_CTE = """
     node_spans AS (
       SELECT scope_id,
@@ -218,7 +224,7 @@ _NODE_SPAN_CTE = """
       WHERE parent_node_id IS NOT NULL
       GROUP BY scope_id, parent_node_id
       HAVING MIN(timestamp) FILTER (WHERE event_type = 'node.invocation') IS NOT NULL
-    ),"""
+    )"""
 
 #: Middleware name per ``middleware_type_id``, the only place a name is recorded.
 #:
@@ -243,7 +249,7 @@ _MIDDLEWARE_NAME_CTE = """
       WHERE event_type = 'middleware.creation'
         AND middleware_type_id IS NOT NULL
       GROUP BY middleware_type_id
-    ),"""
+    )"""
 
 
 # ---------------------------------------------------------------------------
@@ -1264,6 +1270,7 @@ def _event_rows_cte() -> str:
     """
     return (
         _MIDDLEWARE_NAME_CTE
+        + ","
         + """
     llm_nodes AS (
       -- The node each LLM invocation was made from, so a middleware event that
@@ -1319,7 +1326,7 @@ def _event_rows_cte() -> str:
         ON ln.scope_id = r.session_id AND ln.llm_invoke_id = r.llm_invoke_id
       LEFT JOIN mw_names nm
         ON nm.type_id = r.mw_type_id
-    ),"""
+    )"""
     )
 
 
@@ -1434,7 +1441,7 @@ def count_event_rows(
         until,
     )
     sql = f"""
-    WITH {_event_rows_cte()}
+    WITH {_event_rows_cte()},
     {_EVENT_JOIN_CTES}
     SELECT COUNT(*) AS total
     FROM ev e
@@ -1490,7 +1497,7 @@ def list_event_rows(
     order_clause = _event_order_clause(sort_by, order)
 
     sql = f"""
-    WITH {_event_rows_cte()}
+    WITH {_event_rows_cte()},
     {_EVENT_JOIN_CTES}
     SELECT
       e.event_id,
@@ -1558,7 +1565,7 @@ def get_event_stats(
         until,
     )
     sql = f"""
-    WITH {_event_rows_cte()}
+    WITH {_event_rows_cte()},
     {_EVENT_JOIN_CTES}
     SELECT COUNT(*)                             AS total_events,
            COUNT(*) FILTER (WHERE e.is_failure) AS failures,
@@ -1761,7 +1768,9 @@ def _middleware_rows_cte() -> str:
     """
     return (
         _MIDDLEWARE_NAME_CTE
+        + ","
         + _NODE_SPAN_CTE
+        + ","
         + """
     mw_kinds AS (
       SELECT parent_middleware_type_id           AS type_id,
@@ -1865,7 +1874,7 @@ def _middleware_rows_cte() -> str:
       LEFT JOIN mw_enclosing en ON en.event_id = ev.event_id AND en.depth = 1
       LEFT JOIN mw_names nm ON nm.type_id = ev.parent_middleware_type_id
       LEFT JOIN mw_kinds kd ON kd.type_id = ev.parent_middleware_type_id
-    ),"""
+    )"""
     )
 
 
@@ -1995,7 +2004,7 @@ def _middleware_groups_sql(where_clause: str, having_clause: str) -> str:
     count counts it, the stats sum it.
     """
     return f"""
-    WITH {_middleware_rows_cte()}
+    WITH {_middleware_rows_cte()},
     {_SESSION_JOIN_CTE},
     {_NODE_JOIN_CTE.strip()}
     {_MIDDLEWARE_GROUP_SELECT}
@@ -2119,7 +2128,7 @@ def list_middleware_filter_options(
     group_rows = _rows(
         con,
         f"""
-        WITH {_middleware_rows_cte().rstrip().rstrip(",")}
+        WITH {_middleware_rows_cte()}
         SELECT DISTINCT middleware_name, kind, band
         FROM m{internal_clause}
         """,
@@ -2191,7 +2200,7 @@ def list_middleware_by_session(
 
     ids = list(session_ids)
     sql = f"""
-    WITH {_middleware_rows_cte().rstrip().rstrip(",")}
+    WITH {_middleware_rows_cte()}
     SELECT m.session_id,
            m.middleware_name,
            m.kind,
@@ -2278,7 +2287,7 @@ def list_guardrails_by_node(
     ``meta`` is now the decision's own ``meta`` and nothing else.
     """
     sql = f"""
-    WITH {_NODE_SPAN_CTE}
+    WITH {_NODE_SPAN_CTE},
     guards AS (
       SELECT scope_id,
              event_type,
