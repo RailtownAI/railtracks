@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from railtracks.query import EventQuery
 
-from ...io import print_status
+from .._debug import debug_print
 from .. import queries
 from ..models import (
     MiddlewareFilterOptions,
@@ -46,7 +46,7 @@ async def list_middleware(
     and ``_llm_observe``, which are hidden by default. ``blocks_only`` narrows
     to middleware that blocked at least once.
     """
-    print_status(
+    debug_print(
         f"GET /api/middleware limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} kind={kind} band={band} "
         f"middleware_name={middleware_name} flow_name={flow_name} "
@@ -96,7 +96,7 @@ async def get_middleware_stats(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> MiddlewareStats:
     """Roll-up across every middleware matching the filters, ignoring paging."""
-    print_status(
+    debug_print(
         f"GET /api/middleware/stats session_id={session_id} node_id={node_id} "
         f"kind={kind} band={band} middleware_name={middleware_name} "
         f"flow_name={flow_name} blocks_only={blocks_only} "
@@ -136,7 +136,7 @@ async def get_middleware_filter_options(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> MiddlewareFilterOptions:
     """Every value the ``/api/middleware`` filters can take, over the whole stream."""
-    print_status(f"GET /api/middleware/filters include_internal={include_internal}")
+    debug_print(f"GET /api/middleware/filters include_internal={include_internal}")
     if q is None:
         return MiddlewareFilterOptions()
     return MiddlewareFilterOptions(

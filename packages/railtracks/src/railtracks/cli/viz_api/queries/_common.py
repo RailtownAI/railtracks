@@ -21,7 +21,8 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from ...io import print_status, print_warning
+from ...io import print_warning
+from .._debug import debug_print
 from ..models import SortOrder
 
 if TYPE_CHECKING:
@@ -47,7 +48,7 @@ def _rows(
     rows = [dict(zip(cols, row)) for row in cur.fetchall()]
     if label:
         elapsed_ms = (time.perf_counter() - t0) * 1000
-        print_status(f"  ↳ {label}: {len(rows)} row(s) in {elapsed_ms:.1f}ms")
+        debug_print(f"  ↳ {label}: {len(rows)} row(s) in {elapsed_ms:.1f}ms")
     return rows
 
 

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Path as PathParam
 from railtracks.query import EventQuery
 
-from ...io import print_status
+from .._debug import debug_print
 from .. import queries
 from ..models import (
     GraphEdge,
@@ -57,7 +57,7 @@ async def list_sessions(
     Filters apply server-side. Repeating a param ORs its values; separate
     params AND. ``since`` / ``until`` are unix seconds bounding ``start_time``.
     """
-    print_status(
+    debug_print(
         f"GET /api/sessions flow_name={flow_name} "
         f"entry_point_name={entry_point_name} status={status} "
         f"since={since} until={until}"
@@ -102,7 +102,7 @@ async def get_session_stats(
 
     Takes the same filter params as ``/api/sessions``.
     """
-    print_status(
+    debug_print(
         f"GET /api/sessions/stats flow_name={flow_name} "
         f"entry_point_name={entry_point_name} status={status} "
         f"since={since} until={until}"
@@ -134,7 +134,7 @@ async def get_session_filter_options(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> SessionFilterOptions:
     """Values the session filters accept, across every session in the stream."""
-    print_status("GET /api/sessions/filters")
+    debug_print("GET /api/sessions/filters")
     if q is None:
         return SessionFilterOptions()
     return SessionFilterOptions(**queries.list_session_filter_options(q.con))
@@ -146,7 +146,7 @@ async def get_session(
     q: EventQuery = Depends(get_query_or_404),
 ) -> SessionDetail:
     """Full session payload: summary + prepared tree + default selection."""
-    print_status(f"GET /api/sessions/{session_id}")
+    debug_print(f"GET /api/sessions/{session_id}")
     summary_row = queries.get_session_row(q.con, session_id)
     if summary_row is None:
         raise HTTPException(status_code=404, detail="session not found")
@@ -170,7 +170,7 @@ async def get_node_detail(
     q: EventQuery = Depends(get_query_or_404),
 ) -> NodeDetail:
     """Inputs, outputs, cost, latency and guardrails for one node."""
-    print_status(f"GET /api/sessions/{session_id}/nodes/{node_id}")
+    debug_print(f"GET /api/sessions/{session_id}/nodes/{node_id}")
     node_row = queries.get_node_row(q.con, session_id, node_id)
     if node_row is None:
         raise HTTPException(status_code=404, detail="node not found")
@@ -230,7 +230,7 @@ async def get_session_graph(
     q: EventQuery = Depends(get_query_or_404),
 ) -> SessionGraph:
     """React-Flow-shaped graph for the session — nodes and parent→child edges."""
-    print_status(f"GET /api/sessions/{session_id}/graph")
+    debug_print(f"GET /api/sessions/{session_id}/graph")
     summary_row = queries.get_session_row(q.con, session_id)
     if summary_row is None:
         raise HTTPException(status_code=404, detail="session not found")

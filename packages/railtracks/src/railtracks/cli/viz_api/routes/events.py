@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from railtracks.query import EventQuery
 
-from ...io import print_status
+from .._debug import debug_print
 from .. import queries
 from ..models import (
     EventFilterOptions,
@@ -45,7 +45,7 @@ async def list_events(
     paging. ``search`` is a substring test (not a ``LIKE`` pattern);
     ``middleware_name`` is exact match on the resolved name.
     """
-    print_status(
+    debug_print(
         f"GET /api/events limit={limit} offset={offset} "
         f"session_id={session_id} node_id={node_id} "
         f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
@@ -110,7 +110,7 @@ async def get_event_stats(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> EventStats:
     """Roll-up across every event matching the filters, ignoring paging."""
-    print_status(
+    debug_print(
         f"GET /api/events/stats session_id={session_id} node_id={node_id} "
         f"namespace={namespace} event_type={event_type} flow_name={flow_name} "
         f"middleware_name={middleware_name} "
@@ -150,7 +150,7 @@ async def get_event_filter_options(
     q: EventQuery | None = Depends(get_query_or_none),
 ) -> EventFilterOptions:
     """Every value the ``/api/events`` filters can take, over the whole stream."""
-    print_status("GET /api/events/filters")
+    debug_print("GET /api/events/filters")
     if q is None:
         return EventFilterOptions()
     return EventFilterOptions(**queries.list_event_filter_options(q.con))
