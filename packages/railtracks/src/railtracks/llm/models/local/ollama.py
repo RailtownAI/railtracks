@@ -31,7 +31,8 @@ class OllamaLLM(LiteLLMWrapper):
         max_tokens: int | None = None,
         frequency_penalty: float | None = None,
         presence_penalty: float | None = None,
-        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"]
+        | None = None,
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
@@ -56,7 +57,7 @@ class OllamaLLM(LiteLLMWrapper):
                 they've already appeared.
             presence_penalty (float | None, optional): Penalizes tokens that have
                 already appeared at all.
-            reasoning_effort (Literal["minimal", "low", "medium", "high"] | None, optional):
+            reasoning_effort (Literal["none", "minimal", "low", "medium", "high"] | None, optional):
                 Requested reasoning effort for reasoning-capable models.
             service_tier (str | None, optional): Requested service tier. Provider-specific.
             verbosity (Literal["low", "medium", "high"] | None, optional): Requested

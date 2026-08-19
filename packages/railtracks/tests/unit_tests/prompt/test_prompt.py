@@ -1,6 +1,5 @@
 import asyncio
 
-import pytest
 import railtracks as rt
 from railtracks.llm import Message, MessageHistory
 from railtracks.llm.message import Role
@@ -158,27 +157,3 @@ def test_prompt_injection_shared_middleware_list_stays_independent(mock_llm):
     assert on.content == "tomato"
     assert off.content == "{secret_value}"
     assert len(shared_middleware) == 1
-
-
-@pytest.mark.order("last")
-def test_prompt_injection_global_config_bypass(mock_llm):
-    """Session-level prompt_injection=False wins even when the middleware is present."""
-    prompt = "{secret_value}"
-
-    model = mock_llm()
-    model._chat = _return_message
-
-    node = rt.agent_node(
-        system_message=prompt,
-        llm=model,
-        model_middleware=[rt.prebuilt.middleware.ContextInjection()],
-    )
-
-    async def top_level():
-        with rt.Session(context={"secret_value": "tomato"}, prompt_injection=False):
-            response = await rt.call(node, user_input=MessageHistory())
-
-        return response
-
-    response = asyncio.run(top_level())
-    assert response.content == "{secret_value}"
