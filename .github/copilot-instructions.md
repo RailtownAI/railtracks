@@ -210,13 +210,14 @@ Steps 3 and 4 are gated on changed paths, so a docs-only PR skips the test suite
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
 
-### Agent Type Selection
-| Has `tool_nodes`? | Has `output_schema`? | Agent type |
-|---|---|---|
-| No | No | `TerminalLLM` — plain chat |
-| No | Yes | `StructuredLLM` — structured output, no tools |
-| Yes | No | `ToolCallLLM` — tools, text output |
-| Yes | Yes | `StructuredToolCallLLM` — tools + structured output |
+### What `agent_node` builds
+`rt.agent_node()` builds one node behind the scenes — there is no separate named type to pick. What you pass changes what the agent does at runtime:
+
+| Passed | Behaviour |
+|---|---|
+| Neither `tool_nodes` nor `output_schema` | Plain chat, text output |
+| `output_schema` only | Structured output, no tools |
+| `tool_nodes` only | Tool-calling loop, text output |
 
 ### LLM Providers
 
@@ -240,8 +241,7 @@ rt.llm.OpenAICompatibleProvider(
    - Real implementation (or a clear stub with a TODO if the user needs to fill it in)
 4. **Define the agent** — call `rt.agent_node()` with (note: it returns a class/type, so use PascalCase for the variable name):
    - A descriptive name
-   - `tool_nodes` listing the tools (if any)
-   - `output_schema` as a Pydantic `BaseModel` (if structured output is needed)
+   - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both
    - `llm` — default to `rt.llm.AnthropicLLM("claude-sonnet-4-6")` unless the user specifies otherwise
    - `system_message` — a clear, specific system prompt
 5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=agent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(agent, ...)` inside it.
@@ -295,7 +295,6 @@ class Output(BaseModel):
 StructuredAgent = rt.agent_node(
     "Structured Agent",
     output_schema=Output,
-    tool_nodes=[my_tool],
     llm=llm,
 )
 ```
