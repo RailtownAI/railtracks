@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from railtracks.query import EventQuery
 
 from ...io import print_status
 from .. import queries
@@ -16,7 +17,7 @@ from ..models import (
     SortOrder,
 )
 from ..row_mapping import _row_to_middleware_summary
-from ._common import _events_dir
+from ._common import get_query_or_none
 
 router = APIRouter(prefix="/middleware")
 
@@ -37,6 +38,7 @@ async def list_middleware(
     until: float | None = Query(None),
     sort_by: MiddlewareSortField = Query(MiddlewareSortField.INVOCATIONS),
     order: SortOrder = Query(SortOrder.DESC),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> MiddlewarePage:
     """List middleware, one row per ``(name, kind, band)``, busiest first.
 
@@ -52,8 +54,7 @@ async def list_middleware(
         f"since={since} until={until} "
         f"sort_by={sort_by.value} order={order.value}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return MiddlewarePage(rows=[], total=0, limit=limit, offset=offset)
 
     filters: dict[str, Any] = {
@@ -68,7 +69,6 @@ async def list_middleware(
         "since": since,
         "until": until,
     }
-    q = queries.get_query(events_dir)
     rows = queries.list_middleware_rows(
         q.con, limit=limit, offset=offset, sort_by=sort_by, order=order, **filters
     )
@@ -93,6 +93,7 @@ async def get_middleware_stats(
     include_internal: bool = Query(False),
     since: float | None = Query(None),
     until: float | None = Query(None),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> MiddlewareStats:
     """Roll-up across every middleware matching the filters, ignoring paging."""
     print_status(
@@ -101,11 +102,9 @@ async def get_middleware_stats(
         f"flow_name={flow_name} blocks_only={blocks_only} "
         f"include_internal={include_internal} since={since} until={until}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return MiddlewareStats()
 
-    q = queries.get_query(events_dir)
     stats = queries.get_middleware_stats(
         q.con,
         session_id=session_id,
@@ -134,14 +133,12 @@ async def get_middleware_stats(
 @router.get("/filters", response_model=MiddlewareFilterOptions)
 async def get_middleware_filter_options(
     include_internal: bool = Query(False),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> MiddlewareFilterOptions:
     """Every value the ``/api/middleware`` filters can take, over the whole stream."""
     print_status(f"GET /api/middleware/filters include_internal={include_internal}")
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return MiddlewareFilterOptions()
-
-    q = queries.get_query(events_dir)
     return MiddlewareFilterOptions(
         **queries.list_middleware_filter_options(q.con, include_internal)
     )

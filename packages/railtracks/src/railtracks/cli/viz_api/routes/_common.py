@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fastapi import HTTPException
 from railtracks.paths import resolve_railtracks_home
+from railtracks.query import EventQuery
+
+from .. import queries
 
 _EVENTS_SUBDIR = "data/new-ones"
 
@@ -18,3 +22,27 @@ _SESSION_ID_PATTERN = (
 
 def _events_dir() -> Path:
     return resolve_railtracks_home() / _EVENTS_SUBDIR
+
+
+def get_query_or_none() -> EventQuery | None:
+    """FastAPI dependency: shared query connection, or ``None`` if no events home.
+
+    Used by list/stats/filter endpoints, which return an empty payload rather
+    than a 404 when nothing has been recorded yet.
+    """
+    d = _events_dir()
+    if not d.exists():
+        return None
+    return queries.get_query(d)
+
+
+def get_query_or_404() -> EventQuery:
+    """FastAPI dependency: shared query connection, or raises 404.
+
+    Used by detail endpoints, where "no events home" is not a valid state to
+    answer from.
+    """
+    d = _events_dir()
+    if not d.exists():
+        raise HTTPException(status_code=404, detail="no events home")
+    return queries.get_query(d)

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from railtracks.query import EventQuery
 
 from ...io import print_status
 from .. import queries
@@ -15,7 +16,7 @@ from ..models import (
     SortOrder,
 )
 from ..row_mapping import _row_to_llm_trace
-from ._common import _events_dir
+from ._common import get_query_or_none
 
 router = APIRouter(prefix="/llm-traces")
 
@@ -34,6 +35,7 @@ async def list_llm_traces(
     until: float | None = Query(None),
     sort_by: LLMTraceSortField = Query(LLMTraceSortField.TIMESTAMP),
     order: SortOrder = Query(SortOrder.DESC),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> LLMTracePage:
     """List LLM calls across sessions, newest first by default.
 
@@ -48,11 +50,9 @@ async def list_llm_traces(
         f"status={status} since={since} until={until} "
         f"sort_by={sort_by.value} order={order.value}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return LLMTracePage(rows=[], total=0, limit=limit, offset=offset)
 
-    q = queries.get_query(events_dir)
     rows = queries.list_llm_trace_rows(
         q.con,
         limit=limit,
@@ -97,6 +97,7 @@ async def get_llm_trace_stats(
     status: list[LLMTraceStatus] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> LLMTraceStats:
     """Roll-up across every LLM call matching the filters, ignoring paging."""
     print_status(
@@ -104,11 +105,9 @@ async def get_llm_trace_stats(
         f"flow_name={flow_name} node_name={node_name} model_name={model_name} "
         f"status={status} since={since} until={until}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return LLMTraceStats()
 
-    q = queries.get_query(events_dir)
     stats = queries.get_llm_trace_stats(
         q.con,
         session_id=session_id,
@@ -134,12 +133,11 @@ async def get_llm_trace_stats(
 
 
 @router.get("/filters", response_model=LLMTraceFilterOptions)
-async def get_llm_trace_filter_options() -> LLMTraceFilterOptions:
+async def get_llm_trace_filter_options(
+    q: EventQuery | None = Depends(get_query_or_none),
+) -> LLMTraceFilterOptions:
     """Every value the ``/api/llm-traces`` filters can take."""
     print_status("GET /api/llm-traces/filters")
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return LLMTraceFilterOptions()
-
-    q = queries.get_query(events_dir)
     return LLMTraceFilterOptions(**queries.list_llm_trace_filter_options(q.con))

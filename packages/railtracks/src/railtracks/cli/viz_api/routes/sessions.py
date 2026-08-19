@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Path as PathParam
+from railtracks.query import EventQuery
 
 from ...io import print_error, print_status
 from .. import queries
@@ -32,7 +33,7 @@ from ..row_mapping import (
     _to_llm_contents,
     _tool_input_messages,
 )
-from ._common import _SESSION_ID_PATTERN, _events_dir
+from ._common import _SESSION_ID_PATTERN, get_query_or_404, get_query_or_none
 
 router = APIRouter(prefix="/sessions")
 
@@ -44,6 +45,7 @@ async def list_sessions(
     status: list[str] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> list[SessionSummary]:
     """List sessions in the events home, most recent first.
 
@@ -55,12 +57,10 @@ async def list_sessions(
         f"entry_point_name={entry_point_name} status={status} "
         f"since={since} until={until}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return []
 
     try:
-        q = queries.get_query(events_dir)
         rows = queries.list_session_rows(
             q.con,
             flow_names=flow_name,
@@ -95,6 +95,7 @@ async def get_session_stats(
     status: list[str] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> SessionStats:
     """Roll-up across every session matching the filters.
 
@@ -105,11 +106,9 @@ async def get_session_stats(
         f"entry_point_name={entry_point_name} status={status} "
         f"since={since} until={until}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return SessionStats()
 
-    q = queries.get_query(events_dir)
     stats = queries.get_session_stats(
         q.con,
         flow_names=flow_name,
@@ -130,28 +129,23 @@ async def get_session_stats(
 
 
 @router.get("/filters", response_model=SessionFilterOptions)
-async def get_session_filter_options() -> SessionFilterOptions:
+async def get_session_filter_options(
+    q: EventQuery | None = Depends(get_query_or_none),
+) -> SessionFilterOptions:
     """Values the session filters accept, across every session in the stream."""
     print_status("GET /api/sessions/filters")
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return SessionFilterOptions()
-
-    q = queries.get_query(events_dir)
     return SessionFilterOptions(**queries.list_session_filter_options(q.con))
 
 
 @router.get("/{session_id}", response_model=SessionDetail)
 async def get_session(
     session_id: str = PathParam(..., pattern=_SESSION_ID_PATTERN),
+    q: EventQuery = Depends(get_query_or_404),
 ) -> SessionDetail:
     """Full session payload: summary + prepared tree + default selection."""
     print_status(f"GET /api/sessions/{session_id}")
-    events_dir = _events_dir()
-    if not events_dir.exists():
-        raise HTTPException(status_code=404, detail="no events home")
-
-    q = queries.get_query(events_dir)
     summary_row = queries.get_session_row(q.con, session_id)
     if summary_row is None:
         raise HTTPException(status_code=404, detail="session not found")
@@ -172,14 +166,10 @@ async def get_session(
 async def get_node_detail(
     session_id: str = PathParam(..., pattern=_SESSION_ID_PATTERN),
     node_id: str = PathParam(...),
+    q: EventQuery = Depends(get_query_or_404),
 ) -> NodeDetail:
     """Inputs, outputs, cost, latency and guardrails for one node."""
     print_status(f"GET /api/sessions/{session_id}/nodes/{node_id}")
-    events_dir = _events_dir()
-    if not events_dir.exists():
-        raise HTTPException(status_code=404, detail="no events home")
-
-    q = queries.get_query(events_dir)
     node_row = queries.get_node_row(q.con, session_id, node_id)
     if node_row is None:
         raise HTTPException(status_code=404, detail="node not found")
@@ -236,14 +226,10 @@ async def get_node_detail(
 @router.get("/{session_id}/graph", response_model=SessionGraph)
 async def get_session_graph(
     session_id: str = PathParam(..., pattern=_SESSION_ID_PATTERN),
+    q: EventQuery = Depends(get_query_or_404),
 ) -> SessionGraph:
     """React-Flow-shaped graph for the session — nodes and parent→child edges."""
     print_status(f"GET /api/sessions/{session_id}/graph")
-    events_dir = _events_dir()
-    if not events_dir.exists():
-        raise HTTPException(status_code=404, detail="no events home")
-
-    q = queries.get_query(events_dir)
     summary_row = queries.get_session_row(q.con, session_id)
     if summary_row is None:
         raise HTTPException(status_code=404, detail="session not found")

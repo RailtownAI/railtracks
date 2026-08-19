@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from railtracks.query import EventQuery
 
 from ...io import print_status
 from .. import queries
@@ -14,7 +15,7 @@ from ..models import (
     SortOrder,
 )
 from ..row_mapping import _row_to_event
-from ._common import _events_dir
+from ._common import get_query_or_none
 
 router = APIRouter(prefix="/events")
 
@@ -35,6 +36,7 @@ async def list_events(
     until: float | None = Query(None),
     sort_by: EventSortField = Query(EventSortField.TIMESTAMP),
     order: SortOrder = Query(SortOrder.DESC),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> EventPage:
     """List raw events from the stream, newest first by default.
 
@@ -52,11 +54,9 @@ async def list_events(
         f"since={since} until={until} "
         f"sort_by={sort_by.value} order={order.value}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return EventPage(rows=[], total=0, limit=limit, offset=offset)
 
-    q = queries.get_query(events_dir)
     rows = queries.list_event_rows(
         q.con,
         limit=limit,
@@ -107,6 +107,7 @@ async def get_event_stats(
     search: str | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
+    q: EventQuery | None = Depends(get_query_or_none),
 ) -> EventStats:
     """Roll-up across every event matching the filters, ignoring paging."""
     print_status(
@@ -116,11 +117,9 @@ async def get_event_stats(
         f"failures_only={failures_only} search={search!r} "
         f"since={since} until={until}"
     )
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return EventStats()
 
-    q = queries.get_query(events_dir)
     stats = queries.get_event_stats(
         q.con,
         session_id=session_id,
@@ -147,12 +146,11 @@ async def get_event_stats(
 
 
 @router.get("/filters", response_model=EventFilterOptions)
-async def get_event_filter_options() -> EventFilterOptions:
+async def get_event_filter_options(
+    q: EventQuery | None = Depends(get_query_or_none),
+) -> EventFilterOptions:
     """Every value the ``/api/events`` filters can take, over the whole stream."""
     print_status("GET /api/events/filters")
-    events_dir = _events_dir()
-    if not events_dir.exists():
+    if q is None:
         return EventFilterOptions()
-
-    q = queries.get_query(events_dir)
     return EventFilterOptions(**queries.list_event_filter_options(q.con))
