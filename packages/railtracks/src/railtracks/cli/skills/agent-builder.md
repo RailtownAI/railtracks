@@ -4,17 +4,17 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 
 ## How railtracks works
 - **Tools** are plain Python functions decorated with `@rt.function_node`. Type hints become the parameter schema; the docstring becomes the description.
-- **Agents** are created with `rt.agent_node()`. It always builds a single node type; what you pass for
-  `tool_nodes`/`output_schema` just changes its runtime behavior (see "Agent Behavior" below).
+- **Agents** are created with `rt.agent_node()`. The type is auto-selected based on whether tools and/or a structured output schema are provided.
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
 
-### Agent Behavior
-`rt.agent_node()` builds one node behind the scenes; there's no separate named type to pick. What you pass
-just changes what it does at runtime:
-- Neither `tool_nodes` nor `output_schema` → plain chat, text output.
-- `output_schema` only → structured output, no tools.
-- `tool_nodes` only → tool-calling, text output.
+### Agent Type Selection
+| Has `tool_nodes`? | Has `output_schema`? | Agent type |
+|---|---|---|
+| No | No | `TerminalLLM` — plain chat |
+| No | Yes | `StructuredLLM` — structured output, no tools |
+| Yes | No | `ToolCallLLM` — tools, text output |
+| Yes | Yes | `StructuredToolCallLLM` — tools + structured output |
 
 ### LLM Providers
 
