@@ -23,6 +23,7 @@ from ..models import (
     SessionPage,
     SessionSortField,
     SessionStats,
+    SessionStatus,
     SortOrder,
 )
 from ..row_mapping import (
@@ -51,7 +52,7 @@ async def list_sessions(
     offset: int = Query(0, ge=0),
     flow_name: list[str] | None = Query(None),
     entry_point_name: list[str] | None = Query(None),
-    status: list[str] | None = Query(None),
+    status: list[SessionStatus] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
     sort_by: SessionSortField = Query(SessionSortField.START_TIME),
@@ -107,7 +108,7 @@ async def list_sessions(
 async def get_session_stats(
     flow_name: list[str] | None = Query(None),
     entry_point_name: list[str] | None = Query(None),
-    status: list[str] | None = Query(None),
+    status: list[SessionStatus] | None = Query(None),
     since: float | None = Query(None),
     until: float | None = Query(None),
     q: EventQuery | None = Depends(get_query_or_none),

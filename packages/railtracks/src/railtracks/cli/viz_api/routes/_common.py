@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi import HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 
 from railtracks.observability.storage import resolve_events_dir
@@ -61,7 +62,12 @@ class QueryFailureRoute(APIRoute):
         async def wrapped(request: Request) -> Response:
             try:
                 return await original(request)
-            except HTTPException:
+            except (HTTPException, RequestValidationError):
+                # ``RequestValidationError`` is FastAPI's own 422 signal for a
+                # bad query parameter (e.g. an unknown enum value on the
+                # status / kind / band filters). Passing it through so the
+                # default handler renders it as 422 instead of getting caught
+                # below and re-raised as a 500 "failed to query events".
                 raise
             except Exception as e:  # noqa: BLE001
                 exception_event(

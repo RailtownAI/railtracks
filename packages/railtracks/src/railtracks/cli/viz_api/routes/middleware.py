@@ -10,7 +10,9 @@ from railtracks.query import EventQuery
 
 from .. import queries
 from ..models import (
+    MiddlewareBand,
     MiddlewareFilterOptions,
+    MiddlewareKind,
     MiddlewarePage,
     MiddlewareSortField,
     MiddlewareStats,
@@ -30,8 +32,8 @@ async def list_middleware(
     offset: int = Query(0, ge=0),
     session_id: str | None = Query(None),
     node_id: str | None = Query(None),
-    kind: list[str] | None = Query(None),
-    band: list[str] | None = Query(None),
+    kind: list[MiddlewareKind] | None = Query(None),
+    band: list[MiddlewareBand] | None = Query(None),
     middleware_name: list[str] | None = Query(None),
     flow_name: list[str] | None = Query(None),
     blocks_only: bool = Query(False),
@@ -79,8 +81,8 @@ async def list_middleware(
 async def get_middleware_stats(
     session_id: str | None = Query(None),
     node_id: str | None = Query(None),
-    kind: list[str] | None = Query(None),
-    band: list[str] | None = Query(None),
+    kind: list[MiddlewareKind] | None = Query(None),
+    band: list[MiddlewareBand] | None = Query(None),
     middleware_name: list[str] | None = Query(None),
     flow_name: list[str] | None = Query(None),
     blocks_only: bool = Query(False),

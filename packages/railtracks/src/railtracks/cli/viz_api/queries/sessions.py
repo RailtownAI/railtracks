@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..models import SessionSortField, SortOrder
+from ..models import SessionSortField, SessionStatus, SortOrder
 from ._common import _in_clause, _order_clause, _rows, _window_predicates
 
 if TYPE_CHECKING:
@@ -135,7 +135,7 @@ _SESSION_SORT_COLUMNS = {
 def _session_filters(
     flow_names: list[str] | None,
     entry_point_names: list[str] | None,
-    statuses: list[str] | None,
+    statuses: list[SessionStatus] | None,
     since: float | None = None,
     until: float | None = None,
 ) -> tuple[str, list[Any]]:
@@ -164,7 +164,10 @@ def _session_filters(
         params.extend(entry_point_names)
     if statuses:
         predicates.append(_in_clause("s.status", statuses))
-        params.extend(statuses)
+        # ``status`` is the CASE expression's own string ('Completed', 'Failed',
+        # 'Blocked', 'Running'), so bind each enum member's underlying value
+        # rather than the enum instance itself.
+        params.extend(s.value for s in statuses)
     window, window_params = _window_predicates("s.start_time", since, until)
     predicates.extend(window)
     params.extend(window_params)
@@ -183,7 +186,7 @@ def list_session_rows(
     *,
     flow_names: list[str] | None = None,
     entry_point_names: list[str] | None = None,
-    statuses: list[str] | None = None,
+    statuses: list[SessionStatus] | None = None,
     since: float | None = None,
     until: float | None = None,
     limit: int = 50,
@@ -217,7 +220,7 @@ def count_session_rows(
     *,
     flow_names: list[str] | None = None,
     entry_point_names: list[str] | None = None,
-    statuses: list[str] | None = None,
+    statuses: list[SessionStatus] | None = None,
     since: float | None = None,
     until: float | None = None,
 ) -> int:
@@ -239,7 +242,7 @@ def get_session_stats(
     *,
     flow_names: list[str] | None = None,
     entry_point_names: list[str] | None = None,
-    statuses: list[str] | None = None,
+    statuses: list[SessionStatus] | None = None,
     since: float | None = None,
     until: float | None = None,
 ) -> dict[str, Any]:

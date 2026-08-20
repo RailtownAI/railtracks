@@ -355,8 +355,8 @@ _MIDDLEWARE_GROUP_SELECT = f"""
 def _middleware_filters(
     session_id: str | None = None,
     node_id: str | None = None,
-    kinds: list[str] | None = None,
-    bands: list[str] | None = None,
+    kinds: list[MiddlewareKind] | None = None,
+    bands: list[MiddlewareBand] | None = None,
     middleware_names: list[str] | None = None,
     flow_names: list[str] | None = None,
     blocks_only: bool = False,
@@ -391,10 +391,14 @@ def _middleware_filters(
         params.append(node_id)
     if kinds:
         predicates.append(_in_clause("m.kind", kinds))
-        params.extend(kinds)
+        # ``m.kind`` / ``m.band`` are the CASE ladder's own string values, so
+        # bind each enum member's underlying value rather than the enum
+        # instance itself — matches the ``LLMTraceStatus`` handling in
+        # queries/llm_traces.py.
+        params.extend(k.value for k in kinds)
     if bands:
         predicates.append(_in_clause("m.band", bands))
-        params.extend(bands)
+        params.extend(b.value for b in bands)
     if middleware_names:
         predicates.append(_in_clause("m.middleware_name", middleware_names))
         params.extend(middleware_names)
