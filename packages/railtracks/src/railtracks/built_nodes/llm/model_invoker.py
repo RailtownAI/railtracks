@@ -7,7 +7,6 @@ from typing import Any, AsyncIterator, Awaitable, Callable
 from pydantic import BaseModel
 
 from railtracks.built_nodes._types import ModelSource
-from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
 from railtracks.context.central import get_stream_queue
 from railtracks.events.llm import (
@@ -19,6 +18,7 @@ from railtracks.events.llm import (
 from railtracks.events.send import emit
 from railtracks.exceptions.errors import LLMError
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.middleware import ModelMiddleware
 from railtracks.llm.model import ModelBase
 from railtracks.llm.providers import TOOL_CALLING_STREAMING_BLACKLIST
 from railtracks.llm.response import Response
