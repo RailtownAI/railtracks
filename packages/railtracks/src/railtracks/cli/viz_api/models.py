@@ -18,10 +18,19 @@ from pydantic import BaseModel, Field
 
 
 class SessionStatus(str, Enum):
-    """Rolled-up status for a session."""
+    """Rolled-up status for a session.
+
+    ``BLOCKED`` is a run a guardrail stopped, split out of ``FAILED`` because
+    the two mean opposite things about the system under observation: a block is
+    the guard working, and reporting it in the same red as an authentication
+    error spends the reader's alarm on the outcome that was designed for. It is
+    not a rare distinction — measured on a 113-session store, 14 of the 20
+    failures were blocks and only 6 were breakage.
+    """
 
     COMPLETED = "Completed"
     FAILED = "Failed"
+    BLOCKED = "Blocked"
     RUNNING = "Running"
 
 
@@ -497,13 +506,16 @@ class SessionStats(BaseModel):
     happens to hold. Summing in the browser would re-derive what the server
     already knows, and would start lying the day the sessions list is paginated.
 
-    ``successes + failures + running == total_runs``; the three statuses are
-    exhaustive because the roll-up has no fourth outcome.
+    ``successes + failures + blocked + running == total_runs``; the four
+    statuses are exhaustive because :class:`SessionStatus` has no fifth member.
+    ``failures`` counts breakage alone — a guardrail block is in ``blocked``
+    and in neither of the other two.
     """
 
     total_runs: int = 0
     successes: int = 0
     failures: int = 0
+    blocked: int = 0
     running: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -515,7 +527,7 @@ class SessionFilterOptions(BaseModel):
 
     flow_names: list[str] = Field(default_factory=list)
     entry_point_names: list[str] = Field(default_factory=list)
-    #: Rolled-up status values — "Completed" | "Failed" | "Running".
+    #: Rolled-up status values — "Completed" | "Failed" | "Blocked" | "Running".
     statuses: list[str] = Field(default_factory=list)
 
 

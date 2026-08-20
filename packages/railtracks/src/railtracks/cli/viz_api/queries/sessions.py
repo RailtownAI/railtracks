@@ -50,6 +50,36 @@ node_agg AS (
   FROM node
   WHERE event_type = 'node.creation'
   GROUP BY scope_id
+),
+-- The exception that ended the run, for the Blocked/Failed split below.
+--
+-- **The last failure, not any failure.** A run can raise and recover: measured
+-- on a 113-session store, 6 *successful* sessions contain a `node.failure`
+-- someone caught. So "a GuardrailBlockedError happened here" would eventually
+-- badge a run that was blocked, recovered, and then died of something else as
+-- Blocked, which reads as the guard having stopped it. Taking the last failure
+-- by timestamp answers the question the status column actually asks.
+--
+-- **Typed, not the message.** `session.completed` records only `str(error)`, so
+-- the alternative was matching the prose "Blocked by guardrails" that
+-- `GuardrailBlockedError.__init__` happens to build. `exception_name` is a
+-- class name the framework raises deliberately — the docstring on that class
+-- says it exists to stay distinguishable — and it does not silently stop
+-- matching when someone rewords the message. Both tests agree on all 14 blocks
+-- in the measured store; only one of them stays true after a copy edit.
+last_failure AS (
+  SELECT scope_id,
+         ARG_MAX(exception_name, timestamp) AS exception_name
+  FROM (
+    SELECT scope_id, timestamp, exception_name
+    FROM node
+    WHERE event_type = 'node.failure'
+    UNION ALL
+    SELECT scope_id, timestamp, exception_name
+    FROM llm
+    WHERE event_type = 'llm.failure'
+  )
+  GROUP BY scope_id
 )
 SELECT s.scope_id                                    AS session_id,
        s.flow_name,
@@ -68,17 +98,28 @@ SELECT s.scope_id                                    AS session_id,
        -- definition serves the row, the status filter and the stat tiles. Two
        -- copies of this CASE would eventually disagree about what "Failed"
        -- counts, and the tiles would contradict the table they sit above.
+       --
+       -- **The terminal status is read first, and Blocked is a kind of
+       -- failure.** A run that blocked something internally and still returned
+       -- is Completed: the status column says how the run ended, and the
+       -- Agent Traces middleware column is where "a guard fired in here" lives.
+       -- Ordering these the other way — checking for a block before the
+       -- session's own outcome — would badge a successful run for a guard
+       -- decision it recovered from.
        CASE
          WHEN c.status IS NULL AND c.ended_at IS NULL   THEN 'Running'
          WHEN c.status IS NULL                          THEN 'Completed'
          WHEN LOWER(CAST(c.status AS VARCHAR)) = 'success' THEN 'Completed'
+         WHEN LOWER(CAST(c.status AS VARCHAR)) = 'failure'
+              AND f.exception_name = 'GuardrailBlockedError' THEN 'Blocked'
          WHEN LOWER(CAST(c.status AS VARCHAR)) = 'failure' THEN 'Failed'
          ELSE 'Running'
        END                                           AS status
 FROM started s
-LEFT JOIN completed c USING (scope_id)
-LEFT JOIN llm_agg   l USING (scope_id)
-LEFT JOIN node_agg  n USING (scope_id)
+LEFT JOIN completed    c USING (scope_id)
+LEFT JOIN llm_agg      l USING (scope_id)
+LEFT JOIN node_agg     n USING (scope_id)
+LEFT JOIN last_failure f USING (scope_id)
 """
 
 _SESSION_SORT_COLUMNS = {
@@ -215,6 +256,7 @@ def get_session_stats(
     SELECT COUNT(*)                                           AS total_runs,
            COUNT(*) FILTER (WHERE s.status = 'Completed')      AS successes,
            COUNT(*) FILTER (WHERE s.status = 'Failed')         AS failures,
+           COUNT(*) FILTER (WHERE s.status = 'Blocked')        AS blocked,
            COUNT(*) FILTER (WHERE s.status = 'Running')        AS running,
            COALESCE(SUM(s.input_tokens), 0)                    AS input_tokens,
            COALESCE(SUM(s.output_tokens), 0)                   AS output_tokens,

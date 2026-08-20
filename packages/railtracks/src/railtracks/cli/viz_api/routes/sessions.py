@@ -131,6 +131,7 @@ async def get_session_stats(
         total_runs=int(stats.get("total_runs") or 0),
         successes=int(stats.get("successes") or 0),
         failures=int(stats.get("failures") or 0),
+        blocked=int(stats.get("blocked") or 0),
         running=int(stats.get("running") or 0),
         input_tokens=int(stats.get("input_tokens") or 0),
         output_tokens=int(stats.get("output_tokens") or 0),
