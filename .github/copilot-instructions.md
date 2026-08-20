@@ -134,10 +134,6 @@ print('✓ Basic functionality test passed!')
 
 ## Common Issues and Workarounds
 
-### `RuntimeError` from `Flow.invoke()`
-
-`Flow.invoke()` is the synchronous entry point and cannot run inside an already-running event loop (Jupyter, FastAPI handlers, another async function). Use `await flow.ainvoke(...)` there instead.
-
 ### `ModuleNotFoundError` for an optional dependency
 
 Heavy dependencies are gated behind extras and exposed via lazy module-level `__getattr__` imports. If an import fails, install the extra that owns it (e.g. `railtracks[retrieval]`, `railtracks[visual]`) rather than adding a top-level import.
@@ -186,6 +182,7 @@ Steps 3 and 4 are gated on changed paths, so a docs-only PR skips the test suite
 - Add SDK dependencies in `packages/railtracks/pyproject.toml`, keeping each list sorted. Optional/heavy dependencies go under `optional-dependencies`.
 - Keep the base import light: gate heavy dependencies behind extras with module-level `__getattr__` lazy imports plus a `TYPE_CHECKING` block, not top-level imports.
 - Update `docs/` alongside any feature change.
+- Use `await flow.ainvoke(...)` in async code and `flow.invoke(...)` in sync code. `invoke()` also works inside a running event loop, dispatching to a worker thread with contextvars copied across.
 
 ---
 
