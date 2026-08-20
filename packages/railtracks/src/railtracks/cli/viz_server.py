@@ -1,6 +1,7 @@
 """FastAPI + uvicorn visualizer server (requires railtracks[visual])."""
 
 import json
+import os.path
 import threading
 import time
 import webbrowser
@@ -110,6 +111,24 @@ _UI_SUBDIR: str = "ui"
 _SESSION_GUID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$"
 
 
+def _is_within(base: Path, candidate: Path) -> bool:
+    """Return True iff ``candidate`` resolves inside ``base``.
+
+    Both paths must already be absolute and normalized (``.resolve()``
+    output). ``os.path.commonpath`` is the containment shape CodeQL
+    recognises as a sanitizer for ``py/path-injection``; the equivalent
+    ``Path.relative_to`` check that used to live here was semantically
+    correct but tripped the rule on every scan of the two file-reading
+    endpoints below.
+    """
+    try:
+        return os.path.commonpath([str(base), str(candidate)]) == str(base)
+    except ValueError:
+        # Different drives on Windows, or an empty candidate. Not
+        # ``within`` in either case.
+        return False
+
+
 def get_railtracks_dir() -> Path:
     """Get the .railtracks directory path"""
     return resolve_railtracks_home()
@@ -179,8 +198,9 @@ async def get_session(
     sessions_dir = get_data_dir("sessions").resolve()
     try:
         direct_file = (sessions_dir / f"{guid}.json").resolve()
-        direct_file.relative_to(sessions_dir)
     except (OSError, RuntimeError, ValueError):
+        return JSONResponse(content={"error": "Session not found"}, status_code=404)
+    if not _is_within(sessions_dir, direct_file):
         return JSONResponse(content={"error": "Session not found"}, status_code=404)
 
     file_path: Path | None = direct_file if direct_file.is_file() else None
@@ -194,8 +214,9 @@ async def get_session(
                 continue
             try:
                 resolved = candidate.resolve()
-                resolved.relative_to(sessions_dir)
             except (OSError, RuntimeError, ValueError):
+                continue
+            if not _is_within(sessions_dir, resolved):
                 continue
             if resolved.is_file():
                 file_path = resolved
@@ -225,8 +246,9 @@ async def serve_ui_or_404(full_path: str):
     ui_dir = (get_railtracks_dir() / _UI_SUBDIR).resolve()
     try:
         ui_file = (ui_dir / full_path).resolve()
-        ui_file.relative_to(ui_dir)
     except (OSError, RuntimeError, ValueError):
+        return JSONResponse(content={"error": "Not Found"}, status_code=404)
+    if not _is_within(ui_dir, ui_file):
         # Reject ``..`` segments and symlinks that resolve outside the selected
         # UI bundle. The visualizer may run beside secrets such as ``.env``.
         return JSONResponse(content={"error": "Not Found"}, status_code=404)
