@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import functools
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Concatenate,
@@ -19,11 +18,9 @@ from railtracks.events.send import emit
 from railtracks.llm import (
     Tool,
 )
+from railtracks.llm.middleware import ModelMiddleware
 from railtracks.middleware.core import Middleware, wrap_node
 from railtracks.nodes.nodes import Node
-
-if TYPE_CHECKING:
-    from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 
 
 def classmethod_preserving_function_meta(func):
