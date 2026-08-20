@@ -2,8 +2,9 @@
 
 A single :class:`~railtracks.query.EventQuery` is kept alive for the life of
 the process. Callers reach it through :func:`get_query`, which reopens the
-connection on first use and refreshes it whenever the set of ``*.jsonl`` files
-or one of their sizes or modification times changes.
+connection on first use and refreshes it whenever the set of ``*.jsonl`` file
+paths changes. DuckDB re-reads the contents behind existing paths on each query,
+so appends and same-path replacements need no view rebuild.
 """
 
 from __future__ import annotations
@@ -19,35 +20,25 @@ from .._logging import debug_event
 _NAMESPACES = ["session", "node", "llm", "middleware"]
 
 
-FileSignature = tuple[tuple[str, int, int], ...]
+FileSignature = tuple[str, ...]
 
 
 def _file_signature(events_dir: Path) -> FileSignature:
-    """Snapshot the files that define an ``EventQuery`` view.
+    """Return the concrete file paths captured by the DuckDB view.
 
-    DuckDB's view contains the concrete file list present at refresh time, so
-    tracking only the newest mtime misses deletion of an older file and import
-    of a file whose preserved timestamp predates the current newest file.
+    The view re-reads existing paths when it executes, including after an append
+    or same-path replacement. Only additions and deletions change the view
+    definition and require ``refresh()``.
     """
-    signature: list[tuple[str, int, int]] = []
-    for file in sorted(events_dir.glob("*.jsonl")):
-        try:
-            stat = file.stat()
-        except FileNotFoundError:
-            # A writer or cleanup may race the directory scan. The next request
-            # will see the settled file set and refresh if necessary.
-            continue
-        signature.append((str(file), stat.st_size, stat.st_mtime_ns))
-    return tuple(signature)
+    return tuple(str(file) for file in sorted(events_dir.glob("*.jsonl")))
 
 
 class _ConnectionRegistry:
     """Holds the shared ``EventQuery`` and serialises open / refresh / close.
 
-    The lock is a defensive posture for a future where more than one thread
-    reaches this code — the current FastAPI setup runs handlers on the event
-    loop thread, so at most one caller is here at a time, but the state
-    transitions are cheap to guard and expensive to debug if they interleave.
+    FastAPI reaches the registry through async dependencies, keeping acquisition
+    and the route's synchronous DuckDB work on the event-loop thread. The lock
+    still protects shutdown and direct callers from interleaving state changes.
     """
 
     def __init__(self) -> None:

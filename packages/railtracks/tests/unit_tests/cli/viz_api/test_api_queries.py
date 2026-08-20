@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import inspect
 import json
 import os
+import threading
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 
+import duckdb
 import pytest
 from fastapi.testclient import TestClient
 from railtracks.cli.viz_api import queries
 from railtracks.cli.viz_api._logging import set_debug
 from railtracks.cli.viz_api.models import MiddlewareSortField, SortOrder
+from railtracks.cli.viz_api.routes._common import get_query_or_404, get_query_or_none
 from railtracks.cli.viz_server import app
 from railtracks.observability.storage import EVENTS_DIR_ENV
 
@@ -222,6 +227,145 @@ def test_connection_refreshes_when_older_file_is_added_or_removed(
     query = queries.get_query(tmp_path)
     assert query is not None
     assert query.con.execute("SELECT COUNT(*) FROM events").fetchone() == (1,)
+
+
+def test_connection_reads_appends_without_refresh(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file = _write_events(
+        tmp_path,
+        "session",
+        _event("event-one", "session.started", "session", {"session_id": "session"}),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    def unexpected_refresh() -> None:
+        pytest.fail("an append to an existing path must not rebuild DuckDB views")
+
+    monkeypatch.setattr(query, "refresh", unexpected_refresh)
+    with file.open("a", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps(
+                _event(
+                    "event-two",
+                    "session.completed",
+                    "session",
+                    {"session_id": "session", "status": "success"},
+                )
+            )
+            + "\n"
+        )
+
+    same_query = queries.get_query(tmp_path)
+
+    assert same_query is query
+    assert query.con.execute("SELECT COUNT(*) FROM events").fetchone() == (2,)
+
+
+def test_connection_reads_same_path_replacement_without_refresh(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file = _write_events(
+        tmp_path,
+        "session",
+        _event("old-event", "session.started", "session", {"session_id": "session"}),
+    )
+    original_stat = file.stat()
+    original_size = original_stat.st_size
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    def unexpected_refresh() -> None:
+        pytest.fail("a same-path replacement must not rebuild DuckDB views")
+
+    monkeypatch.setattr(query, "refresh", unexpected_refresh)
+    _write_events(
+        tmp_path,
+        "session",
+        _event("new-event", "session.started", "session", {"session_id": "session"}),
+    )
+    assert file.stat().st_size == original_size
+    os.utime(
+        file,
+        ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns),
+    )
+
+    same_query = queries.get_query(tmp_path)
+
+    assert same_query is query
+    assert query.con.execute("SELECT event_id FROM events").fetchall() == [
+        ("new-event",)
+    ]
+
+
+def test_connection_closes_on_empty_store_and_reopens_for_a_new_file(
+    tmp_path: Path,
+) -> None:
+    file = _write_events(
+        tmp_path,
+        "first",
+        _event("first", "session.started", "first", {"session_id": "first"}),
+    )
+    first_query = queries.get_query(tmp_path)
+    assert first_query is not None
+
+    file.unlink()
+    assert queries.get_query(tmp_path) is None
+    with pytest.raises(duckdb.ConnectionException):
+        first_query.con.execute("SELECT 1")
+
+    _write_events(
+        tmp_path,
+        "second",
+        _event("second", "session.started", "second", {"session_id": "second"}),
+    )
+    second_query = queries.get_query(tmp_path)
+
+    assert second_query is not None
+    assert second_query is not first_query
+    assert second_query.con.execute("SELECT event_id FROM events").fetchall() == [
+        ("second",)
+    ]
+
+
+def test_api_dependency_and_queries_share_the_event_loop_thread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    query = SimpleNamespace(con=object())
+    thread_ids: dict[str, int] = {}
+
+    def fake_get_query(_events_dir: Path):
+        thread_ids["dependency"] = threading.get_ident()
+        return query
+
+    def fake_list_session_rows(*_args: object, **_kwargs: object):
+        thread_ids["list"] = threading.get_ident()
+        return []
+
+    def fake_list_middleware(*_args: object, **_kwargs: object):
+        thread_ids["middleware"] = threading.get_ident()
+        return {}
+
+    def fake_count_session_rows(*_args: object, **_kwargs: object):
+        thread_ids["count"] = threading.get_ident()
+        return 0
+
+    monkeypatch.setattr(queries, "get_query", fake_get_query)
+    monkeypatch.setattr(queries, "list_session_rows", fake_list_session_rows)
+    monkeypatch.setattr(queries, "list_middleware_by_session", fake_list_middleware)
+    monkeypatch.setattr(queries, "count_session_rows", fake_count_session_rows)
+
+    response = TestClient(app).get("/api/v2/sessions")
+
+    assert response.status_code == 200
+    assert len(set(thread_ids.values())) == 1
+
+
+def test_both_query_dependencies_remain_async() -> None:
+    assert inspect.iscoroutinefunction(get_query_or_none)
+    assert inspect.iscoroutinefunction(get_query_or_404)
 
 
 def test_blocks_only_includes_middleware_that_raised(tmp_path: Path) -> None:

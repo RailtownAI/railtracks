@@ -22,20 +22,23 @@ _SESSION_ID_PATTERN = (
 )
 
 
-def get_query_or_none() -> EventQuery | None:
+async def get_query_or_none() -> EventQuery | None:
     """FastAPI dependency: shared query connection, or ``None`` if no events home.
 
     Used by list/stats/filter endpoints, which return an empty payload rather
-    than a 404 when nothing has been recorded yet.
+    than a 404 when nothing has been recorded yet. This is deliberately async
+    despite doing no awaited work: FastAPI otherwise runs a synchronous
+    dependency in its threadpool, where it could refresh the shared connection
+    while the async route is querying it on the event-loop thread.
     """
     return queries.get_query(resolve_events_dir())
 
 
-def get_query_or_404() -> EventQuery:
+async def get_query_or_404() -> EventQuery:
     """FastAPI dependency: shared query connection, or raises 404.
 
     Used by detail endpoints, where "no events home" is not a valid state to
-    answer from.
+    answer from. See :func:`get_query_or_none` for why this dependency is async.
     """
     query = queries.get_query(resolve_events_dir())
     if query is None:
