@@ -311,6 +311,40 @@ def _load_skill_content(skill_name: str) -> str:
     return skill_file.read_text(encoding="utf-8")
 
 
+def _strip_skill_arguments(content: str) -> str:
+    """Resolve the `$ARGUMENTS` placeholder for targets that never substitute it.
+
+    Claude Code and Codex invoke a skill with arguments, so `$ARGUMENTS` is filled in
+    at call time. Copilot reads `copilot-instructions.md` as always-on repository
+    context instead, so the placeholder would ship to the model literally.
+    """
+    kept: list[str] = []
+    drop_next_blank = False
+    for line in content.splitlines():
+        if drop_next_blank and not line.strip():
+            drop_next_blank = False
+            continue
+        drop_next_blank = False
+
+        if "$ARGUMENTS" not in line:
+            kept.append(line)
+            continue
+
+        # A whole line that only exists to introduce the argument is dropped, along
+        # with the blank line it would otherwise leave behind; an inline mention is
+        # reworded in place.
+        if line.rstrip().endswith(": $ARGUMENTS"):
+            drop_next_blank = bool(kept) and not kept[-1].strip()
+            continue
+
+        kept.append(
+            line.replace("`$ARGUMENTS`", "the request").replace(
+                "$ARGUMENTS", "the request"
+            )
+        )
+    return "\n".join(kept)
+
+
 def _confirm_overwrite(file_path: Path) -> bool:
     """Prompt the user to confirm overwriting an existing file. Returns True to proceed."""
     try:
@@ -378,15 +412,20 @@ def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None
                 sys.exit(0)
             start_idx = existing.index(start_marker)
             end_idx = existing.index(end_marker) + len(end_marker)
-            existing = existing[:start_idx].rstrip() + existing[end_idx:]
-            target.write_text(existing, encoding="utf-8")
+            existing = existing[:start_idx] + existing[end_idx:]
     else:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("", encoding="utf-8")
+        existing = ""
 
-    section = f"\n\n{start_marker}\n{content.strip()}\n{end_marker}\n"
-    with open(target, "a", encoding="utf-8") as f:
-        f.write(section)
+    # Rewrite rather than append, so regenerating a skill in place is byte-identical
+    # to installing it fresh and repeated --force runs don't accumulate blank lines.
+    preamble = existing.rstrip()
+    section = (
+        f"{start_marker}\n{_strip_skill_arguments(content).strip()}\n{end_marker}\n"
+    )
+    target.write_text(
+        f"{preamble}\n\n{section}" if preamble else section, encoding="utf-8"
+    )
     print_success(f"Installed '{skill_name}' for GitHub Copilot -> {target}")
 
 
@@ -444,6 +483,27 @@ def add_skill(spec: str, force: bool = False) -> None:
     _TOOL_HANDLERS[tool](skill_name, meta, content, force)
 
 
+def list_skills() -> None:
+    """Print the bundled skills and the assistants they can be installed for."""
+    rst = Style.RESET_ALL
+    bold = Style.BRIGHT
+    dim = Style.DIM
+    cyan = Fore.CYAN
+    green = Fore.GREEN
+
+    print()
+    print(f"  {bold}Available skills:{rst}")
+    print()
+    for skill_name, meta in SKILLS.items():
+        print(f"  {cyan}{bold}{skill_name}{rst}  {dim}{meta['argument_hint']}{rst}")
+        print(f"    {meta['description']}")
+        print()
+    print(f"  {bold}Supported tools:{rst}  {', '.join(SUPPORTED_TOOLS)}")
+    print()
+    print(f"  {dim}Install with:{rst}  {green}{cli_name} add <tool>:<skill>{rst}")
+    print()
+
+
 def _print_help():
     """Print styled help output."""
     rst = Style.RESET_ALL
@@ -486,7 +546,7 @@ def _print_help():
     print(
         cmd(
             "add",
-            f"Install an AI coding assistant skill  {dim}(e.g. {cli_name} add claude:agent-builder){rst}",
+            f"Install an AI coding assistant skill  {dim}(--list to see them all){rst}",
         )
     )
     print()
@@ -519,14 +579,8 @@ def _print_help():
     )
     print(
         example(
-            f"{cli_name} add claude:rag-pipeline",
-            "Install RAG pipeline skill for Claude Code",
-        )
-    )
-    print(
-        example(
-            f"{cli_name} add copilot:rag-pipeline",
-            "Install RAG pipeline skill for GitHub Copilot",
+            f"{cli_name} add --list",
+            "List every bundled skill and supported tool",
         )
     )
     print()
@@ -536,6 +590,25 @@ def _exit_visual_deps_missing() -> None:
     print_error("The visualizer requires optional dependencies.")
     print_status("Install with: pip install 'railtracks[visual]'")
     sys.exit(1)
+
+
+def _run_add(args: list[str]) -> None:
+    """Handle `railtracks add`: either list the bundled skills or install one."""
+    if any(a in ("--list", "-l") for a in args):
+        list_skills()
+        return
+
+    if not args or args[0].startswith("-"):
+        print_error(
+            "Usage: railtracks add [--force] <tool>:<skill> | railtracks add --list"
+        )
+        print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
+        print_status(f"Available skills: {', '.join(SKILLS)}")
+        sys.exit(1)
+
+    force = "--force" in args
+    spec = next((a for a in args if not a.startswith("-")), None)
+    add_skill(spec, force=force)
 
 
 def main():
@@ -585,15 +658,7 @@ def main():
         server = RailtracksServer(port=port, ui_subdir=ui_subdir, beta=beta)
         server.start()
     elif command == "add":
-        args = sys.argv[2:]
-        if not args or args[0].startswith("-"):
-            print_error("Usage: railtracks add [--force] <tool>:<skill>")
-            print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
-            print_status(f"Available skills: {', '.join(SKILLS)}")
-            sys.exit(1)
-        force = "--force" in args
-        spec = next((a for a in args if not a.startswith("-")), None)
-        add_skill(spec, force=force)
+        _run_add(sys.argv[2:])
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
         print(f"{Style.DIM}Available commands: init, update, viz, add{Style.RESET_ALL}")
