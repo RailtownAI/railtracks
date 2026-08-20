@@ -29,8 +29,6 @@ def test_agent_node_output_schema_only(mock_llm, mock_schema, mock_sys_mes):
 def test_agent_node_tool_nodes_and_output_schema_raises_at_creation(
     mock_tool_node, mock_llm, mock_schema, mock_sys_mes
 ):
-    # Combining tool_nodes with output_schema is unsupported (#1408): the model does not
-    # reliably call the tool in this mode and may fabricate a plausible tool result instead.
     with pytest.raises(NodeCreationError, match="tool_nodes and output_schema"):
         agent_node(
             name="AgentWithToolsAndSchema",
