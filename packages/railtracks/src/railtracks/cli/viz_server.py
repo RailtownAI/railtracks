@@ -110,11 +110,13 @@ _UI_SUBDIR: str = "ui"
 # value reaches the filesystem.
 _SESSION_GUID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$"
 
-# Sanitizer shape below. Containment is checked in the exact ``normalized
-# path + startswith base + sep`` form that CodeQL's ``py/path-injection``
-# recognises as a barrier guard — and it is inlined at each call site rather
-# than wrapped in a helper, because the taint tracker does not follow
-# ``py/path-injection`` sanitizers through a function call.
+# Containment is checked in the ``normalized path + startswith base + sep`` shape
+# that matches CodeQL's ``py/path-injection`` GOOD example. It is a genuine
+# runtime guard against symlink escape and ``..`` segments; the two v1 endpoints
+# below still light up ``py/path-injection`` at scan time because their design —
+# read a file whose name comes from URL input — is what the query is designed
+# to flag. The guard here is what the tests in ``tests/unit_tests/cli/test_cli.py``
+# cover; the CodeQL false positives are tracked separately for dismissal.
 
 
 def get_railtracks_dir() -> Path:
@@ -178,39 +180,56 @@ async def get_sessions():
     return JSONResponse(content=sessions)
 
 
+def _find_session_file(sessions_dir: Path, guid: str) -> Path | None:
+    """Return the JSON file for ``guid`` under ``sessions_dir``, or ``None``.
+
+    The stable writer produces either ``{guid}.json`` or, when the flow has a
+    name, ``{flow_name}_{guid}.json``. Both are looked up here; the resolved
+    path is contained-checked against ``sessions_dir`` before it is returned,
+    so a symlink escape or a ``..`` segment is treated as "not found" rather
+    than raising.
+
+    Split out of :func:`get_session` for readability, and so the containment
+    check is stated once per lookup rather than duplicated inline.
+    """
+    sessions_prefix = str(sessions_dir) + os.sep
+
+    try:
+        direct_file = (sessions_dir / f"{guid}.json").resolve()
+    except (OSError, RuntimeError, ValueError):
+        direct_file = None
+    if (
+        direct_file is not None
+        and str(direct_file).startswith(sessions_prefix)
+        and direct_file.is_file()
+    ):
+        return direct_file
+
+    # Enumerate the directory and compare names, so no user input is
+    # interpolated into a glob expression.
+    expected_suffix = f"_{guid}.json"
+    for candidate in sessions_dir.glob("*.json"):
+        if not candidate.name.endswith(expected_suffix):
+            continue
+        try:
+            resolved = candidate.resolve()
+        except (OSError, RuntimeError, ValueError):
+            continue
+        if not str(resolved).startswith(sessions_prefix):
+            continue
+        if resolved.is_file():
+            return resolved
+
+    return None
+
+
 @app.get("/api/sessions/{guid}", tags=["v1 (stable)"])
 async def get_session(
     guid: str = PathParam(..., pattern=_SESSION_GUID_PATTERN),
 ):
     """Get a specific session JSON file by GUID from .railtracks/data/sessions/ (v1)"""
     sessions_dir = get_data_dir("sessions").resolve()
-    sessions_prefix = str(sessions_dir) + os.sep
-    try:
-        direct_file = (sessions_dir / f"{guid}.json").resolve()
-    except (OSError, RuntimeError, ValueError):
-        return JSONResponse(content={"error": "Session not found"}, status_code=404)
-    if not str(direct_file).startswith(sessions_prefix):
-        return JSONResponse(content={"error": "Session not found"}, status_code=404)
-
-    file_path: Path | None = direct_file if direct_file.is_file() else None
-    if file_path is None:
-        # The stable writer may prefix the GUID with a flow name. Enumerate a
-        # fixed pattern and compare names instead of interpolating user input
-        # into a glob expression.
-        expected_suffix = f"_{guid}.json"
-        for candidate in sessions_dir.glob("*.json"):
-            if not candidate.name.endswith(expected_suffix):
-                continue
-            try:
-                resolved = candidate.resolve()
-            except (OSError, RuntimeError, ValueError):
-                continue
-            if not str(resolved).startswith(sessions_prefix):
-                continue
-            if resolved.is_file():
-                file_path = resolved
-                break
-
+    file_path = _find_session_file(sessions_dir, guid)
     if file_path is None:
         return JSONResponse(content={"error": "Session not found"}, status_code=404)
 
