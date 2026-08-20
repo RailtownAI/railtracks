@@ -63,9 +63,9 @@ async def test_pipe_resolves_relationships_and_publishes_payload():
 
     p = ev.payload
     # the resolved relationships flatten into <field>_<subfield> keys
-    assert p["parent_parent_type"] == "node"
+    assert p["parent_type"] == "node"
     assert p["parent_node_id"] == "n1"
-    assert p["spatial_parent_spatial_type"] == "node"
+    assert p["spatial_parent_type"] == "node"
     assert p["spatial_parent_node_id"] == "caller"
     # payload values are passed through untouched: tuple stays tuple, datetime stays datetime
     assert p["args"] == (1,)
@@ -81,7 +81,7 @@ async def test_pipe_root_node_has_no_enclosing_node():
         events = await _emit(NodeInvocation(args=(), kwargs={}))
 
     p = events[0].payload
-    assert p["parent_parent_type"] == "node"
+    assert p["parent_type"] == "node"
     assert p["parent_node_id"] == "root"
-    assert p["spatial_parent_spatial_type"] == "node"
+    assert p["spatial_parent_type"] == "node"
     assert p["spatial_parent_node_id"] is None

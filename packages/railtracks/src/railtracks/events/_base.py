@@ -48,9 +48,9 @@ class SpatialType(str, Enum):
 @dataclass(frozen=True)
 class SpatialParent:
     def __post_init__(self):
-        if not hasattr(self, "spatial_type"):
+        if not hasattr(self, "type"):
             raise ValueError(
-                f"SpatialParent subclass {self.__class__.__name__} must define a 'spatial_type' field."
+                f"SpatialParent subclass {self.__class__.__name__} must define a 'type' field."
             )
 
     def encode(self):
@@ -59,7 +59,7 @@ class SpatialParent:
 
 @dataclass(frozen=True)
 class MiddlewareSpatialParent(SpatialParent):
-    spatial_type: Literal[SpatialType.MIDDLEWARE] = field(
+    type: Literal[SpatialType.MIDDLEWARE] = field(
         init=False, default=SpatialType.MIDDLEWARE
     )
     middleware_invoke_id: str
@@ -67,15 +67,13 @@ class MiddlewareSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class NodeSpatialParent(SpatialParent):
-    spatial_type: Literal[SpatialType.NODE] = field(
-        init=False, default=SpatialType.NODE
-    )
+    type: Literal[SpatialType.NODE] = field(init=False, default=SpatialType.NODE)
     node_id: str | None
 
 
 @dataclass(frozen=True)
 class NodeAndMiddlewareSpatialParent(SpatialParent):
-    spatial_type: Literal[SpatialType.NODE_AND_MIDDLEWARE] = field(
+    type: Literal[SpatialType.NODE_AND_MIDDLEWARE] = field(
         init=False, default=SpatialType.NODE_AND_MIDDLEWARE
     )
     node_id: str
@@ -84,7 +82,7 @@ class NodeAndMiddlewareSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class LLMAndMiddlewareSpatialParent(SpatialParent):
-    spatial_type: Literal[SpatialType.LLM_AND_MIDDLEWARE] = field(
+    type: Literal[SpatialType.LLM_AND_MIDDLEWARE] = field(
         init=False, default=SpatialType.LLM_AND_MIDDLEWARE
     )
     llm_invoke_id: str
@@ -93,9 +91,7 @@ class LLMAndMiddlewareSpatialParent(SpatialParent):
 
 @dataclass(frozen=True)
 class NoSpatialParent(SpatialParent):
-    spatial_type: Literal[SpatialType.NONE] = field(
-        init=False, default=SpatialType.NONE
-    )
+    type: Literal[SpatialType.NONE] = field(init=False, default=SpatialType.NONE)
 
 
 class ParentType(str, Enum):
@@ -111,9 +107,9 @@ class ParentType(str, Enum):
 @dataclass(frozen=True)
 class Parent:
     def __post_init__(self):
-        if not hasattr(self, "parent_type"):
+        if not hasattr(self, "type"):
             raise ValueError(
-                f"Parent subclass {self.__class__.__name__} must define a 'parent_type' field."
+                f"Parent subclass {self.__class__.__name__} must define a 'type' field."
             )
 
     def encode(self):
@@ -122,13 +118,13 @@ class Parent:
 
 @dataclass(frozen=True)
 class NodeParent(Parent):
-    parent_type: Literal[ParentType.NODE] = field(init=False, default=ParentType.NODE)
+    type: Literal[ParentType.NODE] = field(init=False, default=ParentType.NODE)
     node_id: str
 
 
 @dataclass(frozen=True)
 class MiddlewareParent(Parent):
-    parent_type: Literal[ParentType.MIDDLEWARE] = field(
+    type: Literal[ParentType.MIDDLEWARE] = field(
         init=False, default=ParentType.MIDDLEWARE
     )
     middleware_type_id: str
@@ -137,7 +133,7 @@ class MiddlewareParent(Parent):
 
 @dataclass(frozen=True)
 class LLMParent(Parent):
-    parent_type: Literal[ParentType.LLM] = field(init=False, default=ParentType.LLM)
+    type: Literal[ParentType.LLM] = field(init=False, default=ParentType.LLM)
     llm_type_id: str
     llm_invoke_id: str
 

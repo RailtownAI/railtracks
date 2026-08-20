@@ -73,3 +73,41 @@ def is_hyperparameter_supported(
         return True
 
     return hyperparameter in supported
+
+
+def default_reasoning_effort_for_tools(
+    model_name: str,
+    reasoning_effort: str | None,
+    *,
+    has_tools: bool,
+) -> str | None:
+    """Returns the `reasoning_effort` that should actually be sent for a call that may
+    include tools.
+
+    OpenAI reasoning models (the gpt-5.4+ family) silently substitute their own non-"none"
+    default `reasoning_effort` server-side when the caller omits it, and that default
+    conflicts with function tools on `/v1/chat/completions` (#1394). If the caller hasn't
+    set `reasoning_effort` explicitly, tools are present, and litellm's model-info catalog
+    says the model supports `reasoning_effort="none"`, force it to avoid that failure.
+
+    An explicitly requested `reasoning_effort` is always passed through untouched — litellm's
+    own Responses-API bridge already routes gpt-5.4+ tool calls through `/v1/responses` on its
+    own once `reasoning_effort` is set to anything.
+
+    Fails open (returns `reasoning_effort` unchanged) whenever litellm can't tell us the model
+    supports "none" reasoning — we never guess.
+    """
+    if reasoning_effort is not None or not has_tools:
+        return reasoning_effort
+
+    try:
+        model_info = litellm.get_model_info(model_name)
+    except Exception:
+        return reasoning_effort
+
+    if model_info.get("supports_reasoning") and model_info.get(
+        "supports_none_reasoning_effort"
+    ):
+        return "none"
+
+    return reasoning_effort
