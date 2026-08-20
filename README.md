@@ -52,7 +52,7 @@ agent = rt.agent_node(
 # Run it
 flow = rt.Flow(name="Weather Flow", entry_point=agent)
 result = flow.invoke("What's the weather in Paris?")
-# or `await flow.ainvoke("What's the weather in Paris?)` in an async context
+# or `await flow.ainvoke("What's the weather in Paris?")` in an async context
 print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
