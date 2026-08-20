@@ -47,14 +47,6 @@ core-licenses-summary.md
 # Ignore Files copied during release workflow for PyPI packaging (for Flit)
 packages/railtracks/docs/
 
-
-.claude
-CLAUDE.md
+.claude/settings.local.json
+.claude/**/*.local.*
 graphify-out/
-
-# Personal ticket scratch docs / playground scripts -- never meant to be pushed
-flow.md
-decisions.md
-middleware_explained.md
-middleware_playground.py
-verifier_playground.py
