@@ -157,6 +157,18 @@ class ModelBase(ABC):
         async for item in self._astream_structured(messages, schema):
             yield item
 
+    def supports_streamed_tool_calling(self) -> bool:
+        """Whether `astream_chat_with_tools` can stream on this model.
+
+        A model that routes tool calls through an API without incremental support should
+        return False; `rt.astream` then runs the call buffered (with a warning) rather than
+        failing, so the final result is unaffected and only the incremental chunks are lost.
+
+        Returns:
+            bool: True by default — subclasses narrow this where they can tell.
+        """
+        return True
+
     # ================ END Streaming (per-call) LLM calls ===============
 
     @abstractmethod

@@ -20,7 +20,6 @@ from railtracks.events.send import emit
 from railtracks.exceptions.errors import LLMError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.model import ModelBase
-from railtracks.llm.providers import TOOL_CALLING_STREAMING_BLACKLIST
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
@@ -38,8 +37,9 @@ def _stream_queue_if_enabled(
 
     Streaming is requested at the call site (`rt.astream`), which sets a per-call queue on the
     entry frame's context. This returns that queue only when streaming is genuinely available
-    for this call, otherwise None (the call runs buffered). Tool-calling requests against
-    blacklisted providers fall back to a buffered call (with a warning) instead of erroring.
+    for this call, otherwise None (the call runs buffered). A tool-calling request against a
+    model that cannot stream tool calls falls back to a buffered call (with a warning) instead
+    of erroring.
     """
     queue = get_stream_queue()
     if queue is None:
@@ -47,11 +47,12 @@ def _stream_queue_if_enabled(
     if (
         tools is not None
         and len(tools) > 0
-        and model.model_provider() in TOOL_CALLING_STREAMING_BLACKLIST
+        and not model.supports_streamed_tool_calling()
     ):
         logger.warning(
-            "Streaming is not supported with %s for tool calling; falling back to a "
+            "Streaming is not supported by %s (%s) for tool calling; falling back to a "
             "buffered response.",
+            model.model_name(),
             model.model_provider(),
         )
         return None
