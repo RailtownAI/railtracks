@@ -1,4 +1,7 @@
+import asyncio
+import gc
 import json
+import threading
 from json import JSONDecodeError
 from typing import Generator, Literal
 from json import JSONDecodeError
@@ -13,6 +16,7 @@ from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
+    _retrieve_worker_exception,
     _to_litellm_tool,
 )
 from railtracks.llm.providers import ModelProvider
@@ -510,6 +514,91 @@ class TestAsyncStreaming:
             with pytest.raises(RuntimeError, match="stream open failed"):
                 async for _ in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
                     pass
+
+    @pytest.mark.asyncio
+    async def test_retrieve_worker_exception_ignores_cancellation(self):
+        """A cancelled worker has nothing to retrieve.
+
+        `Task.exception()` re-raises `CancelledError` rather than returning it, so calling it
+        from a done-callback used to surface as an `Exception in callback` traceback on an
+        otherwise successful run.
+        """
+        loop = asyncio.get_running_loop()
+        reported: list[dict] = []
+        loop.set_exception_handler(lambda _loop, context: reported.append(context))
+
+        release = threading.Event()
+        try:
+            worker = asyncio.ensure_future(asyncio.to_thread(release.wait, 5))
+            await asyncio.sleep(0)
+            worker.cancel()
+            worker.add_done_callback(_retrieve_worker_exception)
+            await asyncio.sleep(0.05)
+
+            assert worker.cancelled()
+            assert reported == []
+        finally:
+            release.set()
+
+    @pytest.mark.asyncio
+    async def test_retrieve_worker_exception_still_retrieves_failures(self):
+        """A genuine worker failure is still marked retrieved, so dropping the task does not
+        log "exception was never retrieved"."""
+        loop = asyncio.get_running_loop()
+        reported: list[dict] = []
+        loop.set_exception_handler(lambda _loop, context: reported.append(context))
+
+        def _boom():
+            raise RuntimeError("worker failed late")
+
+        worker = asyncio.ensure_future(asyncio.to_thread(_boom))
+        await asyncio.wait([worker])
+        _retrieve_worker_exception(worker)
+
+        del worker
+        gc.collect()
+        await asyncio.sleep(0.05)
+
+        assert reported == []
+
+    @pytest.mark.asyncio
+    async def test_astream_abandoned_worker_cancellation_is_silent(
+        self, mock_litellm_wrapper
+    ):
+        """Abandoning a stream mid-chunk parks the worker thread; when the loop later cancels
+        its task (as `asyncio.run` does at shutdown) the bridge's cleanup must stay quiet."""
+        wrapper = mock_litellm_wrapper(content="abc")
+        loop = asyncio.get_running_loop()
+        reported: list[dict] = []
+        loop.set_exception_handler(lambda _loop, context: reported.append(context))
+
+        release = threading.Event()
+
+        def _make_stream():
+            def _gen():
+                yield "first"
+                # Parked here while the consumer walks away, so the worker cannot observe the
+                # stop signal and its task is still pending at cancellation time.
+                release.wait(5)
+                yield "second"
+
+            return _gen()
+
+        try:
+            stream = wrapper._bridge_sync_stream(_make_stream)
+            async for _ in stream:
+                break
+            await stream.aclose()
+
+            current = asyncio.current_task()
+            for task in asyncio.all_tasks():
+                if task is not current:
+                    task.cancel()
+            await asyncio.sleep(0.05)
+
+            assert reported == []
+        finally:
+            release.set()
 
 
 # ================= END async streaming (sync bridge) tests =========================

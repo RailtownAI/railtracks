@@ -68,6 +68,18 @@ litellm.modify_params = True
 litellm.suppress_debug_info = True
 
 
+def _retrieve_worker_exception(task: asyncio.Task[Any]) -> None:
+    """Mark a bridge worker task's failure as retrieved, treating cancellation as nothing to
+    retrieve.
+
+    `Task.exception()` *re-raises* `CancelledError` on a cancelled task instead of returning
+    it. Called from a done-callback, that raise has nowhere to go and asyncio reports it as
+    `Exception in callback` -- a traceback on stderr for a run that otherwise succeeded.
+    """
+    if not task.cancelled():
+        task.exception()
+
+
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
     """
     Process a single parameter and return (name, prop_dict, is_required).
@@ -432,12 +444,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         finally:
             # On early break, signal the worker to stop; it observes `stop` at the next chunk
             # boundary, closes the stream on its own thread, and exits. Retrieve its result so
-            # a late failure isn't reported as "exception never retrieved".
+            # a late failure isn't reported as "exception never retrieved" -- via the helper,
+            # since a cancelled worker has nothing to retrieve.
             stop.set()
             if worker.done():
-                worker.exception()
+                _retrieve_worker_exception(worker)
             else:
-                worker.add_done_callback(lambda t: t.exception())
+                worker.add_done_callback(_retrieve_worker_exception)
 
     @staticmethod
     def _pump_sync_stream(
