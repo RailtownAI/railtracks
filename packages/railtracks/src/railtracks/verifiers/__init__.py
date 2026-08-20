@@ -5,4 +5,4 @@ __all__ = [
 ]
 
 from .verdict import Verdict
-from .verifier import verifier, VerifierRejectedError
+from .verifier import VerifierRejectedError, verifier

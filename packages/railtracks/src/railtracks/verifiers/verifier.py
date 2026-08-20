@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from typing import Awaitable, Callable, ParamSpec, TypeVar, overload
-
-import functools
 
 from railtracks.utils.unpack import unpack_async_sync
 
