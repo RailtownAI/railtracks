@@ -38,6 +38,10 @@ class OpenAICompatibleProvider(ProviderLLMWrapper, ABC):
             every hyperparameter, valid or not, is passed straight through and any
             error surfaces from the gateway or upstream provider directly.
         """
+        # litellm needs to be told this is an OpenAI-compatible endpoint to route the
+        # call at all. Forced as a kwarg here instead of baked into the model name
+        # string, so the true model name survives for telemetry/visualization.
+        kwargs["custom_llm_provider"] = "openai"
         super().__init__(
             model_name,
             api_base=api_base,
@@ -55,7 +59,7 @@ class OpenAICompatibleProvider(ProviderLLMWrapper, ABC):
         )
 
     def full_model_name(self, model_name: str) -> str:
-        return f"openai/{model_name}"
+        return model_name
 
     @classmethod
     def model_gateway(cls) -> ModelProvider:
