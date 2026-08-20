@@ -42,7 +42,7 @@ def test_init_success(mock_response):
     """Test successful initialization of Ollama"""
     with patch('requests.get', return_value=mock_response):
         ollama = OllamaLLM("test-model")
-        assert ollama.model_name() == "ollama/test-model"
+        assert ollama.model_name() == "ollama_chat/test-model"
         assert ollama.domain == "http://localhost:11434"
 
 
@@ -115,9 +115,11 @@ def test_model_name_extraction(mock_response):
     """Test model name extraction from full path"""
     with patch('requests.get', return_value=mock_response):
         ollama = OllamaLLM("ollama/test-model")
-        assert ollama.model_name() == "ollama/test-model"
+        assert ollama.model_name() == "ollama_chat/test-model"
         ollama2 = OllamaLLM("test-model")
-        assert ollama2.model_name() == "ollama/test-model"
+        assert ollama2.model_name() == "ollama_chat/test-model"
+        ollama3 = OllamaLLM("ollama_chat/test-model")
+        assert ollama3.model_name() == "ollama_chat/test-model"
 
 
 def test_init_with_auto_domain_missing_env(mock_response):
@@ -160,3 +162,32 @@ def test_init_with_custom_domain_missing_arg(mock_response):
         with pytest.raises(RTLLMError) as exc_info:
             OllamaLLM("test-model", domain="custom")
         assert "Custom domain must be provided" in str(exc_info.value)
+
+
+def test_tools_survive_litellm_param_dropping(mock_response):
+    """The routed model name must keep `tools` in the outgoing request (#1457)."""
+    tools = [{"type": "function", "function": {"name": "f", "description": "d",
+                                               "parameters": {"type": "object", "properties": {}}}}]
+    with patch('requests.get', return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    provider, model = ollama.model_name().split("/", 1)
+    optional_params = litellm.utils.get_optional_params(
+        model=model, custom_llm_provider=provider, tools=tools
+    )
+    assert "tools" in optional_params
+
+
+def test_function_calling_support_checked_against_catalog_name(mock_response):
+    """The support check uses the `ollama/` prefix litellm's catalog is keyed on."""
+    with patch('requests.get', return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    with patch(
+        'railtracks.llm.models.local.ollama.supports_function_calling',
+        return_value=True,
+    ) as mock_supports:
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[{"message": {"content": "ok"}}]
+            )
+            ollama.chat_with_tools(MessageHistory([UserMessage(content="hi")]), [])
+    assert mock_supports.call_args.kwargs["model"] == "ollama/test-model"
