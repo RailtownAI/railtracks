@@ -10,6 +10,7 @@ from railtracks.built_nodes._types import ModelSource
 from railtracks.llm import Parameter, SystemMessage, Tool
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
+from railtracks.llm.middleware import ModelMiddleware
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
@@ -19,7 +20,6 @@ from railtracks.validation.node_creation.validation import (
 )
 
 from .llm_helpers import llm_invoke_factory, llm_prepare_called_as_tool_factory
-from .middleware.core import ModelMiddleware
 from .response import StringResponse, StructuredResponse
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
