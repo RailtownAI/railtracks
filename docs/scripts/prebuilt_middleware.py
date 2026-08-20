@@ -33,6 +33,18 @@ picky_retry = Retry(
 # --8<-- [end: retry_configured]
 
 
+# --8<-- [start: timeout]
+import railtracks as rt
+from railtracks.prebuilt.middleware import Timeout
+
+TimedAgent = rt.agent_node(
+    name="timeout-demo",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    middleware=[Timeout(seconds=30)],
+)
+# --8<-- [end: timeout]
+
+
 # --8<-- [start: context_injection]
 import railtracks as rt
 from railtracks.prebuilt.middleware import ContextInjection

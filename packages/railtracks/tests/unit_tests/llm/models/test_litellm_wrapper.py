@@ -8,7 +8,7 @@ import litellm
 import pytest
 from pydantic import BaseModel
 from railtracks.exceptions import LLMError, NodeInvocationError
-from railtracks.llm import AssistantMessage, UserMessage
+from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
@@ -16,7 +16,7 @@ from railtracks.llm.models._litellm_wrapper import (
     _to_litellm_tool,
 )
 from railtracks.llm.providers import ModelProvider
-from railtracks.llm.response import Response
+from railtracks.llm.response import MessageInfo, Response
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper):
@@ -118,6 +118,20 @@ class TestHelpers:
         assert litellm_message["role"] == "assistant"
         assert len(litellm_message["tool_calls"]) == 1
         assert litellm_message["tool_calls"][0].function.name == "example_tool"
+
+    def test_to_litellm_message_tool_call_list_with_text(
+        self, mock_litellm_wrapper, tool_call
+    ):
+        """
+        Test _to_litellm_message sends back the text that came with the tool calls.
+        """
+        message = AssistantMessage(
+            content=ToolCalls([tool_call], text="I will call example_tool for you.")
+        )
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
+        assert litellm_message["content"] == "I will call example_tool for you."
+        assert len(litellm_message["tool_calls"]) == 1
 
     def test_to_litellm_message_user_message_with_attachments(
         self,
@@ -500,6 +514,59 @@ class TestAsyncStreaming:
 
 # ================= END async streaming (sync bridge) tests =========================
 
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat_with_tools", False),
+            ("_achat_with_tools", True),
+        ],
+        ids=["sync_chat_with_tools", "async_chat_with_tools"],
+    )
+    @pytest.mark.asyncio
+    async def test_chat_with_tools_keeps_text_returned_with_tool_calls(
+        self, mock_litellm_wrapper, message_history, tool, method_name, is_async
+    ):
+        """
+        Models often answer with prose and a tool call in the same message. The prose
+        must survive alongside the tool calls instead of being dropped.
+        """
+        wrapper = mock_litellm_wrapper(
+            content="I will call tool_x with foo=1.",
+            tool_calls=[
+                litellm.ChatCompletionMessageToolCall(
+                    function=litellm.Function(arguments='{"foo": 1}', name="tool_x"),
+                    id="id123",
+                    type="function",
+                )
+            ],
+        )
+
+        method = getattr(wrapper, method_name)
+        if is_async:
+            result = await method(message_history, [tool])
+        else:
+            result = method(message_history, [tool])
+
+        assert result.message.content[0].name == "tool_x"
+        assert result.message.content.text == "I will call tool_x with foo=1."
+
+    def test_prepare_response_keeps_streamed_text_with_tool_calls(
+        self, mock_litellm_wrapper, tool_call
+    ):
+        """
+        The same applies to the streaming path, where the text arrives as content deltas.
+        """
+        wrapper = mock_litellm_wrapper()
+        response = wrapper._prepare_response(
+            accumulated_content="I will call example_tool for you.",
+            tools=[tool_call],
+            output_schema=None,
+            message_info=MessageInfo(),
+        )
+
+        assert response.message.content == [tool_call]
+        assert response.message.content.text == "I will call example_tool for you."
+
 
 def test_temperature_passed_to_litellm_completion(message_history):
     """Assert that when a LiteLLMWrapper is created with temperature, it is passed to litellm.completion."""
@@ -565,3 +632,95 @@ def test_common_hyperparameter_passed_to_litellm_completion(
 
 
 # ================= END common hyperparameter support tests =========================
+
+# ================= START #1394 reasoning_effort-default-for-tools tests =============
+
+
+class TestReasoningEffortDefaultForTools:
+    """#1394 regression: reasoning-capable models (gpt-5.4+ family) reject function tools
+    on /v1/chat/completions when reasoning_effort is left unset, because OpenAI silently
+    substitutes a non-'none' default server-side. The wrapper must default
+    reasoning_effort='none' in exactly that situation and leave every other case alone."""
+
+    @staticmethod
+    def _patch_model_info(monkeypatch, **info):
+        import railtracks.llm.models._hyperparameter_support as hyperparameter_support_module
+
+        monkeypatch.setattr(
+            hyperparameter_support_module.litellm,
+            "get_model_info",
+            lambda model: info,
+        )
+
+    def test_reasoning_effort_defaulted_to_none_for_tool_call(
+        self, message_history, tool, monkeypatch
+    ):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[
+                    {
+                        "message": {"content": "ok", "tool_calls": None},
+                        "finish_reason": "stop",
+                    }
+                ]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(model_name="openai/gpt-5.6-sol")
+            wrapper.chat_with_tools(message_history, [tool])
+            mock_completion.assert_called_once()
+            assert mock_completion.call_args.kwargs.get("reasoning_effort") == "none"
+
+    def test_explicit_reasoning_effort_not_overridden(
+        self, message_history, tool, monkeypatch
+    ):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[
+                    {
+                        "message": {"content": "ok", "tool_calls": None},
+                        "finish_reason": "stop",
+                    }
+                ]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(
+                model_name="openai/gpt-5.6-sol", reasoning_effort="high"
+            )
+            wrapper.chat_with_tools(message_history, [tool])
+            assert mock_completion.call_args.kwargs.get("reasoning_effort") == "high"
+
+    def test_no_default_added_without_tools(self, message_history, monkeypatch):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=True, supports_none_reasoning_effort=True
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[{"message": {"content": "ok"}}]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(model_name="openai/gpt-5.6-sol")
+            wrapper.chat(message_history)
+            assert "reasoning_effort" not in mock_completion.call_args.kwargs
+
+    def test_no_default_for_non_reasoning_model(self, message_history, tool, monkeypatch):
+        self._patch_model_info(
+            monkeypatch, supports_reasoning=None, supports_none_reasoning_effort=None
+        )
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[
+                    {
+                        "message": {"content": "ok", "tool_calls": None},
+                        "finish_reason": "stop",
+                    }
+                ]
+            )
+            wrapper = _ConcreteLiteLLMWrapperForTest(model_name="openai/gpt-4o")
+            wrapper.chat_with_tools(message_history, [tool])
+            assert "reasoning_effort" not in mock_completion.call_args.kwargs
+
+
+# ================= END #1394 reasoning_effort-default-for-tools tests ===============

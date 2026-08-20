@@ -34,7 +34,7 @@ from litellm.types.utils import (
 from pydantic import BaseModel, Field
 
 from ...exceptions.errors import LLMError, NodeInvocationError
-from ..content import ToolCall
+from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
@@ -43,6 +43,7 @@ from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
 from ._hyperparameter_support import (
+    default_reasoning_effort_for_tools,
     find_mutually_exclusive_conflict,
     is_hyperparameter_supported,
 )
@@ -212,7 +213,8 @@ class LiteLLMWrapper(ModelBase, ABC):
         max_tokens: int | None = None,
         frequency_penalty: float | None = None,
         presence_penalty: float | None = None,
-        reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"]
+        | None = None,
         service_tier: str | None = None,
         verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
@@ -360,6 +362,14 @@ class LiteLLMWrapper(ModelBase, ABC):
         if tools is not None:
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
+
+        effective_reasoning_effort = default_reasoning_effort_for_tools(
+            self._model_name,
+            merged.get("reasoning_effort"),
+            has_tools=tools is not None,
+        )
+        if effective_reasoning_effort is not None:
+            merged["reasoning_effort"] = effective_reasoning_effort
 
         def completion_function():
             return litellm.completion(
@@ -540,7 +550,10 @@ class LiteLLMWrapper(ModelBase, ABC):
             )
         elif len(tools) > 0:
             r = Response(
-                message=AssistantMessage(content=tools), message_info=message_info
+                message=AssistantMessage(
+                    content=ToolCalls(tools, text=accumulated_content or None)
+                ),
+                message_info=message_info,
             )
         else:
             r = Response(
@@ -697,7 +710,11 @@ class LiteLLMWrapper(ModelBase, ABC):
                 ToolCall(identifier=tc.id, name=tc.function.name or "", arguments=args)
             )
 
-        assistant_msg = AssistantMessage(content=calls)
+        # Keep any text the model returned alongside the tool calls (e.g. "I will
+        # check the weather in London for you"), it is part of the answer.
+        assistant_msg = AssistantMessage(
+            content=ToolCalls(calls, text=choice.message.content)
+        )
 
         # Preserve the raw litellm message so that provider-specific metadata
         # (e.g. Gemini thought_signature) is round-tripped back verbatim.
@@ -845,7 +862,9 @@ class LiteLLMWrapper(ModelBase, ABC):
         # only time this is true is tool calls, need to return litellm.utils.Message
         elif isinstance(msg.content, list):
             assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
-            base["content"] = ""
+            # Send back any text that came with the tool calls so the model sees
+            # its own full turn on the next request.
+            base["content"] = getattr(msg.content, "text", None) or ""
             base["tool_calls"] = [
                 ChatCompletionMessageToolCall(
                     function=Function(

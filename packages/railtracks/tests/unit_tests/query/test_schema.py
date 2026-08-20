@@ -37,14 +37,14 @@ class TestDuckdbColumnsFlattening:
 
 class TestDuckdbEnumColumns:
     def test_spatial_type_discriminator_is_enum(self):
-        col = duckdb_columns("llm")["spatial_parent_spatial_type"]
+        col = duckdb_columns("llm")["spatial_parent_type"]
         assert col.startswith("ENUM(")
         # Every SpatialParent subclass value must be represented.
         for member in ("'none'", "'node'", "'middleware'", "'node_and_middleware'", "'llm_and_middleware'"):
             assert member in col
 
     def test_parent_type_discriminator_is_enum(self):
-        col = duckdb_columns("llm")["parent_parent_type"]
+        col = duckdb_columns("llm")["parent_type"]
         assert col.startswith("ENUM(")
         for member in ("'node'", "'middleware'", "'llm'"):
             assert member in col

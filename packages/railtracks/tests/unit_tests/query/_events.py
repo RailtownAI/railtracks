@@ -14,9 +14,9 @@ LLM_RESPONSE = {
     "parent_scope_id": None,
     "stamp": "2026-07-10T14:00:00.000+00:00",
     "payload": {
-        "spatial_parent_spatial_type": "node",
+        "spatial_parent_type": "node",
         "spatial_parent_node_id": "node_root",
-        "parent_parent_type": "llm",
+        "parent_type": "llm",
         "parent_llm_type_id": "llm_type_a",
         "parent_llm_invoke_id": "llm_invoke_b",
         "timestamp": "2026-07-10T14:00:00.000+00:00",
@@ -38,7 +38,7 @@ LLM_CREATION = {
     "parent_scope_id": None,
     "stamp": "2026-07-10T13:59:59.000+00:00",
     "payload": {
-        "spatial_parent_spatial_type": "none",
+        "spatial_parent_type": "none",
         "timestamp": "2026-07-10T13:59:59.000+00:00",
         "llm_id": "llm_type_a",
         "model_provider": "Anthropic",
@@ -54,7 +54,7 @@ NODE_CREATION = {
     "parent_scope_id": None,
     "stamp": "2026-07-10T14:00:00.100+00:00",
     "payload": {
-        "spatial_parent_spatial_type": "none",
+        "spatial_parent_type": "none",
         "timestamp": "2026-07-10T14:00:00.100+00:00",
         "node_id": "node_root",
         "name": "Root",
@@ -70,7 +70,7 @@ SESSION_STARTED = {
     "parent_scope_id": None,
     "stamp": "2026-07-10T13:59:58.000+00:00",
     "payload": {
-        "spatial_parent_spatial_type": "none",
+        "spatial_parent_type": "none",
         "timestamp": "2026-07-10T13:59:58.000+00:00",
         "session_id": "sess_a1",
         "flow_name": "demo_flow",

@@ -5,12 +5,12 @@ import os
 import re
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import urlparse
 
-from .content import Content, ToolCall, ToolResponse
+from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .encoding import detect_source, encode, ensure_data_uri
 from .prompt_injection_utils import ValueDict, fill_template
 
@@ -193,7 +193,6 @@ class Message(Generic[_T, _TRole]):
         self,
         content: _T,
         role: _TRole,
-        inject_prompt: bool = True,
     ):
         """
         A simple class that represents a message that an LLM can read.
@@ -201,18 +200,17 @@ class Message(Generic[_T, _TRole]):
         Args:
             content: The content of the message. It can take on any of the following types:
                 - str: A simple string message.
+                - ToolCalls: Tool calls plus any text the model spoke alongside them.
                 - List[ToolCall]: A list of tool calls.
                 - ToolResponse: A tool response.
                 - BaseModel: A custom base model object.
                 - Stream: A stream object with a final_message and a generator.
             role: The role of the message (assistant, user, system, tool, etc.).
-            inject_prompt (bool, optional): Whether to inject prompt with context variables. Defaults to True.
         """
         assert isinstance(role, Role)
         self.validate_content(content)
         self._content = content
         self._role = role
-        self._inject_prompt = inject_prompt
 
     @classmethod
     def validate_content(cls, content: _T):
@@ -227,20 +225,6 @@ class Message(Generic[_T, _TRole]):
     def role(self) -> _TRole:
         """Collects the role of the message."""
         return self._role
-
-    @property
-    def inject_prompt(self) -> bool:
-        """
-        A boolean that indicates whether this message should be injected into from context.
-        """
-        return self._inject_prompt
-
-    @inject_prompt.setter
-    def inject_prompt(self, value: bool):
-        """
-        Sets the inject_prompt property.
-        """
-        self._inject_prompt = value
 
     def __str__(self):
         return f"{self.role.value}: {self.content}"
@@ -289,7 +273,6 @@ class UserMessage(_StringOnlyContent[Role.user]):
         content: The content of the user message.
         attachment: The file attachment(s) for the user message. Can be a single string or a list of strings,
                     containing file paths, URLs, or data URIs. Defaults to None.
-        inject_prompt: Whether to inject prompt with context variables. Defaults to True.
         trust_urls: Allow in-process fetch for URL attachments. Defaults to False.
                     When False, `.pdf` URLs raise and unknown-extension URLs are
                     handed to the provider unprobed (as `image_url`). When True,
@@ -308,7 +291,6 @@ class UserMessage(_StringOnlyContent[Role.user]):
         self,
         content: str | None = None,
         attachment: str | list[str] | None = None,
-        inject_prompt: bool = True,
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
     ):
@@ -343,7 +325,7 @@ class UserMessage(_StringOnlyContent[Role.user]):
             raise ValueError(
                 "UserMessage must have content if no attachment is provided."
             )
-        super().__init__(content=content, role=Role.user, inject_prompt=inject_prompt)
+        super().__init__(content=content, role=Role.user)
 
     def encode(self):
         if self.attachment is not None:
@@ -370,11 +352,10 @@ class SystemMessage(_StringOnlyContent[Role.system]):
 
     Args:
         content (str): The content of the system message.
-        inject_prompt (bool, optional): Whether to inject prompt with context  variables. Defaults to True.
     """
 
-    def __init__(self, content: str, inject_prompt: bool = True):
-        super().__init__(content=content, role=Role.system, inject_prompt=inject_prompt)
+    def __init__(self, content: str):
+        super().__init__(content=content, role=Role.system)
 
 
 class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
@@ -382,19 +363,34 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     A simple class that represents a message from the assistant.
 
     Args:
-        content (_T): The content of the assistant message.
-        inject_prompt (bool, optional): Whether to inject prompt with context  variables. Defaults to True.
+        content (_T): The content of the assistant message. A tool-calling turn is a
+            `ToolCalls`, which holds both the calls and any text the model spoke
+            alongside them; a plain `list[ToolCall]` is accepted and normalized to one.
     """
 
-    def __init__(self, content: _T, inject_prompt: bool = True):
-        super().__init__(
-            content=content, role=Role.assistant, inject_prompt=inject_prompt
-        )
+    def __init__(self, content: _T):
+        # Normalizing here means a tool-calling turn is always a ToolCalls, so
+        # nothing downstream has to handle both shapes, while callers that pass a
+        # plain list of tool calls keep working.
+        if isinstance(content, list) and not isinstance(content, ToolCalls):
+            content = cast(_T, ToolCalls(content))
+
+        super().__init__(content=content, role=Role.assistant)
 
         # Optionally stores the raw litellm message object so providers that
         # attach extra metadata (e.g. Gemini thought_signature) can round-trip
         # it back without any manual reconstruction.
         self.raw_litellm_message: Any | None = None
+
+    def encode(self):
+        encoded = super().encode()
+
+        # A ToolCalls encodes as a bare array, which would drop the text the model
+        # spoke with its calls; surface it the way providers put it on the wire.
+        if isinstance(self.content, ToolCalls) and self.content.text is not None:
+            encoded["text"] = self.content.text
+
+        return encoded
 
 
 # TODO further constrict the possible return type of a ToolMessage.
