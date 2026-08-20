@@ -58,6 +58,8 @@ __all__ = [
     "input_guard",
     "output_guard",
     "escape_braces",
+    "Verdict",
+    "VerifierRejectedError",
 ]
 
 
@@ -83,7 +85,7 @@ from .context.central import session_id, set_config
 from .guardrails import input_guard, output_guard
 from .interaction import astream, broadcast, call, call_batch, couple
 from .llm.prompt_injection_utils import escape_braces
-from .middleware import after_node, verifier, wrap_node
+from .middleware import after_node, wrap_node
 from .nodes.manifest import ToolManifest
 from .orchestration.connection import FlowConnection, NodeMessageHistory
 from .orchestration.flow import Flow
@@ -92,6 +94,7 @@ from .state.info import ExecutionInfo
 from .utils.config import ExecutorConfig
 from .utils.deprecation import warn_pending_change
 from .utils.logging.config import enable_logging
+from .verifiers import Verdict, VerifierRejectedError, verifier
 
 load_dotenv()
 
