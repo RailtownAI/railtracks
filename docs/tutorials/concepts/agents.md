@@ -21,6 +21,8 @@ for a while now, but LLMs have changed the game and made it much easier to use t
 accomplish complex tasks and goals. This ability makes them uniquely suited to operate as the **brain** for your agentic
 system.
 
+In Railtracks, an [Agent Node](../../documentation/agent_design/overview.md#agent-node) packages that LLM behavior as an executable [Node](../../documentation/agent_design/overview.md#node).
+
 ```mermaid
 graph TB
     User[User]
@@ -45,15 +47,6 @@ graph TB
     class Tools toolClass;
     class Env envClass;
 ```
-
-# Core Concepts & Terminology
-
-In Railtracks, the core agent abstractions include:
-
-* **[Node](../../documentation/agent_design/overview.md)**: The foundational building block in Railtracks representing an executable unit of work.
-* **[Agent Node](../../documentation/agent_design/overview.md)**: An LLM-powered node created using `rt.agent_node` that manages prompts, model calls, and tools.
-* **[Direct Invocation](../../documentation/invocation/call.md)**: Executing a node directly using `rt.call` without full session configuration.
-* **[Sequential Flow](architectures/sequential.md)**: Executing nodes in sequence step-by-step using [`Flows`](../../documentation/invocation/flows.md).
 
 # Real World Applications
 
