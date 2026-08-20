@@ -582,9 +582,9 @@ class LiteLLMWrapper(ModelBase, ABC):
     def _is_stream_finished(self, choice) -> bool:
         """Check if the stream has finished.
 
-        Any `finish_reason` the provider sets ends the turn. 
-        
-        Matching on the reason itself would be provider-specific. 
+        Any `finish_reason` the provider sets ends the turn.
+
+        Matching on the reason itself would be provider-specific.
         """
         # On finish Sould drop the accumulated tool calls of a truncated (`length`) or filtered turn.
         return bool(choice.finish_reason)
@@ -708,7 +708,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     def supports_streamed_tool_calling(self) -> bool:
         """Whether litellm can stream tool calls for this model.
 
-        Only trusted when the model is in litellm's capability catalog: no capability metadata 
+        Only trusted when the model is in litellm's capability catalog: no capability metadata
         would return False. For those we attempt the stream instead of assume.
         """
         if not _model_in_litellm_catalog(self._model_name):
