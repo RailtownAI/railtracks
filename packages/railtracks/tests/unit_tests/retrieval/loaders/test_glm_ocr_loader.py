@@ -202,14 +202,6 @@ class TestOCRResult:
         result = OCRResult(markdown="# Hello")
         assert result.to_text() == "# Hello"
 
-    def test_bboxes_defaults_to_empty_list(self):
-        result = OCRResult(markdown="text")
-        assert result.bboxes == []
-
-    def test_tables_defaults_to_empty_list(self):
-        result = OCRResult(markdown="text")
-        assert result.tables == []
-
     def test_json_result_defaults_to_none(self):
         result = OCRResult(markdown="text")
         assert result.json_result is None

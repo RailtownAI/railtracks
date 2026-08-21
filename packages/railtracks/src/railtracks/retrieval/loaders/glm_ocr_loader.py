@@ -31,8 +31,6 @@ def _parse_glmocr_response(result: Any) -> OCRResult:
     data = result.to_dict()
     return OCRResult(
         markdown=result.markdown_result or "",
-        bboxes=[],
-        tables=[],
         json_result=data.get("json_result"),
     )
 
@@ -103,9 +101,17 @@ class GLMOCRLoader(BaseOCRLoader):
 
     Breakdown strategies:
 
-    - ``page`` *(default)*: one ``Document`` per file.
+    - ``page`` *(default)*: one ``Document`` per file. ``metadata`` contains
+      ``file_type`` and ``json_result`` (raw structured layout from the SDK).
     - ``document``: all files in a directory concatenated into one
-      ``Document`` with pages joined by ``\\n\\n``.
+      ``Document`` with pages joined by ``\\n\\n``. ``metadata`` contains
+      ``json_results`` (list of per-file ``json_result`` values).
+
+    Structured layout data (bounding boxes, tables, reading order) is
+    available in ``OCRResult.json_result`` as returned by
+    ``PipelineResult.to_dict()``. The ``bboxes`` and ``tables`` fields
+    are not populated separately — callers should parse ``json_result``
+    directly.
 
     Requires:
         ``pip install "railtracks[glm]"``
@@ -183,8 +189,7 @@ class GLMOCRLoader(BaseOCRLoader):
             source=str(path),
             metadata={
                 "file_type": path.suffix.lower(),
-                "bboxes": result.bboxes,
-                "tables": result.tables,
+                "json_result": result.json_result,
             },
         )
 
@@ -199,8 +204,7 @@ class GLMOCRLoader(BaseOCRLoader):
             source=str(path),
             metadata={
                 "file_type": ".pdf",
-                "bboxes": result.bboxes,
-                "tables": result.tables,
+                "json_result": result.json_result,
             },
         )
 
@@ -222,19 +226,17 @@ class GLMOCRLoader(BaseOCRLoader):
         )
         if self._breakdown_strategy == "document":
             page_texts: list[str] = []
-            all_bboxes: list[dict] = []
-            all_tables: list[dict] = []
+            all_json_results: list = []
             for path in paths:
                 async for doc in self._stream_file(path):
                     page_texts.append(doc.content)
-                    all_bboxes.extend(doc.metadata.get("bboxes", []))
-                    all_tables.extend(doc.metadata.get("tables", []))
+                    all_json_results.append(doc.metadata.get("json_result"))
             if page_texts:
                 yield Document(
                     content="\n\n".join(page_texts),
                     type=DocumentType.TEXT,
                     source=str(self._path),
-                    metadata={"bboxes": all_bboxes, "tables": all_tables},
+                    metadata={"json_results": all_json_results},
                 )
             return
         for path in paths:

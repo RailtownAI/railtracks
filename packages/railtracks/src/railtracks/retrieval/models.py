@@ -112,19 +112,14 @@ class OCRResult:
     Attributes:
         markdown: Full page text as markdown. Tables and headings are
             represented in markdown syntax where the engine supports it.
-        bboxes: Bounding-box annotations returned by the engine. Each entry
-            is an engine-specific dict; callers should not assume a fixed
-            schema across engines.
-        tables: Structured table data extracted from the page. Each entry
-            is an engine-specific dict representing one table.
         json_result: Raw structured layout data from the engine, if available.
             Schema is engine-specific; ``None`` when the engine does not
-            return structured layout data.
+            return structured layout data. For GLM-OCR this is the value of
+            ``PipelineResult.to_dict()["json_result"]``, which contains
+            bounding boxes, tables, and reading order.
     """
 
     markdown: str
-    bboxes: list[dict[str, Any]] = field(default_factory=list)
-    tables: list[dict[str, Any]] = field(default_factory=list)
     json_result: dict[str, Any] | list[Any] | None = None
 
     def to_text(self) -> str:
