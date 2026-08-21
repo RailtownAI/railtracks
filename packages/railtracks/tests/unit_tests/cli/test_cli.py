@@ -359,6 +359,16 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.text, "public asset")
 
+    def test_ui_serves_index_at_root(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "index.html").write_text("<html>spa shell</html>")
+
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "<html>spa shell</html>")
+
     def test_ui_rejects_percent_encoded_parent_traversal(self):
         Path(".railtracks/ui").mkdir(parents=True)
         Path("secret.txt").write_text("must stay private")

@@ -252,6 +252,13 @@ async def serve_ui_or_404(full_path: str):
         return JSONResponse(content={"error": "Not Found"}, status_code=404)
 
     ui_dir = (get_railtracks_dir() / _UI_SUBDIR).resolve()
+
+    if not full_path:
+        index_file = ui_dir / "index.html"
+        if index_file.is_file():
+            return FileResponse(str(index_file))
+        return JSONResponse(content={"error": "File not found"}, status_code=404)
+
     ui_prefix = str(ui_dir) + os.sep
     try:
         ui_file = (ui_dir / full_path).resolve()
