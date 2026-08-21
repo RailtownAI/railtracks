@@ -10,11 +10,11 @@ from railtracks.events.middleware import (
 )
 from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.middleware import ModelMiddleware
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.unpack import unpack_async_sync
 
 from ..._types import LLM_CALL
-from .core import ModelMiddleware
 
 
 @overload
