@@ -14,6 +14,9 @@ from railtracks.middleware.core import Middleware
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.nodes.utils import extract_node_from_function
+from railtracks.validation.node_creation.validation import (
+    _check_no_combined_tools_and_schema,
+)
 
 from .node_builder import LLMNodeBuilder, UserInput
 
@@ -154,7 +157,11 @@ def agent_node(
     Args:
         name (str | None): The name of the agent. If none the default will be used.
         tool_nodes (Iterable[Type[Node] | RTFunction] | None): If your agent has access to tools, what does it have access to?
+            Cannot be combined with output_schema -- see below.
         output_schema (Type[_TBaseModel] | None): If your agent should return a structured output, what is the output_schema?
+            Cannot be combined with tool_nodes: providing both raises NodeCreationError, since the model does not
+            reliably call tools when a structured output_schema is also requested (it may fabricate a plausible
+            tool result instead of actually invoking the tool).
         llm (ModelBase | Callable[[], ModelBase]): The LLM model to use, or a no-arg
             factory resolved fresh on every model call (lets the agent pick its model
             at invocation time, e.g. from config or rt.context).
@@ -168,6 +175,8 @@ def agent_node(
 
     NOTE: Supplying a parameter `_shape` will break typing and you will be responsible for it. DO NOT USE THIS!!
     """
+    _check_no_combined_tools_and_schema(tool_nodes, output_schema)
+
     unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
     # See issue (___) this logic should be migrated soon.
