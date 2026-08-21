@@ -172,16 +172,6 @@ class GLMOCRLoader(BaseOCRLoader):
         finally:
             tmp_path.unlink(missing_ok=True)
 
-    async def _ocr_pdf_structured(self, pdf_bytes: bytes) -> OCRResult:
-        """OCR PDF bytes by writing them to a temp file and passing the path."""
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(pdf_bytes)
-            tmp_path = Path(tmp.name)
-        try:
-            return await self._strategy.ocr_pdf(tmp_path)
-        finally:
-            tmp_path.unlink(missing_ok=True)
-
     async def _stream_image(self, path: Path) -> AsyncGenerator[Document, None]:
         """Yield a single Document from one image file."""
         result = await self._strategy.ocr_image(path)
