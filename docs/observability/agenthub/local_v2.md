@@ -41,9 +41,7 @@ routes, and interactive API documentation is available at
 Configure the JSONL writer before the first agent run in your process:
 
 ```python title="Configure local event storage"
-from railtracks.observability import JsonlWriter, configure_writers
-
-configure_writers([JsonlWriter()])
+--8<-- "docs/scripts/observability/events.py:v2-viz"
 ```
 
 `JsonlWriter()` and the beta visualizer use the same event directory:
