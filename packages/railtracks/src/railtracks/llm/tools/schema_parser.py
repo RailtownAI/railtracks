@@ -1,6 +1,5 @@
 from typing import Set
 
-from .docstring_parser import param_from_python_type
 from .parameters import (
     ArrayParameter,
     ObjectParameter,
@@ -258,7 +257,10 @@ def parse_json_schema_to_parameter(
         # For simple types, use Parameter
         if isinstance(param_type, list):
             # If type is a list, create UnionParameter (e.g. ["string","none"])
-            options = [param_from_python_type(t) for t in param_type]
+            options = [
+                Parameter(name=f"{name}_option_{idx}", param_type=option_type)
+                for idx, option_type in enumerate(param_type)
+            ]
             return UnionParameter(
                 name=name,
                 options=options,

@@ -7,11 +7,19 @@ railtracks.llm.tools.schema_parser module.
 
 import re
 
+import pytest
+
 from railtracks.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
 )
-from railtracks.llm.tools import Parameter, ArrayParameter, ObjectParameter, RefParameter
+from railtracks.llm.tools import (
+    ArrayParameter,
+    ObjectParameter,
+    Parameter,
+    RefParameter,
+    Tool,
+)
 
 
 class TestParseJsonSchemaToParameter:
@@ -60,6 +68,28 @@ class TestParseJsonSchemaToParameter:
         assert param.param_type == "boolean"
         assert param.description == "A boolean parameter"
         assert param.required is True
+
+    def test_nullable_string_union_preserves_schema_types(self):
+        schema = {"type": ["string", "null"]}
+
+        param = parse_json_schema_to_parameter("test_param", schema, True)
+
+        assert param.to_json_schema() == {
+            "anyOf": [{"type": "string"}, {"type": "null"}]
+        }
+
+    def test_tool_rejects_invalid_dict_schema_type_with_parameter_name(self):
+        schema = {
+            "type": "object",
+            "properties": {"enabled": {"type": "bool"}},
+            "required": ["enabled"],
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="Invalid param_type 'bool' provided for parameter 'enabled'",
+        ):
+            Tool("test_tool", "A test tool.", schema)
 
     def test_array_parameter(self):
         """Test parsing an array parameter."""
