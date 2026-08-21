@@ -109,11 +109,29 @@ class EventQuery:
         self.con.execute("DROP VIEW IF EXISTS events")
 
     def _build_events_view(self, files: list[Path]) -> None:
-        """Create a view named ``events`` that unions all the JSONL files together."""
-        self.con.read_json(
+        """Create ``events`` over the valid envelopes in all JSONL files.
+
+        A writer can be observed between writing the first and last byte of its
+        next line, and a crashed process can leave that partial line behind.  Ask
+        DuckDB to tolerate malformed records, then reject the null-filled rows it
+        produces for them.  The envelope is deliberately hardcoded: these fields
+        are required by :class:`railtracks.observability.models.Event`; only
+        ``parent_scope_id`` is optional.
+        """
+        raw_events = self.con.read_json(
             [str(p) for p in files],  # type: ignore[arg-type] typing issue in duckdb
             format="newline_delimited",
             columns=_ENVELOPE_COLUMNS,
+            ignore_errors=True,
+        )
+        raw_events.filter(
+            "event_id IS NOT NULL "
+            "AND event_type IS NOT NULL "
+            "AND scope_type IS NOT NULL "
+            "AND scope_id IS NOT NULL "
+            "AND stamp IS NOT NULL "
+            "AND payload IS NOT NULL "
+            "AND json_type(payload) = 'OBJECT'"
         ).create_view("events", replace=True)
 
     def _build_namespace_views(self) -> None:
@@ -147,21 +165,15 @@ def _project_payload_key(key: str, duckdb_type: str) -> str:
 
     - ``VARCHAR`` uses ``payload->>'key'`` so the raw text comes back without JSON quotes.
     - ``JSON`` uses ``payload->'key'`` — keeps the native JSON so nested access works.
-    - ``ENUM(...)`` uses ``TRY_CAST`` on ``payload->>'key'`` (unquoted text) — a value
-      outside the enum members returns ``NULL`` instead of raising, so one stale row
-      (schema evolution, older session file) doesn't take down ``SELECT *``. Casting
-      from JSON keeps the surrounding quotes and would break the enum lookup.
-    - Everything else casts ``payload->'key'`` (native JSON) to the target duckdb type.
+    - Everything else uses ``TRY_CAST`` from native JSON. Missing, stale or
+      incompatible values therefore become ``NULL`` without taking down every row
+      in the namespace view.
     """
     if duckdb_type == "VARCHAR":
         return f"payload->>{_sql_string(key)} AS {_sql_identifier(key)}"
     if duckdb_type == "JSON":
         return f"payload->{_sql_string(key)} AS {_sql_identifier(key)}"
-    if duckdb_type.startswith("ENUM("):
-        return f"TRY_CAST(payload->>{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
-    return (
-        f"CAST(payload->{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
-    )
+    return f"TRY_CAST(payload->{_sql_string(key)} AS {duckdb_type}) AS {_sql_identifier(key)}"
 
 
 def _sql_string(value: str) -> str:

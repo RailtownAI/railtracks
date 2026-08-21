@@ -89,6 +89,7 @@ nav:
           - Installation: documentation/getting_started/installation.md
           - LLM Setup: documentation/getting_started/llm_setup.md
           - AI Coding Assistants: documentation/getting_started/ai_setup.md
+          - Upgrading to 1.5.0: documentation/upgrading/1_5_0.md
       - Agent Design:
           - Overview: documentation/agent_design/overview.md
           - Tools:
@@ -104,6 +105,7 @@ nav:
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
               - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
+              - Structured Output: documentation/agent_design/structured_extraction.md
           - Middleware:
               - Overview: documentation/agent_design/middleware/overview.md
               - Custom: documentation/agent_design/middleware/custom.md
@@ -160,7 +162,9 @@ nav:
 
   - Observability:
       - AgentHub:
-          - Local: observability/agenthub/local.md
+          - Local:
+            - V1 (Stable): observability/agenthub/local.md
+            - V2 (Beta): observability/agenthub/local_v2.md
           - Cloud: observability/agenthub/cloud.md
       - Human in the Loop:
           - Overview: observability/human_in_the_loop/overview.md
@@ -201,8 +205,6 @@ nav:
               - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
               - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
               - Flows: tutorials/walkthroughs/flows.md
-              - RAG system: tutorials/walkthroughs/rag_tutorial.md
-              - Vector Stores: tutorials/walkthroughs/vector_store_tutorial.md
               - FastAPI Integration: tutorials/walkthroughs/fastapi.md
           - Videos:
               - Multiagent Systems: tutorials/videos/multiagent.md
@@ -212,6 +214,8 @@ nav:
       - Notebooks:
           - Agent Architectures: tutorials/notebooks/architectures.md
           - FastAPI Integration: tutorials/notebooks/fastapi.md
+          - File Embedding: tutorials/notebooks/file_embedding.md
+          - Retrieval Benchmark: tutorials/notebooks/retrieval-benchmark.md
       - Concepts:
           - Core:
               - Agents: tutorials/concepts/agents.md

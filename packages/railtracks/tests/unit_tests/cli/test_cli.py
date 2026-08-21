@@ -299,7 +299,8 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"error": "Session not found"})
 
-    def test_get_session_by_guid_invalid_json(self):
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_session_by_guid_invalid_json(self, mock_print_error):
         """Test /api/sessions/{guid} endpoint with invalid JSON file"""
         # Create sessions directory and invalid JSON file
         sessions_dir = Path(".railtracks/data/sessions")
@@ -312,8 +313,82 @@ class TestFastAPIEndpoints(unittest.TestCase):
 
         response = self.client.get(f"/api/sessions/{guid}")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json())
-        self.assertIn("Invalid JSON", response.json()["error"])
+        self.assertEqual(response.json(), {"error": "Invalid JSON"})
+        logged_error = mock_print_error.call_args.args[0]
+        self.assertIn(invalid_file.name, logged_error)
+        self.assertIn("line 1 column", logged_error)
+
+    def test_get_session_rejects_glob_metacharacters(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        (sessions_dir / "private-guid.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/%2A")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_parent_path_segments(self):
+        Path(".railtracks/data/sessions").mkdir(parents=True)
+        Path(".railtracks/secret.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/..%2F..%2Fsecret")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_symlinks_outside_sessions_directory(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        secret = Path("secret.json").resolve()
+        secret.write_text('{"private": true}')
+        (sessions_dir / "escaped-guid.json").symlink_to(secret)
+
+        response = self.client.get("/api/sessions/escaped-guid")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
+    def test_ui_serves_files_inside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "asset.txt").write_text("public asset")
+
+        response = self.client.get("/asset.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "public asset")
+
+    def test_ui_serves_index_at_root(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "index.html").write_text("<html>spa shell</html>")
+
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "<html>spa shell</html>")
+
+    def test_ui_rejects_percent_encoded_parent_traversal(self):
+        Path(".railtracks/ui").mkdir(parents=True)
+        Path("secret.txt").write_text("must stay private")
+
+        response = self.client.get("/..%2F..%2Fsecret.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
+
+    def test_ui_rejects_symlinks_outside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        secret = Path("secret.txt").resolve()
+        secret.write_text("must stay private")
+        (ui_dir / "escaped.txt").symlink_to(secret)
+
+        response = self.client.get("/escaped.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
 
 
 class TestSkillInstallers(unittest.TestCase):
@@ -666,6 +741,15 @@ class TestUIVersionTracking(unittest.TestCase):
         self.assertTrue(
             version_file.exists(),
             f"Version file not found at expected location: {version_file}",
+        )
+
+    @patch.dict(os.environ, {"RAILTRACKS_BETA_UI_URL": "https://example.test/beta.zip"})
+    def test_beta_ui_url_can_be_configured_at_runtime(self):
+        """Beta builds do not require patching an installed package."""
+        import railtracks.cli as cli_module
+
+        self.assertEqual(
+            cli_module._ui_url(beta=True), "https://example.test/beta.zip"
         )
 
     # --- temp file cleanup on failure ---
