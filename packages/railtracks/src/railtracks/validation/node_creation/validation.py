@@ -194,6 +194,30 @@ def _check_duplicate_tool_names(tool_nodes: Iterable[Any] | None) -> None:
             )
 
 
+def _check_no_combined_tools_and_schema(
+    tool_nodes: Iterable[Any] | None, output_schema: Any | None
+) -> None:
+    """
+    Ensure tool_nodes and output_schema are not both provided to the same agent_node.
+
+    Combining tool calling with a structured output_schema is unsupported: the model
+    does not reliably call the tool in this mode and may instead fabricate a plausible
+    tool result.
+
+    Args:
+        tool_nodes: The tool nodes provided to the agent, if any.
+        output_schema: The structured output_schema provided to the agent, if any.
+
+    Raises:
+        NodeCreationError: If both tool_nodes and output_schema are non-empty/non-None.
+    """
+    if tool_nodes and output_schema:
+        raise NodeCreationError(
+            message=get_message(ExceptionMessageKey.COMBINED_TOOLS_AND_SCHEMA_MSG),
+            notes=get_notes(ExceptionMessageKey.COMBINED_TOOLS_AND_SCHEMA_NOTES),
+        )
+
+
 def _check_pretty_name(pretty_name: str | None, tool_details: Any) -> None:
     """
     Ensure a name is provided if tool_details exist.
