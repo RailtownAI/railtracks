@@ -4,6 +4,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.models import OCRResult
 
 if TYPE_CHECKING:
     from PIL.Image import Image
@@ -37,3 +38,22 @@ class BaseOCRLoader(BaseDocumentLoader):
             The extracted text. May be an empty string if no text was found.
         """
         ...
+
+    async def _ocr_image_structured(self, image: Image) -> OCRResult:
+        """OCR a single image into structured output.
+
+        Default implementation delegates to :meth:`_ocr_image` and wraps the
+        plain-text result in an :class:`~railtracks.retrieval.models.OCRResult`.
+        Subclasses that can produce richer output (bounding boxes, tables,
+        markdown layout) should override this method directly.
+
+        Args:
+            image: The PIL image to recognize text from.
+
+        Returns:
+            An :class:`~railtracks.retrieval.models.OCRResult` whose ``markdown``
+            field contains the extracted text. ``bboxes`` and ``tables`` are
+            empty unless the method is overridden.
+        """
+        text = await self._ocr_image(image)
+        return OCRResult(markdown=text)

@@ -15,6 +15,7 @@ from .models import (
     Document,
     DocumentType,
     EmbeddedChunk,
+    OCRResult,
     RetrievalResult,
     RetrievedChunk,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "EmbeddingFailure",
     "EmbeddingModelMismatchError",
     "IngestionStats",
+    "OCRResult",
     "RetrievalResult",
     "RetrievalRuntime",
     "RetrievedChunk",
