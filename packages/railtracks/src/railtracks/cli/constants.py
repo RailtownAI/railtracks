@@ -12,4 +12,4 @@ latest_ui_url = "https://railtownazureb2c.blob.core.windows.net/cdn/rc-viz/lates
 # Beta UI zip — an optional packaged default for `railtracks viz --beta`.
 # Development builds and private beta channels can supply the URL at runtime
 # through BETA_UI_URL_ENV without patching the installed package.
-beta_ui_url = ""
+beta_ui_url = "https://railtracksstorage.blob.core.windows.net/railtrackswebsite/v2-visualizer/v2.0.0-beta.zip"
