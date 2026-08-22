@@ -130,6 +130,14 @@ class RetrievalRuntime:
             Requires ``tokenizer`` (defaults to ``TiktokenTokenizer``).
         tokenizer: Tokenizer used to enforce ``max_tokens``. Defaults to
             ``TiktokenTokenizer`` lazily when ``max_tokens`` is set.
+        safe_reingest: When ``True`` (default), buffers all embedded chunks
+            in memory before writing to the store. On partial failure the
+            old version is preserved, preventing data loss. Memory usage
+            is O(doc_size) — for very large documents (e.g. 10k+ chunks)
+            this can exceed 1 GB. Set to ``False`` to stream writes
+            directly (O(1) memory per chunk), but be aware that partial
+            failures will leave the document in a broken state with some
+            new chunks mixed with old ones.
     """
 
     def __init__(
@@ -146,6 +154,7 @@ class RetrievalRuntime:
         on_retrieve: Callable[[str, RetrievalResult], None] | None = None,
         max_tokens: int | None = None,
         tokenizer: Tokenizer | None = None,
+        safe_reingest: bool = True,
     ) -> None:
         self._chunker = chunker
         self._embedder = embedder
@@ -154,6 +163,7 @@ class RetrievalRuntime:
         self._on_ingest = on_ingest
         self._on_retrieve = on_retrieve
         self._max_tokens = max_tokens
+        self._safe_reingest = safe_reingest
         if max_tokens is not None and tokenizer is None:
             from .chunking.tokenization import TiktokenTokenizer
 
@@ -374,35 +384,77 @@ class RetrievalRuntime:
         # batch_index is per-document: it counts batches (successful and
         # failed) within this document and resets for the next one.
         batch_index = 0
-        delete_done = False
-        async for batch in self._embedder.astream_batches(
-            chunks, batch_size=self._batch_size
-        ):
-            if isinstance(batch, EmbeddingResult):
-                # Check model BEFORE delete_where / write — a mismatch here
-                # must not corrupt the store by clearing prior chunks first.
-                self._check_model(batch.metrics.model)
-                if not delete_done:
-                    await self._store.delete_where({"document_id": str(doc.id)})
-                    delete_done = True
-                for embedded in batch.chunks:
-                    self._capture_model(embedded)
-                    entry = StoreEntry.from_chunk(embedded, scope=scope)
+
+        if self._safe_reingest:
+            # Safe mode (default): buffer all successful entries before
+            # deleting old data. Prevents data loss on partial failure
+            # at the cost of O(doc_size) memory.
+            all_succeeded = True
+            successful_entries: list[tuple[EmbeddedChunk, StoreEntry]] = []
+
+            async for batch in self._embedder.astream_batches(
+                chunks, batch_size=self._batch_size
+            ):
+                if isinstance(batch, EmbeddingResult):
+                    self._check_model(batch.metrics.model)
+                    for embedded in batch.chunks:
+                        self._capture_model(embedded)
+                        entry = StoreEntry.from_chunk(embedded, scope=scope)
+                        successful_entries.append((embedded, entry))
+                    stats.chunks_embedded += len(batch.chunks)
+                    stats.total_metrics = stats.total_metrics + batch.metrics
+                    yield BatchIngested(
+                        document_id=doc.id,
+                        embedded_chunks=batch.chunks,
+                        batch_index=batch_index,
+                        metrics=batch.metrics,
+                    )
+                else:
+                    all_succeeded = False
+                    doc_errors.extend(batch.errors)
+                    stats.batches_failed += 1
+                    stats.batch_failures.append(batch)
+                    yield batch
+                batch_index += 1
+
+            if all_succeeded and successful_entries:
+                await self._store.delete_where({"document_id": str(doc.id)})
+                for embedded, entry in successful_entries:
                     await self._store.write(entry)
-                stats.chunks_embedded += len(batch.chunks)
-                stats.total_metrics = stats.total_metrics + batch.metrics
-                yield BatchIngested(
-                    document_id=doc.id,
-                    embedded_chunks=batch.chunks,
-                    batch_index=batch_index,
-                    metrics=batch.metrics,
+            elif not all_succeeded:
+                logger.warning(
+                    "Partial failure during re-ingest of %s — "
+                    "keeping old version intact (%d successful batches discarded)",
+                    doc.id, len(successful_entries),
                 )
-            else:
-                doc_errors.extend(batch.errors)
-                stats.batches_failed += 1
-                stats.batch_failures.append(batch)
-                yield batch
-            batch_index += 1
+        else:
+            # Unsafe mode: stream writes directly. O(1) memory per chunk
+            # but partial failures leave the document in a broken state.
+            await self._store.delete_where({"document_id": str(doc.id)})
+
+            async for batch in self._embedder.astream_batches(
+                chunks, batch_size=self._batch_size
+            ):
+                if isinstance(batch, EmbeddingResult):
+                    self._check_model(batch.metrics.model)
+                    for embedded in batch.chunks:
+                        self._capture_model(embedded)
+                        entry = StoreEntry.from_chunk(embedded, scope=scope)
+                        await self._store.write(entry)
+                    stats.chunks_embedded += len(batch.chunks)
+                    stats.total_metrics = stats.total_metrics + batch.metrics
+                    yield BatchIngested(
+                        document_id=doc.id,
+                        embedded_chunks=batch.chunks,
+                        batch_index=batch_index,
+                        metrics=batch.metrics,
+                    )
+                else:
+                    doc_errors.extend(batch.errors)
+                    stats.batches_failed += 1
+                    stats.batch_failures.append(batch)
+                    yield batch
+                batch_index += 1
 
     def _capture_model(self, embedded: EmbeddedChunk) -> None:
         """Record the embedding model from the first successful chunk so later
