@@ -12,6 +12,7 @@ The **Slot** column tells you where each middleware can be attached:
 
 | Middleware | Slot | What it does |
 |---|---|---|
+| `Lock` | Both | Serialize concurrent invocations that share the same middleware instance. |
 | [Retry](list/retry.md) | Both | Re-run the wrapped call when it raises a transient error, with a configurable backoff. |
 | [Timeout](list/timeout.md) | Both | Cancel the wrapped call and raise `TimeoutError` when it exceeds a deadline. |
 | [ContextInjection](list/context_injection.md) | Model | Fill `{placeholder}` templates in the prompt from the active session context. |
