@@ -17,7 +17,7 @@ except ImportError as exc:
     ) from exc
 
 
-BreakdownStrategy = Literal["page", "document"]
+BreakdownStrategy = Literal["page", "paragraph", "document"]
 
 
 class PyPDFLoader(BaseDocumentLoader):
@@ -31,6 +31,10 @@ class PyPDFLoader(BaseDocumentLoader):
     - `page` *(default)*: one `Document` per page, yielded as each page is
       extracted. `metadata` includes `page` (1-based), `total_pages`, and
       `file_type`. Empty pages are skipped.
+    - `paragraph`: one `Document` per non-empty paragraph on each page.
+      Paragraphs are separated by ``\\n\\n``. `metadata` includes `page`
+      (1-based), `paragraph` (1-based within the page), `total_pages`, and
+      `file_type`.
     - `document`: entire PDF as one `Document`, with pages joined by ``\\n\\n``.
       `metadata` includes `total_pages` and `file_type`.
 
@@ -43,8 +47,9 @@ class PyPDFLoader(BaseDocumentLoader):
 
     Raises:
         FileNotFoundError: If `file_path` does not exist.
-        ValueError: If `breakdown_strategy` is not `page` or `document`, or if
-            `file_path` points to a file with an unsupported extension.
+        ValueError: If `breakdown_strategy` is not `page`, `paragraph`, or
+            `document`, or if `file_path` points to a file with an unsupported
+            extension.
     """
 
     def __init__(
@@ -53,17 +58,19 @@ class PyPDFLoader(BaseDocumentLoader):
         breakdown_strategy: BreakdownStrategy = "page",
     ) -> None:
         self._path = Path(file_path)
-        if breakdown_strategy not in ("page", "document"):
+        if breakdown_strategy not in ("page", "paragraph", "document"):
             raise ValueError(
-                f"breakdown_strategy must be 'page' or 'document', got {breakdown_strategy!r}"
+                "breakdown_strategy must be 'page', 'paragraph', or 'document', "
+                f"got {breakdown_strategy!r}"
             )
         self._breakdown_strategy = breakdown_strategy
 
     async def _stream_file(self, path: Path) -> AsyncGenerator[Document, None]:
         """Stream documents from a single PDF file.
 
-        Yields one `Document` per page for the `page` strategy, or one
-        `Document` for the entire file for the `document` strategy.
+        Yields one `Document` per page for the `page` strategy, one per
+        non-empty paragraph for the `paragraph` strategy, or one `Document`
+        for the entire file for the `document` strategy.
 
         Args:
             path: Path to the PDF file to read.
@@ -86,8 +93,32 @@ class PyPDFLoader(BaseDocumentLoader):
             return
 
         for page_number, page in enumerate(reader.pages, start=1):
-            text = await asyncio.to_thread(page.extract_text)
+            extraction_kwargs = (
+                {"extraction_mode": "layout"}
+                if self._breakdown_strategy == "paragraph"
+                else {}
+            )
+            text = await asyncio.to_thread(page.extract_text, **extraction_kwargs)
             if not text or not text.strip():
+                continue
+            if self._breakdown_strategy == "paragraph":
+                paragraph_number = 0
+                for paragraph in text.split("\n\n"):
+                    content = paragraph.strip()
+                    if not content:
+                        continue
+                    paragraph_number += 1
+                    yield Document(
+                        content=content,
+                        type=DocumentType.PDF,
+                        source=source,
+                        metadata={
+                            "page": page_number,
+                            "paragraph": paragraph_number,
+                            "total_pages": total_pages,
+                            "file_type": ".pdf",
+                        },
+                    )
                 continue
             yield Document(
                 content=text,
@@ -103,10 +134,11 @@ class PyPDFLoader(BaseDocumentLoader):
     async def astream(self) -> AsyncGenerator[Document, None]:
         """Stream documents one at a time as each page or file is extracted.
 
-        For the `page` strategy, yields one `Document` per page as soon as
-        it is extracted, allowing downstream stages to begin processing
-        without waiting for the full PDF to load. For the `document`
-        strategy, yields one `Document` per file after all pages are read.
+        For the `page` and `paragraph` strategies, yields documents as soon
+        as each page is extracted, allowing downstream stages to begin
+        processing without waiting for the full PDF to load. For the
+        `document` strategy, yields one `Document` per file after all pages
+        are read.
 
         If initialised with a directory, streams documents from all `.pdf`
         files in sorted order.
