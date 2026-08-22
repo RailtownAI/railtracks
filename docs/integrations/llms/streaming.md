@@ -34,7 +34,7 @@ A few details worth knowing:
 - **Errors.** If the node fails mid-stream, the exception is raised out of the `async for` loop (or the `await`), just as it is with `rt.call`.
 - **Early exit.** Breaking out of the loop does not cancel the run; it finishes in the background. Await the stream afterwards to collect the final result.
 - **Timeouts.** The session `timeout` applies to the whole streamed run as a wall-clock limit.
-- **Tool calling.** Token streaming with tool calling is currently supported on OpenAI models only. On other providers a streamed tool-calling run falls back to a buffered model call (with a logged warning), and the final result is unaffected.
+- **Tool calling.** Token streaming works with tool calling on every provider whose model supports both, OpenAI, Anthropic and Gemini included. The tool-request turn itself yields no chunks (a tool call is not streamable text); the turns around it stream normally. If a model cannot stream tool calls, that call falls back to a buffered model call (with a logged warning) and the final result is unaffected.
 
 ### Streaming inside a `@function_node`
 

@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from railtracks.context.central import is_context_present
 from railtracks.exceptions import GlobalTimeOutError, LLMError, NodeCreationError
 from railtracks.llm import ToolCall
-from railtracks.llm.providers import ModelProvider
 
 
 def _agent(mock_llm, response: str):
@@ -171,25 +170,25 @@ async def test_astream_structured_agent_yields_final_result(mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_astream_tool_calling_blacklisted_provider_falls_back_buffered(mock_llm):
-    """A blacklisted provider (tool calling + streaming unsupported together) still
-    succeeds under rt.astream: the call falls back to buffered, so no chunks are
-    emitted, but `.result` is unaffected."""
+async def test_astream_tool_calling_unsupported_model_falls_back_buffered(mock_llm):
+    """A model that reports it cannot stream tool calls still succeeds under
+    rt.astream: the call falls back to buffered, so no chunks are emitted, but
+    `.result` is unaffected."""
 
-    class BlacklistedProviderLLM(mock_llm):
-        def model_provider(self):
-            return ModelProvider.ANTHROPIC
+    class NoToolStreamingLLM(mock_llm):
+        def supports_streamed_tool_calling(self):
+            return False
 
     def secret_phrase():
         return "Constantinople"
 
-    llm = BlacklistedProviderLLM(
+    llm = NoToolStreamingLLM(
         requested_tool_calls=[
             ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
         ]
     )
     agent = rt.agent_node(
-        name="BlacklistedToolStreamer",
+        name="UnstreamableToolStreamer",
         tool_nodes={rt.function_node(secret_phrase)},
         system_message="you can call tools",
         llm=llm,
