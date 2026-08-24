@@ -37,7 +37,10 @@ class MaxCalls(Middleware):
     async def _middleware_fn(self, call, *args, **kwargs):
         if self._call_count >= self._max_calls:
             if self._custom_message:
-                raise Exception(self._custom_message)
-            raise Exception("Maximum number of calls exceeded")
+                raise MaxCallsExceededError(self._custom_message)
+            raise MaxCallsExceededError("Maximum number of calls exceeded")
         self._call_count += 1
         return await call(*args, **kwargs)
+
+class MaxCallsExceededError(Exception):
+    """Raised when the maximum number of calls is exceeded in MaxCalls middleware."""
