@@ -46,37 +46,18 @@ from .io import (
     print_success,
     print_warning,
 )
+from .skills_registry import Skill, discover_skills
 
 # ---------------------------------------------------------------------------
-# Skill registry — maps skill names to their metadata
+# Skill registry — derived from the bundled skill directories on disk
 # ---------------------------------------------------------------------------
 
-SKILLS = {
-    "agent-builder": {
-        "name": "agent-builder",
-        "description": (
-            "Build an agent using the railtracks Python framework. "
-            "Use when the user wants to create an AI agent, tool-calling workflow, "
-            "or multi-agent system with railtracks."
-        ),
-        "argument_hint": "[describe what the agent should do]",
-    },
-    "rag-pipeline": {
-        "name": "rag-pipeline",
-        "description": (
-            "Build a RAG (retrieval-augmented generation) pipeline using railtracks. "
-            "Use when the user wants to ingest documents into a vector store and retrieve "
-            "relevant passages to answer questions."
-        ),
-        "argument_hint": "[describe the data source and what you want to retrieve]",
-    },
-    "middleware": {
-        "name": "middleware",
-        "description": (
-            "Use middleware as part of your railtracks agent. Use when you want build resilient and effective agents"
-        ),
-        "argument_hint": "[describe the middleware to implement]",
-    },
+# The rich objects; the source of truth for everything about a bundled skill.
+SKILL_REGISTRY: dict[str, Skill] = discover_skills()
+
+# Legacy skills dict, used for CLI help output and to generate the per-tool SKILL.md files.
+SKILLS: dict[str, dict] = {
+    name: skill.as_meta() for name, skill in SKILL_REGISTRY.items()
 }
 
 SUPPORTED_TOOLS = ("claude", "codex", "copilot", "cursor")
@@ -267,16 +248,6 @@ def update_railtracks():
 # ---------------------------------------------------------------------------
 
 
-def _load_skill_content(skill_name: str) -> str:
-    """Load bundled skill content from the skills directory."""
-    skills_dir = Path(__file__).parent / "skills"
-    skill_file = skills_dir / f"{skill_name}.md"
-    if not skill_file.exists():
-        print_error(f"Skill '{skill_name}' not found in bundled skills.")
-        sys.exit(1)
-    return skill_file.read_text(encoding="utf-8")
-
-
 def _strip_skill_arguments(content: str) -> str:
     """Resolve the `$ARGUMENTS` placeholder for targets that never substitute it.
 
@@ -325,53 +296,52 @@ def _confirm_overwrite(file_path: Path) -> bool:
     return answer in ("y", "yes")
 
 
-def _add_claude(skill_name: str, meta: dict, content: str, force: bool) -> None:
+def _add_claude(skill: Skill, force: bool) -> None:
     """Install skill for Claude Code as a SKILL.md file."""
-    target = Path(".claude") / "skills" / skill_name / "SKILL.md"
+    target = Path(".claude") / "skills" / skill.name / "SKILL.md"
     if target.exists() and not force:
         if not _confirm_overwrite(target):
             print_status("Aborted.")
             sys.exit(0)
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = (
-        "---\n"
-        f"name: {meta['name']}\n"
-        f"description: {meta['description']}\n"
-        f'argument-hint: "{meta["argument_hint"]}"\n'
-        "---\n\n"
+    hint = (
+        f'argument-hint: "{skill.argument_hint}"\n'
+        if skill.argument_hint is not None
+        else ""
     )
-    target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Claude Code -> {target}")
+    frontmatter = (
+        f"---\nname: {skill.name}\ndescription: {skill.description}\n{hint}---\n\n"
+    )
+    target.write_text(frontmatter + skill.body, encoding="utf-8")
+    print_success(f"Installed '{skill.name}' for Claude Code -> {target}")
 
 
-def _add_codex(skill_name: str, meta: dict, content: str, force: bool) -> None:
+def _add_codex(skill: Skill, force: bool) -> None:
     """Install a skill for Codex as a repository-scoped SKILL.md file."""
-    target = Path(".agents") / "skills" / skill_name / "SKILL.md"
+    target = Path(".agents") / "skills" / skill.name / "SKILL.md"
     if target.exists() and not force:
         if not _confirm_overwrite(target):
             print_status("Aborted.")
             sys.exit(0)
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = (
-        f"---\nname: {meta['name']}\ndescription: {meta['description']}\n---\n\n"
-    )
-    target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Codex -> {target}")
+    frontmatter = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n\n"
+    target.write_text(frontmatter + skill.body, encoding="utf-8")
+    print_success(f"Installed '{skill.name}' for Codex -> {target}")
 
 
-def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None:  # noqa: ARG001
+def _add_copilot(skill: Skill, force: bool) -> None:
     """Install skill for GitHub Copilot by appending to copilot-instructions.md."""
     target = Path(".github") / "copilot-instructions.md"
-    start_marker = f"<!-- railtracks:{skill_name}:start -->"
-    end_marker = f"<!-- railtracks:{skill_name}:end -->"
+    start_marker = f"<!-- railtracks:{skill.name}:start -->"
+    end_marker = f"<!-- railtracks:{skill.name}:end -->"
 
     if target.exists():
         existing = target.read_text(encoding="utf-8")
         if start_marker in existing:
             print_warning(
-                f"Skill '{skill_name}' is already present in {target}. "
+                f"Skill '{skill.name}' is already present in {target}. "
                 "Remove the existing section and re-run to update it, or use --force."
             )
             if not force:
@@ -387,28 +357,26 @@ def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None
     # to installing it fresh and repeated --force runs don't accumulate blank lines.
     preamble = existing.rstrip()
     section = (
-        f"{start_marker}\n{_strip_skill_arguments(content).strip()}\n{end_marker}\n"
+        f"{start_marker}\n{_strip_skill_arguments(skill.body).strip()}\n{end_marker}\n"
     )
     target.write_text(
         f"{preamble}\n\n{section}" if preamble else section, encoding="utf-8"
     )
-    print_success(f"Installed '{skill_name}' for GitHub Copilot -> {target}")
+    print_success(f"Installed '{skill.name}' for GitHub Copilot -> {target}")
 
 
-def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
+def _add_cursor(skill: Skill, force: bool) -> None:
     """Install skill for Cursor as a .mdc rules file."""
-    target = Path(".cursor") / "rules" / f"{skill_name}.mdc"
+    target = Path(".cursor") / "rules" / f"{skill.name}.mdc"
     if target.exists() and not force:
         if not _confirm_overwrite(target):
             print_status("Aborted.")
             sys.exit(0)
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = (
-        f"---\ndescription: {meta['description']}\nalwaysApply: false\n---\n\n"
-    )
-    target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Cursor -> {target}")
+    frontmatter = f"---\ndescription: {skill.description}\nalwaysApply: false\n---\n\n"
+    target.write_text(frontmatter + skill.body, encoding="utf-8")
+    print_success(f"Installed '{skill.name}' for Cursor -> {target}")
 
 
 _TOOL_HANDLERS = {
@@ -444,9 +412,7 @@ def add_skill(spec: str, force: bool = False) -> None:
         )
         sys.exit(1)
 
-    meta = SKILLS[skill_name]
-    content = _load_skill_content(skill_name)
-    _TOOL_HANDLERS[tool](skill_name, meta, content, force)
+    _TOOL_HANDLERS[tool](SKILL_REGISTRY[skill_name], force)
 
 
 def list_skills() -> None:
