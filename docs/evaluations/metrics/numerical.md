@@ -21,16 +21,7 @@ latency = eval.metrics.Numerical(
 When used with the `JudgeEvaluator`, you can provide `shots` (also known as anchor points) to calibrate how the LLM assigns scores. Each shot maps a score to what it means, and the judge is told to interpolate between shots:
 
 ```python
-quality = eval.metrics.Numerical(
-    name="Quality",
-    min_value=0,
-    max_value=10,
-    shots=[
-        (0, "Completely incorrect and unhelpful."),
-        (5, "Partially correct but missing key details."),
-        (10, "Correct, complete, and well-structured."),
-    ],
-)
+--8<-- "docs/scripts/evaluations/numerical.py"
 ```
 
 You do not need to provide a shot for every score; the judge interpolates between the provided anchor points.
