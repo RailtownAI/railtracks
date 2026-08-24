@@ -1,5 +1,3 @@
-from ast import Str
-
 # --8<-- [start: imports]
 import railtracks as rt
 from pydantic import BaseModel
@@ -7,7 +5,7 @@ from pydantic import BaseModel
 
 # --8<-- [start: simple_llm]
 SimpleLLM = rt.agent_node(
-    llm=rt.llm.AnthropicLLM("claude-sonnet-4-20250514"),
+    llm=rt.llm.AnthropicLLM("claude-sonnet-5"),
     system_message="You are a helpful AI assistant."
 )
 # --8<-- [end: simple_llm]
@@ -56,7 +54,7 @@ def weather_tool(city: str):
 # --8<-- [start: first_agent_tools]
 WeatherAgent = rt.agent_node(
     name="Weather Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[weather_tool],
 )
@@ -65,7 +63,7 @@ WeatherAgent = rt.agent_node(
 # --8<-- [start: first_agent_model]
 StructuredWeatherAgent = rt.agent_node(
     name="Weather Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     output_schema=WeatherResponse,
 )
@@ -74,14 +72,14 @@ StructuredWeatherAgent = rt.agent_node(
 # --8<-- [start: first_agent_all]
 WeatherToolCallAgent = rt.agent_node(
     name="Weather Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[weather_tool],
 )
 
 WeatherStructuredAgent = rt.agent_node(
     name="Weather Formatter Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="Extract the temperature and condition from the assistant's answer.",
     output_schema=WeatherResponse,
 )
