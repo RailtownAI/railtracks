@@ -192,7 +192,7 @@ Steps 3 and 4 are gated on changed paths, so a docs-only PR skips the test suite
   GENERATED — do not edit by hand.
 
   The section below is the bundled `agent-builder` skill
-  (packages/railtracks/src/railtracks/cli/skills/agent-builder.md). Edit that file,
+  (packages/railtracks/src/railtracks/cli/skills/agent-builder/SKILL.md). Edit that file,
   then regenerate from the repository root with:
 
       railtracks add copilot:agent-builder --force
