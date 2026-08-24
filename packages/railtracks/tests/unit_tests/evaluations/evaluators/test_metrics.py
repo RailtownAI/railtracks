@@ -52,6 +52,19 @@ def test_metric_explicit_identifier_preserved():
     assert m.identifier == "custom-id"
 
 
+def test_metric_fields_have_descriptions():
+    fields = Metric.model_fields
+    assert fields["name"].description == "Name of the metric."
+    assert fields["metric_type"].description == "Type of the metric."
+    assert (
+        fields["identifier"].description
+        == "Unique identifier generated from metric configuration."
+    )
+    assert fields["description"].description == (
+        "Optional human-readable description of the metric."
+    )
+
+
 # ── Numerical ─────────────────────────────────────────────────────────────────
 
 
