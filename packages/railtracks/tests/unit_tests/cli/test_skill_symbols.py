@@ -5,6 +5,10 @@ nothing breaks until an agent follows a stale instruction. This check reads the
 *whole* SKILL.md; not only code blocks.
 
 Run as a plain pytest so a stale skill fails in a contributor's checkout, not only in CI.
+
+Only *dotted* mentions are checked: `rt.X`, `railtracks.X`, `from railtracks... import X`.
+Bare class names are not — see `test_bare_class_names_are_a_known_blind_spot`.
+TODO: (Suggested) Fix this bahaviour by adding a no-bare-name rule for skills.
 """
 
 import re
@@ -148,3 +152,27 @@ def test_extraction_finds_symbols_in_prose_and_tables():
         "railtracks.retrieval.loaders.CSVLoader",
         "railtracks.retrieval.loaders.TextLoader",
     }
+
+
+def test_bare_class_names_are_a_known_blind_spot():
+    """Document the one form this checker does not cover, and why.
+
+    A bare backticked class name carries no namespace, so resolving it means
+    searching the package rather than walking a path. Measured against the three
+    bundled skills, matching backticked CapWords and resolving against the root
+    gives 19 hits and no true positives: 6 are noise (`A`, `B`, `C`, `True`,
+    `TypeError`, `BaseModel`) and 13 are real symbols living in submodules —
+    `Document`, `Chunk`, `SemanticChunker`, `NodeCreationError` and friends — that
+    the skill never imports by name, so its own imports cannot supply the namespace
+    either. Closing this needs a real namespace search, not a wider regex.
+
+    If you add that search, delete this test rather than silencing the fallout with
+    a per-symbol exception list.
+    """
+    assert _extract_symbols("| `TerminalLLM` | a removed agent class |\n") == set()
+
+    # The same name is caught the moment it carries a namespace.
+    assert _extract_symbols("| `rt.TerminalLLM` | a removed agent class |\n") == {
+        "railtracks.TerminalLLM"
+    }
+    assert _resolve("railtracks.TerminalLLM")[0] == "missing"
