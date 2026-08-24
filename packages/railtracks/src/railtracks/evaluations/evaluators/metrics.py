@@ -24,7 +24,9 @@ def _json_default(value):
 
 class Metric(BaseModel):
     name: str = Field(description="Name of the metric.")
-    metric_type: Literal["Metric"] = Field(default="Metric", description="Type of the metric.")
+    metric_type: Literal["Metric"] = Field(
+        default="Metric", description="Type of the metric."
+    )
     identifier: str = Field(
         default="", description="Unique identifier generated from metric configuration."
     )
