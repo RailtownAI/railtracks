@@ -26,6 +26,10 @@ class MaxCalls(Middleware):
         max_calls: Number of calls allowed before the limit is enforced.
         custom_message: Message to raise once the limit is exceeded. Defaults
             to ``"Maximum number of calls exceeded"``.
+
+    Raises:
+        MaxCallsExceededError: Once ``call`` has already been invoked
+            ``max_calls`` times.
     """
 
     def __init__(self, max_calls: int, custom_message: str | None = None):
@@ -42,5 +46,6 @@ class MaxCalls(Middleware):
         self._call_count += 1
         return await call(*args, **kwargs)
 
+
 class MaxCallsExceededError(Exception):
-    """Raised when the maximum number of calls is exceeded in MaxCalls middleware."""
+    """Raised when a :class:`MaxCalls`-wrapped call is invoked past its limit."""

@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import pytest
 from railtracks.middleware import Middleware
-from railtracks.prebuilt.middleware.max_calls import MaxCalls
+from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 
 
 def test_max_calls_is_a_plain_middleware():
     assert isinstance(MaxCalls(1), Middleware)
+
+
+def test_max_calls_exceeded_error_is_exported_flat():
+    from railtracks.prebuilt.middleware import MaxCallsExceededError as PublicError
+
+    assert PublicError is MaxCallsExceededError
 
 
 @pytest.mark.asyncio
@@ -30,7 +36,7 @@ async def test_call_beyond_the_limit_raises():
     max_calls = MaxCalls(1)
     await max_calls.wrap(add)(1, 2)
 
-    with pytest.raises(Exception, match="Maximum number of calls exceeded"):
+    with pytest.raises(MaxCallsExceededError, match="Maximum number of calls exceeded"):
         await max_calls.wrap(add)(1, 2)
 
 
@@ -41,7 +47,7 @@ async def test_custom_message_is_used_when_limit_exceeded():
 
     max_calls = MaxCalls(0, custom_message="budget exhausted")
 
-    with pytest.raises(Exception, match="budget exhausted"):
+    with pytest.raises(MaxCallsExceededError, match="budget exhausted"):
         await max_calls.wrap(noop)()
 
 
@@ -53,7 +59,7 @@ async def test_count_is_not_incremented_once_limit_is_hit():
     max_calls = MaxCalls(0)
 
     for _ in range(3):
-        with pytest.raises(Exception, match="Maximum number of calls exceeded"):
+        with pytest.raises(MaxCallsExceededError, match="Maximum number of calls exceeded"):
             await max_calls.wrap(noop)()
 
     assert max_calls._call_count == 0
