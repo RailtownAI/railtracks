@@ -23,11 +23,17 @@ def _json_default(value):
 
 
 class Metric(BaseModel):
-    name: str
-    metric_type: Literal["Metric"] = "Metric"
-    identifier: str = ""
+    name: str = Field(description="Name of the metric.")
+    metric_type: Literal["Metric"] = Field(
+        default="Metric", description="Type of the metric."
+    )
+    identifier: str = Field(
+        default="", description="Unique identifier generated from metric configuration."
+    )
     model_config = ConfigDict(frozen=True)
-    description: str | None = None
+    description: str | None = Field(
+        default=None, description="Optional human-readable description of the metric."
+    )
 
     @model_validator(mode="before")
     @classmethod
