@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
-from typing import Awaitable, Callable, ParamSpec, TypeVar, overload
+from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, overload
 
 from railtracks.middleware.core import Middleware, wrap_node
 from railtracks.middleware.verdict import Verdict, VerifierRejectedError
@@ -24,11 +24,11 @@ def pre_verifier(
     *,
     timeout: float | None = None,
     name: str | None = None,
-) -> Middleware[_P, _R]: ...
+) -> Middleware[_P, Any]: ...
 @overload
 def pre_verifier(
     *, timeout: float | None = None, name: str | None = None
-) -> Callable[[_ApproveFn[_P]], Middleware[_P, _R]]: ...
+) -> Callable[[_ApproveFn[_P]], Middleware[_P, Any]]: ...
 
 
 def pre_verifier(
@@ -37,7 +37,7 @@ def pre_verifier(
     *,
     timeout: float | None = None,
     name: str | None = None,
-) -> Middleware[_P, _R] | Callable[[_ApproveFn[_P]], Middleware[_P, _R]]:
+) -> Middleware[_P, Any] | Callable[[_ApproveFn[_P]], Middleware[_P, Any]]:
     """Build a node-verification middleware around ``approve_fn`` that gates a call
     BEFORE it runs.
 

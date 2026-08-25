@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
-from typing import Awaitable, Callable, ParamSpec, TypeVar, overload
+from typing import Awaitable, Callable, Concatenate, ParamSpec, TypeVar, overload
 
 from railtracks.middleware.core import Middleware, wrap_node
 from railtracks.middleware.verdict import Verdict, VerifierRejectedError
@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
-_ApproveFn = Callable[_P, Verdict[_R] | Awaitable[Verdict[_R]]]
+_ApproveFn = Callable[Concatenate[_R, _P], Verdict[_R] | Awaitable[Verdict[_R]]]
 
 
 @overload
 def post_verifier(
-    approve_fn: _ApproveFn[_P, _R],
+    approve_fn: _ApproveFn[_R, _P],
     /,
     *,
     timeout: float | None = None,
@@ -28,22 +28,26 @@ def post_verifier(
 @overload
 def post_verifier(
     *, timeout: float | None = None, name: str | None = None
-) -> Callable[[_ApproveFn[_P, _R]], Middleware[_P, _R]]: ...
+) -> Callable[[_ApproveFn[_R, _P]], Middleware[_P, _R]]: ...
 
 
 def post_verifier(
-    approve_fn: _ApproveFn[_P, _R] | None = None,
+    approve_fn: _ApproveFn[_R, _P] | None = None,
     /,
     *,
     timeout: float | None = None,
     name: str | None = None,
-) -> Middleware[_P, _R] | Callable[[_ApproveFn[_P, _R]], Middleware[_P, _R]]:
+) -> Middleware[_P, _R] | Callable[[_ApproveFn[_R, _P]], Middleware[_P, _R]]:
     """Build a node-verification middleware around ``approve_fn`` that gates a
     call's OUTPUT AFTER it has already run.
 
     The wrapped node always runs first. ``approve_fn`` is then called with the
-    node's own ``*args, **kwargs`` plus the produced value as a ``result``
-    keyword — sync or async, both supported — and must return a `Verdict`.
+    produced value as its first argument, followed by the node's own
+    ``*args, **kwargs`` — sync or async, both supported — and must return a
+    `Verdict`. ``result`` comes first (rather than trailing as a keyword) so
+    the whole call is statically checkable: a `Verdict` mistyped against the
+    node's actual return type, or an ``approve_fn`` with the wrong shape, is
+    a type-checker error instead of a runtime surprise.
 
     Decline can't undo the call (it already happened) but still raises
     `VerifierRejectedError`, stopping the result from propagating onward. On
@@ -63,7 +67,7 @@ def post_verifier(
     return wrap_node(_wrapper(approve_fn, timeout), name=name)
 
 
-def _wrapper(approve_fn: _ApproveFn[_P, _R], timeout: float | None):
+def _wrapper(approve_fn: _ApproveFn[_R, _P], timeout: float | None):
     @functools.wraps(approve_fn)
     async def wrapped(
         call: Callable[_P, Awaitable[_R]], *args: _P.args, **kwargs: _P.kwargs
@@ -71,11 +75,7 @@ def _wrapper(approve_fn: _ApproveFn[_P, _R], timeout: float | None):
         result = await call(*args, **kwargs)
 
         try:
-            # ParamSpec _P can't express "the node's params plus one trailing
-            # result= keyword", so this call is a step ahead of what mypy can verify.
-            review = unpack_async_sync(
-                approve_fn(*args, **kwargs, result=result)  # type: ignore[arg-type]
-            )
+            review = unpack_async_sync(approve_fn(result, *args, **kwargs))
             if timeout is None:
                 verdict = await review
             else:

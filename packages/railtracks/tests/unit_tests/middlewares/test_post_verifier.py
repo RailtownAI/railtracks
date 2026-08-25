@@ -1,12 +1,15 @@
 """Unit and end-to-end tests for the post-call verifier middleware (#1485).
 
 A post_verifier is an ordinary `wrap_node` middleware, modeled on `after_node`:
-it runs the wrapped call first, then runs an approve callable against the
-node's own `*args, **kwargs` plus the produced `result`, before deciding
-whether/how that result propagates onward. Unlike `pre_verifier`, decline
-cannot undo the call -- the node's body has already run by the time
-`approve_fn` sees anything -- it only stops the result from propagating
-further.
+it runs the wrapped call first, then runs an approve callable with the
+produced `result` as its first argument, followed by the node's own
+`*args, **kwargs`, before deciding whether/how that result propagates
+onward. Unlike `pre_verifier`, decline cannot undo the call -- the node's
+body has already run by the time `approve_fn` sees anything -- it only
+stops the result from propagating further.
+
+`result` comes first (not a trailing keyword) so the whole call is
+statically checkable via `Concatenate` -- see `post_verifier.py`.
 """
 
 import asyncio
@@ -19,7 +22,7 @@ from railtracks.prebuilt.middleware import post_verifier
 
 class TestPostVerifierUnit:
     async def test_accept_forwards_the_result_unchanged(self):
-        gate = post_verifier(lambda *a, result, **k: Verdict(accepted=True))
+        gate = post_verifier(lambda result, *a, **k: Verdict(accepted=True))
 
         async def core(x):
             return x * 2
@@ -33,7 +36,7 @@ class TestPostVerifierUnit:
             ran["value"] = True
             return "done"
 
-        gate = post_verifier(lambda *a, result, **k: Verdict(accepted=False))
+        gate = post_verifier(lambda result, *a, **k: Verdict(accepted=False))
 
         with pytest.raises(VerifierRejectedError):
             await gate.wrap(core)()
@@ -41,7 +44,7 @@ class TestPostVerifierUnit:
 
     async def test_decline_with_comment_is_carried_into_the_exception(self):
         gate = post_verifier(
-            lambda *a, result, **k: Verdict(accepted=False, comment="too risky")
+            lambda result, *a, **k: Verdict(accepted=False, comment="too risky")
         )
 
         async def core():
@@ -52,7 +55,7 @@ class TestPostVerifierUnit:
 
     async def test_accept_with_result_override_replaces_the_propagated_value(self):
         gate = post_verifier(
-            lambda *a, result, **k: Verdict(
+            lambda result, *a, **k: Verdict(
                 accepted=True, comment="redacted", result="scrubbed"
             )
         )
@@ -63,17 +66,17 @@ class TestPostVerifierUnit:
         assert await gate.wrap(core)(1) == "scrubbed"
 
     async def test_accept_without_result_override_passes_the_original_through(self):
-        gate = post_verifier(lambda *a, result, **k: Verdict(accepted=True))
+        gate = post_verifier(lambda result, *a, **k: Verdict(accepted=True))
 
         async def core(x):
             return "raw"
 
         assert await gate.wrap(core)(1) == "raw"
 
-    async def test_approve_fn_receives_the_nodes_own_args_kwargs_and_result(self):
+    async def test_approve_fn_receives_the_result_then_the_nodes_own_args_kwargs(self):
         seen = {}
 
-        def approve(order_id, amount, result):
+        def approve(result, order_id, amount):
             seen["order_id"] = order_id
             seen["amount"] = amount
             seen["result"] = result
@@ -90,7 +93,7 @@ class TestPostVerifierUnit:
         assert seen == {"order_id": "A1", "amount": 5, "result": "A1:5"}
 
     async def test_async_approve_fn_is_supported(self):
-        async def approve(*a, result, **k):
+        async def approve(result, *a, **k):
             return Verdict(accepted=True)
 
         gate = post_verifier(approve)
@@ -101,7 +104,7 @@ class TestPostVerifierUnit:
         assert await gate.wrap(core)(7) == 7
 
     async def test_timeout_rejects_with_reason_timeout(self):
-        async def approve(*a, result, **k):
+        async def approve(result, *a, **k):
             await asyncio.sleep(10)
             return Verdict(accepted=True)
 
@@ -115,14 +118,14 @@ class TestPostVerifierUnit:
 
     def test_bare_decorator_form(self):
         @post_verifier
-        async def approve(*a, result, **k):
+        async def approve(result, *a, **k):
             return Verdict(accepted=True)
 
         assert isinstance(approve, rt.middleware.Middleware)
 
     def test_called_decorator_form_with_options(self):
         @post_verifier(timeout=5, name="my_gate")
-        def approve(*a, result, **k):
+        def approve(result, *a, **k):
             return Verdict(accepted=True)
 
         assert approve.name == "my_gate"
@@ -133,7 +136,7 @@ class TestPostVerifierEndToEnd:
     Task.invoke -> node.wrapped_invoke -> middleware.run(invoke)."""
 
     def test_approved_call_propagates_the_result(self):
-        gate = post_verifier(lambda order_id, amount, result: Verdict(accepted=True))
+        gate = post_verifier(lambda result, order_id, amount: Verdict(accepted=True))
 
         @rt.function_node(middleware=[gate])
         def refund(order_id: str, amount: float) -> str:
@@ -148,7 +151,7 @@ class TestPostVerifierEndToEnd:
 
     def test_accepted_with_override_propagates_the_overridden_result(self):
         gate = post_verifier(
-            lambda order_id, amount, result: Verdict(accepted=True, result="redacted")
+            lambda result, order_id, amount: Verdict(accepted=True, result="redacted")
         )
 
         @rt.function_node(middleware=[gate])
@@ -164,7 +167,7 @@ class TestPostVerifierEndToEnd:
 
     def test_declined_call_still_ran_the_node_but_blocks_propagation(self):
         gate = post_verifier(
-            lambda order_id, amount, result: Verdict(accepted=amount <= 100)
+            lambda result, order_id, amount: Verdict(accepted=amount <= 100)
         )
         ran = {"value": False}
 
@@ -198,7 +201,7 @@ class TestVerifierComposition:
             pre_seen["value"] = True
             return Verdict(accepted=True)
 
-        def confirm_sent(to, subject, body, result):
+        def confirm_sent(result, to, subject, body):
             post_seen["value"] = True
             return Verdict(accepted=True)
 
@@ -229,7 +232,7 @@ class TestVerifierComposition:
         attempts = {"count": 0}
         reviewed_results = []
 
-        def always_accept(order_id, amount, result):
+        def always_accept(result, order_id, amount):
             reviewed_results.append(result)
             return Verdict(accepted=True)
 
