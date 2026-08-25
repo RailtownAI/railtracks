@@ -6,6 +6,7 @@
 from railtracks.prebuilt.middleware.context_injection import ContextInjection
 from railtracks.prebuilt.middleware.post_verifier import post_verifier
 from railtracks.prebuilt.middleware.pre_verifier import pre_verifier
+from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 from railtracks.prebuilt.middleware.retry import Retry
 from railtracks.prebuilt.middleware.timeout import Timeout
 
@@ -15,4 +16,8 @@ __all__ = [
     "Timeout",
     "pre_verifier",
     "post_verifier",
+    "MaxCalls",
+    "MaxCallsExceededError",
+    "Retry",
+    "Timeout",
 ]
