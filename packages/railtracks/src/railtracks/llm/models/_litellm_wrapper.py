@@ -33,7 +33,7 @@ from litellm.types.utils import (
 )
 from pydantic import BaseModel, Field
 
-from ...exceptions.errors import LLMError, NodeInvocationError
+from .._exceptions import LLMError
 from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
@@ -42,6 +42,7 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
+from ..tools.tool import ToolCreationError
 from ._hyperparameter_support import (
     default_reasoning_effort_for_tools,
     find_mutually_exclusive_conflict,
@@ -133,9 +134,8 @@ def _parameters_to_json_schema(
     ):
         return _handle_set_of_parameters(list(parameters))
 
-    raise NodeInvocationError(
+    raise ToolCreationError(
         message=f"Unable to parse Tool.parameters. It was {parameters}",
-        fatal=True,
         notes=[
             "Tool.parameters must be a set of Parameter objects",
         ],

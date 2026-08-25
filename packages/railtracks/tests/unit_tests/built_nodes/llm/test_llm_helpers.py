@@ -6,12 +6,14 @@ formatting branches (previously only exercised indirectly, with string params).
 from __future__ import annotations
 
 import pytest
+import railtracks.built_nodes.llm.llm_helpers as llm_helpers
 from railtracks.built_nodes.llm.llm_helpers import (
     get_node_from_name,
     llm_prepare_called_as_tool_factory,
 )
+from railtracks.exceptions import LLMError, NodeInvocationError
 from railtracks.llm import Parameter
-from railtracks.llm.tools.tool import Tool
+from railtracks.llm.tools.tool import Tool, ToolCreationError
 
 
 def _fake_tool_node(name: str):
@@ -93,3 +95,39 @@ def test_prepare_called_as_tool_empty_kwargs_returns_empty_history():
     history = prepare()
 
     assert list(history) == []
+
+
+# ---------------------------------------------------------------------------
+# llm_invoke_factory error translation
+# ---------------------------------------------------------------------------
+async def test_tool_creation_error_becomes_a_fatal_node_invocation_error(monkeypatch):
+    """`ToolCreationError` is raised inside the llm package (which cannot import
+    railtracks' errors), so the agent layer translates it back into the fatal
+    `NodeInvocationError` callers rely on rather than masking it as an `LLMError`."""
+
+    class _ExplodingInvoker:
+        @classmethod
+        def create_with_llm_observe(cls, *args, **kwargs):
+            return cls()
+
+        async def invoke(self, *args, **kwargs):
+            raise ToolCreationError(
+                message="Unable to parse Tool.parameters. It was 123",
+                notes=["Tool.parameters must be a set of Parameter objects"],
+            )
+
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _ExplodingInvoker)
+
+    class _FakeNode:
+        _user_model_middleware = []
+        _scope_manager = None
+
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(NodeInvocationError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert exc.value.fatal is True
+    assert not isinstance(exc.value, LLMError)
+    assert "Unable to parse Tool.parameters" in str(exc.value)
+    assert exc.value.notes == ["Tool.parameters must be a set of Parameter objects"]

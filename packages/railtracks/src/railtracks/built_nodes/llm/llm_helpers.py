@@ -24,7 +24,7 @@ from railtracks.llm.message import (
 )
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
-from railtracks.llm.tools.tool import Tool
+from railtracks.llm.tools.tool import Tool, ToolCreationError
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
@@ -82,6 +82,14 @@ def llm_invoke_factory(
                 )
             except NodeInvocationError:
                 raise  # e.g. a guardrail block from a gate; surface as-is, don't mask
+            except ToolCreationError as e:
+                # A malformed tool is a caller mistake, not a recoverable model failure,
+                # so it ends the run instead of being masked as an LLMError.
+                raise NodeInvocationError(
+                    message=str(e),
+                    notes=e.notes,
+                    fatal=True,
+                ) from e
             except Exception as e:
                 raise LLMError(
                     reason=f"Exception during model invoke: {repr(e)}",

@@ -16,7 +16,7 @@ from litellm.types.utils import (
     Usage,
 )
 from pydantic import BaseModel
-from railtracks.exceptions import LLMError, NodeInvocationError
+from railtracks.exceptions import LLMError
 from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
@@ -27,6 +27,7 @@ from railtracks.llm.models._litellm_wrapper import (
 )
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.tools.tool import ToolCreationError
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper):
@@ -66,7 +67,7 @@ class TestHelpers:
         """
         Test _parameters_to_json_schema with invalid input.
         """
-        with pytest.raises(NodeInvocationError):
+        with pytest.raises(ToolCreationError):
             _parameters_to_json_schema(123)  # type: ignore
 
     # =================================== END _parameters_to_json_schema Tests ====================================
