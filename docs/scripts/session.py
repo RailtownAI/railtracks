@@ -15,7 +15,7 @@ print(result)  # "Hello, Alice!"
 
 # --8<-- [start: configured_session_dec]
 @rt.function_node
-async def greet_multiple(names: list[str]):
+async def greet_multiple(names: list[str]) -> list[str]:
     results = []
     for name in names:
         result = await rt.call(greet, name=name)
@@ -81,7 +81,7 @@ second_flow = rt.Flow(
     save_state=True,  # Save execution state to file
 )
 
-result = second_flow.invoke(names =["Bob", "Charlie"])
+result = second_flow.invoke(names=["Bob", "Charlie"])
 print(result)  # ['Hello, Bob!', 'Hello, Charlie!']
 # --8<-- [end: configured_session_cm]
 

@@ -25,12 +25,22 @@ class CSVLoader(BaseDocumentLoader):
     - `ignore_columns`: columns dropped entirely from both content and metadata.
     - Every remaining column (not in `content_columns`, not in
       `ignore_columns`) is added to `Document.metadata`.
+    - `Document.source` is set to `"{file_path}#{row_id}"`, where `row_id`
+      is `row[id_column]` when `id_column` is given and `row_index`
+      otherwise. Per-row sources keep `Document.id` stable and unique
+      across rows, which is what the runtime needs for upsert
+      (`delete_where` on `document_id`).
 
     Args:
         file_path: Path to a `.csv` file or a directory containing `.csv`
             files.
         content_columns: Ordered list of columns to concatenate into
             `Document.content`. Defaults to `None`, which uses all columns.
+        id_column: Column whose value uniquely identifies a row (e.g.
+            `"id"`, `"uuid"`). Used as the row id in `Document.source`.
+            Default: `None` (fall back to `row_index`). Prefer this when
+            the CSV has a stable id column and rows may be reordered —
+            `row_index` is only stable as long as the row order is.
         ignore_columns: Columns to drop entirely from both content and
             metadata.
         content_separator: String used to join multiple content-column values.
@@ -40,20 +50,22 @@ class CSVLoader(BaseDocumentLoader):
     Raises:
         FileNotFoundError: If `file_path` does not exist.
         ValueError: If `file_path` points to a file with an unsupported
-            extension, or any column in `content_columns` is not found in
-            the CSV headers.
+            extension, or any column in `content_columns` or `id_column`
+            is not found in the CSV headers.
     """
 
     def __init__(
         self,
         file_path: str,
         content_columns: list[str] | None = None,
+        id_column: str | None = None,
         ignore_columns: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
     ) -> None:
         self._path = Path(file_path)
         self._content_columns = content_columns
+        self._id_column = id_column
         self._ignore_columns = set(ignore_columns or [])
         self._content_separator = content_separator
         self._encoding = encoding
@@ -71,7 +83,7 @@ class CSVLoader(BaseDocumentLoader):
             ValueError: If any column in `content_columns` is not found in
                 the CSV headers.
         """
-        source = str(path)
+        source_prefix = str(path)
 
         def _iter_rows():
             with path.open(encoding=self._encoding, newline="") as f:
@@ -92,6 +104,10 @@ class CSVLoader(BaseDocumentLoader):
                     raise ValueError(
                         f"content_columns not found in CSV headers: {unknown}"
                     )
+                if self._id_column is not None and self._id_column not in fieldnames:
+                    raise ValueError(
+                        f"id_column not found in CSV headers: {self._id_column!r}"
+                    )
 
                 content_col_set = set(content_columns)
 
@@ -106,10 +122,15 @@ class CSVLoader(BaseDocumentLoader):
                         and col not in self._ignore_columns
                     }
                     metadata["row_index"] = row_index
+                    row_id = (
+                        str(row[self._id_column])
+                        if self._id_column is not None
+                        else str(row_index)
+                    )
                     yield Document(
                         content=content,
                         type=DocumentType.CSV,
-                        source=source,
+                        source=f"{source_prefix}#{row_id}",
                         metadata=metadata,
                     )
 

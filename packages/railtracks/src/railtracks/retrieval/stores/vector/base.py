@@ -191,12 +191,6 @@ class VectorStore:
 
     async def write(self, entry: StoreEntry) -> str:
         if entry.vector is None:
-            logger.error(
-                "VectorStore.write called with entry.vector=None (entry_id=%s, "
-                "chunk_id=%s); the entry must be embedded before writing.",
-                entry.id,
-                entry.chunk_id,
-            )
             raise ValueError(
                 f"VectorStore.write requires entry.vector to be set "
                 f"(entry_id={entry.id}); embed the chunk before writing."

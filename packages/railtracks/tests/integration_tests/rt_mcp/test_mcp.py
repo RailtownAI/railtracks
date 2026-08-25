@@ -20,9 +20,11 @@ def install_mcp_server_time():
     may not work correctly when packages are installed separately.
     """
     try:
-        # Install both packages together to ensure proper dependency resolution
+        # Install both packages together to ensure proper dependency resolution.
+        # --no-cache-dir forces pip to fetch live metadata from PyPI so transitive
+        # deps (e.g. tzlocal) are never missed due to a stale CI pip cache.
         subprocess.check_call([
-            sys.executable, "-m", "pip", "install", 
+            sys.executable, "-m", "pip", "install", "--no-cache-dir",
             "mcp>=1.9.0", "mcp_server_time"
         ])
         

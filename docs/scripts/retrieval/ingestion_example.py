@@ -442,6 +442,23 @@ print(docs[0].metadata)  # {"author": "Alice", "index": 0}
 # --8<-- [end:json_loader]
 
 
+# --8<-- [start:jsonl_loader]
+
+from railtracks.retrieval.loaders import JSONLoader
+
+# JSONL: one JSON object per line. Streamed line by line — safe for
+# corpora larger than memory. Use id_key for stable Document IDs across
+# re-ingestion when objects may be reordered.
+async def jsonl_stream():
+    async for doc in JSONLoader(
+        "events.jsonl",
+        content_keys=["title", "body"],
+        id_key="_id",
+    ).astream():
+        print(doc.source)  # "events.jsonl#<_id>"
+# --8<-- [end:jsonl_loader]
+
+
 # --8<-- [start:custom_loader]
 from collections.abc import AsyncGenerator
 

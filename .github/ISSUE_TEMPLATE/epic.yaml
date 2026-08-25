@@ -1,0 +1,12 @@
+name: "[Maintainer Only] Epic"
+description: "Multi-week initiative. Railtracks maintainers only."
+labels: ["[Maintainer] epic"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description & Design
+      description: >
+        What are we building, why, and the design (feel free to add the full design later).
+    validations:
+      required: true

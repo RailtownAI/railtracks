@@ -1,5 +1,5 @@
 from . import retries
-from .content import ToolCall, ToolResponse
+from .content import ToolCall, ToolCalls, ToolResponse
 from .history import MessageHistory
 from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
 from .model import ModelBase
@@ -15,7 +15,15 @@ from .models import (
     PortKeyLLM,
     # TelusLLM,
 )
+from .models._model_exception_base import (
+    FunctionCallingNotSupportedError,
+    ModelError,
+    ModelNotFoundError,
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
+)
 from .providers import ModelProvider
+from .response import Response
 from .tools import (
     ArrayParameter,
     ObjectParameter,
@@ -27,7 +35,13 @@ from .tools import (
 
 __all__ = [
     "ModelBase",
+    "ModelError",
+    "ModelNotFoundError",
+    "FunctionCallingNotSupportedError",
+    "UnsupportedHyperparameterError",
+    "MutuallyExclusiveHyperparametersError",
     "ToolCall",
+    "ToolCalls",
     "ToolResponse",
     "UserMessage",
     "SystemMessage",
@@ -57,4 +71,5 @@ __all__ = [
     "ObjectParameter",
     "RefParameter",
     "retries",
+    "Response",
 ]

@@ -151,6 +151,7 @@
           "properties": {
             "internals": {
               "type": "object",
+              "description": "Per-node debug details. Always an object: a node with nothing recorded reports {} rather than null, since consumers rely on a .get('internals', {}) default. `latency` is absent on the temporal `parent` snapshots, which predate the completion it measures.",
               "properties": {
                 "latency": {
                   "type": "object",
@@ -163,8 +164,19 @@
                     "total_time"
                   ]
                 },
-                "llm_internals": {
-                  "$ref": "#/$defs/LLMInternals"
+                "llm_details": {
+                  "type": "array",
+                  "description": "One entry per LLM round trip, in call order. Present on Agent nodes only.",
+                  "items": {
+                    "$ref": "#/$defs/LLMDetails"
+                  }
+                },
+                "guard_details": {
+                  "type": "array",
+                  "description": "Guardrail traces. Present on Agent nodes only; empty when no rails are configured.",
+                  "items": {
+                    "$ref": "#/$defs/GuardrailTrace"
+                  }
                 }
               },
               "additionalProperties": true
@@ -264,46 +276,97 @@
         "details"
       ]
     },
-    "LLMInternals": {
+    "Message": {
       "type": "object",
+      "description": "A single message. `content` is polymorphic: a string for system/user/plain assistant replies, an array of tool calls for a tool-calling assistant turn, and an object for a tool response or a structured output.",
       "properties": {
-        "model_name": {
+        "role": {
           "type": "string"
         },
-        "model_provider": {
+        "content": {}
+      },
+      "required": [
+        "role",
+        "content"
+      ]
+    },
+    "GuardrailTrace": {
+      "type": "object",
+      "properties": {
+        "rail_name": {
           "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "transform",
+            "block",
+            "error"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "rail_name",
+        "phase",
+        "action",
+        "reason"
+      ]
+    },
+    "LLMDetails": {
+      "type": "object",
+      "description": "One LLM round trip. The failure path records a null output alongside null token and cost fields.",
+      "properties": {
+        "model_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "input": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string"
-              },
-              "content": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "content"
-            ]
+            "$ref": "#/$defs/Message"
           }
         },
         "output": {
-          "type": "object",
-          "properties": {
-            "role": {
-              "type": "string"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Message"
             },
-            "content": {
-              "type": "string"
+            {
+              "type": "null"
             }
-          },
-          "required": [
-            "role",
-            "content"
           ]
         },
         "input_tokens": {

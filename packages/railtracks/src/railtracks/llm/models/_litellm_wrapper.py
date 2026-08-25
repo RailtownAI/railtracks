@@ -1,33 +1,40 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import mimetypes
+import threading
 import time
-import warnings
 from abc import ABC
 from json import JSONDecodeError
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Dict,
     Generator,
-    Generic,
     Iterable,
     List,
     Literal,
-    Optional,
     Tuple,
     Type,
     TypeVar,
+    cast,
     overload,
 )
 
 import litellm
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
-from litellm.types.utils import ModelResponse
+from litellm.types.utils import (
+    ChatCompletionMessageToolCall,
+    Function,
+    ModelResponse,
+    ModelResponseStream,
+)
 from pydantic import BaseModel, Field
 
 from ...exceptions.errors import LLMError, NodeInvocationError
-from ..content import ToolCall
+from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
 from ..model import ModelBase
@@ -35,12 +42,42 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
+from ._hyperparameter_support import (
+    default_reasoning_effort_for_tools,
+    find_mutually_exclusive_conflict,
+    is_hyperparameter_supported,
+)
+from ._model_exception_base import (
+    MutuallyExclusiveHyperparametersError,
+    UnsupportedHyperparameterError,
+)
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
+
+# Sentinel marking normal end-of-stream on the sync→async bridge queue (see
+# `_bridge_sync_stream` / `_pump_sync_stream`). A dedicated object avoids colliding with any
+# legitimate streamed value.
+_STREAM_DONE = object()
 
 # Dropped unsupported parameters from the request to the model.
 litellm.drop_params = True
 litellm.modify_params = True
+
+# this flag is only used in two places in litellm
+# https://github.com/search?q=repo%3ABerriAI%2Flitellm%20suppress_debug_info&type=code
+litellm.suppress_debug_info = True
+
+
+def _retrieve_worker_exception(task: asyncio.Task[Any]) -> None:
+    """Mark a bridge worker task's failure as retrieved, treating cancellation as nothing to
+    retrieve.
+
+    `Task.exception()` *re-raises* `CancelledError` on a cancelled task instead of returning
+    it. Called from a done-callback, that raise has nowhere to go and asyncio reports it as
+    `Exception in callback` -- a traceback on stderr for a run that otherwise succeeded.
+    """
+    if not task.cancelled():
+        task.exception()
 
 
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
@@ -105,6 +142,24 @@ def _parameters_to_json_schema(
     )
 
 
+def _model_in_litellm_catalog(model_name: str) -> bool:
+    """True if litellm has capability metadata for this model name.
+
+    Custom deployment names (Azure Foundry etc.) route through litellm but
+    have no entry in the capability catalog, so any `supports_*` probe on
+    them returns False regardless of what the underlying model can actually
+    do. This helper lets callers distinguish "litellm knows the answer is
+    False" from "litellm has no idea, don't trust the probe."
+    """
+    if model_name in litellm.model_cost:
+        return True
+    try:
+        routed_model, _, _, _ = litellm.get_llm_provider(model=model_name)
+    except Exception:
+        return False
+    return routed_model in litellm.model_cost
+
+
 def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     """
     Convert your Tool object into the dict format for litellm.completion.
@@ -135,74 +190,183 @@ class StreamedToolCall(BaseModel):
             )
 
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
-
-
-class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
+class LiteLLMWrapper(ModelBase, ABC):
     """
     A large base class that wraps around a litellm model.
 
     Note that the model object should be interacted with via the methods provided in the wrapper class:
     - `chat`
     - `structured`
-    - `stream_chat`
     - `chat_with_tools`
+    - `astream_chat` (and the other `astream_*` per-call streaming methods)
 
     Each individual API should implement the required `abstract_methods` in order to allow users to interact with a
     model of that type.
     """
 
+    _COMMON_HYPERPARAMETERS = (
+        "temperature",
+        "top_p",
+        "max_tokens",
+        "frequency_penalty",
+        "presence_penalty",
+        "reasoning_effort",
+        "service_tier",
+        "verbosity",
+    )
+
     def __init__(
         self,
         model_name: str,
-        stream: _TStream = False,
         api_base: str | None = None,
         api_key: str | None = None,
         temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"]
+        | None = None,
+        service_tier: str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
-        super().__init__(stream=stream, retry_approach=retry_approach)
+        """Initialize the litellm-backed model wrapper.
+
+        Most callers construct a provider subclass (e.g. `rt.llm.OpenAILLM`) instead of
+        this base class directly; see `ProviderLLMWrapper.__init__` for the full
+        per-hyperparameter description of the common hyperparameters below (`top_p`,
+        `max_tokens`, `frequency_penalty`, `presence_penalty`, `reasoning_effort`,
+        `service_tier`, `verbosity`) and their known provider gotchas.
+
+        Raises:
+            UnsupportedHyperparameterError: If a common hyperparameter isn't supported
+                by `model_name` (per litellm's schema or the manual denylist in
+                `llm/models/_hyperparameter_support.py`).
+            MutuallyExclusiveHyperparametersError: If two common hyperparameters can't
+                be combined for this provider (currently: Anthropic `temperature` +
+                `top_p`).
+
+        Note:
+            No client-side validation of hyperparameter *values* is performed —
+            invalid values are passed through as-is and surface as a provider-native
+            error, except `verbosity`, which at least one provider (OpenAI) silently
+            accepts even when invalid.
+        """
+        super().__init__(retry_approach=retry_approach)
         self._model_name = model_name
         self.api_base = api_base
         self.api_key = api_key
         self.temperature = temperature
+        self.top_p = top_p
+        self.max_tokens = max_tokens
+        self.frequency_penalty = frequency_penalty
+        self.presence_penalty = presence_penalty
+        self.reasoning_effort = reasoning_effort
+        self.service_tier = service_tier
+        self.verbosity = verbosity
+        self._extra_completion_kwargs = kwargs
+        self._validate_common_hyperparameter_support()
+
+    def _validate_common_hyperparameter_support(self) -> None:
+        provider = (
+            self.model_provider().lower() if hasattr(self, "model_provider") else None
+        )
+        if provider is None:
+            return
+        for name in self._COMMON_HYPERPARAMETERS:
+            value = getattr(self, name)
+            if value is not None and not is_hyperparameter_supported(
+                self._model_name, provider, name
+            ):
+                raise UnsupportedHyperparameterError(self._model_name, name, value)
+
+        hyperparameters_set = frozenset(
+            name
+            for name in self._COMMON_HYPERPARAMETERS
+            if getattr(self, name) is not None
+        )
+        conflict = find_mutually_exclusive_conflict(provider, hyperparameters_set)
+        if conflict:
+            raise MutuallyExclusiveHyperparametersError(
+                self._model_name,
+                sorted(conflict),
+                {name: getattr(self, name) for name in conflict},
+            )
+
+    def _base_completion_kwargs(self) -> Dict[str, Any]:
+        """Common kwargs shared by both `_invoke` and `_ainvoke`, merged in only if set."""
+        kwargs: Dict[str, Any] = dict(self._extra_completion_kwargs)
+        for name in (
+            "api_base",
+            "api_key",
+            "temperature",
+            "top_p",
+            "max_tokens",
+            "frequency_penalty",
+            "presence_penalty",
+            "reasoning_effort",
+            "service_tier",
+            "verbosity",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                kwargs[name] = value
+        return kwargs
 
     @overload
     def _invoke(
-        self: LiteLLMWrapper[Literal[False]],
+        self,
         messages: MessageHistory,
         *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[ModelResponse, float]:
-        pass
+        response_format: Any | None = ...,
+        tools: list[Tool] | None = ...,
+        stream: Literal[True],
+    ) -> Tuple[CustomStreamWrapper, float]: ...
 
     @overload
     def _invoke(
-        self: LiteLLMWrapper[Literal[True]],
+        self,
         messages: MessageHistory,
         *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[CustomStreamWrapper, float]:
-        pass
+        response_format: Any | None = ...,
+        tools: list[Tool] | None = ...,
+        stream: Literal[False] = ...,
+    ) -> Tuple[ModelResponse, float]: ...
 
     def _invoke(
         self,
         messages: MessageHistory,
         *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
+        response_format: Any | None = None,
+        tools: list[Tool] | None = None,
+        stream: bool = False,
     ) -> Tuple[CustomStreamWrapper | ModelResponse, float]:
         """
         Internal helper that:
           1. Converts MessageHistory
           2. Merges default kwargs
           3. Calls litellm.completion
+
+        This is a *blocking* call. Streaming rides litellm's synchronous
+        `completion(stream=True)` API (bridged onto the event loop by `_bridge_sync_stream`);
+        run it in a worker thread (e.g. `asyncio.to_thread`) from async contexts.
+
+        Args:
+            messages: The message history to send to the model.
+            response_format: An optional response format (e.g. a pydantic schema).
+            tools: The tools to make available to the model, if any.
+
+        Returns:
+            A `(completion, time)` tuple. When `stream=True`, `completion` is a
+            `CustomStreamWrapper` and `time` is the request start time; when `stream=False`,
+            `completion` is a `ModelResponse` and `time` is the completion latency. The
+            overloads narrow the return type from the `stream` literal.
         """
         start_time = time.time()
         litellm_messages = [self._to_litellm_message(m) for m in messages]
-        merged = {}
+        merged = self._base_completion_kwargs()
 
         if response_format is not None:
             merged["response_format"] = response_format
@@ -211,20 +375,26 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             litellm_tools = [_to_litellm_tool(t) for t in tools]
             merged["tools"] = litellm_tools
 
-        if self.api_base is not None:
-            merged["api_base"] = self.api_base
+        effective_reasoning_effort = default_reasoning_effort_for_tools(
+            self._model_name,
+            merged.get("reasoning_effort"),
+            has_tools=tools is not None,
+        )
+        if effective_reasoning_effort is not None:
+            merged["reasoning_effort"] = effective_reasoning_effort
 
-        if self.api_key is not None:
-            merged["api_key"] = self.api_key
-
-        if self.temperature is not None:
-            merged["temperature"] = self.temperature
+        if stream:
+            # Some providers (Anthropic among them) only emit a usage chunk on a streamed
+            # response when this is set, so without it every streamed call reports no tokens
+            # and no cost. litellm exempts `stream_options` from its unsupported-param
+            # pruning, so it is safe to send to every provider.
+            merged.setdefault("stream_options", {"include_usage": True})
 
         def completion_function():
             return litellm.completion(
                 model=self._model_name,
                 messages=litellm_messages,
-                stream=self.stream,
+                stream=stream,
                 **merged,
             )
 
@@ -239,141 +409,85 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             completion_time = time.time() - start_time
             return completion, completion_time
 
-    @overload
-    async def _ainvoke(
-        self: LiteLLMWrapper[Literal[False]],
-        messages: MessageHistory,
-        *,
-        response_format: Any | None = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[ModelResponse, float]:
-        pass
-
-    @overload
-    async def _ainvoke(
-        self: LiteLLMWrapper[Literal[True]],
-        messages: MessageHistory,
-        *,
-        response_format: Any | None = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[CustomStreamWrapper, float]:
-        pass
-
-    async def _ainvoke(
-        self,
-        messages: MessageHistory,
-        *,
-        response_format: Optional[Any] = None,
-        tools: Optional[list[Tool]] = None,
-    ) -> Tuple[CustomStreamWrapper | ModelResponse, float]:
-        """
-        Internal helper that:
-          1. Converts MessageHistory
-          2. Merges default kwargs
-          3. Calls litellm.completion
-        """
-        start_time = time.time()
-        litellm_messages = [self._to_litellm_message(m) for m in messages]
-        merged = {}
-        if response_format is not None:
-            merged["response_format"] = response_format
-        if tools is not None:
-            litellm_tools = [_to_litellm_tool(t) for t in tools]
-            merged["tools"] = litellm_tools
-        if self.api_base is not None:
-            merged["api_base"] = self.api_base
-        if self.api_key is not None:
-            merged["api_key"] = self.api_key
-        if self.temperature is not None:
-            merged["temperature"] = self.temperature
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, module="pydantic.*"
-        )  # Supress pydantic warnings. See issue #204 for more deatils.
-
-        def completion_function():
-            return litellm.acompletion(
-                model=self._model_name,
-                messages=litellm_messages,
-                stream=self.stream,
-                **merged,
-            )
-
-        if self.retry_approach is not None:
-            completion = await self.retry_approach.acall_with_retry(completion_function)
-        else:
-            completion = await completion_function()
-
-        if isinstance(completion, CustomStreamWrapper):
-            return completion, start_time
-        else:
-            completion_time = time.time() - start_time
-            return completion, completion_time
-
     # ================ START Streaming Handlers ===============
-    async def _astream_handler_base(
+    async def _bridge_sync_stream(
         self,
-        raw: CustomStreamWrapper,
-        start_time: float,
-        output_schema: Type[BaseModel] | None = None,
-    ):
+        make_stream: Callable[[], Generator[str | Response, None, Response]],
+    ) -> AsyncGenerator[str | Response, None]:
         """
-        Add handler to the streamed response so that we preoperly construct the response object at the end of the stream.
+        Run a *blocking* sync stream on a dedicated worker thread and surface its items as an
+        async generator, without blocking the event loop.
+
+        litellm's synchronous `completion(stream=True)` is better maintained than its async
+        counterpart (the async path is prone to leaking noisy logs/warnings), so railtracks
+        streams on the sync API and bridges the blocking iterator here. A single worker thread
+        owns the underlying network stream for its whole lifetime — it is created, iterated,
+        and closed on that one thread, so the stream object is never touched from more than one
+        thread — while items are handed to the event loop through a thread-safe queue.
+
+        Args:
+            make_stream: A zero-arg factory (run *on the worker thread*) that opens the request
+                and returns the sync `_stream_handler_base` generator of `str` chunks followed
+                by a final `Response`.
+
+        Yields:
+            str | Response: `str` chunks as they arrive, then the terminal `Response`.
         """
-        tools: List[ToolCall] = []
-        accumulated_content = ""
-        structured_response: BaseModel | None = None
-        # fall back on empty message info if we don't get one from the stream.
-        message_info = MessageInfo()
-        active_tool_calls: Dict[int, StreamedToolCall] = {}
-        stream_finished = False
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        stop = threading.Event()
 
-        async for chunk in raw.completion_stream:
-            if stream_finished:
-                # the last chunk will contain the full message info
-                message_info = self.extract_message_info(
-                    chunk, time.time() - start_time
-                )
+        worker = asyncio.ensure_future(
+            asyncio.to_thread(self._pump_sync_stream, make_stream, loop, queue, stop)
+        )
+        try:
+            while True:
+                item = await queue.get()
+                if item is _STREAM_DONE:
+                    break
+                if isinstance(item, BaseException):
+                    raise item
+                yield cast("str | Response", item)
+        finally:
+            # On early break, signal the worker to stop; it observes `stop` at the next chunk
+            # boundary, closes the stream on its own thread, and exits. Retrieve its result so
+            # a late failure isn't reported as "exception never retrieved" -- via the helper,
+            # since a cancelled worker has nothing to retrieve.
+            stop.set()
+            if worker.done():
+                _retrieve_worker_exception(worker)
+            else:
+                worker.add_done_callback(_retrieve_worker_exception)
 
-                if output_schema is not None:
-                    structured_response = output_schema(
-                        **json.loads(accumulated_content)
-                    )
-                break
+    @staticmethod
+    def _pump_sync_stream(
+        make_stream: Callable[[], Generator[str | Response, None, Response]],
+        loop: asyncio.AbstractEventLoop,
+        queue: asyncio.Queue[Any],
+        stop: threading.Event,
+    ) -> None:
+        """Worker-thread half of `_bridge_sync_stream`.
 
-            choice = chunk.choices[0]
-
-            if self._is_stream_finished(choice):
-                stream_finished = True
-                tools = self._finalize_remaining_tool_calls(active_tool_calls)
-                continue
-
-            if choice.delta.tool_calls:
-                # TODO: determine if it would be useful to stream tools
-                self._handle_tool_call_delta(
-                    choice.delta.tool_calls[0], active_tool_calls
-                )
-
-            elif choice.delta.content:
-                content = self._handle_content_delta(choice.delta.content)
-                accumulated_content += content
-                yield content
-
-        if structured_response is not None:
-            r = Response(
-                message=AssistantMessage(content=structured_response),
-                message_info=message_info,
-            )
-        elif len(tools) > 0:
-            r = Response(
-                message=AssistantMessage(content=tools), message_info=message_info
-            )
+        Opens, iterates, and closes the blocking stream entirely on the calling thread (so the
+        network stream object is never touched from more than one thread), marshaling each item
+        or a terminal `_STREAM_DONE` / exception  back to the loop thread via `queue`.
+        """
+        try:
+            gen = make_stream()
+        except BaseException as exc:  # noqa: BLE001 - marshaled to the consumer
+            loop.call_soon_threadsafe(queue.put_nowait, exc)
+            return
+        try:
+            for item in gen:
+                loop.call_soon_threadsafe(queue.put_nowait, item)
+                if stop.is_set():
+                    break
+        except BaseException as exc:  # noqa: BLE001 - marshaled to the consumer
+            loop.call_soon_threadsafe(queue.put_nowait, exc)
         else:
-            r = Response(
-                message=AssistantMessage(content=accumulated_content),
-                message_info=message_info,
-            )
-
-        yield r
+            loop.call_soon_threadsafe(queue.put_nowait, _STREAM_DONE)
+        finally:
+            gen.close()
 
     def _stream_handler_base(
         self,
@@ -383,43 +497,55 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
     ) -> Generator[Response | str, None, Response]:
         """
         Intercepts the given stream wrapper and provides a new generator.
-        The generator should iterate and provide strings cluminating in the last response being a Response object
+        The generator should iterate and provide strings culminating in the last response being a Response object
 
         """
-        tools: List[ToolCall] = []
         accumulated_content = ""
 
         # fall back on empty message info if we don't get one from the stream.
         message_info = MessageInfo()
+        # Calls still accumulating argument fragments, keyed by their stream index, and calls
+        # already retired because their index got reused by a later call.
         active_tool_calls: Dict[int, StreamedToolCall] = {}
+        completed_tool_calls: List[StreamedToolCall] = []
         stream_finished = False
 
         for chunk in raw:
-            if stream_finished:
-                # the last chunk will contain the full message info. Note this only true for openai. Anthropic is known to not.
-
+            # Usage rides a separate chunk that different providers place differently
+            # (alongside or after the `finish_reason` chunk), so take it wherever it turns up.
+            if getattr(chunk, "usage", None) is not None:
                 message_info = self.extract_message_info(
-                    chunk, time.time() - start_time
+                    chunk, time.time() - start_time, requested_model=self._model_name
                 )
 
-                break
+            if stream_finished or not chunk.choices:
+                # Keep draining so a trailing usage chunk is still seen.
+                continue
 
             choice = chunk.choices[0]
 
             if self._is_stream_finished(choice):
                 stream_finished = True
-                tools = self._finalize_remaining_tool_calls(active_tool_calls)
                 continue
 
             if choice.delta.tool_calls:
-                self._handle_tool_call_delta(
-                    choice.delta.tool_calls[0], active_tool_calls
-                )
+                # Some providers batch several calls into a single delta, so every entry
+                # has to be consumed rather than just the first.
+                for call in choice.delta.tool_calls:
+                    self._handle_tool_call_delta(
+                        call, active_tool_calls, completed_tool_calls
+                    )
 
             elif choice.delta.content:
                 content = self._handle_content_delta(choice.delta.content)
                 accumulated_content += content
                 yield content
+
+        # Finalize outside the loop so a stream that ends without a `finish_reason` chunk
+        # still reports the calls it accumulated instead of silently dropping them.
+        tools = self._finalize_remaining_tool_calls(
+            active_tool_calls, completed_tool_calls
+        )
 
         r = self._prepare_response(
             accumulated_content=accumulated_content,
@@ -456,7 +582,10 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             )
         elif len(tools) > 0:
             r = Response(
-                message=AssistantMessage(content=tools), message_info=message_info
+                message=AssistantMessage(
+                    content=ToolCalls(tools, text=accumulated_content or None)
+                ),
+                message_info=message_info,
             )
         else:
             r = Response(
@@ -466,24 +595,25 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
         return r
 
-    async def _aconsume_stream(self, raw: CustomStreamWrapper, start_time: float):
-        """Consume the entire async stream and extract chunks, content, and metadata."""
-        return self._stream_handler_base(raw, start_time)
-
     def _is_stream_finished(self, choice) -> bool:
-        """Check if the stream has finished."""
-        return choice.finish_reason in ("stop", "tool_calls")
+        """Check if the stream has finished.
+
+        Any `finish_reason` the provider sets ends the turn. Matching on the reason itself
+        would be provider-specific, and would drop the tool calls already accumulated by a
+        truncated (`length`) or content-filtered turn.
+        """
+        return bool(choice.finish_reason)
 
     def _finalize_remaining_tool_calls(
-        self, active_tool_calls: dict[int, StreamedToolCall]
+        self,
+        active_tool_calls: dict[int, StreamedToolCall],
+        completed_tool_calls: Iterable[StreamedToolCall] = (),
     ) -> list[ToolCall]:
-        """
-
-        Finalize any remaining active tool calls and return them.
-
+        """Parse the accumulated streamed tool calls and return them in the order the
+        model emitted them.
         """
         tools: list[ToolCall] = []
-        for tool_data in active_tool_calls.values():
+        for tool_data in (*completed_tool_calls, *active_tool_calls.values()):
             if tool_data.args is not None:
                 tool_data.load_args()
             tools.append(tool_data.tool)
@@ -491,30 +621,41 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         return tools
 
     def _handle_tool_call_delta(
-        self, call, active_tool_calls: dict[int, StreamedToolCall]
+        self,
+        call,
+        active_tool_calls: dict[int, StreamedToolCall],
+        completed_tool_calls: list[StreamedToolCall] | None = None,
     ):
         """Process a tool call delta from the stream."""
-        call_index = getattr(call, "index", 0)
+        call_index = getattr(call, "index", None) or 0
 
         if call.id:  # New tool call starting
-            self._start_new_tool_call(call, call_index, active_tool_calls)
+            self._start_new_tool_call(
+                call, call_index, active_tool_calls, completed_tool_calls
+            )
         else:  # Continue streaming arguments
             self._continue_tool_call_arguments(call, call_index, active_tool_calls)
 
     def _start_new_tool_call(
-        self, call, call_index: int, active_tool_calls: dict[int, StreamedToolCall]
+        self,
+        call,
+        call_index: int,
+        active_tool_calls: dict[int, StreamedToolCall],
+        completed_tool_calls: list[StreamedToolCall] | None = None,
     ):
-        """Start a new tool call, finalizing any previous one at the same index."""
-        # Finalize previous tool call at this index if exists
-        if call_index in active_tool_calls:
-            prev_data = active_tool_calls[call_index]
-            if prev_data.args:
-                prev_data.tool.arguments = json.loads(prev_data.args)
+        """Start a new tool call, retiring any previous one at the same index."""
+        # A provider may reuse an index for a subsequent call; move the previous occupant to
+        # the completed list.
+        previous = active_tool_calls.pop(call_index, None)
+        if previous is not None and completed_tool_calls is not None:
+            completed_tool_calls.append(previous)
 
-        # Start new tool call
+        # OpenAI and Anthropic send the id and name first and stream the arguments, whereas
+        # Gemini packs the entire call+args into this one delta. Seeding from
+        # `call.function.arguments` covers both.
         active_tool_calls[call_index] = StreamedToolCall(
             tool=ToolCall(identifier=call.id, name=call.function.name, arguments={}),
-            args="",
+            args=(call.function.arguments or "") if call.function else "",
         )
 
     def _continue_tool_call_arguments(
@@ -526,10 +667,69 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     def _handle_content_delta(self, content) -> str:
         """Process content delta and return validated content string."""
-        assert isinstance(content, str)
+        assert isinstance(content, str), "Content is not string"
         return content or ""
 
     # ================ END Streaming Handlers ===============
+
+    # ================ START Per-call Streaming LLM calls ===============
+    # These implement the ModelBase._astream_* extension points. Each one requests a streamed
+    # response and returns an async generator yielding `str` chunks followed by a single final
+    # `Response`. They ride litellm's synchronous `completion(stream=True)` API, bridged onto the
+    # event loop by `_bridge_sync_stream` (a dedicated worker thread), so the loop never blocks.
+
+    async def _astream_chat(self, messages: MessageHistory):
+        def _open() -> Generator[str | Response, None, Response]:
+            raw, start_time = self._invoke(messages, stream=True)
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
+            return self._stream_handler_base(raw, start_time)
+
+        async for item in self._bridge_sync_stream(_open):
+            yield item
+
+    async def _astream_chat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ):
+        def _open() -> Generator[str | Response, None, Response]:
+            raw, start_time = self._invoke(messages, tools=tools, stream=True)
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
+            return self._stream_handler_base(raw, start_time)
+
+        async for item in self._bridge_sync_stream(_open):
+            yield item
+
+    async def _astream_structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ):
+        def _open() -> Generator[str | Response, None, Response]:
+            raw, start_time = self._invoke(
+                messages, response_format=schema, stream=True
+            )
+            assert isinstance(raw, CustomStreamWrapper), (
+                f"did not return streamed response, instead {type(raw)}"
+            )
+            return self._stream_handler_base(raw, start_time, schema)
+
+        async for item in self._bridge_sync_stream(_open):
+            yield item
+
+    def supports_streamed_tool_calling(self) -> bool:
+        """Whether litellm can stream tool calls for this model.
+
+        The catalog is only trusted for the models it actually covers, since a model it holds
+        no metadata for would come back as unsupported. Those attempt the stream instead.
+        """
+        if not _model_in_litellm_catalog(self._model_name):
+            return True
+        return litellm.utils.supports_native_streaming(
+            self._model_name, None
+        ) and litellm.supports_function_calling(model=self._model_name)
+
+    # ================ END Per-call Streaming LLM calls ===============
 
     # ================ START Base Handlers ==================
 
@@ -556,19 +756,25 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         choice = raw.choices[0]
 
         if choice.finish_reason == "stop" and not choice.message.tool_calls:
+            # litellm types content as str | None, but a plain "stop" completion always
+            # carries (possibly empty) text content.
             return Response(
-                message=AssistantMessage(content=choice.message.content),
+                message=AssistantMessage(content=cast(str, choice.message.content)),
                 message_info=info,
             )
 
         calls: List[ToolCall] = []
-        for tc in choice.message.tool_calls:
+        for tc in choice.message.tool_calls or []:
             args = json.loads(tc.function.arguments)
             calls.append(
-                ToolCall(identifier=tc.id, name=tc.function.name, arguments=args)
+                ToolCall(identifier=tc.id, name=tc.function.name or "", arguments=args)
             )
 
-        assistant_msg = AssistantMessage(content=calls)
+        # Keep any text the model returned alongside the tool calls (e.g. "I will
+        # check the weather in London for you"), it is part of the answer.
+        assistant_msg = AssistantMessage(
+            content=ToolCalls(calls, text=choice.message.content)
+        )
 
         # Preserve the raw litellm message so that provider-specific metadata
         # (e.g. Gemini thought_signature) is round-tripped back verbatim.
@@ -579,31 +785,22 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     # ================ START Sync LLM calls ===============
 
-    def _chat(self, messages: MessageHistory):
+    def _chat(self, messages: MessageHistory) -> Response:
         response, time = self._invoke(messages=messages)
-        if isinstance(response, CustomStreamWrapper):
-            return self._stream_handler_base(response, time)
+        return self._chat_handle_base(
+            response, self.extract_message_info(response, time)
+        )
 
-        elif isinstance(response, ModelResponse):
-            return self._chat_handle_base(
-                response, self.extract_message_info(response, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
-
-    def _structured(self, messages: MessageHistory, schema: Type[BaseModel]):
+    def _structured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> Response:
         try:
             model_resp, time = self._invoke(messages, response_format=schema)
-            if isinstance(model_resp, CustomStreamWrapper):
-                return self._stream_handler_base(model_resp, time, schema)
-            elif isinstance(model_resp, ModelResponse):
-                return self._structured_handle_base(
-                    model_resp,
-                    self.extract_message_info(model_resp, time),
-                    schema,
-                )
-            else:
-                raise ValueError("Unexpected response type")
+            return self._structured_handle_base(
+                model_resp,
+                self.extract_message_info(model_resp, time),
+                schema,
+            )
         except JSONDecodeError as jde:
             raise jde
         except Exception as e:
@@ -612,73 +809,42 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
                 message_history=messages,
             ) from e
 
-    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         """
         Chat with the model using tools.
 
         Args:
             messages: The message history to use as context
             tools: The tools to make available to the model
-            **kwargs: Additional arguments to pass to litellm.completion
 
         Returns:
             A Response containing either plain assistant text or ToolCall(s).
         """
         resp, time = self._invoke(messages, tools=tools)
-        if isinstance(resp, CustomStreamWrapper):
-            return self._stream_handler_base(resp, time)
-        elif isinstance(resp, ModelResponse):
-            return self._chat_with_tools_handler_base(
-                resp, self.extract_message_info(resp, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
+        return self._chat_with_tools_handler_base(
+            resp, self.extract_message_info(resp, time)
+        )
 
     # ================ END Sync LLM calls ===============
 
     # ================ START Async LLM calls ===============
-    async def _achat(self, messages: MessageHistory):
-        response, time = await self._ainvoke(messages=messages)
-        if isinstance(response, CustomStreamWrapper):
-            return self._astream_handler_base(response, time)
-        elif isinstance(response, ModelResponse):
-            return self._chat_handle_base(
-                response, self.extract_message_info(response, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
+    # litellm's async API (`acompletion`) is intentionally not used: its sync counterpart is
+    # better maintained and does not leak the noisy logs/warnings the async path is prone to.
+    # The async surface is preserved by running the blocking sync calls on a worker thread
+    # (`asyncio.to_thread`), exactly as the framework's buffered node path already does.
 
-    async def _astructured(self, messages: MessageHistory, schema: Type[BaseModel]):
-        try:
-            model_resp, time = await self._ainvoke(messages, response_format=schema)
-            if isinstance(model_resp, CustomStreamWrapper):
-                return self._astream_handler_base(model_resp, time, schema)
-            elif isinstance(model_resp, ModelResponse):
-                return self._structured_handle_base(
-                    model_resp,
-                    self.extract_message_info(model_resp, time),
-                    schema,
-                )
-            else:
-                raise ValueError("Unexpected response type")
-        except JSONDecodeError as jde:
-            raise jde
-        except Exception as e:
-            raise LLMError(
-                reason="Structured LLM call failed",
-                message_history=messages,
-            ) from e
+    async def _achat(self, messages: MessageHistory) -> Response:
+        return await asyncio.to_thread(self._chat, messages)
 
-    async def _achat_with_tools(self, messages: MessageHistory, tools: List[Tool]):
-        resp, time = await self._ainvoke(messages, tools=tools)
-        if isinstance(resp, CustomStreamWrapper):
-            return self._astream_handler_base(resp, time)
-        elif isinstance(resp, ModelResponse):
-            return self._chat_with_tools_handler_base(
-                resp, self.extract_message_info(resp, time)
-            )
-        else:
-            raise ValueError("Unexpected response type")
+    async def _astructured(
+        self, messages: MessageHistory, schema: Type[BaseModel]
+    ) -> Response:
+        return await asyncio.to_thread(self._structured, messages, schema)
+
+    async def _achat_with_tools(
+        self, messages: MessageHistory, tools: List[Tool]
+    ) -> Response:
+        return await asyncio.to_thread(self._chat_with_tools, messages, tools)
 
     # ================ END Async LLM calls ===============
 
@@ -705,18 +871,47 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
             # Initiate content list with text component
             content_list: List[Dict[str, Any]] = [{"type": "text", "text": msg.content}]
 
-            # Add image attachments
+            # Add attachments (images or documents)
             for msg_attachment in msg.attachment:
-                content_list.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": msg_attachment.encoding
-                            if msg_attachment.encoding is not None
-                            else msg_attachment.url,
-                        },
-                    }
+                url = (
+                    msg_attachment.encoding
+                    if msg_attachment.encoding is not None
+                    else msg_attachment.url
                 )
+                if msg_attachment.modality == "document":
+                    # Only trust litellm's PDF-support check when the model is in
+                    # litellm's capability catalog. Custom deployment names (Azure
+                    # Foundry etc.) route fine but have no capability metadata,
+                    # so supports_pdf_input returns False by default and would
+                    # falsely reject valid deployments. When the model isn't in
+                    # the catalog, skip the pre-check and let the API decide.
+                    if _model_in_litellm_catalog(
+                        self._model_name
+                    ) and not litellm.utils.supports_pdf_input(self._model_name):
+                        raise ValueError(
+                            f"Model {self._model_name!r} does not support PDF attachments. "
+                            "Use a PDF-capable model or render the PDF pages to images first."
+                        )
+                    fallback_ext = (
+                        mimetypes.guess_extension(msg_attachment.mime_type or "") or ""
+                    )
+                    content_list.append(
+                        {
+                            "type": "file",
+                            "file": {
+                                "file_data": url,
+                                "filename": msg_attachment.filename
+                                or f"attachment{fallback_ext}",
+                            },
+                        }
+                    )
+                else:
+                    content_list.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": url},
+                        }
+                    )
 
             base["content"] = content_list
 
@@ -727,10 +922,12 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         # only time this is true is tool calls, need to return litellm.utils.Message
         elif isinstance(msg.content, list):
             assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
-            base["content"] = ""
+            # Send back any text that came with the tool calls so the model sees
+            # its own full turn on the next request.
+            base["content"] = getattr(msg.content, "text", None) or ""
             base["tool_calls"] = [
-                litellm.utils.ChatCompletionMessageToolCall(
-                    function=litellm.utils.Function(
+                ChatCompletionMessageToolCall(
+                    function=Function(
                         arguments=tool_call.arguments, name=tool_call.name
                     ),
                     id=tool_call.identifier,
@@ -767,7 +964,10 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
 
     @classmethod
     def extract_message_info(
-        cls, model_response: ModelResponse, latency: float
+        cls,
+        model_response: ModelResponse | ModelResponseStream,
+        latency: float,
+        requested_model: str | None = None,
     ) -> MessageInfo:
         """
         Create a Response object from a ModelResponse.
@@ -775,21 +975,29 @@ class LiteLLMWrapper(ModelBase[_TStream], ABC, Generic[_TStream]):
         Args:
             model_response (ModelResponse): The response from the model.
             latency (float): The latency of the response in seconds.
+            requested_model (str | None): The model string the call was made with.
+                Only needed on streamed responses, where litellm leaves `response_cost`
+                unset and the cost has to be priced from the usage chunk; the model name the
+                provider reports back lacks the routing prefix.
 
         Returns:
             MessageInfo: An object containing the details about the message info.
         """
-        input_tokens = _return_none_on_error(lambda: model_response.usage.prompt_tokens)
-        output_tokens = _return_none_on_error(
-            lambda: model_response.usage.completion_tokens
-        )
-        model_name = _return_none_on_error(lambda: model_response.model)
-        system_fingerprint = _return_none_on_error(
-            lambda: model_response.system_fingerprint
-        )
-        total_cost = _return_none_on_error(
-            lambda: model_response._hidden_params["response_cost"]
-        )
+        # litellm does not statically type these attributes (usage/_hidden_params are set
+        # dynamically), so we go through Any; _return_none_on_error absorbs absent fields.
+        raw: Any = model_response
+        input_tokens = _return_none_on_error(lambda: raw.usage.prompt_tokens)
+        output_tokens = _return_none_on_error(lambda: raw.usage.completion_tokens)
+        model_name = _return_none_on_error(lambda: raw.model)
+        system_fingerprint = _return_none_on_error(lambda: raw.system_fingerprint)
+        total_cost = _return_none_on_error(lambda: raw._hidden_params["response_cost"])
+        if total_cost is None:
+            # A streamed response carries no cost. Price it from the usage chunk.
+            total_cost = _return_none_on_error(
+                lambda: litellm.completion_cost(
+                    completion_response=raw, model=requested_model or raw.model
+                )
+            )
 
         return MessageInfo(
             input_tokens=input_tokens,

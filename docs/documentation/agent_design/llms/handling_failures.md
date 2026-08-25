@@ -9,7 +9,7 @@ LLM failures fall into two categories, and the right handling differs between th
 2. **Fatal Failures**: Unexpected errors that retrying won't fix — unhandled exceptions, malformed responses, or hard API errors. These should fail fast and surface to the caller.
 
 ## Railtracks Tooling for Retries
-Pass a `RetryApproach` to your LLM and it handles retry logic automatically. The internal logic will handle the difference between errors where you should retry on vs. not. Here's an example using `ExponentialBackoffRetry`:
+Pass a `RetryApproach` to your LLM and it handles retry logic automatically. The internal logic will handle the difference between errors where you should retry on vs. not. Here's an example using jittered exponential backoff:
 
 ```python
 --8<-- "docs/scripts/documentation/retries.py:exponential_backoff"

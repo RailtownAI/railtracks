@@ -15,6 +15,22 @@ pip install 'railtracks[visual]'
 
 ## Supported Assistants
 
+=== "Codex"
+
+    Installs a repository-scoped skill at `.agents/skills/agent-builder/SKILL.md`. Codex automatically discovers skills in `.agents/skills` when working in the repository.
+
+    ```bash
+    railtracks add codex:agent-builder
+    ```
+
+    ??? success "What gets created"
+        ```
+        .agents/
+        └── skills/
+            └── agent-builder/
+                └── SKILL.md   ← railtracks agent-building knowledge
+        ```
+
 === "Claude Code"
 
     Installs a skill file at `.claude/skills/agent-builder/SKILL.md`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.
@@ -68,6 +84,7 @@ pip install 'railtracks[visual]'
 | Flag | Description |
 |---|---|
 | `--force` | Overwrite an existing skill without prompting |
+| `--list` | Print every bundled skill and supported assistant, then exit |
 
 ```bash
 railtracks add --force claude:agent-builder
@@ -75,9 +92,17 @@ railtracks add --force claude:agent-builder
 
 ## Available Skills
 
+To see what ships with the version you have installed, ask the CLI:
+
+```bash
+railtracks add --list
+```
+
 | Skill | Description |
 |---|---|
 | `agent-builder` | Build agents, tools, flows, and multi-agent workflows with railtracks |
+| `rag-pipeline` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
+| `middleware` | Add middleware to railtracks nodes and agents, including retries, logging, and guardrails |
 
 
 ## How It Works
@@ -103,3 +128,17 @@ Build me a railtracks agent that searches the web and summarises results
 ```
 
 Your assistant will use the skill to generate correct `rt.function_node` tools, a properly configured `rt.agent_node`, and a `rt.Flow` with a runnable `__main__` block without you having to paste docs into the chat.
+
+## Example: Building a RAG Pipeline
+
+Install the RAG skill and ask your assistant to wire up a pipeline over your data:
+
+```bash
+railtracks add claude:rag-pipeline
+```
+
+```
+Build a RAG pipeline that ingests my PDF docs folder and answers questions about them
+```
+
+Your assistant will set up the correct loader, chunker, embedder, and vector store, wire them into a `RetrievalRuntime`, and expose retrieval as a tool in an agent — without you having to look up import paths or constructor signatures.

@@ -1,5 +1,5 @@
 import os
-from typing import Literal, TypeVar
+from typing import Any, Literal
 
 from ...models.api_providers._openai_compatable_provider_wrapper import (
     OpenAICompatibleProvider,
@@ -7,18 +7,24 @@ from ...models.api_providers._openai_compatable_provider_wrapper import (
 from ...providers import ModelProvider
 from ...retries import RetryApproach
 
-_TStream = TypeVar("_TStream", Literal[True], Literal[False])
 
-
-class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
+class PortKeyLLM(OpenAICompatibleProvider):
     def __init__(
         self,
         model_name: str,
         *,
-        stream: _TStream = False,
         api_key: str | None = None,
         temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        frequency_penalty: float | None = None,
+        presence_penalty: float | None = None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high"]
+        | None = None,
+        service_tier: str | None = None,
+        verbosity: Literal["low", "medium", "high"] | None = None,
         retry_approach: RetryApproach | None = None,
+        **kwargs: Any,
     ):
         try:
             from portkey_ai import Portkey
@@ -37,11 +43,18 @@ class PortKeyLLM(OpenAICompatibleProvider[_TStream]):
 
         super().__init__(
             model_name,
-            stream=stream,
             api_base=portkey.base_url,
             api_key=portkey.api_key,
             temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            reasoning_effort=reasoning_effort,
+            service_tier=service_tier,
+            verbosity=verbosity,
             retry_approach=retry_approach,
+            **kwargs,
         )
 
     @classmethod

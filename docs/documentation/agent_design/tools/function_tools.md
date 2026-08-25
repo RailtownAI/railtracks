@@ -39,3 +39,21 @@ Allowing your agents to use your `python` functions as tools for your agents is 
     )
     ```
 
+!!! warning "Tool names must be unique"
+    Two *different* tools cannot share a name — the model would have no way to address them apart
+
+    ```python
+    square = rt.function_node(functools.partial(power, exp=2), name="square")
+    cube = rt.function_node(functools.partial(power, exp=3), name="cube")
+    ```
+
+## Inspecting an agent's tools
+
+`tool_nodes()` returns the tools avaliable to the agent, and `tool_info()` returns the tool schema that the LLM sees. 
+
+```python
+Agent = rt.agent_node("agent", llm=..., tool_nodes=[fn_a, fn_b])
+
+Agent.tool_nodes()                            # -> [FnANode, FnBNode]
+[t.tool_info() for t in Agent.tool_nodes()]   # the Tool schemas the LLM sees
+```

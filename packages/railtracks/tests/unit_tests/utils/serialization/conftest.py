@@ -59,3 +59,11 @@ def fake_basemodel():
         def model_dump(self_inner):
             return {"hello": "world"}
     return DummyBaseModel()
+
+@pytest.fixture
+def fake_failure():
+    from railtracks.state.request import Failure
+    try:
+        raise ValueError("kaboom")
+    except ValueError as e:
+        return Failure(e)

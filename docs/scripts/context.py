@@ -4,6 +4,7 @@ import railtracks as rt
 # Set up some context data
 data = {"var_1": "value_1"}
 
+@rt.function_node
 def some_node():
     rt.context.get("var_1")  # Outputs: value_1
     rt.context.get("var_2", "default_value")  # Outputs: default_value

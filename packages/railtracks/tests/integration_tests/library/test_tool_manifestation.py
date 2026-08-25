@@ -4,6 +4,9 @@ from railtracks.llm import Message, ToolCall
 from railtracks.llm.response import Response
 import asyncio
 
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
+
 # ================================================ START terminal_llm as tools =========================================================== 
 @pytest.mark.asyncio
 @pytest.mark.timeout(30)
@@ -119,6 +122,35 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
 
 @pytest.mark.timeout(30)
 @pytest.mark.asyncio
+async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_message):
+    # The parent should get the child's content, not the repr of its LLMResponse.
+    encoder = rt.agent_node(
+        name="Encoder",
+        system_message=encoder_system_message,
+        llm=mock_llm("encoder check"),
+        manifest=rt.ToolManifest("A tool used to encode text into bytes.", None),
+    )
+
+    caller_llm = mock_llm(requested_tool_calls=[ToolCall(name="Encoder", identifier="id_42424242", arguments={})])
+
+    caller = rt.agent_node(
+        tool_nodes={encoder},
+        llm=caller_llm,
+        name="Caller",
+        system_message="You are a helpful assistant that uses the encoder tool.",
+    )
+
+    with rt.Session():
+        response = await rt.call(caller, user_input="Encode 'hello world'")
+        tool_results = [
+            message.content.result
+            for message in response.message_history
+            if message.role == "tool"
+        ]
+        assert tool_results == ["encoder check"]
+
+@pytest.mark.timeout(30)
+@pytest.mark.asyncio
 async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_system_message):
     # Test case where tool is invoked with incorrect parameters
     encoder_tool_details = "A tool used to encode text into bytes."
@@ -152,12 +184,12 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
         response = await rt.call(tool_call_llm, user_input=message_history)
         # Check that there was an error running the tool
         assert any(
-            message.role == "assistant" and "There was an error running the tool" in message.content
+            message.role == "assistant" and "There was an error during tool execution" in message.content
             for message in response.message_history
         )
 
-def test_no_manifest():
-    agent = rt.agent_node(name="not a tool")
+def test_no_manifest(mock_llm):
+    agent = rt.agent_node(name="not a tool", llm=mock_llm)
     with pytest.raises(NotImplementedError):
         agent.tool_info()
 

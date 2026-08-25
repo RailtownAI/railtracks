@@ -28,7 +28,7 @@ to something stable.
 |---|---|---|
 | `TextLoader` | `.txt`, `.md` files & directories | None |
 | `CSVLoader`  | `.csv` files & directories | None |
-| `JSONLoader` | `.json` files & directories | None |
+| `JSONLoader` | `.json` and `.jsonl` files & directories | None |
 | `PyPDFLoader` | `.pdf` files & directories (embedded text only) | `pip install "railtracks[pdf]"` |
 | `PyPDFOCRLoader` | `.pdf` files & directories with OCR fallback | `pip install "railtracks[ocr]"` + [Tesseract](https://pypi.org/project/pytesseract/) |
 | `HuggingFaceDatasetLoader` | Hugging Face Hub datasets (streaming) | `pip install "railtracks[huggingface]"` |

@@ -28,6 +28,15 @@ for c in chunks:
 long_text = "..."
 md_text = "..."
 
+# --8<-- [start:identity]
+from railtracks.retrieval.chunking import IdentityChunker
+
+chunker = IdentityChunker()
+chunks = chunker.chunk(doc)
+# len(chunks) == 1 (or 0 for empty documents)
+# chunks[0].content == doc.content
+# --8<-- [end:identity]
+
 # --8<-- [start:recursive]
 from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import RecursiveCharacterChunker

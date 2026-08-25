@@ -2,9 +2,6 @@
 
 In Railtracks, you can use any **Agent** as a tool that other agents can use. This allows you to create complex agents that can be composed of smaller, reusable components. 
 
-!!! info "What are Nodes?"
-    Nodes are the building blocks of Railtracks. They are responsible for executing a single task and returning a result. Read more about [**Nodes**](../../system_internals/node.md).
-
 !!! info "How to build an Agent?"
     Read more about how to build an agent [**Build your First Agent**](../../tutorials/walkthroughs/byfa.md).
 
@@ -90,7 +87,7 @@ In this example: <br>
 ??? example "Sample Output"
     Here is a sample out of the running the **`ShoppingAssistant`** agent for the above user query. Please note that the output may vary based on the current training date cutoff of the LLM you use.
     ```console
-    LLMResponse(The total cost for 3 laptops, including tax, is approximately $3,239.97.)
+    The total cost for 3 laptops, including tax, is approximately $3,239.97.
     ```
 
 Congratulations! You have created an agent that can be used as a tool by other agents. This pattern allows you to build complex behaviors by composing smaller, reusable components.

@@ -13,6 +13,15 @@ The code remains the same as [LLM Providers](providers.md) with the provider nam
     --8<-- "docs/scripts/providers.py:azure"
     ```
 
+    !!! info "Environment Variables"
+
+        Add `AZURE_API_BASE` and `AZURE_API_KEY` to your `.env`. `AZURE_API_BASE` is your Foundry endpoint (e.g. `https://<your-resource>.cognitiveservices.azure.com/`), and `AZURE_API_KEY` is the resource key from the Azure portal.
+
+    `AzureAILLM` accepts either litellm prefix, depending on how your model is deployed in Foundry:
+
+    - `azure/<deployment>` — Azure OpenAI Service route. The string after the slash is the deployment name you chose in the portal and can be anything (e.g. `azure/my-gpt-5-deployment`).
+    - `azure_ai/<model>` — Azure AI Foundry model-inference route. The string after the slash is a model identifier from Foundry's catalog (e.g. `azure_ai/deepseek-r1`).
+
 === "Ollama"
     ```python
     --8<-- "docs/scripts/providers.py:ollama"

@@ -3,6 +3,7 @@ from uuid import uuid4
 import pytest
 from railtracks.evaluations.evaluators.metrics import (
     Categorical,
+    Category,
     LLMMetric,
     Numerical,
     ToolMetric,
@@ -328,6 +329,36 @@ def test_categorical_node_empty_counts_all_zero(categorical_metric, categorical_
         name="Agg", metric=categorical_metric, children=[], forest=categorical_forest,
     )
     assert all(v == 0 for v in node.counts.values())
+
+
+def test_categorical_node_serializes_to_json(categorical_metric, categorical_forest):
+    """counts must serialize with string keys and category lists as plain strings."""
+    metric = Categorical(
+        name="Quality",
+        categories=[
+            Category(name="great", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
+    )
+    forest = AggregateForest[CategoricalAggregateNode, MetricResult]()
+    mrs = [make_metric_result(v) for v in ["great", "great", "bad"]]
+    for mr in mrs:
+        forest.add_node(mr)
+
+    node = CategoricalAggregateNode(
+        name="Agg", metric=metric,
+        children=[mr.identifier for mr in mrs], forest=forest,
+    )
+    dumped = node.model_dump(mode="json")
+    assert dumped["categories"] == ["great", "bad"]
+    assert dumped["counts"] == {"great": 2, "bad": 1}
+    assert dumped["most_common_label"] == "great"
+    assert dumped["least_common_label"] == "bad"
+    # metric block carries the status-grouped category lists as plain strings
+    assert dumped["metric"]["categories"] == ["great", "bad"]
+    assert dumped["metric"]["pass_categories"] == ["great"]
+    assert dumped["metric"]["fail_categories"] == ["bad"]
+    assert dumped["metric"]["partial_categories"] == []
 
 
 # ── ToolAggregateNode ─────────────────────────────────────────────────────────

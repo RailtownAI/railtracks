@@ -1,32 +1,20 @@
-### Basic Example
+### Enabling Context Injection
+
+Context injection is **opt-in per agent**: add `rt.prebuilt.middleware.ContextInjection()` to an agent's `model_middleware` to turn on placeholder substitution. Agents without this middleware leave `{placeholders}` untouched. See [Context Injection](../../documentation/agent_design/middleware/prebuilt/list/context_injection.md) for the middleware's own reference, including how list position affects what other middleware sees.
 
 ```python
 --8<-- "docs/scripts/prompts.py:prompt_basic"
 ```
 
-In this example, the system message will be expanded to: "You are a technical assistant specialized in Python programming."
+Because the agent includes `ContextInjection`, its system message is expanded at call time to: "You are a technical assistant specialized in Python programming." Drop the middleware and the model would receive the literal `{role}` / `{domain}` text instead.
 
-### Enabling and Disabling Context Injection
+### Disabling Context Injection
 
-Context injection is enabled by default but can be disabled if needed:
+The middleware is the only switch. Only agents whose `model_middleware` contains `rt.prebuilt.middleware.ContextInjection()` substitute placeholders, so an agent whose prompt legitimately contains `{}` braces that should be left untouched simply omits it:
 
 ```python
---8<-- "docs/scripts/prompts.py:disable_injection"
+--8<-- "docs/scripts/prompts.py:disable_injection_node_level"
 ```
-
-This may be useful when formatting prompts that should not change based on the context.
-
-!!! note "Message-Level Control"
-
-    Context injection can be controlled at the message level using the `inject_prompt` parameter:
-
-    ```python
-    --8<-- "docs/scripts/prompts.py:injection_at_message_level"
-    ```
-
-    This can be useful when you want to control which messages should have context injected and which should not. 
-
-    As an example, in a Math Assistant, you might want to inject context into the system message, but not the user message that may contain LaTeX that has `{}` characters. To prevent formatting issues, you can set `inject_prompt=False` for the user message.
 
 ### Escaping Placeholders
 
@@ -37,12 +25,20 @@ If you need to include literal curly braces in your prompt without triggering co
 "Use the {{variable}} placeholder in your code."
 ```
 
+For a string you did not write yourself, such as user input or a fetched document, use
+`rt.escape_braces` to double its braces for you. This lets one message hold both a template you wrote
+and text that is delivered as written:
+
+```python
+prompt = f"The current time is {{time}}:\nUser Message:\n{rt.escape_braces(user_text)}"
+```
+
 ### Debugging Prompts
 
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: Check that `prompt_injection=True` in your session configuration
+2. **Verify context injection is enabled**: It is not on by default — check that the agent's `model_middleware` includes `rt.prebuilt.middleware.ContextInjection()` ([how to add it](../../documentation/agent_design/middleware/prebuilt/list/context_injection.md))
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 

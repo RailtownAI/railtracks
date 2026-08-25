@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 
+{#
+  Announcement bar, rendered above the header on every page. This is how the 1.5.0
+  upgrade guide is surfaced -- it is deliberately NOT a nav entry, so it stays visible
+  without taking a slot in the top-level navigation.
+
+  Remove this block once 1.5.0 has shipped and the guide no longer needs promoting.
+#}
+{% block announce %}
+  <a href="{{ 'documentation/upgrading/1_5_0/' | url }}">
+    Railtracks 1.5.0 is coming with breaking changes, see what changes and how to prepare
+    &nbsp;&rarr;
+  </a>
+{% endblock %}
+
 {% block extrahead %}
 {{ super() }}
 <!-- Google tag (gtag.js) -->

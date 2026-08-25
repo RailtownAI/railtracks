@@ -4,7 +4,7 @@ import threading
 import time
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Callable, Dict, List
+from typing import Any, Callable, Dict, List
 
 
 @dataclass
@@ -27,6 +27,13 @@ class Stamp:
 
     def __hash__(self):
         return hash((self.time, self.step, self.identifier))
+
+    def encode(self) -> dict[str, Any]:
+        return {
+            "time": self.time,
+            "step": self.step,
+            "identifier": self.identifier,
+        }
 
 
 class StampManager:

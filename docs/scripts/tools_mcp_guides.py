@@ -96,6 +96,7 @@ def kill_sandbox():
     subprocess.run(["docker", "rm", "-f", "sandbox_chatbot_session"])
 
 
+@rt.function_node
 def execute_code(code: str) -> str:
     exec_result = subprocess.run([
         "docker", "exec", "sandbox_chatbot_session",

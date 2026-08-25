@@ -52,6 +52,7 @@ line-length = 88
 
 format.indent-style = "space"
 format.docstring-code-format = true
+format.exclude = ["*.md"]
 
 lint.select = [
     "E",
@@ -84,4 +85,8 @@ addopts = [
     "--import-mode=importlib",
     "--ignore=packages/railtracks/tests/llm_live_tests",
     "--ignore=packages/railtracks/tests/end_to_end/retrieval",
+]
+# TODO: Remove this once the notices are gone in 1.5.*.
+filterwarnings = [
+    'error:.*in railtracks 1\.5\.0:FutureWarning',
 ]

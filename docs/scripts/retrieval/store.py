@@ -172,6 +172,37 @@ def distance():
     # --8<-- [end:distance]
 
 
+# --8<-- [start:chroma_cloud]
+from railtracks.retrieval.stores import ChromaCloudBackend, VectorStore
+
+
+async def chroma_cloud():
+    backend = await ChromaCloudBackend.create(
+        "my-collection",
+        api_key="chk-...",
+        tenant="my-tenant",
+        database="my-database",
+    )
+    store = VectorStore(backend)
+# --8<-- [end:chroma_cloud]
+
+
+def chroma_cloud_metric():
+    # --8<-- [start:chroma_cloud_metric]
+    from railtracks.retrieval.stores import ChromaCloudBackend, DistanceMetric
+
+    # metric controls the score conversion formula only —
+    # the hnsw:space is managed server-side for Cloud collections.
+    backend = ChromaCloudBackend(
+        "my-collection",
+        api_key="chk-...",
+        tenant="my-tenant",
+        database="my-database",
+        metric=DistanceMetric.L2,
+    )
+    # --8<-- [end:chroma_cloud_metric]
+
+
 # --8<-- [start:custom]
 from railtracks.retrieval.stores import VectorStore
 

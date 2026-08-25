@@ -9,6 +9,7 @@ _EXTENSION_TO_TYPE: dict[str, DocumentType] = {
     ".markdown": DocumentType.MARKDOWN,
     ".csv": DocumentType.CSV,
     ".json": DocumentType.JSON,
+    ".jsonl": DocumentType.JSONL,
     ".pdf": DocumentType.PDF,
     ".txt": DocumentType.TEXT,
 }

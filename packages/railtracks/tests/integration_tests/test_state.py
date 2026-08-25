@@ -127,7 +127,11 @@ async def test_json_serialization(planner_node, json_state_schema):
         raise
 
 
-async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mock_llm):
+
+
+
+async def test_json_serialization_2(json_state_schema, planner_node, mock_llm):
+
     # ============ mock llm config =========
     def random_number(messages):
         if rt.context.get("already_called", False):
@@ -151,10 +155,37 @@ async def test_json_serialization_2(planner_with_llm_node, json_state_schema, mo
 
     model = mock_llm()
     model._chat = random_number
+
+    TLLMNode = rt.agent_node(
+        system_message="You are excellent chooser of random items from a list. You never make mistakes and have a god like ability to accomplish tasks.",
+        llm=model,
+    )
+
+    @rt.function_node
+    async def planner_with_llm(llm: rt.llm.ModelBase):
+        cities = []
+        available_cities = ["New York", "Chicago", "Los Angeles", "Houston"]
+        while True:
+
+            result = await rt.call(
+                TLLMNode, 
+                f"Choose a Random city from {available_cities} and give me the index of the city only. Nothing else.",
+            )  # we will make the mock_llm return a random integer between 0 and 3 to simulate the random choice
+
+            city = available_cities[int(result.text)]
+            if city in available_cities:
+                available_cities.remove(city)
+                cities.append(city)
+
+            if len(cities) == 2:
+                break
+
+        return await rt.call(planner_node, *cities)
+    
     # =======================================
 
     with rt.Session() as session:
-        await rt.call(planner_with_llm_node, llm=model)
+        await rt.call(planner_with_llm, llm=model)
 
     try:
         validate(session.payload(), json_state_schema)

@@ -306,30 +306,28 @@ async def test_simple_rng():
 
 
 class NestedManyCalls(Node):
-    def __init__(self, num_calls: int, parallel_calls: int, depth: int):
-        self.num_calls = num_calls
-        self.parallel_calls = parallel_calls
-        self.depth = depth
+    def __init__(self, ):
         super().__init__()
 
     async def invoke(
         self,
+        num_calls: int, parallel_calls: int, depth: int
     ):
         data = []
-        for _ in range(self.num_calls):
-            if self.depth == 0:
-                contracts = [rt.call(RNGNode) for _ in range(self.parallel_calls)]
+        for _ in range(num_calls):
+            if depth == 0:
+                contracts = [rt.call(RNGNode) for _ in range(parallel_calls)]
                 results = await asyncio.gather(*contracts)
 
             else:
                 contracts = [
                     rt.call(
                         NestedManyCalls,
-                        self.num_calls,
-                        self.parallel_calls,
-                        self.depth - 1,
+                        num_calls,
+                        parallel_calls,
+                        depth - 1,
                     )
-                    for _ in range(self.parallel_calls)
+                    for _ in range(parallel_calls)
                 ]
 
                 results = await asyncio.gather(*contracts)

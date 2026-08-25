@@ -17,6 +17,7 @@ class DocumentType(str, Enum):
     PDF = "pdf"
     CSV = "csv"
     JSON = "json"
+    JSONL = "jsonl"
 
 
 @dataclass

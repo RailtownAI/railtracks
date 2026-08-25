@@ -45,19 +45,30 @@ class RetryApproach(ABC):
     def _compute_delay(self, attempt: int) -> float:
         """Seconds to wait before attempt ``attempt + 1`` (0-indexed)."""
 
-    def call_with_retry(self, completion: Callable[[], _TResult]) -> _TResult:
+    def call_with_retry(
+        self,
+        completion: Callable[[], _TResult],
+        *,
+        retry_on: tuple[type[Exception], ...] | None = None,
+    ) -> _TResult:
         """Call ``completion`` up to ``max_tries`` times, sleeping between failures.
+
+        Args:
+            completion: Zero-arg callable to attempt.
+            retry_on: Exception types worth retrying; defaults to the transient
+                LLM provider errors.
 
         Raises:
             RetryError: All attempts failed; ``exception_list`` holds every error.
             Exception: Any non-retryable exception propagates immediately.
         """
+        retryable = retry_on if retry_on is not None else _RETRYABLE_EXCEPTIONS
         exceptions: list[Exception] = []
 
         for attempt in range(self._max_tries):
             try:
                 return completion()
-            except _RETRYABLE_EXCEPTIONS as e:
+            except retryable as e:
                 exceptions.append(e)
                 if attempt == self._max_tries - 1:
                     raise RetryError(
@@ -72,15 +83,19 @@ class RetryApproach(ABC):
         assert False, "Unreachable code"
 
     async def acall_with_retry(
-        self, completion: Callable[[], Awaitable[_TResult]]
+        self,
+        completion: Callable[[], Awaitable[_TResult]],
+        *,
+        retry_on: tuple[type[Exception], ...] | None = None,
     ) -> _TResult:
         """Async mirror of ``call_with_retry`` — awaits ``completion`` each attempt."""
+        retryable = retry_on if retry_on is not None else _RETRYABLE_EXCEPTIONS
         exceptions: list[Exception] = []
 
         for attempt in range(self._max_tries):
             try:
                 return await completion()
-            except _RETRYABLE_EXCEPTIONS as e:
+            except retryable as e:
                 exceptions.append(e)
                 if attempt == self._max_tries - 1:
                     raise RetryError(

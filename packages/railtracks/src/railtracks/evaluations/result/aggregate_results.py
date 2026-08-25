@@ -194,15 +194,15 @@ class CategoricalAggregateNode(AggregateTreeNode[Categorical]):
     @computed_field
     @property
     def categories(self) -> list[str]:
-        """Unique categories from all labels (including from children)."""
-        return list(self.metric.categories)
+        """Category names in metric-defined order."""
+        return self.metric.category_names
 
     @computed_field
     @property
     def counts(self) -> Counter:
-        """Category counts from all labels (including from children)."""
+        """Category counts from all labels (including from children), keyed by category name."""
         all_labels = self._get_all_labels()
-        counts = dict.fromkeys(self.categories, 0)
+        counts = dict.fromkeys(self.metric.category_names, 0)
         for label in all_labels:
             if label in counts:
                 counts[label] += 1

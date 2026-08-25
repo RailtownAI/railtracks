@@ -16,10 +16,18 @@ class TestCSVLoaderBasic:
         docs = await CSVLoader(str(csv_file)).aload()
         assert all(d.type == DocumentType.CSV for d in docs)
 
-    async def test_source_is_file_path(self, csv_file):
-        """Document source is the absolute file path."""
+    async def test_source_includes_row_index_suffix(self, csv_file):
+        """Document source is the file path plus a per-row suffix."""
         docs = await CSVLoader(str(csv_file)).aload()
-        assert all(d.source == str(csv_file) for d in docs)
+        assert [d.source for d in docs] == [
+            f"{csv_file}#0",
+            f"{csv_file}#1",
+        ]
+
+    async def test_document_ids_are_unique_per_row(self, csv_file):
+        """Per-row sources produce distinct Document IDs (upsert correctness)."""
+        docs = await CSVLoader(str(csv_file)).aload()
+        assert len({d.id for d in docs}) == len(docs)
 
     async def test_default_content_includes_all_columns(self, csv_file):
         """Without content_columns, all columns appear in content."""
@@ -72,6 +80,37 @@ class TestCSVLoaderContentColumns:
         """A content_column that does not exist in the CSV raises ValueError."""
         loader = CSVLoader(str(csv_file), content_columns=["nonexistent"])
         with pytest.raises(ValueError, match="content_columns not found in CSV headers"):
+            await loader.aload()
+
+
+class TestCSVLoaderIdColumn:
+    """Tests for the id_column parameter (per-row source identity)."""
+
+    async def test_id_column_used_in_source(self, tmp_path):
+        """When id_column is set, its value becomes the source suffix."""
+        f = tmp_path / "with_id.csv"
+        f.write_text("id,name\nr1,Alice\nr2,Bob\n", encoding="utf-8")
+        docs = await CSVLoader(str(f), id_column="id").aload()
+        assert [d.source for d in docs] == [f"{f}#r1", f"{f}#r2"]
+
+    async def test_id_column_keeps_ids_stable_across_reorder(self, tmp_path):
+        """Same id_column value → same Document.id when the same file is re-loaded
+        with rows reordered. This is the upsert-correctness contract."""
+        f = tmp_path / "data.csv"
+        f.write_text("id,name\nr1,Alice\nr2,Bob\n", encoding="utf-8")
+        docs1 = await CSVLoader(str(f), id_column="id").aload()
+
+        f.write_text("id,name\nr2,Bob\nr1,Alice\n", encoding="utf-8")
+        docs2 = await CSVLoader(str(f), id_column="id").aload()
+
+        by_id_1 = {d.source.rsplit("#", 1)[1]: d.id for d in docs1}
+        by_id_2 = {d.source.rsplit("#", 1)[1]: d.id for d in docs2}
+        assert by_id_1 == by_id_2
+
+    async def test_unknown_id_column_raises_value_error(self, csv_file):
+        """An id_column not present in the CSV headers raises ValueError."""
+        loader = CSVLoader(str(csv_file), id_column="nonexistent")
+        with pytest.raises(ValueError, match="id_column not found in CSV headers"):
             await loader.aload()
 
 

@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from unittest.mock import patch
 from railtracks.pubsub.publisher import Publisher, RTPublisher
-from railtracks.pubsub.messages import Streaming
+from railtracks.pubsub.messages import BroadcastEvent
 
 # ================================== Pub Sub Fixtures ==================================
 @pytest.fixture
@@ -43,10 +43,10 @@ async def async_publisher():
         yield pub
 
 @pytest.fixture
-def streamed_object():
-    class DummyStream: pass
-    return DummyStream()
+def event_item():
+    class DummyItem: pass
+    return DummyItem()
 
 @pytest.fixture
-def streaming_message(streamed_object):
-    return Streaming(streamed_object=streamed_object, node_id="123")
+def broadcast_event(event_item):
+    return BroadcastEvent(item=event_item, node_id="123")

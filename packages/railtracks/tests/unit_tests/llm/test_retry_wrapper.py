@@ -1,10 +1,9 @@
 """Tests for retry_approach wiring inside LiteLLMWrapper via real provider classes."""
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import litellm
 import pytest
 from litellm.utils import ModelResponse
-
 from railtracks.llm._exceptions import RetryError
 from railtracks.llm.models.api_providers import AnthropicLLM, OpenAILLM
 from railtracks.llm.retries import ExponentialRetry, FixedRetry
@@ -105,7 +104,10 @@ class TestSyncRetryInWrapper:
 
 
 # ---------------------------------------------------------------------------
-# Async _ainvoke retry tests — OpenAILLM
+# Async surface retry tests — OpenAILLM
+#
+# `achat` runs the synchronous `litellm.completion` (with the sync retry loop) on a worker
+# thread, so retries are driven by `completion` + `time.sleep`, not the async path.
 # ---------------------------------------------------------------------------
 
 class TestAsyncRetryInWrapper:
@@ -113,7 +115,7 @@ class TestAsyncRetryInWrapper:
     async def test_retries_on_rate_limit_error(self, message_history):
         call_count = {"n": 0}
 
-        async def _side_effect(*args, **kwargs):
+        def _side_effect(*args, **kwargs):
             call_count["n"] += 1
             if call_count["n"] < 3:
                 raise litellm.exceptions.RateLimitError(
@@ -125,8 +127,8 @@ class TestAsyncRetryInWrapper:
             "gpt-4o-mini",
             retry_approach=FixedRetry(max_tries=5, delay=0.0),
         )
-        with patch.object(litellm, "acompletion", side_effect=_side_effect):
-            with patch("railtracks.llm.retries.base.asyncio.sleep", new_callable=AsyncMock):
+        with patch.object(litellm, "completion", side_effect=_side_effect):
+            with patch("railtracks.llm.retries.base.time.sleep"):
                 response = await llm.achat(message_history)
 
         assert call_count["n"] == 3
@@ -134,7 +136,7 @@ class TestAsyncRetryInWrapper:
 
     @pytest.mark.asyncio
     async def test_raises_retry_error_after_max_tries(self, message_history):
-        async def _always_fails(*args, **kwargs):
+        def _always_fails(*args, **kwargs):
             raise litellm.exceptions.RateLimitError(
                 message="rate limited", llm_provider="openai", model="gpt-4o-mini"
             )
@@ -143,8 +145,8 @@ class TestAsyncRetryInWrapper:
             "gpt-4o-mini",
             retry_approach=FixedRetry(max_tries=3, delay=0.0),
         )
-        with patch.object(litellm, "acompletion", side_effect=_always_fails):
-            with patch("railtracks.llm.retries.base.asyncio.sleep", new_callable=AsyncMock):
+        with patch.object(litellm, "completion", side_effect=_always_fails):
+            with patch("railtracks.llm.retries.base.time.sleep"):
                 with pytest.raises(RetryError):
                     await llm.achat(message_history)
 
@@ -152,7 +154,7 @@ class TestAsyncRetryInWrapper:
     async def test_non_retryable_error_propagates_without_retry(self, message_history):
         call_count = {"n": 0}
 
-        async def _bad_request(*args, **kwargs):
+        def _bad_request(*args, **kwargs):
             call_count["n"] += 1
             raise litellm.exceptions.BadRequestError(
                 message="bad", model="gpt-4o-mini", llm_provider="openai"
@@ -162,8 +164,8 @@ class TestAsyncRetryInWrapper:
             "gpt-4o-mini",
             retry_approach=FixedRetry(max_tries=5, delay=0.0),
         )
-        with patch.object(litellm, "acompletion", side_effect=_bad_request):
-            with patch("railtracks.llm.retries.base.asyncio.sleep", new_callable=AsyncMock):
+        with patch.object(litellm, "completion", side_effect=_bad_request):
+            with patch("railtracks.llm.retries.base.time.sleep"):
                 with pytest.raises(litellm.exceptions.BadRequestError):
                     await llm.achat(message_history)
 

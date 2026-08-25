@@ -15,6 +15,7 @@ from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import (
     Chunker,
     FixedTokenChunker,
+    IdentityChunker,
     MarkdownHeaderChunker,
     RecursiveCharacterChunker,
     SemanticChunker,
@@ -38,6 +39,7 @@ class _FakeEmbedder(Embedding):
 
 ALL_CHUNKERS = [
     lambda: FixedTokenChunker(chunk_size=50, overlap=10),
+    lambda: IdentityChunker(),
     lambda: RecursiveCharacterChunker(chunk_size=80, overlap=20),
     lambda: SentenceChunker(chunk_size=2, overlap=0),
     lambda: MarkdownHeaderChunker(),

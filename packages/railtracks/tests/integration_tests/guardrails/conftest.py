@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
-from railtracks.guardrails import GuardrailDecision, InputGuard, LLMGuardrailEvent
+from railtracks.guardrails import GuardrailDecision, LLMGuardrailEvent
+from railtracks.guardrails.llm.concrete import InputGuard
 
 
 class _FixtureInputGuard(InputGuard):
@@ -12,10 +12,10 @@ class _FixtureInputGuard(InputGuard):
 
     def __init__(self, fn, name: str | None = None):
         super().__init__(name=name)
-        self._fn = fn
+        self._decision_fn = fn
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        return self._fn(event)
+        return self._decision_fn(event)
 
 
 @pytest.fixture

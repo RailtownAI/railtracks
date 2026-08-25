@@ -1,6 +1,6 @@
 import pytest
 from pydantic import BaseModel
-from railtracks.built_nodes.concrete.response import LLMResponse, StructuredResponse, StringResponse
+from railtracks.built_nodes.llm.response import LLMResponse, StructuredResponse, StringResponse
 
 class DummyContent:
     def __repr__(self):
@@ -48,3 +48,21 @@ def test_string_response_repr():
     history = DummyMessageHistory()
     resp = StringResponse(content, history)
     assert repr(resp) == "LLMResponse(abc)"
+
+def test_llmresponse_str():
+    content = DummyContent()
+    history = DummyMessageHistory()
+    resp = LLMResponse(content, history)
+    assert str(resp) == "DummyContent()"
+
+def test_string_response_str():
+    content = "abc"
+    history = DummyMessageHistory()
+    resp = StringResponse(content, history)
+    assert str(resp) == "abc"
+
+def test_structured_response_str():
+    model = DummyModel(x=99)
+    history = DummyMessageHistory()
+    resp = StructuredResponse(model, history)
+    assert str(resp) == str(model)

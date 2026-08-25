@@ -65,3 +65,29 @@ class FunctionCallingNotSupportedError(ModelError):
         super().__init__(
             reason=f"Model {model_name} does not support function calling. Chat with tools is not supported."
         )
+
+
+class UnsupportedHyperparameterError(ModelError):
+    """Error raised when a model does not support a given common LLM hyperparameter."""
+
+    def __init__(self, model_name: str, hyperparameter: str, value):
+        super().__init__(
+            reason=(
+                f"Model {model_name} does not support '{hyperparameter}' "
+                f"(got {hyperparameter}={value!r})."
+            )
+        )
+
+
+class MutuallyExclusiveHyperparametersError(ModelError):
+    """Error raised when two or more common hyperparameters cannot be combined for
+    this model."""
+
+    def __init__(self, model_name: str, hyperparameters: list[str], values: dict):
+        joined = " and ".join(f"'{p}'" for p in hyperparameters)
+        super().__init__(
+            reason=(
+                f"Model {model_name} does not support specifying {joined} together "
+                f"(got {values!r}). Use only one."
+            )
+        )

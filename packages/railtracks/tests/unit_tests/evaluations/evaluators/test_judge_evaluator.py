@@ -5,9 +5,15 @@ import pytest
 
 from railtracks.evaluations.evaluators.judge_evaluator import (
     JudgeEvaluator,
+    JudgeOutput,
     JudgeResponseSchema,
 )
-from railtracks.evaluations.evaluators.metrics import Categorical, Metric, Numerical
+from railtracks.evaluations.evaluators.metrics import (
+    Categorical,
+    Category,
+    Metric,
+    Numerical,
+)
 from railtracks.evaluations.result import AggregateForest, MetricResult
 
 from .conftest import make_agent_data_point
@@ -123,6 +129,35 @@ def test_generate_system_prompt_without_reasoning():
     assert "reasoning" not in prompt.lower()
 
 
+def test_generate_system_prompt_lists_category_names_with_string_input(judge):
+    """HELPFULNESS is built from plain strings; the prompt must still name them."""
+    prompt = judge._generate_system_prompt(HELPFULNESS)
+    assert "good" in prompt
+    assert "bad" in prompt
+    assert "metric_value must be exactly one of these category names" in prompt
+
+
+def test_generate_system_prompt_lists_category_names_with_category_object_input():
+    """Same check, but the metric is built from Category objects instead of strings."""
+    llm = make_mock_llm()
+    metric = Categorical(
+        name="Helpfulness",
+        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+    )
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "good" in prompt
+    assert "bad" in prompt
+    assert "metric_value must be exactly one of these category names" in prompt
+    # the internal pass/fail label must not leak into the instruction line
+    instruction_line = next(
+        line for line in prompt.splitlines() if "metric_value must be" in line
+    )
+    assert "pass" not in instruction_line
+    assert "fail" not in instruction_line
+
+
 # ── _aggregate_metrics ────────────────────────────────────────────────────────
 
 
@@ -163,7 +198,7 @@ def test_aggregate_metrics_skips_base_metric(judge):
 
 
 def _mock_invoke(judge_instance, adp, metric):
-    return [(metric.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning="looks good"))]
+    return [JudgeOutput(metric.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning="looks good"))]
 
 
 def test_run_returns_evaluator_result(judge):
@@ -188,7 +223,7 @@ def test_run_no_reasoning_when_disabled():
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS], reasoning=False)
     adp = make_agent_data_point()
-    fake_output = [(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good"))]
+    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good"))]
     with patch.object(j, "_invoke", return_value=fake_output):
         result = j.run([adp])
     names = [r.result_name for r in result.metric_results]
@@ -198,7 +233,7 @@ def test_run_no_reasoning_when_disabled():
 def test_run_reasoning_none_does_not_add_result(judge):
     """When reasoning is enabled but judge returns None reasoning, no reasoning result added."""
     adp = make_agent_data_point()
-    fake_output = [(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning=None))]
+    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning=None))]
     with patch.object(judge, "_invoke", return_value=fake_output):
         result = judge.run([adp])
     names = [r.result_name for r in result.metric_results]

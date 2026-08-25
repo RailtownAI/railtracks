@@ -1,10 +1,11 @@
+
 import pytest
 import railtracks as rt
-from railtracks.built_nodes.concrete.response import StringResponse
 from railtracks.exceptions import NodeCreationError
-from railtracks.llm import AssistantMessage, ToolCall
+from railtracks.llm import AssistantMessage, ToolCall, ToolCalls
+from railtracks.llm.message import Role
 from railtracks.llm.response import Response
-from typing import Generator
+
 
 # NOTE: Simple successful tool calls are already tested in test_function.py
 class TestSimpleToolCalling:
@@ -23,8 +24,7 @@ class TestSimpleToolCalling:
             )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("stream", [False, True])
-    async def test_simple_tool(self, mock_llm, stream):
+    async def test_simple_tool(self, mock_llm):
         def secret_phrase():
             rt.context.put("secret_phrase_called", True)
             return "Constantinople"
@@ -33,7 +33,6 @@ class TestSimpleToolCalling:
             requested_tool_calls=[
                 ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
             ],
-            stream=stream,
         )
 
         agent = rt.agent_node(
@@ -48,18 +47,60 @@ class TestSimpleToolCalling:
                 agent,
                 user_input="What is the secret phrase? Only return the secret phrase, no other text.",
             )
-            collected_response: StringResponse | None = None
-            if stream:
-                for chunk in response:
-                    assert isinstance(chunk, (str, StringResponse))
-                    if isinstance(chunk, StringResponse):
-                        collected_response = chunk
-            else:
-                collected_response = response
-            assert collected_response is not None
-            assert "Constantinople" in collected_response.text
+            assert response is not None
+            assert "Constantinople" in response.text
             assert rt.context.get("secret_phrase_called")
-            
+
+    @pytest.mark.asyncio
+    async def test_text_returned_with_tool_call_is_kept(self, mock_llm):
+        """A model that speaks before calling a tool should not lose what it said."""
+        preamble = "I will call secret_phrase to find out."
+
+        def secret_phrase():
+            return "Constantinople"
+
+        # ============ mock llm config =========
+        def chat_with_tools(messages, tools):
+            if messages[-1].role == Role.tool:
+                return Response(
+                    message=AssistantMessage("The secret phrase is Constantinople")
+                )
+            return Response(
+                message=AssistantMessage(
+                    content=ToolCalls(
+                        [
+                            ToolCall(
+                                name="secret_phrase",
+                                identifier="id_42424242",
+                                arguments={},
+                            )
+                        ],
+                        text=preamble,
+                    )
+                )
+            )
+
+        llm = mock_llm()
+        llm._chat_with_tools = chat_with_tools
+        # =======================================
+
+        agent = rt.agent_node(
+            tool_nodes={rt.function_node(secret_phrase)},
+            name="Secret Phrase Maker",
+            system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
+            llm=llm,
+        )
+
+        with rt.Session():
+            response = await rt.call(agent, user_input="What is the secret phrase?")
+
+        tool_call_messages = [
+            m for m in response.message_history if isinstance(m.content, ToolCalls)
+        ]
+        assert len(tool_call_messages) == 1
+        assert tool_call_messages[0].content.text == preamble
+        # the calls themselves are still reachable exactly as before
+        assert [tc.name for tc in tool_call_messages[0].content] == ["secret_phrase"]
 
 
 
@@ -104,38 +145,6 @@ class TestLimitedToolCalling:
             _ = await rt.call(agent, user_input=message)
             assert rt.context.get("tools_called") == 1
 
-@pytest.mark.asyncio
-class TestStructuredToolCalling:
-    async def test_base_functionality(self, mock_llm, simple_output_model):
-        def secrets():
-            rt.context.put("secrets_called", True)
-            return ("Constantinople", 42)
-
-        llm = mock_llm(
-            custom_response='{"text": "Constantinople", "number": "42"}',  # for passing into schema
-            requested_tool_calls=[
-                ToolCall(name="secrets", identifier="id_42424242", arguments={})
-            ],
-        )
-
-        agent = rt.agent_node(
-            name="Secret Phrase Maker",
-            system_message="You are a helpful assistant that can call the tools available to you to answer user queries",
-            llm=llm,
-            output_schema=simple_output_model,
-            tool_nodes={rt.function_node(secrets)},
-        )
-
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                user_input="What is the secret phrase? Only return the structured output, no other text.",
-            )
-            assert isinstance(response.content, simple_output_model)
-            assert response.content.text == "Constantinople"
-            assert response.content.number == 42
-            assert rt.context.get("secrets_called")
-
 class TestFunctionNodeCallWithFunctionList:
     @pytest.mark.asyncio
     async def test_function_node_call_with_function_list_parameter(
@@ -160,8 +169,16 @@ class TestFunctionNodeCallWithFunctionList:
         name="Random Number Generator Agent",
         tool_nodes=tool_nodes,
         system_message="""You are a number generator agent that can generate numbers and add a value to it""",
-        llm=mock_llm('{"text": "Successfully added 50 to 42 to get 92", "number": 92}'),
-        output_schema=simple_output_model,
+        llm=mock_llm(
+            requested_tool_calls=[
+                ToolCall(name="get_number", identifier="id_1", arguments={}),
+                ToolCall(
+                    name="add_value",
+                    identifier="id_2",
+                    arguments={"number": 42, "value": 50},
+                ),
+            ]
+        ),
     )
 
         with rt.Session(name="AgentHandlerNode") as run:
@@ -169,11 +186,6 @@ class TestFunctionNodeCallWithFunctionList:
                 rt.llm.UserMessage("Give me a number and add 50 to it please"),
                 ]))
             
-        print(result.content)
-        assert isinstance(result.content, simple_output_model)
-        assert isinstance(result.content.text, str)
-        assert isinstance(result.content.number, int)
-        assert result.content.text == "Successfully added 50 to 42 to get 92"
-        assert result.content.number == 92
+        assert "92" in result.content
         
 

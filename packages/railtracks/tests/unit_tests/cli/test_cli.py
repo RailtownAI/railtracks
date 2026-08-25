@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import socket
+import sys
 import tempfile
 import threading
 import unittest
@@ -16,13 +17,17 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 from railtracks.cli import (
+    SKILLS,
+    SUPPORTED_TOOLS,
     _visual_dependencies_available,
+    add_skill,
     check_for_ui_update,
     create_railtracks_dir,
     get_remote_ui_version,
     get_script_directory,
     get_stored_ui_version,
     is_port_in_use,
+    list_skills,
     main,
     save_ui_version,
 )
@@ -294,7 +299,8 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"error": "Session not found"})
 
-    def test_get_session_by_guid_invalid_json(self):
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_session_by_guid_invalid_json(self, mock_print_error):
         """Test /api/sessions/{guid} endpoint with invalid JSON file"""
         # Create sessions directory and invalid JSON file
         sessions_dir = Path(".railtracks/data/sessions")
@@ -307,8 +313,200 @@ class TestFastAPIEndpoints(unittest.TestCase):
 
         response = self.client.get(f"/api/sessions/{guid}")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json())
-        self.assertIn("Invalid JSON", response.json()["error"])
+        self.assertEqual(response.json(), {"error": "Invalid JSON"})
+        logged_error = mock_print_error.call_args.args[0]
+        self.assertIn(invalid_file.name, logged_error)
+        self.assertIn("line 1 column", logged_error)
+
+    def test_get_session_rejects_glob_metacharacters(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        (sessions_dir / "private-guid.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/%2A")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_parent_path_segments(self):
+        Path(".railtracks/data/sessions").mkdir(parents=True)
+        Path(".railtracks/secret.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/..%2F..%2Fsecret")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_symlinks_outside_sessions_directory(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        secret = Path("secret.json").resolve()
+        secret.write_text('{"private": true}')
+        (sessions_dir / "escaped-guid.json").symlink_to(secret)
+
+        response = self.client.get("/api/sessions/escaped-guid")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
+    def test_ui_serves_files_inside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "asset.txt").write_text("public asset")
+
+        response = self.client.get("/asset.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "public asset")
+
+    def test_ui_serves_index_at_root(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "index.html").write_text("<html>spa shell</html>")
+
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "<html>spa shell</html>")
+
+    def test_ui_rejects_percent_encoded_parent_traversal(self):
+        Path(".railtracks/ui").mkdir(parents=True)
+        Path("secret.txt").write_text("must stay private")
+
+        response = self.client.get("/..%2F..%2Fsecret.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
+
+    def test_ui_rejects_symlinks_outside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        secret = Path("secret.txt").resolve()
+        secret.write_text("must stay private")
+        (ui_dir / "escaped.txt").symlink_to(secret)
+
+        response = self.client.get("/escaped.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
+
+
+class TestSkillInstallers(unittest.TestCase):
+    """Test installation of bundled AI coding assistant skills."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+
+    def test_codex_installs_repository_skill(self):
+        """Codex skills are written with valid metadata under .agents/skills."""
+        add_skill("codex:agent-builder")
+
+        target = Path(".agents/skills/agent-builder/SKILL.md")
+        self.assertTrue(target.is_file())
+        content = target.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith("---\nname: agent-builder\n"))
+        self.assertIn("description:", content)
+        self.assertIn("# Build a Railtracks Agent", content)
+
+    def test_codex_does_not_use_claude_directory(self):
+        """Codex installation must use its repository skill discovery path."""
+        add_skill("codex:agent-builder")
+
+        self.assertFalse(Path(".claude").exists())
+        self.assertFalse(Path(".cursor").exists())
+
+    def test_copilot_resolves_argument_placeholder(self):
+        """Copilot instructions are always-on context, so $ARGUMENTS never survives."""
+        add_skill("copilot:agent-builder")
+
+        content = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+        self.assertNotIn("$ARGUMENTS", content)
+        self.assertIn("<!-- railtracks:agent-builder:start -->", content)
+        self.assertIn("<!-- railtracks:agent-builder:end -->", content)
+
+    def test_copilot_reinstall_is_idempotent(self):
+        """Regenerating a skill in place must not duplicate it or add blank lines."""
+        add_skill("copilot:agent-builder")
+        first = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+
+        add_skill("copilot:agent-builder", force=True)
+        second = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+
+        self.assertEqual(first, second)
+
+    def test_copilot_preserves_surrounding_content(self):
+        """Hand-maintained sections around the markers must survive a regeneration."""
+        target = Path(".github/copilot-instructions.md")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# Hand written preamble\n", encoding="utf-8")
+
+        add_skill("copilot:agent-builder")
+        add_skill("copilot:agent-builder", force=True)
+
+        content = target.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith("# Hand written preamble\n"))
+        self.assertEqual(content.count("<!-- railtracks:agent-builder:start -->"), 1)
+
+    def test_claude_keeps_argument_placeholder(self):
+        """Claude Code substitutes $ARGUMENTS at invocation, so it must be preserved."""
+        add_skill("claude:agent-builder")
+
+        content = Path(".claude/skills/agent-builder/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("$ARGUMENTS", content)
+
+
+class TestListSkills(unittest.TestCase):
+    """Test `railtracks add --list`"""
+
+    @patch('builtins.print')
+    def test_list_skills_prints_every_registered_skill(self, mock_print):
+        """Every skill in the registry shows up with its description"""
+        list_skills()
+
+        output = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        for skill_name, meta in SKILLS.items():
+            self.assertIn(skill_name, output)
+            self.assertIn(meta["description"], output)
+
+    @patch('builtins.print')
+    def test_list_skills_prints_supported_tools(self, mock_print):
+        """The skill list is only actionable alongside the tools it installs for"""
+        list_skills()
+
+        output = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+        for tool in SUPPORTED_TOOLS:
+            self.assertIn(tool, output)
+
+    @patch('railtracks.cli.list_skills')
+    def test_add_list_flag_lists_instead_of_installing(self, mock_list):
+        """`add --list` short-circuits before the <tool>:<skill> requirement"""
+        with patch.object(sys, 'argv', ['railtracks', 'add', '--list']):
+            main()
+
+        mock_list.assert_called_once()
+
+    @patch('railtracks.cli.list_skills')
+    def test_add_short_list_flag(self, mock_list):
+        """`-l` is accepted as the short form"""
+        with patch.object(sys, 'argv', ['railtracks', 'add', '-l']):
+            main()
+
+        mock_list.assert_called_once()
+
+    @patch('railtracks.cli.print_error')
+    def test_add_without_spec_still_errors(self, mock_error):
+        """A bare `add`, or a lone unrelated flag, remains a usage error"""
+        with patch.object(sys, 'argv', ['railtracks', 'add', '--force']):
+            with self.assertRaises(SystemExit):
+                main()
+
+        mock_error.assert_called_once()
 
 
 class TestPortChecking(unittest.TestCase):
@@ -543,6 +741,15 @@ class TestUIVersionTracking(unittest.TestCase):
         self.assertTrue(
             version_file.exists(),
             f"Version file not found at expected location: {version_file}",
+        )
+
+    @patch.dict(os.environ, {"RAILTRACKS_BETA_UI_URL": "https://example.test/beta.zip"})
+    def test_beta_ui_url_can_be_configured_at_runtime(self):
+        """Beta builds do not require patching an installed package."""
+        import railtracks.cli as cli_module
+
+        self.assertEqual(
+            cli_module._ui_url(beta=True), "https://example.test/beta.zip"
         )
 
     # --- temp file cleanup on failure ---

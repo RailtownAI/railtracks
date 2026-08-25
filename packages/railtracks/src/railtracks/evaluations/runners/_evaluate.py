@@ -2,9 +2,6 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from rich import print
-from rich.prompt import Prompt
-
 from ...utils.logging.create import get_rt_logger
 from ..evaluators import Evaluator
 from ..point import AgentDataPoint
@@ -27,6 +24,11 @@ COLORS = {
 
 
 def _select_agent(agents: dict[str, int]) -> list[str]:
+    # rich is imported lazily: it is only needed for this interactive agent picker,
+    # so `import railtracks` does not pull it in at package-import time.
+    from rich import print
+    from rich.prompt import Prompt
+
     print(
         f"\n[{COLORS['header']}]Multiple agents found in the data:[/{COLORS['header']}]"
     )

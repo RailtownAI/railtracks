@@ -21,8 +21,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageDraw, ImageFont
-from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader
+
+pytest.importorskip("PIL")
+pytest.importorskip("pypdfium2")
+pytest.importorskip("pytesseract")
+
+from PIL import Image, ImageDraw, ImageFont  # noqa: E402
+from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader  # noqa: E402
 
 pytestmark = pytest.mark.integration
 

@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
@@ -55,6 +57,33 @@ async def test_asyncio_execute_failure(
 def test_asyncio_shutdown_is_noop():
     strat = AsyncioExecutionStrategy()
     strat.shutdown()  # Should not throw
+
+@pytest.mark.asyncio
+@patch("railtracks.execution.execution_strategy.NodeState")
+@patch("railtracks.execution.execution_strategy.get_publisher")
+async def test_asyncio_execute_binds_scope_manager_and_enters_node_scope(
+    mock_get_publisher, mock_node_state, mock_task, mock_publisher
+):
+    mock_get_publisher.return_value = mock_publisher
+    mock_node_state.return_value = "fake-node-state"
+    mock_task.invoke = AsyncMock(return_value="completed!")
+
+    calls = []
+
+    class FakeScopeManager:
+        @contextmanager
+        def enter_node(self, node_id):
+            calls.append(("enter_node", node_id))
+            yield
+
+    scope_manager = FakeScopeManager()
+    mock_task.node.bind_scope_manager = MagicMock()
+
+    strat = AsyncioExecutionStrategy(scope_manager=scope_manager)
+    await strat.execute(mock_task)
+
+    mock_task.node.bind_scope_manager.assert_called_once_with(scope_manager)
+    assert calls == [("enter_node", "mock-uuid")]
 
 # ============ END AsyncioExecutionStrategy Tests ===============
 

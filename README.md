@@ -23,10 +23,6 @@
   </a>
 </p>
 
-<div align="center">
-
-</div>
-
 ## What is Railtracks?
 
 Railtracks is a Python framework for building agentic systems. Agent behavior, tools, and multi-step flows are defined entirely in standard Python using the control flow and abstractions you already know.
@@ -35,22 +31,26 @@ Railtracks is a Python framework for building agentic systems. Agent behavior, t
 ```python
 import railtracks as rt
 
+
 # Define a tool (just a function!)
 def get_weather(location: str) -> str:
+    """Get the current weather for a location."""
     return f"It's sunny in {location}!"
+
 
 # Create an agent with tools
 agent = rt.agent_node(
     "Weather Assistant",
-    tool_nodes=(rt.function_node(get_weather)),
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You help users with weather information."
+    # Alternatively, use @rt.function_node at def time
+    tool_nodes=[rt.function_node(get_weather)],
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    system_message="You help users with weather information.",
 )
 
 # Run it
 flow = rt.Flow(name="Weather Flow", entry_point=agent)
 result = flow.invoke("What's the weather in Paris?")
-# or `await flow.ainvoke("What's the weather in Paris?)` in an async context
+# or `await flow.ainvoke("What's the weather in Paris?")` in an async context
 print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
@@ -81,10 +81,7 @@ def my_tool(text: str) -> str:
 #### Tool-First Architecture
 ```python
 # Any function becomes a tool
-agent = rt.agent_node(
-    "Assistant",
-    tool_nodes=[my_tool, api_call]
-)
+agent = rt.agent_node("Assistant", tool_nodes=[my_tool, api_call])
 ```
 - Automatic function-to-tool conversion
 - Seamless API and database integration
@@ -125,7 +122,19 @@ See the [Observability documentation](https://docs.railtracks.org/observability/
 <summary><b>Installation</b></summary>
 
 ```bash
-pip install railtracks 'railtracks[visual]'
+pip install 'railtracks[visual]'
+```
+
+</details>
+
+
+<details open>
+<summary><b>Set your API key</b></summary>
+
+Railtracks loads a local `.env` file on import, save your provider keys there:
+
+```bash
+echo "OPENAI_API_KEY=sk-..." >> .env
 ```
 
 </details>
@@ -138,32 +147,33 @@ pip install railtracks 'railtracks[visual]'
 ```python
 import railtracks as rt
 
+
 # 1. Create tools (just functions with decorators!)
 @rt.function_node
 def count_characters(text: str, character: str) -> int:
     """Count occurrences of a character in text."""
     return text.count(character)
 
+
 @rt.function_node
 def word_count(text: str) -> int:
     """Count words in text."""
     return len(text.split())
 
+
 # 2. Build an agent with tools
 text_analyzer = rt.agent_node(
     "Text Analyzer",
-    tool_nodes=(count_characters, word_count),
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You analyze text using the available tools."
+    tool_nodes=[count_characters, word_count],
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    system_message="You analyze text using the available tools.",
 )
 
 # 3. Use it to solve the classic "How many r's in strawberry?" problem
-text_flow = rt.Flow(
-  name="Text Analysis Flow",
-  entry_point=text_analyzer
-)
+text_flow = rt.Flow(name="Text Analysis Flow", entry_point=text_analyzer)
 
-text_flow.invoke("How many 'r's are in 'strawberry'?")
+result = text_flow.invoke("How many 'r's are in 'strawberry'?")
+print(result.text)
 ```
 
 </details>
@@ -175,10 +185,10 @@ Railtracks integrates with major model providers through a unified interface:
 
 ```python
 # OpenAI
-rt.llm.OpenAILLM("gpt-5")
+rt.llm.OpenAILLM("gpt-5.4-mini")
 
 # Anthropic
-rt.llm.AnthropicLLM("claude-4-6-sonnet")
+rt.llm.AnthropicLLM("claude-sonnet-5")
 
 # Local models
 rt.llm.OllamaLLM("llama3")

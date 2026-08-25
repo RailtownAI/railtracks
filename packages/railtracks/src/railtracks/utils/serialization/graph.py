@@ -45,6 +45,16 @@ class Edge:
         ), "The parent edge must have the same source and target"
         self.parent = parent
 
+    def encode(self) -> dict[str, Any]:
+        return {
+            "identifier": self.identifier,
+            "source": self.source,
+            "target": self.target,
+            "stamp": self.stamp,
+            "details": self.details,
+            "parent": self.parent,
+        }
+
 
 class Vertex:
     def __init__(
@@ -80,3 +90,13 @@ class Vertex:
             "The parent identifier must match the vertex identifier"
         )
         self.parent = parent
+
+    def encode(self) -> dict[str, Any]:
+        return {
+            "identifier": self.identifier,
+            "node_type": self.node_type,
+            "name": self.name,
+            "stamp": self.stamp,
+            "details": self.details,
+            "parent": self.parent,
+        }

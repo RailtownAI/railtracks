@@ -1,16 +1,17 @@
 import os
-import pytest
-import requests
-from typing import Generator
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import litellm
-from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
-
-from railtracks.llm.models.local.ollama import OllamaLLM
+import pytest
+import requests
 from railtracks.llm._exceptions import RTLLMError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import UserMessage
+from railtracks.llm.models.local.ollama import OllamaLLM
+
+
+# TODO: Remove with the notices in 1.5.0.
+pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 
 @pytest.fixture
 def mock_response():
@@ -41,69 +42,8 @@ def test_init_success(mock_response):
     """Test successful initialization of Ollama"""
     with patch('requests.get', return_value=mock_response):
         ollama = OllamaLLM("test-model")
-        assert ollama.model_name() == "ollama/test-model"
+        assert ollama.model_name() == "ollama_chat/test-model"
         assert ollama.domain == "http://localhost:11434"
-
-
-def test_init_with_stream_enabled(mock_response):
-    """Test initialization with streaming enabled"""
-    with patch('requests.get', return_value=mock_response):
-        ollama = OllamaLLM("test-model", stream=True)
-        assert ollama.stream is True
-        assert ollama.model_name() == "ollama/test-model"
-        assert ollama.domain == "http://localhost:11434"
-
-
-def test_init_with_stream_disabled(mock_response):
-    """Test initialization with streaming disabled (default)"""
-    with patch('requests.get', return_value=mock_response):
-        ollama = OllamaLLM("test-model", stream=False)
-        assert ollama.stream is False
-        assert ollama.model_name() == "ollama/test-model"
-
-
-def test_init_stream_defaults_to_false(mock_response):
-    """Test that stream defaults to False when not specified"""
-    with patch('requests.get', return_value=mock_response):
-        ollama = OllamaLLM("test-model")
-        assert ollama.stream is False
-
-
-def test_chat_with_streaming(mock_response):
-    """Test that chat method returns a generator when streaming is enabled"""
-    with patch('requests.get', return_value=mock_response):
-        ollama = OllamaLLM("test-model", stream=True)
-        messages = MessageHistory([UserMessage(content="test message")])
-        
-        # Create a mock CustomStreamWrapper that can be iterated
-        # The actual _stream_handler_base will process this and yield chunks
-        mock_chunks = [
-            MagicMock(choices=[MagicMock(delta=MagicMock(content="Hello", tool_calls=None), finish_reason="")]),
-            MagicMock(choices=[MagicMock(delta=MagicMock(content=" ", tool_calls=None), finish_reason="")]),
-            MagicMock(choices=[MagicMock(delta=MagicMock(content="world", tool_calls=None), finish_reason="")]),
-            MagicMock(choices=[MagicMock(delta=MagicMock(content=None, tool_calls=None), finish_reason="stop")]),
-            MagicMock(choices=[]),
-        ]
-        
-        def mock_stream_iter():
-            for chunk in mock_chunks:
-                yield chunk
-        
-        mock_stream_wrapper = MagicMock(spec=CustomStreamWrapper)
-        mock_stream_wrapper.__iter__ = lambda self: mock_stream_iter()
-        mock_stream_wrapper.model = "test-model"
-        
-        # Mock _invoke to return the stream wrapper
-        with patch.object(ollama, '_invoke', return_value=(mock_stream_wrapper, 0.0)):
-            result = ollama.chat(messages)
-            
-            # When streaming is enabled, chat should return a Generator
-            assert isinstance(result, Generator)
-            
-            # Verify we can iterate through the generator
-            chunks = list(result)
-            # Should yield content chunks and a final Response
-            assert len(chunks) > 0
 
 
 def test_init_with_custom_domain(mock_response):
@@ -175,9 +115,11 @@ def test_model_name_extraction(mock_response):
     """Test model name extraction from full path"""
     with patch('requests.get', return_value=mock_response):
         ollama = OllamaLLM("ollama/test-model")
-        assert ollama.model_name() == "ollama/test-model"
+        assert ollama.model_name() == "ollama_chat/test-model"
         ollama2 = OllamaLLM("test-model")
-        assert ollama2.model_name() == "ollama/test-model"
+        assert ollama2.model_name() == "ollama_chat/test-model"
+        ollama3 = OllamaLLM("ollama_chat/test-model")
+        assert ollama3.model_name() == "ollama_chat/test-model"
 
 
 def test_init_with_auto_domain_missing_env(mock_response):
@@ -220,3 +162,32 @@ def test_init_with_custom_domain_missing_arg(mock_response):
         with pytest.raises(RTLLMError) as exc_info:
             OllamaLLM("test-model", domain="custom")
         assert "Custom domain must be provided" in str(exc_info.value)
+
+
+def test_tools_survive_litellm_param_dropping(mock_response):
+    """The routed model name must keep `tools` in the outgoing request (#1457)."""
+    tools = [{"type": "function", "function": {"name": "f", "description": "d",
+                                               "parameters": {"type": "object", "properties": {}}}}]
+    with patch('requests.get', return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    provider, model = ollama.model_name().split("/", 1)
+    optional_params = litellm.utils.get_optional_params(
+        model=model, custom_llm_provider=provider, tools=tools
+    )
+    assert "tools" in optional_params
+
+
+def test_function_calling_support_checked_against_catalog_name(mock_response):
+    """The support check uses the `ollama/` prefix litellm's catalog is keyed on."""
+    with patch('requests.get', return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    with patch(
+        'railtracks.llm.models.local.ollama.supports_function_calling',
+        return_value=True,
+    ) as mock_supports:
+        with patch.object(litellm, "completion") as mock_completion:
+            mock_completion.return_value = litellm.utils.ModelResponse(
+                choices=[{"message": {"content": "ok"}}]
+            )
+            ollama.chat_with_tools(MessageHistory([UserMessage(content="hi")]), [])
+    assert mock_supports.call_args.kwargs["model"] == "ollama/test-model"

@@ -18,7 +18,7 @@ from .conftest import AGENT_ID_1, AGENT_ID_2, SESSION_ID_1, SESSION_ID_2, make_s
 
 def test_correct_llm_values_extracted_from_session(session_file):
     """Values written into the session JSON reach the AgentDataPoint unchanged."""
-    adps = extract_agent_data_points(str(session_file))
+    adps = extract_agent_data_points([str(session_file)])
     call = adps[0].llm_details.calls[0]
     assert call.model_name == "gpt-4"
     assert call.model_provider == "OpenAI"
@@ -30,7 +30,7 @@ def test_correct_llm_values_extracted_from_session(session_file):
 
 def test_correct_tool_values_extracted_from_session(session_file):
     """Tool name and runtime from the session JSON are reflected in the AgentDataPoint."""
-    adps = extract_agent_data_points(str(session_file))
+    adps = extract_agent_data_points([str(session_file)])
     assert "get_stock_price" in adps[0].tool_details.tool_names
     call = adps[0].tool_details.calls[0]
     assert call.name == "get_stock_price"
@@ -39,14 +39,14 @@ def test_correct_tool_values_extracted_from_session(session_file):
 
 def test_agent_io_extracted_from_session(session_file):
     """Agent input and output are parsed from the session edge details."""
-    adps = extract_agent_data_points(str(session_file))
+    adps = extract_agent_data_points([str(session_file)])
     assert "What is the stock price?" in adps[0].agent_input["args"]
     assert adps[0].agent_output == {"answer": "The stock is $100."}
 
 
 def test_session_and_agent_ids_preserved(session_file):
     """UUIDs from the session file are faithfully stored on the AgentDataPoint."""
-    adps = extract_agent_data_points(str(session_file))
+    adps = extract_agent_data_points([str(session_file)])
     assert adps[0].session_id == UUID(SESSION_ID_1)
     assert adps[0].identifier == UUID(AGENT_ID_1)
 

@@ -168,16 +168,6 @@ async def test_call_with_active_context_calls_run(mock_context_functions, mock_r
     )
 
 
-@pytest.mark.asyncio
-async def test_call_raises_type_error_with_function():
-    """We are not supporting Callables as an argument to call. This is to make call a little ."""
-
-    def test_function():
-        return "function_result"
-    
-    with pytest.raises(TypeError):
-        await call(test_function)
-
 # ============================ END Call Function Tests ==============================
 
 

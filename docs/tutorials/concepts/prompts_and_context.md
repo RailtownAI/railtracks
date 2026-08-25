@@ -9,7 +9,7 @@ In Railtracks, prompts are provided as system messages or user messages when int
 
 ## Context Injection
 
-Railtracks provides a powerful feature called "context injection" (also referred to as "prompt injection") that allows you to dynamically insert values from the global context into your prompts. This makes your prompts more flexible and reusable across different scenarios.
+Railtracks provides a powerful feature called "context injection" (also referred to as "prompt injection", "variable insertion", etc. in literature) that allows you to dynamically insert values from the global context into your prompts. This makes your prompts more flexible and reusable across different scenarios.
 
 ### What is Context Injection?
 
@@ -22,6 +22,24 @@ Passing prompt details up the chain can be expensive in both **tokens** and **la
 1. Define placeholders in your prompts using curly braces: `{variable_name}`
 2. Set values in the Railtracks context (see [Context Management](../../documentation/advanced/context.md) for details)
 3. When the prompt is processed, the placeholders are replaced with the corresponding values from the context
+
+Only a placeholder naming a context key on its own is replaced. A placeholder that reaches into a
+value, such as `{config.host}` or `{config[host]}`, is left in the prompt as written, as is a
+placeholder whose key is not in the context. Write `{{` and `}}` for a literal brace.
+
+### Untrusted text in a prompt
+
+Placeholders are filled in user messages as well as system messages, so text you did not write
+yourself is also a template. Pass such text through `rt.escape_braces` before putting it in a prompt
+so its braces are treated as data:
+
+```python
+prompt = f"The current time is {{time}}:\nUser Message:\n{rt.escape_braces(user_text)}"
+```
+
+`{time}` is filled from the context, while anything inside `user_text` is delivered to the model
+exactly as written. Keep secrets out of the context of any agent that handles untrusted text: a
+context key named in that text is still filled if it is not escaped.
 
 ## Related Topics
 

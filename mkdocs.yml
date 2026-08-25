@@ -74,6 +74,12 @@ extra_css:
 extra:
   generator: false
 
+# Per-middleware prebuilt pages are intentionally kept out of the sidebar (they are
+# reached from the prebuilt Overview catalog) so the nav stays clean as the
+# catalog grows. Listing them here silences the "not in nav" build warning.
+not_in_nav: |
+  /documentation/agent_design/middleware/prebuilt/list/*.md
+
 nav:
   - Home: index.md
 
@@ -83,25 +89,40 @@ nav:
           - Installation: documentation/getting_started/installation.md
           - LLM Setup: documentation/getting_started/llm_setup.md
           - AI Coding Assistants: documentation/getting_started/ai_setup.md
+          - Upgrading to 1.5.0: documentation/upgrading/1_5_0.md
       - Agent Design:
           - Overview: documentation/agent_design/overview.md
           - Tools:
+              - Prebuilt Tools:
+                  - Overview: documentation/agent_design/tools/prebuilt/overview.md
+                  - To Do Tool: documentation/agent_design/tools/prebuilt/todos.md
+                  - Key-Value Memory Tool: documentation/agent_design/tools/prebuilt/key_value_memory.md
+                  - Web Search Tool: documentation/agent_design/tools/prebuilt/websearch.md
               - Function Tools: documentation/agent_design/tools/function_tools.md
               - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
               - MCP: documentation/agent_design/tools/mcp.md
           - LLMs:
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
+              - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
+              - Structured Output: documentation/agent_design/structured_extraction.md
+          - Middleware:
+              - Overview: documentation/agent_design/middleware/overview.md
+              - Custom: documentation/agent_design/middleware/custom.md
+              - Guardrails:
+                - Overview: documentation/agent_design/middleware/guardrails/overview.md
+                - Quickstart: documentation/agent_design/middleware/guardrails/quickstart.md
+                - Contributing: documentation/agent_design/middleware/guardrails/contributions.md
+              - Prebuilt:
+                - Overview: documentation/agent_design/middleware/prebuilt/overview.md
+                - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
+              
 
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
           - Flow Invocation: documentation/invocation/flows.md
       - Advanced:
-          - Guardrails:
-              - Overview: documentation/advanced/guardrails/overview.md
-              - Quickstart: documentation/advanced/guardrails/quickstart.md
-              - Built-in Guardrails: documentation/advanced/guardrails/builtin_guardrails.md
-          - Agent Context: documentation/advanced/context.md
+          - Context: documentation/advanced/context.md
 
   - Retrieval:
     - Retrieval Runtime:
@@ -128,6 +149,7 @@ nav:
       - Preface: evaluations/preface.md
       - Quickstart: evaluations/quickstart.md
       - Visualization: evaluations/visualization.md
+      - Conductr Agent Observability: evaluations/conductr.md
       - Metrics:
           - Metrics Overview: evaluations/metrics/metrics.md
           - Categorical Metrics: evaluations/metrics/categorical.md
@@ -140,7 +162,9 @@ nav:
 
   - Observability:
       - AgentHub:
-          - Local: observability/agenthub/local.md
+          - Local:
+            - V1 (Stable): observability/agenthub/local.md
+            - V2 (Beta): observability/agenthub/local_v2.md
           - Cloud: observability/agenthub/cloud.md
       - Human in the Loop:
           - Overview: observability/human_in_the_loop/overview.md
@@ -174,35 +198,36 @@ nav:
         - Websearch: integrations/other/websearch_integration.md
 
   - Tutorials:
-    - Walkthroughs:
-      - Guides:
-        - Building your first agent: tutorials/walkthroughs/byfa.md
-        - Running your first agent: tutorials/walkthroughs/ryfa.md
-        - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
-        - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
-        - Flows: tutorials/walkthroughs/flows.md
-        - FastAPI Integration: tutorials/walkthroughs/fastapi.md
-      - Videos:
-          - Multiagent Systems: tutorials/videos/multiagent.md
-          - Multimodal Agent: tutorials/videos/multimodal_agent.md
-          - AgentHub: tutorials/videos/agenthub.md
-          - Evaluation: tutorials/videos/evaluation.md
-    - Notebooks:
-      - Agent Architectures: tutorials/notebooks/architectures.md
-      - FastAPI Integration: tutorials/notebooks/fastapi.md
-      - File Embedding (RAG): tutorials/notebooks/file_embedding.md
-    - Concepts:
-      - Core: 
-          - Agents: tutorials/concepts/agents.md
-          - Tools: tutorials/concepts/tools.md
-          - MCP: tutorials/concepts/mcp.md
-          - Prompts and Context: tutorials/concepts/prompts_and_context.md
-          - RAG: tutorials/concepts/RAG.md
-          - Async/Await: tutorials/concepts/async_await.md
-          - Vector Stores: tutorials/concepts/vector_store.md
-      - Architectures: 
-          - Overview: tutorials/concepts/architectures/overview.md
-          - Validation Loops: tutorials/concepts/architectures/validation_loop.md
-          - Sequential Flows: tutorials/concepts/architectures/sequential.md
+      - Walkthroughs:
+          - Guides:
+              - Building your first agent: tutorials/walkthroughs/byfa.md
+              - Running your first agent: tutorials/walkthroughs/ryfa.md
+              - Agents as Tools: tutorials/walkthroughs/agents_as_tools.md
+              - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
+              - Flows: tutorials/walkthroughs/flows.md
+              - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+          - Videos:
+              - Multiagent Systems: tutorials/videos/multiagent.md
+              - Multimodal Agent: tutorials/videos/multimodal_agent.md
+              - AgentHub: tutorials/videos/agenthub.md
+              - Evaluation: tutorials/videos/evaluation.md
+      - Notebooks:
+          - Agent Architectures: tutorials/notebooks/architectures.md
+          - FastAPI Integration: tutorials/notebooks/fastapi.md
+          - File Embedding: tutorials/notebooks/file_embedding.md
+          - Retrieval Benchmark: tutorials/notebooks/retrieval-benchmark.md
+      - Concepts:
+          - Core:
+              - Agents: tutorials/concepts/agents.md
+              - Tools: tutorials/concepts/tools.md
+              - MCP: tutorials/concepts/mcp.md
+              - Prompts and Context: tutorials/concepts/prompts_and_context.md
+              - RAG: tutorials/concepts/RAG.md
+              - Async/Await: tutorials/concepts/async_await.md
+              - Vector Stores: tutorials/concepts/vector_store.md
+          - Architectures:
+              - Overview: tutorials/concepts/architectures/overview.md
+              - Validation Loops: tutorials/concepts/architectures/validation_loop.md
+              - Sequential Flows: tutorials/concepts/architectures/sequential.md
 
   - API Reference: api_reference.md
