@@ -94,11 +94,12 @@ def parse_args_section(args_section: str) -> Dict[str, str]:
     # This handles both formats:
     # - param_name: Description
     # - param_name (type): Description
-    pattern = re.compile(r"^\s*(\w+)(?:\s*\([^)]+\))?:\s*(.+)$")
+    pattern = re.compile(r"^(\s*)(\w+)(?:\s*\([^)]+\))?:\s*(.+)$")
 
     arg_descriptions = {}
     current_arg = None
     current_description = []
+    param_indent = None
 
     for line in args_section.splitlines():
         # Skip empty lines
@@ -108,12 +109,24 @@ def parse_args_section(args_section: str) -> Dict[str, str]:
         # Check if this is a new parameter definition
         match = pattern.match(line)
         if match:
+            indent = len(match.group(1))
+            if param_indent is None:
+                param_indent = indent
+
+            if indent != param_indent:
+                # Deeper-indented line that looks like a parameter definition
+                # (e.g. "Note: keys are case-insensitive.") is continuation text.
+                if current_arg:
+                    current_description.append(line.strip())
+                continue
+
             # If we were processing a previous parameter, save it
             if current_arg and current_description:
                 arg_descriptions[current_arg] = " ".join(current_description).strip()
 
             # Start a new parameter
-            arg_name, arg_desc = match.groups()
+            arg_name = match.group(2)
+            arg_desc = match.group(3)
             current_arg = arg_name
             current_description = [arg_desc.strip()]
         elif current_arg:

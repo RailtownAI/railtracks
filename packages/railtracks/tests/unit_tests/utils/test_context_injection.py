@@ -1,11 +1,11 @@
 from railtracks.llm import Message, MessageHistory, SystemMessage, UserMessage
-from railtracks.llm.message import Role
-from railtracks.llm.prompt_injection_utils import (
+from railtracks.llm.context_injection_utils import (
     ValueDict,
     escape_braces,
     fill_template,
 )
-from railtracks.utils import prompt_injection
+from railtracks.llm.message import Role
+from railtracks.utils import context_injection
 
 
 class _Holder:
@@ -97,11 +97,11 @@ def test_escape_braces_protects_only_the_escaped_fragment():
 # ================= START ValueDict tests ====================
 
 def test_valuedict_returns_value_if_exists():
-    d = prompt_injection.ValueDict(name="Bob")
+    d = context_injection.ValueDict(name="Bob")
     assert d["name"] == "Bob"
 
 def test_valuedict_missing_returns_placeholder():
-    d = prompt_injection.ValueDict()
+    d = context_injection.ValueDict()
     assert d["missing"] == "{missing}"
 
 # ================ END ValueDict tests =======================
@@ -115,7 +115,7 @@ def test_inject_values_injects_value():
     history = MessageHistory([smsg, msg])
     value_dict = ValueDict({"name": "Alice", "system_info": "All systems operational"})
 
-    result = prompt_injection.inject_values(history, value_dict)
+    result = context_injection.inject_values(history, value_dict)
     assert result[0].content == "System says All systems operational"
     assert result[1].content == "Hello, Alice!"
 
@@ -124,7 +124,7 @@ def test_inject_values_ignores_other_roles():
     history = MessageHistory([msg])
     value_dict = ValueDict({"name": "Alice"})
 
-    result = prompt_injection.inject_values(history, value_dict)
+    result = context_injection.inject_values(history, value_dict)
     assert result[0].content == "Hello, {name}!"
 
 def test_inject_values_ignores_non_string_content():
@@ -132,7 +132,7 @@ def test_inject_values_ignores_non_string_content():
     history = MessageHistory([msg])
     value_dict = ValueDict({"name": "Alice"})
 
-    result = prompt_injection.inject_values(history, value_dict)
+    result = context_injection.inject_values(history, value_dict)
     assert result[0].content == 12345
 
 def test_inject_values_passes_through_unfillable_placeholders():
@@ -146,7 +146,7 @@ def test_inject_values_passes_through_unfillable_placeholders():
     history = MessageHistory([UserMessage(content=c) for c in contents])
     value_dict = ValueDict({"holder": _Holder(), "name": "Alice"})
 
-    result = prompt_injection.inject_values(history, value_dict)
+    result = context_injection.inject_values(history, value_dict)
     for message, original in zip(result, contents):
         assert message.content == original
 
