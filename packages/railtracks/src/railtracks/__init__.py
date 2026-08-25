@@ -102,13 +102,6 @@ logging.getLogger("RT").addHandler(logging.NullHandler())
 __version__ = "1.0.0"
 
 
-_RELOCATED = {
-    "verifier": ("railtracks.prebuilt.middleware", "pre_verifier"),
-    "Verdict": ("railtracks.middleware", "Verdict"),
-    "VerifierRejectedError": ("railtracks.middleware", "VerifierRejectedError"),
-}
-
-
 def __getattr__(name: str):
     if name == "interactive":
         # Not cached in globals()
@@ -128,20 +121,9 @@ def __getattr__(name: str):
             ) from exc
         globals()[name] = module
         return module
-    if name in _RELOCATED:
-        # Not cached in globals()
-        module_path, target_name = _RELOCATED[name]
-        warn_pending_change(
-            f"rt.{name}",
-            change="moves",
-            instead=f"{module_path}.{target_name}",
-            detail="The behavior itself is unchanged.",
-        )
-        module = importlib.import_module(module_path)
-        return getattr(module, target_name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:
     # "interactive" is not in __all__ but is still reachable
-    return sorted({*__all__, "interactive", *_RELOCATED})
+    return sorted({*__all__, "interactive"})
