@@ -50,7 +50,6 @@ __all__ = [
     "enable_logging",
     "wrap_node",
     "after_node",
-    "verifier",
     "couple",
     "before_llm",
     "after_llm",
@@ -58,8 +57,6 @@ __all__ = [
     "input_guard",
     "output_guard",
     "escape_braces",
-    "Verdict",
-    "VerifierRejectedError",
 ]
 
 
@@ -94,7 +91,6 @@ from .state.info import ExecutionInfo
 from .utils.config import ExecutorConfig
 from .utils.deprecation import warn_pending_change
 from .utils.logging.config import enable_logging
-from .verifiers import Verdict, VerifierRejectedError, verifier
 
 load_dotenv()
 
@@ -104,6 +100,13 @@ logging.getLogger("RT").addHandler(logging.NullHandler())
 
 # Do not worry about changing this version number manually. It will updated on release.
 __version__ = "1.0.0"
+
+
+_RELOCATED = {
+    "verifier": ("railtracks.prebuilt.middleware", "pre_verifier"),
+    "Verdict": ("railtracks.middleware", "Verdict"),
+    "VerifierRejectedError": ("railtracks.middleware", "VerifierRejectedError"),
+}
 
 
 def __getattr__(name: str):
@@ -125,9 +128,20 @@ def __getattr__(name: str):
             ) from exc
         globals()[name] = module
         return module
+    if name in _RELOCATED:
+        # Not cached in globals()
+        module_path, target_name = _RELOCATED[name]
+        warn_pending_change(
+            f"rt.{name}",
+            change="moves",
+            instead=f"{module_path}.{target_name}",
+            detail="The behavior itself is unchanged.",
+        )
+        module = importlib.import_module(module_path)
+        return getattr(module, target_name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:
     # "interactive" is not in __all__ but is still reachable
-    return sorted({*__all__, "interactive"})
+    return sorted({*__all__, "interactive", *_RELOCATED})
