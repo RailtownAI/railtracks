@@ -38,7 +38,7 @@ prompt = f"The current time is {{time}}:\nUser Message:\n{rt.escape_braces(user_
 If your prompts aren't producing the expected results:
 
 1. **Check context values**: Ensure the context contains the expected values for your placeholders
-2. **Verify prompt injection is enabled**: It is not on by default — check that the agent's `model_middleware` includes `rt.prebuilt.middleware.ContextInjection()` ([how to add it](../../documentation/agent_design/middleware/prebuilt/list/context_injection.md))
+2. **Verify context injection is enabled**: It is not on by default — check that the agent's `model_middleware` includes `rt.prebuilt.middleware.ContextInjection()` ([how to add it](../../documentation/agent_design/middleware/prebuilt/list/context_injection.md))
 3. **Look for syntax errors**: Ensure your placeholders use the correct format `{variable_name}`
 
 

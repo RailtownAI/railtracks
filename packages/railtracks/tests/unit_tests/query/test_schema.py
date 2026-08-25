@@ -35,26 +35,14 @@ class TestDuckdbColumnsFlattening:
         assert cols["parent_llm_invoke_id"] == "VARCHAR"
 
 
-class TestDuckdbEnumColumns:
-    def test_spatial_type_discriminator_is_enum(self):
-        col = duckdb_columns("llm")["spatial_parent_type"]
-        assert col.startswith("ENUM(")
-        # Every SpatialParent subclass value must be represented.
-        for member in ("'none'", "'node'", "'middleware'", "'node_and_middleware'", "'llm_and_middleware'"):
-            assert member in col
-
-    def test_parent_type_discriminator_is_enum(self):
-        col = duckdb_columns("llm")["parent_type"]
-        assert col.startswith("ENUM(")
-        for member in ("'node'", "'middleware'", "'llm'"):
-            assert member in col
-
-    def test_bare_string_literal_becomes_enum(self):
-        # SessionCompleted.status: Literal["success", "failure"]
-        col = duckdb_columns("session")["status"]
-        assert col.startswith("ENUM(")
-        for member in ("'success'", "'failure'"):
-            assert member in col
+class TestDuckdbDiscriminatorColumns:
+    def test_known_enum_values_are_stored_as_varchar(self):
+        # The registry retains the known members, but physical DuckDB ENUMs would
+        # turn values from a newer or older event stream into NULL.
+        assert duckdb_columns("llm")["spatial_parent_type"] == "VARCHAR"
+        assert duckdb_columns("llm")["parent_type"] == "VARCHAR"
+        assert duckdb_columns("llm")["model_provider"] == "VARCHAR"
+        assert duckdb_columns("session")["status"] == "VARCHAR"
 
 
 class TestDuckdbColumnsUnknownNamespace:
