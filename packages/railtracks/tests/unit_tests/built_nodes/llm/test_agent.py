@@ -1,13 +1,9 @@
-from railtracks import function_node
-from railtracks.built_nodes.llm.node import agent_node
 import functools
 
 import pytest
 from railtracks import function_node
 from railtracks.built_nodes.llm.node import agent_node
 from railtracks.exceptions.errors import NodeCreationError
-
-
 
 
 def test_agent_node_tool_nodes_only(mock_tool_node, mock_llm, mock_sys_mes):
@@ -29,6 +25,19 @@ def test_agent_node_output_schema_only(mock_llm, mock_schema, mock_sys_mes):
     )
     assert isinstance(node_cls, type)
     assert node_cls.name() == "AgentWithSchemaOnly"
+
+def test_agent_node_tool_nodes_and_output_schema_raises_at_creation(
+    mock_tool_node, mock_llm, mock_schema, mock_sys_mes
+):
+    with pytest.raises(NodeCreationError, match="tool_nodes and output_schema"):
+        agent_node(
+            name="AgentWithToolsAndSchema",
+            tool_nodes={mock_tool_node},
+            output_schema=mock_schema,
+            llm=mock_llm,
+            system_message=mock_sys_mes,
+        )
+
 
 def test_agent_node_minimal(mock_llm):
     node_cls = agent_node(

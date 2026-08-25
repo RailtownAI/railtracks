@@ -6,6 +6,7 @@ import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
 from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
+from railtracks.exceptions.errors import NodeCreationError
 from railtracks.guardrails import (
     GuardrailBlockedError,
     GuardrailDecision,
@@ -328,21 +329,18 @@ async def test_tool_call_output_guard_fires_only_on_final_reply(mock_llm, allow_
 # ============================================================
 
 
-@pytest.mark.asyncio
-async def test_structured_tool_call_input_block_skips_llm(mock_llm, block_input):
+def test_structured_tool_call_combination_rejected_at_creation(mock_llm, block_input):
+    # tool_nodes + output_schema together is unsupported (#1408): the model does not
+    # reliably call the tool in this mode, so agent_node now rejects it at creation
+    # time instead of allowing a StructuredToolCallLLM to be built.
     def tool_fn() -> str:
         return "result"
 
-    llm = mock_llm()
-    counts = _counting_chat_with_tools(llm)
-    Agent = rt.agent_node(
-        name="block-struct-tool",
-        tool_nodes={rt.function_node(tool_fn)},
-        output_schema=_Answer,
-        llm=llm,
-        model_middleware=[block_input],
-    )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="q")
-    assert counts["n"] == 0
+    with pytest.raises(NodeCreationError, match="tool_nodes and output_schema"):
+        rt.agent_node(
+            name="block-struct-tool",
+            tool_nodes={rt.function_node(tool_fn)},
+            output_schema=_Answer,
+            llm=mock_llm(),
+            model_middleware=[block_input],
+        )

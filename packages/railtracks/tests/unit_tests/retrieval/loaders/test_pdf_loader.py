@@ -35,6 +35,11 @@ class TestPyPDFLoaderInit:
         loader = PyPDFLoader(str(tmp_path / "x.pdf"), breakdown_strategy="document")
         assert loader._breakdown_strategy == "document"
 
+    def test_valid_paragraph_strategy_accepted(self, tmp_path):
+        """'paragraph' is a valid breakdown_strategy."""
+        loader = PyPDFLoader(str(tmp_path / "x.pdf"), breakdown_strategy="paragraph")
+        assert loader._breakdown_strategy == "paragraph"
+
     def test_default_strategy_is_page(self, tmp_path):
         """The default breakdown_strategy is 'page'."""
         loader = PyPDFLoader(str(tmp_path / "x.pdf"))
@@ -160,6 +165,53 @@ class TestPyPDFLoaderDocumentStrategy:
         with patch("railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader):
             docs = await PyPDFLoader(str(pdf), breakdown_strategy="document").aload()
         assert "page" not in docs[0].metadata
+
+
+class TestPyPDFLoaderParagraphStrategy:
+    """Tests for the 'paragraph' breakdown strategy."""
+
+    async def test_yields_one_document_per_non_empty_paragraph(self, tmp_path):
+        pdf = tmp_path / "doc.pdf"
+        pdf.touch()
+        reader = _make_reader(["First paragraph\n\n   \n\nSecond paragraph", "Third paragraph"])
+        with patch("railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader):
+            docs = await PyPDFLoader(str(pdf), breakdown_strategy="paragraph").aload()
+
+        assert [doc.content for doc in docs] == [
+            "First paragraph",
+            "Second paragraph",
+            "Third paragraph",
+        ]
+        assert [(doc.metadata["page"], doc.metadata["paragraph"]) for doc in docs] == [
+            (1, 1),
+            (1, 2),
+            (2, 1),
+        ]
+
+    async def test_metadata_includes_page_paragraph_and_file_details(self, tmp_path):
+        pdf = tmp_path / "doc.pdf"
+        pdf.touch()
+        reader = _make_reader(["First\n\nSecond", "Third"])
+        with patch("railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader):
+            docs = await PyPDFLoader(str(pdf), breakdown_strategy="paragraph").aload()
+
+        assert docs[1].metadata == {
+            "page": 1,
+            "paragraph": 2,
+            "total_pages": 2,
+            "file_type": ".pdf",
+        }
+
+    async def test_uses_layout_extraction_to_preserve_paragraph_boundaries(self, tmp_path):
+        pdf = tmp_path / "doc.pdf"
+        pdf.touch()
+        reader = _make_reader(["First\n\nSecond"])
+        page = reader.pages[0]
+        with patch("railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader):
+            docs = await PyPDFLoader(str(pdf), breakdown_strategy="paragraph").aload()
+
+        page.extract_text.assert_called_once_with(extraction_mode="layout")
+        assert [doc.content for doc in docs] == ["First", "Second"]
 
 
 class TestPyPDFLoaderDirectory:
