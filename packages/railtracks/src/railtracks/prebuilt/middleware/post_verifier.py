@@ -71,13 +71,17 @@ def _wrapper(approve_fn: _ApproveFn[_P, _R], timeout: float | None):
         result = await call(*args, **kwargs)
 
         try:
-            review = unpack_async_sync(approve_fn(*args, **kwargs, result=result))
+            # ParamSpec _P can't express "the node's params plus one trailing
+            # result= keyword", so this call is a step ahead of what mypy can verify.
+            review = unpack_async_sync(
+                approve_fn(*args, **kwargs, result=result)  # type: ignore[arg-type]
+            )
             if timeout is None:
                 verdict = await review
             else:
                 verdict = await asyncio.wait_for(review, timeout=timeout)
         except asyncio.TimeoutError:
-            verdict: Verdict[_R] = Verdict(accepted=False, comment="timeout")
+            verdict = Verdict(accepted=False, comment="timeout")
 
         if not verdict.accepted:
             raise VerifierRejectedError(verdict.comment or "rejected")
