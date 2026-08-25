@@ -6,10 +6,10 @@ railtracks.llm.tools.docstring_parser module.
 """
 
 from railtracks.llm.tools.docstring_parser import (
-    parse_docstring_args,
     extract_args_section,
-    parse_args_section,
     extract_main_description,
+    parse_args_section,
+    parse_docstring_args,
 )
 
 
@@ -128,6 +128,19 @@ class TestParseArgsSection:
         }
         assert parse_args_section(args_section) == expected
 
+    def test_continuation_line_starting_with_word(self):
+        """Continuation lines starting with ``Word:`` are not new parameters."""
+        args_section = """
+            headers: Optional dict of extra headers.
+                Note: keys are case-insensitive.
+            timeout: Optional request timeout.
+        """
+        expected = {
+            "headers": "Optional dict of extra headers. Note: keys are case-insensitive.",
+            "timeout": "Optional request timeout.",
+        }
+        assert parse_args_section(args_section) == expected
+
 
 class TestParseDocstringArgs:
     """Tests for the parse_docstring_args function."""
@@ -181,6 +194,23 @@ class TestParseDocstringArgs:
         expected = {
             "param1": "Description of param1 that spans multiple lines.",
             "param2": "Description of param2.",
+        }
+        assert parse_docstring_args(docstring) == expected
+
+    def test_continuation_line_starting_with_word(self):
+        """Continuation lines starting with ``Word:`` are kept as description text."""
+        docstring = """
+        Fetches a URL.
+
+        Args:
+            headers: Optional dict of extra headers.
+                Note: keys are case-insensitive.
+
+        Returns:
+            The response body.
+        """
+        expected = {
+            "headers": "Optional dict of extra headers. Note: keys are case-insensitive.",
         }
         assert parse_docstring_args(docstring) == expected
 
