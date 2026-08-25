@@ -45,6 +45,19 @@ TimedAgent = rt.agent_node(
 # --8<-- [end: timeout]
 
 
+# --8<-- [start: lock]
+import railtracks as rt
+from railtracks.prebuilt.middleware import Lock
+
+shared_lock = Lock()
+LockedAgent = rt.agent_node(
+    name="lock-demo",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    middleware=[shared_lock],
+)
+# --8<-- [end: lock]
+
+
 # --8<-- [start: context_injection]
 import railtracks as rt
 from railtracks.prebuilt.middleware import ContextInjection
