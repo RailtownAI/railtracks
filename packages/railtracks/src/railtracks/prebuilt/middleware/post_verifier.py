@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import logging
 from typing import Awaitable, Callable, Concatenate, ParamSpec, TypeVar, overload
 
@@ -15,6 +16,27 @@ _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 _ApproveFn = Callable[Concatenate[_R, _P], Verdict[_R] | Awaitable[Verdict[_R]]]
+
+_POSITIONAL_KINDS = (
+    inspect.Parameter.POSITIONAL_ONLY,
+    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+)
+
+
+def _require_result_first(approve_fn: Callable) -> None:
+    params = list(inspect.signature(approve_fn).parameters.values())
+    first_ok = (
+        params and params[0].name == "result" and params[0].kind in _POSITIONAL_KINDS
+    )
+
+    if not first_ok:
+        got = params[0].name if params else "no parameters"
+        raise TypeError(
+            "post_verifier's approve_fn must take `result` as its first "
+            f"positional parameter, got {got!r}. post_verifier calls "
+            "approve_fn(result, *args, **kwargs) -- e.g. "
+            "def approve(result, *args, **kwargs) -> Verdict: ..."
+        )
 
 
 @overload
@@ -57,6 +79,11 @@ def post_verifier(
     If ``timeout`` is set and ``approve_fn`` doesn't respond in time, the call
     is treated as declined with reason ``"timeout"``.
 
+    ``approve_fn``'s shape is checked eagerly, when ``post_verifier(...)`` is
+    called -- not deferred to the first real invocation. An ``approve_fn``
+    that doesn't take ``result`` as its first positional parameter raises
+    `TypeError` immediately, with a message naming what was found instead.
+
     See also :func:`~railtracks.prebuilt.middleware.pre_verifier.pre_verifier`,
     which gates whether a call happens at all, BEFORE it runs.
     """
@@ -64,6 +91,7 @@ def post_verifier(
     if approve_fn is None:
         return lambda fn: post_verifier(fn, timeout=timeout, name=name)
 
+    _require_result_first(approve_fn)
     return wrap_node(_wrapper(approve_fn, timeout), name=name)
 
 

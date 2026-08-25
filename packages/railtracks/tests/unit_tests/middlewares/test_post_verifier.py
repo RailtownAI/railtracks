@@ -131,6 +131,83 @@ class TestPostVerifierUnit:
         assert approve.name == "my_gate"
 
 
+class TestPostVerifierValidation:
+    """post_verifier fails fast: a wrong-shaped approve_fn is rejected the
+    moment post_verifier(...) is called, not on the first real invocation."""
+
+    def test_rejects_result_not_first_positional_arg(self):
+        def approve(query, result):
+            return Verdict(accepted=True)
+
+        with pytest.raises(TypeError, match="result"):
+            post_verifier(approve)
+
+    def test_rejects_no_parameters_at_all(self):
+        def approve():
+            return Verdict(accepted=True)
+
+        with pytest.raises(TypeError, match="result"):
+            post_verifier(approve)
+
+    def test_rejects_result_as_keyword_only(self):
+        def approve(*, result):
+            return Verdict(accepted=True)
+
+        with pytest.raises(TypeError, match="result"):
+            post_verifier(approve)
+
+    def test_rejects_first_param_named_result_but_var_positional(self):
+        def approve(*result):
+            return Verdict(accepted=True)
+
+        with pytest.raises(TypeError, match="result"):
+            post_verifier(approve)
+
+    def test_accepts_result_first_positional(self):
+        def approve(result, query):
+            return Verdict(accepted=True)
+
+        post_verifier(approve)  # does not raise
+
+    def test_accepts_result_only_param(self):
+        def approve(result):
+            return Verdict(accepted=True)
+
+        post_verifier(approve)  # does not raise
+
+    def test_accepts_lambda_with_result_first(self):
+        post_verifier(lambda result, *a, **k: Verdict(accepted=True))  # does not raise
+
+    def test_rejects_lambda_without_result_first(self):
+        with pytest.raises(TypeError, match="result"):
+            post_verifier(lambda query, result: Verdict(accepted=True))
+
+    def test_bare_decorator_form_validates(self):
+        with pytest.raises(TypeError, match="result"):
+
+            @post_verifier
+            def approve(query, result):
+                return Verdict(accepted=True)
+
+    def test_called_decorator_form_validates(self):
+        with pytest.raises(TypeError, match="result"):
+
+            @post_verifier(timeout=5)
+            def approve(query, result):
+                return Verdict(accepted=True)
+
+    def test_validation_happens_at_construction_not_first_call(self):
+        """The middleware object is never even built -- confirms this is a
+        construction-time check, not a check deferred to the first .wrap()/call."""
+
+        def approve(query, result):
+            return Verdict(accepted=True)
+
+        with pytest.raises(TypeError, match="result"):
+            gate = post_verifier(approve)
+            gate.wrap(lambda: None)  # unreachable if validation is eager
+
+
 class TestPostVerifierEndToEnd:
     """Proves the post_verifier holds through the real execution path: rt.call ->
     Task.invoke -> node.wrapped_invoke -> middleware.run(invoke)."""
