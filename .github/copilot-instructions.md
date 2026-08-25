@@ -26,10 +26,13 @@ uv pip install -e "packages/railtracks[all]"     # SDK with all optional extras
 
 The SDK is deliberately thin by default; features gate behind extras declared in `packages/railtracks/pyproject.toml` (`visual`, `retrieval`, `chroma`, `portkey`, `stores-*`, …).
 
-**`retrieval` is not part of `[all]`.** Install it explicitly when working on the RAG stack:
+`railtracks[retrieval]` is part of `railtracks[all]` and pulls in the
+whole RAG stack; connectors, OCR, and vector-store backends included. If you want the
+retrieval pipeline without that weight, `[retrieval-core]` is the lighter opt-in
+(chunking, embedding, in-memory store, local loaders):
 
 ```bash
-uv pip install -e "packages/railtracks[all,retrieval]"
+uv pip install -e "packages/railtracks[retrieval-core]"
 ```
 
 ### Build and Test Commands
