@@ -22,6 +22,9 @@ _POSITIONAL_KINDS = (
     inspect.Parameter.POSITIONAL_OR_KEYWORD,
 )
 
+_RED = "\033[91m"
+_RESET = "\033[0m"
+
 
 def _require_result_first(approve_fn: Callable) -> None:
     params = list(inspect.signature(approve_fn).parameters.values())
@@ -31,12 +34,13 @@ def _require_result_first(approve_fn: Callable) -> None:
 
     if not first_ok:
         got = params[0].name if params else "no parameters"
-        raise TypeError(
+        message = (
             "post_verifier's approve_fn must take `result` as its first "
             f"positional parameter, got {got!r}. post_verifier calls "
-            "approve_fn(result, *args, **kwargs) -- e.g. "
-            "def approve(result, *args, **kwargs) -> Verdict: ..."
+            "approve_fn(result, *args, **kwargs), e.g.:\n"
+            "    def approve(result, *args, **kwargs) -> Verdict: ..."
         )
+        raise TypeError(f"{_RED}{message}{_RESET}")
 
 
 @overload
