@@ -10,6 +10,48 @@ from typing import Dict
 
 from .parameters import Parameter, ParameterType
 
+# Section headers that can follow an "Args:" block and therefore end it.
+_SECTION_HEADERS = frozenset(
+    {
+        "args",
+        "arguments",
+        "attributes",
+        "example",
+        "examples",
+        "keyword args",
+        "keyword arguments",
+        "methods",
+        "note",
+        "notes",
+        "other parameters",
+        "parameters",
+        "raises",
+        "references",
+        "return",
+        "returns",
+        "see also",
+        "todo",
+        "warning",
+        "warnings",
+        "warns",
+        "yield",
+        "yields",
+    }
+)
+
+
+# HELPER
+def _indent_of(line: str) -> int:
+    """Returns the number of leading whitespace characters in a line."""
+    return len(line) - len(line.lstrip())
+
+
+# HELPER
+def _is_section_header(line: str) -> bool:
+    """Returns whether a line is a bare section header, e.g. ``Returns:``."""
+    stripped = line.strip()
+    return stripped.endswith(":") and stripped[:-1].strip().lower() in _SECTION_HEADERS
+
 
 # HELPER
 def param_from_python_type(
@@ -54,30 +96,39 @@ def extract_args_section(docstring: str) -> str:
     Returns:
         The extracted 'Args:' section as a string, or an empty string if not found.
     """
-    args_section = ""
-    split_lines = docstring.splitlines()
+    args_lines = []
+    in_args_section = False
+    body_indent = None
 
     # Find the Args: section
-    in_args_section = False
-    for i, line in enumerate(split_lines):
-        if line.strip().startswith("Args:"):
-            in_args_section = True
-            # Skip the "Args:" line itself
+    for line in docstring.splitlines():
+        if not in_args_section:
+            if line.strip().startswith("Args:"):
+                in_args_section = True
+            # Skip everything up to and including the "Args:" line itself
             continue
 
-        if in_args_section:
-            # Check if we've reached another section (e.g., "Returns:")
-            if (
-                line.strip()
-                and line.strip().endswith(":")
-                and not line.strip().startswith(" ")
-            ):
-                break
+        # Blank lines never end the section
+        if not line.strip():
+            args_lines.append(line)
+            continue
 
-            # Add the line to our args section
-            args_section += line + "\n"
+        indent = _indent_of(line)
 
-    return args_section
+        # The next section is indented less than the parameters, or named like one.
+        if (body_indent is None or indent <= body_indent) and _is_section_header(line):
+            break
+
+        if body_indent is None:
+            # The first parameter line sets the indentation of the section body
+            body_indent = indent
+        elif indent < body_indent:
+            break
+
+        # Add the line to our args section
+        args_lines.append(line)
+
+    return "".join(line + "\n" for line in args_lines)
 
 
 def parse_args_section(args_section: str) -> Dict[str, str]:
@@ -94,7 +145,8 @@ def parse_args_section(args_section: str) -> Dict[str, str]:
     # This handles both formats:
     # - param_name: Description
     # - param_name (type): Description
-    pattern = re.compile(r"^(\s*)(\w+)(?:\s*\([^)]+\))?:\s*(.+)$")
+    # The description may be empty, meaning it starts on the following line.
+    pattern = re.compile(r"^(\s*)(\w+)(?:\s*\([^)]+\))?:\s*(.*)$")
 
     arg_descriptions = {}
     current_arg = None
@@ -113,22 +165,24 @@ def parse_args_section(args_section: str) -> Dict[str, str]:
             if param_indent is None:
                 param_indent = indent
 
-            if indent != param_indent:
-                # Deeper-indented line that looks like a parameter definition
-                # (e.g. "Note: keys are case-insensitive.") is continuation text.
+            if indent > param_indent:
+                # A deeper-indented "Note:"-style line is continuation text.
                 if current_arg:
                     current_description.append(line.strip())
                 continue
+
+            # A shallower match means the anchor came from a continuation line.
+            param_indent = indent
 
             # If we were processing a previous parameter, save it
             if current_arg and current_description:
                 arg_descriptions[current_arg] = " ".join(current_description).strip()
 
-            # Start a new parameter
+            # Start a new parameter; an empty description continues on the next line.
             arg_name = match.group(2)
-            arg_desc = match.group(3)
+            arg_desc = match.group(3).strip()
             current_arg = arg_name
-            current_description = [arg_desc.strip()]
+            current_description = [arg_desc] if arg_desc else []
         elif current_arg:
             # This is a continuation of the previous parameter's description
             current_description.append(line.strip())
