@@ -384,9 +384,10 @@ class LiteLLMWrapper(ModelBase, ABC):
             merged["reasoning_effort"] = effective_reasoning_effort
 
         if stream:
-            # Some providers (i.e. Anthropic) only emit a usage chunk on streamed
-            # response, so without it every streamed call reports no
-            # tokens and no cost. litellm exempts `stream_options` and applies it, so it is safe to send to every.
+            # Some providers (Anthropic among them) only emit a usage chunk on a streamed
+            # response when this is set, so without it every streamed call reports no tokens
+            # and no cost. litellm exempts `stream_options` from its unsupported-param
+            # pruning, so it is safe to send to every provider.
             merged.setdefault("stream_options", {"include_usage": True})
 
         def completion_function():
@@ -496,7 +497,7 @@ class LiteLLMWrapper(ModelBase, ABC):
     ) -> Generator[Response | str, None, Response]:
         """
         Intercepts the given stream wrapper and provides a new generator.
-        The generator should iterate and provide strings cluminating in the last response being a Response object
+        The generator should iterate and provide strings culminating in the last response being a Response object
 
         """
         accumulated_content = ""
@@ -511,14 +512,14 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         for chunk in raw:
             # Usage rides a separate chunk that different providers place differently
-            # (alongside or after the `finish_reason` chunk), so take it wherever it turns up
+            # (alongside or after the `finish_reason` chunk), so take it wherever it turns up.
             if getattr(chunk, "usage", None) is not None:
                 message_info = self.extract_message_info(
                     chunk, time.time() - start_time, requested_model=self._model_name
                 )
 
             if stream_finished or not chunk.choices:
-                # Keep draining so a trailing usage chunk is still seen
+                # Keep draining so a trailing usage chunk is still seen.
                 continue
 
             choice = chunk.choices[0]
@@ -528,7 +529,8 @@ class LiteLLMWrapper(ModelBase, ABC):
                 continue
 
             if choice.delta.tool_calls:
-                # Sometime providers that emit whole calls at once, so every entry has to be consumed. (Ie fast/poor structured model)
+                # Some providers batch several calls into a single delta, so every entry
+                # has to be consumed rather than just the first.
                 for call in choice.delta.tool_calls:
                     self._handle_tool_call_delta(
                         call, active_tool_calls, completed_tool_calls
@@ -539,7 +541,8 @@ class LiteLLMWrapper(ModelBase, ABC):
                 accumulated_content += content
                 yield content
 
-        # Detect that a stream which ends without silently dropping them.
+        # Finalize outside the loop so a stream that ends without a `finish_reason` chunk
+        # still reports the calls it accumulated instead of silently dropping them.
         tools = self._finalize_remaining_tool_calls(
             active_tool_calls, completed_tool_calls
         )
@@ -595,11 +598,10 @@ class LiteLLMWrapper(ModelBase, ABC):
     def _is_stream_finished(self, choice) -> bool:
         """Check if the stream has finished.
 
-        Any `finish_reason` the provider sets ends the turn.
-
-        Matching on the reason itself would be provider-specific.
+        Any `finish_reason` the provider sets ends the turn. Matching on the reason itself
+        would be provider-specific, and would drop the tool calls already accumulated by a
+        truncated (`length`) or content-filtered turn.
         """
-        # On finish Sould drop the accumulated tool calls of a truncated (`length`) or filtered turn.
         return bool(choice.finish_reason)
 
     def _finalize_remaining_tool_calls(
@@ -607,11 +609,8 @@ class LiteLLMWrapper(ModelBase, ABC):
         active_tool_calls: dict[int, StreamedToolCall],
         completed_tool_calls: Iterable[StreamedToolCall] = (),
     ) -> list[ToolCall]:
-        """
-
-        Parse the accumulated streamed tool call and return them in the
-        order the model emits.
-
+        """Parse the accumulated streamed tool calls and return them in the order the
+        model emitted them.
         """
         tools: list[ToolCall] = []
         for tool_data in (*completed_tool_calls, *active_tool_calls.values()):
@@ -721,8 +720,8 @@ class LiteLLMWrapper(ModelBase, ABC):
     def supports_streamed_tool_calling(self) -> bool:
         """Whether litellm can stream tool calls for this model.
 
-        Only trusted when the model is in litellm's capability catalog: no capability metadata
-        would return False. For those we attempt the stream instead of assume.
+        The catalog is only trusted for the models it actually covers, since a model it holds
+        no metadata for would come back as unsupported. Those attempt the stream instead.
         """
         if not _model_in_litellm_catalog(self._model_name):
             return True
@@ -977,9 +976,9 @@ class LiteLLMWrapper(ModelBase, ABC):
             model_response (ModelResponse): The response from the model.
             latency (float): The latency of the response in seconds.
             requested_model (str | None): The model string the call was made with.
-                Only needed on streamed responses, where router leaves `response_cost`
-                unset and the cost has to be priced from the usage chunk; the name reported
-                back by the provider lack the routing prefix.
+                Only needed on streamed responses, where litellm leaves `response_cost`
+                unset and the cost has to be priced from the usage chunk; the model name the
+                provider reports back lacks the routing prefix.
 
         Returns:
             MessageInfo: An object containing the details about the message info.
@@ -993,7 +992,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         system_fingerprint = _return_none_on_error(lambda: raw.system_fingerprint)
         total_cost = _return_none_on_error(lambda: raw._hidden_params["response_cost"])
         if total_cost is None:
-            # A streamed one report no cost. Price it from the usage chunk.
+            # A streamed response carries no cost. Price it from the usage chunk.
             total_cost = _return_none_on_error(
                 lambda: litellm.completion_cost(
                     completion_response=raw, model=requested_model or raw.model
