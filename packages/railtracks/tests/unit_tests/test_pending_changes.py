@@ -15,6 +15,7 @@ TODO: Delete this file with the notices in 1.5.0.
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import subprocess
 import sys
@@ -158,6 +159,55 @@ def test_removed_names_are_not_advertised_but_stay_discoverable():
     for name in REMOVED_GUARDRAIL_NAMES:
         assert name not in rt.guardrails.__all__
         assert name in dir(rt.guardrails)
+
+
+# ---------------------------------------------------------------------------------------
+# verifier -> pre_verifier / post_verifier (#1485)
+# ---------------------------------------------------------------------------------------
+
+
+def test_rt_verifier_warns():
+    with pytest.warns(FutureWarning, match="rt.verifier moves"):
+        rt.verifier
+
+
+def test_rt_verdict_warns():
+    with pytest.warns(FutureWarning, match="rt.Verdict moves"):
+        rt.Verdict
+
+
+def test_rt_verifier_rejected_error_warns():
+    with pytest.warns(FutureWarning, match="rt.VerifierRejectedError moves"):
+        rt.VerifierRejectedError
+
+
+@pytest.mark.parametrize("name", ["verifier", "Verdict", "VerifierRejectedError"])
+def test_railtracks_verifiers_module_warns(name):
+    module = importlib.import_module("railtracks.verifiers")
+
+    with pytest.warns(FutureWarning, match="moves"):
+        getattr(module, name)
+
+
+def test_prebuilt_middleware_verifier_forward_path_is_silent():
+    assert_silent(
+        lambda: (rt.prebuilt.middleware.pre_verifier, rt.prebuilt.middleware.post_verifier)
+    )
+
+
+def test_middleware_verdict_forward_path_is_silent():
+    assert_silent(lambda: (rt.middleware.Verdict, rt.middleware.VerifierRejectedError))
+
+
+def test_old_verifier_still_works_behind_the_notice():
+    """The deprecated spelling isn't just a warning -- it still functions during 1.5.0."""
+    with pytest.warns(FutureWarning):
+        gate = rt.verifier(lambda *a, **k: rt.Verdict(accepted=True))
+
+    async def core(x):
+        return x * 2
+
+    assert asyncio.run(gate.wrap(core)(5)) == 10
 
 
 

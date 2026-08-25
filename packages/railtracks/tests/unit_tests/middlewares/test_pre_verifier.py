@@ -1,20 +1,21 @@
-"""Unit and end-to-end tests for the general verifier middleware (#1266).
+"""Unit and end-to-end tests for the pre-call verifier middleware (#1266, #1485).
 
-A verifier is an ordinary `wrap_node` middleware: it runs an approve callable
-against the node's own `*args, **kwargs` before deciding whether to forward
-the call onward. Decline == don't call `call(...)`, raise instead.
+A pre_verifier is an ordinary `wrap_node` middleware: it runs an approve
+callable against the node's own `*args, **kwargs` before deciding whether to
+forward the call onward. Decline == don't call `call(...)`, raise instead.
 """
 
 import asyncio
 
 import pytest
 import railtracks as rt
-from railtracks.verifiers import Verdict, VerifierRejectedError, verifier
+from railtracks.middleware import Verdict, VerifierRejectedError
+from railtracks.prebuilt.middleware import pre_verifier
 
 
-class TestVerifierUnit:
+class TestPreVerifierUnit:
     async def test_accept_forwards_the_call_unchanged(self):
-        gate = verifier(lambda *a, **k: Verdict(accepted=True))
+        gate = pre_verifier(lambda *a, **k: Verdict(accepted=True))
 
         async def core(x):
             return x * 2
@@ -22,7 +23,7 @@ class TestVerifierUnit:
         assert await gate.wrap(core)(5) == 10
 
     async def test_decline_raises_and_never_calls_core(self):
-        gate = verifier(lambda *a, **k: Verdict(accepted=False))
+        gate = pre_verifier(lambda *a, **k: Verdict(accepted=False))
 
         async def core():
             raise AssertionError("core should not run")
@@ -31,7 +32,7 @@ class TestVerifierUnit:
             await gate.wrap(core)()
 
     async def test_decline_with_comment_is_carried_into_the_exception(self):
-        gate = verifier(lambda *a, **k: Verdict(accepted=False, comment="too risky"))
+        gate = pre_verifier(lambda *a, **k: Verdict(accepted=False, comment="too risky"))
 
         async def core():
             raise AssertionError("core should not run")
@@ -40,7 +41,7 @@ class TestVerifierUnit:
             await gate.wrap(core)()
 
     async def test_accept_with_comments_rewrites_args(self):
-        gate = verifier(
+        gate = pre_verifier(
             lambda *a, **k: Verdict(accepted=True, comment="lowered", args=(1,))
         )
 
@@ -50,7 +51,7 @@ class TestVerifierUnit:
         assert await gate.wrap(core)(100) == 1
 
     async def test_accept_with_comments_rewrites_kwargs(self):
-        gate = verifier(lambda *a, **k: Verdict(accepted=True, kwargs={"amount": 1}))
+        gate = pre_verifier(lambda *a, **k: Verdict(accepted=True, kwargs={"amount": 1}))
 
         async def core(amount):
             return amount
@@ -65,7 +66,7 @@ class TestVerifierUnit:
             seen["amount"] = amount
             return Verdict(accepted=True)
 
-        gate = verifier(approve)
+        gate = pre_verifier(approve)
 
         async def core(order_id, amount):
             return f"{order_id}:{amount}"
@@ -77,7 +78,7 @@ class TestVerifierUnit:
         async def approve(*a, **k):
             return Verdict(accepted=True)
 
-        gate = verifier(approve)
+        gate = pre_verifier(approve)
 
         async def core(x):
             return x
@@ -89,7 +90,7 @@ class TestVerifierUnit:
             await asyncio.sleep(10)
             return Verdict(accepted=True)
 
-        gate = verifier(approve, timeout=0.01)
+        gate = pre_verifier(approve, timeout=0.01)
 
         async def core():
             raise AssertionError("core should not run")
@@ -98,26 +99,26 @@ class TestVerifierUnit:
             await gate.wrap(core)()
 
     def test_bare_decorator_form(self):
-        @verifier
+        @pre_verifier
         async def approve(*a, **k):
             return Verdict(accepted=True)
 
         assert isinstance(approve, rt.middleware.Middleware)
 
     def test_called_decorator_form_with_options(self):
-        @verifier(timeout=5, name="my_gate")
+        @pre_verifier(timeout=5, name="my_gate")
         def approve(*a, **k):
             return Verdict(accepted=True)
 
         assert approve.name == "my_gate"
 
 
-class TestVerifierEndToEnd:
-    """Proves the verifier holds through the real execution path: rt.call ->
+class TestPreVerifierEndToEnd:
+    """Proves the pre_verifier holds through the real execution path: rt.call ->
     Task.invoke -> node.wrapped_invoke -> middleware.run(invoke)."""
 
     def test_approved_call_runs_the_node(self):
-        gate = verifier(lambda order_id, amount: Verdict(accepted=amount <= 100))
+        gate = pre_verifier(lambda order_id, amount: Verdict(accepted=amount <= 100))
 
         @rt.function_node(middleware=[gate])
         def refund(order_id: str, amount: float) -> str:
@@ -131,7 +132,7 @@ class TestVerifierEndToEnd:
         assert asyncio.run(top_level()) == "refunded 50 for A1"
 
     def test_declined_call_blocks_the_node_and_propagates(self):
-        gate = verifier(lambda order_id, amount: Verdict(accepted=amount <= 100))
+        gate = pre_verifier(lambda order_id, amount: Verdict(accepted=amount <= 100))
         ran = {"value": False}
 
         @rt.function_node(middleware=[gate])
