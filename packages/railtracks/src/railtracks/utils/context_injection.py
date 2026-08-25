@@ -1,5 +1,5 @@
 from railtracks.llm import MessageHistory, SystemMessage, UserMessage
-from railtracks.llm.prompt_injection_utils import ValueDict
+from railtracks.llm.context_injection_utils import ValueDict
 
 
 def inject_values(message_history: MessageHistory, value_dict: ValueDict):
