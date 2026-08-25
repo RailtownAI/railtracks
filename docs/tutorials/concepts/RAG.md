@@ -56,7 +56,7 @@ sequenceDiagram
 sequenceDiagram
     participant U as User Prompt
     participant C as  Store
-    participant E as  Prompt Injection
+    participant E as  Context Injection
     participant L as  LLM
 
     U->>C: Search Store for similarity 
