@@ -65,8 +65,10 @@ websearch = [
     "trafilatura >= 1.8.0",
 ]
 
-# Retrieval-stack extras. These are not pulled in by `[all]` — install
-# `railtracks[retrieval]` to opt in.
+# Retrieval-stack building blocks. Install one of the two bundles below rather
+# than these individually: `retrieval-core` for the minimal pipeline, or
+# `retrieval` for everything. `[all]` includes `railtracks[retrieval]`, so it
+# pulls in every extra in this section.
 tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
 semantic = ["scikit-learn>=1.3.0"]
 pdf = ["pypdf >= 4.0.0, <= 6.14.2"]

@@ -20,10 +20,6 @@ class _SimpleCalc:
         """Add two numbers and apply offset."""
         return x + self.offset
 
-    async def async_add(self, x: int) -> int:
-        """Async variant."""
-        return x + y + self.offset
-
 
 @pytest.mark.asyncio
 async def async_func(x):

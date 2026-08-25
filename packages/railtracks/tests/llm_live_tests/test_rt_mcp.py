@@ -59,4 +59,4 @@ def test_from_mcp_server_with_http():
         response = asyncio.run(rt.call(parent_tool, user_input=message_history))
 
     assert response is not None
-    assert response.content is not "It didn't work!"
+    assert response.content != "It didn't work!"
