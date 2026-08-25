@@ -3,22 +3,20 @@ from __future__ import annotations
 import asyncio
 from typing import (
     Any,
-    Callable,
     Iterable,
-    ParamSpec,
     TypeVar,
 )
 
+from railtracks.built_nodes.function.base import RTFunction
 from railtracks.nodes.nodes import Node
 
 from ._call import call
 
-_P = ParamSpec("_P")
 _TOutput = TypeVar("_TOutput")
 
 
 async def call_batch(
-    node: Callable[..., Node[_TOutput]] | Callable[..., _TOutput],
+    node: type[Node[..., _TOutput]] | RTFunction[..., _TOutput],
     *iterables: Iterable[Any],
     return_exceptions: bool = True,
 ):
