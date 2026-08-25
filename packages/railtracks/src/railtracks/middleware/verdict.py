@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Generic, TypeVar
+
+_R = TypeVar("_R")
 
 
 @dataclass
-class Verdict:
+class Verdict(Generic[_R]):
     """The result of an approve callable's review of a node call.
 
     - accept: ``accepted=True``, ``comment=None``
@@ -21,17 +23,21 @@ class Verdict:
     verifiers, which review after the node has already run and can no longer
     change what was passed in, only what continues onward.
 
-    Overridden ``args``/``kwargs``/``result`` are forwarded as-is, with no
-    validation against the node's original signature or return type -- a bad
-    override surfaces as a ``TypeError`` from the node call itself, or
-    propagates silently if it happens to satisfy downstream expectations.
+    ``Verdict`` is generic over ``result``'s type, matching the wrapped
+    node's return type -- ``post_verifier``'s approve callable returns
+    ``Verdict[_R]`` for a node returning ``_R``, so a ``result=`` override of
+    the wrong type is a type-checker error. There's still no runtime
+    validation against the node's original signature: a bad ``args``/
+    ``kwargs`` override surfaces as a ``TypeError`` from the node call
+    itself, and an ignored/incorrect static type on ``result`` propagates
+    silently.
     """
 
     accepted: bool
     comment: str | None = None
     args: tuple | None = None
     kwargs: dict | None = None
-    result: Any | None = None
+    result: _R | None = None
 
 
 class VerifierRejectedError(Exception):
