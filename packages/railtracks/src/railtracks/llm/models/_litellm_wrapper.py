@@ -33,7 +33,6 @@ from litellm.types.utils import (
 )
 from pydantic import BaseModel, Field
 
-from .._exceptions import LLMError
 from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
 from ..message import AssistantMessage, Message, ToolMessage, UserMessage
@@ -49,6 +48,7 @@ from ._hyperparameter_support import (
     is_hyperparameter_supported,
 )
 from ._model_exception_base import (
+    ModelError,
     MutuallyExclusiveHyperparametersError,
     UnsupportedHyperparameterError,
 )
@@ -804,7 +804,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         except JSONDecodeError as jde:
             raise jde
         except Exception as e:
-            raise LLMError(
+            raise ModelError(
                 reason="Structured LLM call failed",
                 message_history=messages,
             ) from e

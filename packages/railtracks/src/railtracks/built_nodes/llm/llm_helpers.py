@@ -13,6 +13,7 @@ from railtracks.built_nodes.llm.model_invoker import ModelInvoker
 from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
 from railtracks.exceptions.errors import LLMError, NodeInvocationError
 from railtracks.interaction._call import call
+from railtracks.llm._exceptions import RTLLMError
 from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
@@ -80,8 +81,16 @@ def llm_invoke_factory(
                 returned_mess = await model_invoker.invoke(
                     message_history, schema=schema, tools=tools
                 )
+            # This is the single boundary between the self-contained `llm` package and
+            # the node layer. The llm package raises only `RTLLMError` types and knows
+            # nothing about nodes, so the translation into node-terminating errors
+            # happens here. Every branch chains with `from e` so the originating error
+            # stays reachable via `__cause__`.
             except NodeInvocationError:
-                raise  # e.g. a guardrail block from a gate; surface as-is, don't mask
+                # Already classified (a guardrail block, or an LLMError raised further
+                # down). Surface as-is rather than wrapping it a second time, which
+                # would drop `message_history` and nest the message.
+                raise
             except ToolCreationError as e:
                 # A malformed tool is a caller mistake, not a recoverable model failure,
                 # so it ends the run instead of being masked as an LLMError.
@@ -90,11 +99,19 @@ def llm_invoke_factory(
                     notes=e.notes,
                     fatal=True,
                 ) from e
+            except RTLLMError as e:
+                # Carry the llm package's own reason across instead of repr()-ing the
+                # exception, which would nest ANSI escapes inside the new message.
+                raise LLMError(
+                    reason=getattr(e, "reason", None) or str(e),
+                    message_history=getattr(e, "message_history", None)
+                    or message_history,
+                ) from e
             except Exception as e:
                 raise LLMError(
                     reason=f"Exception during model invoke: {repr(e)}",
                     message_history=message_history,
-                )
+                ) from e
 
             path = process_message(returned_mess, schema)
 

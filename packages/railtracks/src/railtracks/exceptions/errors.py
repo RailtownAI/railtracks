@@ -1,9 +1,9 @@
-# `LLMError` belongs to the self-contained `llm` package and roots its own hierarchy
-# (`RTLLMError`), not `RTError`. It is re-exported here so `railtracks.exceptions`
-# stays the one import site users need.
-from railtracks.llm._exceptions import LLMError
+from typing import TYPE_CHECKING
 
 from ._base import RTError
+
+if TYPE_CHECKING:
+    from railtracks.llm.history import MessageHistory
 
 __all__ = [
     "RTError",
@@ -23,7 +23,10 @@ class NodeInvocationError(RTError):
     """
 
     def __init__(
-        self, message: str = None, notes: list[str] = None, fatal: bool = False
+        self,
+        message: str | None = None,
+        notes: list[str] | None = None,
+        fatal: bool = False,
     ):
         super().__init__(message)
         self.notes = notes or []
@@ -36,6 +39,65 @@ class NodeInvocationError(RTError):
                 "\n"
                 + self._color("Tips to debug:\n", self.GREEN)
                 + "\n".join(self._color(f"- {note}", self.GREEN) for note in self.notes)
+            )
+            return f"\n{self._color(base, self.RED)}{notes_str}"
+        return self._color(base, self.RED)
+
+
+class LLMError(NodeInvocationError):
+    """
+    Raised when a node terminates because the LLM layer failed.
+
+    This is the framework's normalized view of a failure that originated inside the
+    self-contained `railtracks.llm` package. That package raises its own `RTLLMError`
+    types and knows nothing about nodes; the boundary in
+    `railtracks.built_nodes.llm.llm_helpers` translates them into this. The originating
+    error is always preserved on `__cause__`.
+
+    Being a `NodeInvocationError` lets callers branch on both axes at once: catch
+    `NodeInvocationError` for "a node terminated", then test for `LLMError` to ask
+    whether the LLM caused it.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        message_history: "MessageHistory | None" = None,
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.reason = reason
+        self.message_history = message_history
+
+        message = f"{self._color('LLM Error: ', self.BOLD_RED)}{self._color(reason, self.RED)}"
+        super().__init__(message, notes=notes, fatal=fatal)
+
+    def __str__(self):
+        # Deliberately bypasses NodeInvocationError.__str__ so the base message is not
+        # coloured twice; the sections below render both payloads instead.
+        base = Exception.__str__(self)
+        details = []
+        if self.message_history:
+            mh_str = str(self.message_history)
+            indented_mh = "\n".join(
+                "    " + line for line in mh_str.splitlines()
+            )  # 2 indents (2-spaces) per indent
+            details.append(
+                self._color("Message History:\n", self.BOLD_GREEN)
+                + self._color(indented_mh, self.GREEN)
+            )
+        if self.notes:
+            details.append(
+                self._color("Tips to debug:\n", self.BOLD_GREEN)
+                + "\n".join(
+                    self._color(f"    - {note}", self.GREEN) for note in self.notes
+                )  # match the message history block's indent
+            )
+        if details:
+            notes_str = (
+                "\n"
+                + self._color("Details:\n", self.BOLD_GREEN)
+                + "\n".join(f"  {d}" for d in details)
             )
             return f"\n{self._color(base, self.RED)}{notes_str}"
         return self._color(base, self.RED)

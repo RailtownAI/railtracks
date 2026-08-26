@@ -16,7 +16,6 @@ from litellm.types.utils import (
     Usage,
 )
 from pydantic import BaseModel
-from railtracks.exceptions import LLMError
 from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
@@ -27,6 +26,7 @@ from railtracks.llm.models._litellm_wrapper import (
 )
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.tools.tool import ToolCreationError
 
 
@@ -365,13 +365,15 @@ class TestCompletionMethods:
         ],
         ids=["sync_structured", "async_structured"],
     )
-    async def test_structured_invalid_json_raises_llm_error(
+    async def test_structured_invalid_json_raises_model_error(
         self, mock_litellm_wrapper, message_history, method_name, is_async
     ):
         class Schema(BaseModel):
             val: int
 
-        with pytest.raises(LLMError, match="Structured LLM call failed"):
+        # The llm package raises its own RTLLMError type; the node layer translates
+        # it into LLMError at the llm_helpers boundary, not here.
+        with pytest.raises(ModelError, match="Structured LLM call failed"):
             wrapper = mock_litellm_wrapper(
                 content='{"field": "VAL", "invalid": "json"}'
             )

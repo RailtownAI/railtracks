@@ -4,31 +4,58 @@ Railtracks (RT) provides a comprehensive error handling system designed to give 
 
 ## Error Hierarchy
 
-Railtracks errors are grouped under two roots, both of which provide colored console output and structured error reporting.
-
-Framework errors inherit from `RTError`:
+All Railtracks errors inherit from the base `RTError` class, which provides colored console output and structured error reporting.
 
 ```
 RTError (base)
 ├── NodeCreationError
-├── NodeInvocationError
+├── NodeInvocationError          "a node terminated unexpectedly"
+│   ├── LLMError                 ...because the LLM layer failed
+│   └── GuardrailBlockedError    ...because a guardrail blocked it
 ├── GlobalTimeOutError
 ├── ContextError
 └── FatalError
 ```
 
-Errors raised by the `railtracks.llm` package inherit from `RTLLMError` instead. That package is self-contained and does not depend on the rest of Railtracks, so it roots its own hierarchy:
+`NodeInvocationError` tells you *that* a node terminated; its subclasses tell you *why*. That lets you handle both questions in one place:
+
+```python
+try:
+    result = await rt.call(my_agent, "hello")
+except LLMError as e:
+    retry_with_fallback_model(e.message_history)
+except NodeInvocationError as e:
+    # A node died for some other reason -- config, guardrail, structure.
+    report(e)
+```
+
+!!! note "Order your `except` clauses most-specific first"
+
+    `LLMError` is a `NodeInvocationError`. Python takes the first *matching* clause, not the closest one, so putting `except NodeInvocationError` above `except LLMError` makes the second unreachable.
+
+### LLM package errors
+
+The `railtracks.llm` package is self-contained and does not import from the rest of Railtracks, so it raises its own errors rooted at `RTLLMError`:
 
 ```
 RTLLMError (base)
-├── LLMError
 ├── RetryError
 ├── ModelError
+│   ├── FunctionCallingNotSupportedError
+│   └── UnsupportedHyperparameterError
 ├── ModelNotFoundError
 └── ToolCreationError
 ```
 
-`LLMError` is importable from either `railtracks.exceptions` or `railtracks.llm`. To catch anything the LLM layer raises, catch `RTLLMError`; note that it is **not** an `RTError`, so a single `except RTError` will not cover both groups.
+You only see these when calling a model **directly**. Inside a node, they are translated once at the boundary into `LLMError`, and the original stays reachable on `__cause__`:
+
+```python
+except LLMError as e:
+    if isinstance(e.__cause__, RetryError):
+        ...  # the model was retried and still failed
+```
+
+`RTLLMError` is deliberately **not** an `RTError` -- the two hierarchies are independent, which is what keeps the `llm` package standalone.
 
 ## Error Types
 
