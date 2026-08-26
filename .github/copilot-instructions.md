@@ -26,10 +26,13 @@ uv pip install -e "packages/railtracks[all]"     # SDK with all optional extras
 
 The SDK is deliberately thin by default; features gate behind extras declared in `packages/railtracks/pyproject.toml` (`visual`, `retrieval`, `chroma`, `portkey`, `stores-*`, …).
 
-**`retrieval` is not part of `[all]`.** Install it explicitly when working on the RAG stack:
+`railtracks[retrieval]` is part of `railtracks[all]` and pulls in the
+whole RAG stack; connectors, OCR, and vector-store backends included. If you want the
+retrieval pipeline without that weight, `[retrieval-core]` is the lighter opt-in
+(chunking, embedding, in-memory store, local loaders):
 
 ```bash
-uv pip install -e "packages/railtracks[all,retrieval]"
+uv pip install -e "packages/railtracks[retrieval-core]"
 ```
 
 ### Build and Test Commands
@@ -192,7 +195,7 @@ Steps 3 and 4 are gated on changed paths, so a docs-only PR skips the test suite
   GENERATED — do not edit by hand.
 
   The section below is the bundled `agent-builder` skill
-  (packages/railtracks/src/railtracks/cli/skills/agent-builder.md). Edit that file,
+  (packages/railtracks/src/railtracks/cli/skills/agent-builder/SKILL.md). Edit that file,
   then regenerate from the repository root with:
 
       railtracks add copilot:agent-builder --force
@@ -238,7 +241,7 @@ rt.llm.OpenAICompatibleProvider(
    - Real implementation (or a clear stub with a TODO if the user needs to fill it in)
 4. **Define the agent** — call `rt.agent_node()` with (note: it returns a class/type, so use PascalCase for the variable name):
    - A descriptive name
-   - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both
+   - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both (passing both raises `NodeCreationError`)
    - `llm` — default to `rt.llm.AnthropicLLM("claude-sonnet-4-6")` unless the user specifies otherwise
    - `system_message` — a clear, specific system prompt
 5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=agent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(agent, ...)` inside it.

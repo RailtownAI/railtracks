@@ -88,7 +88,12 @@ A few extras need things that aren't on PyPI:
 
 ## What about `[all]`?
 
-`railtracks[all]` does **not** include the retrieval stack. It covers
-the rest of railtracks (visualizer, Portkey integration). Install
-`[retrieval]` (or `[retrieval-core]` + targeted extras) alongside if
-you need both.
+`railtracks[all]` **includes `[retrieval]`**, alongside the rest of
+railtracks (visualizer, Portkey integration, web search). It is the
+heaviest install available: every loader, connector, and vector-store
+backend comes with it.
+
+Reach for `[all]` when you want everything and do not care about
+install size. If you only need retrieval, install `[retrieval]`
+directly — or `[retrieval-core]` plus targeted extras for the
+lightest install that still runs the pipeline.
