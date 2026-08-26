@@ -80,12 +80,13 @@ export RAILTRACKS_DISABLE_EVENTS=1
 
 For hosted observability in these environments, use Conductr.
 
-!!! warning "`save_state` default is changing"
+!!! warning "`save_state` is deprecated"
     `save_state=True` still writes `.railtracks/data/sessions/*.json` for the
-    stable (v1) visualizer this release. When it's not set explicitly, a
-    `DeprecationWarning` is emitted; the default flips to `False` in the next
-    release. Pass `save_state=True` or `save_state=False` explicitly to lock
-    in the behavior you want.
+    stable (v1) visualizer this release, but passing the argument at all now
+    emits a `DeprecationWarning`. The file dump is being replaced by the
+    event stream (`.railtracks/data/events/`). Default: `True` this release,
+    flips to `False` next release. Remove the argument to let the framework
+    default take over.
 
 !!! tip "Running from multiple directories?"
     Run `railtracks init` once from your project root, at the same level as

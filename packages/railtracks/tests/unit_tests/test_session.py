@@ -194,36 +194,37 @@ def test_session_not_saves_data(tmp_path, monkeypatch):
 # ================= Deprecation lane for save_state default (#1049) =================
 
 
-def test_session_implicit_default_save_state_is_still_true(monkeypatch):
-    """This release: implicit save_state resolves to True (with a DeprecationWarning).
-    Next release: this flips to False. Test guards the current release's behavior."""
+def test_session_implicit_default_save_state_is_still_true_and_no_warning(
+    monkeypatch, recwarn
+):
+    """This release: implicit save_state resolves to True silently. Next release
+    it flips to False. Users who never touched the argument get no warning."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     r = Session()
-    with pytest.warns(DeprecationWarning, match="save_state was not set explicitly"):
-        assert r.executor_config.save_state is True
-
-
-def test_session_explicit_save_state_true_no_warning(monkeypatch, recwarn):
-    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
-    r = Session(save_state=True)
     assert r.executor_config.save_state is True
     save_state_warnings = [
         w for w in recwarn.list
         if issubclass(w.category, DeprecationWarning)
-        and "save_state was not set explicitly" in str(w.message)
+        and "save_state parameter is deprecated" in str(w.message)
     ]
     assert save_state_warnings == []
 
 
-def test_session_explicit_save_state_false_no_warning(recwarn):
+def test_session_explicit_save_state_true_emits_deprecation_warning(monkeypatch):
+    """Passing save_state at all is deprecated (the file dump is being replaced
+    by the event stream). Explicit True still resolves to True this release."""
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    r = Session(save_state=True)
+    with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
+        assert r.executor_config.save_state is True
+
+
+def test_session_explicit_save_state_false_emits_deprecation_warning(monkeypatch):
+    """Same rule for explicit False — the parameter itself is on the way out."""
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     r = Session(save_state=False)
-    assert r.executor_config.save_state is False
-    save_state_warnings = [
-        w for w in recwarn.list
-        if issubclass(w.category, DeprecationWarning)
-        and "save_state was not set explicitly" in str(w.message)
-    ]
-    assert save_state_warnings == []
+    with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
+        assert r.executor_config.save_state is False
 
 
 def test_session_exit_skips_save_when_disable_events_env_set(

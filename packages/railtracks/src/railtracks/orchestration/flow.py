@@ -33,7 +33,7 @@ class Flow(Generic[_P, _TOutput]):
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A passive listener for one-off events published with `rt.broadcast`.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory. Ships True this release but emits DeprecationWarning when left implicit; default flips to False next release. Set `RAILTRACKS_DISABLE_EVENTS=1` to skip the write even when True.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory. Deprecated — passing this argument emits a DeprecationWarning; the file dump is being replaced by the event stream. Default: True this release, flips to False next release. Set `RAILTRACKS_DISABLE_EVENTS=1` to skip the write regardless.
         payload_callback (Callable[[dict[str, Any]], None], optional): A callback function that will run upon completion of the flow with the final payload as an argument.
     """
 

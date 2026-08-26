@@ -41,18 +41,18 @@ class ExecutorConfig:
             "RAILTRACKS_ALLOW_PERSISTENCE"
         ):
             return False
-        if self._user_save_state is None:
+        if self._user_save_state is not None:
             warnings.warn(
-                "save_state was not set explicitly on your Flow/Session; it "
-                "currently defaults to True. In the next release the default "
-                "will change to False. Pass save_state=True or save_state=False "
-                "explicitly to silence this warning and lock in the behavior "
-                "you want.",
+                "The save_state parameter is deprecated and will be removed in "
+                "a future release. The .railtracks/data/sessions/*.json dump is "
+                "being replaced by the event stream (.railtracks/data/events/). "
+                "Remove the save_state argument to let the framework default "
+                "take over; the default flips from True to False next release.",
                 DeprecationWarning,
                 stacklevel=3,
             )
-            return True
-        return self._user_save_state
+            return self._user_save_state
+        return True
 
     def _save_state_silently(self) -> bool:
         """Resolved save_state without emitting the deprecation warning.
