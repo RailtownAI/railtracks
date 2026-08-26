@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from typing import Any, Callable, Coroutine
 
 
@@ -13,7 +14,7 @@ class ExecutorConfig:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        save_state: bool = True,
+        save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
     ):
         """
@@ -23,12 +24,11 @@ class ExecutorConfig:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
             broadcast_callback (Callable or Coroutine): A function or coroutine that receives items published with `rt.broadcast`.
-            save_state (bool): If true, the state of the executor will be saved to disk.
+            save_state (bool | None): If true, the executor state is saved to disk at the end of the run. Pass None (or omit) to use the current implicit default (True); a DeprecationWarning fires and the default flips to False in the next release.
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
         self.subscriber = broadcast_callback
-        # During test runs, disable save_state by default unless RAILTRACKS_ALLOW_PERSISTENCE is set
         self._user_save_state = save_state
 
         self.payload_callback = payload_callback
@@ -41,7 +41,30 @@ class ExecutorConfig:
             "RAILTRACKS_ALLOW_PERSISTENCE"
         ):
             return False
+        if self._user_save_state is None:
+            warnings.warn(
+                "save_state was not set explicitly on your Flow/Session; it "
+                "currently defaults to True. In the next release the default "
+                "will change to False. Pass save_state=True or save_state=False "
+                "explicitly to silence this warning and lock in the behavior "
+                "you want.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            return True
         return self._user_save_state
+
+    def _save_state_silently(self) -> bool:
+        """Resolved save_state without emitting the deprecation warning.
+
+        For internal telemetry paths that need the value but shouldn't be the
+        thing that surfaces the deprecation to users.
+        """
+        if os.getenv("RAILTRACKS_TEST_MODE") and not os.getenv(
+            "RAILTRACKS_ALLOW_PERSISTENCE"
+        ):
+            return False
+        return True if self._user_save_state is None else self._user_save_state
 
     def precedence_overwritten(
         self,
@@ -65,7 +88,7 @@ class ExecutorConfig:
             broadcast_callback=subscriber
             if subscriber is not None
             else self.subscriber,
-            save_state=save_state if save_state is not None else self.save_state,
+            save_state=save_state if save_state is not None else self._user_save_state,
             payload_callback=payload_callback
             if payload_callback is not None
             else self.payload_callback,
@@ -74,5 +97,5 @@ class ExecutorConfig:
     def __repr__(self):
         return (
             f"ExecutorConfig(timeout={self.timeout}, end_on_error={self.end_on_error}, "
-            f"save_state={self.save_state}, payload_callback={self.payload_callback})"
+            f"save_state={self._user_save_state}, payload_callback={self.payload_callback})"
         )

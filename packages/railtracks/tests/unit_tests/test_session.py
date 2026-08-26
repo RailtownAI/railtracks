@@ -139,6 +139,7 @@ def test_session_saves_data(tmp_path, monkeypatch):
     """Test that session saves execution data to JSON file in temp directory."""
     name = "abs53562j12h267"
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
     monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
 
@@ -190,9 +191,104 @@ def test_session_not_saves_data(tmp_path, monkeypatch):
     # If directory doesn't exist, that's also fine - nothing was saved
 
 
+# ================= Deprecation lane for save_state default (#1049) =================
+
+
+def test_session_implicit_default_save_state_is_still_true(monkeypatch):
+    """This release: implicit save_state resolves to True (with a DeprecationWarning).
+    Next release: this flips to False. Test guards the current release's behavior."""
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    r = Session()
+    with pytest.warns(DeprecationWarning, match="save_state was not set explicitly"):
+        assert r.executor_config.save_state is True
+
+
+def test_session_explicit_save_state_true_no_warning(monkeypatch, recwarn):
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    r = Session(save_state=True)
+    assert r.executor_config.save_state is True
+    save_state_warnings = [
+        w for w in recwarn.list
+        if issubclass(w.category, DeprecationWarning)
+        and "save_state was not set explicitly" in str(w.message)
+    ]
+    assert save_state_warnings == []
+
+
+def test_session_explicit_save_state_false_no_warning(recwarn):
+    r = Session(save_state=False)
+    assert r.executor_config.save_state is False
+    save_state_warnings = [
+        w for w in recwarn.list
+        if issubclass(w.category, DeprecationWarning)
+        and "save_state was not set explicitly" in str(w.message)
+    ]
+    assert save_state_warnings == []
+
+
+def test_session_exit_skips_save_when_disable_events_env_set(
+    tmp_path, monkeypatch
+):
+    """RAILTRACKS_DISABLE_EVENTS=1 wins over save_state=True. Nothing written,
+    no log noise."""
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "1")
+    monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    with patch.object(Session, "info", new_callable=PropertyMock) as mock_info:
+        mock_info.return_value.graph_serialization.return_value = {"Key": "Value"}
+
+        r = Session(name="disabled", save_state=True)
+        r.__exit__(None, None, None)
+
+    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
+    assert not sessions_dir.exists() or not list(sessions_dir.glob("*.json"))
+
+
+def test_session_exit_swallows_oserror_on_readonly_disk(
+    tmp_path, monkeypatch, caplog
+):
+    """When save_state=True and the filesystem is read-only, __exit__ returns
+    cleanly with a single WARN from the shared once-per-process helper.
+    No ERROR, no traceback."""
+    import logging
+
+    from railtracks.observability import configure
+
+    configure.reset_for_tests()  # clear the once-per-process warning latch
+    monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
+    monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    original_mkdir = Path.mkdir
+
+    def _refuse(self, *args, **kwargs):
+        if "sessions" in self.parts:
+            raise OSError(30, "Read-only file system")
+        return original_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", _refuse)
+
+    with patch.object(Session, "info", new_callable=PropertyMock) as mock_info:
+        mock_info.return_value.graph_serialization.return_value = {"Key": "Value"}
+
+        r = Session(name="ro", save_state=True)
+        with caplog.at_level(logging.WARNING, logger="railtracks"):
+            r.__exit__(None, None, None)
+
+    readonly = [rec for rec in caplog.records if "could not write to disk" in rec.getMessage()]
+    assert len(readonly) == 1
+    assert "RAILTRACKS_DISABLE_EVENTS=1" in readonly[0].getMessage()
+    errors = [rec for rec in caplog.records if rec.levelname == "ERROR"]
+    assert errors == []
+
+
 def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
     """Test that session falls back to identifier-only filename when name causes issues."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
+    monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
     monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
     

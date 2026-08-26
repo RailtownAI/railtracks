@@ -164,7 +164,7 @@ async def _start(
             entry_point_name=node.name() if hasattr(node, "name") else "Unknown",
             timeout=config.timeout,
             end_on_error=config.end_on_error,
-            save_state=config.save_state,
+            save_state=config._save_state_silently(),
         )
     )
     start_time = time.perf_counter()

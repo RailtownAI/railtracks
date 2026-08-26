@@ -38,16 +38,24 @@ routes, and interactive API documentation is available at
 
 ## Record event-stream data
 
-Configure the JSONL writer before the first agent run in your process:
+Events are recorded automatically to `.railtracks/data/events` when you
+invoke a flow — no writer setup required. The beta visualizer reads from the
+same directory.
+
+### Customize event writers
+
+To use your own writer set (or add more alongside the default), call
+`configure_writers(...)` before the first flow invocation in your process:
 
 ```python title="Configure local event storage"
 --8<-- "docs/scripts/observability/events.py:v2-viz"
 ```
 
-`JsonlWriter()` and the beta visualizer use the same event directory:
-`.railtracks/data/events` under the resolved Railtracks project root.
+Passing any list — including `configure_writers([])` — suppresses the
+auto-injected default. This is the escape hatch when you want zero event
+writers for a specific run.
 
-!!! warning "Configure writers before running an agent"
+!!! warning "Configure writers before running a flow"
     `configure_writers(...)` must run before observability starts. Put it in
     your application startup code, before the first flow or agent invocation.
 
@@ -55,13 +63,33 @@ Configure the JSONL writer before the first agent run in your process:
 
 Set `RAILTRACKS_EVENTS_DIR` in both the process recording events and the
 visualizer process. Relative paths are resolved from the current working
-directory.
+directory. This redirects the auto-injected writer without any code change.
 
 ```bash title="Record and view another event store"
 export RAILTRACKS_EVENTS_DIR=./saved-events
 python my_agent.py
 railtracks viz --beta
 ```
+
+### Deployed environments with no writable disk
+
+Set `RAILTRACKS_DISABLE_EVENTS=1` on hosts where Railtracks can't (or
+shouldn't) write to disk. It skips **both** the auto-registered event
+writer and the legacy `save_state` session dump, regardless of what
+`save_state=` is set to.
+
+```bash title="Turn off Railtracks-owned disk writes"
+export RAILTRACKS_DISABLE_EVENTS=1
+```
+
+For hosted observability in these environments, use Conductr.
+
+!!! info "`save_state` default is changing"
+    `save_state=True` still writes `.railtracks/data/sessions/*.json` for the
+    stable (v1) visualizer this release. When it's not set explicitly, a
+    `DeprecationWarning` is emitted; the default flips to `False` in the next
+    release. Pass `save_state=True` or `save_state=False` explicitly to lock
+    in the behavior you want.
 
 !!! tip "Running from multiple directories?"
     Run `railtracks init` once from your project root, at the same level as
