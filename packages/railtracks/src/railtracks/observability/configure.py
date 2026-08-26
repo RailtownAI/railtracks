@@ -18,28 +18,11 @@ observer: Observer = Observer()
 # Called synchronously before the event reaches the Observer's per-writer queues
 _inline_listeners: list[Callable[[Event], None]] = []
 
-_readonly_warning_emitted = False
-
 
 def _disable_events() -> bool:
     """Parse RAILTRACKS_DISABLE_EVENTS as a strict True/False env var
     (case-insensitive). Anything else, including unset, is False."""
     return os.environ.get("RAILTRACKS_DISABLE_EVENTS", "").strip().lower() == "true"
-
-
-def _warn_readonly_disk_once(context: str, exc: OSError) -> None:
-    """Emit at most one WARN per process when railtracks can't write to disk."""
-    global _readonly_warning_emitted
-    if _readonly_warning_emitted:
-        return
-    _readonly_warning_emitted = True
-    logger.warning(
-        "railtracks could not write to disk during %s (%s: %s). "
-        "Set RAILTRACKS_DISABLE_EVENTS=True to silence this warning.",
-        context,
-        type(exc).__name__,
-        exc,
-    )
 
 
 def configure_writers(writers: list[Writer]) -> None:
@@ -67,12 +50,11 @@ async def ensure_started() -> Observer:
     """Start the singleton observer if not already started, return it.
 
     Auto-registers a default `JsonlWriter` when no writers have been configured
-    and `RAILTRACKS_DISABLE_EVENTS` is unset. Explicit `configure_writers(...)`
-    calls — including `configure_writers([])` — suppress the auto-default.
+    and `RAILTRACKS_DISABLE_EVENTS` is unset.
     """
     if (
-        not observer.is_running()
-        and not observer.has_explicit_writers()
+        not observer._running
+        and not observer._pending_writers
         and not _disable_events()
     ):
         observer.configure_writers([JsonlWriter()])
@@ -94,7 +76,6 @@ def reset_for_tests() -> None:
     Swaps in a fresh `Observer` so consumer tasks from a previous test's event
     loop don't leak into the next one.
     """
-    global observer, _readonly_warning_emitted
+    global observer
     observer = Observer()
     _inline_listeners.clear()
-    _readonly_warning_emitted = False

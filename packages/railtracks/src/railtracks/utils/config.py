@@ -29,6 +29,16 @@ class ExecutorConfig:
         self.timeout = timeout
         self.end_on_error = end_on_error
         self.subscriber = broadcast_callback
+        if save_state is not None:
+            warnings.warn(
+                "The save_state parameter is deprecated and will be removed in "
+                "a future release. The .railtracks/data/sessions/*.json dump is "
+                "being replaced by the event stream (.railtracks/data/events/). "
+                "Remove the save_state argument to let the framework default "
+                "take over; the default flips from True to False next release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self._user_save_state = save_state
 
         self.payload_callback = payload_callback
@@ -37,29 +47,6 @@ class ExecutorConfig:
     # later when we want to allow a few tests to actually run persistance, they wont be able to do so
     @property
     def save_state(self) -> bool:
-        if os.getenv("RAILTRACKS_TEST_MODE") and not os.getenv(
-            "RAILTRACKS_ALLOW_PERSISTENCE"
-        ):
-            return False
-        if self._user_save_state is not None:
-            warnings.warn(
-                "The save_state parameter is deprecated and will be removed in "
-                "a future release. The .railtracks/data/sessions/*.json dump is "
-                "being replaced by the event stream (.railtracks/data/events/). "
-                "Remove the save_state argument to let the framework default "
-                "take over; the default flips from True to False next release.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            return self._user_save_state
-        return True
-
-    def _save_state_silently(self) -> bool:
-        """Resolved save_state without emitting the deprecation warning.
-
-        For internal telemetry paths that need the value but shouldn't be the
-        thing that surfaces the deprecation to users.
-        """
         if os.getenv("RAILTRACKS_TEST_MODE") and not os.getenv(
             "RAILTRACKS_ALLOW_PERSISTENCE"
         ):

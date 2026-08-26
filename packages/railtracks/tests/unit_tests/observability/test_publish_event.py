@@ -130,7 +130,7 @@ async def test_ensure_started_with_events_disabled_skips_auto_default(caplog):
     configure_writers, ensure_started() starts with zero pending writers.
     Subsequent publishes fan out to nothing."""
     await ensure_started()
-    assert configure.observer.is_running() is True
+    assert configure.observer._running is True
     assert configure.observer._writers == {}
     await publish_event(_make_session_event())
     await shutdown()
@@ -167,13 +167,3 @@ async def test_explicit_configure_writers_wins_over_auto_default(monkeypatch):
         await shutdown()
 
 
-async def test_explicit_empty_writers_suppresses_auto_default(monkeypatch):
-    """configure_writers([]) is an explicit 'no writers' — the sentinel prevents
-    the auto-default from filling in."""
-    monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
-    configure_writers([])
-    await ensure_started()
-    try:
-        assert configure.observer._writers == {}
-    finally:
-        await shutdown()

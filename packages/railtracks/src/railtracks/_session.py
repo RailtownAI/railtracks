@@ -20,11 +20,7 @@ from .context.central import (
 )
 from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
-from .observability.configure import (
-    _disable_events,
-    _warn_readonly_disk_once,
-    add_inline_listener,
-)
+from .observability.configure import _disable_events, add_inline_listener
 from .observability.node_internals import NodeInternalsCollector
 from .pubsub import RTPublisher, event_subscriber
 from .state.info import (
@@ -219,7 +215,11 @@ class Session:
                 file_path.write_text(content)
 
             except OSError as exc:
-                _warn_readonly_disk_once("session state save", exc)
+                logger.warning(
+                    "Could not persist session state to disk (%s: %s). "
+                    "Set RAILTRACKS_DISABLE_EVENTS=True to silence this warning.",
+                    type(exc).__name__, exc,
+                )
             except Exception as e:
                 logger.error(
                     "Error while saving execution info to file: %s",

@@ -214,17 +214,17 @@ def test_session_explicit_save_state_true_emits_deprecation_warning(monkeypatch)
     """Passing save_state at all is deprecated (the file dump is being replaced
     by the event stream). Explicit True still resolves to True this release."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
-    r = Session(save_state=True)
     with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
-        assert r.executor_config.save_state is True
+        r = Session(save_state=True)
+    assert r.executor_config.save_state is True
 
 
 def test_session_explicit_save_state_false_emits_deprecation_warning(monkeypatch):
     """Same rule for explicit False — the parameter itself is on the way out."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
-    r = Session(save_state=False)
     with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
-        assert r.executor_config.save_state is False
+        r = Session(save_state=False)
+    assert r.executor_config.save_state is False
 
 
 def test_session_exit_skips_save_when_disable_events_env_set(
@@ -251,13 +251,9 @@ def test_session_exit_swallows_oserror_on_readonly_disk(
     tmp_path, monkeypatch, caplog
 ):
     """When save_state=True and the filesystem is read-only, __exit__ returns
-    cleanly with a single WARN from the shared once-per-process helper.
-    No ERROR, no traceback."""
+    cleanly with a WARN and no ERROR / traceback."""
     import logging
 
-    from railtracks.observability import configure
-
-    configure.reset_for_tests()  # clear the once-per-process warning latch
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
     monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
@@ -279,11 +275,10 @@ def test_session_exit_swallows_oserror_on_readonly_disk(
         with caplog.at_level(logging.WARNING, logger="railtracks"):
             r.__exit__(None, None, None)
 
-    readonly = [rec for rec in caplog.records if "could not write to disk" in rec.getMessage()]
-    assert len(readonly) == 1
-    assert "RAILTRACKS_DISABLE_EVENTS=True" in readonly[0].getMessage()
-    errors = [rec for rec in caplog.records if rec.levelname == "ERROR"]
-    assert errors == []
+    warns = [rec for rec in caplog.records if "Could not persist session state to disk" in rec.getMessage()]
+    assert warns, "expected a warning about the failed session save"
+    assert "RAILTRACKS_DISABLE_EVENTS=True" in warns[0].getMessage()
+    assert [rec for rec in caplog.records if rec.levelname == "ERROR"] == []
 
 
 def test_session_fallback_on_invalid_name(tmp_path, monkeypatch):
