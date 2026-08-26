@@ -1,4 +1,5 @@
 from . import retries
+from ._exceptions import LLMError, RetryError, RTLLMError
 from .content import ToolCall, ToolCalls, ToolResponse
 from .history import MessageHistory
 from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
@@ -35,6 +36,9 @@ from .tools import (
 
 __all__ = [
     "ModelBase",
+    "RTLLMError",
+    "LLMError",
+    "RetryError",
     "ModelError",
     "ModelNotFoundError",
     "FunctionCallingNotSupportedError",

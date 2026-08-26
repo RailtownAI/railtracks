@@ -6,13 +6,13 @@ if TYPE_CHECKING:
     from .history import MessageHistory
 
 
-class RTError(Exception):
+class RTLLMError(Exception):
     """
-    A simple base class for all RTExceptions to inherit from.
+    A simple base class for all LLM Exceptions to inherit from.
 
-    It lives in the ``llm`` package because that package is not allowed to import from
-    the rest of ``railtracks``; the wider framework re-exports it from
-    ``railtracks.exceptions``.
+    The ``llm`` package is self-contained and never imports from the rest of
+    ``railtracks``, so it owns its own exception root rather than sharing
+    ``railtracks.exceptions.RTError``.
     """
 
     # ANSI color codes for terminal output
@@ -26,12 +26,6 @@ class RTError(Exception):
     def _color(cls, text, color_code):
         """A simple helper method to colorize text for output."""
         return f"{color_code}{text}{cls.RESET}"
-
-
-class RTLLMError(RTError):
-    """
-    A simple base class for all LLM Exceptions to inherit from.
-    """
 
 
 class LLMError(RTLLMError):

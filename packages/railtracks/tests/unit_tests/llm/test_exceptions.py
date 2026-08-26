@@ -1,8 +1,9 @@
 """Layering tests for the exceptions raised out of the ``llm`` package.
 
 The ``llm`` package is meant to stand on its own, so nothing inside it may import from
-the surrounding ``railtracks`` package. ``LLMError`` lives here for that reason and is
-re-exported by ``railtracks.exceptions`` for backwards compatibility.
+the surrounding ``railtracks`` package. That isolation is why ``LLMError`` lives here and
+roots its own hierarchy under ``RTLLMError`` rather than sharing ``RTError``; it is
+re-exported by ``railtracks.exceptions`` for convenience.
 """
 
 import ast
@@ -69,10 +70,20 @@ def test_public_llmerror_is_the_llm_package_class():
 
 
 @pytest.mark.parametrize("error_cls", [LLMError, RetryError, ToolCreationError])
-def test_llm_errors_share_both_bases(error_cls):
-    """Moving LLMError must not drop it out of the framework-wide `RTError` hierarchy."""
+def test_llm_errors_root_at_rtllmerror(error_cls):
+    """Every error the llm package raises is catchable from its own public root."""
     assert issubclass(error_cls, RTLLMError)
-    assert issubclass(error_cls, RTError)
+
+
+@pytest.mark.parametrize("error_cls", [LLMError, RetryError, ToolCreationError])
+def test_llm_errors_are_independent_of_rterror(error_cls):
+    """The two hierarchies stay separate.
+
+    Inheriting `RTError` would re-create the very coupling this package is isolated
+    from, just as a type relationship instead of an import.
+    """
+    assert not issubclass(error_cls, RTError)
+    assert not issubclass(RTError, RTLLMError)
 
 
 # ========== END LLMError placement tests ==============

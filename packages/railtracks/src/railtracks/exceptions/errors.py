@@ -1,6 +1,6 @@
-# `LLMError` is defined in the `llm` package (that package must not import from the rest
-# of `railtracks`), and is re-exported here so `railtracks.exceptions` stays the single
-# place users import framework errors from.
+# `LLMError` belongs to the self-contained `llm` package and roots its own hierarchy
+# (`RTLLMError`), not `RTError`. It is re-exported here so `railtracks.exceptions`
+# stays the one import site users need.
 from railtracks.llm._exceptions import LLMError
 
 from ._base import RTError

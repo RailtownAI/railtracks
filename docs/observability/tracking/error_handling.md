@@ -4,23 +4,37 @@ Railtracks (RT) provides a comprehensive error handling system designed to give 
 
 ## Error Hierarchy
 
-All Railtracks errors inherit from the base `RTError` class, which provides colored console output and structured error reporting.
+Railtracks errors are grouped under two roots, both of which provide colored console output and structured error reporting.
+
+Framework errors inherit from `RTError`:
 
 ```
 RTError (base)
 ├── NodeCreationError
 ├── NodeInvocationError
-├── LLMError
 ├── GlobalTimeOutError
 ├── ContextError
 └── FatalError
 ```
 
+Errors raised by the `railtracks.llm` package inherit from `RTLLMError` instead. That package is self-contained and does not depend on the rest of Railtracks, so it roots its own hierarchy:
+
+```
+RTLLMError (base)
+├── LLMError
+├── RetryError
+├── ModelError
+├── ModelNotFoundError
+└── ToolCreationError
+```
+
+`LLMError` is importable from either `railtracks.exceptions` or `railtracks.llm`. To catch anything the LLM layer raises, catch `RTLLMError`; note that it is **not** an `RTError`, so a single `except RTError` will not cover both groups.
+
 ## Error Types
 
 ### Internally Raised Errors
 
-These errors are automatically raised by Railtracks when issues occur during execution. All inherit from `RTError` and provide colored terminal output with debugging information.
+These errors are automatically raised by Railtracks when issues occur during execution. They provide colored terminal output with debugging information.
 
 - **`NodeCreationError`** - Raised during node setup and validation
 - **`NodeInvocationError`** - Raised during node execution (has `fatal` flag)
