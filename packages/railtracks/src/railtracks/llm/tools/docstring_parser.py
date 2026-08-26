@@ -36,24 +36,26 @@ def parse_docstring_args(docstring: str) -> Dict[str, str]:
     if not docstring:
         return {}
 
-    arg_descriptions = {}
-
-    # Google style
+    # Google style — keep priority for existing users; first match wins.
     args_section = extract_args_section(docstring)
     if args_section:
-        arg_descriptions.update(parse_args_section(args_section))
+        parsed = parse_args_section(args_section)
+        if parsed:
+            return parsed
 
     # NumPy style
     numpy_section = extract_numpy_args_section(docstring)
     if numpy_section:
-        arg_descriptions.update(parse_numpy_args_section(numpy_section))
+        parsed = parse_numpy_args_section(numpy_section)
+        if parsed:
+            return parsed
 
     # reST/Sphinx style
     rest_args = parse_rest_args_section(docstring)
     if rest_args:
-        arg_descriptions.update(rest_args)
+        return rest_args
 
-    return arg_descriptions
+    return {}
 
 
 def extract_args_section(docstring: str) -> str:
@@ -84,6 +86,10 @@ def extract_args_section(docstring: str) -> str:
                 and line.strip().endswith(":")
                 and not line.strip().startswith(" ")
             ):
+                break
+            if line.strip().startswith(":"):
+                break
+            if line.strip() and _is_numpy_section_header(split_lines, i):
                 break
 
             # Add the line to our args section
@@ -296,13 +302,16 @@ def extract_main_description(docstring: str) -> str:
     # Collect lines until we hit a section marker (like "Args:")
     main_description = []
     for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith(":"):
+            break
         if (
-            line.strip()
-            and line.strip().endswith(":")
-            and not line.strip().startswith(" ")
+            stripped
+            and stripped.endswith(":")
+            and not stripped.startswith(" ")
         ):
             break
-        if line.strip() and _is_numpy_section_header(lines, i):
+        if stripped and _is_numpy_section_header(lines, i):
             break
         main_description.append(line)
 
