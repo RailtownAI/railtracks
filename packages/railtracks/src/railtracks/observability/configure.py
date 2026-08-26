@@ -2,16 +2,40 @@
 
 from __future__ import annotations
 
+import os
 from typing import Callable
 
+from ..utils.logging.create import get_rt_logger
 from .models import Event
 from .observer import Observer
 from .writers.base import Writer
+from .writers.jsonl import JsonlWriter
+
+logger = get_rt_logger(__name__)
 
 observer: Observer = Observer()
 
 # Called synchronously before the event reaches the Observer's per-writer queues
 _inline_listeners: list[Callable[[Event], None]] = []
+
+_readonly_warning_emitted = False
+
+
+def _disable_events() -> bool:
+    return bool(os.environ.get("RAILTRACKS_DISABLE_EVENTS"))
+
+
+def _warn_readonly_disk_once(context: str, exc: OSError) -> None:
+    """Emit at most one WARN per process when railtracks can't write to disk."""
+    global _readonly_warning_emitted
+    if _readonly_warning_emitted:
+        return
+    _readonly_warning_emitted = True
+    logger.warning(
+        "railtracks could not write to disk during %s (%s: %s). "
+        "Set RAILTRACKS_DISABLE_EVENTS=1 to silence this warning.",
+        context, type(exc).__name__, exc,
+    )
 
 
 def configure_writers(writers: list[Writer]) -> None:
@@ -36,7 +60,18 @@ def inline_listeners() -> list[Callable[[Event], None]]:
 
 
 async def ensure_started() -> Observer:
-    """Start the singleton observer if not already started, return it."""
+    """Start the singleton observer if not already started, return it.
+
+    Auto-registers a default `JsonlWriter` when no writers have been configured
+    and `RAILTRACKS_DISABLE_EVENTS` is unset. Explicit `configure_writers(...)`
+    calls — including `configure_writers([])` — suppress the auto-default.
+    """
+    if (
+        not observer.is_running()
+        and not observer.has_explicit_writers()
+        and not _disable_events()
+    ):
+        observer.configure_writers([JsonlWriter()])
     await observer.start()
     return observer
 
@@ -55,6 +90,7 @@ def reset_for_tests() -> None:
     Swaps in a fresh `Observer` so consumer tasks from a previous test's event
     loop don't leak into the next one.
     """
-    global observer
+    global observer, _readonly_warning_emitted
     observer = Observer()
     _inline_listeners.clear()
+    _readonly_warning_emitted = False

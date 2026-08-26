@@ -236,8 +236,10 @@ def disable_persistence_for_tests():
     to override the default disable behavior.
     """
     os.environ["RAILTRACKS_TEST_MODE"] = "1"
+    os.environ["RAILTRACKS_DISABLE_EVENTS"] = "1"
     yield
     os.environ.pop("RAILTRACKS_TEST_MODE", None)
+    os.environ.pop("RAILTRACKS_DISABLE_EVENTS", None)
 
 
 @pytest.fixture
@@ -254,9 +256,12 @@ def allow_persistence():
             pass
     """
     previous_home = os.environ.pop("RAILTRACKS_HOME", None)
+    previous_disable_events = os.environ.pop("RAILTRACKS_DISABLE_EVENTS", None)
     os.environ["RAILTRACKS_ALLOW_PERSISTENCE"] = "1"
     yield
     os.environ.pop("RAILTRACKS_ALLOW_PERSISTENCE", None)
     if previous_home is not None:
         os.environ["RAILTRACKS_HOME"] = previous_home
+    if previous_disable_events is not None:
+        os.environ["RAILTRACKS_DISABLE_EVENTS"] = previous_disable_events
 

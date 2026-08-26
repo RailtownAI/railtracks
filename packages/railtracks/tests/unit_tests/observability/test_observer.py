@@ -218,3 +218,151 @@ async def test_drop_oldest_when_queue_full():
     finally:
         gate.set()
         await obs.shutdown()
+
+
+# ------------------------------------------------------------------------
+# Sentinel: distinguishes "configure_writers never called" from "called with []"
+# ------------------------------------------------------------------------
+
+
+def test_has_explicit_writers_false_on_fresh_observer():
+    assert Observer().has_explicit_writers() is False
+
+
+def test_has_explicit_writers_true_after_configure_writers():
+    obs = Observer()
+    obs.configure_writers([MemoryWriter()])
+    assert obs.has_explicit_writers() is True
+
+
+def test_has_explicit_writers_true_after_configure_writers_empty():
+    """configure_writers([]) is an explicit 'no writers' — must be
+    distinguishable from 'never called'. This is the whole point of the sentinel."""
+    obs = Observer()
+    obs.configure_writers([])
+    assert obs.has_explicit_writers() is True
+
+
+def test_is_running_reflects_start_shutdown_state():
+    obs = Observer()
+    assert obs.is_running() is False
+
+
+# ------------------------------------------------------------------------
+# Writer-start resilience (#1049)
+# ------------------------------------------------------------------------
+
+
+class _RaisingStartWriter:
+    """Writer whose start() raises. Post-start / write / shutdown never fire."""
+
+    def __init__(self, exc: BaseException):
+        self._exc = exc
+
+    async def start(self) -> None:
+        raise self._exc
+
+    async def write(self, event: Event) -> None:  # pragma: no cover — never called
+        raise AssertionError("write() should not be reached")
+
+    async def shutdown(self) -> None:  # pragma: no cover — never called
+        raise AssertionError("shutdown() should not be reached")
+
+
+async def test_start_skips_writer_that_fails_with_oserror(caplog):
+    """A pending writer whose start() raises OSError does not tank observer
+    bring-up. The good writer still registers; a single WARN is emitted."""
+    import logging
+
+    from railtracks.observability import configure
+
+    configure.reset_for_tests()  # reset the once-per-process warning flag
+    good = MemoryWriter()
+    bad = _RaisingStartWriter(OSError(30, "Read-only file system"))
+
+    obs = Observer()
+    obs.configure_writers([bad, good])
+    try:
+        with caplog.at_level(logging.WARNING, logger="railtracks"):
+            await obs.start()
+        assert obs.is_running() is True
+        assert "writer-0" not in obs._writers
+        assert "writer-1" in obs._writers
+        assert good.started is True
+        readonly_warnings = [
+            r for r in caplog.records if "could not write to disk" in r.getMessage()
+        ]
+        assert len(readonly_warnings) == 1
+        assert "RAILTRACKS_DISABLE_EVENTS=1" in readonly_warnings[0].getMessage()
+    finally:
+        await obs.shutdown()
+
+
+async def test_start_flips_running_when_all_writers_fail(caplog):
+    """Even with every writer failing, the observer must reach _running=True so
+    later publish() calls fail loudly instead of silently blocking."""
+    import logging
+
+    from railtracks.observability import configure
+
+    configure.reset_for_tests()
+    obs = Observer()
+    obs.configure_writers([_RaisingStartWriter(OSError("nope"))])
+    try:
+        with caplog.at_level(logging.WARNING, logger="railtracks"):
+            await obs.start()
+        assert obs.is_running() is True
+        assert obs._writers == {}
+        # publish() should raise RuntimeError, not hang or drop silently.
+        # (Observer._writers is empty, so it fans out to zero queues.)
+        await obs.publish(_event("e1"))
+    finally:
+        await obs.shutdown()
+
+
+async def test_readonly_disk_warning_emitted_only_once(caplog):
+    """Two failing writers in one start() batch → still just one WARN. The
+    helper's once-per-process guard prevents log spam."""
+    import logging
+
+    from railtracks.observability import configure
+
+    configure.reset_for_tests()
+    obs = Observer()
+    obs.configure_writers(
+        [
+            _RaisingStartWriter(OSError("first")),
+            _RaisingStartWriter(OSError("second")),
+        ]
+    )
+    try:
+        with caplog.at_level(logging.WARNING, logger="railtracks"):
+            await obs.start()
+        readonly_warnings = [
+            r for r in caplog.records if "could not write to disk" in r.getMessage()
+        ]
+        assert len(readonly_warnings) == 1
+    finally:
+        await obs.shutdown()
+
+
+async def test_start_logs_wider_warning_for_non_oserror_startup_failure(caplog):
+    """A non-OSError writer.start() failure gets a plain WARN (not the shared
+    'read-only disk' message)."""
+    import logging
+
+    from railtracks.observability import configure
+
+    configure.reset_for_tests()
+    obs = Observer()
+    obs.configure_writers([_RaisingStartWriter(RuntimeError("bad wiring"))])
+    try:
+        with caplog.at_level(logging.WARNING, logger="railtracks"):
+            await obs.start()
+        assert obs.is_running() is True
+        assert obs._writers == {}
+        msgs = [r.getMessage() for r in caplog.records]
+        assert any("failed to start" in m and "RuntimeError" in m for m in msgs)
+        assert not any("could not write to disk" in m for m in msgs)
+    finally:
+        await obs.shutdown()

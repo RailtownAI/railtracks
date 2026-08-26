@@ -40,7 +40,15 @@ class Observer:
         self._drops: dict[str, int] = {}  # dropped events per writer
         self._running = False
         self._pending_writers: list[Writer] = []
+        self._writers_explicitly_configured: bool = False
         self._start_lock: asyncio.Lock = asyncio.Lock()
+
+    def is_running(self) -> bool:
+        return self._running
+
+    def has_explicit_writers(self) -> bool:
+        """True once `configure_writers` has been called, regardless of list length."""
+        return self._writers_explicitly_configured
 
     # async context manager support added for now, this will become more clear
     # once we move to integrating with the other modules
@@ -62,6 +70,7 @@ class Observer:
                 "configure_writers must be called before start(); use register() to add writers after."
             )
         self._pending_writers = list(writers)
+        self._writers_explicitly_configured = True
 
     async def start(self) -> None:
         """Bring up the observer.
@@ -73,8 +82,18 @@ class Observer:
         async with self._start_lock:
             if self._running:
                 return
+            from .configure import _warn_readonly_disk_once
             for i, writer in enumerate(self._pending_writers):
-                await self._register_impl(writer, f"writer-{i}")
+                name = f"writer-{i}"
+                try:
+                    await self._register_impl(writer, name)
+                except OSError as exc:
+                    _warn_readonly_disk_once(f"writer {name!r} start", exc)
+                except Exception as exc:
+                    logger.warning(
+                        "observability writer %r failed to start: %s: %s",
+                        name, type(exc).__name__, exc,
+                    )
             self._running = True
 
     async def shutdown(self) -> None:
