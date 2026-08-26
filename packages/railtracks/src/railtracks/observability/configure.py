@@ -34,7 +34,9 @@ def _warn_readonly_disk_once(context: str, exc: OSError) -> None:
     logger.warning(
         "railtracks could not write to disk during %s (%s: %s). "
         "Set RAILTRACKS_DISABLE_EVENTS=1 to silence this warning.",
-        context, type(exc).__name__, exc,
+        context,
+        type(exc).__name__,
+        exc,
     )
 
 

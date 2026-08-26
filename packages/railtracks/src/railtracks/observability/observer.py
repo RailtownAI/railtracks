@@ -83,6 +83,7 @@ class Observer:
             if self._running:
                 return
             from .configure import _warn_readonly_disk_once
+
             for i, writer in enumerate(self._pending_writers):
                 name = f"writer-{i}"
                 try:
@@ -92,7 +93,9 @@ class Observer:
                 except Exception as exc:
                     logger.warning(
                         "observability writer %r failed to start: %s: %s",
-                        name, type(exc).__name__, exc,
+                        name,
+                        type(exc).__name__,
+                        exc,
                     )
             self._running = True
 
