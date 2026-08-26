@@ -236,7 +236,7 @@ def disable_persistence_for_tests():
     to override the default disable behavior.
     """
     os.environ["RAILTRACKS_TEST_MODE"] = "1"
-    os.environ["RAILTRACKS_DISABLE_EVENTS"] = "1"
+    os.environ["RAILTRACKS_DISABLE_EVENTS"] = "True"
     yield
     os.environ.pop("RAILTRACKS_TEST_MODE", None)
     os.environ.pop("RAILTRACKS_DISABLE_EVENTS", None)

@@ -22,7 +22,9 @@ _readonly_warning_emitted = False
 
 
 def _disable_events() -> bool:
-    return bool(os.environ.get("RAILTRACKS_DISABLE_EVENTS"))
+    """Parse RAILTRACKS_DISABLE_EVENTS as a strict True/False env var
+    (case-insensitive). Anything else, including unset, is False."""
+    return os.environ.get("RAILTRACKS_DISABLE_EVENTS", "").strip().lower() == "true"
 
 
 def _warn_readonly_disk_once(context: str, exc: OSError) -> None:
@@ -33,7 +35,7 @@ def _warn_readonly_disk_once(context: str, exc: OSError) -> None:
     _readonly_warning_emitted = True
     logger.warning(
         "railtracks could not write to disk during %s (%s: %s). "
-        "Set RAILTRACKS_DISABLE_EVENTS=1 to silence this warning.",
+        "Set RAILTRACKS_DISABLE_EVENTS=True to silence this warning.",
         context,
         type(exc).__name__,
         exc,

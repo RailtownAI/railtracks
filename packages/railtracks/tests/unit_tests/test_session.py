@@ -230,10 +230,10 @@ def test_session_explicit_save_state_false_emits_deprecation_warning(monkeypatch
 def test_session_exit_skips_save_when_disable_events_env_set(
     tmp_path, monkeypatch
 ):
-    """RAILTRACKS_DISABLE_EVENTS=1 wins over save_state=True. Nothing written,
+    """RAILTRACKS_DISABLE_EVENTS=True wins over save_state=True. Nothing written,
     no log noise."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
-    monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "1")
+    monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "True")
     monkeypatch.delenv("RAILTRACKS_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
 
@@ -281,7 +281,7 @@ def test_session_exit_swallows_oserror_on_readonly_disk(
 
     readonly = [rec for rec in caplog.records if "could not write to disk" in rec.getMessage()]
     assert len(readonly) == 1
-    assert "RAILTRACKS_DISABLE_EVENTS=1" in readonly[0].getMessage()
+    assert "RAILTRACKS_DISABLE_EVENTS=True" in readonly[0].getMessage()
     errors = [rec for rec in caplog.records if rec.levelname == "ERROR"]
     assert errors == []
 

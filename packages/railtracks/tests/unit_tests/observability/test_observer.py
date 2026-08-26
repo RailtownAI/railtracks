@@ -293,7 +293,7 @@ async def test_start_skips_writer_that_fails_with_oserror(caplog):
             r for r in caplog.records if "could not write to disk" in r.getMessage()
         ]
         assert len(readonly_warnings) == 1
-        assert "RAILTRACKS_DISABLE_EVENTS=1" in readonly_warnings[0].getMessage()
+        assert "RAILTRACKS_DISABLE_EVENTS=True" in readonly_warnings[0].getMessage()
     finally:
         await obs.shutdown()
 

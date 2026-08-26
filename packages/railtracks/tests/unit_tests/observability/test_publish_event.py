@@ -126,7 +126,7 @@ async def test_publish_after_shutdown_raises():
 
 
 async def test_ensure_started_with_events_disabled_skips_auto_default(caplog):
-    """With RAILTRACKS_DISABLE_EVENTS=1 (set by conftest) and no explicit
+    """With RAILTRACKS_DISABLE_EVENTS=True (set by conftest) and no explicit
     configure_writers, ensure_started() starts with zero pending writers.
     Subsequent publishes fan out to nothing."""
     await ensure_started()

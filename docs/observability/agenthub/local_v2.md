@@ -69,13 +69,13 @@ railtracks viz --beta
 
 ### Deployed environments with no writable disk
 
-Set `RAILTRACKS_DISABLE_EVENTS=1` on hosts where Railtracks can't (or
+Set `RAILTRACKS_DISABLE_EVENTS=True` on hosts where Railtracks can't (or
 shouldn't) write to disk. It skips **both** the auto-registered event
 writer and the legacy `save_state` session dump, regardless of what
 `save_state=` is set to.
 
 ```bash title="Turn off Railtracks-owned disk writes"
-export RAILTRACKS_DISABLE_EVENTS=1
+export RAILTRACKS_DISABLE_EVENTS=True
 ```
 
 For hosted observability in these environments, use Conductr.
