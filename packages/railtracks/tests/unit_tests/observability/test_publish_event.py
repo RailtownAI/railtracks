@@ -165,5 +165,3 @@ async def test_explicit_configure_writers_wins_over_auto_default(monkeypatch):
         assert entries[0].writer is user_writer
     finally:
         await shutdown()
-
-

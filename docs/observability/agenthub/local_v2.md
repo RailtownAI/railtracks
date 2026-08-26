@@ -51,9 +51,9 @@ To use your own writer set (or add more alongside the default), call
 ```
 
 !!! warning "`configure_writers`"
-    `configure_writers` overwrites the default behaviour so if you'd like
-    to still have the local events files, you need the pass the `JsonlWriter()` as well as
-    any new or custom writers
+    `configure_writers` replaces the auto-registered default, so if you'd like
+    to still have the local event files, you need to pass `JsonlWriter()` as
+    well as any new or custom writers.
 
 ### Use another event directory
 

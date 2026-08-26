@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from typing import Callable
 
+from ..utils.config import _disable_events
 from ..utils.logging.create import get_rt_logger
 from .models import Event
 from .observer import Observer
@@ -17,12 +17,6 @@ observer: Observer = Observer()
 
 # Called synchronously before the event reaches the Observer's per-writer queues
 _inline_listeners: list[Callable[[Event], None]] = []
-
-
-def _disable_events() -> bool:
-    """Parse RAILTRACKS_DISABLE_EVENTS as a strict True/False env var
-    (case-insensitive). Anything else, including unset, is False."""
-    return os.environ.get("RAILTRACKS_DISABLE_EVENTS", "").strip().lower() == "true"
 
 
 def configure_writers(writers: list[Writer]) -> None:

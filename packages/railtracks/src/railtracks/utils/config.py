@@ -5,6 +5,12 @@ import warnings
 from typing import Any, Callable, Coroutine
 
 
+def _disable_events() -> bool:
+    """Parse RAILTRACKS_DISABLE_EVENTS as a strict True/False env var
+    (case-insensitive). Anything else, including unset, is False."""
+    return os.environ.get("RAILTRACKS_DISABLE_EVENTS", "").strip().lower() == "true"
+
+
 class ExecutorConfig:
     def __init__(
         self,
@@ -36,6 +42,8 @@ class ExecutorConfig:
                 DeprecationWarning,
                 stacklevel=2,
             )
+        # During test runs, disable save_state by default unless
+        # RAILTRACKS_ALLOW_PERSISTENCE is set (see `save_state` property).
         self._user_save_state = save_state
 
         self.payload_callback = payload_callback
@@ -48,7 +56,7 @@ class ExecutorConfig:
             "RAILTRACKS_ALLOW_PERSISTENCE"
         ):
             return False
-        if os.environ.get("RAILTRACKS_DISABLE_EVENTS", "").strip().lower() == "true":
+        if _disable_events():
             return False
         return True if self._user_save_state is None else self._user_save_state
 
@@ -66,7 +74,7 @@ class ExecutorConfig:
         """
         If any of the parameters are provided (not None), it will create a new update the current instance with the new values and return a deep copied reference to it.
         """
-        return ExecutorConfig(
+        new = ExecutorConfig(
             timeout=timeout,
             end_on_error=end_on_error
             if end_on_error is not None
@@ -74,11 +82,14 @@ class ExecutorConfig:
             broadcast_callback=subscriber
             if subscriber is not None
             else self.subscriber,
-            save_state=save_state if save_state is not None else self._user_save_state,
+            save_state=save_state,
             payload_callback=payload_callback
             if payload_callback is not None
             else self.payload_callback,
         )
+        if save_state is None:
+            new._user_save_state = self._user_save_state
+        return new
 
     def __repr__(self):
         return (
