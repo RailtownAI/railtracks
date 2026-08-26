@@ -24,18 +24,17 @@ class ExecutorConfig:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
             broadcast_callback (Callable or Coroutine): A function or coroutine that receives items published with `rt.broadcast`.
-            save_state (bool | None): If true, the executor state is saved to disk at the end of the run. Pass None (or omit) to use the current implicit default (True); a DeprecationWarning fires and the default flips to False in the next release.
+            save_state (bool | None): Deprecated. If passed, emits a DeprecationWarning. `RAILTRACKS_DISABLE_EVENTS=True` skips the write regardless. Otherwise, explicit value wins; when unset, defaults to True (save).
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
         self.subscriber = broadcast_callback
         if save_state is not None:
             warnings.warn(
-                "The save_state parameter is deprecated and will be removed in "
-                "a future release. The .railtracks/data/sessions/*.json dump is "
-                "being replaced by the event stream (.railtracks/data/events/). "
-                "Remove the save_state argument to let the framework default "
-                "take over; the default flips from True to False next release.",
+                "The save_state parameter is deprecated. Use the "
+                "RAILTRACKS_DISABLE_EVENTS env var instead — it controls "
+                "whether railtracks writes to disk, and takes precedence "
+                "over save_state when set.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -50,6 +49,8 @@ class ExecutorConfig:
         if os.getenv("RAILTRACKS_TEST_MODE") and not os.getenv(
             "RAILTRACKS_ALLOW_PERSISTENCE"
         ):
+            return False
+        if os.environ.get("RAILTRACKS_DISABLE_EVENTS", "").strip().lower() == "true":
             return False
         return True if self._user_save_state is None else self._user_save_state
 

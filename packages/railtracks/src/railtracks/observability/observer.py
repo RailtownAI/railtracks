@@ -81,7 +81,9 @@ class Observer:
                     logger.warning(
                         "observability writer %r failed to start (%s: %s); "
                         "continuing without it.",
-                        name, type(exc).__name__, exc,
+                        name,
+                        type(exc).__name__,
+                        exc,
                     )
             self._running = True
 
