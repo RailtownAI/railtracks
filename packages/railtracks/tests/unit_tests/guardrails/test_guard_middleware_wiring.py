@@ -35,6 +35,28 @@ class FnOutputGuard(OutputGuard):
         return self._decision_fn(event)
 
 
+class AsyncFnInputGuard(InputGuard):
+    """Same as FnInputGuard, but with an ``async def __call__``."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._decision_fn = fn
+
+    async def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._decision_fn(event)
+
+
+class AsyncFnOutputGuard(OutputGuard):
+    """Same as FnOutputGuard, but with an ``async def __call__``."""
+
+    def __init__(self, fn, name: str | None = None):
+        super().__init__(name=name)
+        self._decision_fn = fn
+
+    async def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
+        return self._decision_fn(event)
+
+
 def _make_response(text: str = "hi") -> Response:
     return Response(message=AssistantMessage(text), message_info=MessageInfo(model_name="m"))
 
@@ -178,3 +200,82 @@ async def test_output_guard_skips_intermediate_tool_call_turns():
 
     assert guard_fired["n"] == 0  # tool-requesting turns are intermediate: never guarded
     assert result is tool_call_response  # passed through untouched, tool calls intact
+
+
+# ---------------------------------------------------------------------------
+# Async guards wire up identically
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_async_input_guard_transform_rewrites_history_before_call():
+    seen = {}
+    new_history = MessageHistory([UserMessage("redacted")])
+
+    async def fake_call(message_history, schema, tools):
+        seen["message_history"] = message_history
+        return _make_response("ok")
+
+    guard = AsyncFnInputGuard(
+        lambda _e: GuardrailDecision.transform_messages(messages=new_history, reason="t")
+    )
+
+    await guard.wrap(fake_call)(MessageHistory([UserMessage("hi")]), None, None)
+
+    assert seen["message_history"] == new_history
+
+
+@pytest.mark.asyncio
+async def test_async_input_guard_block_raises_and_never_calls_onward():
+    call_count = {"n": 0}
+
+    async def fake_call(message_history, schema, tools):
+        call_count["n"] += 1
+        return _make_response("should not happen")
+
+    guard = AsyncFnInputGuard(
+        lambda _e: GuardrailDecision.block(reason="nope", user_facing_message="blocked")
+    )
+
+    with pytest.raises(GuardrailBlockedError) as exc:
+        await guard.wrap(fake_call)(MessageHistory([UserMessage("hi")]), None, None)
+
+    assert call_count["n"] == 0
+    assert exc.value.reason == "nope"
+
+
+@pytest.mark.asyncio
+async def test_async_output_guard_blocks_the_final_reply():
+    async def fake_call(message_history, schema, tools):
+        return _make_response("leaky")
+
+    guard = AsyncFnOutputGuard(lambda _e: GuardrailDecision.block(reason="bad output"))
+
+    with pytest.raises(GuardrailBlockedError) as exc:
+        await guard.wrap(fake_call)(MessageHistory([UserMessage("q")]), None, None)
+
+    assert exc.value.reason == "bad output"
+
+
+@pytest.mark.asyncio
+async def test_async_output_guard_skips_intermediate_tool_calls():
+    """An async rail is still exempt from intermediate tool-call turns."""
+    fired = {"n": 0}
+
+    def decision(_e):
+        fired["n"] += 1
+        return GuardrailDecision.block(reason="should never fire")
+
+    async def fake_call(message_history, schema, tools):
+        return Response(
+            message=AssistantMessage(
+                [ToolCall(name="t", identifier="tc_1", arguments={})]
+            ),
+            message_info=MessageInfo(model_name="m"),
+        )
+
+    guard = AsyncFnOutputGuard(decision)
+    result = await guard.wrap(fake_call)(MessageHistory([UserMessage("q")]), None, None)
+
+    assert fired["n"] == 0
+    assert len(result.message.tool_calls) == 1

@@ -53,9 +53,9 @@ def _output_event(messages: MessageHistory, output_message) -> LLMGuardrailEvent
 # ---------------------------------------------------------------------------
 
 
-def test_run_allow_returns_value_unchanged(sample_history):
+async def test_run_allow_returns_value_unchanged(sample_history):
     guard = FnInputGuard(lambda _e: GuardrailDecision.allow(reason="ok"))
-    value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert value == sample_history
     assert blocked == GuardrailDecision.allow()
@@ -68,19 +68,19 @@ def test_run_allow_returns_value_unchanged(sample_history):
 # ---------------------------------------------------------------------------
 
 
-def test_run_transform_updates_value(sample_history):
+async def test_run_transform_updates_value(sample_history):
     new_hist = MessageHistory([UserMessage("two")])
     guard = FnInputGuard(
         lambda _e: GuardrailDecision.transform_messages(messages=new_hist, reason="t1")
     )
-    value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert blocked.reason == "t1"
     assert value == new_hist
     assert traces[-1].action == "transform"
 
 
-def test_run_transform_missing_messages_fail_closed(sample_history):
+async def test_run_transform_missing_messages_fail_closed(sample_history):
     class BadTransform(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision(
@@ -88,7 +88,7 @@ def test_run_transform_missing_messages_fail_closed(sample_history):
             )
 
     guard = BadTransform(fail_open=False)
-    value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert blocked is not None
     assert blocked.action == GuardrailAction.BLOCK
@@ -96,7 +96,7 @@ def test_run_transform_missing_messages_fail_closed(sample_history):
     assert traces[-1].action == "error"
 
 
-def test_run_transform_missing_messages_fail_open(sample_history):
+async def test_run_transform_missing_messages_fail_open(sample_history):
     class BadTransform(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision(
@@ -104,7 +104,7 @@ def test_run_transform_missing_messages_fail_open(sample_history):
             )
 
     guard = BadTransform(fail_open=True)
-    value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert blocked == GuardrailDecision.allow()  # fail_open lets the run continue
     assert value == sample_history  # unchanged: the failed transform never applied
@@ -116,13 +116,13 @@ def test_run_transform_missing_messages_fail_open(sample_history):
 # ---------------------------------------------------------------------------
 
 
-def test_run_block_stops_regardless_of_fail_open(sample_history):
+async def test_run_block_stops_regardless_of_fail_open(sample_history):
     for fail_open in (False, True):
         guard = FnInputGuard(
             lambda _e: GuardrailDecision.block(reason="stop", user_facing_message="u"),
             fail_open=fail_open,
         )
-        value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+        value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
         assert blocked is not None, f"fail_open={fail_open} should not override an explicit BLOCK"
         assert blocked.action == GuardrailAction.BLOCK
@@ -135,12 +135,12 @@ def test_run_block_stops_regardless_of_fail_open(sample_history):
 # ---------------------------------------------------------------------------
 
 
-def test_run_rail_raises_fail_closed(sample_history):
+async def test_run_rail_raises_fail_closed(sample_history):
     def boom(_e: LLMGuardrailEvent) -> GuardrailDecision:
         raise RuntimeError("rail error")
 
     guard = FnInputGuard(boom, fail_open=False)
-    value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert blocked is not None
     assert "raised exception" in blocked.reason.lower()
@@ -149,24 +149,24 @@ def test_run_rail_raises_fail_closed(sample_history):
     assert traces[0].meta.get("exception_type") == "RuntimeError"
 
 
-def test_run_rail_raises_fail_open(sample_history):
+async def test_run_rail_raises_fail_open(sample_history):
     def boom(_e: LLMGuardrailEvent) -> GuardrailDecision:
         raise ValueError("x")
 
     guard = FnInputGuard(boom, fail_open=True)
-    value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert blocked == GuardrailDecision.allow()  # fail_open lets the run continue
     assert value == sample_history
     assert traces[0].action == "error"
 
 
-def test_run_wrong_return_type_fail_closed(sample_history):
+async def test_run_wrong_return_type_fail_closed(sample_history):
     def bad(_e: LLMGuardrailEvent):
         return "not a decision"
 
     guard = FnInputGuard(bad, fail_open=False)
-    value, traces, blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
     assert blocked is not None
     assert "raised exception" in blocked.reason.lower()
@@ -187,23 +187,23 @@ def test_run_wrong_return_type_fail_closed(sample_history):
 # ---------------------------------------------------------------------------
 
 
-def test_trace_rail_name_fallback_to_class(sample_history):
+async def test_trace_rail_name_fallback_to_class(sample_history):
     class UnnamedRail(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision.allow()
 
     guard = UnnamedRail()
-    _value, traces, _blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    _value, traces, _blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
     assert traces[0].rail_name == "UnnamedRail"
 
 
-def test_trace_uses_rail_name_attr(sample_history):
+async def test_trace_uses_rail_name_attr(sample_history):
     class NamedRail(InputGuard):
         def __call__(self, _e: LLMGuardrailEvent) -> GuardrailDecision:
             return GuardrailDecision.allow()
 
     guard = NamedRail(name="custom")
-    _value, traces, _blocked = guard.run(event=_input_event(sample_history), value=sample_history)
+    _value, traces, _blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
     assert traces[0].rail_name == "custom"
 
 
@@ -212,10 +212,10 @@ def test_trace_uses_rail_name_attr(sample_history):
 # ---------------------------------------------------------------------------
 
 
-def test_run_output_block(sample_history):
+async def test_run_output_block(sample_history):
     output_message = AssistantMessage("a")
     guard = FnOutputGuard(lambda _e: GuardrailDecision.block(reason="bad output"))
-    value, traces, blocked = guard.run(
+    value, traces, blocked = await guard.run(
         event=_output_event(sample_history, output_message), value=output_message
     )
 
@@ -223,13 +223,13 @@ def test_run_output_block(sample_history):
     assert traces[-1].action == "block"
 
 
-def test_run_output_transform(sample_history):
+async def test_run_output_transform(sample_history):
     output_message = AssistantMessage("a")
     new_message = AssistantMessage("b")
     guard = FnOutputGuard(
         lambda _e: GuardrailDecision.transform_output(output_message=new_message, reason="fix")
     )
-    value, traces, blocked = guard.run(
+    value, traces, blocked = await guard.run(
         event=_output_event(sample_history, output_message), value=output_message
     )
 
