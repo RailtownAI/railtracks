@@ -32,9 +32,7 @@ class ExecutorConfig:
         if save_state is not None:
             warnings.warn(
                 "The save_state parameter is deprecated. Use the "
-                "RAILTRACKS_DISABLE_EVENTS env var instead — it controls "
-                "whether railtracks writes to disk, and takes precedence "
-                "over save_state when set.",
+                "RAILTRACKS_DISABLE_EVENTS env var instead",
                 DeprecationWarning,
                 stacklevel=2,
             )

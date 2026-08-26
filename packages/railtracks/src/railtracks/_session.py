@@ -56,7 +56,7 @@ class Session:
     - `timeout`: 150.0 seconds
     - `end_on_error`: False
     - `broadcast_callback`: None (no event listener)
-    - `save_state`: True (writes `.railtracks/data/sessions/*.json` at the end of the run). The whole parameter is deprecated — see the per-arg note; default flips to False in the next release.
+    - `save_state`: True (the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory)
 
 
     Args:
@@ -67,8 +67,7 @@ class Session:
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A passive listener for one-off events published with `rt.broadcast`.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory. Explicitly setting this argument emits a DeprecationWarning.
-            Default: True. Set `RAILTRACKS_DISABLE_EVENTS=True` to skip the write regardless.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
     """
 
     def __init__(
@@ -399,7 +398,7 @@ def session(
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory. Deprecated — passing this argument emits a DeprecationWarning; the file dump is being replaced by the event stream.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
     Returns:
         A decorator function that takes an async function and returns a new async function
@@ -448,7 +447,7 @@ def session(
         timeout (float, optional): The maximum number of seconds to wait for a response to your top-level request.
         end_on_error (bool, optional): If True, the execution will stop when an exception is encountered.
         broadcast_callback (Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None, optional): A callback function that will be called with the broadcast messages.
-        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory. Deprecated — passing this argument emits a DeprecationWarning; the file dump is being replaced by the event stream. Default: True this release, flips to False next release. Set `RAILTRACKS_DISABLE_EVENTS=True` to skip the write regardless.
+        save_state (bool, optional): If True, the state of the execution will be saved to a file at the end of the run in the `.railtracks/data/sessions/` directory.
 
     Returns:
         When used as @session (without parentheses): Returns the decorated function that returns (result, session).
