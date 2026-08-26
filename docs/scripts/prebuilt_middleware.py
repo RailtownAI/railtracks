@@ -44,6 +44,22 @@ TimedAgent = rt.agent_node(
 )
 # --8<-- [end: timeout]
 
+# --8<-- [start: max_calls]
+import railtracks as rt
+from railtracks.prebuilt.middleware import MaxCalls
+
+
+def some_api_call():
+    return "API response"
+
+
+# MaxCalls is slot-agnostic: use it as node middleware, model middleware, or both.
+LimitedApiCall = rt.function_node(
+    some_api_call,
+    middleware=[MaxCalls(max_calls=3, custom_message="API call budget exhausted")],
+)
+# --8<-- [end: max_calls]
+
 
 # --8<-- [start: context_injection]
 import railtracks as rt
