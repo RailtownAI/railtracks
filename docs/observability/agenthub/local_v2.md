@@ -38,8 +38,7 @@ routes, and interactive API documentation is available at
 
 ## Record event-stream data
 
-Events are recorded automatically to `.railtracks/data/events` when you
-invoke a flow — no writer setup required. The beta visualizer reads from the
+Events are recorded automatically to `.railtracks/data/events` with no setup required. The beta visualizer reads from the
 same directory.
 
 ### Customize event writers
@@ -51,13 +50,10 @@ To use your own writer set (or add more alongside the default), call
 --8<-- "docs/scripts/observability/events.py:v2-viz"
 ```
 
-Passing any list — including `configure_writers([])` — suppresses the
-auto-injected default. This is the escape hatch when you want zero event
-writers for a specific run.
-
-!!! warning "Configure writers before running a flow"
-    `configure_writers(...)` must run before observability starts. Put it in
-    your application startup code, before the first flow or agent invocation.
+!!! warning "`configure_writers`"
+    `configure_writers` overwrites the default behaviour so if you'd like
+    to still have the local events files, you need the pass the `JsonlWriter()` as well as
+    any new or custom writers
 
 ### Use another event directory
 
@@ -84,7 +80,7 @@ export RAILTRACKS_DISABLE_EVENTS=1
 
 For hosted observability in these environments, use Conductr.
 
-!!! info "`save_state` default is changing"
+!!! warning "`save_state` default is changing"
     `save_state=True` still writes `.railtracks/data/sessions/*.json` for the
     stable (v1) visualizer this release. When it's not set explicitly, a
     `DeprecationWarning` is emitted; the default flips to `False` in the next
