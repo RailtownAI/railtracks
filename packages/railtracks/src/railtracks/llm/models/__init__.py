@@ -1,6 +1,5 @@
 from .api_providers import (
     AnthropicLLM,
-    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OpenAICompatibleProvider,
@@ -17,6 +16,5 @@ __all__ = [
     OllamaLLM,
     HuggingFaceLLM,
     PortKeyLLM,
-    CohereLLM,
     "OpenAICompatibleProvider",
 ]
