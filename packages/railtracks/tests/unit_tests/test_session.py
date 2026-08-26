@@ -205,7 +205,7 @@ def test_session_implicit_default_save_state_is_true_and_no_warning(
     save_state_warnings = [
         w for w in recwarn.list
         if issubclass(w.category, DeprecationWarning)
-        and "save_state parameter is deprecated" in str(w.message)
+        and "save_state parameter is being deprecated" in str(w.message)
     ]
     assert save_state_warnings == []
 
@@ -215,7 +215,7 @@ def test_session_explicit_save_state_true_emits_deprecation_warning(monkeypatch)
     True still resolves to True."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
-    with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
+    with pytest.warns(DeprecationWarning, match="save_state parameter is being deprecated"):
         r = Session(save_state=True)
     assert r.executor_config.save_state is True
 
@@ -223,7 +223,7 @@ def test_session_explicit_save_state_true_emits_deprecation_warning(monkeypatch)
 def test_session_explicit_save_state_false_emits_deprecation_warning(monkeypatch):
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
-    with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
+    with pytest.warns(DeprecationWarning, match="save_state parameter is being deprecated"):
         r = Session(save_state=False)
     assert r.executor_config.save_state is False
 
@@ -233,7 +233,7 @@ def test_env_var_wins_over_explicit_save_state_true(monkeypatch):
     env var is the ops-level kill switch and takes precedence."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "True")
-    with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
+    with pytest.warns(DeprecationWarning, match="save_state parameter is being deprecated"):
         r = Session(save_state=True)
     assert r.executor_config.save_state is False
 

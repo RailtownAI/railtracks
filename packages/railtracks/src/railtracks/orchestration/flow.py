@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import warnings
 from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
@@ -58,6 +59,14 @@ class Flow(Generic[_P, _TOutput]):
             self.entry_point = entry_point.node_type
         else:
             self.entry_point = entry_point
+
+        if save_state is not None:
+            warnings.warn(
+                "The save_state parameter is being deprecated. Use the "
+                "RAILTRACKS_DISABLE_EVENTS env var instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         self.name = name
         self._context: dict[str, Any] = context or {}

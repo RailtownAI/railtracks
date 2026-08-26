@@ -37,7 +37,7 @@ class ExecutorConfig:
         self.subscriber = broadcast_callback
         if save_state is not None:
             warnings.warn(
-                "The save_state parameter is deprecated. Use the "
+                "The save_state parameter is being deprecated. Use the "
                 "RAILTRACKS_DISABLE_EVENTS env var instead",
                 DeprecationWarning,
                 stacklevel=2,

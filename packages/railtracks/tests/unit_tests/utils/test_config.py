@@ -102,7 +102,7 @@ def test_precedence_overwritten_timeout_float_enables(base_config):
 
 
 def test_save_state_explicit_emits_deprecation_warning():
-    with pytest.warns(DeprecationWarning, match="save_state parameter is deprecated"):
+    with pytest.warns(DeprecationWarning, match="save_state parameter is being deprecated"):
         ExecutorConfig(save_state=False)
 
 
