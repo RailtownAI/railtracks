@@ -32,7 +32,9 @@ class TestPreVerifierUnit:
             await gate.wrap(core)()
 
     async def test_decline_with_comment_is_carried_into_the_exception(self):
-        gate = pre_verifier(lambda *a, **k: Verdict(accepted=False, comment="too risky"))
+        gate = pre_verifier(
+            lambda *a, **k: Verdict(accepted=False, comment="too risky")
+        )
 
         async def core():
             raise AssertionError("core should not run")
@@ -51,7 +53,9 @@ class TestPreVerifierUnit:
         assert await gate.wrap(core)(100) == 1
 
     async def test_accept_with_comments_rewrites_kwargs(self):
-        gate = pre_verifier(lambda *a, **k: Verdict(accepted=True, kwargs={"amount": 1}))
+        gate = pre_verifier(
+            lambda *a, **k: Verdict(accepted=True, kwargs={"amount": 1})
+        )
 
         async def core(amount):
             return amount

@@ -87,9 +87,7 @@ class TestPostVerifierUnit:
         async def core(order_id, amount):
             return f"{order_id}:{amount}"
 
-        assert (
-            await gate.wrap(core)(order_id="A1", amount=5) == "A1:5"
-        )
+        assert await gate.wrap(core)(order_id="A1", amount=5) == "A1:5"
         assert seen == {"order_id": "A1", "amount": 5, "result": "A1:5"}
 
     async def test_async_approve_fn_is_supported(self):
