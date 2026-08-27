@@ -76,7 +76,7 @@ lint.mccabe.max-complexity = 10
 
 fix = true
 
-exclude = [".git", "examples", "docs", ".venv", "tests"]
+exclude = [".git", "examples", "docs", ".venv",]
 
 
 [tool.pytest.ini_options]

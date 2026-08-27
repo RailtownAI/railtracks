@@ -33,6 +33,47 @@ picky_retry = Retry(
 # --8<-- [end: retry_configured]
 
 
+# --8<-- [start: timeout]
+import railtracks as rt
+from railtracks.prebuilt.middleware import Timeout
+
+TimedAgent = rt.agent_node(
+    name="timeout-demo",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    middleware=[Timeout(seconds=30)],
+)
+# --8<-- [end: timeout]
+
+# --8<-- [start: max_calls]
+import railtracks as rt
+from railtracks.prebuilt.middleware import MaxCalls
+
+
+def some_api_call():
+    return "API response"
+
+
+# MaxCalls is slot-agnostic: use it as node middleware, model middleware, or both.
+LimitedApiCall = rt.function_node(
+    some_api_call,
+    middleware=[MaxCalls(max_calls=3, custom_message="API call budget exhausted")],
+)
+# --8<-- [end: max_calls]
+
+
+# --8<-- [start: lock]
+import railtracks as rt
+from railtracks.prebuilt.middleware import Lock
+
+shared_lock = Lock()
+LockedAgent = rt.agent_node(
+    name="lock-demo",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    middleware=[shared_lock],
+)
+# --8<-- [end: lock]
+
+
 # --8<-- [start: context_injection]
 import railtracks as rt
 from railtracks.prebuilt.middleware import ContextInjection

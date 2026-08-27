@@ -84,12 +84,19 @@ pip install 'railtracks[visual]'
 | Flag | Description |
 |---|---|
 | `--force` | Overwrite an existing skill without prompting |
+| `--list` | Print every bundled skill and supported assistant, then exit |
 
 ```bash
 railtracks add --force claude:agent-builder
 ```
 
 ## Available Skills
+
+To see what ships with the version you have installed, ask the CLI:
+
+```bash
+railtracks add --list
+```
 
 | Skill | Description |
 |---|---|

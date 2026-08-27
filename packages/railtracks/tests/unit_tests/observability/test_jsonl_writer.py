@@ -3,8 +3,8 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-
 from railtracks.observability import (
+    EVENTS_DIR_ENV,
     SCOPE_RETRIEVAL,
     SCOPE_SESSION,
     Event,
@@ -37,6 +37,21 @@ async def test_start_creates_directory(tmp_path: Path):
         assert target.is_dir()
     finally:
         await writer.shutdown()
+
+
+async def test_default_directory_matches_visualizer_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    writer = JsonlWriter()
+
+    await writer.start()
+    try:
+        await writer.write(_make_session_event(SCOPE_SESSION, scope_id="default"))
+    finally:
+        await writer.shutdown()
+
+    assert (tmp_path / "default.jsonl").exists()
 
 
 async def test_write_creates_per_scope_id_files(tmp_path: Path):
@@ -141,7 +156,29 @@ async def test_write_rejects_unsafe_scope_id(tmp_path: Path, bad_scope_id: str):
     await writer.start()
     try:
         with pytest.raises(ValueError, match="unsafe scope_id"):
-            await writer.write(_make_session_event(SCOPE_SESSION, scope_id=bad_scope_id))
+            await writer.write(
+                _make_session_event(SCOPE_SESSION, scope_id=bad_scope_id)
+            )
         assert list(tmp_path.iterdir()) == []
     finally:
         await writer.shutdown()
+
+
+async def test_start_propagates_mkdir_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """JsonlWriter.start() surfaces the mkdir OSError to its caller. Higher
+    layers (Observer.start) are what catch it and route to the shared helper."""
+    target = tmp_path / "unwritable" / "events"
+    writer = JsonlWriter(target)
+
+    original_mkdir = Path.mkdir
+
+    def _refuse(self, *args, **kwargs):
+        if self == target:
+            raise OSError(30, "Read-only file system")
+        return original_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", _refuse)
+    with pytest.raises(OSError, match="Read-only file system"):
+        await writer.start()

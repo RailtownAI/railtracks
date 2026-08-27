@@ -1,4 +1,4 @@
-from railtracks.llm import CohereLLM 
+from railtracks.llm import CohereLLM
 
 
 def test_llm_correct_init():

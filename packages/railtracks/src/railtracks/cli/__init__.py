@@ -34,7 +34,10 @@ from colorama import Fore, Style
 from railtracks.paths import resolve_railtracks_home
 
 from .constants import (
+    BETA_PORT,
+    BETA_UI_URL_ENV,
     DEFAULT_PORT,
+    beta_ui_url,
     cli_directory,
     cli_name,
     latest_ui_url,
@@ -153,9 +156,27 @@ def create_railtracks_dir():
         print_status(f"Using existing {railtracks_dir}")
 
 
-def get_stored_ui_version():
+def _ui_subdir(beta: bool) -> str:
+    return "beta-ui" if beta else "ui"
+
+
+def _ui_url(beta: bool) -> str:
+    if beta:
+        return os.environ.get(BETA_UI_URL_ENV, beta_ui_url)
+    return latest_ui_url
+
+
+def _ui_version_filename(beta: bool) -> str:
+    return ".beta_ui_version" if beta else ".ui_version"
+
+
+def _ui_label(beta: bool) -> str:
+    return "beta UI" if beta else "UI"
+
+
+def get_stored_ui_version(beta: bool = False):
     """Get the stored UI version (ETag) from disk"""
-    version_file = resolve_railtracks_home() / ".ui_version"
+    version_file = resolve_railtracks_home() / _ui_version_filename(beta)
     try:
         if version_file.exists():
             return version_file.read_text().strip()
@@ -164,41 +185,53 @@ def get_stored_ui_version():
     return None
 
 
-def save_ui_version(version: str):
+def save_ui_version(version: str, beta: bool = False):
     """Save the UI version (ETag) to disk"""
-    version_file = resolve_railtracks_home() / ".ui_version"
+    version_file = resolve_railtracks_home() / _ui_version_filename(beta)
     try:
         version_file.write_text(version)
     except Exception:
         pass
 
 
-def get_remote_ui_version():
+def get_remote_ui_version(beta: bool = False):
     """Get the remote UI version (ETag or Last-Modified) via HEAD request"""
+    url = _ui_url(beta)
+    if not url:
+        return None
     try:
-        req = urllib.request.Request(latest_ui_url, method="HEAD")
+        req = urllib.request.Request(url, method="HEAD")
         with urllib.request.urlopen(req, timeout=5) as response:
             return response.headers.get("ETag") or response.headers.get("Last-Modified")
     except Exception:
         return None
 
 
-def check_for_ui_update():
+def check_for_ui_update(beta: bool = False):
     """Check if there's an updated UI available and notify the user"""
-    stored = get_stored_ui_version()
+    stored = get_stored_ui_version(beta)
     if stored is None:
         return
-    remote = get_remote_ui_version()
+    remote = get_remote_ui_version(beta)
     if remote is not None and remote != stored:
         _print_update_available()
 
 
-def download_and_extract_ui():
-    """Download the latest frontend UI and extract it to .railtracks/ui"""
-    ui_url = latest_ui_url
-    ui_dir = resolve_railtracks_home() / "ui"
+def download_and_extract_ui(beta: bool = False):
+    """Download the latest frontend UI and extract it to .railtracks/ui or beta-ui"""
+    ui_url = _ui_url(beta)
+    label = _ui_label(beta)
+    if not ui_url:
+        print_error(
+            f"No download URL configured for the {label}. "
+            f"Set {BETA_UI_URL_ENV} to a beta UI zip URL, or stage a build in "
+            f"{resolve_railtracks_home() / _ui_subdir(beta)}."
+        )
+        sys.exit(1)
 
-    print_status("Downloading latest frontend UI...")
+    ui_dir = resolve_railtracks_home() / _ui_subdir(beta)
+
+    print_status(f"Downloading latest {label}...")
 
     temp_zip_path = None
     try:
@@ -216,27 +249,27 @@ def download_and_extract_ui():
 
         ui_dir.mkdir(parents=True, exist_ok=True)
 
-        print_status("Extracting UI files...")
+        print_status(f"Extracting {label} files...")
         with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(ui_dir)
 
         if ui_version:
-            save_ui_version(ui_version)
+            save_ui_version(ui_version, beta)
 
-        print_success("Frontend UI downloaded and extracted successfully")
-        print_status(f"UI files available in: {ui_dir}")
+        print_success(f"{label} downloaded and extracted successfully")
+        print_status(f"{label} files available in: {ui_dir}")
         _warn_if_visual_deps_missing()
 
     except urllib.error.URLError as e:
-        print_error(f"Failed to download UI: {e}")
+        print_error(f"Failed to download {label}: {e}")
         print_error("Please check your internet connection and try again")
         sys.exit(1)
     except zipfile.BadZipFile as e:
-        print_error(f"Failed to extract UI zip file: {e}")
+        print_error(f"Failed to extract {label} zip file: {e}")
         print_error("The downloaded file may be corrupted")
         sys.exit(1)
     except Exception as e:
-        print_error(f"Unexpected error during UI download/extraction: {e}")
+        print_error(f"Unexpected error during {label} download/extraction: {e}")
         sys.exit(1)
     finally:
         if temp_zip_path and os.path.exists(temp_zip_path):
@@ -255,11 +288,12 @@ def init_railtracks():
     print_status("You can now run 'railtracks viz' to start the server")
 
 
-def update_railtracks():
+def update_railtracks(beta: bool = False):
     """Update the frontend UI to the latest version"""
-    print_status("Updating the frontend UI to the latest version...")
-    download_and_extract_ui()
-    print_success("Frontend UI updated successfully!")
+    label = _ui_label(beta)
+    print_status(f"Updating the {label} to the latest version...")
+    download_and_extract_ui(beta=beta)
+    print_success(f"{label} updated successfully!")
 
 
 # ---------------------------------------------------------------------------
@@ -275,6 +309,40 @@ def _load_skill_content(skill_name: str) -> str:
         print_error(f"Skill '{skill_name}' not found in bundled skills.")
         sys.exit(1)
     return skill_file.read_text(encoding="utf-8")
+
+
+def _strip_skill_arguments(content: str) -> str:
+    """Resolve the `$ARGUMENTS` placeholder for targets that never substitute it.
+
+    Claude Code and Codex invoke a skill with arguments, so `$ARGUMENTS` is filled in
+    at call time. Copilot reads `copilot-instructions.md` as always-on repository
+    context instead, so the placeholder would ship to the model literally.
+    """
+    kept: list[str] = []
+    drop_next_blank = False
+    for line in content.splitlines():
+        if drop_next_blank and not line.strip():
+            drop_next_blank = False
+            continue
+        drop_next_blank = False
+
+        if "$ARGUMENTS" not in line:
+            kept.append(line)
+            continue
+
+        # A whole line that only exists to introduce the argument is dropped, along
+        # with the blank line it would otherwise leave behind; an inline mention is
+        # reworded in place.
+        if line.rstrip().endswith(": $ARGUMENTS"):
+            drop_next_blank = bool(kept) and not kept[-1].strip()
+            continue
+
+        kept.append(
+            line.replace("`$ARGUMENTS`", "the request").replace(
+                "$ARGUMENTS", "the request"
+            )
+        )
+    return "\n".join(kept)
 
 
 def _confirm_overwrite(file_path: Path) -> bool:
@@ -344,15 +412,20 @@ def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None
                 sys.exit(0)
             start_idx = existing.index(start_marker)
             end_idx = existing.index(end_marker) + len(end_marker)
-            existing = existing[:start_idx].rstrip() + existing[end_idx:]
-            target.write_text(existing, encoding="utf-8")
+            existing = existing[:start_idx] + existing[end_idx:]
     else:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("", encoding="utf-8")
+        existing = ""
 
-    section = f"\n\n{start_marker}\n{content.strip()}\n{end_marker}\n"
-    with open(target, "a", encoding="utf-8") as f:
-        f.write(section)
+    # Rewrite rather than append, so regenerating a skill in place is byte-identical
+    # to installing it fresh and repeated --force runs don't accumulate blank lines.
+    preamble = existing.rstrip()
+    section = (
+        f"{start_marker}\n{_strip_skill_arguments(content).strip()}\n{end_marker}\n"
+    )
+    target.write_text(
+        f"{preamble}\n\n{section}" if preamble else section, encoding="utf-8"
+    )
     print_success(f"Installed '{skill_name}' for GitHub Copilot -> {target}")
 
 
@@ -410,6 +483,27 @@ def add_skill(spec: str, force: bool = False) -> None:
     _TOOL_HANDLERS[tool](skill_name, meta, content, force)
 
 
+def list_skills() -> None:
+    """Print the bundled skills and the assistants they can be installed for."""
+    rst = Style.RESET_ALL
+    bold = Style.BRIGHT
+    dim = Style.DIM
+    cyan = Fore.CYAN
+    green = Fore.GREEN
+
+    print()
+    print(f"  {bold}Available skills:{rst}")
+    print()
+    for skill_name, meta in SKILLS.items():
+        print(f"  {cyan}{bold}{skill_name}{rst}  {dim}{meta['argument_hint']}{rst}")
+        print(f"    {meta['description']}")
+        print()
+    print(f"  {bold}Supported tools:{rst}  {', '.join(SUPPORTED_TOOLS)}")
+    print()
+    print(f"  {dim}Install with:{rst}  {green}{cli_name} add <tool>:<skill>{rst}")
+    print()
+
+
 def _print_help():
     """Print styled help output."""
     rst = Style.RESET_ALL
@@ -437,12 +531,22 @@ def _print_help():
             f"Initialize {cli_name} environment (setup directories, download portable UI)",
         )
     )
-    print(cmd("update", "Update the frontend UI to the latest version"))
-    print(cmd("viz", f"Start the {cli_name} development server"))
+    print(
+        cmd(
+            "update",
+            f"Update the stable UI  {dim}(add --beta to update the beta UI){rst}",
+        )
+    )
+    print(
+        cmd(
+            "viz",
+            f"Start the {cli_name} dev server  {dim}(--beta serves beta-ui on {BETA_PORT}, --debug enables per-request query logging){rst}",
+        )
+    )
     print(
         cmd(
             "add",
-            f"Install an AI coding assistant skill  {dim}(e.g. {cli_name} add claude:agent-builder){rst}",
+            f"Install an AI coding assistant skill  {dim}(--list to see them all){rst}",
         )
     )
     print()
@@ -475,14 +579,8 @@ def _print_help():
     )
     print(
         example(
-            f"{cli_name} add claude:rag-pipeline",
-            "Install RAG pipeline skill for Claude Code",
-        )
-    )
-    print(
-        example(
-            f"{cli_name} add copilot:rag-pipeline",
-            "Install RAG pipeline skill for GitHub Copilot",
+            f"{cli_name} add --list",
+            "List every bundled skill and supported tool",
         )
     )
     print()
@@ -494,6 +592,25 @@ def _exit_visual_deps_missing() -> None:
     sys.exit(1)
 
 
+def _run_add(args: list[str]) -> None:
+    """Handle `railtracks add`: either list the bundled skills or install one."""
+    if any(a in ("--list", "-l") for a in args):
+        list_skills()
+        return
+
+    if not args or args[0].startswith("-"):
+        print_error(
+            "Usage: railtracks add [--force] <tool>:<skill> | railtracks add --list"
+        )
+        print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
+        print_status(f"Available skills: {', '.join(SKILLS)}")
+        sys.exit(1)
+
+    force = "--force" in args
+    spec = next((a for a in args if not a.startswith("-")), None)
+    add_skill(spec, force=force)
+
+
 def main():
     """Main function"""
     if len(sys.argv) < 2:
@@ -502,43 +619,46 @@ def main():
 
     command = sys.argv[1]
 
+    flags = sys.argv[2:]
+
     if command == "init":
         init_railtracks()
     elif command == "update":
-        update_railtracks()
+        update_railtracks(beta="--beta" in flags)
     elif command == "viz":
         if not _visual_dependencies_available():
             _exit_visual_deps_missing()
 
-        if is_port_in_use(DEFAULT_PORT):
-            print_error(f"Port {DEFAULT_PORT} is already in use!")
+        beta = "--beta" in flags
+        debug = "--debug" in flags
+        port = BETA_PORT if beta else DEFAULT_PORT
+        ui_subdir = _ui_subdir(beta)
+
+        if is_port_in_use(port):
+            print_error(f"Port {port} is already in use!")
             print_status("Please stop the existing server.")
             sys.exit(1)
 
+        from .viz_api._logging import set_debug
         from .viz_server import RailtracksServer
 
+        set_debug(debug)
         create_railtracks_dir()
 
-        ui_index = resolve_railtracks_home() / "ui" / "index.html"
+        ui_index = resolve_railtracks_home() / ui_subdir / "index.html"
         if not ui_index.exists():
-            print_status("UI not found — downloading...")
-            download_and_extract_ui()
+            print_status(f"{_ui_label(beta)} not found — downloading...")
+            download_and_extract_ui(beta=beta)
 
-        update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
+        update_thread = threading.Thread(
+            target=check_for_ui_update, args=(beta,), daemon=True
+        )
         update_thread.start()
 
-        server = RailtracksServer()
+        server = RailtracksServer(port=port, ui_subdir=ui_subdir, beta=beta)
         server.start()
     elif command == "add":
-        args = sys.argv[2:]
-        if not args or args[0].startswith("-"):
-            print_error("Usage: railtracks add [--force] <tool>:<skill>")
-            print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
-            print_status(f"Available skills: {', '.join(SKILLS)}")
-            sys.exit(1)
-        force = "--force" in args
-        spec = next((a for a in args if not a.startswith("-")), None)
-        add_skill(spec, force=force)
+        _run_add(sys.argv[2:])
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
         print(f"{Style.DIM}Available commands: init, update, viz, add{Style.RESET_ALL}")

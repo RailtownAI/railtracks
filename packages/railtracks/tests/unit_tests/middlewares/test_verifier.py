@@ -9,7 +9,7 @@ import asyncio
 
 import pytest
 import railtracks as rt
-from railtracks.middleware import Verdict, VerifierRejectedError, verifier
+from railtracks.verifiers import Verdict, VerifierRejectedError, verifier
 
 
 class TestVerifierUnit:

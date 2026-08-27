@@ -1,40 +1,255 @@
 # Railtracks Development Instructions
 
-**Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
+**Always reference these instructions first and fall back to search or bash commands only when you encounter unexpected information that does not match the info here.**
 
 ## Repository Overview
 
-Railtracks is a Python framework for building agentic systems. This is a monorepo with two packages:
-- `packages/railtracks/` - Core SDK with optional LLM, MCP, and integration features
-- `packages/railtracks-cli/` - Command-line visualization and development tools
+Railtracks is a Python framework for building agentic systems. The repository is a `uv` workspace containing a single published package:
+
+- `packages/railtracks/` — the SDK. Everything public is re-exported at the package root and used as `import railtracks as rt`.
+
+The root `pyproject.toml` holds workspace config and dev tooling only (`docs`, `test`, `lint` dependency groups). Package dependencies — including every optional extra — live in `packages/railtracks/pyproject.toml`.
+
+## Working Effectively
+
+### Prerequisites
+
+- Python 3.10+ (`requires-python = ">=3.10"`). CI runs 3.10.
+- [`uv`](https://docs.astral.sh/uv/) for dependency management.
+
+### Development Environment Setup
+
+```bash
+uv sync --group dev                              # docs + test + lint tooling
+uv pip install -e "packages/railtracks[all]"     # SDK with all optional extras
+```
+
+The SDK is deliberately thin by default; features gate behind extras declared in `packages/railtracks/pyproject.toml` (`visual`, `retrieval`, `chroma`, `portkey`, `stores-*`, …).
+
+**`retrieval` is not part of `[all]`.** Install it explicitly when working on the RAG stack:
+
+```bash
+uv pip install -e "packages/railtracks[all,retrieval]"
+```
+
+### Build and Test Commands
+
+#### Linting and formatting (runs in ~1 second)
+
+`ruff` is configured in the root `pyproject.toml`: line-length 88, target `py310`.
+
+```bash
+# What CI checks
+ruff check . --no-fix
+ruff format --check .
+
+# What you run locally to fix it
+ruff check --fix
+ruff format
+```
+
+#### Testing (pytest, `asyncio_mode = "auto"`)
+
+Live LLM tests (`tests/llm_live_tests`) and retrieval end-to-end tests are excluded by `addopts` in the root `pyproject.toml`, so a bare `pytest` never needs an API key.
+
+```bash
+# The core suite, matching CI
+pytest -s -v \
+  --ignore=packages/railtracks/tests/unit_tests/retrieval \
+  packages/railtracks/tests/unit_tests/ packages/railtracks/tests/integration_tests/
+
+# Retrieval suite (needs the retrieval extra)
+pytest -s -v packages/railtracks/tests/unit_tests/retrieval/
+
+# A single test
+pytest packages/railtracks/tests/unit_tests/path/to/test_file.py::test_name
+```
+
+**Test mode:** `packages/railtracks/tests/conftest.py` auto-sets `RAILTRACKS_TEST_MODE=1`, which disables session persistence so no `.railtracks/` directory is written during a test run. A test that must verify persistence opts back in with the `allow_persistence` fixture.
+
+#### Documentation
+
+```bash
+mkdocs build             # build the site
+mkdocs serve             # preview at localhost:8000
+./scripts/docs_validation.sh   # type-checks every script under docs/scripts/
+```
+
+Update `docs/` whenever you add or change a feature, and verify the render.
+
+#### Dependency ordering
+
+```bash
+python scripts/check_dependencies_sorted.py
+```
+
+Dependencies in `packages/railtracks/pyproject.toml` must stay sorted; CI enforces this.
+
+### CLI
+
+The CLI ships inside the SDK at `packages/railtracks/src/railtracks/cli/`.
+
+```bash
+railtracks init          # create .railtracks/ and download the visualizer UI
+railtracks update        # update the visualizer UI
+railtracks viz           # start the visualizer (requires railtracks[visual])
+railtracks add --list    # list the bundled coding-assistant skills
+railtracks add claude:agent-builder   # install a skill for a given assistant
+```
+
+`init` and `update` download UI assets from a CDN and will fail in sandboxed environments with no network access — expected, not a bug.
+
+## Validation Scenarios
+
+**Always run these after making code changes:**
+
+1. **Lint:** `ruff check . --no-fix && ruff format --check .`
+2. **Core tests:** the core-suite command above
+3. **Dependency order:** `python scripts/check_dependencies_sorted.py`
+4. **Docs:** `mkdocs build` and `./scripts/docs_validation.sh` if you touched `docs/`
+5. **Smoke test:** the snippet below
+
+**NEVER SKIP** the lint step — CI fails without it.
+
+```bash
+python -c "
+import railtracks as rt
+
+def number_of_chars(text: str) -> int:
+    '''Count the characters in some text.
+
+    Args:
+        text: The text to measure.
+    Returns:
+        The character count.
+    '''
+    return len(text)
+
+CharCount = rt.function_node(number_of_chars)
+flow = rt.Flow(name='Char Count', entry_point=CharCount)
+assert flow.invoke('hello') == 5
+print('✓ Basic functionality test passed!')
+"
+```
+
+## Common Issues and Workarounds
+
+### `ModuleNotFoundError` for an optional dependency
+
+Heavy dependencies are gated behind extras and exposed via lazy module-level `__getattr__` imports. If an import fails, install the extra that owns it (e.g. `railtracks[retrieval]`, `railtracks[visual]`) rather than adding a top-level import.
+
+### `railtracks init` fails with a hostname error
+
+The CLI downloads visualizer assets from a CDN. This is expected in network-restricted environments.
+
+### Test failures
+
+All tests should pass. Focus on introducing no new failures; occasional flakes in LLM-touching tests come from model stochasticity.
+
+## Repository Structure Reference
+
+```
+railtracks/
+├── packages/
+│   └── railtracks/              # the SDK package
+│       ├── src/railtracks/      # Python module
+│       ├── tests/               # unit / integration / end_to_end / llm_live_tests
+│       └── pyproject.toml       # package + extras config
+├── docs/                        # MkDocs documentation
+├── examples/                    # code examples and demos
+├── scripts/                     # development and CI scripts
+├── mkdocs.yml                   # documentation config
+├── pyproject.toml               # workspace + dev tooling config (not package deps)
+└── uv.lock
+```
+
+## CI Pipeline Matching
+
+`.github/workflows/pr_tests.yaml` runs on `ubuntu-latest`:
+
+1. **Ruff lint** — `ruff check . --no-fix` and `ruff format --check .`
+2. **License check** — `scripts/check_licenses.sh`
+3. **Unit tests** — only when core source or tests changed
+4. **Retrieval tests** — only when `retrieval/` source or tests changed
+5. **Documentation validation** — `scripts/docs_validation.sh`
+6. **pyproject dependency order** — `scripts/check_dependencies_sorted.py`
+
+Steps 3 and 4 are gated on changed paths, so a docs-only PR skips the test suites.
+
+## Conventions
+
+- Branch naming: `feature/<issue_id>/<name>`.
+- Add SDK dependencies in `packages/railtracks/pyproject.toml`, keeping each list sorted. Optional/heavy dependencies go under `optional-dependencies`.
+- Keep the base import light: gate heavy dependencies behind extras with module-level `__getattr__` lazy imports plus a `TYPE_CHECKING` block, not top-level imports.
+- Update `docs/` alongside any feature change.
+- Use `await flow.ainvoke(...)` in async code and `flow.invoke(...)` in sync code. `invoke()` also works inside a running event loop, dispatching to a worker thread with contextvars copied across.
+
+---
 
 ## Railtracks Framework Concepts
 
-### How Railtracks Works
+<!--
+  GENERATED — do not edit by hand.
+
+  The section below is the bundled `agent-builder` skill
+  (packages/railtracks/src/railtracks/cli/skills/agent-builder.md). Edit that file,
+  then regenerate from the repository root with:
+
+      railtracks add copilot:agent-builder --force
+-->
+
+<!-- railtracks:agent-builder:start -->
+# Build a Railtracks Agent
+
+## How railtracks works
 - **Tools** are plain Python functions decorated with `@rt.function_node`. Type hints become the parameter schema; the docstring becomes the description.
 - **Agents** are created with `rt.agent_node()`. The type is auto-selected based on whether tools and/or a structured output schema are provided.
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
 
-### Agent Type Selection
-| Has `tool_nodes`? | Has `output_schema`? | Agent type |
-|---|---|---|
-| No | No | `TerminalLLM` — plain chat |
-| No | Yes | `StructuredLLM` — structured output, no tools |
-| Yes | No | `ToolCallLLM` — tools, text output |
-| Yes | Yes | `StructuredToolCallLLM` — tools + structured output |
+### What `agent_node` builds
+`rt.agent_node()` builds one node behind the scenes — there is no separate named type to pick. What you pass changes what the agent does at runtime:
+
+| Passed | Behaviour |
+|---|---|
+| Neither `tool_nodes` nor `output_schema` | Plain chat, text output |
+| `output_schema` only | Structured output, no tools |
+| `tool_nodes` only | Tool-calling loop, text output |
 
 ### LLM Providers
+
 ```python
 rt.llm.AnthropicLLM("claude-sonnet-4-6")
 rt.llm.OpenAILLM("gpt-5")
 rt.llm.GeminiLLM("gemini-3-flash-preview")
-rt.llm.OpenAICompatibleProvider(base_url="...", model="...")
+rt.llm.OpenAICompatibleProvider(
+    "my-model", api_base="https://api.example.com/v1", api_key="..."
+)
 ```
 
-### Agent Patterns
+---
 
-#### Simple Agent with Tools
+## Steps
+1. **Read the existing code** — check what files already exist in the project. Understand the task before writing anything.
+2. **Identify what tools the agent needs** — each capability the agent should have becomes a `@rt.function_node`. Ask the user to clarify if it's not obvious from the request.
+3. **Define the tools** — write each tool as a Python function with:
+   - Full type hints on all parameters and return value
+   - A docstring with a one-line summary and `Args:` / `Returns:` sections
+   - Real implementation (or a clear stub with a TODO if the user needs to fill it in)
+4. **Define the agent** — call `rt.agent_node()` with (note: it returns a class/type, so use PascalCase for the variable name):
+   - A descriptive name
+   - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both
+   - `llm` — default to `rt.llm.AnthropicLLM("claude-sonnet-4-6")` unless the user specifies otherwise
+   - `system_message` — a clear, specific system prompt
+5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=agent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(agent, ...)` inside it.
+6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example so the user can run it immediately.
+7. **Check imports** — make sure `import railtracks as rt` is at the top and any Pydantic models import `from pydantic import BaseModel`.
+
+---
+
+## Patterns to Follow
+### Simple Agent with Tools
+
 ```python
 import railtracks as rt
 
@@ -64,7 +279,7 @@ if __name__ == "__main__":
     print(result)
 ```
 
-#### Structured Output
+### Structured Output
 ```python
 from pydantic import BaseModel
 
@@ -77,12 +292,11 @@ class Output(BaseModel):
 StructuredAgent = rt.agent_node(
     "Structured Agent",
     output_schema=Output,
-    tool_nodes=[my_tool],
     llm=llm,
 )
 ```
 
-#### Multi-Agent Workflow
+### Multi-Agent Workflow
 ```python
 @rt.function_node
 async def pipeline(query: str):
@@ -94,7 +308,9 @@ async def pipeline(query: str):
 flow = rt.Flow(name="Pipeline", entry_point=pipeline)
 ```
 
-#### Agent as a Tool (Multi-Agent Orchestration)
+### Agent Used as a Tool by Another Agent (Multi-Agent Orchestration)
+
+To expose an agent as a callable tool for another agent, pass a `rt.ToolManifest` to `agent_node`. The manifest defines how the agent appears in the tool list of its caller — its description and parameters. Without a manifest, railtracks won't know how to present the agent as a tool.
 ```python
 from railtracks.llm import Parameter
 
@@ -118,10 +334,14 @@ Orchestrator = rt.agent_node(
     system_message="You are an orchestrator. Delegate to sub-agents as needed.",
 )
 ```
+`Parameter` fields:
+- `name` — the argument name the orchestrator LLM passes
+- `description` — explains what to put in this argument
+- `param_type` — JSON schema type string (`"string"`, `"integer"`, `"number"`, `"boolean"`, …) **or** a Python builtin mapped the same way: `str`, `int`, `float` (→ `"number"`), `bool`, `list` / `tuple` / `set` (→ `"array"`), `dict` (→ `"object"`), `type(None)` (→ `"null"`). Unknown types fall back to `"object"`.
+- `required` — defaults to `True`
+- `enum` — optional list of allowed values
 
-`Parameter.param_type` may be a JSON schema type string (e.g. `"string"`) or a Python builtin (`str`, `int`, …) mapped to the same schema types.
-
-#### MCP Tools
+### MCP Tools
 ```python
 server = rt.connect_mcp(
     rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"])
@@ -129,210 +349,11 @@ server = rt.connect_mcp(
 agent = rt.agent_node("MCP Agent", tool_nodes=server.tools, llm=llm)
 ```
 
-### Things to Avoid
+---
+
+## Things to Avoid
 - Don't use vague docstrings — the docstring is the tool description the LLM sees.
 - Don't skip type hints — they define the tool's parameter schema.
 - Don't create a `Flow` and a manual `await rt.call()` for the same agent at the top level — pick one entry point.
 - Don't add unnecessary tools. Only give the agent what it needs.
-
----
-
-## Working Effectively
-
-### Prerequisites and Setup
-- Python 3.10+ required (tested with 3.12.3)
-
-### Development Environment Setup
-
-**Option 1: Standard Installation** (recommended when network is reliable)
-```bash
-pip install -r requirements-dev.txt
-```
-
-**Option 2: Manual Installation** (for environments with network limitations)
-```bash
-# Install core development tools first
-pip install ruff pytest pytest-asyncio pytest-cov pytest-timeout
-
-# Install core dependencies manually (due to flit build system requirements)
-pip install colorama pydantic python-dotenv litellm fastapi uvicorn watchdog mcp tomlkit
-
-# Install documentation tools
-pip install mkdocs mkdocs-material mkdocs-material-extensions mkdocs-mermaid2-plugin
-
-# Set Python path for development (use in every session)
-export PYTHONPATH=/home/runner/work/railtracks/railtracks/packages/railtracks/src:/home/runner/work/railtracks/railtracks/packages/railtracks-cli/src:$PYTHONPATH
-```
-
-
-
-### Build and Test Commands
-
-#### Linting (FAST - runs in <1 second)
-```bash
-# Check code style - runs instantly
-ruff check . --no-fix
-
-# Check formatting - runs instantly  
-ruff format --check .
-
-# Fix auto-fixable issues
-ruff check --fix
-
-# Format code
-ruff format
-```
-
-#### Testing (NEVER CANCEL - takes ~10 seconds)
-```bash
-# Run unit tests - NEVER CANCEL, completes in ~10 seconds
-pytest packages/railtracks/tests/unit_tests/ -v --tb=short --timeout=30
-
-# Run all tests including integration tests (requires OPENAI_API_KEY)
-export OPENAI_API_KEY=your_key_here
-pytest -s -v --junit-xml=test-results.xml --timeout=200
-```
-
-**Expected Results**: All 601+ tests should pass, ~9 second runtime. Any failures are typically due to LLM stochasticity and should be minor.
-
-#### Documentation (NEVER CANCEL - takes ~5 seconds)
-```bash
-# Build documentation - NEVER CANCEL, completes in ~5 seconds  
-mkdocs build --strict --verbose
-
-# Serve documentation locally (when not in CI)
-mkdocs serve
-```
-
-#### Dependency Validation
-```bash
-# Check dependency sorting (required for CI)
-python scripts/check_dependencies_sorted.py
-```
-
-### CLI Development and Testing
-
-#### Basic CLI Testing
-```bash
-# Test CLI import
-python -c "import railtracks_cli; print('CLI imported successfully')"
-
-# Show available CLI commands
-python -m railtracks_cli
-
-# Initialize railtracks (fails in limited network environments due to CDN access)
-railtracks init
-
-# Start visualizer (requires successful init first)
-railtracks viz
-```
-
-**Known Issue**: CLI `init` command fails in environments with limited internet access due to CDN dependency for UI components.
-
-### Core Functionality Validation
-
-#### Test Basic Railtracks Operations
-```bash
-# Test basic function nodes
-python -c "
-import railtracks as rt
-
-def multiply(a: float, b: float) -> float:
-    return a * b
-
-MultiplyNode = rt.function_node(multiply)
-result = rt.call_sync(MultiplyNode, a=5.0, b=3.0)
-print(f'Result: {result}')
-assert result == 15.0
-print('✓ Basic functionality test passed!')
-"
-```
-
-#### Test Function Node Creation (from README example)
-```bash
-python -c "
-import railtracks as rt
-
-def number_of_chars(text: str) -> int:
-    return len(text)
-
-def number_of_words(text: str) -> int:
-    return len(text.split())
-
-TotalNumberChars = rt.function_node(number_of_chars)
-TotalNumberWords = rt.function_node(number_of_words)
-print('✓ Function nodes created successfully')
-"
-```
-
-## Validation Scenarios
-
-**ALWAYS run these validation steps after making code changes:**
-
-1. **Linting validation**: `ruff check . --no-fix && ruff format --check .` (takes <1 second)
-2. **Unit tests**: `pytest packages/railtracks/tests/unit_tests/ -v --timeout=30` (takes ~10 seconds)
-3. **Dependency check**: `python scripts/check_dependencies_sorted.py` (takes <1 second)
-4. **Basic functionality**: Run the core functionality validation scripts above
-5. **Documentation build**: `mkdocs build` (takes ~5 seconds)
-
-**NEVER SKIP** the linting validation - the CI will fail without it.
-
-## Common Issues and Workarounds
-
-### Installation Issues
-- **Problem**: `pip install -r requirements-dev.txt` fails with network timeouts  
-- **Solution**: Use manual dependency installation as shown in setup section when network connectivity is limited
-
-### CLI Issues  
-- **Problem**: `railtracks init` fails with "No address associated with hostname"
-- **Explanation**: CLI requires CDN access to download UI components, fails in limited network environments
-- **Workaround**: This is expected in sandboxed environments, document as known limitation
-
-### Import Issues
-- **Problem**: `ModuleNotFoundError: No module named 'railtracks'`
-- **Solution**: Always set PYTHONPATH as shown in setup section for development
-
-### Test Failures
-- **Action**: All tests should pass. Focus on ensuring no new test failures are introduced. Any occasional failures are typically due to LLM stochasticity and should be minor.
-
-## Package Structure Reference
-
-```
-railtracks/
-├── packages/
-│   ├── railtracks/              # Core SDK package  
-│   │   ├── src/railtracks/      # Python module (underscore)
-│   │   ├── tests/               # SDK tests
-│   │   └── pyproject.toml       # Core package config
-│   └── railtracks-cli/          # CLI package
-│       ├── src/railtracks_cli/  # Python module (underscore) 
-│       └── pyproject.toml       # CLI package config
-├── docs/                        # Shared documentation
-├── examples/                    # Code examples and demos
-├── scripts/                     # Development scripts
-├── requirements-dev.txt         # Development dependencies
-├── mkdocs.yml                   # Documentation config
-└── pyproject.toml              # Root workspace config
-```
-
-**Important**: Package names use dashes (`railtracks-cli`) but Python modules use underscores (`railtracks_cli`).
-
-## CI Pipeline Matching
-
-The GitHub Actions workflow runs on Windows and executes:
-1. `ruff check . --no-fix` (linting)  
-2. `ruff format --check .` (formatting)
-3. `python scripts/check_dependencies_sorted.py` (dependency validation)
-4. `pytest -s -v --junit-xml=test-results.xml --timeout=200` (full test suite)
-
-**ALWAYS** run these same commands locally before committing to ensure CI success.
-
-## Time Expectations and Timeouts
-
-- **Linting**: <1 second - no timeout needed
-- **Unit tests**: ~10 seconds - use 30+ second timeout
-- **Full test suite**: ~3-5 minutes - use 200+ second timeout  
-- **Documentation build**: ~5 seconds - use 30+ second timeout
-- **Manual dependency install**: ~2-3 minutes when network is available
-
-**NEVER CANCEL** running builds or tests - they complete quickly. Long timeouts are for safety only.
+<!-- railtracks:agent-builder:end -->

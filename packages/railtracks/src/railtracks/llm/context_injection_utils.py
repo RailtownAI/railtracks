@@ -3,12 +3,12 @@ import string
 from typing import Any, Mapping
 
 _PARSER = string.Formatter()
-_logger = logging.getLogger("RT.prompt_injection")
+_logger = logging.getLogger("RT.context_injection")
 
 
 def escape_braces(text: str) -> str:
     """
-    Escape the braces in `text` so that prompt injection treats it as data.
+    Escape the braces in `text` so that context injection treats it as data.
 
     Apply this to untrusted or arbitrary strings before embedding them in a message that
     will have context values injected into it. Injecting the returned string yields

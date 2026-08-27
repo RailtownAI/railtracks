@@ -12,8 +12,18 @@ from railtracks.llm.message import Attachment
     "content, role, expected_str, expected_repr",
     [
         ("Hello", "user", "user: Hello", "user: Hello"),
-        ("System message", "system", "system: System message", "system: System message"),
-        ("Assistant response", "assistant", "assistant: Assistant response", "assistant: Assistant response"),
+        (
+            "System message",
+            "system",
+            "system: System message",
+            "system: System message",
+        ),
+        (
+            "Assistant response",
+            "assistant",
+            "assistant: Assistant response",
+            "assistant: Assistant response",
+        ),
     ],
 )
 def test_message_str_and_repr(content, role, expected_str, expected_repr):
@@ -98,12 +108,14 @@ def test_tool_message_invalid_content2():
             ]
         )  # ToolMessage expects ToolResponse, not List[ToolCall]
 
+
 def test_tool_message_invalid_content3():
     with pytest.raises(TypeError):
         Stream(
             streamer="not a generator",
             final_message="Final message",
-        ) # ToolMessage expects ToolResponse, not List[ToolResponse]
+        )  # ToolMessage expects ToolResponse, not List[ToolResponse]
+
 
 # =================================== END Message Structure Tests ==================================
 
@@ -151,6 +163,7 @@ class TestAttachment:
 
     def test_base64_pdf(self):
         import base64 as _b64
+
         pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
         b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
 
@@ -164,6 +177,7 @@ class TestAttachment:
 
     def test_data_uri_pdf(self):
         import base64 as _b64
+
         pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
         b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
         data_uri = f"data:application/pdf;base64,{b64}"
@@ -178,6 +192,7 @@ class TestAttachment:
     def test_data_uri_pdf_mixed_case_mime(self):
         """Header validation is case-insensitive, so modality classification must be too."""
         import base64 as _b64
+
         pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
         b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
         data_uri = f"data:Application/PDF;base64,{b64}"
@@ -218,8 +233,12 @@ class TestAttachment:
                 "Content-Type": "application/pdf",
                 "Content-Disposition": 'inline; filename="paper.pdf"',
             }
-            def __enter__(self): return self
-            def __exit__(self, *a): return False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
 
         def fake_urlopen(req, timeout=None):
             seen["probe_timeout"] = timeout
@@ -227,6 +246,7 @@ class TestAttachment:
 
         def fake_encode(path, *, timeout=10.0):
             import base64 as _b64
+
             seen["encode_timeout"] = timeout
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
@@ -249,6 +269,7 @@ class TestAttachment:
 
         def fake_encode(path, *, timeout=10.0):
             import base64 as _b64
+
             assert path == "https://example.com/docs/report.pdf?sig=xyz"
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
@@ -294,8 +315,12 @@ class TestAttachment:
                 "Content-Type": "application/pdf",
                 "Content-Disposition": 'inline; filename="1706.03762v7.pdf"',
             }
-            def __enter__(self): return self
-            def __exit__(self, *a): return False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
 
         def fake_urlopen(req, timeout=None):
             assert req.get_method() == "HEAD"
@@ -303,6 +328,7 @@ class TestAttachment:
 
         def fake_encode(path, *, timeout=10.0):
             import base64 as _b64
+
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
         monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
@@ -359,6 +385,7 @@ class TestAttachment:
 
         def fake_encode(path, *, timeout=10.0):
             import base64 as _b64
+
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
         monkeypatch.setattr(message_module, "encode", fake_encode)
@@ -449,9 +476,8 @@ class TestUserMessageAttachments:
         assert message.attachment[1].type == "url"
         assert message.attachment[2].type == "data_uri"
 
+
 # =================================== END UserMessage Attachments Tests ==================================
-
-
 
 
 # =================================== START ToolCalls Content Tests ==================================
@@ -475,7 +501,7 @@ class TestToolCallsContent:
         assert isinstance(content, list)
         assert len(content) == 1
         assert content[0] is call
-        assert [tc for tc in content] == [call]
+        assert list(content) == [call]
         assert content == [call]  # equality stays list equality
 
     def test_deepcopy_preserves_text(self, call):
@@ -501,4 +527,6 @@ class TestToolCallsContent:
     def test_encode_omits_text_when_there_is_none(self, call):
         assert "text" not in AssistantMessage(content=[call]).encode()
         assert "text" not in AssistantMessage(content="hi").encode()
+
+
 # =================================== END ToolCalls Content Tests ==================================

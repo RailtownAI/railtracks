@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from typing import Awaitable, Callable, ParamSpec, TypeVar, overload
 
 from railtracks.utils.unpack import unpack_async_sync
 
-from .core import Middleware, wrap_node
+from ..middleware.core import Middleware, wrap_node
 from .verdict import Verdict
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ def verifier(
 
 
 def _wrapper(approve_fn: _ApproveFn[_P], timeout: float | None):
+    @functools.wraps(approve_fn)
     async def wrapped(
         call: Callable[_P, Awaitable[_R]], *args: _P.args, **kwargs: _P.kwargs
     ) -> _R:

@@ -6,12 +6,13 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Generic, Literal, ParamSpec, TypeVar
+from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.events.node import (
     NodeDestruction,
 )
 from railtracks.events.send import emit
+from railtracks.llm.middleware import ModelMiddleware
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
 from railtracks.middleware.core import Middleware
@@ -19,9 +20,6 @@ from railtracks.scope_manager import NullScopeManager, ScopeManager
 from railtracks.validation.node_creation.validation import (
     check_classmethod,
 )
-
-if TYPE_CHECKING:
-    from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
 
 _TOutput = TypeVar("_TOutput")
 
