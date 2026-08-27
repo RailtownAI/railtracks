@@ -16,7 +16,7 @@ each other and with other middleware (e.g. `Retry`), see the docs <!!!TODO add t
   output after it already ran, and both composed on one node.
 - `webhook_demo/run.py` -> register a pending approval, resolve it via a
   real external event: a FastAPI route this file exposes, hit by an
-  Approve/Reject Streamlit app (`webhook_demo/webhook_setup.py`, launched
+  Approve/Reject Streamlit app (`webhook_demo/setup.py`, launched
   automatically -- setup only, not part of what this demo teaches) standing
   in for a Slack button / UI callback. Rejecting takes an optional comment.
   Resolving the pending `asyncio.Future` from that route is the same thing
