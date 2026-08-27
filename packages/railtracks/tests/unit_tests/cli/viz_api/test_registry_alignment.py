@@ -30,7 +30,6 @@ from pathlib import Path
 
 import duckdb  # noqa: F401 - imported so pytest surfaces "install duckdb" clearly
 import pytest
-
 from railtracks.cli.viz_api import queries as _queries_pkg
 from railtracks.events.registry import NAMESPACE_COLUMNS
 from railtracks.query import connect
@@ -38,9 +37,7 @@ from railtracks.query import connect
 # Matches ``payload->>'name'`` and ``payload->'name'``. The regex covers the
 # whitespace variants DuckDB accepts because SQL fragments in this repo split
 # COALESCEs across lines.
-_PAYLOAD_ACCESS = re.compile(
-    r"""payload\s*->>?\s*'([a-zA-Z_][a-zA-Z0-9_]*)'"""
-)
+_PAYLOAD_ACCESS = re.compile(r"""payload\s*->>?\s*'([a-zA-Z_][a-zA-Z0-9_]*)'""")
 
 # Envelope columns are hardcoded in ``railtracks.query.connect._ENVELOPE_COLUMNS``.
 # Duplicated here rather than imported so a rename on either side surfaces here.
@@ -170,8 +167,7 @@ class TestNamespaceViewMatchesRegistry:
     ):
         with closing(connect(events_dir, [namespace])) as query:
             view_columns = {
-                row[0]
-                for row in query.con.execute(f"DESCRIBE {namespace}").fetchall()
+                row[0] for row in query.con.execute(f"DESCRIBE {namespace}").fetchall()
             }
         envelope = _ENVELOPE_KEYS - {"payload"}
         expected = envelope | set(NAMESPACE_COLUMNS[namespace])

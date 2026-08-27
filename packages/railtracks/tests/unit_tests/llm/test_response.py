@@ -1,8 +1,9 @@
-from railtracks.llm.response import Response, MessageInfo
-from railtracks.llm import AssistantMessage, UserMessage
 import pytest
+from railtracks.llm import AssistantMessage
+from railtracks.llm.response import MessageInfo, Response
 
 # ================= START message_info tests ============
+
 
 def test_message_info_total_tokens_with_both_tokens():
     mi = MessageInfo(input_tokens=3, output_tokens=4)
@@ -34,6 +35,7 @@ def test_message_info_repr_contains_fields():
     assert "model_name='test-model'" or "model_name=test-model" in r
     assert "total_cost=0.01" in r
     assert "system_fingerprint='fp123'" or "system_fingerprint=fp123" in r
+
 
 # ================ END message_info tests ===============
 
@@ -67,9 +69,14 @@ def test_response_invalid_message_type_raises_type_error():
         Response(123)
 
 
-
 def test_response_message_info_assigned_and_accessible():
-    mi = MessageInfo(input_tokens=5, output_tokens=7, latency=0.12, model_name="test-model", total_cost=0.5)
+    mi = MessageInfo(
+        input_tokens=5,
+        output_tokens=7,
+        latency=0.12,
+        model_name="test-model",
+        total_cost=0.5,
+    )
     message = AssistantMessage("Info test.")
     resp = Response(message=message, message_info=mi)
     assert resp.message_info is mi

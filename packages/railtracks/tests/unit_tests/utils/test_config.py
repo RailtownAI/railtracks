@@ -1,10 +1,10 @@
-import uuid
 import types
-import pytest
 
+import pytest
 from railtracks.utils.config import ExecutorConfig
 
 # ================= START ExecutorConfig: Instantiation tests ============
+
 
 def test_instantiation_with_all_defaults():
     config = ExecutorConfig()
@@ -12,8 +12,11 @@ def test_instantiation_with_all_defaults():
     assert config.end_on_error is False
     assert config.subscriber is None
 
+
 def test_instantiation_with_custom_values(tmp_path):
-    test_subscriber = lambda x: x
+    def test_subscriber(x):
+        return x
+
     config = ExecutorConfig(
         timeout=12.0,
         end_on_error=True,
@@ -23,29 +26,33 @@ def test_instantiation_with_custom_values(tmp_path):
     assert config.end_on_error is True
     assert config.subscriber == test_subscriber
 
+
 # ================ END ExecutorConfig: Instantiation tests ===============
 
 
-
-
 # ================= START ExecutorConfig: broadcast_callback handling tests ============
+
 
 def test_subscriber_accepts_callable():
     config = ExecutorConfig(broadcast_callback=lambda s: s)
     assert callable(config.subscriber)
 
+
 @pytest.mark.asyncio
 async def test_subscriber_accepts_coroutine_function():
     async def async_sub_fn(text):
         return text
+
     config = ExecutorConfig(broadcast_callback=async_sub_fn)
     # (not invoked/executed here, just type accepted)
     assert callable(config.subscriber)
     assert isinstance(config.subscriber, types.FunctionType)
 
+
 def test_subscriber_is_none_by_default():
     config = ExecutorConfig()
     assert config.subscriber is None
+
 
 # ================ END ExecutorConfig: broadcast_callback handling tests ===============
 
@@ -53,16 +60,14 @@ def test_subscriber_is_none_by_default():
 # ================= START Precedence Overwritten Tests ============
 @pytest.fixture
 def base_config():
-    return ExecutorConfig(
-        timeout=100.0,
-        end_on_error=True,
-        save_state=True
-    )
+    return ExecutorConfig(timeout=100.0, end_on_error=True, save_state=True)
+
 
 def test_updated_timeout(base_config):
     updated_config = base_config.precedence_overwritten(timeout=200.0)
     assert updated_config.timeout == 200.0
     assert updated_config.end_on_error == base_config.end_on_error
+
 
 def test_multiple_updated(base_config):
     updated_config = base_config.precedence_overwritten(
@@ -74,15 +79,18 @@ def test_multiple_updated(base_config):
 
     assert base_config.timeout == 100.0
 
+
 def test_timeout_none_by_default():
     """Default timeout should be None (disabled)."""
     config = ExecutorConfig()
     assert config.timeout is None
 
+
 def test_timeout_none_explicit():
     """Explicitly passing timeout=None should disable the timeout."""
     config = ExecutorConfig(timeout=None)
     assert config.timeout is None
+
 
 def test_precedence_overwritten_timeout_none_disables(base_config):
     """precedence_overwritten(timeout=None) should set timeout to None (disabled)."""
@@ -90,12 +98,37 @@ def test_precedence_overwritten_timeout_none_disables(base_config):
     updated_config = base_config.precedence_overwritten(timeout=None)
     assert updated_config.timeout is None
 
+
 def test_precedence_overwritten_without_timeout_disables(base_config):
     """Calling precedence_overwritten() without specifying timeout disables the timeout (None == not provided)."""
     updated_config = base_config.precedence_overwritten()
     assert updated_config.timeout is None
 
+
 def test_precedence_overwritten_timeout_float_enables(base_config):
     """Calling precedence_overwritten(timeout=float) should set the timeout to that float."""
     updated_config = base_config.precedence_overwritten(timeout=42.0)
     assert updated_config.timeout == 42.0
+
+
+def test_save_state_explicit_emits_deprecation_warning():
+    with pytest.warns(
+        DeprecationWarning, match="save_state parameter is being deprecated"
+    ):
+        ExecutorConfig(save_state=False)
+
+
+def test_save_state_unset_emits_no_deprecation_warning(recwarn):
+    ExecutorConfig()
+    assert not [
+        w
+        for w in recwarn.list
+        if issubclass(w.category, DeprecationWarning) and "save_state" in str(w.message)
+    ]
+
+
+def test_save_state_property_false_when_disable_events_env_set(monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "true")
+    monkeypatch.delenv("RAILTRACKS_TEST_MODE", raising=False)
+    config = ExecutorConfig()
+    assert config.save_state is False

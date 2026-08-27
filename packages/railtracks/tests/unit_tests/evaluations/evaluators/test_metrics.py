@@ -1,5 +1,4 @@
 import pytest
-
 from railtracks.evaluations.evaluators.metrics import (
     Categorical,
     Category,
@@ -8,7 +7,6 @@ from railtracks.evaluations.evaluators.metrics import (
     Numerical,
     ToolMetric,
 )
-
 
 # ── Metric ─────────────────────────────────────────────────────────────────────
 
@@ -112,7 +110,10 @@ def test_categorical_accepts_category_objects():
             Category(name="bad", status="fail"),
         ],
     )
-    assert c.categories == [Category(name="good", status="pass"), Category(name="bad", status="fail")]
+    assert c.categories == [
+        Category(name="good", status="pass"),
+        Category(name="bad", status="fail"),
+    ]
     assert c.categories[0].status == "pass"
     assert c.categories[1].status == "fail"
 
@@ -152,7 +153,10 @@ def test_categorical_category_names_with_string_input():
 def test_categorical_category_names_with_category_object_input():
     c = Categorical(
         name="quality",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     assert c.category_names == ["good", "bad"]
 
@@ -160,7 +164,10 @@ def test_categorical_category_names_with_category_object_input():
 def test_categorical_serializes_categories_as_strings():
     c = Categorical(
         name="quality",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     dumped = c.model_dump(mode="json")
     assert dumped["categories"] == ["good", "bad"]
@@ -192,7 +199,10 @@ def test_categorical_status_lists_empty_when_no_statuses():
 def test_categorical_status_lists_appear_in_serialization():
     c = Categorical(
         name="quality",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     dumped = c.model_dump(mode="json")
     assert dumped["pass_categories"] == ["good"]

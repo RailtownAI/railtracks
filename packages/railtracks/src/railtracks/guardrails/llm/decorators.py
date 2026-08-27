@@ -24,21 +24,35 @@ guard's middleware invokes it) and with a raw ``str`` / :class:`~railtracks.llm.
 / :class:`~railtracks.llm.history.MessageHistory`, which is coerced to the correct
 event for the phase via :meth:`convert` before the function sees it.
 
-The wrapped function must be synchronous: a guard's ``__call__`` is invoked
-synchronously while its middleware evaluates the rail (``_eval_one_rail``), so an
-``async def`` would return an un-awaited coroutine.
+The wrapped function may be sync or async. An ``async def`` guard is awaited while
+its middleware evaluates the rail (``_eval_one_rail``), so it can ``await`` anything
+-- including ``rt.call`` into another agent, which is how you build an LLM-judge
+rail::
+
+    @rt.input_guard
+    async def llm_judge(event):
+        verdict = await rt.call(Judge, event.messages[-1].content)
+        if "UNSAFE" in str(verdict):
+            return rt.guardrails.GuardrailDecision.block(reason="judge flagged input")
+        return rt.guardrails.GuardrailDecision.allow()
+
+Note that a rail runs once per *model round-trip*, not once per agent call, so an
+async rail on a tool-calling agent fires on every iteration of the tool loop.
 """
 
 from __future__ import annotations
 
-from typing import Callable, TypeVar, cast, overload
+import inspect
+from typing import Awaitable, Callable, TypeVar, cast, overload
 
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
 from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.guardrails.llm.llm_guard import BaseLLMGuardrail
 
-_GuardFn = Callable[[LLMGuardrailEvent], GuardrailDecision]
+_GuardFn = Callable[
+    [LLMGuardrailEvent], GuardrailDecision | Awaitable[GuardrailDecision]
+]
 _GuardT = TypeVar("_GuardT", bound=BaseLLMGuardrail)
 
 
@@ -54,14 +68,28 @@ def _make_guard(
     The generated guard coerces any non-event input to an event via the base's
     phase-aware :meth:`convert`, so ``fn`` always receives an
     :class:`LLMGuardrailEvent`.
+
+    An ``async def`` ``fn`` produces a guard with an ``async def __call__``, which the
+    rail evaluator awaits. Everything downstream of the decision is identical either
+    way.
     """
     guard_name = name or fn.__name__
 
-    class _FunctionGuard(base):  # type: ignore[valid-type, misc]
-        def __call__(self, event) -> GuardrailDecision:
-            if not isinstance(event, LLMGuardrailEvent):
-                event = self.convert(event)
-            return fn(event)
+    if inspect.iscoroutinefunction(fn):
+
+        class _FunctionGuard(base):  # type: ignore[valid-type, misc]
+            async def __call__(self, event) -> GuardrailDecision:
+                if not isinstance(event, LLMGuardrailEvent):
+                    event = self.convert(event)
+                return await fn(event)
+
+    else:
+
+        class _FunctionGuard(base):  # type: ignore[valid-type, misc, no-redef]
+            def __call__(self, event) -> GuardrailDecision:
+                if not isinstance(event, LLMGuardrailEvent):
+                    event = self.convert(event)
+                return cast(GuardrailDecision, fn(event))
 
     _FunctionGuard.__name__ = f"{base.__name__}[{guard_name}]"
     _FunctionGuard.__qualname__ = _FunctionGuard.__name__
@@ -86,7 +114,8 @@ def input_guard(
     """Turn a function into an :class:`InputGuard` instance.
 
     The function receives an :class:`LLMGuardrailEvent` (INPUT phase; inspect
-    ``event.messages``) and returns a :class:`GuardrailDecision`.
+    ``event.messages``) and returns a :class:`GuardrailDecision`. It may be sync or
+    ``async def``; an async rail is awaited, so it can ``await rt.call(...)``.
 
     Usable bare or parameterized::
 
@@ -95,7 +124,7 @@ def input_guard(
 
 
         @rt.input_guard(name="my_rail", fail_open=True)
-        def guard(event): ...
+        async def guard(event): ...
 
     Args:
         fn: The guard function (supplied automatically in the bare form).
@@ -130,7 +159,8 @@ def output_guard(
     """Turn a function into an :class:`OutputGuard` instance.
 
     The function receives an :class:`LLMGuardrailEvent` (OUTPUT phase; inspect
-    ``event.output_message``) and returns a :class:`GuardrailDecision`.
+    ``event.output_message``) and returns a :class:`GuardrailDecision`. It may be
+    sync or ``async def``; an async rail is awaited, so it can ``await rt.call(...)``.
     Intermediate tool-call turns are skipped by :class:`OutputGuard`, so the
     function fires only on the final reply.
 
@@ -141,7 +171,7 @@ def output_guard(
 
 
         @rt.output_guard(name="my_rail", fail_open=True)
-        def guard(event): ...
+        async def guard(event): ...
 
     Args:
         fn: The guard function (supplied automatically in the bare form).

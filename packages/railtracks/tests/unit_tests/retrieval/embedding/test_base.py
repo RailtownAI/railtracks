@@ -117,7 +117,9 @@ async def test_astream_batches_accepts_async_iterable():
 async def test_astream_batches_raises_when_no_batch_size():
     class NoBatchSizeEmb(Embedding):
         async def aembed(self, texts):
-            return TextEmbeddings(vectors=[[0.1]] * len(texts), metrics=EmbeddingMetrics())
+            return TextEmbeddings(
+                vectors=[[0.1]] * len(texts), metrics=EmbeddingMetrics()
+            )
 
     emb = NoBatchSizeEmb()
     with pytest.raises(ValueError, match="default_batch_size"):
