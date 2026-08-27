@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import logging
 from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, overload
 
 from railtracks.middleware.core import Middleware, wrap_node
 from railtracks.middleware.verdict import Verdict, VerifierRejectedError
+from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.unpack import unpack_async_sync
 
-logger = logging.getLogger(__name__)
+logger = get_rt_logger(__name__)
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")

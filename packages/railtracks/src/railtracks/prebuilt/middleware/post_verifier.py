@@ -3,14 +3,14 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-import logging
 from typing import Awaitable, Callable, Concatenate, ParamSpec, TypeVar, overload
 
 from railtracks.middleware.core import Middleware, wrap_node
 from railtracks.middleware.verdict import Verdict, VerifierRejectedError
+from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.unpack import unpack_async_sync
 
-logger = logging.getLogger(__name__)
+logger = get_rt_logger(__name__)
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
@@ -21,9 +21,6 @@ _POSITIONAL_KINDS = (
     inspect.Parameter.POSITIONAL_ONLY,
     inspect.Parameter.POSITIONAL_OR_KEYWORD,
 )
-
-_RED = "\033[91m"
-_RESET = "\033[0m"
 
 
 def _require_result_first(approve_fn: Callable) -> None:
@@ -40,7 +37,7 @@ def _require_result_first(approve_fn: Callable) -> None:
             "approve_fn(result, *args, **kwargs), e.g.:\n"
             "    def approve(result, *args, **kwargs) -> Verdict: ..."
         )
-        raise TypeError(f"{_RED}{message}{_RESET}")
+        raise TypeError(message)
 
 
 @overload
