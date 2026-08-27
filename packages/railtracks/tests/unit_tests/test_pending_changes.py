@@ -163,6 +163,27 @@ def test_removed_names_are_not_advertised_but_stay_discoverable():
         assert name in dir(rt.guardrails)
 
 
+@pytest.mark.parametrize("name", SURVIVING_GUARDRAIL_NAMES)
+def test_surviving_names_are_importable_from_rt_guardrails(name):
+    """These are unchanged in 1.5.0, so `from railtracks.guardrails import X` must work.
+
+    InputGuard/OutputGuard regressed here once: the docs told users to subclass them
+    and import them from `rt.guardrails`, but they were only reachable from
+    `rt.guardrails.llm.concrete`, so the documented snippet raised ImportError.
+    """
+    module = importlib.import_module("railtracks.guardrails")
+
+    assert hasattr(module, name), f"railtracks.guardrails is missing {name}"
+    assert name in module.__all__
+    assert name in dir(module)
+
+
+@pytest.mark.parametrize("name", SURVIVING_GUARDRAIL_NAMES)
+def test_surviving_names_do_not_warn(name):
+    """Unchanged names must never warn, or users will over-migrate."""
+    assert_silent(lambda: getattr(rt.guardrails, name))
+
+
 def test_rt_interactive_warns():
     with pytest.warns(FutureWarning, match="rt.interactive is removed"):
         rt.interactive
