@@ -1,5 +1,4 @@
-"""Unit tests for `couple` -- post-hoc middleware attachment.
-"""
+"""Unit tests for `couple` -- post-hoc middleware attachment."""
 
 import asyncio
 
@@ -163,9 +162,7 @@ def test_couple_chained_composes_second_outer_first_inner():
 def test_couple_with_multiple_middleware_in_one_call_preserves_list_order():
     log = []
     fn = _make_node()
-    result = couple(
-        fn, middleware=[_tracer("first", log), _tracer("second", log)]
-    )
+    result = couple(fn, middleware=[_tracer("first", log), _tracer("second", log)])
 
     asyncio.run(_run(result, 1, 1))
 
@@ -263,8 +260,7 @@ def test_couple_model_middleware_branching_does_not_cross_contaminate(mock_llm):
     # neither is the same list object as their shared base's
     assert branch_x._user_model_middleware is not branch_y._user_model_middleware
     assert (
-        branch_x._user_model_middleware
-        is not base_with_prefix._user_model_middleware
+        branch_x._user_model_middleware is not base_with_prefix._user_model_middleware
     )
 
     asyncio.run(_run_agent(branch_x))
@@ -346,9 +342,6 @@ def test_couple_model_middleware_chained_composes_second_outer_first_inner(mock_
 
 
 def test_couple_model_middleware_on_rt_function_is_a_documented_no_op():
-   
     fn = _make_node()
     with pytest.raises(ValueError):
-        result = couple(fn, model_middleware=[_model_tracer("m", [])])
-
-
+        couple(fn, model_middleware=[_model_tracer("m", [])])

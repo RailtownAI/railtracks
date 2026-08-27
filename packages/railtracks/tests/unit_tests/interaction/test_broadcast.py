@@ -1,14 +1,16 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from railtracks.interaction.broadcast_ import broadcast
 from railtracks.pubsub.messages import BroadcastEvent
 
 
 @pytest.mark.asyncio
 async def test_broadcast_publishes_event_message():
-    with patch("railtracks.interaction.broadcast_.get_publisher") as mock_get_publisher, \
-         patch("railtracks.interaction.broadcast_.get_parent_id") as mock_get_parent_id:
-
+    with (
+        patch("railtracks.interaction.broadcast_.get_publisher") as mock_get_publisher,
+        patch("railtracks.interaction.broadcast_.get_parent_id") as mock_get_parent_id,
+    ):
         # Setup mocks
         mock_publisher = AsyncMock()
         mock_get_publisher.return_value = mock_publisher

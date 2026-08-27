@@ -1,10 +1,9 @@
 import asyncio
+from typing import List
 
 import pytest
-from typing import List, Type
-from pydantic import BaseModel, Field
 import railtracks as rt
-
+from pydantic import BaseModel, Field
 
 # ====================================== Mock Model ======================================
 # Check the root conftest in tests folder for MockLLM class
@@ -164,9 +163,7 @@ def terminal_nodes(mock_llm, terminal_llms_system_messages):
     Returns the appropriate nodes based on the parametrized fixture name.
     """
     system_rng, system_rng_operation, system_math_genius = terminal_llms_system_messages
-    rng_node = rt.agent_node(
-        name="RNG Node", system_message=system_rng, llm=mock_llm()
-    )
+    rng_node = rt.agent_node(name="RNG Node", system_message=system_rng, llm=mock_llm())
     rng_operation_node = rt.agent_node(
         name="RNG Operation Node",
         system_message=system_rng_operation,
@@ -233,11 +230,11 @@ def tool_calling_nodes(
     available_locations, currency_used, average_location_cost = travel_planner_tools
     system_currency_converter, system_travel_planner = tool_call_llm_system_messages
 
-    AvailableCurrencies = rt.function_node(available_currencies)
-    ConvertCurrency = rt.function_node(convert_currency)
-    AvailableLocations = rt.function_node(available_locations)
-    CurrencyUsed = rt.function_node(currency_used)
-    AverageLocationCost = rt.function_node(average_location_cost)
+    AvailableCurrencies = rt.function_node(available_currencies)  # noqa: N806
+    ConvertCurrency = rt.function_node(convert_currency)  # noqa: N806
+    AvailableLocations = rt.function_node(available_locations)  # noqa: N806
+    CurrencyUsed = rt.function_node(currency_used)  # noqa: N806
+    AverageLocationCost = rt.function_node(average_location_cost)  # noqa: N806
 
     currency_converter_node = rt.agent_node(
         tool_nodes={AvailableCurrencies, ConvertCurrency},
@@ -266,7 +263,7 @@ def parallel_node():
         await asyncio.sleep(timeout_len)
         return timeout_len
 
-    TimeoutNode = rt.function_node(sleep)
+    TimeoutNode = rt.function_node(sleep)  # noqa: N806
 
     async def parallel_function(timeout_config: List[float]):
         return await rt.call_batch(TimeoutNode, timeout_config)

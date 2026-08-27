@@ -106,7 +106,9 @@ def _injected_backend(collection: MagicMock) -> ChromaBackend:
     return backend
 
 
-def _make_entry(user_id: str = "alice", vector: list[float] | None = None) -> StoreEntry:
+def _make_entry(
+    user_id: str = "alice", vector: list[float] | None = None
+) -> StoreEntry:
     if vector is None:
         vector = [1.0, 0.0, 0.0]
     return StoreEntry(
@@ -147,7 +149,9 @@ async def test_initialize_uses_ephemeral_client_by_default():
 
 async def test_initialize_passes_metric_space_to_collection():
     mock_chroma = MagicMock()
-    mock_chroma.EphemeralClient.return_value.get_or_create_collection.return_value = MagicMock()
+    mock_chroma.EphemeralClient.return_value.get_or_create_collection.return_value = (
+        MagicMock()
+    )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
         backend = ChromaBackend("col", metric=DistanceMetric.L2)
@@ -173,7 +177,9 @@ async def test_initialize_uses_persistent_client_when_path_given():
 
 async def test_initialize_uses_http_client_when_host_port_given():
     mock_chroma = MagicMock()
-    mock_chroma.HttpClient.return_value.get_or_create_collection.return_value = MagicMock()
+    mock_chroma.HttpClient.return_value.get_or_create_collection.return_value = (
+        MagicMock()
+    )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
         backend = ChromaBackend("col", host="localhost", port=8000)
@@ -205,7 +211,9 @@ async def test_upsert_passes_documents_when_content_in_payload():
     col = _make_collection()
     backend = _injected_backend(col)
 
-    await backend.upsert("entry-1", [0.1, 0.2], {"content": "hello world", "scope_user_id": "alice"})
+    await backend.upsert(
+        "entry-1", [0.1, 0.2], {"content": "hello world", "scope_user_id": "alice"}
+    )
 
     col.upsert.assert_called_once_with(
         ids=["entry-1"],
@@ -452,7 +460,9 @@ async def test_cloud_initialize_raises_import_error_without_chromadb():
 async def test_cloud_initialize_uses_cloud_client():
     mock_chroma = MagicMock()
     mock_collection = MagicMock()
-    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = mock_collection
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
+        mock_collection
+    )
 
     backend = ChromaCloudBackend(
         "my-collection",
@@ -474,7 +484,9 @@ async def test_cloud_initialize_uses_cloud_client():
 
 async def test_cloud_initialize_calls_get_or_create_without_metadata():
     mock_chroma = MagicMock()
-    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
+        MagicMock()
+    )
 
     backend = ChromaCloudBackend(
         "my-collection", api_key="chk-key", tenant="my-tenant", database="my-db"
@@ -491,7 +503,9 @@ async def test_cloud_initialize_calls_get_or_create_without_metadata():
 
 async def test_cloud_initialize_does_not_call_ephemeral_or_http_client():
     mock_chroma = MagicMock()
-    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
+        MagicMock()
+    )
 
     backend = ChromaCloudBackend("col", api_key="k", tenant="t", database="d")
 
@@ -510,7 +524,9 @@ async def test_cloud_initialize_does_not_call_ephemeral_or_http_client():
 
 async def test_cloud_create_factory_returns_initialized_backend():
     mock_chroma = MagicMock()
-    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
+        MagicMock()
+    )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
         backend = await ChromaCloudBackend.create(

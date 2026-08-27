@@ -124,7 +124,9 @@ async def test_run_block_stops_regardless_of_fail_open(sample_history):
         )
         value, traces, blocked = await guard.run(event=_input_event(sample_history), value=sample_history)
 
-        assert blocked is not None, f"fail_open={fail_open} should not override an explicit BLOCK"
+        assert blocked is not None, (
+            f"fail_open={fail_open} should not override an explicit BLOCK"
+        )
         assert blocked.action == GuardrailAction.BLOCK
         assert blocked.reason == "stop"
         assert traces[-1].action == "block"
@@ -227,7 +229,9 @@ async def test_run_output_transform(sample_history):
     output_message = AssistantMessage("a")
     new_message = AssistantMessage("b")
     guard = FnOutputGuard(
-        lambda _e: GuardrailDecision.transform_output(output_message=new_message, reason="fix")
+        lambda _e: GuardrailDecision.transform_output(
+            output_message=new_message, reason="fix"
+        )
     )
     value, traces, blocked = await guard.run(
         event=_output_event(sample_history, output_message), value=output_message
@@ -268,7 +272,6 @@ async def test_guard_composes_via_plain_middleware_wrap(sample_history):
     result = await wrapped(sample_history, None, None)
 
     assert result == "core-result"
-
 
 
 async def test_guard_wrap_short_circuits_on_block(sample_history):

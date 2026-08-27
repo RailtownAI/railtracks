@@ -34,9 +34,7 @@ def test_embedded_retrieved_and_result():
     doc = Document(content="c", type="text")
     chunk = Chunk(content="c", document_id=doc.id)
 
-    embedded = EmbeddedChunk(
-        chunk=chunk, vector=[0.1, 0.2], embedding_model="toy"
-    )
+    embedded = EmbeddedChunk(chunk=chunk, vector=[0.1, 0.2], embedding_model="toy")
     assert embedded.vector == [0.1, 0.2]
     assert embedded.embedding_version is None
 

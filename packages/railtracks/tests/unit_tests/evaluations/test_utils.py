@@ -17,9 +17,7 @@ def make_evaluation_result() -> EvaluationResult:
         agents=[
             {
                 "agent_name": "AgentA",
-                "agent_node_ids": [
-                    {"session_id": uuid4(), "agent_node_id": uuid4()}
-                ],
+                "agent_node_ids": [{"session_id": uuid4(), "agent_node_id": uuid4()}],
             }
         ],
         metrics_map={},
@@ -82,7 +80,9 @@ def test_payload_contains_evaluator_results():
 
 
 def test_save_writes_file(tmp_path, monkeypatch):
-    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
+    monkeypatch.setattr(
+        "railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path
+    )
 
     result = make_evaluation_result()
     save([result])
@@ -92,7 +92,9 @@ def test_save_writes_file(tmp_path, monkeypatch):
 
 
 def test_save_file_content_is_valid_json(tmp_path, monkeypatch):
-    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
+    monkeypatch.setattr(
+        "railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path
+    )
 
     result = make_evaluation_result()
     save([result])
@@ -103,7 +105,9 @@ def test_save_file_content_is_valid_json(tmp_path, monkeypatch):
 
 
 def test_save_duplicate_raises(tmp_path, monkeypatch):
-    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
+    monkeypatch.setattr(
+        "railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path
+    )
 
     result = make_evaluation_result()
     save([result])
@@ -113,7 +117,9 @@ def test_save_duplicate_raises(tmp_path, monkeypatch):
 
 
 def test_save_creates_parent_dirs(tmp_path, monkeypatch):
-    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
+    monkeypatch.setattr(
+        "railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path
+    )
 
     result = make_evaluation_result()
     save([result])
@@ -122,10 +128,14 @@ def test_save_creates_parent_dirs(tmp_path, monkeypatch):
 
 
 def test_save_multiple_results(tmp_path, monkeypatch):
-    monkeypatch.setattr("railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path)
+    monkeypatch.setattr(
+        "railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path
+    )
 
     results = [make_evaluation_result(), make_evaluation_result()]
     save(results)
 
     for result in results:
-        assert (tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json").exists()
+        assert (
+            tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json"
+        ).exists()

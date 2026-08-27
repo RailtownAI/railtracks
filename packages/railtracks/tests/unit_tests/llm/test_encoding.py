@@ -3,9 +3,13 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 import pytest
-
-from railtracks.llm.encoding import detect_source, encode, ensure_data_uri, _is_base64_attachment
 from railtracks.llm.attachment_formats import detect_image_mime_from_bytes
+from railtracks.llm.encoding import (
+    _is_base64_attachment,
+    detect_source,
+    encode,
+    ensure_data_uri,
+)
 
 
 class TestDetectSource:
@@ -82,12 +86,16 @@ class TestEncode:
 
     @patch("railtracks.llm.encoding.request.urlopen")
     def test_url_http_error(self, mock_urlopen):
-        mock_urlopen.side_effect = HTTPError("http://example.com", 404, "Not Found", None, None)  # type: ignore
+        mock_urlopen.side_effect = HTTPError(
+            "http://example.com", 404, "Not Found", None, None
+        )  # type: ignore
         with pytest.raises(ValueError, match="Failed to encode URL"):
             encode("http://example.com/image.png")
 
     def test_data_uri_raises_error(self):
-        with pytest.raises(ValueError, match="Data is already in byte64 encoded format"):
+        with pytest.raises(
+            ValueError, match="Data is already in byte64 encoded format"
+        ):
             encode("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA")
 
     def test_empty_file_raises_error(self, tmp_path):
@@ -163,4 +171,3 @@ class TestAdditionalEncodingCases:
     def test_detect_image_mime_from_bytes_unsupported(self):
         # Should return None for random bytes
         assert detect_image_mime_from_bytes(b"abcdefg") is None
-
