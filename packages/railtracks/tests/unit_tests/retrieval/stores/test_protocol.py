@@ -30,9 +30,7 @@ class _CompleteStore:
     async def delete_where(self, filters: dict[str, Any]) -> None:
         pass
 
-    async def find(
-        self, filters: dict[str, Any], limit: int = 1
-    ) -> list[StoreEntry]:
+    async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]:
         return []
 
     async def count(self, filters: dict[str, Any] | None = None) -> int:

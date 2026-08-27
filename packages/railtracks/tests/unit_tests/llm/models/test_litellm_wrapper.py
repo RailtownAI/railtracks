@@ -371,9 +371,9 @@ class TestCompletionMethods:
             wrapper = mock_litellm_wrapper(content="Invalid JSON")
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -398,9 +398,9 @@ class TestCompletionMethods:
             )
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
     @pytest.mark.parametrize(
         "method_name,is_async",

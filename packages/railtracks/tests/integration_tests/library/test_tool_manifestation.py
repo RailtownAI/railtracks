@@ -1,13 +1,12 @@
 import pytest
 import railtracks as rt
-from railtracks.llm import Message, ToolCall
-from railtracks.llm.response import Response
-import asyncio
+from railtracks.llm import ToolCall
 
 # TODO: Remove with the notices in 1.5.0.
 pytestmark = pytest.mark.filterwarnings(r"ignore:.*in railtracks 1\.5\.0:FutureWarning")
 
-# ================================================ START terminal_llm as tools =========================================================== 
+
+# ================================================ START terminal_llm as tools ===========================================================
 @pytest.mark.asyncio
 @pytest.mark.timeout(30)
 async def test_terminal_llm_as_tool_correct_initialization(
@@ -53,18 +52,25 @@ async def test_terminal_llm_as_tool_correct_initialization(
         else:
             raise AssertionError(f"Unexpected tool: {tool.name}")
 
-        assert all(
-            isinstance(param, rt.llm.Parameter) for param in params
-        ), f"Parameters of {tool.name} should be instances of rt.llm.Parameter"
+        assert all(isinstance(param, rt.llm.Parameter) for param in params), (
+            f"Parameters of {tool.name} should be instances of rt.llm.Parameter"
+        )
 
-    
     _check_tool_info(encoder.tool_info())
     _check_tool_info(decoder.tool_info())
 
     randomizer_llm = mock_llm(
         requested_tool_calls=[
-            ToolCall(name="Encoder", identifier="id_42424242", arguments={"text_input": "hello world"}),
-            ToolCall(name="Decoder", identifier="id_42424242", arguments={"bytes_input": "hello world"}),
+            ToolCall(
+                name="Encoder",
+                identifier="id_42424242",
+                arguments={"text_input": "hello world"},
+            ),
+            ToolCall(
+                name="Decoder",
+                identifier="id_42424242",
+                arguments={"bytes_input": "hello world"},
+            ),
         ]
     )
     # ========================================
@@ -86,13 +92,14 @@ async def test_terminal_llm_as_tool_correct_initialization(
 
 @pytest.mark.asyncio
 async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
-
     rng_tool_details = "A tool that generates 5 random integers between 1 and 100."
 
     rng_node = rt.agent_node(
         name="RNG Tool",
         system_message="You are a helful assistant that can generate 5 random numbers between 1 and 100.",
-        llm=mock_llm("[42, 42, 42, 42, 42]"),    # Assert this is propogated to the parent llm
+        llm=mock_llm(
+            "[42, 42, 42, 42, 42]"
+        ),  # Assert this is propogated to the parent llm
         manifest=rt.ToolManifest(rng_tool_details, None),
     )
 
@@ -102,7 +109,11 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
-    math_llm = mock_llm(requested_tool_calls=[ToolCall(name="RNG_Tool", identifier="id_42424242", arguments={})])
+    math_llm = mock_llm(
+        requested_tool_calls=[
+            ToolCall(name="RNG_Tool", identifier="id_42424242", arguments={})
+        ]
+    )
     # ========================================
 
     math_node = rt.agent_node(
@@ -112,13 +123,14 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
         llm=math_llm,
     )
 
-    with rt.Session() as runner:
+    with rt.Session():
         message_history = rt.llm.MessageHistory(
             [rt.llm.UserMessage("Start the Math node.")]
         )
         response = await rt.call(math_node, user_input=message_history)
-        
-        assert '[42, 42, 42, 42, 42]' in response.content
+
+        assert "[42, 42, 42, 42, 42]" in response.content
+
 
 @pytest.mark.timeout(30)
 @pytest.mark.asyncio
@@ -131,7 +143,11 @@ async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_mess
         manifest=rt.ToolManifest("A tool used to encode text into bytes.", None),
     )
 
-    caller_llm = mock_llm(requested_tool_calls=[ToolCall(name="Encoder", identifier="id_42424242", arguments={})])
+    caller_llm = mock_llm(
+        requested_tool_calls=[
+            ToolCall(name="Encoder", identifier="id_42424242", arguments={})
+        ]
+    )
 
     caller = rt.agent_node(
         tool_nodes={encoder},
@@ -149,9 +165,12 @@ async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_mess
         ]
         assert tool_results == ["encoder check"]
 
+
 @pytest.mark.timeout(30)
 @pytest.mark.asyncio
-async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_system_message):
+async def test_terminal_llm_tool_with_invalid_parameters(
+    mock_llm, encoder_system_message
+):
     # Test case where tool is invoked with incorrect parameters
     encoder_tool_details = "A tool used to encode text into bytes."
     encoder_tool_params = {
@@ -165,9 +184,16 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
         manifest=rt.ToolManifest(encoder_tool_details, encoder_tool_params),
     )
 
-    invalid_caller_llm = mock_llm(requested_tool_calls=[ToolCall(name="encoder", identifier="id_42424242", arguments={"invalid_arg_name": "hello world"})])
+    invalid_caller_llm = mock_llm(
+        requested_tool_calls=[
+            ToolCall(
+                name="encoder",
+                identifier="id_42424242",
+                arguments={"invalid_arg_name": "hello world"},
+            )
+        ]
+    )
     # ========================================
-
 
     system_message = "You are a helful assitant. Use the encoder tool with invalid parameters (invoke the tool with invalid parameters) once and then invoke it again with valid parameters."
     tool_call_llm = rt.agent_node(
@@ -184,13 +210,16 @@ async def test_terminal_llm_tool_with_invalid_parameters(mock_llm, encoder_syste
         response = await rt.call(tool_call_llm, user_input=message_history)
         # Check that there was an error running the tool
         assert any(
-            message.role == "assistant" and "There was an error during tool execution" in message.content
+            message.role == "assistant"
+            and "There was an error during tool execution" in message.content
             for message in response.message_history
         )
+
 
 def test_no_manifest(mock_llm):
     agent = rt.agent_node(name="not a tool", llm=mock_llm)
     with pytest.raises(NotImplementedError):
         agent.tool_info()
+
 
 # ====================================================== END terminal_llm as tool ========================================================

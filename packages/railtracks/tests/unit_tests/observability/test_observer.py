@@ -147,7 +147,9 @@ async def test_configure_writers_after_start_raises():
     obs = Observer()
     await obs.start()
     try:
-        with pytest.raises(RuntimeError, match="configure_writers must be called before"):
+        with pytest.raises(
+            RuntimeError, match="configure_writers must be called before"
+        ):
             obs.configure_writers([MemoryWriter()])
     finally:
         await obs.shutdown()

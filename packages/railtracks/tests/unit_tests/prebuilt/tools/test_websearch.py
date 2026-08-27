@@ -6,7 +6,10 @@ pytest.importorskip("trafilatura")
 
 from railtracks.prebuilt.tools.websearch import WebSearchToolSet  # noqa: E402
 from railtracks.prebuilt.tools.websearch.fetch import HttpFetch  # noqa: E402
-from railtracks.prebuilt.tools.websearch.models import FetchResult, SearchResult  # noqa: E402
+from railtracks.prebuilt.tools.websearch.models import (  # noqa: E402
+    FetchResult,
+    SearchResult,
+)
 from railtracks.prebuilt.tools.websearch.search import TavilySearch  # noqa: E402
 
 

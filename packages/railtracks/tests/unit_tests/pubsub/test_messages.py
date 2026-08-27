@@ -1,18 +1,27 @@
 from railtracks.pubsub.messages import (
-    RequestCompletionMessage, RequestSuccess, RequestFailure, RequestCreationFailure,
-    RequestCreation, FatalFailure, BroadcastEvent, RequestFinishedBase
+    BroadcastEvent,
+    FatalFailure,
+    RequestCompletionMessage,
+    RequestCreation,
+    RequestCreationFailure,
+    RequestFailure,
+    RequestFinishedBase,
+    RequestSuccess,
 )
 
 # ================= START RequestCompletionMessage base tests ============
+
 
 def test_request_completion_message_log_message_repr():
     m = RequestCompletionMessage()
     assert isinstance(m.log_message(), str)
     assert repr(m) == m.log_message()
 
+
 # ================ END RequestCompletionMessage base tests ===============
 
 # ================= START RequestFinishedBase and subclasses tests ============
+
 
 def test_request_finished_base_fields_and_node(dummy_node_state):
     # When constructed, node_state/instantiate yields node
@@ -21,15 +30,18 @@ def test_request_finished_base_fields_and_node(dummy_node_state):
     assert m.node_state == dummy_node_state
     assert m.node == dummy_node_state.instantiate()
 
+
 def test_request_finished_base_node_none():
     # Node is None if node_state is None
     m = RequestFinishedBase(request_id="X", node_state=None)
     assert m.node is None
 
+
 def test_request_finished_base_repr(dummy_node_state):
     m = RequestFinishedBase(request_id="id3", node_state=dummy_node_state)
     r = repr(m)
     assert "id3" in r and "DummyNodeState" in r
+
 
 def test_request_success_repr_and_log_message(dummy_node_state):
     m = RequestSuccess(request_id="r", node_state=dummy_node_state, result=42)
@@ -40,6 +52,7 @@ def test_request_success_repr_and_log_message(dummy_node_state):
     assert "MockNode" in m.log_message()
     assert "42" in m.log_message()
 
+
 def test_request_failure_repr_and_log_message(dummy_node_state):
     err = Exception("fail")
     m = RequestFailure(request_id="r", node_state=dummy_node_state, error=err)
@@ -48,15 +61,18 @@ def test_request_failure_repr_and_log_message(dummy_node_state):
     assert "FAILED" in m.log_message()
     assert "MockNode" in m.log_message()
 
+
 def test_request_creation_failure_repr_and_log_message(dummy_exception):
     m = RequestCreationFailure(request_id="Z", error=dummy_exception)
     assert repr(m) == "RequestCreationFailure(request_id=Z, error=Something went wrong)"
     assert "FAILED" in m.log_message()
     assert "Something went wrong" in m.log_message()
 
+
 # ================ END RequestFinishedBase and subclasses tests ===============
 
 # ================= START RequestCreation tests ============
+
 
 def test_request_creation_fields(dummy_node_class):
     m = RequestCreation(
@@ -67,7 +83,7 @@ def test_request_creation_fields(dummy_node_class):
         running_mode="async",
         new_node_type=dummy_node_class,
         args=(1, 2, 3),
-        kwargs={'a': 9},
+        kwargs={"a": 9},
     )
     assert m.current_node_id == "A"
     assert m.current_run_id == "B"
@@ -76,23 +92,27 @@ def test_request_creation_fields(dummy_node_class):
     assert m.running_mode == "async"
     assert m.new_node_type is dummy_node_class
     assert m.args == (1, 2, 3)
-    assert m.kwargs == {'a': 9}
+    assert m.kwargs == {"a": 9}
     assert dummy_node_class.__name__ in repr(m)
     assert "A" in repr(m)
     assert "N" in repr(m)
 
+
 # ================ END RequestCreation tests ===============
 
 # ================= START FatalFailure tests ============
+
 
 def test_fatal_failure_repr(dummy_exception):
     m = FatalFailure(error=dummy_exception)
     assert "Something went wrong" in repr(m)
     assert isinstance(m, RequestCompletionMessage)
 
+
 # ================ END FatalFailure tests ===============
 
 # ================= START BroadcastEvent tests ============
+
 
 def test_broadcast_event_repr():
     item = object()
@@ -102,10 +122,12 @@ def test_broadcast_event_repr():
     assert "node_id=Z1" in s
     assert str(id(item)) in s or "item" in s
 
+
 def test_broadcast_event_is_a_message():
     m = BroadcastEvent(item="abc", node_id="some_id")
     assert isinstance(m, RequestCompletionMessage)
     assert m.item == "abc"
     assert m.node_id == "some_id"
+
 
 # ================ END BroadcastEvent tests ===============
