@@ -89,6 +89,7 @@ nav:
           - Installation: documentation/getting_started/installation.md
           - LLM Setup: documentation/getting_started/llm_setup.md
           - AI Coding Assistants: documentation/getting_started/ai_setup.md
+          - Contributing to the Docs: documentation/getting_started/contributing_docs.md
           - Upgrading to 1.5.0: documentation/upgrading/1_5_0.md
       - Agent Design:
           - Overview: documentation/agent_design/overview.md
