@@ -32,7 +32,7 @@ RTError (base)
 
 ### LLM layer errors
 
-`railtracks.llm` is self-contained and does not import from the rest of Railtracks, so it raises its own errors. There are two roots, and they are deliberately unrelated:
+`railtracks.llm` is self-contained and raises its own errors, under two unrelated roots:
 
 ```
 ProviderError                    talking to a model provider
@@ -58,13 +58,9 @@ You only see these when calling a model **directly**. Inside a node they are tra
 | `ProviderError` (anything else) | `LLMError` |
 | `ToolCreationError` | `NodeInvocationError` with `fatal=True` |
 
-The classification happens once, at the boundary, so you never have to unwrap anything to
-find out *what* went wrong -- an exhausted retry of timeouts still arrives as an
-`LLMTimeoutError`, whether or not a retry approach was configured.
+You never have to unwrap anything to find out *what* went wrong: an exhausted retry of timeouts arrives as an `LLMTimeoutError`, whether or not a retry approach was configured.
 
-`__cause__` is what carries the detail, because wrapping produces a *new* exception object — `e` is the `LLMError`, `e.__cause__` is the original. The two hierarchies share no ancestor, so `isinstance(e, RetryError)` is always `False`.
-
-Neither root is an `RTError`. That independence is what keeps the `llm` package standalone.
+Because wrapping produces a *new* exception object, `e` is the `LLMError` and `e.__cause__` is the original. The two hierarchies share no ancestor, so `isinstance(e, RetryError)` is always `False`.
 
 ## Error Types
 

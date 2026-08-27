@@ -17,23 +17,23 @@ from litellm.types.utils import (
 )
 from pydantic import BaseModel
 from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
-from railtracks.llm.history import MessageHistory
 from railtracks.llm._exceptions import (
     ProviderAuthenticationError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     RetryError,
 )
+from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
-    _classify_provider_error,
     _parameters_to_json_schema,
     _retrieve_worker_exception,
     _to_litellm_tool,
+    classify_provider_error,
 )
+from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
-from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.tools.tool import ToolCreationError
 
 
@@ -1237,7 +1237,7 @@ class TestReasoningEffortDefaultForTools:
 # ================= END #1394 reasoning_effort-default-for-tools tests ===============
 
 
-# =================================== START _classify_provider_error Tests ==================================
+# =================================== START classify_provider_error Tests ==================================
 class TestClassifyProviderError:
     """litellm's exception vocabulary must not leak past the llm package."""
 
@@ -1257,28 +1257,24 @@ class TestClassifyProviderError:
         ids=["timeout", "rate_limit", "auth"],
     )
     def test_known_litellm_errors_are_classified(self, litellm_exc, expected):
-        assert _classify_provider_error(litellm_exc) is expected
+        assert classify_provider_error(litellm_exc) is expected
 
     def test_unknown_errors_are_left_alone(self):
         """Anything unrecognised stays unclassified rather than being mislabelled."""
-        assert _classify_provider_error(ValueError("who knows")) is None
+        assert classify_provider_error(ValueError("who knows")) is None
 
     def test_retry_error_is_classified_by_what_was_retried(self):
-        """An exhausted retry of timeouts is still a timeout, not a generic failure.
-
-        Without this, the same underlying fault would surface differently depending on
-        whether a retry approach happened to be configured.
-        """
+        """An exhausted retry of timeouts is still a timeout, not a generic failure."""
         retry_error = RetryError(
             "exponential",
             "Max retries exceeded",
             [],
             [litellm.exceptions.Timeout("t", "m", "p")],
         )
-        assert _classify_provider_error(retry_error) is ProviderTimeoutError
+        assert classify_provider_error(retry_error) is ProviderTimeoutError
 
     def test_retry_error_with_no_recorded_exceptions(self):
-        assert _classify_provider_error(RetryError("x", "y", [], [])) is None
+        assert classify_provider_error(RetryError("x", "y", [], [])) is None
 
 
-# =================================== END _classify_provider_error Tests ====================================
+# =================================== END classify_provider_error Tests ====================================

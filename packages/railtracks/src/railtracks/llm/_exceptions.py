@@ -4,9 +4,8 @@ from __future__ import annotations
 class _ColoredError:
     """Terminal colouring shared by this package's error roots.
 
-    Deliberately not an ``Exception`` subclass: mixing it in gives the roots their
-    formatting without giving them a common ancestor, so ``except ProviderError``
-    cannot accidentally swallow a ``ToolCreationError``.
+    Not an ``Exception`` subclass, so mixing it in does not give the roots a common
+    ancestor.
     """
 
     # ANSI color codes for terminal output
@@ -26,14 +25,12 @@ class ProviderError(_ColoredError, Exception):
     """
     Base class for failures that happen while talking to a model provider.
 
-    Covers the model itself misbehaving, an unknown model, and exhausted retries.
-    Errors about *defining* a tool are deliberately not part of this hierarchy -- see
+    Covers the model misbehaving, an unknown model, and exhausted retries. Errors about
+    *defining* a tool are a separate root -- see
     :class:`railtracks.llm.tools.tool.ToolCreationError`.
 
-    The ``llm`` package is self-contained and never imports from the rest of
-    ``railtracks``, so it owns this root rather than sharing
-    ``railtracks.exceptions.RTError``. Inside a node these are translated once, at the
-    ``built_nodes.llm.llm_helpers`` boundary, into `railtracks.exceptions.LLMError`.
+    Raised only by direct model calls. Inside a node these surface as
+    :class:`railtracks.exceptions.LLMError`.
     """
 
 

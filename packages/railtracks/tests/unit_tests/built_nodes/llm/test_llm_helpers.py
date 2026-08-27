@@ -116,42 +116,6 @@ def test_prepare_called_as_tool_empty_kwargs_returns_empty_history():
 # ---------------------------------------------------------------------------
 # llm_invoke_factory error translation
 # ---------------------------------------------------------------------------
-async def test_tool_creation_error_becomes_a_fatal_node_invocation_error(monkeypatch):
-    """`ToolCreationError` is raised inside the llm package (which cannot import
-    railtracks' errors), so the agent layer translates it back into the fatal
-    `NodeInvocationError` callers rely on rather than masking it as an `LLMError`."""
-
-    class _ExplodingInvoker:
-        @classmethod
-        def create_with_llm_observe(cls, *args, **kwargs):
-            return cls()
-
-        async def invoke(self, *args, **kwargs):
-            raise ToolCreationError(
-                message="Unable to parse Tool.parameters. It was 123",
-                notes=["Tool.parameters must be a set of Parameter objects"],
-            )
-
-    monkeypatch.setattr(llm_helpers, "ModelInvoker", _ExplodingInvoker)
-
-    class _FakeNode:
-        _user_model_middleware = []
-        _scope_manager = None
-
-    invoke = llm_helpers.llm_invoke_factory(object(), None)
-
-    with pytest.raises(NodeInvocationError) as exc:
-        await invoke(_FakeNode(), "hello")
-
-    assert exc.value.fatal is True
-    assert not isinstance(exc.value, LLMError)
-    assert "Unable to parse Tool.parameters" in str(exc.value)
-    assert exc.value.notes == ["Tool.parameters must be a set of Parameter objects"]
-
-
-# ---------------------------------------------------------------------------
-# llm_invoke_factory: the llm package -> node layer translation boundary
-# ---------------------------------------------------------------------------
 def _invoker_raising(exc: Exception):
     """A stand-in ModelInvoker whose `invoke` always raises `exc`."""
 
@@ -171,9 +135,27 @@ class _FakeNode:
     _scope_manager = None
 
 
-async def test_rtllmerror_is_translated_into_llmerror(monkeypatch):
-    """The llm package raises its own error type; the boundary turns it into the
-    node-terminating `LLMError` so callers get one uniform failure."""
+async def test_tool_creation_error_becomes_a_fatal_node_invocation_error(monkeypatch):
+    """A malformed tool ends the run, rather than being masked as an `LLMError`."""
+    inner = ToolCreationError(
+        message="Unable to parse Tool.parameters. It was 123",
+        notes=["Tool.parameters must be a set of Parameter objects"],
+    )
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(inner))
+
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(NodeInvocationError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert exc.value.fatal is True
+    assert not isinstance(exc.value, LLMError)
+    assert "Unable to parse Tool.parameters" in str(exc.value)
+    assert exc.value.notes == ["Tool.parameters must be a set of Parameter objects"]
+
+
+async def test_provider_error_is_translated_into_llmerror(monkeypatch):
+    """A `ProviderError` surfaces from a node as the node-terminating `LLMError`."""
     inner = ModelError(reason="Structured LLM call failed")
     monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(inner))
 
@@ -183,12 +165,10 @@ async def test_rtllmerror_is_translated_into_llmerror(monkeypatch):
         await invoke(_FakeNode(), "hello")
 
     # Both dispatch axes answerable from the one object.
-    assert isinstance(exc.value, NodeInvocationError)  # a node terminated
-    assert isinstance(exc.value, LLMError)  # ...and the LLM caused it
-    # The llm package's own reason is carried across rather than repr()-ed into a nest.
+    assert isinstance(exc.value, NodeInvocationError)
+    assert isinstance(exc.value, LLMError)
     assert exc.value.reason == "Structured LLM call failed"
     assert "ModelError(" not in str(exc.value)
-    # The originating error stays reachable for finer-grained checks.
     assert exc.value.__cause__ is inner
 
 
@@ -206,10 +186,7 @@ async def test_unexpected_exception_keeps_its_cause(monkeypatch):
 
 
 async def test_existing_llmerror_is_not_wrapped_twice(monkeypatch):
-    """An already-classified error passes through untouched.
-
-    Re-wrapping would drop `message_history` and nest the rendered message.
-    """
+    """An already-classified error passes through with its `message_history` intact."""
     history = MessageHistory([UserMessage("hi")])
     inner = LLMError(reason="stream ended early", message_history=history)
     monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(inner))
@@ -266,11 +243,7 @@ async def test_timeout_subclass_does_not_shadow_plain_llmerror(monkeypatch):
 
 
 async def test_exhausted_retry_of_timeouts_still_surfaces_as_a_timeout(monkeypatch):
-    """The surfaced class must not depend on whether retries happened to be configured.
-
-    With a retry approach the llm package raises `RetryError`; without one the timeout
-    arrives directly. Both must reach the caller as `LLMTimeoutError`.
-    """
+    """A `RetryError` wrapping timeouts still reaches the caller as `LLMTimeoutError`."""
     retry_error = RetryError(
         "exponential",
         "Max retries exceeded",

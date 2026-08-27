@@ -22,6 +22,7 @@ from .models import (
     PortKeyLLM,
     # TelusLLM,
 )
+from .models._litellm_wrapper import classify_provider_error
 from .models._model_exception_base import (
     FunctionCallingNotSupportedError,
     ModelError,
@@ -49,6 +50,7 @@ __all__ = [
     "ProviderAuthenticationError",
     "RetryError",
     "ToolCreationError",
+    "classify_provider_error",
     "ModelError",
     "ModelNotFoundError",
     "FunctionCallingNotSupportedError",

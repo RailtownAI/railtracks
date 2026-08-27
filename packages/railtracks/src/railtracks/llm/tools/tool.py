@@ -222,9 +222,8 @@ class Tool:
 class ToolCreationError(_ColoredError, Exception):
     """Exception raised when a tool cannot be created.
 
-    Deliberately outside the `ProviderError` hierarchy: a malformed tool is a bug in
-    the caller's code, not a runtime failure of a model provider. The node layer
-    treats it accordingly, ending the run rather than masking it as an `LLMError`.
+    A separate root from `ProviderError`: a malformed tool is a bug in the caller's
+    code, not a runtime failure of a provider, and it ends the run.
     """
 
     def __init__(self, message, notes=None):

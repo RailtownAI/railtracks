@@ -207,8 +207,7 @@ async def summarise(user_input: str) -> str:
         return (await rt.call(strong, user_input)).content
 
     except LLMError as e:
-        # Anything else from the LLM: give the caller something usable, and keep the
-        # provider's original error attached for the logs.
+        # Anything else from the LLM: give the caller something usable.
         logger.warning("Summarisation failed: %s (cause: %r)", e.reason, e.__cause__)
         return "Summary unavailable."
 

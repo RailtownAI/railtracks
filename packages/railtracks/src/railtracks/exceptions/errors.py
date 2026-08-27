@@ -51,11 +51,7 @@ class LLMError(NodeInvocationError):
     """
     Raised when a node terminates because the LLM layer failed.
 
-    This is the framework's normalized view of a failure that originated inside the
-    self-contained `railtracks.llm` package. That package raises its own `ProviderError`
-    types and knows nothing about nodes; the boundary in
-    `railtracks.built_nodes.llm.llm_helpers` translates them into this. The originating
-    error is always preserved on `__cause__`.
+    The originating `railtracks.llm` error is preserved on `__cause__`.
 
     Being a `NodeInvocationError` lets callers branch on both axes at once: catch
     `NodeInvocationError` for "a node terminated", then test for `LLMError` to ask
@@ -76,8 +72,7 @@ class LLMError(NodeInvocationError):
         super().__init__(message, notes=notes, fatal=fatal)
 
     def __str__(self):
-        # Deliberately bypasses NodeInvocationError.__str__ so the base message is not
-        # coloured twice; the sections below render both payloads instead.
+        # Bypasses NodeInvocationError.__str__ so the base message is not coloured twice.
         base = Exception.__str__(self)
         details = []
         if self.message_history:
@@ -109,9 +104,8 @@ class LLMError(NodeInvocationError):
 class LLMTimeoutError(LLMError):
     """The model did not answer in time.
 
-    Deliberately not a builtin `TimeoutError`: that one is an `OSError`, and Railtracks'
-    other timeout (`GlobalTimeOutError`) is not one either -- so `except TimeoutError`
-    would catch one kind of Railtracks timeout and silently miss the other.
+    Not a builtin `TimeoutError`, matching `GlobalTimeOutError`, so that no `except`
+    clause catches one Railtracks timeout and misses the other.
     """
 
 

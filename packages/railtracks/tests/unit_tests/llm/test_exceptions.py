@@ -1,10 +1,7 @@
 """Layering tests for the boundary between the ``llm`` package and the node layer.
 
 The ``llm`` package is self-contained: nothing inside it imports from the surrounding
-``railtracks`` package, and it raises only its own error roots. It knows nothing about
-nodes, so ``LLMError`` -- which means "a node terminated because the LLM failed" -- is a
-framework class, produced by the single translation point in
-``railtracks.built_nodes.llm.llm_helpers``.
+``railtracks`` package, and it raises only its own error roots.
 """
 
 import ast
@@ -50,11 +47,7 @@ def _escaping_imports(path: pathlib.Path) -> list[str]:
     ids=lambda p: str(p.relative_to(LLM_PACKAGE_ROOT)).replace("\\", "/"),
 )
 def test_llm_package_does_not_import_railtracks_errors(module_path: pathlib.Path):
-    """No module in the llm package may reach into railtracks' error definitions.
-
-    This is the regression guard for the cross-dependency this package was untangled
-    from; `railtracks.exceptions` is the one that must never come back.
-    """
+    """No module in the llm package may reach into railtracks' error definitions."""
     offenders = [
         imported
         for imported in _escaping_imports(module_path)
@@ -106,11 +99,7 @@ def test_provider_failures_root_at_providererror(error_cls):
 
 
 def test_tool_creation_error_is_not_a_provider_error():
-    """A malformed tool is a caller bug, not a provider failure.
-
-    Keeping the roots disjoint means `except ProviderError` cannot silently swallow a
-    tool definition mistake, and the boundary's clause order cannot shadow either one.
-    """
+    """Disjoint roots, so `except ProviderError` cannot swallow a tool definition bug."""
     assert not issubclass(ToolCreationError, ProviderError)
     assert not issubclass(ProviderError, ToolCreationError)
 

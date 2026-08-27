@@ -149,8 +149,6 @@ def _parameters_to_json_schema(
     )
 
 
-# litellm speaks its own exception vocabulary. Translating it here keeps litellm types
-# from leaking to callers, and gives the node layer a stable set of names to map onto.
 # Ordered most-specific first; litellm's Timeout subclasses APIConnectionError.
 _LITELLM_ERROR_MAP: tuple[tuple[type[Exception], type[ProviderError]], ...] = (
     (litellm.exceptions.Timeout, ProviderTimeoutError),
@@ -159,15 +157,15 @@ _LITELLM_ERROR_MAP: tuple[tuple[type[Exception], type[ProviderError]], ...] = (
 )
 
 
-def _classify_provider_error(exc: BaseException) -> type[ProviderError] | None:
-    """The `ProviderError` subclass that best describes `exc`, if any.
+def classify_provider_error(exc: BaseException) -> type[ProviderError] | None:
+    """The `ProviderError` subclass that best describes `exc`, or None if none do.
 
     Looks through a `RetryError` at what was actually retried, so an exhausted retry of
-    timeouts still surfaces as a timeout rather than a generic failure.
+    timeouts classifies as a timeout.
     """
     if isinstance(exc, RetryError):
         underlying = exc.exception_list[-1] if exc.exception_list else None
-        return _classify_provider_error(underlying) if underlying else None
+        return classify_provider_error(underlying) if underlying else None
     for litellm_type, provider_type in _LITELLM_ERROR_MAP:
         if isinstance(exc, litellm_type):
             return provider_type
@@ -370,21 +368,19 @@ class LiteLLMWrapper(ModelBase, ABC):
     def _call_provider(self, completion_function: Callable[[], _T]) -> _T:
         """Run the provider call, translating litellm's exceptions into ours.
 
-        Classification happens *outside* the retry wrapper on purpose: the retry
-        approach matches on litellm's own exception types, so translating any earlier
-        would stop retries from ever firing.
+        Classification must stay *outside* the retry wrapper: retry approaches match on
+        litellm's own exception types, so translating earlier would stop retries firing.
         """
         try:
             if self.retry_approach is not None:
                 return self.retry_approach.call_with_retry(completion_function)
             return completion_function()
         except ProviderError:
-            # Already one of ours -- notably `RetryError`, whose type is the contract
-            # for "we retried and gave up". Relabelling it here would lose that; the
-            # node boundary looks through it instead.
+            # Already ours. `RetryError` in particular must keep its type, since that is
+            # how callers detect exhausted retries.
             raise
         except Exception as e:
-            provider_error = _classify_provider_error(e)
+            provider_error = classify_provider_error(e)
             if provider_error is None:
                 raise
             raise provider_error(str(e)) from e
