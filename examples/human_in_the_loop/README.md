@@ -9,21 +9,22 @@ human actually sits is entirely up to `approve_fn` -- these examples show a
 few shapes.
 
 For the `Verdict` shape, timeout semantics, and how pre/post compose with
-each other and with other middleware (e.g. `Retry`), see the docs (tracked in
-#1424, in progress) rather than this README.
+each other and with other middleware (e.g. `Retry`), see the docs <!!!TODO add the docs link later when the pre/post PR is merged and the docs are live>
 
-- `pre_post_verifier_demo.py` -- the core primitives: `pre_verifier` gating
+- `pre_post_verifier_demo.py` -> the core primitives: `pre_verifier` gating
   whether a call happens at all, `post_verifier` gating/rewriting a call's
   output after it already ran, and both composed on one node.
-- `webhook_approval_demo.py` -- register a pending approval, resolve it via
+- `webhook_approval_demo.py` -> register a pending approval, resolve it via
   an external event (standing in for a Slack button / UI callback) by
   setting an `asyncio.Future`'s result from outside the coroutine that's
   awaiting it. The registry lives entirely in user code here.
-- `custom_approval_demo.py` -- demonstrates that "custom" isn't a backend to
+- `custom_approval_demo.py` -> demonstrates that "custom" isn't a backend to
   build at all: any plain callable matching the `approve_fn` signature works
   with `pre_verifier` as-is. Shows composing backends (auto-approve under a
-  threshold, escalate to a human above it).
-- `llm_approval_demo.py` -- an LLM applying a written policy as the
+  threshold, escalate to a human above it). By default that escalation
+  blocks on a real terminal prompt; pass `--fake` for a scripted stand-in
+  reviewer instead (no prompt, useful for unattended runs).
+- `llm_approval_demo.py` -> an LLM applying a written policy as the
   `approve_fn`, the shape most production guardrails actually take: a policy
   check before a refund is processed (pre), a compliance review that rewrites
   a drafted reply after it's generated (post), and both on one node. Makes
@@ -35,15 +36,17 @@ Run any of the four directly, e.g.:
 uv run python examples/human_in_the_loop/pre_post_verifier_demo.py
 ```
 
-The first three run standalone -- no real server, webhook, or API key
-required. `llm_approval_demo.py` needs `OPENAI_API_KEY`.
+`pre_post_verifier_demo.py` and `webhook_approval_demo.py` run standalone: no
+real server, webhook, or API key required. `custom_approval_demo.py` needs a
+terminal to type into by default (or pass `--fake` to run unattended).
+`llm_approval_demo.py` needs `OPENAI_API_KEY`.
 
-## `chat_loop_demo.py` -- exploratory skeleton, not a backend
+## `chat_loop_demo.py` -> exploratory skeleton, not a backend
 
 A different, more speculative sketch than the four above: can `Verdict` +
 other middleware drive a continuously-running chat that keeps going, turn
 after turn, until the human actually wants to close the session? It's a
-barebones skeleton for that question, not a decided pattern -- see the
+barebones skeleton for that question, not a decided pattern. See the
 file's docstring for the design notes (in particular, why ending the chat is
 a top-level gated node, and why the agent signals intent to end via an
 ordinary tool call rather than structured output). Needs a real LLM call
