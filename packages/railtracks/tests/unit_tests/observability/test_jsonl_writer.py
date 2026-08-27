@@ -162,3 +162,23 @@ async def test_write_rejects_unsafe_scope_id(tmp_path: Path, bad_scope_id: str):
         assert list(tmp_path.iterdir()) == []
     finally:
         await writer.shutdown()
+
+
+async def test_start_propagates_mkdir_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """JsonlWriter.start() surfaces the mkdir OSError to its caller. Higher
+    layers (Observer.start) are what catch it and route to the shared helper."""
+    target = tmp_path / "unwritable" / "events"
+    writer = JsonlWriter(target)
+
+    original_mkdir = Path.mkdir
+
+    def _refuse(self, *args, **kwargs):
+        if self == target:
+            raise OSError(30, "Read-only file system")
+        return original_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", _refuse)
+    with pytest.raises(OSError, match="Read-only file system"):
+        await writer.start()
