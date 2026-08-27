@@ -5,14 +5,27 @@ formatting branches (previously only exercised indirectly, with string params).
 
 from __future__ import annotations
 
+import litellm
 import pytest
 import railtracks.built_nodes.llm.llm_helpers as llm_helpers
 from railtracks.built_nodes.llm.llm_helpers import (
     get_node_from_name,
     llm_prepare_called_as_tool_factory,
 )
-from railtracks.exceptions import LLMError, NodeInvocationError
+from railtracks.exceptions import (
+    LLMAuthenticationError,
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    NodeInvocationError,
+)
 from railtracks.llm import Parameter
+from railtracks.llm._exceptions import (
+    ProviderAuthenticationError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import UserMessage
 from railtracks.llm.models._model_exception_base import ModelError
@@ -209,3 +222,67 @@ async def test_existing_llmerror_is_not_wrapped_twice(monkeypatch):
     assert exc.value is inner
     assert exc.value.message_history is history
     assert exc.value.reason == "stream ended early"
+
+
+# ---------------------------------------------------------------------------
+# Provider failure classification
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "provider_error,expected",
+    [
+        (ProviderTimeoutError("timed out"), LLMTimeoutError),
+        (ProviderRateLimitError("slow down"), LLMRateLimitError),
+        (ProviderAuthenticationError("bad key"), LLMAuthenticationError),
+        (ModelError(reason="something else"), LLMError),
+    ],
+    ids=["timeout", "rate_limit", "auth", "unclassified"],
+)
+async def test_provider_failures_map_to_llmerror_subclasses(
+    monkeypatch, provider_error, expected
+):
+    """Users branch with plain `except` clauses; the boundary picks the class."""
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(provider_error))
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(expected) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert type(exc.value) is expected
+    # Every subclass stays catchable by the broader clauses above it.
+    assert isinstance(exc.value, LLMError)
+    assert isinstance(exc.value, NodeInvocationError)
+    assert exc.value.__cause__ is provider_error
+
+
+async def test_timeout_subclass_does_not_shadow_plain_llmerror(monkeypatch):
+    """`except LLMError` must still catch a timeout -- specificity is opt-in."""
+    monkeypatch.setattr(
+        llm_helpers, "ModelInvoker", _invoker_raising(ProviderTimeoutError("timed out"))
+    )
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(LLMError):
+        await invoke(_FakeNode(), "hello")
+
+
+async def test_exhausted_retry_of_timeouts_still_surfaces_as_a_timeout(monkeypatch):
+    """The surfaced class must not depend on whether retries happened to be configured.
+
+    With a retry approach the llm package raises `RetryError`; without one the timeout
+    arrives directly. Both must reach the caller as `LLMTimeoutError`.
+    """
+    retry_error = RetryError(
+        "exponential",
+        "Max retries exceeded",
+        [],
+        [litellm.exceptions.Timeout("t", "m", "p")],
+    )
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(retry_error))
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(LLMTimeoutError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    # RetryError itself is preserved as the cause, so "we retried" is still recoverable.
+    assert exc.value.__cause__ is retry_error
+    assert retry_error.exception_list

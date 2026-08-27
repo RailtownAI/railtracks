@@ -11,9 +11,20 @@ from pydantic import BaseModel
 from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.model_invoker import ModelInvoker
 from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
-from railtracks.exceptions.errors import LLMError, NodeInvocationError
+from railtracks.exceptions.errors import (
+    LLMAuthenticationError,
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    NodeInvocationError,
+)
 from railtracks.interaction._call import call
-from railtracks.llm._exceptions import RTLLMError
+from railtracks.llm._exceptions import (
+    ProviderAuthenticationError,
+    ProviderError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+)
 from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
@@ -23,6 +34,10 @@ from railtracks.llm.message import (
     ToolMessage,
     UserMessage,
 )
+
+# The litellm->ProviderError mapping lives in the llm package (that is where litellm
+# knowledge belongs); the node layer only reuses it to look through a RetryError.
+from railtracks.llm.models._litellm_wrapper import _classify_provider_error
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
 from railtracks.llm.tools.tool import Tool, ToolCreationError
@@ -37,6 +52,29 @@ class StringLLMInvoke(Protocol):
         self: Node,
         user_input: MessageHistory | UserMessage | str | list[Message],
     ) -> StringResponse: ...
+
+
+# The llm package classifies *why* a provider call failed; this maps each of those onto
+# the node-terminating error users catch. Ordered most-specific first.
+_PROVIDER_TO_NODE_ERROR: tuple[tuple[type[ProviderError], type[LLMError]], ...] = (
+    (ProviderTimeoutError, LLMTimeoutError),
+    (ProviderRateLimitError, LLMRateLimitError),
+    (ProviderAuthenticationError, LLMAuthenticationError),
+)
+
+
+def _node_error_for(exc: ProviderError) -> type[LLMError]:
+    """The `LLMError` subclass that matches a provider failure, else `LLMError`.
+
+    `_classify_provider_error` looks through a `RetryError` at what was actually
+    retried, so an exhausted retry of timeouts still becomes an `LLMTimeoutError`. That
+    keeps the surfaced class the same whether or not a retry approach was configured.
+    """
+    provider_type = _classify_provider_error(exc) or type(exc)
+    for candidate, node_type in _PROVIDER_TO_NODE_ERROR:
+        if issubclass(provider_type, candidate):
+            return node_type
+    return LLMError
 
 
 class StructuredLLMInvoke(Protocol[_TStructured]):
@@ -82,10 +120,11 @@ def llm_invoke_factory(
                     message_history, schema=schema, tools=tools
                 )
             # This is the single boundary between the self-contained `llm` package and
-            # the node layer. The llm package raises only `RTLLMError` types and knows
-            # nothing about nodes, so the translation into node-terminating errors
-            # happens here. Every branch chains with `from e` so the originating error
-            # stays reachable via `__cause__`.
+            # the node layer. The llm package raises `ProviderError` and
+            # `ToolCreationError` and knows nothing about nodes, so the translation
+            # into node-terminating errors happens here. Those two roots are disjoint,
+            # so the clauses below cannot shadow each other. Every branch chains with
+            # `from e` to keep the originating error reachable via `__cause__`.
             except NodeInvocationError:
                 # Already classified (a guardrail block, or an LLMError raised further
                 # down). Surface as-is rather than wrapping it a second time, which
@@ -99,10 +138,10 @@ def llm_invoke_factory(
                     notes=e.notes,
                     fatal=True,
                 ) from e
-            except RTLLMError as e:
+            except ProviderError as e:
                 # Carry the llm package's own reason across instead of repr()-ing the
                 # exception, which would nest ANSI escapes inside the new message.
-                raise LLMError(
+                raise _node_error_for(e)(
                     reason=getattr(e, "reason", None) or str(e),
                     message_history=getattr(e, "message_history", None)
                     or message_history,

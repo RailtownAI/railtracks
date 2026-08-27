@@ -10,6 +10,9 @@ __all__ = [
     "NodeInvocationError",
     "NodeCreationError",
     "LLMError",
+    "LLMTimeoutError",
+    "LLMRateLimitError",
+    "LLMAuthenticationError",
     "GlobalTimeOutError",
     "ContextError",
     "FatalError",
@@ -49,7 +52,7 @@ class LLMError(NodeInvocationError):
     Raised when a node terminates because the LLM layer failed.
 
     This is the framework's normalized view of a failure that originated inside the
-    self-contained `railtracks.llm` package. That package raises its own `RTLLMError`
+    self-contained `railtracks.llm` package. That package raises its own `ProviderError`
     types and knows nothing about nodes; the boundary in
     `railtracks.built_nodes.llm.llm_helpers` translates them into this. The originating
     error is always preserved on `__cause__`.
@@ -101,6 +104,23 @@ class LLMError(NodeInvocationError):
             )
             return f"\n{self._color(base, self.RED)}{notes_str}"
         return self._color(base, self.RED)
+
+
+class LLMTimeoutError(LLMError):
+    """The model did not answer in time.
+
+    Deliberately not a builtin `TimeoutError`: that one is an `OSError`, and Railtracks'
+    other timeout (`GlobalTimeOutError`) is not one either -- so `except TimeoutError`
+    would catch one kind of Railtracks timeout and silently miss the other.
+    """
+
+
+class LLMRateLimitError(LLMError):
+    """The provider rejected the call for rate or quota reasons. Usually worth backing off."""
+
+
+class LLMAuthenticationError(LLMError):
+    """The provider rejected the credentials. Retrying will not help; fix the config."""
 
 
 class NodeCreationError(RTError):

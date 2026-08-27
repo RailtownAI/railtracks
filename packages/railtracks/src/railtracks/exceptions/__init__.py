@@ -2,7 +2,10 @@ from .errors import (
     ContextError,
     FatalError,
     GlobalTimeOutError,
+    LLMAuthenticationError,
     LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
     NodeCreationError,
     NodeInvocationError,
 )
@@ -14,6 +17,9 @@ __all__ = [
     "NodeInvocationError",
     "GlobalTimeOutError",
     "LLMError",
+    "LLMTimeoutError",
+    "LLMRateLimitError",
+    "LLMAuthenticationError",
     "ContextError",
     "VisualExtraRequiredError",
 ]

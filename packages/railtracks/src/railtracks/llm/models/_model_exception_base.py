@@ -1,8 +1,8 @@
-from .._exceptions import RTLLMError
+from .._exceptions import ProviderError
 from ..history import MessageHistory
 
 
-class ModelError(RTLLMError):
+class ModelError(ProviderError):
     """
     Any Large Language Model (LLM) error.
     """
@@ -40,7 +40,7 @@ class ModelError(RTLLMError):
         return self._color(base, self.RED)
 
 
-class ModelNotFoundError(RTLLMError):
+class ModelNotFoundError(ProviderError):
     def __init__(self, reason: str, notes: list[str] = None):
         self.reason = reason
         self.notes = notes or []

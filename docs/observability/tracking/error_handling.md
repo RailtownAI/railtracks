@@ -9,53 +9,62 @@ All Railtracks errors inherit from the base `RTError` class, which provides colo
 ```
 RTError (base)
 ├── NodeCreationError
-├── NodeInvocationError          "a node terminated unexpectedly"
-│   ├── LLMError                 ...because the LLM layer failed
-│   └── GuardrailBlockedError    ...because a guardrail blocked it
+├── NodeInvocationError               "a node terminated unexpectedly"
+│   ├── LLMError                      ...because the LLM layer failed
+│   │   ├── LLMTimeoutError           ......the model did not answer in time
+│   │   ├── LLMRateLimitError         ......rate or quota limit hit
+│   │   └── LLMAuthenticationError    ......bad credentials; do not retry
+│   └── GuardrailBlockedError         ...because a guardrail blocked it
 ├── GlobalTimeOutError
 ├── ContextError
 └── FatalError
 ```
 
-`NodeInvocationError` tells you *that* a node terminated; its subclasses tell you *why*. That lets you handle both questions in one place:
+`NodeInvocationError` tells you *that* a node terminated; its subclasses tell you *why*. Every level is a plain `except` clause, so you handle only as much detail as you care about:
 
 ```python
-try:
-    result = await rt.call(my_agent, "hello")
-except LLMError as e:
-    retry_with_fallback_model(e.message_history)
-except NodeInvocationError as e:
-    # A node died for some other reason -- config, guardrail, structure.
-    report(e)
+--8<-- "docs/scripts/error_handling.py:llm_dispatch"
 ```
 
 !!! note "Order your `except` clauses most-specific first"
 
     `LLMError` is a `NodeInvocationError`. Python takes the first *matching* clause, not the closest one, so putting `except NodeInvocationError` above `except LLMError` makes the second unreachable.
 
-### LLM package errors
+### LLM layer errors
 
-The `railtracks.llm` package is self-contained and does not import from the rest of Railtracks, so it raises its own errors rooted at `RTLLMError`:
+`railtracks.llm` is self-contained and does not import from the rest of Railtracks, so it raises its own errors. There are two roots, and they are deliberately unrelated:
 
 ```
-RTLLMError (base)
-├── RetryError
+ProviderError                    talking to a model provider
+├── ProviderTimeoutError
+├── ProviderRateLimitError
+├── ProviderAuthenticationError
 ├── ModelError
 │   ├── FunctionCallingNotSupportedError
 │   └── UnsupportedHyperparameterError
 ├── ModelNotFoundError
-└── ToolCreationError
+└── RetryError
+
+ToolCreationError        defining a tool -- a bug in your code, not a provider failure
 ```
 
-You only see these when calling a model **directly**. Inside a node, they are translated once at the boundary into `LLMError`, and the original stays reachable on `__cause__`:
+You only see these when calling a model **directly**. Inside a node they are translated once, at the boundary, and the original stays reachable on `__cause__`:
 
-```python
-except LLMError as e:
-    if isinstance(e.__cause__, RetryError):
-        ...  # the model was retried and still failed
-```
+| raised in `railtracks.llm` | surfaces from a node as |
+| --- | --- |
+| `ProviderTimeoutError` | `LLMTimeoutError` |
+| `ProviderRateLimitError` | `LLMRateLimitError` |
+| `ProviderAuthenticationError` | `LLMAuthenticationError` |
+| `ProviderError` (anything else) | `LLMError` |
+| `ToolCreationError` | `NodeInvocationError` with `fatal=True` |
 
-`RTLLMError` is deliberately **not** an `RTError` -- the two hierarchies are independent, which is what keeps the `llm` package standalone.
+The classification happens once, at the boundary, so you never have to unwrap anything to
+find out *what* went wrong -- an exhausted retry of timeouts still arrives as an
+`LLMTimeoutError`, whether or not a retry approach was configured.
+
+`__cause__` is what carries the detail, because wrapping produces a *new* exception object — `e` is the `LLMError`, `e.__cause__` is the original. The two hierarchies share no ancestor, so `isinstance(e, RetryError)` is always `False`.
+
+Neither root is an `RTError`. That independence is what keeps the `llm` package standalone.
 
 ## Error Types
 
@@ -82,6 +91,15 @@ All internal errors include helpful debugging notes and formatted error messages
     ```
 
 ## Error Handling Patterns
+
+???+ example "Degrading gracefully inside a node"
+
+    Each `except` narrows the response to what actually failed: retry a slow model,
+    switch tiers when rate limited, and give up gracefully on anything else.
+
+    ```python
+    --8<-- "docs/scripts/error_handling.py:custom_node"
+    ```
 
 ???+ example "Basic Error Handling"
 

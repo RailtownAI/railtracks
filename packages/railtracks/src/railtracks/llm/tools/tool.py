@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, Iterable, List, Type
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from .._exceptions import RTLLMError
+from .._exceptions import _ColoredError
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter_handlers import (
     DefaultParameterHandler,
@@ -219,8 +219,13 @@ class Tool:
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
 
 
-class ToolCreationError(RTLLMError):
-    """Exception raised when a tool cannot be created."""
+class ToolCreationError(_ColoredError, Exception):
+    """Exception raised when a tool cannot be created.
+
+    Deliberately outside the `ProviderError` hierarchy: a malformed tool is a bug in
+    the caller's code, not a runtime failure of a model provider. The node layer
+    treats it accordingly, ending the run rather than masking it as an `LLMError`.
+    """
 
     def __init__(self, message, notes=None):
         super().__init__(message)

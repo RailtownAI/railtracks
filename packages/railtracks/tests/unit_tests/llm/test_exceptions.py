@@ -1,7 +1,7 @@
 """Layering tests for the boundary between the ``llm`` package and the node layer.
 
 The ``llm`` package is self-contained: nothing inside it imports from the surrounding
-``railtracks`` package, and it raises only ``RTLLMError`` types. It knows nothing about
+``railtracks`` package, and it raises only its own error roots. It knows nothing about
 nodes, so ``LLMError`` -- which means "a node terminated because the LLM failed" -- is a
 framework class, produced by the single translation point in
 ``railtracks.built_nodes.llm.llm_helpers``.
@@ -9,13 +9,12 @@ framework class, produced by the single translation point in
 
 import ast
 import pathlib
-import re
 
 import pytest
 import railtracks.llm
 from railtracks.exceptions import LLMError, NodeInvocationError
 from railtracks.exceptions._base import RTError
-from railtracks.llm._exceptions import RetryError, RTLLMError
+from railtracks.llm._exceptions import ProviderError, RetryError
 from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.tools.tool import ToolCreationError
 
@@ -63,22 +62,35 @@ def test_llm_package_does_not_import_railtracks_errors(module_path: pathlib.Path
     ]
     assert offenders == [], (
         f"{module_path.relative_to(LLM_PACKAGE_ROOT)} imports {offenders}; "
-        "errors raised from the llm package must be RTLLMError types defined in "
+        "errors raised from the llm package must be ProviderError types defined in "
         "railtracks.llm, and translated at the llm_helpers boundary instead"
     )
 
 
+def _references_llmerror(path: pathlib.Path) -> bool:
+    """True if `path` uses the name `LLMError` in code (prose mentions don't count)."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == "LLMError":
+            return True
+        if isinstance(node, ast.Attribute) and node.attr == "LLMError":
+            return True
+        if isinstance(node, ast.ImportFrom) and any(
+            a.name == "LLMError" for a in node.names
+        ):
+            return True
+    return False
+
+
 def test_llm_package_never_raises_llmerror():
     """`LLMError` describes a *node* terminating, which the llm package cannot know."""
-    # Negative lookbehind so this does not match the package's own `RTLLMError`.
-    bare_llmerror = re.compile(r"(?<![A-Za-z0-9_])LLMError")
     offenders = [
         str(p.relative_to(LLM_PACKAGE_ROOT)).replace("\\", "/")
         for p in LLM_PACKAGE_ROOT.rglob("*.py")
-        if bare_llmerror.search(p.read_text(encoding="utf-8"))
+        if _references_llmerror(p)
     ]
     assert offenders == [], (
-        f"{offenders} reference LLMError; the llm package should raise an RTLLMError "
+        f"{offenders} reference LLMError; the llm package should raise a ProviderError "
         "type and let llm_helpers translate it"
     )
 
@@ -87,10 +99,25 @@ def test_llm_package_never_raises_llmerror():
 
 
 # =========== START hierarchy tests ===========
+@pytest.mark.parametrize("error_cls", [ModelError, RetryError])
+def test_provider_failures_root_at_providererror(error_cls):
+    """Failures from talking to a model share one catchable root."""
+    assert issubclass(error_cls, ProviderError)
+
+
+def test_tool_creation_error_is_not_a_provider_error():
+    """A malformed tool is a caller bug, not a provider failure.
+
+    Keeping the roots disjoint means `except ProviderError` cannot silently swallow a
+    tool definition mistake, and the boundary's clause order cannot shadow either one.
+    """
+    assert not issubclass(ToolCreationError, ProviderError)
+    assert not issubclass(ProviderError, ToolCreationError)
+
+
 @pytest.mark.parametrize("error_cls", [ModelError, RetryError, ToolCreationError])
-def test_llm_package_errors_root_at_rtllmerror(error_cls):
-    """Everything the llm package raises is catchable from its own public root."""
-    assert issubclass(error_cls, RTLLMError)
+def test_llm_package_errors_are_independent_of_rterror(error_cls):
+    """Nothing the llm package raises may join the framework's hierarchy."""
     assert not issubclass(error_cls, RTError)
 
 
@@ -99,7 +126,7 @@ def test_llmerror_is_a_node_termination():
     assert issubclass(LLMError, NodeInvocationError)
     assert issubclass(LLMError, RTError)
     # It is a framework class, not one of the llm package's own errors.
-    assert not issubclass(LLMError, RTLLMError)
+    assert not issubclass(LLMError, ProviderError)
 
 
 def test_llmerror_defaults_are_non_fatal():

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import litellm
 import pytest
 import requests
-from railtracks.llm._exceptions import RTLLMError
+from railtracks.llm._exceptions import ProviderError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import UserMessage
 from railtracks.llm.models.local.ollama import OllamaLLM
@@ -71,7 +71,7 @@ def test_temperature_passed_to_litellm_completion(mock_response):
 def test_init_model_not_available(mock_response):
     """Test initialization with unavailable model"""
     with patch('requests.get', return_value=mock_response):
-        with pytest.raises(RTLLMError) as exc_info:
+        with pytest.raises(ProviderError) as exc_info:
             OllamaLLM("unavailable-model")
         assert "not available on server" in str(exc_info.value)
 
@@ -106,7 +106,7 @@ def test_chat_with_tools_unsupported(mock_response):
             messages = MessageHistory([UserMessage(content="test message")])
             tools = []
 
-            with pytest.raises(RTLLMError) as exc_info:
+            with pytest.raises(ProviderError) as exc_info:
                 ollama.chat_with_tools(messages, tools)
             assert "does not support function calling" in str(exc_info.value)
 
@@ -126,7 +126,7 @@ def test_init_with_auto_domain_missing_env(mock_response):
     """Test initialization with auto domain but missing environment variable"""
     with patch('requests.get', return_value=mock_response):
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(RTLLMError) as exc_info:
+            with pytest.raises(ProviderError) as exc_info:
                 OllamaLLM("test-model", domain="auto")
             assert "OLLAMA_HOST environment variable not set" in str(exc_info.value)
 
@@ -135,7 +135,7 @@ def test_init_with_custom_domain_missing_env(mock_response):
     """Test initialization with custom domain but missing environment variable"""
     with patch('requests.get', return_value=mock_response):
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(RTLLMError) as exc_info:
+            with pytest.raises(ProviderError) as exc_info:
                 OllamaLLM("test-model", domain="auto")
             assert "OLLAMA_HOST environment variable not set" in str(exc_info.value)
 
@@ -159,7 +159,7 @@ def test_init_with_auto_domain(mock_response):
 def test_init_with_custom_domain_missing_arg(mock_response):
     """Test initialization with custom domain but missing custom_domain argument"""
     with patch('requests.get', return_value=mock_response):
-        with pytest.raises(RTLLMError) as exc_info:
+        with pytest.raises(ProviderError) as exc_info:
             OllamaLLM("test-model", domain="custom")
         assert "Custom domain must be provided" in str(exc_info.value)
 

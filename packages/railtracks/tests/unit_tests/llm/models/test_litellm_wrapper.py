@@ -18,8 +18,15 @@ from litellm.types.utils import (
 from pydantic import BaseModel
 from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
 from railtracks.llm.history import MessageHistory
+from railtracks.llm._exceptions import (
+    ProviderAuthenticationError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
+    _classify_provider_error,
     _parameters_to_json_schema,
     _retrieve_worker_exception,
     _to_litellm_tool,
@@ -292,12 +299,18 @@ def test_litellm_wrapper_model_name_property(mock_litellm_wrapper):
 
 # ================= START completion methods tests =========================
 class TestCompletionMethods:
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_chat", False),
-        ("_achat", True),
-    ], ids=["sync_chat", "async_chat"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat", False),
+            ("_achat", True),
+        ],
+        ids=["sync_chat", "async_chat"],
+    )
     @pytest.mark.asyncio
-    async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async):
+    async def test_chat(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
         content = "Mocked response"
         wrapper = mock_litellm_wrapper(content=content)
         method = getattr(wrapper, method_name)
@@ -311,12 +324,18 @@ class TestCompletionMethods:
         assert isinstance(result.message, AssistantMessage)
         assert result.message.content == content
 
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_structured", False),
-        ("_astructured", True),
-    ], ids=["sync_structured", "async_structured"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_structured", False),
+            ("_astructured", True),
+        ],
+        ids=["sync_structured", "async_structured"],
+    )
     @pytest.mark.asyncio
-    async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async):
+    async def test_structured(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
         class ExampleSchema(BaseModel):
             field: str
 
@@ -371,7 +390,7 @@ class TestCompletionMethods:
         class Schema(BaseModel):
             val: int
 
-        # The llm package raises its own RTLLMError type; the node layer translates
+        # The llm package raises its own ProviderError type; the node layer translates
         # it into LLMError at the llm_helpers boundary, not here.
         with pytest.raises(ModelError, match="Structured LLM call failed"):
             wrapper = mock_litellm_wrapper(
@@ -383,13 +402,17 @@ class TestCompletionMethods:
             else:
                 result = method(message_history, schema=Schema)
 
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_chat_with_tools", False),
-        ("_achat_with_tools", True),
-    ], ids=[
-        "sync_chat_with_tools",
-        "async_chat_with_tools",
-        ])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat_with_tools", False),
+            ("_achat_with_tools", True),
+        ],
+        ids=[
+            "sync_chat_with_tools",
+            "async_chat_with_tools",
+        ],
+    )
     @pytest.mark.asyncio
     async def test_chat_with_tools(
         self, mock_litellm_wrapper, message_history, tool, method_name, is_async
@@ -521,7 +544,9 @@ class TestAsyncStreaming:
 
         with patch.object(wrapper, "_invoke", side_effect=_boom):
             with pytest.raises(RuntimeError, match="stream open failed"):
-                async for _ in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
+                async for _ in wrapper.astream_chat(
+                    MessageHistory([UserMessage("hi")])
+                ):
                     pass
 
     @pytest.mark.asyncio
@@ -676,7 +701,9 @@ class TestStreamedToolCallAccumulation:
         assert [c.name for c in calls] == ["get_weather"]
         assert calls[0].arguments == {"city": "Vancouver"}
 
-    def test_whole_call_in_opening_delta_keeps_its_arguments(self, mock_litellm_wrapper):
+    def test_whole_call_in_opening_delta_keeps_its_arguments(
+        self, mock_litellm_wrapper
+    ):
         """Gemini shape: the entire call, arguments included, arrives in one delta.
 
         Regression test: the opening delta's arguments used to be discarded, so every
@@ -970,14 +997,19 @@ class TestSupportsStreamedToolCalling:
     )
     def test_catalogued_streaming_tool_model_is_allowed(self, model_name):
         assert (
-            _ConcreteLiteLLMWrapperForTest(model_name=model_name).supports_streamed_tool_calling() is True
+            _ConcreteLiteLLMWrapperForTest(
+                model_name=model_name
+            ).supports_streamed_tool_calling()
+            is True
         )
 
     def test_uncatalogued_deployment_is_attempted(self):
         """A custom deployment name (Azure Foundry etc.) has no capability metadata, so
         the probes would report False for a perfectly capable deployment. Attempt it and
         let the API decide, as tool-calling and PDF support already do."""
-        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="azure/my-private-deployment")
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="azure/my-private-deployment"
+        )
 
         assert wrapper.supports_streamed_tool_calling() is True
 
@@ -989,8 +1021,7 @@ class TestSupportsStreamedToolCalling:
         ):
             assert wrapper.supports_streamed_tool_calling() is False
 
-
-# ================= END streamed delta accumulation tests =========================
+    # ================= END streamed delta accumulation tests =========================
 
     @pytest.mark.parametrize(
         "method_name,is_async",
@@ -1183,7 +1214,9 @@ class TestReasoningEffortDefaultForTools:
             wrapper.chat(message_history)
             assert "reasoning_effort" not in mock_completion.call_args.kwargs
 
-    def test_no_default_for_non_reasoning_model(self, message_history, tool, monkeypatch):
+    def test_no_default_for_non_reasoning_model(
+        self, message_history, tool, monkeypatch
+    ):
         self._patch_model_info(
             monkeypatch, supports_reasoning=None, supports_none_reasoning_effort=None
         )
@@ -1202,3 +1235,50 @@ class TestReasoningEffortDefaultForTools:
 
 
 # ================= END #1394 reasoning_effort-default-for-tools tests ===============
+
+
+# =================================== START _classify_provider_error Tests ==================================
+class TestClassifyProviderError:
+    """litellm's exception vocabulary must not leak past the llm package."""
+
+    @pytest.mark.parametrize(
+        "litellm_exc,expected",
+        [
+            (litellm.exceptions.Timeout("t", "m", "p"), ProviderTimeoutError),
+            (
+                litellm.exceptions.RateLimitError("r", "m", "p"),
+                ProviderRateLimitError,
+            ),
+            (
+                litellm.exceptions.AuthenticationError("a", "m", "p"),
+                ProviderAuthenticationError,
+            ),
+        ],
+        ids=["timeout", "rate_limit", "auth"],
+    )
+    def test_known_litellm_errors_are_classified(self, litellm_exc, expected):
+        assert _classify_provider_error(litellm_exc) is expected
+
+    def test_unknown_errors_are_left_alone(self):
+        """Anything unrecognised stays unclassified rather than being mislabelled."""
+        assert _classify_provider_error(ValueError("who knows")) is None
+
+    def test_retry_error_is_classified_by_what_was_retried(self):
+        """An exhausted retry of timeouts is still a timeout, not a generic failure.
+
+        Without this, the same underlying fault would surface differently depending on
+        whether a retry approach happened to be configured.
+        """
+        retry_error = RetryError(
+            "exponential",
+            "Max retries exceeded",
+            [],
+            [litellm.exceptions.Timeout("t", "m", "p")],
+        )
+        assert _classify_provider_error(retry_error) is ProviderTimeoutError
+
+    def test_retry_error_with_no_recorded_exceptions(self):
+        assert _classify_provider_error(RetryError("x", "y", [], [])) is None
+
+
+# =================================== END _classify_provider_error Tests ====================================
