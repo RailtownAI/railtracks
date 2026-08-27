@@ -267,4 +267,3 @@ def allow_persistence():
         os.environ["RAILTRACKS_HOME"] = previous_home
     if previous_disable_events is not None:
         os.environ["RAILTRACKS_DISABLE_EVENTS"] = previous_disable_events
-

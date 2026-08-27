@@ -316,10 +316,9 @@ class TestPublisherOrdering:
         assert _message[0][1] == "hello world"
         assert _message[1][1] == "second"
         assert _message[0][0] < _message[1][0], "Messages should be processed in order."
-        assert (
-            abs(_message[1][0] - _message[0][0] - 0.1) < 0.05
-        ), "Messages should be processed with a delay of 0.1 seconds roughly"
-
+        assert abs(_message[1][0] - _message[0][0] - 0.1) < 0.05, (
+            "Messages should be processed with a delay of 0.1 seconds roughly"
+        )
 
     @pytest.mark.asyncio
     async def test_multiple_subs_with_blocking(self, started_publisher):
@@ -351,9 +350,9 @@ class TestPublisherOrdering:
 
         # Between message 1 and message 2, callback1 runs with a 0.1s sleep,
         # so there should be a delay of roughly 0.1s between callback2 timestamps.
-        assert (
-            abs(_message_2[1][0] - _message_2[0][0] - 0.1) < 0.05
-        ), "Second message should be delayed by callback1's sleep time"
+        assert abs(_message_2[1][0] - _message_2[0][0] - 0.1) < 0.05, (
+            "Second message should be delayed by callback1's sleep time"
+        )
 
 
 # ================ END Publisher ordering/blocking tests ===============
