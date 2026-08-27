@@ -109,3 +109,26 @@ def test_precedence_overwritten_timeout_float_enables(base_config):
     """Calling precedence_overwritten(timeout=float) should set the timeout to that float."""
     updated_config = base_config.precedence_overwritten(timeout=42.0)
     assert updated_config.timeout == 42.0
+
+
+def test_save_state_explicit_emits_deprecation_warning():
+    with pytest.warns(
+        DeprecationWarning, match="save_state parameter is being deprecated"
+    ):
+        ExecutorConfig(save_state=False)
+
+
+def test_save_state_unset_emits_no_deprecation_warning(recwarn):
+    ExecutorConfig()
+    assert not [
+        w
+        for w in recwarn.list
+        if issubclass(w.category, DeprecationWarning) and "save_state" in str(w.message)
+    ]
+
+
+def test_save_state_property_false_when_disable_events_env_set(monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "true")
+    monkeypatch.delenv("RAILTRACKS_TEST_MODE", raising=False)
+    config = ExecutorConfig()
+    assert config.save_state is False
