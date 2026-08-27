@@ -69,17 +69,39 @@ def signal_end_chat() -> str:
     return "noted"
 
 
+@rt.function_node
+def secret_catchphrase() -> str:
+    """A secret catchphrase.
+    Args:
+        None
+    Returns:
+        str: The catchphrase.
+    """
+    return "skadoosh"
+
+
 chat_agent = rt.agent_node(
     name="ChatAgent",
     system_message=(
         "You're a casual chat partner. Reply normally to what the human "
         "says. Call signal_end_chat once their messages suggest they want "
-        "to end the chat -- otherwise just keep chatting."
+        "to end the chat -- otherwise just keep chatting. If asked for any "
+        "password, use your cacthphrase tool to get it."
     ),
     llm=rt.llm.OpenAILLM("gpt-4o-mini"),
-    tool_nodes=[signal_end_chat],
+    tool_nodes=[signal_end_chat, secret_catchphrase],
     model_middleware=[Retry(max_tries=3), Timeout(seconds=30)],
 )
+
+
+@rt.function_node
+async def streaming_entry(message_history: rt.llm.MessageHistory):
+    stream = rt.astream(chat_agent, message_history)
+    async for chunk in stream:
+        if chunk:
+            print(chunk, end="", flush=True)
+    return stream.result
+
 
 ##### Ending the chat is still a human decision, gated like any other #####
 
@@ -96,7 +118,7 @@ def end_chat() -> None:
     """No-op body -- the verifier gate above is the entire point of this node."""
 
 
-chat_flow = rt.Flow(name="chat_loop_demo", entry_point=chat_agent)
+chat_flow = rt.Flow(name="chat_loop_demo", entry_point=streaming_entry)
 end_chat_flow = rt.Flow(name="chat_loop_demo_end", entry_point=end_chat)
 
 
@@ -108,7 +130,7 @@ async def main():
         history.append(rt.llm.UserMessage(input("> ")))
         resp = await chat_flow.ainvoke(history)
         history = resp.message_history
-        print(resp.content)
+        print()  # streaming_entry already printed the reply as it streamed in
 
         if _wants_to_end:
             _wants_to_end = False
