@@ -1,11 +1,12 @@
-import pytest
 import asyncio
 import time
+
+import pytest
+from railtracks.pubsub._subscriber import event_subscriber
 from railtracks.utils.publisher import Publisher, Subscriber
 
-from railtracks.pubsub._subscriber import event_subscriber
-
 # ================= START Subscriber class tests ============
+
 
 class TestSubscriber:
     @pytest.mark.asyncio
@@ -15,13 +16,11 @@ class TestSubscriber:
         assert sub.callback == callback
         assert sub.name == callback.__name__
 
-
     @pytest.mark.asyncio
     async def test_subscriber_custom_name(self, sync_callback_container):
         _, callback = sync_callback_container
         sub = Subscriber(callback, name="my_sub")
         assert sub.name == "my_sub"
-
 
     @pytest.mark.asyncio
     async def test_subscriber_trigger_sync(self, sync_callback_container):
@@ -30,14 +29,12 @@ class TestSubscriber:
         await sub.trigger(123)
         assert state["value"] == 123
 
-
     @pytest.mark.asyncio
     async def test_subscriber_trigger_async(self, async_callback_container):
         state, callback = async_callback_container
         sub = Subscriber(callback)
         await sub.trigger(555)
         assert state["value"] == 555
-
 
     @pytest.mark.asyncio
     async def test_basic_sub(self):
@@ -55,7 +52,6 @@ class TestSubscriber:
 
         assert number == 42
 
-
     @pytest.mark.asyncio
     async def test_sleep_sub(self):
         text = None
@@ -69,13 +65,18 @@ class TestSubscriber:
         assert sub.callback == callback
         await sub.trigger("Hello, World!")
         assert text == "Hello, World!"
+
+
 # ================ END Subscriber class tests ===============
 
 # ================= START Publisher basic tests ============
 
+
 class TestPublisher:
     @pytest.mark.asyncio
-    async def test_basic_publisher_publish_sync(self, started_publisher, sync_callback_container):
+    async def test_basic_publisher_publish_sync(
+        self, started_publisher, sync_callback_container
+    ):
         state, callback = sync_callback_container
         started_publisher.subscribe(callback)
         await started_publisher.publish("msg")
@@ -84,7 +85,6 @@ class TestPublisher:
                 break
             await asyncio.sleep(0.01)
         assert state["value"] == "msg"
-
 
     @pytest.mark.asyncio
     async def test_basic_publisher_publish_async(
@@ -99,16 +99,16 @@ class TestPublisher:
             await asyncio.sleep(0.01)
         assert state["value"] == 99
 
-
     @pytest.mark.asyncio
     async def test_publish_raises_if_not_started(self):
         pub = Publisher()
         with pytest.raises(RuntimeError):
             await pub.publish("fail")
 
-
     @pytest.mark.asyncio
-    async def test_publisher_context_manager(self, async_publisher, sync_callback_container):
+    async def test_publisher_context_manager(
+        self, async_publisher, sync_callback_container
+    ):
         state, callback = sync_callback_container
         async_publisher.subscribe(callback)
         await async_publisher.publish(999)
@@ -118,9 +118,10 @@ class TestPublisher:
             await asyncio.sleep(0.01)
         assert state["value"] == 999
 
-
     @pytest.mark.asyncio
-    async def test_publisher_multiple_subscribers(self, started_publisher, msg_list_container):
+    async def test_publisher_multiple_subscribers(
+        self, started_publisher, msg_list_container
+    ):
         msgs, cb = msg_list_container
         another_msgs = []
 
@@ -133,7 +134,6 @@ class TestPublisher:
         await asyncio.sleep(0.01)
         assert "foo" in msgs
         assert "foo" in another_msgs
-
 
     @pytest.mark.timeout(0.5)
     @pytest.mark.asyncio
@@ -156,7 +156,6 @@ class TestPublisher:
 
         await publisher.shutdown()
 
-
     @pytest.mark.timeout(0.5)
     @pytest.mark.asyncio
     async def test_basic_publisher(self, started_publisher):
@@ -173,7 +172,10 @@ class TestPublisher:
             await asyncio.sleep(0.000001)
 
         assert _message == "hello world"
+
+
 # ================ END Publisher basic tests ===============
+
 
 # ================= START Subscriber list un/sub ============
 class TestSubscriberList:
@@ -191,7 +193,6 @@ class TestSubscriberList:
         await started_publisher.publish("two")
         await asyncio.sleep(0.01)
         assert received == ["one"]
-
 
     @pytest.mark.asyncio
     async def test_unsubscribe_missing_raises(self, started_publisher):
@@ -220,8 +221,9 @@ class TestSubscriberList:
 
         time.sleep(0.1)  # Give some time to process the message
 
-        assert _message is None, "Unsubscribed broadcast_callback should not receive messages."
-
+        assert _message is None, (
+            "Unsubscribed broadcast_callback should not receive messages."
+        )
 
     @pytest.mark.asyncio
     async def test_bad_unsubscribe(self, started_publisher):
@@ -229,19 +231,20 @@ class TestSubscriberList:
             # Attempting to unsubscribe a non-existent broadcast_callback should raise KeyError
             started_publisher.unsubscribe("nonexistent_id")
 
-
     @pytest.mark.asyncio
     async def test_bad_subscribe(self, started_publisher):
-
         async def sample_sub(message: str):
             pass
 
         started_publisher.subscribe(sample_sub)
         with pytest.raises(KeyError):
             started_publisher.unsubscribe("not_a_callable")
+
+
 # ================ END Subscriber list un/sub ===============
 
 # ================= START Publisher ordering/blocking tests ============
+
 
 class TestPublisherOrdering:
     @pytest.mark.asyncio
@@ -261,7 +264,6 @@ class TestPublisherOrdering:
             await asyncio.sleep(0.01)
         assert received == ["first", "second"]
 
-
     @pytest.mark.asyncio
     async def test_mixed_sync_async_callbacks(self, async_publisher):
         received = []
@@ -279,7 +281,6 @@ class TestPublisherOrdering:
         # Order is not guaranteed between sync/async
         assert set(received) == {"sync-X", "async-X"}
 
-
     @pytest.mark.asyncio
     async def test_callback_raises_does_not_block_others(self, started_publisher):
         got = []
@@ -295,7 +296,6 @@ class TestPublisherOrdering:
         await started_publisher.publish("z")
         await asyncio.sleep(0.01)
         assert "z" in got
-
 
     @pytest.mark.timeout(1)
     async def test_blocking_publisher(self, started_publisher):
@@ -316,10 +316,9 @@ class TestPublisherOrdering:
         assert _message[0][1] == "hello world"
         assert _message[1][1] == "second"
         assert _message[0][0] < _message[1][0], "Messages should be processed in order."
-        assert (
-            abs(_message[1][0] - _message[0][0] - 0.1) < 0.02
-        ), "Messages should be processed with a delay of 0.1 seconds roughly"
-
+        assert abs(_message[1][0] - _message[0][0] - 0.1) < 0.02, (
+            "Messages should be processed with a delay of 0.1 seconds roughly"
+        )
 
     @pytest.mark.asyncio
     async def test_multiple_subs_with_blocking(self, started_publisher):
@@ -345,16 +344,19 @@ class TestPublisherOrdering:
 
         # With sequential processing, callback1 and callback2 run one after the other per message.
         # callback1 sleeps for 0.1 sec, so callback1 should complete at or before callback2 for each message.
-        assert _message_1[0][0] <= _message_2[0][0], "callback1 should run before or at same time as callback2 due to sequential processing"
+        assert _message_1[0][0] <= _message_2[0][0], (
+            "callback1 should run before or at same time as callback2 due to sequential processing"
+        )
 
         # Between message 1 and message 2, callback1 runs with a 0.1s sleep,
         # so there should be a delay of roughly 0.1s between callback2 timestamps.
-        assert (
-            abs(_message_2[1][0] - _message_2[0][0] - 0.1) < 0.02
-        ), "Second message should be delayed by callback1's sleep time"
+        assert abs(_message_2[1][0] - _message_2[0][0] - 0.1) < 0.02, (
+            "Second message should be delayed by callback1's sleep time"
+        )
 
 
 # ================ END Publisher ordering/blocking tests ===============
+
 
 # ================= START Publisher exception tests ============
 class TestPublisherException:
@@ -377,9 +379,9 @@ class TestPublisherException:
         await started_publisher.publish("another message")
 
         await asyncio.sleep(0.1)
-        assert (
-            _message == "another message"
-        ), "Callback should still receive messages even if one broadcast_callback throws an exception"
+        assert _message == "another message", (
+            "Callback should still receive messages even if one broadcast_callback throws an exception"
+        )
 
     @pytest.mark.asyncio
     async def test_event_subscriber_callback_exception(self, broadcast_event):
@@ -389,7 +391,10 @@ class TestPublisherException:
         handler = event_subscriber(bad)
         with pytest.raises(Exception):
             await handler(broadcast_event)
+
+
 # ================ END Publisher exception tests ===============
+
 
 # ================= START Publisher listener tests ============
 class TestPublisherListener:
@@ -401,7 +406,6 @@ class TestPublisherListener:
         found = await fut
         assert found == 42
 
-
     @pytest.mark.asyncio
     async def test_listener_with_result_mapping(self, async_publisher):
         fut = async_publisher.listener(lambda x: x == 9, result_mapping=lambda x: x * 2)
@@ -409,14 +413,12 @@ class TestPublisherListener:
         result = await fut
         assert result == 18
 
-
     @pytest.mark.asyncio
     async def test_listener_raises_post_shutdown(self, started_publisher):
         fut = started_publisher.listener(lambda x: x == "no")
         await started_publisher.shutdown()
         with pytest.raises(ValueError):
             await fut
-
 
     @pytest.mark.asyncio
     async def test_listener_timeout_no_message(self, async_publisher):
@@ -445,7 +447,6 @@ class TestPublisherListener:
         assert result == "hello world"
         assert _message == "hello world"
 
-
     @pytest.mark.timeout(0.1)
     @pytest.mark.asyncio
     async def test_listener_many_messages(self, async_publisher):
@@ -460,16 +461,14 @@ class TestPublisherListener:
         assert await am_listener == "another message"
         await async_publisher.publish("hello world")
 
-
     @pytest.mark.asyncio
     async def test_precheck_listener(self, async_publisher):
-            hw_listener = async_publisher.listener(lambda x: x == "hello world")
+        hw_listener = async_publisher.listener(lambda x: x == "hello world")
 
-            await async_publisher.publish("lala")
+        await async_publisher.publish("lala")
 
-            with pytest.raises(asyncio.TimeoutError):
-                await asyncio.wait_for(hw_listener, timeout=0.1)
-
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(hw_listener, timeout=0.1)
 
     @pytest.mark.asyncio
     async def test_get_listener_after_shutdown(self, async_publisher):
@@ -480,7 +479,10 @@ class TestPublisherListener:
 
         with pytest.raises(ValueError):
             await hw_listener  # Should raise an error since the publisher is shutdown
+
+
 # ================ END Publisher listener tests ===============
+
 
 # ================= START Publisher advanced tests ============
 class TestPublisherSanity:
@@ -490,14 +492,15 @@ class TestPublisherSanity:
         await started_publisher.shutdown()
         assert started_publisher.is_running() is False
 
-
     @pytest.mark.asyncio
     async def test_publish_after_shutdown_raises(self, started_publisher):
         await started_publisher.shutdown()
         with pytest.raises(RuntimeError):
             await started_publisher.publish("anything")
 
+
 # ================ END Publisher advanced tests ===============
+
 
 # ================= START Subscriber (event_subscriber) tests ============
 class TestSubscriberEvent:
@@ -514,7 +517,6 @@ class TestSubscriberEvent:
         await handler(broadcast_event)
         assert results == [event_item]
 
-
     @pytest.mark.asyncio
     async def test_event_subscriber_skips_non_event(self):
         class DummyMsg:
@@ -529,7 +531,6 @@ class TestSubscriberEvent:
         await handler(DummyMsg())
         assert results == []
 
-
     @pytest.mark.asyncio
     async def test_event_subscriber_supports_async_callbacks(
         self, broadcast_event, event_item
@@ -543,7 +544,9 @@ class TestSubscriberEvent:
         await handler(broadcast_event)
         assert results == [event_item]
 
+
 # ================ END Subscriber (event_subscriber) tests ===============
+
 
 # ================= START Miscellaneous corner cases ============
 class TestMisc:
@@ -569,9 +572,8 @@ class TestMisc:
             if len(order) == 9:
                 break
             await asyncio.sleep(0.02)
-        expected = set([f"{l}{n}" for l in "ABC" for n in range(3)])
+        expected = {f"{letter}{n}" for letter in "ABC" for n in range(3)}
         assert set(order) == expected
-
 
     @pytest.mark.asyncio
     async def test_subscribe_unsubscribe_multiple(self, started_publisher):
@@ -591,7 +593,6 @@ class TestMisc:
         # No callbacks should run after all are removed
         assert got == []
 
-
     @pytest.mark.asyncio
     async def test_subscriber_autonames_are_unique(self, started_publisher):
         def cb1(x):
@@ -604,13 +605,11 @@ class TestMisc:
         s2_id = started_publisher.subscribe(cb2)
         assert s1_id != s2_id
 
-
     @pytest.mark.asyncio
     async def test_double_shutdown_ok(self, started_publisher):
         await started_publisher.shutdown()
         # Should not error
         await started_publisher.shutdown()
-
 
     @pytest.mark.asyncio
     async def test_subscriber_id_uniqueness(self, async_publisher):
@@ -623,4 +622,6 @@ class TestMisc:
             sid = async_publisher.subscribe(cb)
             ids.append(sid)
         assert len(set(ids)) == 5
+
+
 # ================ END Miscellaneous corner cases ===============

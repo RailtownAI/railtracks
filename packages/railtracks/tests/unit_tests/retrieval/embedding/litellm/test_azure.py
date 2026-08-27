@@ -9,14 +9,18 @@ from railtracks.retrieval.embedding import AzureEmbedding
 
 def _fake_response(vectors: list[list[float]]) -> SimpleNamespace:
     data = [SimpleNamespace(embedding=v) for v in vectors]
-    resp = SimpleNamespace(data=data, usage=SimpleNamespace(prompt_tokens=1), model="azure/my-deploy")
+    resp = SimpleNamespace(
+        data=data, usage=SimpleNamespace(prompt_tokens=1), model="azure/my-deploy"
+    )
     resp._hidden_params = {"response_cost": 0.0001}
     return resp
 
 
 @pytest.mark.asyncio
 async def test_azure_embedding_passes_connection_params():
-    with patch("litellm.aembedding", new=AsyncMock(return_value=_fake_response([[0.1]]))) as mock:
+    with patch(
+        "litellm.aembedding", new=AsyncMock(return_value=_fake_response([[0.1]]))
+    ) as mock:
         emb = AzureEmbedding(
             deployment="my-deploy",
             api_base="https://my.openai.azure.com",
@@ -32,7 +36,9 @@ async def test_azure_embedding_passes_connection_params():
 
 @pytest.mark.asyncio
 async def test_azure_embedding_passes_dimensions():
-    with patch("litellm.aembedding", new=AsyncMock(return_value=_fake_response([[0.1]]))) as mock:
+    with patch(
+        "litellm.aembedding", new=AsyncMock(return_value=_fake_response([[0.1]]))
+    ) as mock:
         emb = AzureEmbedding(
             deployment="my-deploy",
             api_base="https://my.openai.azure.com",

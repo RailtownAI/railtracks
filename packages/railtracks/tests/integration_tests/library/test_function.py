@@ -244,9 +244,7 @@ class TestPrimitiveInputTypes:
                 "What does the tool return for an input of 0? Only return the result, no other text.",
             )
 
-            assert (
-                "There was an error" in output.content
-            )  # graceful error handling
+            assert "There was an error" in output.content  # graceful error handling
             assert rt.context.get("magic_test_called")
 
 

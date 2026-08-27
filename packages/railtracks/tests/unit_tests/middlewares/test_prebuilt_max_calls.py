@@ -59,7 +59,9 @@ async def test_count_is_not_incremented_once_limit_is_hit():
     max_calls = MaxCalls(0)
 
     for _ in range(3):
-        with pytest.raises(MaxCallsExceededError, match="Maximum number of calls exceeded"):
+        with pytest.raises(
+            MaxCallsExceededError, match="Maximum number of calls exceeded"
+        ):
             await max_calls.wrap(noop)()
 
     assert max_calls._call_count == 0

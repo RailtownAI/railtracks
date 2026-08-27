@@ -1,6 +1,7 @@
 import asyncio
 import random
 import time
+
 import pytest
 import railtracks as rt
 
@@ -101,17 +102,21 @@ async def rng_stream_tester(
     assert len(sub.total_streams) == num_calls * parallel_call_nums * 2
     assert set(sub.total_streams) == {str(x) for x in finished_result}
 
+
 @pytest.mark.asyncio
 async def test_rng_streamer():
     await rng_stream_tester(3, 3)
+
 
 @pytest.mark.asyncio
 async def test_rng_streamer_2():
     await rng_stream_tester(1, 15)
 
+
 @pytest.mark.asyncio
 async def test_rng_streamer_chaos():
     await rng_stream_tester(4, 25)
+
 
 @pytest.mark.asyncio
 async def test_rng_streamer_chaos_2():

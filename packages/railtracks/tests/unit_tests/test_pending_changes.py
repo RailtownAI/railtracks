@@ -21,9 +21,12 @@ import sys
 import warnings
 
 import pytest
-
 import railtracks as rt
-from railtracks.utils.deprecation import NEXT_VERSION, UPGRADE_GUIDE, warn_pending_change
+from railtracks.utils.deprecation import (
+    NEXT_VERSION,
+    UPGRADE_GUIDE,
+    warn_pending_change,
+)
 
 RELOCATED_GUARDS = [
     "BlockTextInputGuard",
@@ -127,7 +130,9 @@ def test_building_a_normal_agent_is_silent():
 
 
 def test_core_entry_points_are_silent():
-    assert_silent(lambda: (rt.call, rt.Flow, rt.function_node, rt.Session, rt.broadcast))
+    assert_silent(
+        lambda: (rt.call, rt.Flow, rt.function_node, rt.Session, rt.broadcast)
+    )
 
 
 # ---------------------------------------------------------------------------------------
@@ -135,17 +140,15 @@ def test_core_entry_points_are_silent():
 # ---------------------------------------------------------------------------------------
 
 
-
-
-
 def test_agent_node_with_llm_is_silent():
-    assert_silent(lambda: rt.agent_node(name="with-llm", llm=rt.llm.OpenAILLM("gpt-4o")))
+    assert_silent(
+        lambda: rt.agent_node(name="with-llm", llm=rt.llm.OpenAILLM("gpt-4o"))
+    )
 
 
 # ---------------------------------------------------------------------------------------
 # guardrails.llm.* -> prebuilt.guardrails.*
 # ---------------------------------------------------------------------------------------
-
 
 
 @pytest.mark.parametrize("name", RELOCATED)
@@ -158,10 +161,6 @@ def test_removed_names_are_not_advertised_but_stay_discoverable():
     for name in REMOVED_GUARDRAIL_NAMES:
         assert name not in rt.guardrails.__all__
         assert name in dir(rt.guardrails)
-
-
-
-
 
 
 def test_rt_interactive_warns():
@@ -186,9 +185,6 @@ def test_local_chat_warns():
 # ---------------------------------------------------------------------------------------
 # decisions that were deliberately rejected — these must stay silent
 # ---------------------------------------------------------------------------------------
-
-
-
 
 
 def test_broadcast_callback_is_silent():

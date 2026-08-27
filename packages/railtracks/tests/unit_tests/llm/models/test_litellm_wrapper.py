@@ -291,12 +291,18 @@ def test_litellm_wrapper_model_name_property(mock_litellm_wrapper):
 
 # ================= START completion methods tests =========================
 class TestCompletionMethods:
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_chat", False),
-        ("_achat", True),
-    ], ids=["sync_chat", "async_chat"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat", False),
+            ("_achat", True),
+        ],
+        ids=["sync_chat", "async_chat"],
+    )
     @pytest.mark.asyncio
-    async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async):
+    async def test_chat(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
         content = "Mocked response"
         wrapper = mock_litellm_wrapper(content=content)
         method = getattr(wrapper, method_name)
@@ -310,12 +316,18 @@ class TestCompletionMethods:
         assert isinstance(result.message, AssistantMessage)
         assert result.message.content == content
 
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_structured", False),
-        ("_astructured", True),
-    ], ids=["sync_structured", "async_structured"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_structured", False),
+            ("_astructured", True),
+        ],
+        ids=["sync_structured", "async_structured"],
+    )
     @pytest.mark.asyncio
-    async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async):
+    async def test_structured(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
         class ExampleSchema(BaseModel):
             field: str
 
@@ -351,9 +363,9 @@ class TestCompletionMethods:
             wrapper = mock_litellm_wrapper(content="Invalid JSON")
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -376,17 +388,21 @@ class TestCompletionMethods:
             )
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_chat_with_tools", False),
-        ("_achat_with_tools", True),
-    ], ids=[
-        "sync_chat_with_tools",
-        "async_chat_with_tools",
-        ])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat_with_tools", False),
+            ("_achat_with_tools", True),
+        ],
+        ids=[
+            "sync_chat_with_tools",
+            "async_chat_with_tools",
+        ],
+    )
     @pytest.mark.asyncio
     async def test_chat_with_tools(
         self, mock_litellm_wrapper, message_history, tool, method_name, is_async
@@ -518,7 +534,9 @@ class TestAsyncStreaming:
 
         with patch.object(wrapper, "_invoke", side_effect=_boom):
             with pytest.raises(RuntimeError, match="stream open failed"):
-                async for _ in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
+                async for _ in wrapper.astream_chat(
+                    MessageHistory([UserMessage("hi")])
+                ):
                     pass
 
     @pytest.mark.asyncio
@@ -673,7 +691,9 @@ class TestStreamedToolCallAccumulation:
         assert [c.name for c in calls] == ["get_weather"]
         assert calls[0].arguments == {"city": "Vancouver"}
 
-    def test_whole_call_in_opening_delta_keeps_its_arguments(self, mock_litellm_wrapper):
+    def test_whole_call_in_opening_delta_keeps_its_arguments(
+        self, mock_litellm_wrapper
+    ):
         """Gemini shape: the entire call, arguments included, arrives in one delta.
 
         Regression test: the opening delta's arguments used to be discarded, so every
@@ -967,14 +987,19 @@ class TestSupportsStreamedToolCalling:
     )
     def test_catalogued_streaming_tool_model_is_allowed(self, model_name):
         assert (
-            _ConcreteLiteLLMWrapperForTest(model_name=model_name).supports_streamed_tool_calling() is True
+            _ConcreteLiteLLMWrapperForTest(
+                model_name=model_name
+            ).supports_streamed_tool_calling()
+            is True
         )
 
     def test_uncatalogued_deployment_is_attempted(self):
         """A custom deployment name (Azure Foundry etc.) has no capability metadata, so
         the probes would report False for a perfectly capable deployment. Attempt it and
         let the API decide, as tool-calling and PDF support already do."""
-        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="azure/my-private-deployment")
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="azure/my-private-deployment"
+        )
 
         assert wrapper.supports_streamed_tool_calling() is True
 
@@ -986,8 +1011,7 @@ class TestSupportsStreamedToolCalling:
         ):
             assert wrapper.supports_streamed_tool_calling() is False
 
-
-# ================= END streamed delta accumulation tests =========================
+    # ================= END streamed delta accumulation tests =========================
 
     @pytest.mark.parametrize(
         "method_name,is_async",
@@ -1180,7 +1204,9 @@ class TestReasoningEffortDefaultForTools:
             wrapper.chat(message_history)
             assert "reasoning_effort" not in mock_completion.call_args.kwargs
 
-    def test_no_default_for_non_reasoning_model(self, message_history, tool, monkeypatch):
+    def test_no_default_for_non_reasoning_model(
+        self, message_history, tool, monkeypatch
+    ):
         self._patch_model_info(
             monkeypatch, supports_reasoning=None, supports_none_reasoning_effort=None
         )
