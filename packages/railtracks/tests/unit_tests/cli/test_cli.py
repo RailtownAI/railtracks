@@ -671,8 +671,8 @@ class TestUIVersionTracking(unittest.TestCase):
     def test_get_remote_ui_version_returns_etag(self, mock_urlopen):
         """Returns the ETag header from the remote HEAD response"""
         mock_response = MagicMock()
-        mock_response.headers.get.side_effect = (
-            lambda k: '"remote-etag"' if k == "ETag" else None
+        mock_response.headers.get.side_effect = lambda k: (
+            '"remote-etag"' if k == "ETag" else None
         )
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
@@ -683,8 +683,8 @@ class TestUIVersionTracking(unittest.TestCase):
     def test_get_remote_ui_version_falls_back_to_last_modified(self, mock_urlopen):
         """Falls back to Last-Modified when ETag is absent"""
         mock_response = MagicMock()
-        mock_response.headers.get.side_effect = (
-            lambda k: "Mon, 16 Mar 2026 00:00:00 GMT" if k == "Last-Modified" else None
+        mock_response.headers.get.side_effect = lambda k: (
+            "Mon, 16 Mar 2026 00:00:00 GMT" if k == "Last-Modified" else None
         )
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
@@ -929,15 +929,15 @@ class TestVisualDepsCheck(unittest.TestCase):
 
     @patch("railtracks.cli.importlib.util.find_spec")
     def test_returns_false_when_fastapi_missing(self, mock_find_spec):
-        mock_find_spec.side_effect = (
-            lambda name: None if name == "fastapi" else MagicMock()
+        mock_find_spec.side_effect = lambda name: (
+            None if name == "fastapi" else MagicMock()
         )
         self.assertFalse(_visual_dependencies_available())
 
     @patch("railtracks.cli.importlib.util.find_spec")
     def test_returns_false_when_uvicorn_missing(self, mock_find_spec):
-        mock_find_spec.side_effect = (
-            lambda name: None if name == "uvicorn" else MagicMock()
+        mock_find_spec.side_effect = lambda name: (
+            None if name == "uvicorn" else MagicMock()
         )
         self.assertFalse(_visual_dependencies_available())
 
