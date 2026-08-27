@@ -30,7 +30,7 @@ from railtracks.retrieval.loaders import (
     TextLoader,  # .txt / .md files
     CSVLoader,  # rows → documents; configure content_col, metadata_cols
     JSONLoader,  # .json / .jsonl files
-    PyPDFLoader,  # PDF; strategy="page" (default) or "document"
+    PyPDFLoader,  # PDF; strategy="page" (default), "paragraph", or "document"
     HuggingFaceDatasetLoader,  # HF Hub datasets; pass dataset_name, split, text_column
     LangChainLoaderAdapter,  # wrap any LangChain document loader
 )
@@ -186,6 +186,7 @@ from railtracks.retrieval.loaders import PyPDFLoader
 from railtracks.retrieval.chunking import RecursiveCharacterChunker
 
 # strategy="page" (default): one Document per page
+# strategy="paragraph": one Document per non-empty paragraph on each page
 # strategy="document": one Document for the whole PDF
 loader = PyPDFLoader("data/report.pdf", strategy="page")
 chunker = RecursiveCharacterChunker(chunk_size=800, overlap=100)

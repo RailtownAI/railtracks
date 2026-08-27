@@ -4,6 +4,12 @@ CLASSMETHOD_REQUIRED_NOTES:
   - "Add @classmethod decorator to '{method_name}'."
   - "Signature should be: \n@classmethod\ndef {method_name}(cls): ..."
 
+COMBINED_TOOLS_AND_SCHEMA_MSG: "tool_nodes and output_schema cannot both be provided to agent_node."
+COMBINED_TOOLS_AND_SCHEMA_NOTES:
+  - "Combining tool_nodes with output_schema is not supported: the model does not reliably call tools in this mode and may fabricate a plausible tool result instead of actually invoking the tool."
+  - "If you need tool calls, omit output_schema so the agent returns a StringResponse."
+  - "If you need a structured output_schema, omit tool_nodes, or have a tool-calling agent hand its result to a separate agent_node that sets output_schema."
+
 CONNECTED_NODES_EMPTY_MSG: "tool_nodes must not return an empty set."
 CONNECTED_NODES_EMPTY_NOTES:
   - "Please provide a set nodes that can be used as tools by the ToolCallLLM node."
