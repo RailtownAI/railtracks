@@ -15,13 +15,14 @@ each other and with other middleware (e.g. `Retry`), see the docs <!!!TODO add t
   whether a call happens at all, `post_verifier` gating/rewriting a call's
   output after it already ran, and both composed on one node.
 - `webhook_approval_demo.py` -> register a pending approval, resolve it via
-  a real external event: a FastAPI route this file exposes, hit by a one-
-  button Streamlit app (`webhook_setup.py`, launched automatically -- setup
-  only, not part of what this demo teaches) standing in for a Slack button /
-  UI callback. Resolving the pending `asyncio.Future` from that route is the
-  same thing a production webhook handler would do; nothing here is
-  simulated. Needs `streamlit` (not a railtracks dependency, just this
-  demo's UI) -- `uv pip install streamlit` first, then run normally.
+  a real external event: a FastAPI route this file exposes, hit by an
+  Approve/Reject Streamlit app (`webhook_setup.py`, launched automatically
+  -- setup only, not part of what this demo teaches) standing in for a
+  Slack button / UI callback. Rejecting takes an optional comment.
+  Resolving the pending `asyncio.Future` from that route is the same thing
+  a production webhook handler would do; nothing here is simulated. Needs
+  `streamlit` (not a railtracks dependency, just this demo's UI) -- `uv pip
+  install streamlit` first, then run normally.
 - `custom_approval_demo.py` -> demonstrates that "custom" isn't a backend to
   build at all: any plain callable matching the `approve_fn` signature works
   with `pre_verifier` as-is. Shows composing backends (auto-approve under a
