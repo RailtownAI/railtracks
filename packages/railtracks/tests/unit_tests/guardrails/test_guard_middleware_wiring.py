@@ -225,7 +225,9 @@ async def test_async_input_guard_transform_rewrites_history_before_call():
         return _make_response("ok")
 
     guard = AsyncFnInputGuard(
-        lambda _e: GuardrailDecision.transform_messages(messages=new_history, reason="t")
+        lambda _e: GuardrailDecision.transform_messages(
+            messages=new_history, reason="t"
+        )
     )
 
     await guard.wrap(fake_call)(MessageHistory([UserMessage("hi")]), None, None)

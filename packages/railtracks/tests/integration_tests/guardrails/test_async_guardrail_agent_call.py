@@ -31,13 +31,13 @@ def _counting_chat(llm: rt.llm.ModelBase):
 async def test_async_input_guard_blocks_using_a_judge_agent(mock_llm):
     """The judge says UNSAFE, so the guarded agent's own LLM is never reached."""
     judge_llm = mock_llm(custom_response="UNSAFE")
-    Judge = rt.agent_node(name="judge", llm=judge_llm, system_message="judge the input")
+    judge = rt.agent_node(name="judge", llm=judge_llm, system_message="judge the input")
 
     seen = {}
 
     @input_guard
     async def llm_judge(event) -> GuardrailDecision:
-        verdict = await rt.call(Judge, user_input=str(event.messages[-1].content))
+        verdict = await rt.call(judge, user_input=str(event.messages[-1].content))
         seen["verdict"] = verdict.text
         if "UNSAFE" in verdict.text:
             return GuardrailDecision.block(
@@ -47,13 +47,11 @@ async def test_async_input_guard_blocks_using_a_judge_agent(mock_llm):
 
     guarded_llm = mock_llm(custom_response="should never be reached")
     counts = _counting_chat(guarded_llm)
-    Agent = rt.agent_node(
-        name="guarded", llm=guarded_llm, model_middleware=[llm_judge]
-    )
+    agent = rt.agent_node(name="guarded", llm=guarded_llm, model_middleware=[llm_judge])
 
     with rt.Session():
         with pytest.raises(GuardrailBlockedError) as exc:
-            await rt.call(Agent, user_input="something sketchy")
+            await rt.call(agent, user_input="something sketchy")
 
     assert counts["n"] == 0
     assert "UNSAFE" in seen["verdict"]
@@ -64,25 +62,25 @@ async def test_async_input_guard_blocks_using_a_judge_agent(mock_llm):
 @pytest.mark.asyncio
 async def test_async_input_guard_allows_using_a_judge_agent(mock_llm):
     """The judge says SAFE, so the guarded agent runs normally."""
-    Judge = rt.agent_node(
+    judge = rt.agent_node(
         name="judge-ok", llm=mock_llm(custom_response="SAFE"), system_message="judge"
     )
 
     @input_guard
     async def llm_judge(event) -> GuardrailDecision:
-        verdict = await rt.call(Judge, user_input=str(event.messages[-1].content))
+        verdict = await rt.call(judge, user_input=str(event.messages[-1].content))
         if "UNSAFE" in verdict.text:
             return GuardrailDecision.block(reason="flagged")
         return GuardrailDecision.allow()
 
     guarded_llm = mock_llm(custom_response="the real answer")
     counts = _counting_chat(guarded_llm)
-    Agent = rt.agent_node(
+    agent = rt.agent_node(
         name="guarded-ok", llm=guarded_llm, model_middleware=[llm_judge]
     )
 
     with rt.Session():
-        out = await rt.call(Agent, user_input="a normal question")
+        out = await rt.call(agent, user_input="a normal question")
 
     assert counts["n"] == 1
     assert isinstance(out, StringResponse)
@@ -92,18 +90,18 @@ async def test_async_input_guard_allows_using_a_judge_agent(mock_llm):
 @pytest.mark.asyncio
 async def test_async_output_guard_blocks_using_a_judge_agent(mock_llm):
     """An async rail works on the output phase too."""
-    Judge = rt.agent_node(
+    judge = rt.agent_node(
         name="judge-out", llm=mock_llm(custom_response="LEAK"), system_message="judge"
     )
 
     @output_guard
     async def llm_judge(event) -> GuardrailDecision:
-        verdict = await rt.call(Judge, user_input=str(event.output_message.content))
+        verdict = await rt.call(judge, user_input=str(event.output_message.content))
         if "LEAK" in verdict.text:
             return GuardrailDecision.block(reason="judge flagged output")
         return GuardrailDecision.allow()
 
-    Agent = rt.agent_node(
+    agent = rt.agent_node(
         name="guarded-out",
         llm=mock_llm(custom_response="here is your api key"),
         model_middleware=[llm_judge],
@@ -111,7 +109,7 @@ async def test_async_output_guard_blocks_using_a_judge_agent(mock_llm):
 
     with rt.Session():
         with pytest.raises(GuardrailBlockedError) as exc:
-            await rt.call(Agent, user_input="tell me a secret")
+            await rt.call(agent, user_input="tell me a secret")
 
     assert exc.value.reason == "judge flagged output"
 
@@ -119,7 +117,7 @@ async def test_async_output_guard_blocks_using_a_judge_agent(mock_llm):
 @pytest.mark.asyncio
 async def test_async_guard_transform_via_agent_rewrites_history(mock_llm):
     """An async rail can TRANSFORM using the result of a nested agent call."""
-    Rewriter = rt.agent_node(
+    rewriter = rt.agent_node(
         name="rewriter",
         llm=mock_llm(custom_response="sanitized question"),
         system_message="rewrite",
@@ -127,10 +125,8 @@ async def test_async_guard_transform_via_agent_rewrites_history(mock_llm):
 
     @input_guard
     async def rewrite(event) -> GuardrailDecision:
-        rewritten = await rt.call(Rewriter, user_input="anything")
-        new_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage(rewritten.text)]
-        )
+        rewritten = await rt.call(rewriter, user_input="anything")
+        new_history = rt.llm.MessageHistory([rt.llm.UserMessage(rewritten.text)])
         return GuardrailDecision.transform_messages(
             messages=new_history, reason="rewritten by agent"
         )
@@ -145,12 +141,12 @@ async def test_async_guard_transform_via_agent_rewrites_history(mock_llm):
 
     guarded_llm._chat = wrapped  # type: ignore[method-assign]
 
-    Agent = rt.agent_node(
+    agent = rt.agent_node(
         name="guarded-transform", llm=guarded_llm, model_middleware=[rewrite]
     )
 
     with rt.Session():
-        await rt.call(Agent, user_input="the original question")
+        await rt.call(agent, user_input="the original question")
 
     assert any("sanitized question" in m for m in seen["messages"])
     assert not any("the original question" in m for m in seen["messages"])

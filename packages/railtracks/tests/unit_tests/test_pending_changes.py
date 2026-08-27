@@ -184,10 +184,6 @@ def test_surviving_names_do_not_warn(name):
     assert_silent(lambda: getattr(rt.guardrails, name))
 
 
-
-
-
-
 def test_rt_interactive_warns():
     with pytest.warns(FutureWarning, match="rt.interactive is removed"):
         rt.interactive
