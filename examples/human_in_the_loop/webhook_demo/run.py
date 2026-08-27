@@ -3,8 +3,8 @@
 Register a pending approval, then suspend the coroutine on an `asyncio.Future`
 until something *outside* it resolves it. In real life that's a Slack button
 click or a UI callback hitting a webhook route; this demo makes that literal
-instead of simulating it: a two-button Streamlit app (`webhook_setup.py`,
-launched automatically below) is the human's approval UI, and clicking
+instead of simulating it: a two-button Streamlit app (`setup.py`, launched
+automatically below) is the human's approval UI, and clicking
 Approve or Reject sends a real HTTP POST (with an optional comment on
 reject) to the `/resolve/{order_id}` route this file exposes with FastAPI.
 That request handler is what resolves the pending future -- the same thing
@@ -12,7 +12,7 @@ a real webhook handler receiving a Slack interaction payload would do.
 `localhost` is standing in for the public URL a real webhook would be
 registered at; nothing else here is faked.
 
-`webhook_setup.py` is deliberately uninteresting -- it's just enough
+`setup.py` is deliberately uninteresting -- it's just enough
 Streamlit to give a human a button to click, not part of what this demo is
 teaching. Everything relevant to `pre_verifier`/webhooks lives in this file.
 
@@ -108,7 +108,7 @@ async def main():
     )
     server_task = asyncio.create_task(server.serve())
 
-    ui_script = Path(__file__).with_name("webhook_setup.py")
+    ui_script = Path(__file__).with_name("setup.py")
     ui_process = subprocess.Popen(
         [sys.executable, "-m", "streamlit", "run", str(ui_script)]
     )

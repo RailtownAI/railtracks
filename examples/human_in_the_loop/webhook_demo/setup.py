@@ -14,7 +14,6 @@ import json
 import urllib.request
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 WEBHOOK_URL = "http://127.0.0.1:8765/resolve/A1"
 
@@ -49,13 +48,12 @@ if col2.button("Reject"):
     st.error("Rejected -- check the terminal running the demo.")
 
 if decided:
-    st.caption("You can close this tab now.")
-    # window.close() only works on a tab opened via script, which this one
-    # isn't (`streamlit run` opens it through the OS default browser) -- it
-    # silently no-ops in every real browser. A popup isn't subject to that
-    # restriction, so it's the reliable option: an actual alert dialog
-    # telling the human to close the tab themselves.
-    components.html(
-        "<script>alert('Decision sent. You can close this tab now.')</script>",
-        height=0,
-    )
+    # Two browser tricks were tried and dropped here: window.close() only
+    # works on a tab opened via script (this one, via `streamlit run`,
+    # isn't), and window.alert() needs a live user gesture on the call
+    # stack -- a freshly-inserted iframe from Streamlit's async rerender has
+    # none of its own, so browsers silently block it too, regardless of
+    # sandbox permissions. Neither is fixable with another JS trick, so:
+    # Streamlit's own native, guaranteed-to-render feedback instead.
+    st.balloons()
+    st.subheader("You can close this tab now.")
