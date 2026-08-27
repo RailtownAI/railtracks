@@ -38,22 +38,9 @@ decided = False
 col1, col2 = st.columns(2)
 
 if col1.button("Approve", type="primary"):
-    send_decision(accepted=True, comment="")
-    decided = True
     st.success("Approved -- check the terminal running the demo.")
+    send_decision(accepted=True, comment="")
 
 if col2.button("Reject"):
-    send_decision(accepted=False, comment=comment)
-    decided = True
     st.error("Rejected -- check the terminal running the demo.")
-
-if decided:
-    # Two browser tricks were tried and dropped here: window.close() only
-    # works on a tab opened via script (this one, via `streamlit run`,
-    # isn't), and window.alert() needs a live user gesture on the call
-    # stack -- a freshly-inserted iframe from Streamlit's async rerender has
-    # none of its own, so browsers silently block it too, regardless of
-    # sandbox permissions. Neither is fixable with another JS trick, so:
-    # Streamlit's own native, guaranteed-to-render feedback instead.
-    st.balloons()
-    st.subheader("You can close this tab now.")
+    send_decision(accepted=False, comment=comment)
