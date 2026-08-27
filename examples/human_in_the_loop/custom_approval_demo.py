@@ -84,7 +84,10 @@ async def main():
     print(await refund_flow.ainvoke(order_id="A1", amount=20.0))
 
     # Over the limit: escalates to a human (real prompt, or --fake for scripted).
-    print(await refund_flow.ainvoke(order_id="A2", amount=300.0))
+    try:
+        print(await refund_flow.ainvoke(order_id="A2", amount=300.0))
+    except VerifierRejectedError as e:
+        print(f"Refund declined: {e}")
 
     # Also over the limit -- try declining this one to see the propagated error.
     try:

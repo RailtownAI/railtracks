@@ -1,48 +1,74 @@
 """HIL backend: webhook-style external resolution.
 
 Register a pending approval, then suspend the coroutine on an `asyncio.Future`
-until something *outside* it -- in real life, a Slack button click or a UI
-callback hitting a webhook route -- resolves that future by id. This script
-fakes the "outside" half with a background task that sleeps briefly and then
-calls `resolve_approval(...)` directly, standing in for what a webhook
-handler would do on a real request.
+until something *outside* it resolves it. In real life that's a Slack button
+click or a UI callback hitting a webhook route; this demo makes that literal
+instead of simulating it: a one-button Streamlit app (`webhook_setup.py`,
+launched automatically below) is the human's approval UI, and clicking
+Approve sends a real HTTP POST to the `/approve/{order_id}` route this file
+exposes with FastAPI. That request handler is what resolves the pending
+future -- the same thing a real webhook handler receiving a Slack
+interaction payload would do. `localhost` is standing in for the public URL
+a real webhook would be registered at; nothing else here is faked.
+
+`webhook_setup.py` is deliberately uninteresting -- it's just enough
+Streamlit to give a human a button to click, not part of what this demo is
+teaching. Everything relevant to `pre_verifier`/webhooks lives in this file.
+
+Needs `streamlit` for the button UI (not a railtracks dependency, just this
+demo's stand-in for a real approval UI): `uv pip install streamlit`.
+(`uv run --with streamlit` also works standalone, but in this repo's uv
+workspace it writes streamlit into the root pyproject.toml/uv.lock as a real
+dependency as a side effect -- `uv pip install` avoids that.)
 
 Run: uv run python examples/human_in_the_loop/webhook_approval_demo.py
 """
 
 import asyncio
+import subprocess
+import sys
+from pathlib import Path
 
 import railtracks as rt
+import uvicorn
+from fastapi import FastAPI
 from railtracks.middleware import Verdict, VerifierRejectedError
 from railtracks.prebuilt.middleware import pre_verifier
 
-##### The HIL backend #####
+##### The webhook route an external event (here: the Streamlit button) hits #####
 
 _pending: dict[str, asyncio.Future] = {}
 
+webhook_app = FastAPI()
 
-def resolve_approval(approval_id: str, verdict: Verdict) -> None:
-    """Called by whatever receives the external event (a webhook route, a
-    Slack interaction handler, ...) to deliver the human's decision."""
-    future = _pending.pop(approval_id, None)
+
+@webhook_app.post("/approve/{order_id}")
+async def approve_webhook(order_id: str) -> dict:
+    """A real webhook route -- whatever receives the external event (a Slack
+    interaction handler, a UI callback, ... here: the Streamlit button)
+    calls this to deliver the human's decision. `async def` so this runs
+    directly on the same event loop the pending future belongs to, rather
+    than FastAPI's sync-route thread pool -- otherwise resolving the future
+    would need cross-thread signaling instead of a plain `set_result`."""
+    future = _pending.pop(order_id, None)
     if future is not None and not future.done():
-        future.set_result(verdict)
+        future.set_result(Verdict(accepted=True, comment="approved via webhook"))
+    return {"resolved": future is not None}
 
 
 async def ask_via_webhook(order_id: str, amount: float) -> Verdict:
     """Register a pending approval and wait for it to be resolved externally."""
-    approval_id = order_id
     future: asyncio.Future = asyncio.get_running_loop().create_future()
-    _pending[approval_id] = future
+    _pending[order_id] = future
 
     print(
-        f"Waiting for external approval of refund {amount} for order "
-        f"{order_id} (approval_id={approval_id})..."
+        f"Waiting for approval of refund {amount} for order {order_id} -- "
+        f"click Approve in the browser tab that just opened..."
     )
     return await future
 
 
-hil_gate = pre_verifier(ask_via_webhook, timeout=30, name="webhook_hil")
+hil_gate = pre_verifier(ask_via_webhook, timeout=180, name="webhook_hil")
 
 ##### Agent / tool gated by the HIL backend #####
 
@@ -58,24 +84,29 @@ def refund(order_id: str, amount: float) -> str:
     return f"refunded {amount} for {order_id}"
 
 
-async def simulate_webhook_callback(order_id: str, delay: float = 2.0) -> None:
-    """Stand-in for a real webhook: a human clicks 'approve' in Slack/a UI
-    some time later, and that request handler resolves the pending future."""
-    await asyncio.sleep(delay)
-    print(f"(simulated) webhook received: approving order {order_id}")
-    resolve_approval(order_id, Verdict(accepted=True, comment="approved via Slack"))
-
-
 refund_flow = rt.Flow(name="webhook_refund_flow", entry_point=refund)
 
 
 async def main():
-    asyncio.create_task(simulate_webhook_callback("A1"))
+    server = uvicorn.Server(
+        uvicorn.Config(webhook_app, host="127.0.0.1", port=8765, log_level="warning")
+    )
+    server_task = asyncio.create_task(server.serve())
+
+    ui_script = Path(__file__).with_name("webhook_setup.py")
+    ui_process = subprocess.Popen(
+        [sys.executable, "-m", "streamlit", "run", str(ui_script)]
+    )
+
     try:
         result = await refund_flow.ainvoke(order_id="A1", amount=42.50)
         print(result)
     except VerifierRejectedError as e:
         print(f"Refund declined: {e}")
+    finally:
+        ui_process.terminate()
+        server.should_exit = True
+        await server_task
 
 
 if __name__ == "__main__":
