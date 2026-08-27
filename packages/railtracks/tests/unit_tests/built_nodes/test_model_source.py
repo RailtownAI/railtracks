@@ -52,7 +52,9 @@ def test_model_factory_resolved_per_call(mock_llm):
     assert asyncio.run(run_once()).content == "from-b"
 
 
-def test_model_middleware_list_mutation_after_build_does_not_affect_built_agent(mock_llm):
+def test_model_middleware_list_mutation_after_build_does_not_affect_built_agent(
+    mock_llm,
+):
     """NodeBuilder.llm / ModelInvoker deep-copy the passed model_middleware list at
     build time, so mutating the caller's original list afterward has no effect on an
     already-built agent."""
@@ -74,7 +76,9 @@ def test_model_middleware_list_mutation_after_build_does_not_affect_built_agent(
             return await rt.call(node, user_input="hello")
 
     asyncio.run(top())
-    assert calls == ["ran"]  # ran once, not twice -- build-time snapshot was independent
+    assert calls == [
+        "ran"
+    ]  # ran once, not twice -- build-time snapshot was independent
 
 
 def test_two_agents_built_from_same_model_middleware_list_are_independent(mock_llm):
@@ -86,9 +90,13 @@ def test_two_agents_built_from_same_model_middleware_list_are_independent(mock_l
         return await call(*args, **kwargs)
 
     shared = [tracer_a]
-    node_a = rt.agent_node("A", llm=mock_llm(custom_response="a"), model_middleware=shared)
+    node_a = rt.agent_node(
+        "A", llm=mock_llm(custom_response="a"), model_middleware=shared
+    )
     shared.clear()  # would remove tracer_a from any invoker sharing the list by reference
-    node_b = rt.agent_node("B", llm=mock_llm(custom_response="b"), model_middleware=shared)
+    node_b = rt.agent_node(
+        "B", llm=mock_llm(custom_response="b"), model_middleware=shared
+    )
 
     async def run(node):
         with rt.Session():
@@ -96,4 +104,6 @@ def test_two_agents_built_from_same_model_middleware_list_are_independent(mock_l
 
     asyncio.run(run(node_a))
     asyncio.run(run(node_b))
-    assert calls_a == ["ran"]  # node_a still ran tracer_a despite the later `shared.clear()`
+    assert calls_a == [
+        "ran"
+    ]  # node_a still ran tracer_a despite the later `shared.clear()`

@@ -44,7 +44,9 @@ class _RaisingWriter:
         pass
 
 
-def _make_session_event(event_type: str = "test.event", payload: dict[str, Any] | None = None) -> Event:
+def _make_session_event(
+    event_type: str = "test.event", payload: dict[str, Any] | None = None
+) -> Event:
     return Event(
         event_type=event_type,
         scope_type=SCOPE_SESSION,

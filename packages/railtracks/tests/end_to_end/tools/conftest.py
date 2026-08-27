@@ -1,11 +1,16 @@
-import pytest
 import json
-import os 
+import os
+
+import pytest
+
 
 def load_json_schemas():
-    with open(os.path.join(os.path.dirname(__file__), "test_schemas_for_tools.json")) as f:
+    with open(
+        os.path.join(os.path.dirname(__file__), "test_schemas_for_tools.json")
+    ) as f:
         data = json.load(f)
     return data
+
 
 def normalize_type_spec(obj):
     """
@@ -21,7 +26,7 @@ def normalize_type_spec(obj):
                 return frozenset(type_val)
             else:
                 return frozenset([type_val])
-        
+
         # Case 2: {"anyOf": [{"type": "object"}, {"type": "null"}]}
         if "anyOf" in obj and len(obj) == 1:
             any_of = obj["anyOf"]
@@ -34,57 +39,66 @@ def normalize_type_spec(obj):
                         # Not a simple type spec
                         return None
                 return frozenset(types)
-    
+
     return None
+
+
+def _dict_deep_equal(a, b, parent_key):
+    a_filtered = {k: v for k, v in a.items() if k != "additionalProperties"}
+    b_filtered = {k: v for k, v in b.items() if k != "additionalProperties"}
+
+    if set(a_filtered.keys()) != set(b_filtered.keys()):
+        print(
+            f"[Dict keys mismatch] at {parent_key}: {set(a_filtered.keys())} != {set(b_filtered.keys())}"
+        )
+        return False
+
+    for k in a_filtered:
+        if not deep_equal(a_filtered[k], b_filtered[k], k):
+            print(f"[Dict value mismatch] at key: {k}")
+            return False
+    return True
+
+
+def _list_deep_equal(a, b, parent_key):
+    if parent_key == "required":
+        if set(a) != set(b):
+            print(f"[Unordered list mismatch] at {parent_key}: {a} != {b}")
+            return False
+        return True
+
+    if len(a) != len(b):
+        print(f"[List length mismatch] at {parent_key}: {len(a)} != {len(b)}")
+        return False
+    for i, (x, y) in enumerate(zip(a, b)):
+        if not deep_equal(x, y, f"{parent_key}[{i}]" if parent_key else f"[{i}]"):
+            print(f"[List element mismatch] at {parent_key}[{i}]: {x} != {y}")
+            return False
+    return True
+
 
 def deep_equal(a, b, parent_key=None):
     # Check if both are type specifications that can be normalized
     a_types = normalize_type_spec(a)
     b_types = normalize_type_spec(b)
-    
+
     if a_types is not None and b_types is not None:
         if a_types == b_types:
             return True
-        else:
-            print(f"[Type spec mismatch] at {parent_key}: {a_types} != {b_types}")
-            return False
-    
+        print(f"[Type spec mismatch] at {parent_key}: {a_types} != {b_types}")
+        return False
+
     if isinstance(a, dict) and isinstance(b, dict):
-        a_filtered = {k: v for k, v in a.items() if k != "additionalProperties"}
-        b_filtered = {k: v for k, v in b.items() if k != "additionalProperties"}
+        return _dict_deep_equal(a, b, parent_key)
 
-        if set(a_filtered.keys()) != set(b_filtered.keys()):
-            print(f"[Dict keys mismatch] at {parent_key}: {set(a_filtered.keys())} != {set(b_filtered.keys())}")
-            return False
+    if isinstance(a, list) and isinstance(b, list):
+        return _list_deep_equal(a, b, parent_key)
 
-        for k in a_filtered:
-            if not deep_equal(a_filtered[k], b_filtered[k], k):
-                print(f"[Dict value mismatch] at key: {k}")
-                return False
-        return True
+    if a != b:
+        print(f"[Value mismatch] at {parent_key}: {a} != {b}")
+    return a == b
 
-    elif isinstance(a, list) and isinstance(b, list):
-        if parent_key == "required":
-            if set(a) != set(b):
-                print(f"[Unordered list mismatch] at {parent_key}: {a} != {b}")
-                return False
-            return True
-        else:
-            if len(a) != len(b):
-                print(f"[List length mismatch] at {parent_key}: {len(a)} != {len(b)}")
-                return False
-            for i, (x, y) in enumerate(zip(a, b)):
-                if not deep_equal(x, y, f"{parent_key}[{i}]" if parent_key else f"[{i}]"):
-                    print(f"[List element mismatch] at {parent_key}[{i}]: {x} != {y}")
-                    return False
-            return True
 
-    else:
-        if a != b:
-            print(f"[Value mismatch] at {parent_key}: {a} != {b}")
-        return a == b
-
-    
 @pytest.fixture(scope="module")
 def json_schemas():
     return load_json_schemas()

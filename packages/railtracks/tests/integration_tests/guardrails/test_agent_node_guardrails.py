@@ -39,6 +39,8 @@ class FnOutputGuard(OutputGuard):
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
         return self._decision_fn(event)
+
+
 def _counting_chat(llm: rt.llm.ModelBase):
     state = {"n": 0}
     real = llm._chat
@@ -79,7 +81,7 @@ def _counting_chat_with_tools(llm: rt.llm.ModelBase):
 async def test_terminal_input_block_skips_llm(mock_llm, block_input):
     llm = mock_llm()
     counts = _counting_chat(llm)
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="block-term",
         llm=llm,
         model_middleware=[block_input],
@@ -94,7 +96,7 @@ async def test_terminal_input_block_skips_llm(mock_llm, block_input):
 async def test_terminal_input_allow_calls_llm(mock_llm, allow_input):
     llm = mock_llm(custom_response="ok")
     counts = _counting_chat(llm)
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="allow-term",
         llm=llm,
         model_middleware=[allow_input],
@@ -110,7 +112,7 @@ async def test_terminal_input_allow_calls_llm(mock_llm, allow_input):
 async def test_terminal_guardrails_allow(mock_llm, allow_input):
     llm = mock_llm(custom_response="streamed")
     counts = _counting_chat(llm)
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="stream-term",
         llm=llm,
         model_middleware=[allow_input],
@@ -132,7 +134,7 @@ class _Answer(BaseModel):
 async def test_structured_input_block_skips_llm(mock_llm, block_input):
     llm = mock_llm()
     counts = _counting_structured(llm)
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="block-struct",
         output_schema=_Answer,
         llm=llm,
@@ -148,7 +150,7 @@ async def test_structured_input_block_skips_llm(mock_llm, block_input):
 async def test_structured_output_block_after_llm(mock_llm, allow_input):
     llm = mock_llm(custom_response='{"text":"x"}')
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="out-block",
         output_schema=_Answer,
         llm=llm,
@@ -166,7 +168,7 @@ async def test_structured_output_block_after_llm(mock_llm, allow_input):
 async def test_structured_guardrails_allow(mock_llm, allow_input):
     llm = mock_llm(custom_response='{"text":"s"}')
     counts = _counting_structured(llm)
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="struct-stream",
         output_schema=_Answer,
         llm=llm,
@@ -185,7 +187,7 @@ async def test_structured_guardrails_allow(mock_llm, allow_input):
 async def test_terminal_output_block(mock_llm, allow_input):
     llm = mock_llm(custom_response="bad-answer")
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="term-out",
         llm=llm,
         model_middleware=[
@@ -210,7 +212,7 @@ async def test_tool_call_input_block_skips_llm(mock_llm, block_input):
 
     llm = mock_llm()
     counts = _counting_chat_with_tools(llm)
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="block-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=llm,
@@ -229,7 +231,7 @@ async def test_tool_call_input_allow_calls_llm(mock_llm, allow_input):
 
     llm = mock_llm()
     counts = _counting_chat_with_tools(llm)
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="allow-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=llm,
@@ -246,7 +248,7 @@ async def test_tool_call_output_block(mock_llm, allow_input):
     def tool_fn() -> str:
         return "result"
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="out-block-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=mock_llm(),
@@ -261,30 +263,34 @@ async def test_tool_call_output_block(mock_llm, allow_input):
 
 
 @pytest.mark.asyncio
-async def test_tool_call_output_transform_updates_response_and_history(mock_llm, allow_input):
+async def test_tool_call_output_transform_updates_response_and_history(
+    mock_llm, allow_input
+):
     """TRANSFORM: resp.content and resp.message_history[-1].content must both reflect the new message."""
-    TRANSFORMED = "transformed content"
+    transformed = "transformed content"
 
     def tool_fn() -> str:
         return "result"
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="out-transform-tool",
         tool_nodes={rt.function_node(tool_fn)},
         llm=mock_llm(),
         model_middleware=[
             allow_input,
-            FnOutputGuard(lambda _e: GuardrailDecision.transform_output(
-                output_message=AssistantMessage(TRANSFORMED),
-                reason="transform applied",
-            )),
+            FnOutputGuard(
+                lambda _e: GuardrailDecision.transform_output(
+                    output_message=AssistantMessage(transformed),
+                    reason="transform applied",
+                )
+            ),
         ],
     )
     with rt.Session():
         result = await rt.call(Agent, user_input="hello")
     assert isinstance(result, StringResponse)
-    assert result.content == TRANSFORMED
-    assert result.message_history[-1].content == TRANSFORMED
+    assert result.content == transformed
+    assert result.message_history[-1].content == transformed
 
 
 @pytest.mark.asyncio
@@ -293,6 +299,7 @@ async def test_tool_call_output_guard_fires_only_on_final_reply(mock_llm, allow_
     intermediate tool-call turns pass through unguarded — output rails fire only on
     the final replys.
     """
+
     @rt.function_node
     async def weather_tool(city: str) -> str:
         """Get weather for a city.
@@ -309,10 +316,12 @@ async def test_tool_call_output_guard_fires_only_on_final_reply(mock_llm, allow_
 
     llm = mock_llm(
         requested_tool_calls=[
-            rt.llm.ToolCall(name="weather_tool", identifier="tc_1", arguments={"city": "NYC"})
+            rt.llm.ToolCall(
+                name="weather_tool", identifier="tc_1", arguments={"city": "NYC"}
+            )
         ]
     )
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="fires-once",
         tool_nodes={weather_tool},
         llm=llm,

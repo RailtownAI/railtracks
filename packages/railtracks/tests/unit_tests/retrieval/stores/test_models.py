@@ -103,7 +103,9 @@ def test_store_entry_content_accessible():
 
 def test_store_entry_from_chunk():
     chunk = Chunk(content="chunk text", document_id=uuid4(), index=3)
-    embedded = EmbeddedChunk(chunk=chunk, vector=[0.1, 0.2], embedding_model="toy", embedding_version="v2")
+    embedded = EmbeddedChunk(
+        chunk=chunk, vector=[0.1, 0.2], embedding_model="toy", embedding_version="v2"
+    )
     scope = StoreScope(labels={"user_id": "alice"})
 
     entry = StoreEntry.from_chunk(

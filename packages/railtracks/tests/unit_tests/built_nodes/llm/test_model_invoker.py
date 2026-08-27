@@ -1,12 +1,27 @@
-"""Tests for ModelInvoker's LLM-call scoping (llm_call_id)."""
+"""Tests for ModelInvoker's LLM-call scoping (llm_call_id), and for
+ModelInvoker itself — the shared choke point for the middleware chain
+(guardrails/prebuilt middleware run through it) and for streaming (the
+`_stream_queue_if_enabled` / `_drain_to_queue` decision logic lives here).
+"""
+
+import asyncio
 
 import pytest
 import railtracks.context.central as central
-from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
-from railtracks.built_nodes.llm.model_invoker import ModelInvoker
+from railtracks.built_nodes.llm import model_invoker as model_invoker_module
+from railtracks.built_nodes.llm.middleware import wrap_llm
+from railtracks.built_nodes.llm.model_invoker import (
+    ModelInvoker,
+    _drain_to_queue,
+    _llm_observe,
+    _stream_queue_if_enabled,
+)
+from railtracks.exceptions.errors import LLMError
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Message, Role
-from railtracks.llm.response import Response
+from railtracks.llm.message import AssistantMessage, Message, Role, UserMessage
+from railtracks.llm.providers import ModelProvider
+from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.tools.tool import Tool
 from railtracks.utils.config import ExecutorConfig
 
 
@@ -78,30 +93,6 @@ async def test_invoke_generates_a_fresh_llm_call_id_each_call():
 
     assert len(captured) == 2
     assert captured[0] != captured[1]
-"""Unit tests for ModelInvoker — the shared choke point for the middleware chain
-(guardrails/prebuilt middleware run through it) and for streaming (the
-`_stream_queue_if_enabled` / `_drain_to_queue` decision logic lives here).
-"""
-
-
-
-import asyncio
-
-import pytest
-from railtracks.built_nodes.llm import model_invoker as model_invoker_module
-from railtracks.built_nodes.llm.middleware import wrap_llm
-from railtracks.built_nodes.llm.model_invoker import (
-    ModelInvoker,
-    _drain_to_queue,
-    _llm_observe,
-    _stream_queue_if_enabled,
-)
-from railtracks.exceptions.errors import LLMError
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import AssistantMessage, UserMessage
-from railtracks.llm.providers import ModelProvider
-from railtracks.llm.response import MessageInfo, Response
-from railtracks.llm.tools.tool import Tool
 
 
 def _make_response(text: str = "hi") -> Response:
@@ -126,6 +117,7 @@ class _StubModel:
     """Minimal ModelBase-shaped stub recording every buffered/streaming call made on it."""
 
     id = "stub-model"
+
     def model_name(self):
         return "stub-model"
 
@@ -139,7 +131,9 @@ class _StubModel:
     ):
         self._provider = provider
         self._response = response or _make_response()
-        self._stream_items = stream_items if stream_items is not None else [self._response]
+        self._stream_items = (
+            stream_items if stream_items is not None else [self._response]
+        )
         self._raise_on_chat = raise_on_chat
         self._streams_tool_calls = streams_tool_calls
         self.calls: list[tuple] = []
@@ -243,9 +237,7 @@ def test_stream_queue_if_enabled_falls_back_when_model_cannot_stream_tool_calls(
         result = _stream_queue_if_enabled(model, [_make_tool()])
 
     assert result is None
-    assert any(
-        "falling back to a" in record.message for record in caplog.records
-    )
+    assert any("falling back to a" in record.message for record in caplog.records)
 
 
 def test_stream_queue_if_enabled_ignores_tool_streaming_support_without_tools(
@@ -482,7 +474,9 @@ def test_create_with_llm_observe_deep_copies_caller_middleware_list(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_create_with_llm_observe_default_middleware_is_just_observe(monkeypatch, messages):
+async def test_create_with_llm_observe_default_middleware_is_just_observe(
+    monkeypatch, messages
+):
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
     invoker = ModelInvoker.create_with_llm_observe(_StubModel())
 
@@ -494,7 +488,9 @@ async def test_create_with_llm_observe_default_middleware_is_just_observe(monkey
 
 
 @pytest.mark.asyncio
-async def test_llm_observe_propagates_exceptions_from_the_core_call(monkeypatch, messages):
+async def test_llm_observe_propagates_exceptions_from_the_core_call(
+    monkeypatch, messages
+):
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
     model = _StubModel(raise_on_chat=ValueError("boom"))
     invoker = ModelInvoker.create_with_llm_observe(model)

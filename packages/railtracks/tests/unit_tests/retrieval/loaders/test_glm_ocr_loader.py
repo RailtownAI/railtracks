@@ -84,7 +84,9 @@ class TestGLMOCRLoaderErrors:
         f = tmp_path / "data.txt"
         f.write_text("not an image", encoding="utf-8")
         loader = GLMOCRLoader(str(f))
-        with pytest.raises(ValueError, match="GLMOCRLoader expects an image or PDF file"):
+        with pytest.raises(
+            ValueError, match="GLMOCRLoader expects an image or PDF file"
+        ):
             await loader.aload()
 
 
