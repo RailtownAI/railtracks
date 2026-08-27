@@ -1,10 +1,10 @@
-"""Streamlit setup for webhook_approval_demo.py -- one form, nothing else.
+"""Streamlit setup for run.py -- one form, nothing else.
 
-Not meant to teach anything about `pre_verifier` or webhooks -- see
-webhook_approval_demo.py for that. This file exists only to give a human
-something to actually click, standing in for a real approval UI (Slack, an
-internal admin panel, ...). Launched automatically by
-webhook_approval_demo.py via `streamlit run`; not meant to be run directly.
+Not meant to teach anything about `pre_verifier` or webhooks -- see run.py
+for that. This file exists only to give a human something to actually
+click, standing in for a real approval UI (Slack, an internal admin panel,
+...). Launched automatically by run.py via `streamlit run`; not meant to be
+run directly.
 
 Requires `streamlit` (not a railtracks dependency, just this demo's UI):
 `uv pip install streamlit`.
@@ -50,8 +50,12 @@ if col2.button("Reject"):
 
 if decided:
     st.caption("You can close this tab now.")
-    # Best-effort only: browsers only let window.close() close a tab that
-    # was itself opened via script. `streamlit run` opens this tab through
-    # the OS default browser, not window.open(), so most browsers silently
-    # ignore this -- the caption above is the reliable signal.
-    components.html("<script>setTimeout(() => window.close(), 800)</script>", height=0)
+    # window.close() only works on a tab opened via script, which this one
+    # isn't (`streamlit run` opens it through the OS default browser) -- it
+    # silently no-ops in every real browser. A popup isn't subject to that
+    # restriction, so it's the reliable option: an actual alert dialog
+    # telling the human to close the tab themselves.
+    components.html(
+        "<script>alert('Decision sent. You can close this tab now.')</script>",
+        height=0,
+    )
