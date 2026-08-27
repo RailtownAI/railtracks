@@ -22,7 +22,7 @@ demo's stand-in for a real approval UI): `uv pip install streamlit`.
 workspace it writes streamlit into the root pyproject.toml/uv.lock as a real
 dependency as a side effect -- `uv pip install` avoids that.)
 
-Run: uv run python examples/human_in_the_loop/webhook_approval_demo.py
+Run: uv run python examples/human_in_the_loop/webhook_demo/webhook_approval_demo.py
 """
 
 import asyncio
