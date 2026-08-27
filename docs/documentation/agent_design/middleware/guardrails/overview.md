@@ -58,8 +58,22 @@ Attach them like any model middleware:
 --8<-- "docs/scripts/custom_guardrails.py:decorator_attach"
 ```
 
-!!! note "Guard functions are synchronous"
-    A guard is called synchronously while the rail is evaluated, so the decorated function must be a regular `def`, not `async def`.
+### Async guards
+
+A guard may be a regular `def` or an `async def`. An async rail is awaited while it is evaluated, so it can `await` anything, including `rt.call` into another agent. That is how you build an LLM-judge rail, where the decision is delegated to a second agent:
+
+```python
+--8<-- "docs/scripts/custom_guardrails.py:decorator_async"
+```
+
+Give the judge an `output_schema` rather than parsing its prose: the rail then branches on a typed field instead of substring-matching a reply that can be reworded at any time, and the judge's own `reason` carries straight into the block.
+
+The same holds when subclassing: define `async def __call__(self, event)` and everything downstream of the decision is identical.
+
+!!! warning "An async rail runs once per model round-trip"
+    Guards are model middleware, so a rail fires on every model call, not once per agent call. On a tool-calling agent that means once per iteration of the tool loop: an input rail on an agent that takes three tool turns fires four times, each seeing a longer history. That is free for a regex check but not for a rail that makes its own LLM call. Output rails are exempt from intermediate tool-call turns and fire only on the final reply.
+
+    If a rail only needs to screen the user's original request, consider attaching it as node-level middleware ([`wrap_node`](../overview.md)) instead, which runs once per agent call.
 
 ### Subclassing
 
@@ -74,7 +88,7 @@ For a reusable, configurable rail, subclass `InputGuard` or `OutputGuard` and im
 ```
 
 !!! tip "Testing a guard in isolation"
-    Both bases provide `decide(value)`, which builds the event for you from a `str`, `Message`, or `MessageHistory` and returns the `GuardrailDecision`, handy for unit tests without running a model.
+    Both bases provide `decide(value)`, which builds the event for you from a `str`, `Message`, or `MessageHistory` and returns the `GuardrailDecision`, handy for unit tests without running a model. For an async guard use `await guard.adecide(value)`; `decide()` raises `TypeError` on one, since it would otherwise hand back an un-awaited coroutine.
 
 To publish a guard for others to reuse, see [Contributing a Guardrail](contributions.md).
 
