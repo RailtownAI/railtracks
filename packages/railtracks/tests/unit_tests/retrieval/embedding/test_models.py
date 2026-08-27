@@ -5,8 +5,22 @@ from railtracks.retrieval.embedding import EmbeddingMetrics
 
 
 def test_metrics_add_sums_tokens_and_cost():
-    a = EmbeddingMetrics(input_tokens=5, total_cost=0.001, latency=0.1, model="m", vector_count=3, dimension=4)
-    b = EmbeddingMetrics(input_tokens=3, total_cost=0.002, latency=0.2, model="m", vector_count=2, dimension=4)
+    a = EmbeddingMetrics(
+        input_tokens=5,
+        total_cost=0.001,
+        latency=0.1,
+        model="m",
+        vector_count=3,
+        dimension=4,
+    )
+    b = EmbeddingMetrics(
+        input_tokens=3,
+        total_cost=0.002,
+        latency=0.2,
+        model="m",
+        vector_count=2,
+        dimension=4,
+    )
     c = a + b
     assert c.input_tokens == 8
     assert c.total_cost == pytest.approx(0.003)

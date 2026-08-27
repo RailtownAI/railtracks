@@ -2,16 +2,22 @@ import json
 from uuid import UUID
 
 import pytest
-
-from railtracks.evaluations.evaluators.llm_inference_evaluator import LLMInferenceEvaluator
+from railtracks.evaluations.evaluators.llm_inference_evaluator import (
+    LLMInferenceEvaluator,
+)
 from railtracks.evaluations.evaluators.tool_use_evaluator import ToolUseEvaluator
-from railtracks.evaluations.point import AgentDataPoint, extract_agent_data_points
+from railtracks.evaluations.point import extract_agent_data_points
 from railtracks.evaluations.result import EvaluationResult
 from railtracks.evaluations.runners._evaluate import evaluate
 from railtracks.evaluations.utils import payload
 
-from .conftest import AGENT_ID_1, AGENT_ID_2, SESSION_ID_1, SESSION_ID_2, make_session_dict
-
+from .conftest import (
+    AGENT_ID_1,
+    AGENT_ID_2,
+    SESSION_ID_1,
+    SESSION_ID_2,
+    make_session_dict,
+)
 
 # ── Session file → AgentDataPoint data integrity ──────────────────────────────
 
@@ -108,7 +114,9 @@ def test_tool_evaluator_failure_rate_zero_for_healthy_runs(two_session_files):
     """FailureRate is 0.0 when all tool calls in the session files are Completed."""
     adps = extract_agent_data_points([str(p) for p in two_session_files])
     result = ToolUseEvaluator().run(adps)
-    failure_rates = [r for r in result.metric_results if r.result_name.startswith("FailureRate")]
+    failure_rates = [
+        r for r in result.metric_results if r.result_name.startswith("FailureRate")
+    ]
     assert all(r.value == pytest.approx(0.0) for r in failure_rates)
 
 
@@ -137,7 +145,9 @@ def test_tool_evaluator_failure_rate_propagates_from_failed_session(tmp_path):
     )
     adps = extract_agent_data_points([str(f1), str(f2)])
     result = ToolUseEvaluator().run(adps)
-    failure_rates = [r for r in result.metric_results if r.result_name.startswith("FailureRate")]
+    failure_rates = [
+        r for r in result.metric_results if r.result_name.startswith("FailureRate")
+    ]
     assert 1.0 in [r.value for r in failure_rates]
 
 
@@ -145,7 +155,9 @@ def test_tool_evaluator_runtime_values_match_session(two_session_files):
     """Runtime metric results reflect the tool latency stored in the session files."""
     adps = extract_agent_data_points([str(p) for p in two_session_files])
     result = ToolUseEvaluator().run(adps)
-    runtime_results = [r for r in result.metric_results if r.result_name.startswith("Runtime")]
+    runtime_results = [
+        r for r in result.metric_results if r.result_name.startswith("Runtime")
+    ]
     assert all(r.value == pytest.approx(0.1) for r in runtime_results)
 
 
@@ -155,7 +167,9 @@ def test_tool_evaluator_runtime_values_match_session(two_session_files):
 def test_evaluate_with_real_evaluators_returns_evaluation_results(two_session_files):
     """Full pipeline with real evaluators produces a list of EvaluationResult."""
     adps = extract_agent_data_points([str(p) for p in two_session_files])
-    results = evaluate(adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False)
+    results = evaluate(
+        adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False
+    )
     assert len(results) == 1
     assert isinstance(results[0], EvaluationResult)
 
@@ -163,7 +177,9 @@ def test_evaluate_with_real_evaluators_returns_evaluation_results(two_session_fi
 def test_evaluate_evaluator_results_wired_into_evaluation_result(two_session_files):
     """Both evaluator results are stored on the EvaluationResult."""
     adps = extract_agent_data_points([str(p) for p in two_session_files])
-    results = evaluate(adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False)
+    results = evaluate(
+        adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False
+    )
     evaluator_names = {er.evaluator_name for er in results[0].evaluator_results}
     assert evaluator_names == {"LLMInferenceEvaluator", "ToolUseEvaluator"}
 
@@ -171,7 +187,9 @@ def test_evaluate_evaluator_results_wired_into_evaluation_result(two_session_fil
 def test_evaluate_metrics_map_contains_all_metrics(two_session_files):
     """The EvaluationResult metrics_map aggregates metrics from all evaluators."""
     adps = extract_agent_data_points([str(p) for p in two_session_files])
-    results = evaluate(adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False)
+    results = evaluate(
+        adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False
+    )
     metric_names = {m.name for m in results[0].metrics_map.values()}
     assert "InputTokens" in metric_names
     assert "Runtime" in metric_names
@@ -182,8 +200,7 @@ def test_evaluate_agent_node_ids_reference_extracted_adps(two_session_files):
     adps = extract_agent_data_points([str(p) for p in two_session_files])
     results = evaluate(adps, [LLMInferenceEvaluator()], agent_selection=False)
     node_ids = {
-        entry["agent_node_id"]
-        for entry in results[0].agents[0]["agent_node_ids"]
+        entry["agent_node_id"] for entry in results[0].agents[0]["agent_node_ids"]
     }
     adp_ids = {adp.identifier for adp in adps}
     assert node_ids == adp_ids
@@ -214,7 +231,9 @@ def test_evaluate_multi_agent_filter_via_agents_param(tmp_path):
         )
     )
     adps = extract_agent_data_points([str(f1), str(f2)])
-    results = evaluate(adps, [LLMInferenceEvaluator()], agent_selection=False, agents=["AgentAlpha"])
+    results = evaluate(
+        adps, [LLMInferenceEvaluator()], agent_selection=False, agents=["AgentAlpha"]
+    )
     assert len(results) == 1
     assert results[0].agents[0]["agent_name"] == "AgentAlpha"
 
@@ -225,7 +244,9 @@ def test_evaluate_multi_agent_filter_via_agents_param(tmp_path):
 def test_payload_from_real_result_is_json_serializable(two_session_files):
     """A payload built from a real evaluation pipeline is fully JSON-serializable."""
     adps = extract_agent_data_points([str(p) for p in two_session_files])
-    results = evaluate(adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False)
+    results = evaluate(
+        adps, [LLMInferenceEvaluator(), ToolUseEvaluator()], agent_selection=False
+    )
     p = payload(results[0])
     dumped = json.dumps(p)  # must not raise
     restored = json.loads(dumped)

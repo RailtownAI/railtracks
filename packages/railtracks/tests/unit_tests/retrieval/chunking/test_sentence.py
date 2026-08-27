@@ -56,7 +56,9 @@ def test_custom_splitter_via_protocol():
 
     text = "Alpha. Beta. Gamma. Delta."
     doc = Document(content=text, type="text")
-    chunker = SentenceChunker(chunk_size=2, overlap=0, sentence_splitter=UpperCaseSplitter())
+    chunker = SentenceChunker(
+        chunk_size=2, overlap=0, sentence_splitter=UpperCaseSplitter()
+    )
     chunks = chunker.chunk(doc)
     assert len(chunks) == 2
 
@@ -95,7 +97,10 @@ async def test_achunk_empty_document(empty_doc):
 async def test_concurrent_achunk():
     chunker = SentenceChunker(chunk_size=3, overlap=1)
     docs = [
-        Document(content=f"Sentence {i} one. Sentence {i} two. Sentence {i} three. " * 3, type="text")
+        Document(
+            content=f"Sentence {i} one. Sentence {i} two. Sentence {i} three. " * 3,
+            type="text",
+        )
         for i in range(5)
     ]
     results = await asyncio.gather(*[chunker.achunk(doc) for doc in docs])

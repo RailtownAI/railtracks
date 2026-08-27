@@ -12,13 +12,11 @@ from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
 )
-from railtracks.guardrails.llm.concrete import InputGuard
-from railtracks.guardrails.llm.concrete import OutputGuard
+from railtracks.guardrails.llm.concrete import InputGuard, OutputGuard
 from railtracks.llm import AssistantMessage, MessageHistory, ToolCall, UserMessage
 from railtracks.llm.response import MessageInfo, Response
 from railtracks.llm.retries.fixed import FixedRetry
 from railtracks.prebuilt.middleware import Retry
-
 
 # ---------------------------------------------------------------------------
 # TestFunctionNodeMiddleware
@@ -344,7 +342,9 @@ class TestModelMiddleware:
             return n * 2
 
         llm = mock_llm(
-            requested_tool_calls=[ToolCall(name="double", identifier="c1", arguments={"n": 5})]
+            requested_tool_calls=[
+                ToolCall(name="double", identifier="c1", arguments={"n": 5})
+            ]
         )
         agent = rt.agent_node(
             name="ToolLoopModel",
@@ -486,7 +486,10 @@ class TestContextInjection:
             name="TemplateAgent",
             llm=mock_llm(custom_response="done"),
             system_message="You assist {username}.",
-            model_middleware=[rt.prebuilt.middleware.ContextInjection(), capture_system],
+            model_middleware=[
+                rt.prebuilt.middleware.ContextInjection(),
+                capture_system,
+            ],
         )
 
         await rt.Flow("TemplateAgent", agent, context={"username": "Alice"}).ainvoke(
@@ -534,7 +537,8 @@ class TestGuardrailsEndToEnd:
         def track_and_respond(messages):
             llm_called["value"] = True
             return Response(
-                message=AssistantMessage("leaked"), message_info=MessageInfo(model_name="m")
+                message=AssistantMessage("leaked"),
+                message_info=MessageInfo(model_name="m"),
             )
 
         model = mock_llm()
@@ -861,7 +865,9 @@ class TestToolCallingWithPrepareArgs:
                 ToolCall(name="tag", identifier="id_b", arguments={"label": "beta"}),
             ]
         )
-        agent = rt.agent_node(name="MultiToolAgent", llm=llm, tool_nodes=[rt.function_node(tag)])
+        agent = rt.agent_node(
+            name="MultiToolAgent", llm=llm, tool_nodes=[rt.function_node(tag)]
+        )
 
         await rt.Flow("MultiToolAgent", agent).ainvoke("tag alpha and beta")
 
@@ -891,7 +897,9 @@ class TestToolCallingWithPrepareArgs:
         # The error is surfaced to the LLM as a tool message string, not raised.
         assert result is not None
 
-    async def test_function_node_tool_with_middleware_executes_middleware(self, mock_llm):
+    async def test_function_node_tool_with_middleware_executes_middleware(
+        self, mock_llm
+    ):
         fired = {"value": False}
 
         @rt.wrap_node
@@ -915,7 +923,9 @@ class TestToolCallingWithPrepareArgs:
                 ToolCall(name="increment", identifier="id_inc", arguments={"n": 9})
             ]
         )
-        agent = rt.agent_node(name="ToolWithMiddlewareAgent", llm=llm, tool_nodes=[tool])
+        agent = rt.agent_node(
+            name="ToolWithMiddlewareAgent", llm=llm, tool_nodes=[tool]
+        )
 
         result = await rt.Flow("ToolWithMiddlewareAgent", agent).ainvoke("increment 9")
 
@@ -949,7 +959,6 @@ class TestCoupleAndComposition:
 
         assert "ok" in result.content
         assert log == ["in", "out"]
-
 
     async def test_full_stack_composition_order(self, mock_llm):
         trace = []
@@ -1021,8 +1030,12 @@ class TestMiddlewareIsolation:
     async def test_shared_node_level_middleware_list_not_mutated(self, mock_llm):
         shared = []
 
-        node_a = rt.agent_node("IsoA", llm=mock_llm(custom_response="a"), middleware=shared)
-        node_b = rt.agent_node("IsoB", llm=mock_llm(custom_response="b"), middleware=shared)
+        node_a = rt.agent_node(
+            "IsoA", llm=mock_llm(custom_response="a"), middleware=shared
+        )
+        node_b = rt.agent_node(
+            "IsoB", llm=mock_llm(custom_response="b"), middleware=shared
+        )
 
         assert node_a._user_middleware is not node_b._user_middleware
         assert shared == []
@@ -1046,7 +1059,9 @@ class TestMiddlewareIsolation:
 
         for _ in range(3):
             agent = rt.agent_node(
-                "RepeatBuild", llm=mock_llm(custom_response="ok"), model_middleware=shared
+                "RepeatBuild",
+                llm=mock_llm(custom_response="ok"),
+                model_middleware=shared,
             )
             await rt.Flow("RepeatBuild", agent).ainvoke("hi")
 
@@ -1093,7 +1108,6 @@ class TestConcurrencyAndRetryInterplay:
         """A model_middleware retry wrapper and the built-in retry_approach operate at
         different layers -- retry_approach resolves entirely inside the single raw
         model call that model_middleware wraps, so they don't double up."""
-       
 
         def rate_limited():
             return litellm.exceptions.RateLimitError(
@@ -1132,8 +1146,6 @@ class TestSessionPersistence:
     async def test_middleware_attached_node_serializes_cleanly(
         self, mock_llm, json_state_schema
     ):
-       
-
         @rt.wrap_node
         async def tracer(call, *args, **kwargs):
             return await call(*args, **kwargs)

@@ -104,9 +104,7 @@ def test_length_fn_tokens():
     from railtracks.retrieval.chunking import TiktokenTokenizer
 
     tok = TiktokenTokenizer()
-    chunker = RecursiveCharacterChunker(
-        chunk_size=30, overlap=5, length_fn=tok.count
-    )
+    chunker = RecursiveCharacterChunker(chunk_size=30, overlap=5, length_fn=tok.count)
     text = " ".join(f"word{i}" for i in range(200))
     doc = Document(content=text, type="text")
     chunks = chunker.chunk(doc)
@@ -141,10 +139,7 @@ async def test_achunk_empty_document(empty_doc):
 @pytest.mark.asyncio
 async def test_concurrent_achunk():
     chunker = RecursiveCharacterChunker(chunk_size=80, overlap=20)
-    docs = [
-        Document(content=f"Document {i}. " * 50, type="text")
-        for i in range(5)
-    ]
+    docs = [Document(content=f"Document {i}. " * 50, type="text") for i in range(5)]
     results = await asyncio.gather(*[chunker.achunk(doc) for doc in docs])
     assert len(results) == 5
     for doc, chunks in zip(docs, results):

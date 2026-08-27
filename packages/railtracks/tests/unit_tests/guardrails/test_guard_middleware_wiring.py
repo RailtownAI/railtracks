@@ -36,7 +36,9 @@ class FnOutputGuard(OutputGuard):
 
 
 def _make_response(text: str = "hi") -> Response:
-    return Response(message=AssistantMessage(text), message_info=MessageInfo(model_name="m"))
+    return Response(
+        message=AssistantMessage(text), message_info=MessageInfo(model_name="m")
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +75,9 @@ async def test_input_guard_transform_rewrites_history_before_call():
         return _make_response("ok")
 
     guard = FnInputGuard(
-        lambda _e: GuardrailDecision.transform_messages(messages=new_history, reason="t")
+        lambda _e: GuardrailDecision.transform_messages(
+            messages=new_history, reason="t"
+        )
     )
     original = MessageHistory([UserMessage("hi, my email is a@b.com")])
 
@@ -130,7 +134,9 @@ async def test_output_guard_transform_rebuilds_response_preserving_message_info(
         return original
 
     guard = FnOutputGuard(
-        lambda _e: GuardrailDecision.transform_output(output_message=new_message, reason="fix")
+        lambda _e: GuardrailDecision.transform_output(
+            output_message=new_message, reason="fix"
+        )
     )
     result = await guard.wrap(fake_call)(MessageHistory([UserMessage("q")]), None, None)
 
@@ -176,5 +182,7 @@ async def test_output_guard_skips_intermediate_tool_call_turns():
     guard = FnOutputGuard(_guard)
     result = await guard.wrap(fake_call)(MessageHistory([UserMessage("q")]), None, None)
 
-    assert guard_fired["n"] == 0  # tool-requesting turns are intermediate: never guarded
+    assert (
+        guard_fired["n"] == 0
+    )  # tool-requesting turns are intermediate: never guarded
     assert result is tool_call_response  # passed through untouched, tool calls intact
