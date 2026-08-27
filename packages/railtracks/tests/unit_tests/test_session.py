@@ -239,26 +239,28 @@ def test_session_implicit_default_save_state_is_true_and_no_warning(
     assert save_state_warnings == []
 
 
-def test_session_explicit_save_state_true_emits_deprecation_warning(monkeypatch):
-    """Passing save_state at all is deprecated. Without the env var, explicit
-    True still resolves to True."""
+def test_session_explicit_save_state_true(monkeypatch, recwarn):
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
-    with pytest.warns(
-        DeprecationWarning, match="save_state parameter is being deprecated"
-    ):
-        r = Session(save_state=True)
+    r = Session(save_state=True)
     assert r.executor_config.save_state is True
+    assert not [
+        w
+        for w in recwarn.list
+        if issubclass(w.category, DeprecationWarning) and "save_state" in str(w.message)
+    ]
 
 
-def test_session_explicit_save_state_false_emits_deprecation_warning(monkeypatch):
+def test_session_explicit_save_state_false(monkeypatch, recwarn):
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
-    with pytest.warns(
-        DeprecationWarning, match="save_state parameter is being deprecated"
-    ):
-        r = Session(save_state=False)
+    r = Session(save_state=False)
     assert r.executor_config.save_state is False
+    assert not [
+        w
+        for w in recwarn.list
+        if issubclass(w.category, DeprecationWarning) and "save_state" in str(w.message)
+    ]
 
 
 def test_env_var_wins_over_explicit_save_state_true(monkeypatch):
@@ -266,10 +268,7 @@ def test_env_var_wins_over_explicit_save_state_true(monkeypatch):
     env var is the ops-level kill switch and takes precedence."""
     monkeypatch.setenv("RAILTRACKS_ALLOW_PERSISTENCE", "1")
     monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "True")
-    with pytest.warns(
-        DeprecationWarning, match="save_state parameter is being deprecated"
-    ):
-        r = Session(save_state=True)
+    r = Session(save_state=True)
     assert r.executor_config.save_state is False
 
 

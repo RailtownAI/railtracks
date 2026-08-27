@@ -111,14 +111,8 @@ def test_precedence_overwritten_timeout_float_enables(base_config):
     assert updated_config.timeout == 42.0
 
 
-def test_save_state_explicit_emits_deprecation_warning():
-    with pytest.warns(
-        DeprecationWarning, match="save_state parameter is being deprecated"
-    ):
-        ExecutorConfig(save_state=False)
-
-
-def test_save_state_unset_emits_no_deprecation_warning(recwarn):
+def test_save_state_emits_no_deprecation_warning(recwarn):
+    ExecutorConfig(save_state=False)
     ExecutorConfig()
     assert not [
         w
