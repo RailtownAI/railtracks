@@ -55,7 +55,10 @@ def test_temperature_passed_to_litellm_completion(message_history):
             choices=[{"message": {"content": "ok"}}]
         )
         llm = TelusLLM(
-            model_name=MODEL_NAME, api_base=API_BASE, api_key="test_key", temperature=0.6
+            model_name=MODEL_NAME,
+            api_base=API_BASE,
+            api_key="test_key",
+            temperature=0.6,
         )
         llm.chat(message_history)
         mock_completion.assert_called_once()

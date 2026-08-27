@@ -12,7 +12,7 @@ from railtracks.prebuilt.guardrails import BlockTextInputGuard, BlockTextOutputG
 @pytest.mark.asyncio
 async def test_input_guard_blocks_request(mock_llm):
     llm = mock_llm(custom_response="ok")
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="block-input",
         llm=llm,
         model_middleware=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
@@ -25,7 +25,7 @@ async def test_input_guard_blocks_request(mock_llm):
 @pytest.mark.asyncio
 async def test_input_guard_allows_clean_request(mock_llm):
     llm = mock_llm(custom_response="ok")
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="allow-input",
         llm=llm,
         model_middleware=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
@@ -39,7 +39,7 @@ async def test_input_guard_allows_clean_request(mock_llm):
 @pytest.mark.asyncio
 async def test_output_guard_blocks_response(mock_llm):
     llm = mock_llm(custom_response="The API_KEY is abc123")
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="block-output",
         llm=llm,
         model_middleware=[BlockTextOutputGuard(pattern=r"API_KEY")],
@@ -52,7 +52,7 @@ async def test_output_guard_blocks_response(mock_llm):
 @pytest.mark.asyncio
 async def test_output_guard_allows_clean_response(mock_llm):
     llm = mock_llm(custom_response="Here is your answer.")
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="allow-output",
         llm=llm,
         model_middleware=[BlockTextOutputGuard(pattern=r"API_KEY")],
@@ -66,7 +66,7 @@ async def test_output_guard_allows_clean_response(mock_llm):
 @pytest.mark.asyncio
 async def test_input_and_output_guards_together(mock_llm):
     llm = mock_llm(custom_response="safe answer")
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="both-guards",
         llm=llm,
         model_middleware=[

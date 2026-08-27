@@ -90,7 +90,6 @@ async def test_flow_ainvoke_async_returns_value():
 
 
 def test_flow_invoke_surfaces_internal_runtime_error():
-    
     flow = Flow(name="boom-flow", entry_point=boom, save_state=False)
 
     with pytest.raises(ValueError, match="database connection pool exhausted"):
@@ -113,8 +112,6 @@ async def test_flow_invoke_in_an_event_loop():
     flow = Flow(name="add-flow", entry_point=add)
     result = flow.invoke(1, 2)
     assert result == 3
-
-
 
 
 @pytest.mark.asyncio

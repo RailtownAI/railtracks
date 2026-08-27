@@ -1,7 +1,7 @@
 import time
+from typing import Any, Dict, List, Tuple
 
 import pytest
-from typing import List, Tuple, Dict, Any
 from pydantic import BaseModel
 from railtracks.llm.type_mapping import TypeMapper
 
@@ -11,7 +11,9 @@ class DummyModel(BaseModel):
     b: str
 
 
-def dummy_func(a: int, b: str, c: float, d: DummyModel, e: List[int], f: Tuple[str, int]):
+def dummy_func(
+    a: int, b: str, c: float, d: DummyModel, e: List[int], f: Tuple[str, int]
+):
     pass
 
 
@@ -106,5 +108,3 @@ def test_convert_to_sequence_wraps_non_sequence_tuple():
     # Input is a single string; should wrap into tuple and convert to str
     result = TypeMapper._convert_to_sequence(5, tuple, (int,))
     assert result == (5,)
-
-

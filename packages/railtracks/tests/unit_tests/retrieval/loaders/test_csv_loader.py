@@ -79,7 +79,9 @@ class TestCSVLoaderContentColumns:
     async def test_unknown_content_column_raises_value_error(self, csv_file):
         """A content_column that does not exist in the CSV raises ValueError."""
         loader = CSVLoader(str(csv_file), content_columns=["nonexistent"])
-        with pytest.raises(ValueError, match="content_columns not found in CSV headers"):
+        with pytest.raises(
+            ValueError, match="content_columns not found in CSV headers"
+        ):
             await loader.aload()
 
 
