@@ -49,12 +49,16 @@ class Tool:
         if (
             isinstance(parameters, dict) and len(parameters) > 0
         ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
-            props = parameters.get("properties")
+            props = parameters.get("properties") or {}
             required_fields = list(parameters.get("required", []))
             param_objs: List[Parameter] = []
-            for name, prop in props.items():
+            # NOTE: the loop variable must not be called `name` -- doing so shadows the
+            # `name` argument and silently sets the tool's name to the last property.
+            for param_name, prop in props.items():
                 param_objs.append(
-                    parse_json_schema_to_parameter(name, prop, name in required_fields)
+                    parse_json_schema_to_parameter(
+                        param_name, prop, param_name in required_fields
+                    )
                 )
             parameters = param_objs
 
