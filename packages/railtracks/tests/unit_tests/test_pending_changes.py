@@ -237,3 +237,89 @@ def test_node_subclassing_is_silent():
         return MyNode
 
     assert_silent(define_subclass)
+
+
+# ---------------------------------------------------------------------------------------
+# before_llm / after_llm / after_node -> pre_llm / post_llm / post_node
+# ---------------------------------------------------------------------------------------
+
+
+def test_before_llm_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.before_llm is renamed in railtracks 1.5.0"
+    ):
+
+        @rt.before_llm
+        def hook(history, schema, tools):
+            return history, schema, tools
+
+
+def test_before_llm_parameterized_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.before_llm is renamed in railtracks 1.5.0"
+    ):
+
+        @rt.before_llm(name="custom")
+        def hook(history, schema, tools):
+            return history, schema, tools
+
+
+def test_after_llm_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_llm is renamed in railtracks 1.5.0"
+    ):
+
+        @rt.after_llm
+        def hook(response):
+            return response
+
+
+def test_after_llm_parameterized_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_llm is renamed in railtracks 1.5.0"
+    ):
+
+        @rt.after_llm(name="custom")
+        def hook(response):
+            return response
+
+
+def test_after_node_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_node is renamed in railtracks 1.5.0"
+    ):
+
+        @rt.after_node
+        def hook(result):
+            return result
+
+
+def test_after_node_parameterized_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_node is renamed in railtracks 1.5.0"
+    ):
+
+        @rt.after_node(name="custom")
+        def hook(result):
+            return result
+
+
+def test_pre_llm_forward_is_silent():
+    assert_silent(
+        lambda: rt.pre_llm(lambda history, schema, tools: (history, schema, tools))
+    )
+    assert_silent(
+        lambda: rt.pre_llm(name="custom")(
+            lambda history, schema, tools: (history, schema, tools)
+        )
+    )
+
+
+def test_post_llm_forward_is_silent():
+    assert_silent(lambda: rt.post_llm(lambda response: response))
+    assert_silent(lambda: rt.post_llm(name="custom")(lambda response: response))
+
+
+def test_post_node_forward_is_silent():
+    assert_silent(lambda: rt.post_node(lambda result: result))
+    assert_silent(lambda: rt.post_node(name="custom")(lambda result: result))

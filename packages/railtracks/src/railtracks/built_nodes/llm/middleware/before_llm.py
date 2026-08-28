@@ -1,20 +1,15 @@
-import functools
-from typing import Awaitable, Callable, overload
+from __future__ import annotations
+
+from typing import Any, Awaitable, Callable, overload
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
-from railtracks.events.middleware import (
-    MiddlewareModelInputInvocationEvent,
-    MiddlewareModelInputResponseEvent,
-)
-from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.middleware import ModelMiddleware
 from railtracks.llm.tools.tool import Tool
-from railtracks.utils.unpack import unpack_async_sync
+from railtracks.utils.deprecation import warn_pending_change
 
-from ..._types import LLM_CALL
+from .pre_llm import pre_llm
 
 
 @overload
@@ -57,64 +52,15 @@ def before_llm(
     /,
     *,
     name: str | None = None,
-) -> (
-    ModelMiddleware
-    | Callable[
-        [
-            Callable[
-                [MessageHistory, type[BaseModel] | None, list[Tool] | None],
-                tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
-                | Awaitable[
-                    tuple[MessageHistory, type[BaseModel] | None, list[Tool] | None]
-                ],
-            ]
-        ],
-        ModelMiddleware,
-    ]
-):
-    """
-    A special decorator to create a middleware that maps the inputs to a new input before every call to a model
-
-    Example usage:
-    ```python
-    @before_llm
-    async def my_middleware(message_history, schema, tools):
-        # do something with the inputs
-        return message_history, schema, tools
-    ```
-    """
-
-    def decorator(fn):
-        @wrap_llm(name=name)
-        @functools.wraps(fn)
-        async def wrapper(
-            llm_call: LLM_CALL,
-            message_history: MessageHistory,
-            schema: type[BaseModel] | None,
-            tools: list[Tool] | None,
-        ):
-            invocation_event = MiddlewareModelInputInvocationEvent(
-                message_history=message_history,
-                schema=schema,
-                tools=tools,
-            )
-            await emit(invocation_event)
-
-            message_history, schema, tools = await unpack_async_sync(
-                fn(message_history, schema, tools)
-            )
-
-            response_event = MiddlewareModelInputResponseEvent(
-                message_history=message_history,
-                schema=schema,
-                tools=tools,
-            )
-            await emit(response_event)
-
-            return await llm_call(message_history, schema, tools)
-
-        return wrapper
-
+) -> Any:
+    """Deprecated: Use ``rt.pre_llm`` instead."""
+    warn_pending_change(
+        "rt.before_llm",
+        change="is renamed",
+        instead="rt.pre_llm",
+        detail="The function itself is unchanged.",
+        stacklevel=2,
+    )
     if fn is None:
-        return decorator
-    return decorator(fn)
+        return pre_llm(name=name)
+    return pre_llm(fn, name=name)

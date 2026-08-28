@@ -1,14 +1,11 @@
-import functools
-from typing import Awaitable, Callable, TypeVar, overload
+from __future__ import annotations
 
-from railtracks.events.middleware import (
-    MiddlewareOutputInvocationEvent,
-    MiddlewareOutputResponseEvent,
-)
-from railtracks.events.send import emit
-from railtracks.utils.unpack import unpack_async_sync
+from typing import Any, Awaitable, Callable, TypeVar, overload
 
-from .core import Middleware, wrap_node
+from railtracks.utils.deprecation import warn_pending_change
+
+from .core import Middleware
+from .post import post_node
 
 _R = TypeVar("_R")
 
@@ -32,41 +29,15 @@ def after_node(
     /,
     *,
     name: str | None = None,
-) -> (
-    Middleware[..., _R]
-    | Callable[
-        [Callable[[_R], Awaitable[_R]] | Callable[[_R], _R]], Middleware[..., _R]
-    ]
-):
-    """
-    Special decorator to create a middleware that runs after the node completes. The wrapped function will run and then your after function will be called upon succesful completion of the function.
-
-    NOTE: This middleware will not run the node raises an exception.
-    """
-
+) -> Any:
+    """Deprecated: Use ``rt.post_node`` instead."""
+    warn_pending_change(
+        "rt.after_node",
+        change="is renamed",
+        instead="rt.post_node",
+        detail="The function itself is unchanged.",
+        stacklevel=2,
+    )
     if fn is None:
-        return lambda f: wrap_node(_wrapper(f), name=name)
-
-    return wrap_node(_wrapper(fn), name=name)
-
-
-def _wrapper(func: Callable[[_R], Awaitable[_R]] | Callable[[_R], _R], /):
-    @functools.wraps(func)
-    async def wrapper(call: Callable[..., Awaitable[_R]], *args, **kwargs):
-        result = await call(*args, **kwargs)
-        input_event = MiddlewareOutputInvocationEvent(
-            response=result,
-        )
-        await emit(input_event)
-        post_after_result = func(result)
-
-        result = await unpack_async_sync(post_after_result)
-
-        output_event = MiddlewareOutputResponseEvent(
-            response=result,
-        )
-        await emit(output_event)
-
-        return result
-
-    return wrapper
+        return post_node(name=name)
+    return post_node(fn, name=name)
