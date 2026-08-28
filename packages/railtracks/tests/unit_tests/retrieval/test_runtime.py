@@ -21,7 +21,6 @@ from railtracks.retrieval import (
     EmbeddingModelMismatchError,
     RetrievalRuntime,
 )
-from railtracks.retrieval.stores import StoreScope, VectorStore
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
 from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
@@ -32,6 +31,7 @@ from railtracks.retrieval.loaders.sanitizing import (
 )
 from railtracks.retrieval.models import Chunk
 from railtracks.retrieval.runtime import _content_hash
+from railtracks.retrieval.stores import StoreScope, VectorStore
 from railtracks.retrieval.stores.models import StoreEntry
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
 
@@ -283,9 +283,7 @@ async def test_retrieve_passes_metadata_filters():
     store.read = tracking_read  # type: ignore[method-assign]
 
     await runtime.ingest_all(_ListLoader([Document(content="alpha beta")]))
-    await runtime.retrieve(
-        "alpha", top_k=3, metadata_filters={"kind": "test"}
-    )
+    await runtime.retrieve("alpha", top_k=3, metadata_filters={"kind": "test"})
 
     assert seen_queries[-1].metadata_filters == {"kind": "test"}
 

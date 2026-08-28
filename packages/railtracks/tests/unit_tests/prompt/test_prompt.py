@@ -13,7 +13,7 @@ def _return_message(messages: MessageHistory) -> Response:
     return Response(message=Message(role=Role.assistant, content=messages[-1].content))
 
 
-def test_prompt_injection(mock_llm):
+def test_context_injection(mock_llm):
     prompt = "{secret}"
 
     model = mock_llm()
@@ -34,7 +34,7 @@ def test_prompt_injection(mock_llm):
     assert response.content == "tomato"
 
 
-def test_prompt_injection_bypass(mock_llm):
+def test_context_injection_bypass(mock_llm):
     prompt = "{{secret_value}}"
 
     model = mock_llm()
@@ -123,7 +123,7 @@ def test_no_injection_without_middleware(mock_llm):
     assert response.content == "{secret_value}"
 
 
-def test_prompt_injection_shared_middleware_list_stays_independent(mock_llm):
+def test_context_injection_shared_middleware_list_stays_independent(mock_llm):
     """Regression: one user middleware list reused across nodes must not be mutated
     by node construction, and injection applies only to nodes whose list actually
     contains a ContextInjection entry."""

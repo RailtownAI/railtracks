@@ -1,6 +1,5 @@
 from .api_providers import (
     AnthropicLLM,
-    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OpenAICompatibleProvider,
@@ -25,6 +24,5 @@ __all__ = [
     AppleFMSafetyRefusalError,
     HuggingFaceLLM,
     PortKeyLLM,
-    CohereLLM,
     "OpenAICompatibleProvider",
 ]

@@ -9,7 +9,6 @@ from .models import (
     AppleFMSafetyRefusalError,
     AppleFMUnavailableError,
     AzureAILLM,
-    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
@@ -59,7 +58,6 @@ __all__ = [
     "AppleFMUnavailableError",
     "AppleFMSafetyRefusalError",
     "AzureAILLM",
-    "CohereLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
     "GeminiLLM",
@@ -69,7 +67,6 @@ __all__ = [
     # "TelusLLM",
     "PortKeyLLM",
     "OpenAICompatibleProvider",
-    "CohereLLM",
     # Parameter types
     "Parameter",
     "UnionParameter",

@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-
 from railtracks.evaluations.evaluators.judge_evaluator import (
     JudgeEvaluator,
     JudgeOutput,
@@ -17,7 +16,6 @@ from railtracks.evaluations.evaluators.metrics import (
 from railtracks.evaluations.result import AggregateForest, MetricResult
 
 from .conftest import make_agent_data_point
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,6 +52,7 @@ def test_init_name(judge):
 def test_init_filters_non_categorical_metrics(caplog):
     """Non-Categorical metrics generate a warning but are still stored."""
     import logging
+
     llm = make_mock_llm()
     numerical = Numerical(name="score", min_value=0.0)
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
@@ -142,7 +141,10 @@ def test_generate_system_prompt_lists_category_names_with_category_object_input(
     llm = make_mock_llm()
     metric = Categorical(
         name="Helpfulness",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         j = JudgeEvaluator(llm=llm, metrics=[metric])
@@ -198,12 +200,20 @@ def test_aggregate_metrics_skips_base_metric(judge):
 
 
 def _mock_invoke(judge_instance, adp, metric):
-    return [JudgeOutput(metric.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning="looks good"))]
+    return [
+        JudgeOutput(
+            metric.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value="good", reasoning="looks good"),
+        )
+    ]
 
 
 def test_run_returns_evaluator_result(judge):
     adp = make_agent_data_point()
-    with patch.object(judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)):
+    with patch.object(
+        judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)
+    ):
         result = judge.run([adp])
     assert result.evaluator_name == "JudgeEvaluator"
     assert len(result.metric_results) >= 1
@@ -211,7 +221,9 @@ def test_run_returns_evaluator_result(judge):
 
 def test_run_includes_reasoning_result(judge):
     adp = make_agent_data_point()
-    with patch.object(judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)):
+    with patch.object(
+        judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)
+    ):
         result = judge.run([adp])
     names = [r.result_name for r in result.metric_results]
     assert any("JudgeResult" in n for n in names)
@@ -223,7 +235,13 @@ def test_run_no_reasoning_when_disabled():
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS], reasoning=False)
     adp = make_agent_data_point()
-    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good"))]
+    fake_output = [
+        JudgeOutput(
+            HELPFULNESS.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value="good"),
+        )
+    ]
     with patch.object(j, "_invoke", return_value=fake_output):
         result = j.run([adp])
     names = [r.result_name for r in result.metric_results]
@@ -233,7 +251,13 @@ def test_run_no_reasoning_when_disabled():
 def test_run_reasoning_none_does_not_add_result(judge):
     """When reasoning is enabled but judge returns None reasoning, no reasoning result added."""
     adp = make_agent_data_point()
-    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning=None))]
+    fake_output = [
+        JudgeOutput(
+            HELPFULNESS.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value="good", reasoning=None),
+        )
+    ]
     with patch.object(judge, "_invoke", return_value=fake_output):
         result = judge.run([adp])
     names = [r.result_name for r in result.metric_results]
@@ -242,6 +266,8 @@ def test_run_reasoning_none_does_not_add_result(judge):
 
 def test_run_agent_data_ids(judge):
     adp = make_agent_data_point()
-    with patch.object(judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)):
+    with patch.object(
+        judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)
+    ):
         result = judge.run([adp])
     assert adp.identifier in result.agent_data_ids

@@ -44,9 +44,7 @@ def test_function_node_middleware_can_short_circuit():
     def add(a: int, b: int) -> int:
         """Add two numbers."""
         return a + b
-    
-    node = add.node_type()
-    
+
     async def top_level():
         with rt.Session():
             return await rt.call(add, 1, 2)

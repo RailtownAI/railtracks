@@ -14,7 +14,9 @@ from ..evaluations.evaluators.conftest import make_agent_data_point
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def make_evaluator(identifier: str = "eval-id-1", name: str = "MockEvaluator") -> MagicMock:
+def make_evaluator(
+    identifier: str = "eval-id-1", name: str = "MockEvaluator"
+) -> MagicMock:
     ev = MagicMock(spec=Evaluator)
     ev.identifier = identifier
     ev.name = name
@@ -71,14 +73,18 @@ def test_setup_agent_data_single_adp():
 def test_setup_agent_data_list_of_adps():
     adp1 = make_agent_data_point(agent_name="AgentA")
     adp2 = make_agent_data_point(agent_name="AgentA")
-    data_dict, agents = _setup_agent_data([adp1, adp2], agent_selection=False, agents=None)
+    data_dict, agents = _setup_agent_data(
+        [adp1, adp2], agent_selection=False, agents=None
+    )
     assert len(data_dict["AgentA"]) == 2
 
 
 def test_setup_agent_data_multiple_agents_no_selection():
     adp_a = make_agent_data_point(agent_name="AgentA")
     adp_b = make_agent_data_point(agent_name="AgentB")
-    data_dict, agents = _setup_agent_data([adp_a, adp_b], agent_selection=False, agents=None)
+    data_dict, agents = _setup_agent_data(
+        [adp_a, adp_b], agent_selection=False, agents=None
+    )
     assert set(agents) == {"AgentA", "AgentB"}
 
 

@@ -1,7 +1,8 @@
-import pytest
 import asyncio
-from railtracks.utils.publisher import Subscriber
+
+import pytest
 from railtracks.pubsub.messages import RequestCompletionMessage
+from railtracks.utils.publisher import Subscriber
 
 
 @pytest.mark.asyncio
@@ -14,6 +15,7 @@ async def test_rcpublisher_logging_sub(dummy_publisher):
     await dummy_publisher.publish(msg)
     assert await dummy_publisher._queue.get() == msg
 
+
 @pytest.mark.asyncio
 async def test_subscriber_trigger_handles_exception(logger_patch):
     def bad_callback(x):
@@ -23,4 +25,3 @@ async def test_subscriber_trigger_handles_exception(logger_patch):
     await sub.trigger(1)
     # Ensure debug was called at least once
     assert logger_patch.debug.called
-

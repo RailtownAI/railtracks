@@ -4,6 +4,8 @@ Two ways to build a guard:
   1. the decorator API (``@rt.input_guard`` / ``@rt.output_guard``), quickest,
   2. subclassing ``InputGuard`` / ``OutputGuard``, for reusable, configurable rails.
 
+Either kind may be sync or ``async def``; an async rail can ``await rt.call(...)``.
+
 Snippet regions (--8<-- [start:name]) are pulled into the guardrails docs by
 MkDocs. Type-checked in CI via scripts/docs_validation.sh.
 """
@@ -55,6 +57,38 @@ Agent = rt.agent_node(
     model_middleware=[block_passwords, strip_sign_off],
 )
 # --8<-- [end: decorator_attach]
+
+
+# --8<-- [start: decorator_async]
+from pydantic import BaseModel
+
+
+class SafetyReport(BaseModel):
+    """The judge's verdict on one request."""
+
+    safe_request: bool
+    reason: str
+
+
+Judge = rt.agent_node(
+    name="safety-judge",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    output_schema=SafetyReport,
+    system_message="You decide whether a user request is safe to answer.",
+)
+
+
+@rt.input_guard(name="llm_judge")
+async def llm_judge(event: LLMGuardrailEvent) -> GuardrailDecision:
+    """Delegate the decision to a second agent."""
+    verdict = await rt.call(Judge, user_input=str(event.messages[-1].content))
+    if not verdict.structured.safe_request:
+        return GuardrailDecision.block(
+            reason=f"The judge flagged this request: {verdict.structured.reason}",
+            user_facing_message="I can't help with that.",
+        )
+    return GuardrailDecision.allow()
+# --8<-- [end: decorator_async]
 
 
 # --8<-- [start: subclass_imports]
