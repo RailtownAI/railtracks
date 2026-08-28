@@ -251,9 +251,11 @@ def update_railtracks():
 def _strip_skill_arguments(content: str) -> str:
     """Resolve the `$ARGUMENTS` placeholder for targets that never substitute it.
 
-    Claude Code and Codex invoke a skill with arguments, so `$ARGUMENTS` is filled in
-    at call time. Copilot reads `copilot-instructions.md` as always-on repository
-    context instead, so the placeholder would ship to the model literally.
+    Claude Code is the only target with an argument-hint field and documented
+    `$ARGUMENTS` substitution, so it is the only one that gets the placeholder. Codex
+    and Cursor document no substitution, and Copilot reads `copilot-instructions.md` as
+    always-on repository context, so for all three the placeholder would ship to the
+    model literally.
     """
     kept: list[str] = []
     drop_next_blank = False
@@ -327,7 +329,9 @@ def _add_codex(skill: Skill, force: bool) -> None:
 
     target.parent.mkdir(parents=True, exist_ok=True)
     frontmatter = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n\n"
-    target.write_text(frontmatter + skill.body, encoding="utf-8")
+    target.write_text(
+        frontmatter + _strip_skill_arguments(skill.body), encoding="utf-8"
+    )
     print_success(f"Installed '{skill.name}' for Codex -> {target}")
 
 
@@ -375,7 +379,9 @@ def _add_cursor(skill: Skill, force: bool) -> None:
 
     target.parent.mkdir(parents=True, exist_ok=True)
     frontmatter = f"---\ndescription: {skill.description}\nalwaysApply: false\n---\n\n"
-    target.write_text(frontmatter + skill.body, encoding="utf-8")
+    target.write_text(
+        frontmatter + _strip_skill_arguments(skill.body), encoding="utf-8"
+    )
     print_success(f"Installed '{skill.name}' for Cursor -> {target}")
 
 

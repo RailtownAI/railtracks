@@ -346,6 +346,41 @@ class TestSkillInstallers(unittest.TestCase):
         self.assertFalse(Path(".claude").exists())
         self.assertFalse(Path(".cursor").exists())
 
+    def test_codex_resolves_argument_placeholder(self):
+        """Codex documents no argument substitution, so $ARGUMENTS never survives."""
+        add_skill("codex:agent-builder")
+
+        content = Path(".agents/skills/agent-builder/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("$ARGUMENTS", content)
+
+    def test_cursor_installs_rules_file(self):
+        """Cursor skills are written as .mdc rules with valid metadata."""
+        add_skill("cursor:agent-builder")
+
+        target = Path(".cursor/rules/agent-builder.mdc")
+        self.assertTrue(target.is_file())
+        content = target.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith("---\ndescription: "))
+        self.assertIn("alwaysApply: false", content)
+        self.assertIn("# Build a Railtracks Agent", content)
+
+    def test_cursor_does_not_use_other_tool_directories(self):
+        """Cursor installation must use its own rules discovery path."""
+        add_skill("cursor:agent-builder")
+
+        self.assertFalse(Path(".claude").exists())
+        self.assertFalse(Path(".agents").exists())
+        self.assertFalse(Path(".github").exists())
+
+    def test_cursor_resolves_argument_placeholder(self):
+        """Cursor has no argument-hint field and no substitution, so $ARGUMENTS goes."""
+        add_skill("cursor:agent-builder")
+
+        content = Path(".cursor/rules/agent-builder.mdc").read_text(encoding="utf-8")
+        self.assertNotIn("$ARGUMENTS", content)
+
     def test_copilot_resolves_argument_placeholder(self):
         """Copilot instructions are always-on context, so $ARGUMENTS never survives."""
         add_skill("copilot:agent-builder")
