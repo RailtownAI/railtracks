@@ -61,8 +61,6 @@ class Tool:
                     ],
                 )
             param_objs: List[Parameter] = []
-            # NOTE: the loop variable must not be called `name` -- doing so shadows the
-            # `name` argument and silently sets the tool's name to the last property.
             for param_name, prop in props.items():
                 param_objs.append(
                     parse_json_schema_to_parameter(
