@@ -10,7 +10,7 @@ Not part of the PR -- untracked, for poking around locally only.
   propagating; accept can optionally rewrite what propagates via
   Verdict(result=...).
 
-Run: uv run python examples/human_in_the_loop/pre_post_verifier_demo.py
+Run: uv run python examples/human_in_the_loop/basic_verifiers_usage_demo.py
 """
 
 import railtracks as rt
