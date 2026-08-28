@@ -35,7 +35,6 @@ def after_llm(
         change="is renamed",
         instead="rt.post_llm",
         detail="The function itself is unchanged.",
-        stacklevel=2,
     )
     if fn is None:
         return post_llm(name=name)

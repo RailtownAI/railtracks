@@ -36,7 +36,6 @@ def after_node(
         change="is renamed",
         instead="rt.post_node",
         detail="The function itself is unchanged.",
-        stacklevel=2,
     )
     if fn is None:
         return post_node(name=name)

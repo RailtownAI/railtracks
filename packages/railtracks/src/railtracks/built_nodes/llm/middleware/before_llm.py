@@ -59,7 +59,6 @@ def before_llm(
         change="is renamed",
         instead="rt.pre_llm",
         detail="The function itself is unchanged.",
-        stacklevel=2,
     )
     if fn is None:
         return pre_llm(name=name)
