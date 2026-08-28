@@ -11,9 +11,9 @@ few shapes.
 For the `Verdict` shape, timeout semantics, and how pre/post compose with
 each other and with other middleware (e.g. `Retry`), see the docs <!!!TODO add the docs link later when the pre/post PR is merged and the docs are live>
 
-- `pre_post_verifier_demo.py` -> the core primitives: `pre_verifier` gating
-  whether a call happens at all, `post_verifier` gating/rewriting a call's
-  output after it already ran, and both composed on one node.
+- `basic_verifiers_usage_demo.py` -> the core primitives: `pre_verifier`
+  gating whether a call happens at all, `post_verifier` gating/rewriting a
+  call's output after it already ran, and both composed on one node.
 - `webhook_demo/run.py` -> register a pending approval, resolve it via a
   real external event: a FastAPI route this file exposes, hit by an
   Approve/Reject Streamlit app (`webhook_demo/setup.py`, launched
@@ -38,11 +38,11 @@ each other and with other middleware (e.g. `Retry`), see the docs <!!!TODO add t
 Run any of the four directly, e.g.:
 
 ```bash
-uv run python examples/human_in_the_loop/pre_post_verifier_demo.py
+uv run python examples/human_in_the_loop/basic_verifiers_usage_demo.py
 ```
 
-`pre_post_verifier_demo.py` runs standalone: no real server, webhook, or API
-key required. `custom_approval_demo.py` needs a terminal to type into by
+`basic_verifiers_usage_demo.py` runs standalone: no real server, webhook, or
+API key required. `custom_approval_demo.py` needs a terminal to type into by
 default (or pass `--fake` to run unattended).
 `webhook_demo/run.py` needs `streamlit` and opens a browser tab to click
 Approve or Reject in. `llm_approval_demo.py` needs `OPENAI_API_KEY`.
