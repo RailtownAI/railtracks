@@ -4,7 +4,9 @@ Tests for the Tool class.
 This module contains tests for railtracks.llm.tools.tool.Tool.
 """
 
+import pytest
 from railtracks.llm.tools import Tool
+from railtracks.llm.tools.tool import ToolCreationError
 
 
 class TestToolFromSchemaDict:
@@ -33,3 +35,11 @@ class TestToolFromSchemaDict:
 
         assert tool.name == "no_args"
         assert tool.parameters == []
+
+    def test_required_without_properties_raises(self):
+        with pytest.raises(ToolCreationError, match="no 'properties' block"):
+            Tool(
+                name="broken",
+                detail="Declares a required field it never describes.",
+                parameters={"type": "object", "required": ["city"]},
+            )
