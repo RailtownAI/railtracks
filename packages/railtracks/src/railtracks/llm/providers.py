@@ -21,6 +21,7 @@ class ModelProvider(str, Enum):
         AZUREAI: Azure OpenAI Service models.
         OLLAMA: Ollama local LLMs.
         COHERE: Cohere models.
+        APPLE_FM: Apple on-device Foundation Model (macOS 26+ Apple Silicon).
     """
 
     OPENAI = "OpenAI"
@@ -32,6 +33,7 @@ class ModelProvider(str, Enum):
     COHERE = "cohere_chat"
     TELUS = "Telus"
     PORTKEY = "PortKey"
+    APPLE_FM = "AppleFM"
     UNKNOWN = "Unknown"
 
 

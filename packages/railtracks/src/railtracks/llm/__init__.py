@@ -5,6 +5,9 @@ from .message import AssistantMessage, Message, SystemMessage, ToolMessage, User
 from .model import ModelBase
 from .models import (
     AnthropicLLM,
+    AppleFMLLM,
+    AppleFMSafetyRefusalError,
+    AppleFMUnavailableError,
     AzureAILLM,
     CohereLLM,
     GeminiLLM,
@@ -52,6 +55,9 @@ __all__ = [
     "ModelProvider",
     "Tool",
     "AnthropicLLM",
+    "AppleFMLLM",
+    "AppleFMUnavailableError",
+    "AppleFMSafetyRefusalError",
     "AzureAILLM",
     "CohereLLM",
     "HuggingFaceLLM",

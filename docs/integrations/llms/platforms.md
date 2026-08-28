@@ -4,6 +4,7 @@ Platforms allow connecting to LLMs from different providers through a single API
 - **Ollama**
 - **HuggingFace**
 - **Portkey**
+- **Apple Foundation Model** (on-device, macOS 26+ Apple Silicon)
 
 The code remains the same as [LLM Providers](providers.md) with the provider name being replaced with the platform name.
 
@@ -49,3 +50,33 @@ The code remains the same as [LLM Providers](providers.md) with the provider nam
     ```python
     --8<-- "docs/scripts/providers.py:openaicompat"
     ```
+
+=== "Apple Foundation Model"
+    ```python
+    --8<-- "docs/scripts/providers.py:apple_fm"
+    ```
+
+    !!! info "Availability"
+
+        Runs entirely on-device with no API key. Requires macOS 26.0+ on an
+        Apple Silicon Mac with Apple Intelligence enabled. Install with
+        `pip install railtracks[apple]`.
+
+    !!! caution "No tool calling in v1"
+
+        Apple's on-device SDK drives its own tool-calling loop and exposes
+        no interception hook, so `AppleFMLLM.chat_with_tools()` raises
+        `NotImplementedError`. Use another provider (OpenAI, Anthropic,
+        Ollama) for tool-driven flows. Streaming structured output also
+        raises — the SDK's `stream_response` does not accept guided
+        generation. Use `astructured` for buffered structured output.
+
+    !!! info "Usage statistics"
+
+        The Apple SDK returns no token counts or cost. `MessageInfo`
+        reports `latency` (measured locally) and `model_name`;
+        `input_tokens`, `output_tokens`, `total_cost`, and
+        `system_fingerprint` are `None`. Aggregations over mixed-provider
+        sessions treat Apple runs as "unknown usage" — on-device
+        inference is free, but reporting `0.0` would silently conflate
+        "free" with "unknown".

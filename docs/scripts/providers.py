@@ -70,6 +70,14 @@ import railtracks as rt
 model = rt.llm.OllamaLLM("deepseek-r1:8b")
 # --8<-- [end: ollama]
 
+# --8<-- [start: apple_fm]
+import railtracks as rt
+# Requires macOS 26+ Apple Silicon with Apple Intelligence enabled.
+# Install with `pip install railtracks[apple]`.
+
+model = rt.llm.AppleFMLLM(temperature=0.7)
+# --8<-- [end: apple_fm]
+
 # --8<-- [start: huggingface_models]
 rt.llm.HuggingFaceLLM("together_ai/meta-llama/Llama-3.3-70B-Instruct") 
 rt.llm.HuggingFaceLLM("sambanova/meta-llama/Llama-3.3-70B-Instruct")
