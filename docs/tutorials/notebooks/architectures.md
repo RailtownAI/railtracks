@@ -1,7 +1,5 @@
 ## Sequential Flows
-In many cases you just want things to happen in a specific order. Instead of letting the LLM decide the order you chain tasks programmatically. 
-
-In the below colab notebook, we will explore how to built a simple sequential flow. Connecting an agent in a sequence
+A [Sequential Flow](../concepts/architectures/sequential.md) runs nodes in a fixed order defined by Python code. Read the concept guide for the definition, tradeoffs, and a short example, or use the notebook below for an interactive walkthrough.
 
 
 <div class="colab-card">

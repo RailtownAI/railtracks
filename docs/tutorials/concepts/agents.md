@@ -21,6 +21,8 @@ for a while now, but LLMs have changed the game and made it much easier to use t
 accomplish complex tasks and goals. This ability makes them uniquely suited to operate as the **brain** for your agentic
 system.
 
+In Railtracks, an [Agent Node](../../documentation/agent_design/overview.md#agent-node) packages that LLM behavior as an executable [Node](../../documentation/agent_design/overview.md#node).
+
 ```mermaid
 graph TB
     User[User]
@@ -63,7 +65,3 @@ Agents are already being used in real world applications such as:
 
 We have build **Railtracks** with developers in mind; with just a simple prompt and a bit of Python, you’re
 already well on your way to building your first agent. Get started [Building with Railtracks](../walkthroughs/byfa.md)
-
-
-
-
