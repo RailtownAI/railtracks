@@ -39,9 +39,7 @@ def test_build_where_single():
 
 
 def test_build_where_multiple():
-    clause, params = _build_where(
-        {"scope_user_id": "alice", "scope_agent_id": "bot"}
-    )
+    clause, params = _build_where({"scope_user_id": "alice", "scope_agent_id": "bot"})
     assert "payload->$1::text = $2::jsonb" in clause
     assert "payload->$3::text = $4::jsonb" in clause
     assert params == [
@@ -96,7 +94,9 @@ def _injected_backend(pool) -> PgvectorBackend:
     return backend
 
 
-def _make_entry(user_id: str = "alice", vector: list[float] | None = None) -> StoreEntry:
+def _make_entry(
+    user_id: str = "alice", vector: list[float] | None = None
+) -> StoreEntry:
     if vector is None:
         vector = [1.0, 0.0, 0.0]
     return StoreEntry(
@@ -202,9 +202,7 @@ async def test_initialize_uses_dim_in_vector_type():
         await backend.initialize()
 
     create_table_sql = next(
-        c.args[0]
-        for c in conn.execute.call_args_list
-        if "CREATE TABLE" in c.args[0]
+        c.args[0] for c in conn.execute.call_args_list if "CREATE TABLE" in c.args[0]
     )
     assert "vector(1536)" in create_table_sql
 
@@ -224,9 +222,7 @@ async def test_initialize_uses_untyped_vector_without_dim():
         await backend.initialize()
 
     create_table_sql = next(
-        c.args[0]
-        for c in conn.execute.call_args_list
-        if "CREATE TABLE" in c.args[0]
+        c.args[0] for c in conn.execute.call_args_list if "CREATE TABLE" in c.args[0]
     )
     assert "vector(1536)" not in create_table_sql
     assert "vector" in create_table_sql

@@ -1,13 +1,27 @@
-"""Tests for ModelInvoker's LLM-call scoping (llm_call_id)."""
+"""Tests for ModelInvoker's LLM-call scoping (llm_call_id), and for
+ModelInvoker itself — the shared choke point for the middleware chain
+(guardrails/prebuilt middleware run through it) and for streaming (the
+`_stream_queue_if_enabled` / `_drain_to_queue` decision logic lives here).
+"""
+
+import asyncio
 
 import pytest
-
 import railtracks.context.central as central
-from railtracks.built_nodes.llm.middleware.wrap_llm import wrap_llm
-from railtracks.built_nodes.llm.model_invoker import ModelInvoker
+from railtracks.built_nodes.llm import model_invoker as model_invoker_module
+from railtracks.built_nodes.llm.middleware import wrap_llm
+from railtracks.built_nodes.llm.model_invoker import (
+    ModelInvoker,
+    _drain_to_queue,
+    _llm_observe,
+    _stream_queue_if_enabled,
+)
+from railtracks.exceptions.errors import LLMError
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Message, Role
-from railtracks.llm.response import Response
+from railtracks.llm.message import AssistantMessage, Message, Role, UserMessage
+from railtracks.llm.providers import ModelProvider
+from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.tools.tool import Tool
 from railtracks.utils.config import ExecutorConfig
 
 
@@ -79,30 +93,6 @@ async def test_invoke_generates_a_fresh_llm_call_id_each_call():
 
     assert len(captured) == 2
     assert captured[0] != captured[1]
-"""Unit tests for ModelInvoker — the shared choke point for the middleware chain
-(guardrails/prebuilt middleware run through it) and for streaming (the
-`_stream_queue_if_enabled` / `_drain_to_queue` decision logic lives here).
-"""
-
-
-
-import asyncio
-
-import pytest
-from railtracks.built_nodes.llm import model_invoker as model_invoker_module
-from railtracks.built_nodes.llm.middleware import wrap_llm
-from railtracks.built_nodes.llm.model_invoker import (
-    ModelInvoker,
-    _drain_to_queue,
-    _llm_observe,
-    _stream_queue_if_enabled,
-)
-from railtracks.exceptions.errors import LLMError
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import AssistantMessage, UserMessage
-from railtracks.llm.providers import ModelProvider
-from railtracks.llm.response import MessageInfo, Response
-from railtracks.llm.tools.tool import Tool
 
 
 def _make_response(text: str = "hi") -> Response:
@@ -127,6 +117,7 @@ class _StubModel:
     """Minimal ModelBase-shaped stub recording every buffered/streaming call made on it."""
 
     id = "stub-model"
+
     def model_name(self):
         return "stub-model"
 
@@ -136,15 +127,22 @@ class _StubModel:
         response: Response | None = None,
         stream_items: list | None = None,
         raise_on_chat: Exception | None = None,
+        streams_tool_calls: bool = True,
     ):
         self._provider = provider
         self._response = response or _make_response()
-        self._stream_items = stream_items if stream_items is not None else [self._response]
+        self._stream_items = (
+            stream_items if stream_items is not None else [self._response]
+        )
         self._raise_on_chat = raise_on_chat
+        self._streams_tool_calls = streams_tool_calls
         self.calls: list[tuple] = []
 
     def model_provider(self):
         return self._provider
+
+    def supports_streamed_tool_calling(self):
+        return self._streams_tool_calls
 
     # --- buffered ---
     def chat(self, messages):
@@ -205,30 +203,53 @@ def test_stream_queue_if_enabled_returns_queue_when_no_tools(monkeypatch):
     assert _stream_queue_if_enabled(model, []) is queue
 
 
-def test_stream_queue_if_enabled_returns_queue_for_non_blacklisted_provider_with_tools(
-    monkeypatch,
+@pytest.mark.parametrize(
+    "provider",
+    [
+        ModelProvider.OPENAI,
+        ModelProvider.ANTHROPIC,
+        ModelProvider.GEMINI,
+        ModelProvider.AZUREAI,
+        ModelProvider.OLLAMA,
+        ModelProvider.HUGGINGFACE,
+    ],
+)
+def test_stream_queue_if_enabled_streams_tools_regardless_of_provider(
+    monkeypatch, provider
 ):
+    """The decision is the model's capability, not a hardcoded provider list: every
+    provider streams tool calls as long as the model says it can."""
     queue: asyncio.Queue = asyncio.Queue()
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: queue)
-    model = _StubModel(provider=ModelProvider.OPENAI)
+    model = _StubModel(provider=provider)
 
     assert _stream_queue_if_enabled(model, [_make_tool()]) is queue
 
 
-def test_stream_queue_if_enabled_falls_back_for_blacklisted_provider_with_tools(
+def test_stream_queue_if_enabled_falls_back_when_model_cannot_stream_tool_calls(
     monkeypatch, caplog
 ):
     queue: asyncio.Queue = asyncio.Queue()
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: queue)
-    model = _StubModel(provider=ModelProvider.ANTHROPIC)
+    model = _StubModel(streams_tool_calls=False)
 
     with caplog.at_level("WARNING"):
         result = _stream_queue_if_enabled(model, [_make_tool()])
 
     assert result is None
-    assert any(
-        "falling back to a" in record.message for record in caplog.records
-    )
+    assert any("falling back to a" in record.message for record in caplog.records)
+
+
+def test_stream_queue_if_enabled_ignores_tool_streaming_support_without_tools(
+    monkeypatch,
+):
+    """A model that cannot stream tool calls still streams a plain or structured call."""
+    queue: asyncio.Queue = asyncio.Queue()
+    monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: queue)
+    model = _StubModel(streams_tool_calls=False)
+
+    assert _stream_queue_if_enabled(model, None) is queue
+    assert _stream_queue_if_enabled(model, []) is queue
 
 
 # ---------------------------------------------------------------------------
@@ -358,7 +379,7 @@ async def test_invoke_streaming_chat_with_tools_dispatch(monkeypatch, messages):
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: queue)
     tool = _make_tool()
     response = _make_response("hi")
-    model = _StubModel(provider=ModelProvider.OPENAI, stream_items=[response])
+    model = _StubModel(provider=ModelProvider.ANTHROPIC, stream_items=[response])
     invoker = ModelInvoker(model)
 
     result = await invoker.invoke(messages, tools=[tool])
@@ -387,13 +408,13 @@ async def test_invoke_streaming_structured_dispatch(monkeypatch, messages):
 
 
 @pytest.mark.asyncio
-async def test_invoke_streaming_falls_back_to_buffered_for_blacklisted_provider_with_tools(
+async def test_invoke_streaming_falls_back_to_buffered_when_tool_streaming_unsupported(
     monkeypatch, messages
 ):
     queue: asyncio.Queue = asyncio.Queue()
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: queue)
     tool = _make_tool()
-    model = _StubModel(provider=ModelProvider.ANTHROPIC)
+    model = _StubModel(streams_tool_calls=False)
     invoker = ModelInvoker(model)
 
     result = await invoker.invoke(messages, tools=[tool])
@@ -453,7 +474,9 @@ def test_create_with_llm_observe_deep_copies_caller_middleware_list(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_create_with_llm_observe_default_middleware_is_just_observe(monkeypatch, messages):
+async def test_create_with_llm_observe_default_middleware_is_just_observe(
+    monkeypatch, messages
+):
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
     invoker = ModelInvoker.create_with_llm_observe(_StubModel())
 
@@ -465,7 +488,9 @@ async def test_create_with_llm_observe_default_middleware_is_just_observe(monkey
 
 
 @pytest.mark.asyncio
-async def test_llm_observe_propagates_exceptions_from_the_core_call(monkeypatch, messages):
+async def test_llm_observe_propagates_exceptions_from_the_core_call(
+    monkeypatch, messages
+):
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
     model = _StubModel(raise_on_chat=ValueError("boom"))
     invoker = ModelInvoker.create_with_llm_observe(model)

@@ -17,11 +17,7 @@ _FORBIDDEN_PREFIXES = (
 )
 
 _STORES_ROOT = (
-    Path(__file__).resolve().parents[3]
-    / "src"
-    / "railtracks"
-    / "retrieval"
-    / "stores"
+    Path(__file__).resolve().parents[3] / "src" / "railtracks" / "retrieval" / "stores"
 )
 
 
@@ -48,6 +44,6 @@ def test_no_engine_imports():
                     violations.append(f"{pyfile.name}: imports {module}")
 
     assert violations == [], (
-        f"retrieval/stores must not import engine internals:\n"
+        "retrieval/stores must not import engine internals:\n"
         + "\n".join(f"  - {v}" for v in violations)
     )

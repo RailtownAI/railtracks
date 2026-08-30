@@ -1,16 +1,16 @@
 """Unit tests for railtracks.llm.retries — no I/O, all sleeps are mocked."""
+
 from unittest.mock import AsyncMock, call, patch
 
 import litellm
 import pytest
-
 from railtracks.llm._exceptions import RetryError
 from railtracks.llm.retries import ExponentialRetry, FixedRetry, LinearRetry
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _rate_limit_error() -> litellm.exceptions.RateLimitError:
     return litellm.exceptions.RateLimitError(
@@ -39,6 +39,7 @@ def _bad_request_error() -> litellm.exceptions.BadRequestError:
 # ---------------------------------------------------------------------------
 # Constructor validation
 # ---------------------------------------------------------------------------
+
 
 class TestExponentialRetryValidation:
     def test_max_tries_below_1_raises(self):
@@ -99,6 +100,7 @@ class TestFixedRetryValidation:
 # _compute_delay
 # ---------------------------------------------------------------------------
 
+
 class TestExponentialDelay:
     def test_no_jitter_doubles_each_attempt(self):
         retry = ExponentialRetry(max_tries=5, base=2.0, jitter=False)
@@ -143,6 +145,7 @@ class TestFixedDelay:
 # approach_name
 # ---------------------------------------------------------------------------
 
+
 def test_approach_names():
     assert ExponentialRetry.approach_name() == "exponential"
     assert LinearRetry.approach_name() == "linear"
@@ -152,6 +155,7 @@ def test_approach_names():
 # ---------------------------------------------------------------------------
 # call_with_retry
 # ---------------------------------------------------------------------------
+
 
 class TestCallWithRetry:
     def test_succeeds_on_first_call(self):
@@ -179,7 +183,9 @@ class TestCallWithRetry:
         with patch("railtracks.llm.retries.base.time.sleep"):
             retry = ExponentialRetry(max_tries=3, jitter=False)
             with pytest.raises(RetryError) as exc_info:
-                retry.call_with_retry(lambda: (_ for _ in ()).throw(_rate_limit_error()))
+                retry.call_with_retry(
+                    lambda: (_ for _ in ()).throw(_rate_limit_error())
+                )
 
         assert len(exc_info.value.exception_list) == 3
 
@@ -213,11 +219,15 @@ class TestCallWithRetry:
 
         assert mock_sleep.call_args_list == [call(1.0), call(2.0)]
 
-    @pytest.mark.parametrize("error_factory", [
-        _rate_limit_error,
-        _timeout_error,
-        _internal_server_error,
-    ], ids=["RateLimitError", "Timeout", "InternalServerError"])
+    @pytest.mark.parametrize(
+        "error_factory",
+        [
+            _rate_limit_error,
+            _timeout_error,
+            _internal_server_error,
+        ],
+        ids=["RateLimitError", "Timeout", "InternalServerError"],
+    )
     def test_all_retryable_exception_types_are_retried(self, error_factory):
         state = {"n": 0}
 
@@ -252,6 +262,7 @@ class TestCallWithRetry:
 # ---------------------------------------------------------------------------
 # acall_with_retry
 # ---------------------------------------------------------------------------
+
 
 class TestACallWithRetry:
     @pytest.mark.asyncio
@@ -300,7 +311,9 @@ class TestACallWithRetry:
             state["n"] += 1
             raise _bad_request_error()
 
-        with patch("railtracks.llm.retries.base.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "railtracks.llm.retries.base.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             retry = ExponentialRetry(max_tries=5, jitter=False)
             with pytest.raises(litellm.exceptions.BadRequestError):
                 await retry.acall_with_retry(raises_bad_request)
@@ -318,7 +331,9 @@ class TestACallWithRetry:
                 raise _rate_limit_error()
             return "ok"
 
-        with patch("railtracks.llm.retries.base.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "railtracks.llm.retries.base.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             retry = LinearRetry(max_tries=3, step=5.0, jitter=False)
             await retry.acall_with_retry(flaky)
 

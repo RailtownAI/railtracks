@@ -6,6 +6,7 @@ def test_create_default():
 
     assert logger.name == "RT"
 
+
 def test_name_insertion():
     logger = get_rt_logger("TestLogger")
 

@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from typing import Callable
 
+from ..utils.config import _disable_events
+from ..utils.logging.create import get_rt_logger
 from .models import Event
 from .observer import Observer
 from .writers.base import Writer
+from .writers.jsonl import JsonlWriter
+
+logger = get_rt_logger(__name__)
 
 observer: Observer = Observer()
 
@@ -36,7 +41,17 @@ def inline_listeners() -> list[Callable[[Event], None]]:
 
 
 async def ensure_started() -> Observer:
-    """Start the singleton observer if not already started, return it."""
+    """Start the singleton observer if not already started, return it.
+
+    Auto-registers a default `JsonlWriter` when no writers have been configured
+    and `RAILTRACKS_DISABLE_EVENTS` is unset.
+    """
+    if (
+        not observer._running
+        and not observer._pending_writers
+        and not _disable_events()
+    ):
+        observer.configure_writers([JsonlWriter()])
     await observer.start()
     return observer
 
