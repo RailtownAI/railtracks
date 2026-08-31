@@ -43,3 +43,11 @@ class TestToolFromSchemaDict:
                 detail="Declares a required field it never describes.",
                 parameters={"type": "object", "required": ["city"]},
             )
+
+
+class TestDeadValidateToolParamsRemoved:
+    def test_validate_tool_params_no_longer_defined(self):
+        # pins #1514's removal so it isn't reintroduced without a caller
+        from railtracks.validation.node_creation import validation
+
+        assert not hasattr(validation, "validate_tool_params")

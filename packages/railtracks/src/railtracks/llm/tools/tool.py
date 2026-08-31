@@ -48,7 +48,7 @@ class Tool:
 
         if (
             isinstance(parameters, dict) and len(parameters) > 0
-        ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
+        ):  # if parameters is a JSON-output_schema, convert into Parameter objects
             props = parameters.get("properties") or {}
             required_fields = list(parameters.get("required", []))
             if not props and required_fields:
