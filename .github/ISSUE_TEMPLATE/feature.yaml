@@ -1,24 +1,11 @@
 name: Feature Request
-description: Suggest a new feature or improvement for railtracks.
+description: Propose a new feature or improvement for railtracks.
 
 body:
   - type: markdown
     attributes:
       value: |
-        Feature requests should be **concrete**: a specific behavior you want, tied to a real use case.
-
-        - Open-ended ideas or "have you thought about X" belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions).
-        - Bugs in existing behavior belong in the **Bug Report** template.
-
-  - type: checkboxes
-    id: prechecks
-    attributes:
-      label: Prechecks
-      options:
-        - label: I have [searched existing issues](https://github.com/RailtownAI/railtracks/issues?q=is%3Aissue) and Discussions and this is not a duplicate.
-          required: true
-        - label: This is a concrete feature request with a real use case, not an open-ended idea.
-          required: true
+        Open-ended ideas and "have you thought about X" belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions). Bugs in existing behavior belong in the **Bug Report** template.
 
   - type: dropdown
     id: component
@@ -76,10 +63,3 @@ body:
     attributes:
       label: Alternatives considered
       description: Workarounds you've tried, or other ways railtracks could solve this.
-
-  - type: checkboxes
-    id: contribution
-    attributes:
-      label: Contribution
-      options:
-        - label: I'd be willing to open a PR for this if a maintainer confirms the approach.

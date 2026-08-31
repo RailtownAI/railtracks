@@ -1,31 +1,12 @@
 name: Bug Report
-description: Report a bug in railtracks itself (not a usage question).
+description: Report a bug in railtracks.
 labels: [bug]
 
 body:
   - type: markdown
     attributes:
       value: |
-        Before you file:
-
-        - Usage questions and open-ended ideas belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions).
-        - Feature requests belong in the **Feature Request** template.
-        - Bugs in an LLM provider's SDK (OpenAI, Anthropic, Google, Cohere, etc.) should be filed upstream, not here.
-
-  - type: checkboxes
-    id: prechecks
-    attributes:
-      label: Prechecks
-      description: Confirm the following before opening a bug report.
-      options:
-        - label: I have [searched existing issues](https://github.com/RailtownAI/railtracks/issues?q=is%3Aissue) and this is not a duplicate.
-          required: true
-        - label: I am running the latest release of `railtracks`.
-          required: true
-        - label: The reproduction below is minimal and self-contained (no proprietary code required to run it).
-          required: true
-        - label: This is a bug in `railtracks`, not a downstream LLM provider bug or a usage question.
-          required: true
+        Usage questions and open-ended ideas belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions). Bugs in an LLM provider's SDK (OpenAI, Anthropic, Google, Cohere) should be filed upstream, not here.
 
   - type: dropdown
     id: component
@@ -101,13 +82,10 @@ body:
     id: environment
     attributes:
       label: System info
-      description: |
-        Fill in the values below (see the placeholder for the commands that produce them).
+      description: Fill in the values below if any of them might be relevant.
       render: shell
       placeholder: |
         Railtracks version:   # pip show railtracks | grep Version
         Python version:       # python --version
         Operating system:     # e.g. macOS 14.5, Ubuntu 22.04, Windows 11
         LLM SDK versions:     # pip freeze | grep -E "openai|anthropic|google-genai|cohere|mistralai"
-    validations:
-      required: true
