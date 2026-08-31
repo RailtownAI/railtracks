@@ -41,11 +41,13 @@ from .constants import (
 )
 from .io import (
     _print_update_available,
+    confirm_overwrite,
     print_error,
     print_status,
     print_success,
     print_warning,
 )
+from .skill_install import CLAUDE, install_skill_directory
 from .skills_registry import Skill, discover_skills
 
 # ---------------------------------------------------------------------------
@@ -284,46 +286,21 @@ def _strip_skill_arguments(content: str) -> str:
     return "\n".join(kept)
 
 
-def _confirm_overwrite(file_path: Path) -> bool:
-    """Prompt the user to confirm overwriting an existing file. Returns True to proceed."""
-    try:
-        answer = (
-            input(f"[{cli_name}] '{file_path}' already exists. Overwrite? [y/N] ")
-            .strip()
-            .lower()
-        )
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return False
-    return answer in ("y", "yes")
+def _add_claude(skill: Skill, force: bool) -> list[Path]:
+    """Install a skill for Claude Code as a skill directory, and report what it wrote.
 
-
-def _add_claude(skill: Skill, force: bool) -> None:
-    """Install skill for Claude Code as a SKILL.md file."""
-    target = Path(".claude") / "skills" / skill.name / "SKILL.md"
-    if target.exists() and not force:
-        if not _confirm_overwrite(target):
-            print_status("Aborted.")
-            sys.exit(0)
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    hint = (
-        f'argument-hint: "{skill.argument_hint}"\n'
-        if skill.argument_hint is not None
-        else ""
-    )
-    frontmatter = (
-        f"---\nname: {skill.name}\ndescription: {skill.description}\n{hint}---\n\n"
-    )
-    target.write_text(frontmatter + skill.body, encoding="utf-8")
-    print_success(f"Installed '{skill.name}' for Claude Code -> {target}")
+    Thin by design: everything here that another assistant would also need lives in
+    `skill_install`, parameterised by root path and projection, so the remaining
+    handlers become the same two values rather than the same function again.
+    """
+    return install_skill_directory(skill, CLAUDE, force)
 
 
 def _add_codex(skill: Skill, force: bool) -> None:
     """Install a skill for Codex as a repository-scoped SKILL.md file."""
     target = Path(".agents") / "skills" / skill.name / "SKILL.md"
     if target.exists() and not force:
-        if not _confirm_overwrite(target):
+        if not confirm_overwrite(target):
             print_status("Aborted.")
             sys.exit(0)
 
@@ -373,7 +350,7 @@ def _add_cursor(skill: Skill, force: bool) -> None:
     """Install skill for Cursor as a .mdc rules file."""
     target = Path(".cursor") / "rules" / f"{skill.name}.mdc"
     if target.exists() and not force:
-        if not _confirm_overwrite(target):
+        if not confirm_overwrite(target):
             print_status("Aborted.")
             sys.exit(0)
 
@@ -393,8 +370,11 @@ _TOOL_HANDLERS = {
 }
 
 
-def add_skill(spec: str, force: bool = False) -> None:
-    """Parse <tool>:<skill-name> and install the skill for the given AI coding tool."""
+def add_skill(spec: str, force: bool = False) -> list[Path] | None:
+    """Parse <tool>:<skill-name> and install the skill for the given AI coding tool.
+
+    Returns the files the handler wrote, for handlers that report them.
+    """
     if ":" not in spec:
         print_error(
             f"Invalid format '{spec}'. Expected '<tool>:<skill>', e.g. 'claude:agent-builder'."
@@ -418,7 +398,7 @@ def add_skill(spec: str, force: bool = False) -> None:
         )
         sys.exit(1)
 
-    _TOOL_HANDLERS[tool](SKILL_REGISTRY[skill_name], force)
+    return _TOOL_HANDLERS[tool](SKILL_REGISTRY[skill_name], force)
 
 
 def list_skills() -> None:
