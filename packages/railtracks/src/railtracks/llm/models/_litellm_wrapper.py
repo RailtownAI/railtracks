@@ -992,7 +992,9 @@ class LiteLLMWrapper(ModelBase, ABC):
         system_fingerprint = _return_none_on_error(lambda: raw.system_fingerprint)
         total_cost = _return_none_on_error(lambda: raw._hidden_params["response_cost"])
         if total_cost is None:
-            # A streamed response carries no cost. Price it from the usage chunk.
+            # A streamed response carries no cost. Price it from the complete usage
+            # object so provider-normalized details such as cached input tokens retain
+            # their discounted rate.
             total_cost = _return_none_on_error(
                 lambda: litellm.completion_cost(
                     completion_response=raw, model=requested_model or raw.model
