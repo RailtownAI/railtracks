@@ -1,26 +1,77 @@
 name: Bug Report
-description: Report a bug or issue with railtracks.
+description: Report a bug in railtracks itself (not a usage question).
 labels: [bug]
 
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Before you file:
+
+        - Usage questions and open-ended ideas belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions).
+        - Feature requests belong in the **Feature Request** template.
+        - Bugs in an LLM provider's SDK (OpenAI, Anthropic, Google, Cohere, etc.) should be filed upstream, not here.
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Prechecks
+      description: Confirm the following before opening a bug report.
+      options:
+        - label: I have [searched existing issues](https://github.com/RailtownAI/railtracks/issues?q=is%3Aissue) and this is not a duplicate.
+          required: true
+        - label: I am running the latest release of `railtracks`.
+          required: true
+        - label: The reproduction below is minimal and self-contained (no proprietary code required to run it).
+          required: true
+        - label: This is a bug in `railtracks`, not a downstream LLM provider bug or a usage question.
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Which subsystem is affected? Pick the closest match.
+      options:
+        - Agents / Nodes
+        - Tools
+        - LLM Providers
+        - Middleware
+        - Guardrails
+        - RAG / Retrieval
+        - Prebuilt Add-ons
+        - Human-in-the-loop
+        - Observability / Visualizer
+        - MCP Integration
+        - Evaluations
+        - Other / Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: llm_provider
+    attributes:
+      label: LLM provider & model
+      description: If the bug involves an LLM call, name the provider and model. Leave blank if not applicable.
+      placeholder: e.g. OpenAI gpt-4o, Anthropic claude-sonnet-4, Google gemini-1.5-pro, local Ollama llama3
+
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: Describe what you expected to happen and what happened instead. (Include any relevant stack traces)
+      description: What did you expect to happen? What happened instead?
       placeholder: |
-        I expected my agent to call the `search_docs` tool when I asked "how do I configure middleware?", but it answered without invoking any tools. `resp.tool_calls` is empty.
+        I expected my agent to call the `search_docs` tool when I asked "how do I configure middleware?", but it answered from its training data. `resp.tool_calls` is empty.
     validations:
       required: true
 
   - type: textarea
-    id: reproducing_steps
+    id: reproduction
     attributes:
-      label: Reproducing Steps (include code examples if applicable)
-      description: Provide step-by-step instructions to reproduce the bug. Include the agent/node/tool definitions and how you invoke them.
+      label: Reproduction
+      description: Minimal, self-contained example. Should run in a fresh Python file with `railtracks` installed and no other dependencies.
+      render: python
       placeholder: |
-        1. Define a tool and agent:
-        ```python
         import railtracks as rt
 
         @rt.function_node
@@ -33,28 +84,30 @@ body:
             llm=rt.llm.OpenAILLM("gpt-4o"),
             tool_nodes=[search_docs],
         )
-        ```
-        2. Invoke: `resp = await rt.call(Agent, "how do I configure middleware?")`
-        3. Observed: the agent answered without calling `search_docs`.
+
+        resp = await rt.call(Agent, "how do I configure middleware?")
+        print(resp.tool_calls)  # []
     validations:
       required: true
 
-  - type: input
-    id: version
+  - type: textarea
+    id: traceback
     attributes:
-      label: Railtracks Version
-      placeholder: e.g. 0.4.1
+      label: Error trace / logs
+      description: Full traceback and any relevant log output. Leave blank if the bug is behavioral (no exception).
+      render: shell
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: System info
+      description: |
+        Fill in the values below (see the placeholder for the commands that produce them).
+      render: shell
+      placeholder: |
+        Railtracks version:   # pip show railtracks | grep Version
+        Python version:       # python --version
+        Operating system:     # e.g. macOS 14.5, Ubuntu 22.04, Windows 11
+        LLM SDK versions:     # pip freeze | grep -E "openai|anthropic|google-genai|cohere|mistralai"
     validations:
       required: true
-
-  - type: input
-    id: python
-    attributes:
-      label: Python Version
-      placeholder: e.g. 3.11.6
-
-  - type: input
-    id: os
-    attributes:
-      label: Operating System
-      placeholder: e.g. macOS 14.5

@@ -1,18 +1,41 @@
 name: "[Maintainer Only] Epic"
-description: "Multi-week initiative. Tracker only, sub-issues do the work."
+description: "Multi-week initiative. Tracker only; sub-issues do the work."
 labels: ["kind:tracking"]
 body:
   - type: markdown
     attributes:
       value: |
-        > **This is a tracking issue.** Do not PR against it — pick a linked
-        > sub-issue. This issue will not appear in the public `help wanted` list.
+        > **This is a tracking issue.** Do not PR against it. Pick a linked sub-issue instead.
+        > This issue will not appear in the public `help wanted` list.
+        >
+        > Add sub-issues via GitHub's native **Sub-issues** panel on the issue sidebar after creating this epic.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Primary component
+      description: Which subsystem is this epic primarily about? For cross-cutting epics, pick the largest surface area.
+      options:
+        - Agents / Nodes
+        - Tools
+        - LLM Providers
+        - Middleware
+        - Guardrails
+        - RAG / Retrieval
+        - Prebuilt Add-ons
+        - Human-in-the-loop
+        - Observability / Visualizer
+        - MCP Integration
+        - Evaluations
+        - Cross-cutting / Multiple
+    validations:
+      required: true
 
   - type: textarea
     id: goal
     attributes:
       label: Goal
-      description: One sentence — what does "done" look like?
+      description: One sentence. What does "done" look like?
     validations:
       required: true
 
@@ -21,16 +44,5 @@ body:
     attributes:
       label: Scope & design notes
       description: What's in, what's out, key design decisions. Link the design doc if there is one.
-    validations:
-      required: true
-
-  - type: textarea
-    id: sub_issues
-    attributes:
-      label: Sub-issues
-      description: Checklist of `- [ ] #123` links. Update as work lands.
-      placeholder: |
-        - [ ] #TBD: First sub-issue
-        - [ ] #TBD: Second sub-issue
     validations:
       required: true

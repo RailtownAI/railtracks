@@ -2,6 +2,26 @@ name: "[Maintainer Only] Feature Spec"
 description: "A contained set of user-facing requirements. Railtracks maintainers/team members only."
 labels: ["[Maintainer] feature"]
 body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Agents / Nodes
+        - Tools
+        - LLM Providers
+        - Middleware
+        - Guardrails
+        - RAG / Retrieval
+        - Prebuilt Add-ons
+        - Human-in-the-loop
+        - Observability / Visualizer
+        - MCP Integration
+        - Evaluations
+        - Cross-cutting / Multiple
+    validations:
+      required: true
+
   - type: textarea
     id: requirements
     attributes:
@@ -16,9 +36,7 @@ body:
       label: Design notes
       description: API shape, key decisions, links to design docs or prior discussion.
 
-  - type: textarea
-    id: sub_issues
+  - type: markdown
     attributes:
-      label: Sub-issues (if this spans multiple PRs)
-      description: |
-        If this is one PR's worth of work, leave blank. If it needs multiple sub-issues, list them here as `- [ ] #123` — and consider using the Epic template instead.
+      value: |
+        If this needs multiple PRs, use the **Epic** template instead and link sub-issues via GitHub's Sub-issues panel.

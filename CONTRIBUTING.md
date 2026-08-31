@@ -56,7 +56,7 @@ We flag issues that are triaged, scoped, and safe to pick up with the `help want
 - [Issues open for community PRs](https://github.com/RailtownAI/railtracks/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
 - [Good first issues](https://github.com/RailtownAI/railtracks/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 
-**Please don't PR against issues without the `help wanted` label** unless you've commented first and a maintainer has said "go ahead." Untagged issues are either not yet triaged or already owned by a maintainer, and a PR against one is likely to be sent back for a scope discussion. If an untagged issue matters to you, comment there and ask — we'll pull it into triage.
+**Don't PR against issues without the `help wanted` label** unless you've commented first and a maintainer has said "go ahead." Untagged issues are either not yet triaged or already owned by a maintainer, and a PR against one is likely to be sent back for a scope discussion. If an untagged issue matters to you, comment there and ask, and we'll pull it into triage.
 
 **Tracking issues (`kind:tracking`)** are roadmap trackers, not work items. PR against their linked sub-issues instead.
 
