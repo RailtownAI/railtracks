@@ -9,7 +9,7 @@ body:
       label: Description
       description: Describe what you expected to happen and what happened instead. (Include any relevant stack traces)
       placeholder: |
-        I expected the form to submit successfully, but it throws a 500 error.
+        I expected my agent to call the `search_docs` tool when I asked "how do I configure middleware?", but it answered without invoking any tools. `resp.tool_calls` is empty.
     validations:
       required: true
 
@@ -17,12 +17,44 @@ body:
     id: reproducing_steps
     attributes:
       label: Reproducing Steps (include code examples if applicable)
-      description: Provide step-by-step instructions to reproduce the bug.
+      description: Provide step-by-step instructions to reproduce the bug. Include the agent/node/tool definitions and how you invoke them.
       placeholder: |
-        1. ...
+        1. Define a tool and agent:
         ```python
-        def example_code_here():
+        import railtracks as rt
 
+        @rt.function_node
+        def search_docs(query: str) -> str:
+            """Search the internal docs."""
+            return f"Results for {query}"
+
+        Agent = rt.agent_node(
+            name="doc-agent",
+            llm=rt.llm.OpenAILLM("gpt-4o"),
+            tool_nodes=[search_docs],
+        )
         ```
+        2. Invoke: `resp = await rt.call(Agent, "how do I configure middleware?")`
+        3. Observed: the agent answered without calling `search_docs`.
     validations:
       required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Railtracks Version
+      placeholder: e.g. 0.4.1
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python Version
+      placeholder: e.g. 3.11.6
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: e.g. macOS 14.5

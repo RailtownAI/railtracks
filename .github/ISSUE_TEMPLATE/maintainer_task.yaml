@@ -1,5 +1,5 @@
-name: "Task"
-description: "A well-scoped, unambiguous piece of work. Typically created by team members."
+name: "[Maintainer Only] Task"
+description: "A well-scoped, unambiguous piece of work. Railtracks maintainers/team members only."
 labels: ["[Maintainer] task"]
 body:
   - type: textarea

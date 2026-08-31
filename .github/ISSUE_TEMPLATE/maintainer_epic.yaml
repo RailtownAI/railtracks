@@ -1,0 +1,36 @@
+name: "[Maintainer Only] Epic"
+description: "Multi-week initiative. Tracker only, sub-issues do the work."
+labels: ["kind:tracking"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **This is a tracking issue.** Do not PR against it — pick a linked
+        > sub-issue. This issue will not appear in the public `help wanted` list.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One sentence — what does "done" look like?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & design notes
+      description: What's in, what's out, key design decisions. Link the design doc if there is one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sub_issues
+    attributes:
+      label: Sub-issues
+      description: Checklist of `- [ ] #123` links. Update as work lands.
+      placeholder: |
+        - [ ] #TBD: First sub-issue
+        - [ ] #TBD: Second sub-issue
+    validations:
+      required: true

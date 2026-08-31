@@ -1,5 +1,5 @@
-name: "General"
-description: "Tech debt, API concerns, documentation feedback, feature ideas, questions"
+name: "Question or Idea"
+description: "Open-ended questions and ideas. For bugs use Bug Report; for concrete features use Feature Request."
 
 body:
   - type: textarea
@@ -7,8 +7,7 @@ body:
     attributes:
       label: What's on your mind?
       description: >
-        Tech debt, API design concerns, docs gaps, feature ideas, general questions. Anything goes here.
+        Questions, ideas, API design thoughts, feedback. If you have a concrete bug or feature request, use one of those templates instead.
       placeholder: How do I configure railtracks to work offline?
     validations:
       required: true
-

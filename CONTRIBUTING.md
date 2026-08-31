@@ -49,8 +49,18 @@ Root
 
 ## Development Workflow
 
-### Identify an issue or feature
-Check the [GitHub Issues](https://github.com/RailtownAI/railtracks/issues) for existing bugs or feature requests. You can also create a new issue if you have an idea for improvement or want to report a bug, do this before starting work to avoid duplication. 
+### Finding something to work on
+
+We flag issues that are triaged, scoped, and safe to pick up with the `help wanted` label. The smallest of those are also tagged `good first issue`.
+
+- [Issues open for community PRs](https://github.com/RailtownAI/railtracks/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+- [Good first issues](https://github.com/RailtownAI/railtracks/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+
+**Please don't PR against issues without the `help wanted` label** unless you've commented first and a maintainer has said "go ahead." Untagged issues are either not yet triaged or already owned by a maintainer, and a PR against one is likely to be sent back for a scope discussion. If an untagged issue matters to you, comment there and ask — we'll pull it into triage.
+
+**Tracking issues (`kind:tracking`)** are roadmap trackers, not work items. PR against their linked sub-issues instead.
+
+**Feature ideas** go through the Feature Request template. Bugs go through Bug Report. Open-ended questions belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions) if enabled, otherwise the Question or Idea template.
 
 ### Code Style
 Ensure linting is enabled on auto or ran before commits. We check `ruff` for linting and formatting. You can run it manually with:
