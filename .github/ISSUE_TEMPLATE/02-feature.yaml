@@ -32,9 +32,8 @@ body:
     id: problem
     attributes:
       label: Problem / motivation
-      description: 'What are you trying to do that railtracks doesn''t support today? Include the concrete use case. Not "it would be nice if...", but "I''m building X and I can''t do Y."'
-      placeholder: |
-        I'm building a multi-agent workflow where guardrails need to short-circuit a tool call based on the LLM's decision. Today guardrails only run around the model call, so I can't intercept between the LLM's tool-call proposal and the actual tool invocation.
+      description: What are you trying to do that railtracks doesn't support today? Include the concrete use case.
+      placeholder: I want to run guardrails on tool outputs before they reach the LLM, but the current guardrail hooks only fire on model input/output.
     validations:
       required: true
 
@@ -43,20 +42,9 @@ body:
     attributes:
       label: Proposed solution
       description: What would you like to see? An API sketch, a reference to how another framework does it, or the shape of the behavior is fine.
-      placeholder: |
-        Add a `@rt.tool_guard` decorator that runs between the LLM's tool_call decision and the tool invocation:
-
-        ```python
-        @rt.tool_guard
-        def block_writes(event) -> Decision:
-            if event.tool.name.startswith("write_"):
-                return Decision.block(reason="writes require confirmation")
-            return Decision.pass_()
-
-        Agent = rt.agent_node(..., model_middleware=[block_writes])
-        ```
+      placeholder: Extend `@rt.output_guard` to also accept tool events, or add a new `@rt.tool_output_guard` decorator.
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: alternatives

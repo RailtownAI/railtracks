@@ -5,10 +5,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        > **This is a tracking issue.** Do not PR against it. Pick a linked sub-issue instead.
-        > This issue will not appear in the public `help wanted` list.
-        >
-        > Add sub-issues via GitHub's native **Sub-issues** panel on the issue sidebar after creating this epic.
+        > [!IMPORTANT]
+        > **Maintainer only.** This template is for maintainers filing tracking issues for multi-week initiatives. Outside contributors: please use **Feature Request** for feature ideas, or [Discussions](https://github.com/RailtownAI/railtracks/discussions) for open-ended proposals.
+
+  - type: markdown
+    attributes:
+      value: |
+        **This is a tracking issue.** Do not PR against it. Pick a linked sub-issue instead. This issue will not appear in the public `help wanted` list.
+
+        Add sub-issues via GitHub's native **Sub-issues** panel on the issue sidebar after creating this epic.
 
   - type: dropdown
     id: component

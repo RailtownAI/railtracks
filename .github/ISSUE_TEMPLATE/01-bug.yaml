@@ -3,11 +3,6 @@ description: Report a bug in railtracks.
 labels: [bug]
 
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Usage questions and open-ended ideas belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions). Bugs in an LLM provider's SDK (OpenAI, Anthropic, Google, Cohere) should be filed upstream, not here.
-
   - type: dropdown
     id: component
     attributes:

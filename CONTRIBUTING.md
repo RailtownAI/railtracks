@@ -60,7 +60,7 @@ We flag issues that are triaged, scoped, and safe to pick up with the `help want
 
 **Tracking issues (`kind:tracking`)** are roadmap trackers, not work items. PR against their linked sub-issues instead.
 
-**Feature ideas** go through the Feature Request template. Bugs go through Bug Report. Open-ended questions belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions) if enabled, otherwise the Question or Idea template.
+**Feature ideas** go through the Feature Request template. Bugs go through Bug Report. Open-ended questions belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions).
 
 ### Code Style
 Ensure linting is enabled on auto or ran before commits. We check `ruff` for linting and formatting. You can run it manually with:

@@ -2,6 +2,12 @@ name: "Task"
 description: "A well-scoped, unambiguous piece of work."
 labels: ["[Maintainer] task"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > **Maintainer only.** This template is for maintainers filing scoped work items. Outside contributors: please use **Bug Report** for bugs, **Feature Request** for features, or [Discussions](https://github.com/RailtownAI/railtracks/discussions) for questions.
+
   - type: dropdown
     id: component
     attributes:
