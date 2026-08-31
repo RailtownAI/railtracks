@@ -29,13 +29,6 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: llm_provider
-    attributes:
-      label: LLM provider & model
-      description: If the bug involves an LLM call, name the provider and model. Leave blank if not applicable.
-      placeholder: e.g. OpenAI gpt-4o, Anthropic claude-sonnet-4, Google gemini-1.5-pro, local Ollama llama3
-
   - type: textarea
     id: description
     attributes:

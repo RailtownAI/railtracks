@@ -1,5 +1,5 @@
-name: "[Maintainer Only] Task"
-description: "A well-scoped, unambiguous piece of work. Railtracks maintainers/team members only."
+name: "Task"
+description: "A well-scoped, unambiguous piece of work."
 labels: ["[Maintainer] task"]
 body:
   - type: dropdown

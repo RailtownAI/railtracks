@@ -1,4 +1,4 @@
-name: "[Maintainer Only] Epic"
+name: "Epic"
 description: "Multi-week initiative. Tracker only; sub-issues do the work."
 labels: ["kind:tracking"]
 body:
