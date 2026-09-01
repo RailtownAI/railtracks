@@ -46,8 +46,10 @@ from railtracks.middleware import Verdict, VerifierRejectedError
 |---|---|
 | `accepted` | `True` to let the call through, `False` to decline it |
 | `comment` | Optional; logged on accept, used as the `VerifierRejectedError` message on decline |
-| `args` / `kwargs` | Pre-call only -- forward these into the node call instead of the originals |
-| `result` | Post-call only -- propagate this instead of what the node produced |
+| `args` / `kwargs` | Set on accept to override what gets forwarded into the node call. Only `pre_verifier` reads these back -- `post_verifier` ignores them, since the call already happened |
+| `result` | Set on accept to override what propagates onward. Only `post_verifier` reads this back -- `pre_verifier` ignores it, since there's no result yet |
+
+Both verifiers' `approve_fn` receives the node's original `args`/`kwargs` as input (see the signatures above) regardless of which override fields it sets on the returned `Verdict`.
 
 `Verdict` is generic over `result`'s type (`Verdict[_R]`), matching the wrapped node's return type -- a `result=` override of the wrong type is a type-checker error. There's no equivalent runtime check on `args`/`kwargs`: a bad override surfaces as a `TypeError` from the node call itself.
 

@@ -89,14 +89,7 @@ def confirm_settled_result(result: str, order_id: str, amount: float) -> Verdict
 # Retry is innermost, post_verifier is outermost: retries happen silently on
 # transient failures, and the reviewer only ever sees the final settled
 # result -- not every intermediate attempt.
-@rt.function_node(  # type: ignore[arg-type]
-    # Pre-existing mypy gap: Retry/Timeout/MaxCalls/Lock subclass the bare
-    # `Middleware` generic rather than parameterizing it, which collapses to
-    # `Middleware[Never, Never]` and breaks list-element unification whenever
-    # they're combined with another middleware in one `middleware=[...]`
-    # list. Runtime behavior is unaffected -- this is a static-typing-only
-    # issue in the prebuilt middleware base classes, not in pre_verifier/
-    # post_verifier or this example.
+@rt.function_node(
     middleware=[
         post_verifier(confirm_settled_result, name="confirm_settled_result"),
         Retry(3),
