@@ -19,9 +19,10 @@ things differ per target, so those two are the parameters and
 Claude Code is the first target through here. The remaining three wait on the
 install manifest, which owns removing the legacy installs they are migrating from.
 
-**Not handled here: stale files.** Re-installing copies over what we ship now, but
-a supporting file that a *previous* version shipped and this one dropped stays on
-disk. Knowing what we wrote last time is the manifest's job, not the copy's.
+Re-installing is a **sync**, not a copy: `skill_manifest` records what each install
+wrote, so the next one can remove a supporting file we shipped before and no longer
+do. Removal is gated on proof — the file must be one we recorded *and* still be
+byte-for-byte what we left — so a file somebody edited is reported and kept.
 
 **Authoring constraint for skills that ship supporting files:** Claude Code reads a
 supporting file only when ``SKILL.md`` links it, while Copilot auto-discovers the
@@ -42,6 +43,15 @@ from typing import Any, Callable, Mapping, Sequence
 import yaml
 
 from .io import confirm_overwrite, print_status, print_success, print_warning
+from .skill_manifest import (
+    is_ours_unmodified,
+    prune,
+    read_record,
+    record_for,
+    stale_files,
+    version_skew,
+    write_record,
+)
 from .skills_registry import SKILL_FILE, Skill
 
 
@@ -50,6 +60,8 @@ class InstallTarget:
     """One assistant's directory install: where it reads, and what it reads.
 
     Attributes:
+        key: The assistant's name as `railtracks add <key>:<skill>` spells it, and as
+            the manifest records it.
         label: The assistant's display name, for CLI output.
         root: Directory holding one sub-directory per installed skill, relative to
             the project the user is running in.
@@ -59,6 +71,7 @@ class InstallTarget:
             passes it through unchanged; see the module docstring.
     """
 
+    key: str
     label: str
     root: Path
     frontmatter: Callable[[Skill], str]
@@ -137,6 +150,7 @@ def claude_frontmatter(skill: Skill) -> str:
 
 
 CLAUDE = InstallTarget(
+    key="claude",
     label="Claude Code",
     root=Path(".claude") / "skills",
     # Claude Code is the one target that substitutes $ARGUMENTS, so it is the one
@@ -159,23 +173,34 @@ def _planned_files(skill: Skill, destination: Path) -> list[tuple[Path, Path | N
 def install_skill_directory(
     skill: Skill, target: InstallTarget, force: bool = False
 ) -> list[Path]:
-    """Install `skill` for `target` and return the files written, in write order.
+    """Sync `skill` into `target` and return the files written, in write order.
 
-    The file list is returned rather than only printed because it is exactly what an
-    install manifest needs to record, and re-deriving it later would mean a second
-    implementation of this function's layout decisions.
+    Writes what the package ships now, removes what a previous install wrote and this
+    one does not, and records the result so the *next* install can do the same.
 
-    Prompts before overwriting anything already on disk unless `force` is set, and
-    exits without writing if the user declines.
+    Prompts before touching anything it cannot prove is ours and unmodified, unless
+    `force` is set, and exits without writing if the user declines. A file we wrote
+    and nobody has edited is not worth a prompt — re-running the command would
+    otherwise nag about its own output, which only teaches people to reach for
+    `--force` and lose the protection where it matters.
     """
     destination = target.root / skill.name
     planned = _planned_files(skill, destination)
+    previous = read_record(destination)
 
-    clashes = [path for path, _ in planned if path.exists()]
-    if clashes and not force:
+    skew = version_skew(previous)
+    if skew:
+        print_status(skew)
+
+    at_risk = [
+        path
+        for path, _ in planned
+        if path.exists() and not is_ours_unmodified(path, destination, previous)
+    ]
+    if at_risk and not force:
         # One clash reads better named directly; several read better as the
         # directory they share.
-        if not confirm_overwrite(clashes[0] if len(clashes) == 1 else destination):
+        if not confirm_overwrite(at_risk[0] if len(at_risk) == 1 else destination):
             print_status("Aborted.")
             sys.exit(0)
 
@@ -189,6 +214,18 @@ def install_skill_directory(
         else:
             shutil.copy2(source, path)
         written.append(path)
+
+    removable, edited = stale_files(destination, previous, written)
+    prune(destination, removable)
+    for path in removable:
+        print_status(f"Removed '{path}', no longer part of '{skill.name}'.")
+    for path in edited:
+        print_warning(
+            f"Kept '{path}': '{skill.name}' no longer ships it, but it has been "
+            f"edited since we wrote it. Delete it by hand if you do not want it."
+        )
+
+    write_record(destination, record_for(skill.name, target.key, destination, written))
 
     extras = len(written) - 1
     suffix = (
