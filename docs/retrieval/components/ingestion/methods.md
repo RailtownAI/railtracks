@@ -164,10 +164,15 @@ splitting that crosses pages.
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `file_path` | `str` | required | Path to a `.pdf` file or directory |
-| `breakdown_strategy` | `"page" \| "document"` | `"page"` | How to split the PDF |
+| `breakdown_strategy` | `"page" \| "paragraph" \| "document"` | `"page"` | How to split the PDF |
 
 **Document metadata** (page strategy): `page` (1-based), `total_pages`,
 `file_type` (`.pdf`).
+
+The `"paragraph"` strategy emits one Document per non-empty paragraph on
+each page, splitting on double newlines. Its metadata additionally includes
+`paragraph` (1-based within the page), which makes paragraph-level citations
+possible.
 
 ---
 

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, ParamSpec, TypeVar, overload
 
-from railtracks.built_nodes.llm.middleware.core import ModelMiddleware
-
 if TYPE_CHECKING:
     from railtracks.built_nodes.function.base import (
         CallableAsyncRTFunction,
         CallableSyncRTFunction,
         RTFunction,
     )
+    from railtracks.llm.middleware import ModelMiddleware
     from railtracks.middleware.core import Middleware
     from railtracks.nodes.nodes import Node
 

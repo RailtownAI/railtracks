@@ -16,6 +16,7 @@ from .models import (
 )
 from .observer import Observer, QueuePolicy
 from .publish import publish_event
+from .storage import EVENTS_DIR_ENV, EVENTS_SUBDIR, resolve_events_dir
 from .writers import JsonlWriter, Writer
 
 __all__ = [
@@ -32,4 +33,7 @@ __all__ = [
     "publish_event",
     "ensure_started",
     "shutdown",
+    "EVENTS_DIR_ENV",
+    "EVENTS_SUBDIR",
+    "resolve_events_dir",
 ]

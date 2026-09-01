@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import re
 
+from railtracks.prebuilt.tools.memory.search import SearchAlgorithm, SemanticSearch
 from railtracks.retrieval.embedding.base import Embedding
 from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
 from railtracks.retrieval.stores.vector.backends import InMemoryBackend
-from railtracks.prebuilt.tools.memory.search import SearchAlgorithm, SemanticSearch
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -21,9 +21,17 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+")
 # each token to a fixed dimension makes the embedding deterministic and
 # collision-free, so cosine similarity is an exact function of shared tokens.
 _VOCAB = [
-    "fruit", "apples", "and", "oranges",
-    "language", "python", "programming",
-    "city", "vancouver", "canada", "toronto",
+    "fruit",
+    "apples",
+    "and",
+    "oranges",
+    "language",
+    "python",
+    "programming",
+    "city",
+    "vancouver",
+    "canada",
+    "toronto",
 ]
 _IDX = {tok: i for i, tok in enumerate(_VOCAB)}
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
-from railtracks.built_nodes.llm.middleware import before_llm
+from railtracks.built_nodes.llm.middleware import pre_llm
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
@@ -49,7 +49,7 @@ async def test_input_guards_fire_in_list_order(mock_llm):
     guard_a = FnInputGuard(lambda _e: (trace.append("A"), GuardrailDecision.allow())[1])
     guard_b = FnInputGuard(lambda _e: (trace.append("B"), GuardrailDecision.allow())[1])
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="order-input",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[guard_a, guard_b],
@@ -66,7 +66,10 @@ async def test_input_guard_transform_is_seen_by_the_next_guard_in_the_chain(mock
 
     def redact(event: LLMGuardrailEvent) -> GuardrailDecision:
         new_hist = event.messages.__class__(
-            [UserMessage(m.content.replace("secret", "[REDACTED]")) for m in event.messages]
+            [
+                UserMessage(m.content.replace("secret", "[REDACTED]"))
+                for m in event.messages
+            ]
         )
         return GuardrailDecision.transform_messages(messages=new_hist, reason="redact")
 
@@ -74,7 +77,7 @@ async def test_input_guard_transform_is_seen_by_the_next_guard_in_the_chain(mock
         seen["last_content"] = event.messages[-1].content
         return GuardrailDecision.allow()
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="chain-transform",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[FnInputGuard(redact), FnInputGuard(record)],
@@ -97,7 +100,7 @@ async def test_input_guard_block_short_circuits_later_guards_in_the_list(mock_ll
     counter = FnInputGuard(count_and_allow)
 
     # block listed first: counter (later in the list) never runs
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="block-first",
         llm=mock_llm(),
         model_middleware=[block, counter],
@@ -108,7 +111,7 @@ async def test_input_guard_block_short_circuits_later_guards_in_the_list(mock_ll
     assert counts["n"] == 0
 
     # counter listed first: it runs before the later guard blocks
-    Agent2 = rt.agent_node(
+    Agent2 = rt.agent_node(  # noqa: N806
         name="block-second",
         llm=mock_llm(),
         model_middleware=[counter, block],
@@ -130,10 +133,14 @@ async def test_input_guard_block_short_circuits_later_guards_in_the_list(mock_ll
 async def test_output_guards_fire_in_reverse_list_order(mock_llm):
     trace = []
 
-    guard_a = FnOutputGuard(lambda _e: (trace.append("A"), GuardrailDecision.allow())[1])
-    guard_b = FnOutputGuard(lambda _e: (trace.append("B"), GuardrailDecision.allow())[1])
+    guard_a = FnOutputGuard(
+        lambda _e: (trace.append("A"), GuardrailDecision.allow())[1]
+    )
+    guard_b = FnOutputGuard(
+        lambda _e: (trace.append("B"), GuardrailDecision.allow())[1]
+    )
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="order-output",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[guard_a, guard_b],
@@ -156,14 +163,16 @@ async def test_output_guards_fire_in_reverse_list_order(mock_llm):
 async def test_guard_and_plain_middleware_interleave_by_position(mock_llm):
     trace = []
 
-    @before_llm
+    @pre_llm
     async def plain_tracer(message_history, schema, tools):
         trace.append("plain")
         return message_history, schema, tools
 
-    guard = FnInputGuard(lambda _e: (trace.append("guard"), GuardrailDecision.allow())[1])
+    guard = FnInputGuard(
+        lambda _e: (trace.append("guard"), GuardrailDecision.allow())[1]
+    )
 
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="interleave-plain-first",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[plain_tracer, guard],
@@ -173,7 +182,7 @@ async def test_guard_and_plain_middleware_interleave_by_position(mock_llm):
     assert trace == ["plain", "guard"]
 
     trace.clear()
-    Agent2 = rt.agent_node(
+    Agent2 = rt.agent_node(  # noqa: N806
         name="interleave-guard-first",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[guard, plain_tracer],

@@ -44,6 +44,7 @@ async def test_runner_call_with_context():
 
 async def config_test_async():
     """Test set_config and Session with end_on_error (logging_setting removed)."""
+
     async def run_with_config():
         railtracks.context.central.set_config(end_on_error=True)
         with pytest.raises(Exception):

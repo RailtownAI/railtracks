@@ -95,8 +95,10 @@ def test_numerical_node_mean(numerical_metric):
     forest.add_node(mr2)
 
     node = NumericalAggregateNode(
-        name="Agg", metric=numerical_metric,
-        children=[mr1.identifier, mr2.identifier], forest=forest,
+        name="Agg",
+        metric=numerical_metric,
+        children=[mr1.identifier, mr2.identifier],
+        forest=forest,
     )
     assert node.mean == pytest.approx(3.0)
 
@@ -108,8 +110,10 @@ def test_numerical_node_minimum_maximum(numerical_metric):
         forest.add_node(mr)
 
     node = NumericalAggregateNode(
-        name="Agg", metric=numerical_metric,
-        children=[mr.identifier for mr in mrs], forest=forest,
+        name="Agg",
+        metric=numerical_metric,
+        children=[mr.identifier for mr in mrs],
+        forest=forest,
     )
     assert node.minimum == pytest.approx(1.0)
     assert node.maximum == pytest.approx(5.0)
@@ -122,8 +126,10 @@ def test_numerical_node_median_odd(numerical_metric):
         forest.add_node(mr)
 
     node = NumericalAggregateNode(
-        name="Agg", metric=numerical_metric,
-        children=[mr.identifier for mr in mrs], forest=forest,
+        name="Agg",
+        metric=numerical_metric,
+        children=[mr.identifier for mr in mrs],
+        forest=forest,
     )
     assert node.median == pytest.approx(3.0)
 
@@ -135,8 +141,10 @@ def test_numerical_node_median_even(numerical_metric):
         forest.add_node(mr)
 
     node = NumericalAggregateNode(
-        name="Agg", metric=numerical_metric,
-        children=[mr.identifier for mr in mrs], forest=forest,
+        name="Agg",
+        metric=numerical_metric,
+        children=[mr.identifier for mr in mrs],
+        forest=forest,
     )
     assert node.median == pytest.approx(4.0)
 
@@ -149,8 +157,10 @@ def test_numerical_node_std(numerical_metric):
     forest.add_node(mr2)
 
     node = NumericalAggregateNode(
-        name="Agg", metric=numerical_metric,
-        children=[mr1.identifier, mr2.identifier], forest=forest,
+        name="Agg",
+        metric=numerical_metric,
+        children=[mr1.identifier, mr2.identifier],
+        forest=forest,
     )
     assert node.std == pytest.approx(1.0)
 
@@ -162,8 +172,10 @@ def test_numerical_node_mode(numerical_metric):
         forest.add_node(mr)
 
     node = NumericalAggregateNode(
-        name="Agg", metric=numerical_metric,
-        children=[mr.identifier for mr in mrs], forest=forest,
+        name="Agg",
+        metric=numerical_metric,
+        children=[mr.identifier for mr in mrs],
+        forest=forest,
     )
     assert node.mode == 3
 
@@ -174,7 +186,10 @@ def test_numerical_node_mode(numerical_metric):
 def test_numerical_node_empty_returns_none(numerical_metric):
     forest = make_forest()
     node = NumericalAggregateNode(
-        name="Empty", metric=numerical_metric, children=[], forest=forest,
+        name="Empty",
+        metric=numerical_metric,
+        children=[],
+        forest=forest,
     )
     assert node.values == []
     assert node.mean is None
@@ -190,7 +205,9 @@ def test_numerical_node_empty_returns_none(numerical_metric):
 
 def test_numerical_node_is_leaf(numerical_metric):
     forest = make_forest()
-    leaf = NumericalAggregateNode(name="Leaf", metric=numerical_metric, children=[], forest=forest)
+    leaf = NumericalAggregateNode(
+        name="Leaf", metric=numerical_metric, children=[], forest=forest
+    )
     assert leaf.is_leaf
     assert not leaf.is_parent
 
@@ -200,8 +217,10 @@ def test_numerical_node_is_parent(numerical_metric):
     mr = make_metric_result(1.0)
     forest.add_node(mr)
     parent = NumericalAggregateNode(
-        name="Parent", metric=numerical_metric,
-        children=[mr.identifier], forest=forest,
+        name="Parent",
+        metric=numerical_metric,
+        children=[mr.identifier],
+        forest=forest,
     )
     assert parent.is_parent
     assert not parent.is_leaf
@@ -216,14 +235,18 @@ def test_numerical_node_recursive_values(numerical_metric):
     forest.add_node(mr)
 
     child_node = NumericalAggregateNode(
-        name="Child", metric=numerical_metric,
-        children=[mr.identifier], forest=forest,
+        name="Child",
+        metric=numerical_metric,
+        children=[mr.identifier],
+        forest=forest,
     )
     forest.add_node(child_node)
 
     parent_node = NumericalAggregateNode(
-        name="Parent", metric=numerical_metric,
-        children=[child_node.identifier], forest=forest,
+        name="Parent",
+        metric=numerical_metric,
+        children=[child_node.identifier],
+        forest=forest,
     )
     assert parent_node.values == [5.0]
     assert parent_node.mean == pytest.approx(5.0)
@@ -238,8 +261,10 @@ def test_numerical_node_string_value_skipped(numerical_metric):
     forest.add_node(mr_invalid)
 
     node = NumericalAggregateNode(
-        name="Agg", metric=numerical_metric,
-        children=[mr_valid.identifier, mr_invalid.identifier], forest=forest,
+        name="Agg",
+        metric=numerical_metric,
+        children=[mr_valid.identifier, mr_invalid.identifier],
+        forest=forest,
     )
     assert node.values == [3.0]
 
@@ -259,7 +284,10 @@ def categorical_forest():
 
 def test_categorical_node_categories(categorical_metric, categorical_forest):
     node = CategoricalAggregateNode(
-        name="Agg", metric=categorical_metric, children=[], forest=categorical_forest,
+        name="Agg",
+        metric=categorical_metric,
+        children=[],
+        forest=categorical_forest,
     )
     assert node.categories == ["good", "bad", "neutral"]
 
@@ -272,7 +300,8 @@ def test_categorical_node_counts(categorical_metric, categorical_forest):
         categorical_forest.add_node(mr)
 
     node = CategoricalAggregateNode(
-        name="Agg", metric=categorical_metric,
+        name="Agg",
+        metric=categorical_metric,
         children=[mr1.identifier, mr2.identifier, mr3.identifier],
         forest=categorical_forest,
     )
@@ -289,7 +318,8 @@ def test_categorical_node_most_common_label(categorical_metric, categorical_fore
         categorical_forest.add_node(mr)
 
     node = CategoricalAggregateNode(
-        name="Agg", metric=categorical_metric,
+        name="Agg",
+        metric=categorical_metric,
         children=[mr1.identifier, mr2.identifier, mr3.identifier],
         forest=categorical_forest,
     )
@@ -306,7 +336,8 @@ def test_categorical_node_least_common_label():
         forest.add_node(mr)
 
     node = CategoricalAggregateNode(
-        name="Agg", metric=metric,
+        name="Agg",
+        metric=metric,
         children=[mr1.identifier, mr2.identifier, mr3.identifier],
         forest=forest,
     )
@@ -319,14 +350,19 @@ def test_categorical_node_invalid_label_raises(categorical_metric, categorical_f
 
     with pytest.raises(ValueError, match="Unknown label"):
         CategoricalAggregateNode(
-            name="Agg", metric=categorical_metric,
-            children=[mr.identifier], forest=categorical_forest,
+            name="Agg",
+            metric=categorical_metric,
+            children=[mr.identifier],
+            forest=categorical_forest,
         )
 
 
 def test_categorical_node_empty_counts_all_zero(categorical_metric, categorical_forest):
     node = CategoricalAggregateNode(
-        name="Agg", metric=categorical_metric, children=[], forest=categorical_forest,
+        name="Agg",
+        metric=categorical_metric,
+        children=[],
+        forest=categorical_forest,
     )
     assert all(v == 0 for v in node.counts.values())
 
@@ -346,8 +382,10 @@ def test_categorical_node_serializes_to_json(categorical_metric, categorical_for
         forest.add_node(mr)
 
     node = CategoricalAggregateNode(
-        name="Agg", metric=metric,
-        children=[mr.identifier for mr in mrs], forest=forest,
+        name="Agg",
+        metric=metric,
+        children=[mr.identifier for mr in mrs],
+        forest=forest,
     )
     dumped = node.model_dump(mode="json")
     assert dumped["categories"] == ["great", "bad"]
@@ -368,14 +406,20 @@ def test_tool_aggregate_node_type():
     metric = ToolMetric(name="Runtime", min_value=0.0)
     forest = AggregateForest[ToolAggregateNode, ToolMetricResult]()
     mr = ToolMetricResult(
-        result_name="r", metric_id="m", agent_data_id=[uuid4()],
-        value=0.5, tool_name="search",
+        result_name="r",
+        metric_id="m",
+        agent_data_id=[uuid4()],
+        value=0.5,
+        tool_name="search",
     )
     forest.add_node(mr)
 
     node = ToolAggregateNode(
-        name="SearchAgg", metric=metric, tool_name="search",
-        children=[mr.identifier], forest=forest,
+        name="SearchAgg",
+        metric=metric,
+        tool_name="search",
+        children=[mr.identifier],
+        forest=forest,
     )
     assert node.type == "ToolAggregate"
     assert node.tool_name == "search"
@@ -389,15 +433,24 @@ def test_llm_inference_aggregate_node_type():
     metric = LLMMetric(name="TotalCost", min_value=0.0)
     forest = AggregateForest[LLMInferenceAggregateNode, LLMMetricResult]()
     mr = LLMMetricResult(
-        result_name="r", metric_id="m", agent_data_id=[uuid4()],
-        value=0.002, llm_call_index=0, model_name="gpt-4", model_provider="OpenAI",
+        result_name="r",
+        metric_id="m",
+        agent_data_id=[uuid4()],
+        value=0.002,
+        llm_call_index=0,
+        model_name="gpt-4",
+        model_provider="OpenAI",
     )
     forest.add_node(mr)
 
     node = LLMInferenceAggregateNode(
-        name="CostAgg", metric=metric,
-        children=[mr.identifier], forest=forest,
-        llm_call_index=0, model_name="gpt-4", model_provider="OpenAI",
+        name="CostAgg",
+        metric=metric,
+        children=[mr.identifier],
+        forest=forest,
+        llm_call_index=0,
+        model_name="gpt-4",
+        model_provider="OpenAI",
     )
     assert node.type == "LLMInferenceAggregate"
     assert node.llm_call_index == 0

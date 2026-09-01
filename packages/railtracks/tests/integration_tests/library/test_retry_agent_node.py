@@ -1,9 +1,9 @@
 """Integration tests: retry_approach wired through agent_node → rt.call()."""
+
 from unittest.mock import patch
 
 import litellm
 import pytest
-
 import railtracks as rt
 from railtracks.exceptions import LLMError
 from railtracks.llm.retries import ExponentialRetry, FixedRetry
@@ -18,6 +18,7 @@ def _rate_limit_error():
 # ---------------------------------------------------------------------------
 # Retry succeeds — agent_node returns a response
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_agent_node_succeeds_after_retries(mock_llm):
@@ -60,6 +61,7 @@ async def test_agent_node_succeeds_on_first_call_with_retry_approach(mock_llm):
 # Retry exhausted — exception propagates out of rt.call()
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_agent_node_raises_when_exhausted(mock_llm):
     """rt.call() raises LLMError (wrapping RetryError) when all retries fail.
@@ -86,6 +88,7 @@ async def test_agent_node_raises_when_exhausted(mock_llm):
 # No retry approach — original behaviour is unchanged
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_agent_node_without_retry_approach_raises_immediately(mock_llm):
     """Without retry_approach the agent does not retry — the error surfaces as LLMError."""
@@ -103,6 +106,7 @@ async def test_agent_node_without_retry_approach_raises_immediately(mock_llm):
 # ---------------------------------------------------------------------------
 # Exponential backoff — verify sleep durations observed by agent_node path
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_agent_node_exponential_sleep_durations(mock_llm):

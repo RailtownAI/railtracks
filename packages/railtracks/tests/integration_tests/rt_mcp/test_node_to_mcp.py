@@ -85,6 +85,3 @@ async def test_add_nums_tool(mcp_server):
     assert response.content[0].text == "14", (
         f"Expected 14, got {response.content[0].text}"
     )
-
-
-

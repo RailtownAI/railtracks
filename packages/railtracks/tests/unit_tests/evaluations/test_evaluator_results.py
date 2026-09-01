@@ -23,9 +23,7 @@ def make_evaluation_result(name: str | None = None) -> EvaluationResult:
         agents=[
             {
                 "agent_name": "AgentA",
-                "agent_node_ids": [
-                    {"session_id": uuid4(), "agent_node_id": uuid4()}
-                ],
+                "agent_node_ids": [{"session_id": uuid4(), "agent_node_id": uuid4()}],
             }
         ],
         metrics_map={},
@@ -62,7 +60,9 @@ def test_evaluator_result_default_empty_agent_data_ids():
 
 
 def test_evaluator_result_with_metric_results():
-    mr = MetricResult(result_name="r", metric_id="m", agent_data_id=[uuid4()], value=1.0)
+    mr = MetricResult(
+        result_name="r", metric_id="m", agent_data_id=[uuid4()], value=1.0
+    )
     forest = AggregateForest[NumericalAggregateNode, MetricResult]()
     er = EvaluatorResult(
         evaluator_name="E",

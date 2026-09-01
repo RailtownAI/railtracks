@@ -1,14 +1,13 @@
 import concurrent.futures
 import random
 
-
 from railtracks.llm import (
     AssistantMessage,
     MessageHistory,
-    UserMessage,
     SystemMessage,
     Tool,
     ToolCall,
+    UserMessage,
 )
 
 
@@ -27,7 +26,6 @@ def test_simple_message(mock_llm):
 
     assert response.message.content == hello_world
     assert response.message.role == "assistant"
-
 
 
 def test_simple_message_2(mock_llm):
@@ -74,7 +72,11 @@ def test_tool_call(mock_llm):
     tool_description = "Call this tool sometime"
     tool = Tool(tool_name, tool_description, None)
 
-    model = mock_llm(requested_tool_calls=[ToolCall(identifier=identifier, name=tool.name, arguments={})])
+    model = mock_llm(
+        requested_tool_calls=[
+            ToolCall(identifier=identifier, name=tool.name, arguments={})
+        ]
+    )
 
     response = model.chat_with_tools(
         MessageHistory(),
@@ -97,9 +99,13 @@ def test_multiple_tool_calls(mock_llm):
     tools = []
     for name, description in zip(tool_names, tool_descriptions):
         tools.append(Tool(name, description, {}))
-    
+
     tool = random.choice(tools)
-    model = mock_llm(requested_tool_calls=[ToolCall(identifier=identifier, name=tool.name, arguments={})])
+    model = mock_llm(
+        requested_tool_calls=[
+            ToolCall(identifier=identifier, name=tool.name, arguments={})
+        ]
+    )
 
     for _ in range(10):
         response = model.chat_with_tools(
@@ -120,10 +126,14 @@ def test_many_calls_in_parallel(mock_llm):
     tools = []
     for name, description in zip(tool_names, tool_descriptions):
         tools.append(Tool(name, description, {}))
-    
+
     tool = random.choice(tools)
 
-    model = mock_llm(requested_tool_calls=[ToolCall(identifier=identifier, name=tool.name, arguments={})])
+    model = mock_llm(
+        requested_tool_calls=[
+            ToolCall(identifier=identifier, name=tool.name, arguments={})
+        ]
+    )
 
     with concurrent.futures.ThreadPoolExecutor() as e:
 
@@ -145,5 +155,6 @@ def test_many_calls_in_parallel(mock_llm):
 
         for f in futures:
             f.result()
+
 
 # ======================================================= END Mock LLM + Messages Testing ========================================================

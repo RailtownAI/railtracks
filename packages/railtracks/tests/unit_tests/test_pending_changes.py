@@ -21,9 +21,12 @@ import sys
 import warnings
 
 import pytest
-
 import railtracks as rt
-from railtracks.utils.deprecation import NEXT_VERSION, UPGRADE_GUIDE, warn_pending_change
+from railtracks.utils.deprecation import (
+    NEXT_VERSION,
+    UPGRADE_GUIDE,
+    warn_pending_change,
+)
 
 RELOCATED_GUARDS = [
     "BlockTextInputGuard",
@@ -127,7 +130,9 @@ def test_building_a_normal_agent_is_silent():
 
 
 def test_core_entry_points_are_silent():
-    assert_silent(lambda: (rt.call, rt.Flow, rt.function_node, rt.Session, rt.broadcast))
+    assert_silent(
+        lambda: (rt.call, rt.Flow, rt.function_node, rt.Session, rt.broadcast)
+    )
 
 
 # ---------------------------------------------------------------------------------------
@@ -135,17 +140,15 @@ def test_core_entry_points_are_silent():
 # ---------------------------------------------------------------------------------------
 
 
-
-
-
 def test_agent_node_with_llm_is_silent():
-    assert_silent(lambda: rt.agent_node(name="with-llm", llm=rt.llm.OpenAILLM("gpt-4o")))
+    assert_silent(
+        lambda: rt.agent_node(name="with-llm", llm=rt.llm.OpenAILLM("gpt-4o"))
+    )
 
 
 # ---------------------------------------------------------------------------------------
 # guardrails.llm.* -> prebuilt.guardrails.*
 # ---------------------------------------------------------------------------------------
-
 
 
 @pytest.mark.parametrize("name", RELOCATED)
@@ -160,8 +163,25 @@ def test_removed_names_are_not_advertised_but_stay_discoverable():
         assert name in dir(rt.guardrails)
 
 
+@pytest.mark.parametrize("name", SURVIVING_GUARDRAIL_NAMES)
+def test_surviving_names_are_importable_from_rt_guardrails(name):
+    """These are unchanged in 1.5.0, so `from railtracks.guardrails import X` must work.
+
+    InputGuard/OutputGuard regressed here once: the docs told users to subclass them
+    and import them from `rt.guardrails`, but they were only reachable from
+    `rt.guardrails.llm.concrete`, so the documented snippet raised ImportError.
+    """
+    module = importlib.import_module("railtracks.guardrails")
+
+    assert hasattr(module, name), f"railtracks.guardrails is missing {name}"
+    assert name in module.__all__
+    assert name in dir(module)
 
 
+@pytest.mark.parametrize("name", SURVIVING_GUARDRAIL_NAMES)
+def test_surviving_names_do_not_warn(name):
+    """Unchanged names must never warn, or users will over-migrate."""
+    assert_silent(lambda: getattr(rt.guardrails, name))
 
 
 def test_rt_interactive_warns():
@@ -186,9 +206,6 @@ def test_local_chat_warns():
 # ---------------------------------------------------------------------------------------
 # decisions that were deliberately rejected — these must stay silent
 # ---------------------------------------------------------------------------------------
-
-
-
 
 
 def test_broadcast_callback_is_silent():
@@ -220,3 +237,118 @@ def test_node_subclassing_is_silent():
         return MyNode
 
     assert_silent(define_subclass)
+
+
+# ---------------------------------------------------------------------------------------
+# before_llm / after_llm / after_node -> pre_llm / post_llm / post_node
+# ---------------------------------------------------------------------------------------
+
+
+def test_before_llm_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.before_llm is renamed in railtracks 1.5.0"
+    ) as record:
+
+        @rt.before_llm
+        def hook(history, schema, tools):
+            return history, schema, tools
+
+    assert record[0].filename == __file__
+
+
+def test_before_llm_parameterized_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.before_llm is renamed in railtracks 1.5.0"
+    ) as record:
+
+        @rt.before_llm(name="custom")
+        def hook(history, schema, tools):
+            return history, schema, tools
+
+    assert record[0].filename == __file__
+
+
+def test_after_llm_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_llm is renamed in railtracks 1.5.0"
+    ) as record:
+
+        @rt.after_llm
+        def hook(response):
+            return response
+
+    assert record[0].filename == __file__
+
+
+def test_after_llm_parameterized_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_llm is renamed in railtracks 1.5.0"
+    ) as record:
+
+        @rt.after_llm(name="custom")
+        def hook(response):
+            return response
+
+    assert record[0].filename == __file__
+
+
+def test_after_node_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_node is renamed in railtracks 1.5.0"
+    ) as record:
+
+        @rt.after_node
+        def hook(result):
+            return result
+
+    assert record[0].filename == __file__
+
+
+def test_after_node_parameterized_warns():
+    with pytest.warns(
+        FutureWarning, match="rt.after_node is renamed in railtracks 1.5.0"
+    ) as record:
+
+        @rt.after_node(name="custom")
+        def hook(result):
+            return result
+
+    assert record[0].filename == __file__
+
+
+def test_multiple_deprecated_calls_emit_distinct_warnings():
+    with pytest.warns(FutureWarning) as record:
+
+        @rt.before_llm
+        def hook1(h, s, t):
+            return h, s, t
+
+        @rt.before_llm
+        def hook2(h, s, t):
+            return h, s, t
+
+    assert len(record) == 2
+    assert record[0].lineno != record[1].lineno
+    assert record[0].filename == __file__
+    assert record[1].filename == __file__
+
+
+def test_pre_llm_forward_is_silent():
+    assert_silent(
+        lambda: rt.pre_llm(lambda history, schema, tools: (history, schema, tools))
+    )
+    assert_silent(
+        lambda: rt.pre_llm(name="custom")(
+            lambda history, schema, tools: (history, schema, tools)
+        )
+    )
+
+
+def test_post_llm_forward_is_silent():
+    assert_silent(lambda: rt.post_llm(lambda response: response))
+    assert_silent(lambda: rt.post_llm(name="custom")(lambda response: response))
+
+
+def test_post_node_forward_is_silent():
+    assert_silent(lambda: rt.post_node(lambda result: result))
+    assert_silent(lambda: rt.post_node(name="custom")(lambda result: result))

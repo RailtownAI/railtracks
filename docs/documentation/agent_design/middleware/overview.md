@@ -24,12 +24,12 @@ Most middleware will wrap an entire node or function call, including `rt.functio
 | Decorator | Runs |
 |---|---|
 | `rt.wrap_node` | Wraps the whole node call; you decide if/how many times the inner call runs 
-| `rt.after_node` | Once, after the node completes successfully (skipped if the node raises)
+| `rt.post_node` | Once, after the node completes successfully (skipped if the node raises)
 
-`rt.wrap_node` is the general-purpose form. The retry example above is built on it. `rt.after_node` is a narrower convenience for the common "do something with the result and pass it through" case:
+`rt.wrap_node` is the general-purpose form. The retry example above is built on it. `rt.post_node` is a narrower convenience for the common "do something with the result and pass it through" case:
 
 ```python
---8<-- "docs/scripts/middleware.py:after_node_demo"
+--8<-- "docs/scripts/middleware.py:post_node_demo"
 ```
 
 The same middleware attaches to a `function_node` exactly the same way, via `middleware=`:
@@ -43,8 +43,8 @@ Sometimes you want your middleware to wrap around the model call itself, rather 
 
 | Decorator | Runs |
 |---|---|
-| `rt.before_llm` | Once, before each model call, to transform the inputs |
-| `rt.after_llm` | Once, after each successful model call|
+| `rt.pre_llm` | Once, before each model call, to transform the inputs |
+| `rt.post_llm` | Once, after each successful model call|
 | `rt.wrap_llm` | Wraps the whole model call. |
 
 ```python
@@ -52,7 +52,7 @@ Sometimes you want your middleware to wrap around the model call itself, rather 
 ```
 
 !!! note "`wrap_node` / `wrap_llm` functions must be `async def`"
-    `wrap_node` and `wrap_llm` re-invoke the inner call directly, so the function you decorate must be defined with `async def`. A plain `def` raises `TypeError` immediately for `wrap_node`, or fails with a confusing "can't be used in 'await' expression" error at call time for `wrap_llm`. `after_node`, `before_llm`, and `after_llm` are more forgiving: they accept either a plain `def` or an `async def`.
+    `wrap_node` and `wrap_llm` re-invoke the inner call directly, so the function you decorate must be defined with `async def`. A plain `def` raises `TypeError` immediately for `wrap_node`, or fails with a confusing "can't be used in 'await' expression" error at call time for `wrap_llm`. `post_node`, `pre_llm`, and `post_llm` are more forgiving: they accept either a plain `def` or an `async def`.
 
 !!! note "Guardrails are Model Middleware"
     Built-in guardrails (PII redaction, length limits, blocked text, ...) are implemented as model middleware under the hood. See [Guardrails](../middleware/guardrails/overview.md).

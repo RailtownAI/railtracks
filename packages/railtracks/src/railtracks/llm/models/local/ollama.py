@@ -13,6 +13,7 @@ from .._model_exception_base import FunctionCallingNotSupportedError, ModelError
 logger = logging.getLogger(__name__)
 
 DEFAULT_DOMAIN = "http://localhost:11434"
+CHAT_PREFIX = "ollama_chat/"
 
 
 class OllamaError(ModelError):
@@ -74,11 +75,16 @@ class OllamaLLM(LiteLLMWrapper):
             RequestException: If connection to Ollama server fails
         """
 
-        if not model_name.startswith("ollama/"):
+        # litellm's `ollama` provider drops `tools`; only `ollama_chat` sends them (#1457).
+        bare_model_name = model_name.removeprefix("ollama_chat/").removeprefix(
+            "ollama/"
+        )
+        if not model_name.startswith(CHAT_PREFIX):
             logger.warning(
-                f"Prepending 'ollama/' to model name '{model_name}' for Ollama"
+                f"Routing model name '{model_name}' as '{CHAT_PREFIX}{bare_model_name}' for Ollama"
             )
-            model_name = f"ollama/{model_name}"
+        model_name = f"{CHAT_PREFIX}{bare_model_name}"
+        self._capability_model_name = f"ollama/{bare_model_name}"
         super().__init__(
             model_name=model_name,
             temperature=temperature,
@@ -140,7 +146,8 @@ class OllamaLLM(LiteLLMWrapper):
             raise
 
     def chat_with_tools(self, messages, tools):
-        if not supports_function_calling(model=self._model_name):
+        # litellm's capability catalog is keyed on `ollama/`, not `ollama_chat/`.
+        if not supports_function_calling(model=self._capability_model_name):
             raise FunctionCallingNotSupportedError(self._model_name)
 
         return super().chat_with_tools(messages, tools)

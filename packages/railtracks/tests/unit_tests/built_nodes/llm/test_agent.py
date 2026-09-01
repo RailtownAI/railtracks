@@ -1,5 +1,3 @@
-from railtracks import function_node
-from railtracks.built_nodes.llm.node import agent_node
 import functools
 
 import pytest
@@ -8,27 +6,40 @@ from railtracks.built_nodes.llm.node import agent_node
 from railtracks.exceptions.errors import NodeCreationError
 
 
-
-
 def test_agent_node_tool_nodes_only(mock_tool_node, mock_llm, mock_sys_mes):
     node_cls = agent_node(
         name="AgentWithToolsOnly",
         tool_nodes={mock_tool_node},
         llm=mock_llm,
-        system_message=mock_sys_mes
+        system_message=mock_sys_mes,
     )
     assert isinstance(node_cls, type)
     assert node_cls.name() == "AgentWithToolsOnly"
+
 
 def test_agent_node_output_schema_only(mock_llm, mock_schema, mock_sys_mes):
     node_cls = agent_node(
         name="AgentWithSchemaOnly",
         output_schema=mock_schema,
         llm=mock_llm,
-        system_message=mock_sys_mes
+        system_message=mock_sys_mes,
     )
     assert isinstance(node_cls, type)
     assert node_cls.name() == "AgentWithSchemaOnly"
+
+
+def test_agent_node_tool_nodes_and_output_schema_raises_at_creation(
+    mock_tool_node, mock_llm, mock_schema, mock_sys_mes
+):
+    with pytest.raises(NodeCreationError, match="tool_nodes and output_schema"):
+        agent_node(
+            name="AgentWithToolsAndSchema",
+            tool_nodes={mock_tool_node},
+            output_schema=mock_schema,
+            llm=mock_llm,
+            system_message=mock_sys_mes,
+        )
+
 
 def test_agent_node_minimal(mock_llm):
     node_cls = agent_node(
@@ -38,29 +49,34 @@ def test_agent_node_minimal(mock_llm):
     assert isinstance(node_cls, type)
     assert node_cls.name() == "MinimalAgent"
 
-def test_agent_node_with_manifest(mock_tool_node, mock_llm, mock_manifest, mock_sys_mes):
+
+def test_agent_node_with_manifest(
+    mock_tool_node, mock_llm, mock_manifest, mock_sys_mes
+):
     node_cls = agent_node(
         name="AgentWithManifest",
         tool_nodes={mock_tool_node},
         llm=mock_llm,
         system_message=mock_sys_mes,
-        manifest=mock_manifest
+        manifest=mock_manifest,
     )
     assert isinstance(node_cls, type)
     assert node_cls.name() == "AgentWithManifest"
+
 
 def test_agent_node_tool_nodes_func(mock_llm, mock_function, mock_sys_mes):
     node_cls = agent_node(
         name="AgentWithFuncTool",
         tool_nodes=[function_node(mock_function)],
         llm=mock_llm,
-        system_message=mock_sys_mes
+        system_message=mock_sys_mes,
     )
     assert isinstance(node_cls, type)
     assert node_cls.name() == "AgentWithFuncTool"
 
 
 # --- tool_nodes() accessor ---
+
 
 def test_agent_node_tool_nodes_accessor(mock_tool_node, mock_llm):
     node_cls = agent_node("Agent", tool_nodes=[mock_tool_node], llm=mock_llm)
@@ -119,6 +135,7 @@ def test_agent_node_tool_schemas_derivable_from_tool_nodes(mock_tool_node, mock_
 
 # --- duplicate tool names (#1337) ---
 
+
 def test_agent_node_duplicate_tool_names_raise_at_creation(mock_llm, mock_function):
     square = function_node(mock_function, name="power")
     cube = function_node(mock_function, name="power")
@@ -144,7 +161,9 @@ def test_agent_node_duplicate_names_from_partials_raise(mock_llm):
         )
 
 
-def test_agent_node_same_function_under_different_names_both_kept(mock_llm, mock_function):
+def test_agent_node_same_function_under_different_names_both_kept(
+    mock_llm, mock_function
+):
     node_cls = agent_node(
         "Agent",
         llm=mock_llm,
@@ -173,7 +192,9 @@ def test_agent_node_distinct_tool_names_are_accepted(mock_llm, mock_function):
     ]
 
 
-def test_agent_node_duplicate_name_against_sub_agent_raises(mock_llm, mock_manifest, mock_function):
+def test_agent_node_duplicate_name_against_sub_agent_raises(
+    mock_llm, mock_manifest, mock_function
+):
     sub_agent = agent_node("collide", llm=mock_llm, manifest=mock_manifest)
     tool = function_node(mock_function, name="collide")
 

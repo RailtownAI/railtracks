@@ -68,6 +68,18 @@ litellm.modify_params = True
 litellm.suppress_debug_info = True
 
 
+def _retrieve_worker_exception(task: asyncio.Task[Any]) -> None:
+    """Mark a bridge worker task's failure as retrieved, treating cancellation as nothing to
+    retrieve.
+
+    `Task.exception()` *re-raises* `CancelledError` on a cancelled task instead of returning
+    it. Called from a done-callback, that raise has nowhere to go and asyncio reports it as
+    `Exception in callback` -- a traceback on stderr for a run that otherwise succeeded.
+    """
+    if not task.cancelled():
+        task.exception()
+
+
 def _process_single_parameter(p: Parameter) -> tuple[str, Dict[str, Any], bool]:
     """
     Process a single parameter and return (name, prop_dict, is_required).
@@ -371,6 +383,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         if effective_reasoning_effort is not None:
             merged["reasoning_effort"] = effective_reasoning_effort
 
+        if stream:
+            # Some providers (Anthropic among them) only emit a usage chunk on a streamed
+            # response when this is set, so without it every streamed call reports no tokens
+            # and no cost. litellm exempts `stream_options` from its unsupported-param
+            # pruning, so it is safe to send to every provider.
+            merged.setdefault("stream_options", {"include_usage": True})
+
         def completion_function():
             return litellm.completion(
                 model=self._model_name,
@@ -432,12 +451,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         finally:
             # On early break, signal the worker to stop; it observes `stop` at the next chunk
             # boundary, closes the stream on its own thread, and exits. Retrieve its result so
-            # a late failure isn't reported as "exception never retrieved".
+            # a late failure isn't reported as "exception never retrieved" -- via the helper,
+            # since a cancelled worker has nothing to retrieve.
             stop.set()
             if worker.done():
-                worker.exception()
+                _retrieve_worker_exception(worker)
             else:
-                worker.add_done_callback(lambda t: t.exception())
+                worker.add_done_callback(_retrieve_worker_exception)
 
     @staticmethod
     def _pump_sync_stream(
@@ -477,43 +497,55 @@ class LiteLLMWrapper(ModelBase, ABC):
     ) -> Generator[Response | str, None, Response]:
         """
         Intercepts the given stream wrapper and provides a new generator.
-        The generator should iterate and provide strings cluminating in the last response being a Response object
+        The generator should iterate and provide strings culminating in the last response being a Response object
 
         """
-        tools: List[ToolCall] = []
         accumulated_content = ""
 
         # fall back on empty message info if we don't get one from the stream.
         message_info = MessageInfo()
+        # Calls still accumulating argument fragments, keyed by their stream index, and calls
+        # already retired because their index got reused by a later call.
         active_tool_calls: Dict[int, StreamedToolCall] = {}
+        completed_tool_calls: List[StreamedToolCall] = []
         stream_finished = False
 
         for chunk in raw:
-            if stream_finished:
-                # the last chunk will contain the full message info. Note this only true for openai. Anthropic is known to not.
-
+            # Usage rides a separate chunk that different providers place differently
+            # (alongside or after the `finish_reason` chunk), so take it wherever it turns up.
+            if getattr(chunk, "usage", None) is not None:
                 message_info = self.extract_message_info(
-                    chunk, time.time() - start_time
+                    chunk, time.time() - start_time, requested_model=self._model_name
                 )
 
-                break
+            if stream_finished or not chunk.choices:
+                # Keep draining so a trailing usage chunk is still seen.
+                continue
 
             choice = chunk.choices[0]
 
             if self._is_stream_finished(choice):
                 stream_finished = True
-                tools = self._finalize_remaining_tool_calls(active_tool_calls)
                 continue
 
             if choice.delta.tool_calls:
-                self._handle_tool_call_delta(
-                    choice.delta.tool_calls[0], active_tool_calls
-                )
+                # Some providers batch several calls into a single delta, so every entry
+                # has to be consumed rather than just the first.
+                for call in choice.delta.tool_calls:
+                    self._handle_tool_call_delta(
+                        call, active_tool_calls, completed_tool_calls
+                    )
 
             elif choice.delta.content:
                 content = self._handle_content_delta(choice.delta.content)
                 accumulated_content += content
                 yield content
+
+        # Finalize outside the loop so a stream that ends without a `finish_reason` chunk
+        # still reports the calls it accumulated instead of silently dropping them.
+        tools = self._finalize_remaining_tool_calls(
+            active_tool_calls, completed_tool_calls
+        )
 
         r = self._prepare_response(
             accumulated_content=accumulated_content,
@@ -564,19 +596,24 @@ class LiteLLMWrapper(ModelBase, ABC):
         return r
 
     def _is_stream_finished(self, choice) -> bool:
-        """Check if the stream has finished."""
-        return choice.finish_reason in ("stop", "tool_calls")
+        """Check if the stream has finished.
+
+        Any `finish_reason` the provider sets ends the turn. Matching on the reason itself
+        would be provider-specific, and would drop the tool calls already accumulated by a
+        truncated (`length`) or content-filtered turn.
+        """
+        return bool(choice.finish_reason)
 
     def _finalize_remaining_tool_calls(
-        self, active_tool_calls: dict[int, StreamedToolCall]
+        self,
+        active_tool_calls: dict[int, StreamedToolCall],
+        completed_tool_calls: Iterable[StreamedToolCall] = (),
     ) -> list[ToolCall]:
-        """
-
-        Finalize any remaining active tool calls and return them.
-
+        """Parse the accumulated streamed tool calls and return them in the order the
+        model emitted them.
         """
         tools: list[ToolCall] = []
-        for tool_data in active_tool_calls.values():
+        for tool_data in (*completed_tool_calls, *active_tool_calls.values()):
             if tool_data.args is not None:
                 tool_data.load_args()
             tools.append(tool_data.tool)
@@ -584,30 +621,41 @@ class LiteLLMWrapper(ModelBase, ABC):
         return tools
 
     def _handle_tool_call_delta(
-        self, call, active_tool_calls: dict[int, StreamedToolCall]
+        self,
+        call,
+        active_tool_calls: dict[int, StreamedToolCall],
+        completed_tool_calls: list[StreamedToolCall] | None = None,
     ):
         """Process a tool call delta from the stream."""
-        call_index = getattr(call, "index", 0)
+        call_index = getattr(call, "index", None) or 0
 
         if call.id:  # New tool call starting
-            self._start_new_tool_call(call, call_index, active_tool_calls)
+            self._start_new_tool_call(
+                call, call_index, active_tool_calls, completed_tool_calls
+            )
         else:  # Continue streaming arguments
             self._continue_tool_call_arguments(call, call_index, active_tool_calls)
 
     def _start_new_tool_call(
-        self, call, call_index: int, active_tool_calls: dict[int, StreamedToolCall]
+        self,
+        call,
+        call_index: int,
+        active_tool_calls: dict[int, StreamedToolCall],
+        completed_tool_calls: list[StreamedToolCall] | None = None,
     ):
-        """Start a new tool call, finalizing any previous one at the same index."""
-        # Finalize previous tool call at this index if exists
-        if call_index in active_tool_calls:
-            prev_data = active_tool_calls[call_index]
-            if prev_data.args:
-                prev_data.tool.arguments = json.loads(prev_data.args)
+        """Start a new tool call, retiring any previous one at the same index."""
+        # A provider may reuse an index for a subsequent call; move the previous occupant to
+        # the completed list.
+        previous = active_tool_calls.pop(call_index, None)
+        if previous is not None and completed_tool_calls is not None:
+            completed_tool_calls.append(previous)
 
-        # Start new tool call
+        # OpenAI and Anthropic send the id and name first and stream the arguments, whereas
+        # Gemini packs the entire call+args into this one delta. Seeding from
+        # `call.function.arguments` covers both.
         active_tool_calls[call_index] = StreamedToolCall(
             tool=ToolCall(identifier=call.id, name=call.function.name, arguments={}),
-            args="",
+            args=(call.function.arguments or "") if call.function else "",
         )
 
     def _continue_tool_call_arguments(
@@ -668,6 +716,18 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         async for item in self._bridge_sync_stream(_open):
             yield item
+
+    def supports_streamed_tool_calling(self) -> bool:
+        """Whether litellm can stream tool calls for this model.
+
+        The catalog is only trusted for the models it actually covers, since a model it holds
+        no metadata for would come back as unsupported. Those attempt the stream instead.
+        """
+        if not _model_in_litellm_catalog(self._model_name):
+            return True
+        return litellm.utils.supports_native_streaming(
+            self._model_name, None
+        ) and litellm.supports_function_calling(model=self._model_name)
 
     # ================ END Per-call Streaming LLM calls ===============
 
@@ -904,7 +964,10 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     @classmethod
     def extract_message_info(
-        cls, model_response: ModelResponse | ModelResponseStream, latency: float
+        cls,
+        model_response: ModelResponse | ModelResponseStream,
+        latency: float,
+        requested_model: str | None = None,
     ) -> MessageInfo:
         """
         Create a Response object from a ModelResponse.
@@ -912,6 +975,10 @@ class LiteLLMWrapper(ModelBase, ABC):
         Args:
             model_response (ModelResponse): The response from the model.
             latency (float): The latency of the response in seconds.
+            requested_model (str | None): The model string the call was made with.
+                Only needed on streamed responses, where litellm leaves `response_cost`
+                unset and the cost has to be priced from the usage chunk; the model name the
+                provider reports back lacks the routing prefix.
 
         Returns:
             MessageInfo: An object containing the details about the message info.
@@ -924,6 +991,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         model_name = _return_none_on_error(lambda: raw.model)
         system_fingerprint = _return_none_on_error(lambda: raw.system_fingerprint)
         total_cost = _return_none_on_error(lambda: raw._hidden_params["response_cost"])
+        if total_cost is None:
+            # A streamed response carries no cost. Price it from the usage chunk.
+            total_cost = _return_none_on_error(
+                lambda: litellm.completion_cost(
+                    completion_response=raw, model=requested_model or raw.model
+                )
+            )
 
         return MessageInfo(
             input_tokens=input_tokens,

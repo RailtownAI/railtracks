@@ -1,4 +1,3 @@
-
 import pytest
 import railtracks as rt
 from railtracks.exceptions import NodeCreationError
@@ -103,7 +102,6 @@ class TestSimpleToolCalling:
         assert [tc.name for tc in tool_call_messages[0].content] == ["secret_phrase"]
 
 
-
 class TestLimitedToolCalling:
     @pytest.mark.asyncio
     async def test_context_reset_between_runs(
@@ -145,6 +143,7 @@ class TestLimitedToolCalling:
             _ = await rt.call(agent, user_input=message)
             assert rt.context.get("tools_called") == 1
 
+
 class TestFunctionNodeCallWithFunctionList:
     @pytest.mark.asyncio
     async def test_function_node_call_with_function_list_parameter(
@@ -165,27 +164,30 @@ class TestFunctionNodeCallWithFunctionList:
 
         tool_nodes = rt.function_node([get_number, add_value])
 
-        AgentHandler = rt.agent_node(
-        name="Random Number Generator Agent",
-        tool_nodes=tool_nodes,
-        system_message="""You are a number generator agent that can generate numbers and add a value to it""",
-        llm=mock_llm(
-            requested_tool_calls=[
-                ToolCall(name="get_number", identifier="id_1", arguments={}),
-                ToolCall(
-                    name="add_value",
-                    identifier="id_2",
-                    arguments={"number": 42, "value": 50},
+        AgentHandler = rt.agent_node(  # noqa: N806
+            name="Random Number Generator Agent",
+            tool_nodes=tool_nodes,
+            system_message="""You are a number generator agent that can generate numbers and add a value to it""",
+            llm=mock_llm(
+                requested_tool_calls=[
+                    ToolCall(name="get_number", identifier="id_1", arguments={}),
+                    ToolCall(
+                        name="add_value",
+                        identifier="id_2",
+                        arguments={"number": 42, "value": 50},
+                    ),
+                ]
+            ),
+        )
+
+        with rt.Session(name="AgentHandlerNode"):
+            result = await rt.call(
+                AgentHandler,
+                rt.llm.MessageHistory(
+                    [
+                        rt.llm.UserMessage("Give me a number and add 50 to it please"),
+                    ]
                 ),
-            ]
-        ),
-    )
+            )
 
-        with rt.Session(name="AgentHandlerNode") as run:
-            result =  await rt.call(AgentHandler, rt.llm.MessageHistory([
-                rt.llm.UserMessage("Give me a number and add 50 to it please"),
-                ]))
-            
         assert "92" in result.content
-        
-

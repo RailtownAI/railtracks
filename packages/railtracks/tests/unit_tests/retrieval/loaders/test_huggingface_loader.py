@@ -32,9 +32,27 @@ class _FakeIterableDataset:
 @pytest.fixture
 def fake_rows() -> list[dict]:
     return [
-        {"qid": "q1", "query": "what is rag", "passage": "Retrieval-augmented generation.", "label": 1, "topic": "ml"},
-        {"qid": "q2", "query": "what is bm25", "passage": "BM25 is a ranking function.", "label": 0, "topic": "ir"},
-        {"qid": "q3", "query": "what is dpr", "passage": "Dense passage retrieval.", "label": 1, "topic": "ir"},
+        {
+            "qid": "q1",
+            "query": "what is rag",
+            "passage": "Retrieval-augmented generation.",
+            "label": 1,
+            "topic": "ml",
+        },
+        {
+            "qid": "q2",
+            "query": "what is bm25",
+            "passage": "BM25 is a ranking function.",
+            "label": 0,
+            "topic": "ir",
+        },
+        {
+            "qid": "q3",
+            "query": "what is dpr",
+            "passage": "Dense passage retrieval.",
+            "label": 1,
+            "topic": "ir",
+        },
     ]
 
 
@@ -67,7 +85,9 @@ class TestHuggingFaceLoaderBasic:
         ).aload()
         assert all(d.type == DocumentType.TEXT for d in docs)
 
-    async def test_source_defaults_to_row_index_suffix(self, mock_load_dataset, fake_rows):
+    async def test_source_defaults_to_row_index_suffix(
+        self, mock_load_dataset, fake_rows
+    ):
         docs = await HuggingFaceDatasetLoader(
             "fake/ds", split="validation", content_columns=["query"]
         ).aload()
@@ -81,7 +101,9 @@ class TestHuggingFaceLoaderBasic:
         ).aload()
         assert len({d.id for d in docs}) == len(docs)
 
-    async def test_id_column_used_in_source_when_provided(self, mock_load_dataset, fake_rows):
+    async def test_id_column_used_in_source_when_provided(
+        self, mock_load_dataset, fake_rows
+    ):
         docs = await HuggingFaceDatasetLoader(
             "fake/ds", split="train", content_columns=["query"], id_column="qid"
         ).aload()
@@ -142,9 +164,7 @@ class TestHuggingFaceLoaderMetadataColumns:
         assert docs[0].metadata["label"] == 1
         assert docs[0].metadata["topic"] == "ml"
 
-    async def test_metadata_columns_default_to_only_row_index(
-        self, mock_load_dataset
-    ):
+    async def test_metadata_columns_default_to_only_row_index(self, mock_load_dataset):
         docs = await HuggingFaceDatasetLoader(
             "fake/ds", split="train", content_columns=["query"]
         ).aload()
@@ -158,9 +178,7 @@ class TestHuggingFaceLoaderValidation:
         with pytest.raises(ValueError, match="content_columns must be a non-empty"):
             HuggingFaceDatasetLoader("fake/ds", split="train", content_columns=[])
 
-    async def test_unknown_content_column_raises_value_error(
-        self, mock_load_dataset
-    ):
+    async def test_unknown_content_column_raises_value_error(self, mock_load_dataset):
         loader = HuggingFaceDatasetLoader(
             "fake/ds", split="train", content_columns=["does_not_exist"]
         )
@@ -169,9 +187,7 @@ class TestHuggingFaceLoaderValidation:
         ):
             await loader.aload()
 
-    async def test_unknown_metadata_column_raises_value_error(
-        self, mock_load_dataset
-    ):
+    async def test_unknown_metadata_column_raises_value_error(self, mock_load_dataset):
         loader = HuggingFaceDatasetLoader(
             "fake/ds",
             split="train",
@@ -190,9 +206,7 @@ class TestHuggingFaceLoaderValidation:
             content_columns=["query"],
             id_column="does_not_exist",
         )
-        with pytest.raises(
-            ValueError, match="id_column not found in dataset schema"
-        ):
+        with pytest.raises(ValueError, match="id_column not found in dataset schema"):
             await loader.aload()
 
 
@@ -233,7 +247,9 @@ class TestHuggingFaceLoaderStreaming:
         assert kwargs["name"] == "v2.1"
         assert kwargs["revision"] == "abc"
 
-    async def test_dataset_kwargs_streaming_override_is_ignored(self, mock_load_dataset):
+    async def test_dataset_kwargs_streaming_override_is_ignored(
+        self, mock_load_dataset
+    ):
         with pytest.warns(UserWarning, match="streaming.*ignored"):
             await HuggingFaceDatasetLoader(
                 "fake/ds",

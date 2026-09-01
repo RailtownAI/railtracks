@@ -54,10 +54,12 @@ class TestInputGuardDecideMessage:
 
 class TestInputGuardDecideMessageHistory:
     def test_history_with_pii(self, input_guard: PIIRedactInputGuard) -> None:
-        history = MessageHistory([
-            SystemMessage("You are helpful"),
-            UserMessage("Email me at alice@example.com"),
-        ])
+        history = MessageHistory(
+            [
+                SystemMessage("You are helpful"),
+                UserMessage("Email me at alice@example.com"),
+            ]
+        )
         decision = input_guard.decide(history)
         assert decision.action == GuardrailAction.TRANSFORM
         assert len(decision.messages) == 2
@@ -98,19 +100,19 @@ class TestOutputGuardDecideStr:
 
 class TestOutputGuardDecideMessage:
     def test_assistant_message(self, output_guard: PIIRedactOutputGuard) -> None:
-        decision = output_guard.decide(
-            AssistantMessage("Your SSN is 123-45-6789.")
-        )
+        decision = output_guard.decide(AssistantMessage("Your SSN is 123-45-6789."))
         assert decision.action == GuardrailAction.TRANSFORM
         assert "[US_SSN]" in decision.output_message.content
 
 
 class TestOutputGuardDecideMessageHistory:
     def test_last_message_is_output(self, output_guard: PIIRedactOutputGuard) -> None:
-        history = MessageHistory([
-            UserMessage("What is my email?"),
-            AssistantMessage("It is alice@example.com."),
-        ])
+        history = MessageHistory(
+            [
+                UserMessage("What is my email?"),
+                AssistantMessage("It is alice@example.com."),
+            ]
+        )
         decision = output_guard.decide(history)
         assert decision.action == GuardrailAction.TRANSFORM
         assert "[EMAIL_ADDRESS]" in decision.output_message.content
