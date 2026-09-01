@@ -965,10 +965,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                     if key not in _standard_fields and value is not None:
                         base[key] = value
         elif isinstance(msg.content, BaseModel):
-            # A structured-output turn stores its parsed response as a BaseModel
-            # (see _structured_handle_base). litellm/the OpenAI SDK require a
-            # string content, so re-serialize it for a later completion call
-            # (e.g. this message re-threaded from message_history).
+            # searlize base model to string before passing along
             base["content"] = msg.content.model_dump_json()
         else:
             base["content"] = msg.content
