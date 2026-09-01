@@ -202,6 +202,8 @@ nav:
               - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
               - Flows: tutorials/walkthroughs/flows.md
               - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+              - "Human-in-the-Loop: LLM Reviewers": tutorials/walkthroughs/hil_llm_reviewer.md
+              - "Human-in-the-Loop: Webhook Approvals": tutorials/walkthroughs/hil_webhook_approval.md
           - Videos:
               - Multiagent Systems: tutorials/videos/multiagent.md
               - Multimodal Agent: tutorials/videos/multimodal_agent.md
