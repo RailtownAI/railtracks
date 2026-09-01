@@ -59,8 +59,12 @@ _PROVIDER_TO_NODE_ERROR: tuple[tuple[type[ProviderError], type[LLMError]], ...] 
 )
 
 
-def _node_error_for(exc: ProviderError) -> type[LLMError]:
-    """The `LLMError` subclass matching a provider failure, else `LLMError`.
+def _node_error_for(exc: BaseException) -> type[LLMError]:
+    """The `LLMError` subclass matching a failed model call, else `LLMError`.
+
+    Accepts a raw provider exception as well as a `ProviderError`, so paths that reach
+    the boundary without passing through `_call_provider` -- a failure part way through
+    a stream, most of all -- still classify.
 
     `classify_provider_error` looks through a `RetryError`, so an exhausted retry of
     timeouts surfaces as `LLMTimeoutError` whether or not retries were configured.
@@ -121,8 +125,11 @@ def llm_invoke_factory(
                 # Already classified; wrapping again would drop `message_history`.
                 raise
             except ToolCreationError as e:
+                # `e.args[0]`, not `str(e)`: the latter is already rendered with colour
+                # and its own "Tips to debug" block, which the new error would render a
+                # second time around a prematurely reset colour code.
                 raise NodeInvocationError(
-                    message=str(e),
+                    message=e.args[0] if e.args else str(e),
                     notes=e.notes,
                     fatal=True,
                 ) from e
@@ -133,9 +140,13 @@ def llm_invoke_factory(
                     reason=getattr(e, "reason", None) or str(e),
                     message_history=getattr(e, "message_history", None)
                     or message_history,
+                    notes=getattr(e, "notes", None),
                 ) from e
             except Exception as e:
-                raise LLMError(
+                # Classified too: a provider exception can reach here without passing
+                # through `_call_provider`, so a mid-stream timeout stays catchable as
+                # `LLMTimeoutError` rather than flattening to a bare `LLMError`.
+                raise _node_error_for(e)(
                     reason=f"Exception during model invoke: {repr(e)}",
                     message_history=message_history,
                 ) from e

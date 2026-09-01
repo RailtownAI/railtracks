@@ -28,7 +28,7 @@ from railtracks.llm._exceptions import (
 )
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import UserMessage
-from railtracks.llm.models._model_exception_base import ModelError
+from railtracks.llm.models._model_exception_base import ModelError, ModelNotFoundError
 from railtracks.llm.tools.tool import Tool, ToolCreationError
 
 
@@ -259,3 +259,78 @@ async def test_exhausted_retry_of_timeouts_still_surfaces_as_a_timeout(monkeypat
     # RetryError itself is preserved as the cause, so "we retried" is still recoverable.
     assert exc.value.__cause__ is retry_error
     assert retry_error.exception_list
+
+
+async def test_tool_creation_error_debug_tips_are_rendered_once(monkeypatch):
+    """The translated error re-renders the tips; the raw message must go across, not
+    `str(inner)`, which already carries a rendered block of its own."""
+    note = "Tool.parameters must be a set of Parameter objects"
+    inner = ToolCreationError(message="Unable to parse Tool.parameters", notes=[note])
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(inner))
+
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(NodeInvocationError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    rendered = str(exc.value)
+    assert rendered.count("Tips to debug") == 1
+    assert rendered.count(note) == 1
+    # Translating must not change how the failure presents: an already-rendered
+    # inner message would nest a second block inside a reset colour code.
+    assert rendered == str(
+        NodeInvocationError(
+            message="Unable to parse Tool.parameters", notes=[note], fatal=True
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "provider_error",
+    [
+        ModelNotFoundError(reason="no such model", notes=["Check the model name"]),
+        RetryError("exponential", "Max retries exceeded", ["Check the model name"], []),
+    ],
+    ids=["model_not_found", "retry_error"],
+)
+async def test_provider_error_notes_survive_translation(monkeypatch, provider_error):
+    """Debugging tips attached by the llm layer are worth as much on the node side."""
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(provider_error))
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(LLMError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert exc.value.notes == ["Check the model name"]
+    assert "Check the model name" in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    "raw_error,expected",
+    [
+        (litellm.exceptions.Timeout("t", "m", "p"), LLMTimeoutError),
+        (
+            litellm.exceptions.RateLimitError("slow down", "m", "p"),
+            LLMRateLimitError,
+        ),
+        (
+            litellm.exceptions.AuthenticationError("bad key", "m", "p"),
+            LLMAuthenticationError,
+        ),
+        (ValueError("connection reset"), LLMError),
+    ],
+    ids=["timeout", "rate_limit", "auth", "unrelated"],
+)
+async def test_raw_provider_exceptions_are_classified_too(
+    monkeypatch, raw_error, expected
+):
+    """Not every provider failure passes through `_call_provider` -- one raised part
+    way through a stream reaches the boundary raw, and must still classify."""
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_raising(raw_error))
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(expected) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert type(exc.value) is expected
+    assert exc.value.__cause__ is raw_error
