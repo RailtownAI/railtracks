@@ -87,9 +87,9 @@ class LLMError(RTError):
         if verbose_llm_errors():
             mh_str = str(self.message_history)
             indented_mh = "\n".join("    " + line for line in mh_str.splitlines())
-            detail = self._color(
-                "Message History:\n", self.BOLD_GREEN
-            ) + self._color(indented_mh, self.GREEN)
+            detail = self._color("Message History:\n", self.BOLD_GREEN) + self._color(
+                indented_mh, self.GREEN
+            )
         else:
             summary = (
                 f"{count} message(s) redacted; "
@@ -102,9 +102,7 @@ class LLMError(RTError):
                 summary, self.GREEN
             )
 
-        notes_str = (
-            "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
-        )
+        notes_str = "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
         return f"\n{self._color(base, self.RED)}{notes_str}"
 
 

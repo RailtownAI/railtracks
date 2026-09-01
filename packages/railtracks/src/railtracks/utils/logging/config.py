@@ -47,9 +47,7 @@ _module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
     "module_logging_file", default=None
 )
 
-_verbose_llm_errors: ContextVar[bool] = ContextVar(
-    "verbose_llm_errors", default=False
-)
+_verbose_llm_errors: ContextVar[bool] = ContextVar("verbose_llm_errors", default=False)
 
 
 def verbose_llm_errors() -> bool:
@@ -61,6 +59,7 @@ def verbose_llm_errors() -> bool:
     when debugging.
     """
     return _verbose_llm_errors.get()
+
 
 # Initialize colorama
 init(autoreset=True)
