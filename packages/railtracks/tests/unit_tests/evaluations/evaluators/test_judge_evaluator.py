@@ -66,6 +66,7 @@ def test_init_accepts_categorical_and_numerical_metrics(caplog):
 def test_init_filters_non_categorical_metrics(caplog):
     """Plain Metric (not Categorical/Numerical) generates a warning and is skipped."""
     import logging
+
     llm = make_mock_llm()
     base = Metric(name="some_metric")
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
@@ -342,6 +343,8 @@ def test_run_numerical_metric():
     with patch.object(j, "_invoke", return_value=fake_output):
         result = j.run([adp])
     values = [
-        r.value for r in result.metric_results if r.result_name.startswith("JudgeResult")
+        r.value
+        for r in result.metric_results
+        if r.result_name.startswith("JudgeResult")
     ]
     assert values == [7]
