@@ -42,6 +42,7 @@ from railtracks.cli.io import (
     print_warning,
 )
 from railtracks.cli.skill_install import CLAUDE, InstallTarget, install_skill_directory
+from railtracks.cli.skill_manifest import MANIFEST_FILE, package_version, read_record
 from railtracks.cli.skills_registry import load_skill
 from railtracks.cli.viz_server import app
 
@@ -637,11 +638,11 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
             written, [Path(".claude/skills/agent-builder/SKILL.md")]
         )
 
-    def test_a_dropped_supporting_file_is_left_behind(self):
-        """Known gap, deliberately not fixed here: stale removal is the manifest's job.
+    def test_a_dropped_supporting_file_is_removed(self):
+        """The hazard #1522 exists to close: a slimmed-down skill leaves no leftovers.
 
-        Delete this test when the install manifest lands; until then it pins the
-        behaviour so nobody mistakes a plain copy for a sync.
+        Replaces `test_a_dropped_supporting_file_is_left_behind`, which pinned the
+        pre-manifest behaviour.
         """
         first = _write_skill(
             self.source,
@@ -654,7 +655,156 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
 
         _add_claude(load_skill(first.directory), force=True)
 
-        self.assertTrue(Path(".claude/skills/fixture-skill/references/gone.md").exists())
+        self.assertFalse(Path(".claude/skills/fixture-skill/references/gone.md").exists())
+        # The directory it emptied goes too, rather than lingering as a husk.
+        self.assertFalse(Path(".claude/skills/fixture-skill/references").exists())
+        self.assertTrue(Path(".claude/skills/fixture-skill/SKILL.md").is_file())
+
+
+class TestSkillSync(unittest.TestCase):
+    """Re-installing is a sync: it records what it wrote and removes what it dropped."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.source = Path(tempfile.mkdtemp())
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.source)
+
+    def _fixture(self, files=None):
+        return _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+            files=files,
+        )
+
+    @property
+    def _manifest_path(self):
+        return Path(".claude/skills/fixture-skill") / MANIFEST_FILE
+
+    def test_install_writes_a_manifest_beside_the_skill(self):
+        """The record lives with the files, so it cannot outlive them."""
+        _add_claude(self._fixture({"references/api.md": "# Generated\n"}), force=False)
+
+        record = read_record(Path(".claude/skills/fixture-skill"))
+        self.assertEqual(record.skill, "fixture-skill")
+        self.assertEqual(record.target, "claude")
+        self.assertEqual(
+            {f.path for f in record.files}, {"SKILL.md", "references/api.md"}
+        )
+
+    def test_the_manifest_is_not_reported_as_an_installed_file(self):
+        """It describes the install; it is not part of it."""
+        written = _add_claude(self._fixture(), force=False)
+
+        self.assertNotIn(self._manifest_path, written)
+        self.assertTrue(self._manifest_path.is_file())
+
+    def test_reinstalling_an_unchanged_skill_does_not_prompt(self):
+        """Nagging about our own untouched output only trains people to use --force."""
+        skill = self._fixture({"references/api.md": "# Generated\n"})
+        _add_claude(skill, force=False)
+
+        with patch("builtins.input", side_effect=AssertionError("prompted anyway")):
+            _add_claude(skill, force=False)
+
+        self.assertTrue(Path(".claude/skills/fixture-skill/SKILL.md").is_file())
+
+    def test_a_file_we_never_wrote_still_prompts(self):
+        """Absence of a record is not evidence a file is ours to clobber."""
+        skill = self._fixture()
+        target = Path(".claude/skills/fixture-skill")
+        target.mkdir(parents=True)
+        (target / "SKILL.md").write_text("hand written\n", encoding="utf-8")
+
+        with patch("builtins.input", return_value="n"):
+            with self.assertRaises(SystemExit):
+                _add_claude(skill, force=False)
+
+        self.assertEqual(
+            (target / "SKILL.md").read_text(encoding="utf-8"), "hand written\n"
+        )
+
+    def test_an_edited_installed_file_prompts_again(self):
+        """Once the bytes move, we can no longer prove the file is ours."""
+        skill = self._fixture()
+        _add_claude(skill, force=False)
+        Path(".claude/skills/fixture-skill/SKILL.md").write_text(
+            "I changed this\n", encoding="utf-8"
+        )
+
+        with patch("builtins.input", return_value="n"):
+            with self.assertRaises(SystemExit):
+                _add_claude(skill, force=False)
+
+    def test_an_edited_dropped_file_is_kept_and_reported(self):
+        """A sync removes its own leftovers, not somebody else's work."""
+        first = self._fixture({"references/gone.md": "# Shipped once\n"})
+        _add_claude(first, force=True)
+        Path(".claude/skills/fixture-skill/references/gone.md").write_text(
+            "I rewrote this\n", encoding="utf-8"
+        )
+        (first.directory / "references/gone.md").unlink()
+
+        with patch("railtracks.cli.skill_install.print_warning") as mock_warning:
+            _add_claude(load_skill(first.directory), force=True)
+
+        kept = Path(".claude/skills/fixture-skill/references/gone.md")
+        self.assertTrue(kept.is_file())
+        self.assertEqual(kept.read_text(encoding="utf-8"), "I rewrote this\n")
+        mock_warning.assert_called_once()
+
+    def test_the_manifest_tracks_a_shrinking_skill(self):
+        """After a sync the record describes what is actually on disk."""
+        first = self._fixture({"references/gone.md": "x\n", "references/stays.md": "y\n"})
+        _add_claude(first, force=True)
+        (first.directory / "references/gone.md").unlink()
+
+        _add_claude(load_skill(first.directory), force=True)
+
+        record = read_record(Path(".claude/skills/fixture-skill"))
+        self.assertEqual(
+            {f.path for f in record.files}, {"SKILL.md", "references/stays.md"}
+        )
+
+    def test_reinstalling_produces_an_identical_manifest(self):
+        """A committed manifest must not churn the diff on every re-run."""
+        skill = self._fixture({"references/api.md": "# Generated\n"})
+        _add_claude(skill, force=True)
+        first = self._manifest_path.read_text(encoding="utf-8")
+
+        _add_claude(skill, force=True)
+
+        self.assertEqual(self._manifest_path.read_text(encoding="utf-8"), first)
+
+    def test_version_skew_is_reported(self):
+        """Acceptance: a manifest from an older package version is detected."""
+        skill = self._fixture()
+        _add_claude(skill, force=True)
+        stale = self._manifest_path.read_text(encoding="utf-8").replace(
+            f'"package_version": "{package_version()}"', '"package_version": "0.0.1"'
+        )
+        self._manifest_path.write_text(stale, encoding="utf-8")
+
+        with patch("railtracks.cli.skill_install.print_status") as mock_status:
+            _add_claude(skill, force=True)
+
+        reported = " ".join(str(c.args[0]) for c in mock_status.call_args_list if c.args)
+        self.assertIn("0.0.1", reported)
+
+    def test_a_bundled_skill_installs_and_records_itself(self):
+        """The whole path, through the CLI entry point rather than the handler."""
+        written = add_skill("claude:agent-builder")
+
+        record = read_record(Path(".claude/skills/agent-builder"))
+        self.assertEqual(record.skill, "agent-builder")
+        self.assertEqual([f.path for f in record.files], ["SKILL.md"])
+        self.assertEqual(written, [Path(".claude/skills/agent-builder/SKILL.md")])
 
 
 class TestInstallTargetParameters(unittest.TestCase):
@@ -685,6 +835,7 @@ class TestInstallTargetParameters(unittest.TestCase):
             files={"references/api.md": "# Generated\n"},
         )
         elsewhere = InstallTarget(
+            key="somewhere",
             label="Some Assistant",
             root=Path(".somewhere") / "skills",
             frontmatter=lambda s: f"---\nname: {s.name}\n---\n\n",
