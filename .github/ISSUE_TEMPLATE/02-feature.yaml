@@ -1,6 +1,6 @@
 name: Feature Request
 description: Propose a new feature or improvement for railtracks.
-type: "Feature"
+type: Feature
 
 body:
   - type: markdown

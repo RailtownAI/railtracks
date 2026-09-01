@@ -1,6 +1,6 @@
 name: "Task"
 description: "A well-scoped, unambiguous piece of work."
-type: "Task"
+type: Task
 
 body:
   - type: markdown
