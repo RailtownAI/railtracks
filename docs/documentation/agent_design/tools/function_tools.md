@@ -57,3 +57,47 @@ Agent = rt.agent_node("agent", llm=..., tool_nodes=[fn_a, fn_b])
 Agent.tool_nodes()                            # -> [FnANode, FnBNode]
 [t.tool_info() for t in Agent.tool_nodes()]   # the Tool schemas the LLM sees
 ```
+## Supported type hints
+
+Railtracks derives the tool's JSON schema from your function signature. The following
+annotations are understood:
+
+| Annotation | Schema the model sees |
+|---|---|
+| `str`, `int`, `float`, `bool` | `{"type": "string"}`, `"integer"`, `"number"`, `"boolean"` |
+| `Literal["a", "b"]` | `{"type": "string", "enum": ["a", "b"]}` |
+| `List[str]`, `list[float]` | `{"type": "array", "items": {...}}` |
+| `Optional[X]`, `X \| None` | the schema for `X`, marked not required |
+| `X \| Y` | `{"anyOf": [...]}` |
+| A `pydantic.BaseModel` | `{"type": "object", "properties": {...}}` |
+
+Anything Railtracks cannot recognise falls back to `{"type": "object"}`.
+
+## Overriding the inferred schema
+
+Pass a `ToolManifest` when you want to declare the schema yourself instead of relying
+on inference:
+
+```python
+import railtracks as rt
+from railtracks.llm import Parameter
+
+node = rt.function_node(
+    search_files,
+    manifest=rt.ToolManifest(
+        "Search files by regex.",
+        [
+            Parameter(
+                "pattern",
+                param_type="string",
+                description="Regex to search for.",
+                required=True,
+            )
+        ],
+    ),
+)
+```
+
+The manifest is the schema sent to the model. Railtracks still
+checks that the parameter *names* line up with the function signature and raises if they
+do not. A type that disagrees with the signature only warns.

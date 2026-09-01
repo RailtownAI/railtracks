@@ -1,5 +1,6 @@
 import inspect
-from typing import Any, Callable, Dict, Iterable, get_origin
+import warnings
+from typing import Any, Callable, Dict, Iterable, List, Set, Union, get_origin
 
 from pydantic import BaseModel
 from railtracks.exceptions.errors import NodeCreationError
@@ -9,6 +10,8 @@ from railtracks.exceptions.messages.exception_messages import (
     get_notes,
 )
 from railtracks.llm import Parameter, SystemMessage
+from railtracks.llm.tools.annotations import resolved_signature
+from railtracks.llm.tools.parameter_handlers import build_parameter
 from railtracks.llm.tools.parameters import ParameterType
 from railtracks.utils.logging import get_rt_logger
 
@@ -61,7 +64,8 @@ def validate_function(func: Callable) -> None:
                 nested_path = f"{path or param_name}[{idx}]"
                 check_for_nested_dict(arg, param_name, nested_path)
 
-    sig = inspect.signature(func)
+    # resolved so PEP 563 string annotations do not slip past the dict check
+    sig = resolved_signature(func)
     for param in sig.parameters.values():
         annotation = param.annotation
         check_for_nested_dict(annotation, param.name)
@@ -342,6 +346,88 @@ def validate_tool_params(parameters: Any, param_type) -> bool:
 
 
 # ============================================================== START Tool Manifest Verification ===========================================================
+def _as_type_set(param_type: Any) -> Set[str]:
+    """Normalise a parameter type into a comparable set of JSON schema type.
+
+    Args:
+        param_type: A ``ParameterType``, a schema type string, or a list of either
+            (as produced for unions).
+
+    Returns:
+        The type names as lowercase strings, with ``"none"`` normalised to ``"null"``.
+    """
+    values = param_type if isinstance(param_type, (list, tuple, set)) else [param_type]
+
+    normalised: Set[str] = set()
+    for value in values:
+        if isinstance(value, ParameterType):
+            value = value.value
+        if value is None:
+            continue
+        text = str(value).lower()
+        normalised.add("null" if text == "none" else text)
+    return normalised
+
+
+def _infer_param_type(annotation: Any) -> Union[str, List[str], None]:
+    """Infer the schema type a function parameter's annotation maps to.
+
+    Args:
+        annotation: A resolved annotation from :func:`resolved_signature`.
+
+    Returns:
+        The inferred schema type, or ``None`` when the annotation carries no
+        reliable type information and therefore constrains nothing.
+    """
+    if annotation is inspect.Parameter.empty or isinstance(annotation, str):
+        # Unannotated, or an annotation we could not resolve
+        return None
+
+    inferred = build_parameter(param_annotation=annotation).param_type
+
+    if _as_type_set(inferred) == {ParameterType.OBJECT.value}:
+        # 'object' is the fallback for an annotation the type mapping does not
+        # recognise, not a positive inference: the mapping is an identity lookup, so
+        # a str subclass, a plain class and a real dict all land here alike. Treating
+        # it as a claim would flag manifests that are more accurate than the
+        # inference -- which is the reason those manifests were written.
+        return None
+
+    return inferred
+
+
+def _warn_on_type_mismatch(
+    param_name: str, func_param: inspect.Parameter, declared_type: Any
+) -> None:
+    """Warn when a manifest's declared type disagrees with the function signature.
+
+    The manifest is what gets sent to the model. Signature
+    inference is a heuristic and cannot express every intent, so a disagreement is
+    reported rather than raised.
+
+    Args:
+        param_name: Name of the parameter being checked.
+        func_param: The (annotation-resolved) parameter from the function signature.
+        declared_type: The ``param_type`` declared by the manifest.
+    """
+    inferred = _infer_param_type(func_param.annotation)
+    if inferred is None:
+        return
+
+    inferred_types = _as_type_set(inferred)
+    declared_types = _as_type_set(declared_type)
+    if not declared_types or inferred_types & declared_types:
+        return
+
+    warnings.warn(
+        f"Type mismatch for parameter '{param_name}': the function signature implies "
+        f"'{inferred}', but the tool manifest declares '{declared_type}'. The manifest "
+        "is used as-is; update it if this is not intentional.",
+        UserWarning,
+        stacklevel=4,
+    )
+
+
 def _check_manifest_params_exist_in_function(
     func_params: dict, manifest_params: dict
 ) -> None:
@@ -355,17 +441,9 @@ def _check_manifest_params_exist_in_function(
                     "Remove the extra parameter from the tool manifest or add it to the function signature.",
                 ],
             )
-        if (
-            ParameterType.from_python_type(func_params[param_name].annotation)
-            != manifest_params[param_name]
-        ):
-            raise NodeCreationError(
-                message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
-                notes=[
-                    "Ensure the parameter types in the tool manifest match the function signature.",
-                    "Refer to the ParameterType enum for valid types.",
-                ],
-            )
+        _warn_on_type_mismatch(
+            param_name, func_params[param_name], manifest_params[param_name]
+        )
 
 
 def _check_required_params_in_manifest(
@@ -382,17 +460,6 @@ def _check_required_params_in_manifest(
                         "All required function parameters must be included in the manifest.",
                     ],
                 )
-            if (
-                ParameterType.from_python_type(func_params[param_name].annotation)
-                != manifest_params[param_name]
-            ):
-                raise NodeCreationError(
-                    message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
-                    notes=[
-                        "Ensure the parameter types in the tool manifest match the function signature.",
-                        "Refer to the ParameterType enum for valid types.",
-                    ],
-                )
 
 
 def validate_tool_manifest_against_function(
@@ -405,17 +472,22 @@ def validate_tool_manifest_against_function(
     1. Manifest parameter names match function parameter names
     2. Required function parameters are present in manifest (unless they have defaults)
     3. No extra parameters in manifest that don't exist in function
-    4. Parameter types are broadly compatible considering type mapping
+
+    Parameter types are also compared against the (annotation-resolved) signature,
+    but a disagreement only warns: the manifest is an explicit declaration and is
+    used as the tool schema, whereas signature inference is a heuristic. No
+    comparison is made at all where inference is unreliable -- an unannotated
+    parameter, or one whose annotation only reaches the generic object fallback.
 
     Args:
         func: The function to validate against
         manifest_params: List of Parameter objects from ToolManifest, or None
 
     Raises:
-        NodeCreationError: If validation fails
+        NodeCreationError: If a parameter name check fails
     """
     try:
-        sig = inspect.signature(func)
+        sig = resolved_signature(func)
     except ValueError:
         # For builtin functions, we can't validate - trust the user
         return

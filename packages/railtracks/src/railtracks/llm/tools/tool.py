@@ -13,14 +13,9 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 from .._exceptions import RTLLMError
+from .annotations import resolved_signature
 from .docstring_parser import extract_main_description, parse_docstring_args
-from .parameter_handlers import (
-    DefaultParameterHandler,
-    ParameterHandler,
-    PydanticModelHandler,
-    SequenceParameterHandler,
-    UnionParameterHandler,
-)
+from .parameter_handlers import build_parameter
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
 
@@ -134,8 +129,9 @@ class Tool:
         arg_descriptions = parse_docstring_args(func.__doc__ or "")
 
         try:
-            # Get the function signature
-            signature = inspect.signature(func)
+            # PEP 563 leaves annotations as strings; resolve them or every
+            # parameter silently degrades to a generic object schema.
+            signature = resolved_signature(func)
         except ValueError:
             raise ToolCreationError(
                 message="Cannot convert kwargs for builtin functions.",
@@ -160,14 +156,6 @@ class Tool:
             # Only need to do this if we need to.
             if docstring.count("Args:") > 1:
                 warnings.warn("Multiple 'Args:' sections found in the docstring.")
-            # Create parameter handlers
-            handlers: List[ParameterHandler] = [
-                PydanticModelHandler(),
-                SequenceParameterHandler(),
-                UnionParameterHandler(),
-                DefaultParameterHandler(),
-            ]
-
             parameters: List[Parameter] = []
 
             for param in signature.parameters.values():
@@ -180,13 +168,14 @@ class Tool:
                 # Check if the parameter is required
                 required = param.default == inspect.Parameter.empty
 
-                handler = next(h for h in handlers if h.can_handle(param.annotation))
-
-                param_obj = handler.create_parameter(
-                    param.name, param.annotation, description, required
+                parameters.append(
+                    build_parameter(
+                        param_name=param.name,
+                        param_annotation=param.annotation,
+                        description=description,
+                        required=required,
+                    )
                 )
-
-                parameters.append(param_obj)
 
         if details is not None:
             main_description = details
