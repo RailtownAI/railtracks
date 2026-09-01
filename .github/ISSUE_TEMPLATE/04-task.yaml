@@ -1,6 +1,7 @@
 name: "Task"
 description: "A well-scoped, unambiguous piece of work."
-labels: ["[Maintainer] task"]
+type: "Task"
+
 body:
   - type: markdown
     attributes:

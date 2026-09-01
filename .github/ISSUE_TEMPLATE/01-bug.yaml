@@ -1,6 +1,6 @@
 name: Bug Report
 description: Report a bug in railtracks.
-labels: [bug]
+type: "Bug"
 
 body:
   - type: dropdown
