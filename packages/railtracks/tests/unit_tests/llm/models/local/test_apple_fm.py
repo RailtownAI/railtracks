@@ -338,6 +338,94 @@ def test_astructured_bad_json_raises_llm_error(fake_sdk):
         asyncio.run(llm.astructured(_msg_history(user="pick"), _Answer))
 
 
+# ---- normalizer coverage for realistic pydantic shapes -------------------
+
+
+def test_normalizer_handles_nested_ref_enum_and_list():
+    """Nested BaseModels ($ref/$defs), Literal→enum, Optional, list[Model],
+    and Field descriptions should all round-trip cleanly through the
+    normalizer — this mirrors the shape used in
+    v2_test_agent/apple-fm/structured.py (Event/Attendee).
+    """
+    from typing import Literal, Optional
+    from pydantic import BaseModel, Field
+
+    from railtracks.llm.models.local.apple_fm import (
+        _normalize_schema_for_apple,
+    )
+
+    class Attendee(BaseModel):
+        first_name: str = Field(description="First name.")
+        last_name: Optional[str] = Field(None, description="Last name if stated.")
+
+    class Event(BaseModel):
+        name: str = Field(description="Short name.")
+        priority: Literal["low", "medium", "high"] = Field(description="Priority.")
+        capacity: int = Field(description="Room capacity.", ge=0, le=500)
+        location: Optional[str] = Field(None, description="Venue.")
+        attendees: list[Attendee] = Field(
+            default_factory=list, description="Named people."
+        )
+
+    schema = _normalize_schema_for_apple(Event.model_json_schema())
+
+    # Top-level object gets Apple's required extras.
+    assert schema["additionalProperties"] is False
+    assert schema["x-order"] == [
+        "name",
+        "priority",
+        "capacity",
+        "location",
+        "attendees",
+    ]
+
+    # $defs recursion — nested Attendee also gets additionalProperties + x-order.
+    nested = schema["$defs"]["Attendee"]
+    assert nested["additionalProperties"] is False
+    assert nested["x-order"] == ["first_name", "last_name"]
+
+    # Primitives lose their pydantic-generated title but keep description,
+    # enum, and numeric constraints.
+    props = schema["properties"]
+    assert "title" not in props["name"]
+    assert props["name"]["description"] == "Short name."
+    assert props["priority"]["enum"] == ["low", "medium", "high"]
+    assert "title" not in props["priority"]
+    assert props["capacity"]["minimum"] == 0
+    assert props["capacity"]["maximum"] == 500
+    assert "title" not in props["capacity"]
+
+    # Nested primitives inside $defs get the same treatment.
+    nested_props = nested["properties"]
+    assert "title" not in nested_props["first_name"]
+    assert nested_props["first_name"]["description"] == "First name."
+
+    # $ref links to the nested model stay intact — the walker must not touch
+    # the reference itself.
+    assert schema["properties"]["attendees"]["items"] == {
+        "$ref": "#/$defs/Attendee"
+    }
+
+
+def test_normalizer_is_idempotent():
+    """Running the normalizer twice should be a no-op on the second pass —
+    guards against duplicate x-order entries or clobbered additionalProperties.
+    """
+    from pydantic import BaseModel, Field
+
+    from railtracks.llm.models.local.apple_fm import (
+        _normalize_schema_for_apple,
+    )
+
+    class M(BaseModel):
+        a: str = Field(description="a")
+        b: int = Field(description="b")
+
+    once = _normalize_schema_for_apple(M.model_json_schema())
+    twice = _normalize_schema_for_apple(_normalize_schema_for_apple(M.model_json_schema()))
+    assert once == twice
+
+
 # ---------- streaming ------------------------------------------------------
 
 

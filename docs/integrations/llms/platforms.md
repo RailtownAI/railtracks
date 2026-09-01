@@ -58,9 +58,14 @@ The code remains the same as [LLM Providers](providers.md) with the provider nam
 
     !!! info "Availability"
 
-        Runs entirely on-device with no API key. Requires macOS 26.0+ on an
-        Apple Silicon Mac with Apple Intelligence enabled. Install with
-        `pip install railtracks[apple]`.
+        Runs entirely on-device with no API key. Requires:
+
+        - macOS 26.0+ on an Apple Silicon Mac
+        - Apple Intelligence enabled in System Settings
+        - Xcode 26.0+ installed, with the Xcode and Apple SDKs licence
+          agreement accepted (open Xcode once after installing)
+        - Python 3.10+
+        - Install with `pip install railtracks[apple]`
 
     !!! caution "No tool calling in v1"
 
@@ -68,8 +73,9 @@ The code remains the same as [LLM Providers](providers.md) with the provider nam
         no interception hook, so `AppleFMLLM.chat_with_tools()` raises
         `NotImplementedError`. Use another provider (OpenAI, Anthropic,
         Ollama) for tool-driven flows. Streaming structured output also
-        raises — the SDK's `stream_response` does not accept guided
-        generation. Use `astructured` for buffered structured output.
+        raises since the SDK's `stream_response` does not accept guided
+        generation. Use `ainvoke` for buffered structured output on the flow
+        containing the agent. 
 
     !!! info "Usage statistics"
 
@@ -77,6 +83,6 @@ The code remains the same as [LLM Providers](providers.md) with the provider nam
         reports `latency` (measured locally) and `model_name`;
         `input_tokens`, `output_tokens`, `total_cost`, and
         `system_fingerprint` are `None`. Aggregations over mixed-provider
-        sessions treat Apple runs as "unknown usage" — on-device
+        sessions treat Apple runs as "unknown usage". On-device
         inference is free, but reporting `0.0` would silently conflate
         "free" with "unknown".
