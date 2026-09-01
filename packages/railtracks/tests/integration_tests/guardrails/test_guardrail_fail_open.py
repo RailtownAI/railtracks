@@ -30,7 +30,7 @@ class RaisingOutputGuard(OutputGuard):
 
 @pytest.mark.asyncio
 async def test_input_guard_exception_blocks_the_call_by_default(mock_llm):
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="fail-closed-input",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingInputGuard(fail_open=False)],
@@ -42,7 +42,7 @@ async def test_input_guard_exception_blocks_the_call_by_default(mock_llm):
 
 @pytest.mark.asyncio
 async def test_input_guard_exception_does_not_block_the_call_when_fail_open(mock_llm):
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="fail-open-input",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingInputGuard(fail_open=True)],
@@ -56,7 +56,7 @@ async def test_input_guard_exception_does_not_block_the_call_when_fail_open(mock
 
 @pytest.mark.asyncio
 async def test_output_guard_exception_blocks_the_call_by_default(mock_llm):
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="fail-closed-output",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingOutputGuard(fail_open=False)],
@@ -68,7 +68,7 @@ async def test_output_guard_exception_blocks_the_call_by_default(mock_llm):
 
 @pytest.mark.asyncio
 async def test_output_guard_exception_does_not_block_the_call_when_fail_open(mock_llm):
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="fail-open-output",
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingOutputGuard(fail_open=True)],

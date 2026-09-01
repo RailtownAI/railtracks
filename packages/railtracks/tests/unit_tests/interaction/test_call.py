@@ -1,6 +1,6 @@
 import asyncio
 from typing import Any
-from unittest.mock import Mock, create_autospec, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from railtracks.exceptions import GlobalTimeOutError
@@ -175,9 +175,7 @@ async def test_call_with_active_context_calls_run(mock_context_functions, mock_r
 
 
 @pytest.mark.asyncio
-async def test_start_activates_publisher(
-    full_context_setup, mock_execute
-):
+async def test_start_activates_publisher(full_context_setup, mock_execute):
     """Test that _start properly activates the publisher."""
     mock_node = MockNode
     mock_execute.return_value = "test_result"

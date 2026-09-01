@@ -44,9 +44,7 @@ def test_function_node_middleware_can_short_circuit():
     def add(a: int, b: int) -> int:
         """Add two numbers."""
         return a + b
-    
-    node = add.node_type()
-    
+
     async def top_level():
         with rt.Session():
             return await rt.call(add, 1, 2)
@@ -124,7 +122,7 @@ def test_after_does_not_run_when_call_raises():
         fn_called["value"] = True
         return result
 
-    @rt.function_node(middleware=[rt.after_node(mark)])
+    @rt.function_node(middleware=[rt.post_node(mark)])
     def boom() -> int:
         raise ValueError("nope")
 
@@ -138,7 +136,7 @@ def test_after_does_not_run_when_call_raises():
 
 
 def test_after_replaces_return_value_on_success():
-    @rt.function_node(middleware=[rt.after_node(lambda result: result * 10)])
+    @rt.function_node(middleware=[rt.post_node(lambda result: result * 10)])
     def five() -> int:
         return 5
 
