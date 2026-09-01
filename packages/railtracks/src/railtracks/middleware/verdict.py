@@ -24,13 +24,11 @@ class Verdict(Generic[_R]):
     change what was passed in, only what continues onward.
 
     ``Verdict`` is generic over ``result``'s type, matching the wrapped
-    node's return type -- ``post_verifier``'s approve callable returns
-    ``Verdict[_R]`` for a node returning ``_R``, so a ``result=`` override of
-    the wrong type is a type-checker error. There's still no runtime
-    validation against the node's original signature: a bad ``args``/
-    ``kwargs`` override surfaces as a ``TypeError`` from the node call
-    itself, and an ignored/incorrect static type on ``result`` propagates
-    silently.
+    node's return type, so a ``result=`` override of the wrong type is a
+    type-checker error rather than a silent runtime mismatch. There is no
+    runtime validation of ``args``/``kwargs`` overrides against the node's
+    signature -- a bad override surfaces as a ``TypeError`` from the call
+    itself.
     """
 
     accepted: bool
