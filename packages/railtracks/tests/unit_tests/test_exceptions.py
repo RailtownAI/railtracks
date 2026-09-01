@@ -8,6 +8,7 @@ from railtracks.exceptions.errors import (
     NodeCreationError,
     NodeInvocationError,
 )
+from railtracks.utils.logging.config import _verbose_llm_errors
 
 # NOTE: This file contains very basic tests to ensure that the exception classes are working as expected.
 
@@ -76,7 +77,19 @@ def fake_message_history():
         def __str__(self):
             return "FakeHistory\nLine2"
 
+        def __len__(self):
+            return 2
+
     return Fake()
+
+
+@pytest.fixture
+def verbose_llm_errors_on():
+    token = _verbose_llm_errors.set(True)
+    try:
+        yield
+    finally:
+        _verbose_llm_errors.reset(token)
 
 
 def test_llmerror_basic():
@@ -86,7 +99,21 @@ def test_llmerror_basic():
     assert "api failed" in s
 
 
-def test_llmerror_with_history(fake_message_history):
+def test_llmerror_redacts_history_by_default(fake_message_history):
+    err = LLMError("timeout!", message_history=fake_message_history)
+    s = str(err)
+    assert "timeout!" in s
+    assert "Message History" in s
+    assert "2 message(s) redacted" in s
+    assert "FakeHistory" not in s
+    assert "Line2" not in s
+    # Attribute is preserved for opt-in access
+    assert err.message_history is fake_message_history
+
+
+def test_llmerror_includes_history_when_enabled(
+    fake_message_history, verbose_llm_errors_on
+):
     err = LLMError("timeout!", message_history=fake_message_history)
     s = str(err)
     assert "timeout!" in s

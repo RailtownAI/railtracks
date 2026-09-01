@@ -47,6 +47,21 @@ _module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
     "module_logging_file", default=None
 )
 
+_verbose_llm_errors: ContextVar[bool] = ContextVar(
+    "verbose_llm_errors", default=False
+)
+
+
+def verbose_llm_errors() -> bool:
+    """Whether ``LLMError.__str__`` should embed the full message history.
+
+    Off by default so exception strings and log output don't disclose LLM
+    conversation contents (which may contain PII, credentials, or other
+    sensitive data). Turn on via ``enable_logging(verbose_llm_errors=True)``
+    when debugging.
+    """
+    return _verbose_llm_errors.get()
+
 # Initialize colorama
 init(autoreset=True)
 
@@ -268,6 +283,7 @@ def initialize_module_logging(
     log_file: str | os.PathLike | None = None,
     *,
     name_style: LoggerNameDisplay = "short",
+    verbose_llm_errors: bool = False,
 ) -> None:
     """
     Initialize module-level logging (internal). Use enable_logging() for the public API.
@@ -293,6 +309,7 @@ def initialize_module_logging(
 
     _module_logging_level.set(env_level_int)
     _module_logging_file.set(env_log_file)
+    _verbose_llm_errors.set(verbose_llm_errors)
 
     logger = logging.getLogger(rt_logger_name)
     logger.setLevel(env_level_str)
@@ -325,6 +342,7 @@ def enable_logging(
     log_file: str | os.PathLike | None = None,
     *,
     name_style: LoggerNameDisplay = "short",
+    verbose_llm_errors: bool = False,
 ) -> None:
     """
     Opt-in helper to enable Railtracks logging. Call this explicitly from your
@@ -341,5 +359,14 @@ def enable_logging(
         name_style: Console column for logger name: ``full`` (dotted name) or
             ``short`` (``RT.<Label>``: last segment with leading non-letters stripped,
             then capitalized). Default ``short``.
+        verbose_llm_errors: When True, ``str(LLMError)`` embeds the full input
+            MessageHistory. Off by default because that content may include PII,
+            credentials, or other sensitive data and would otherwise flow into
+            any log or crash-reporter that captures the exception string.
     """
-    initialize_module_logging(level=level, log_file=log_file, name_style=name_style)
+    initialize_module_logging(
+        level=level,
+        log_file=log_file,
+        name_style=name_style,
+        verbose_llm_errors=verbose_llm_errors,
+    )
