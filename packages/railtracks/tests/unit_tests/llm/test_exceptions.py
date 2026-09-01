@@ -40,24 +40,48 @@ def _escaping_imports(path: pathlib.Path) -> list[str]:
     return found
 
 
+# The cross-dependencies that predate this change, tracked separately in #1096.
+# Every other escape is a layering regression. Shrink this, never grow it.
+KNOWN_ESCAPES = {
+    "middleware.py": {"railtracks.middleware.core"},
+    "models/cloud/azureai.py": {"railtracks.utils.deprecation"},
+}
+
+
 # =========== START layering tests ===========
 @pytest.mark.parametrize(
     "module_path",
     sorted(LLM_PACKAGE_ROOT.rglob("*.py")),
     ids=lambda p: str(p.relative_to(LLM_PACKAGE_ROOT)).replace("\\", "/"),
 )
-def test_llm_package_does_not_import_railtracks_errors(module_path: pathlib.Path):
-    """No module in the llm package may reach into railtracks' error definitions."""
-    offenders = [
-        imported
-        for imported in _escaping_imports(module_path)
-        if "exceptions" in imported
-    ]
-    assert offenders == [], (
-        f"{module_path.relative_to(LLM_PACKAGE_ROOT)} imports {offenders}; "
-        "errors raised from the llm package must be ProviderError types defined in "
-        "railtracks.llm, and translated at the llm_helpers boundary instead"
+def test_llm_package_does_not_import_upward(module_path: pathlib.Path):
+    """No module in the llm package may import from the surrounding package.
+
+    Checked on the whole import, not just error modules: reaching the framework's
+    errors through an intermediary -- a validation or utils helper that raises an
+    ``RTError`` of its own -- breaks the layering exactly the same way.
+    """
+    relative = str(module_path.relative_to(LLM_PACKAGE_ROOT)).replace("\\", "/")
+    offenders = sorted(
+        set(_escaping_imports(module_path)) - KNOWN_ESCAPES.get(relative, set())
     )
+    assert offenders == [], (
+        f"{relative} imports {offenders}; the llm package must not depend on the "
+        "surrounding railtracks package. Errors it raises must be ProviderError or "
+        "ToolCreationError types defined in railtracks.llm, translated at the "
+        "llm_helpers boundary -- including errors raised on its behalf by a helper "
+        "it calls"
+    )
+
+
+def test_known_escapes_are_all_still_real():
+    """A stale allowlist entry silently widens the guard, so fail when one is fixed."""
+    stale = [
+        relative
+        for relative, allowed in KNOWN_ESCAPES.items()
+        if not (set(_escaping_imports(LLM_PACKAGE_ROOT / relative)) & allowed)
+    ]
+    assert stale == [], f"{stale} no longer escape; drop them from KNOWN_ESCAPES"
 
 
 def _references_llmerror(path: pathlib.Path) -> bool:

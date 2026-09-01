@@ -49,12 +49,23 @@ class Tool:
         if (
             isinstance(parameters, dict) and len(parameters) > 0
         ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
-            props = parameters.get("properties")
+            props = parameters.get("properties") or {}
             required_fields = list(parameters.get("required", []))
+            if not props and required_fields:
+                raise ToolCreationError(
+                    f"Tool {name!r}: schema declares required fields "
+                    f"{required_fields} but has no 'properties' block.",
+                    notes=[
+                        "Add a 'properties' entry describing each required field.",
+                        "A schema with no parameters should omit 'required' entirely.",
+                    ],
+                )
             param_objs: List[Parameter] = []
-            for name, prop in props.items():
+            for param_name, prop in props.items():
                 param_objs.append(
-                    parse_json_schema_to_parameter(name, prop, name in required_fields)
+                    parse_json_schema_to_parameter(
+                        param_name, prop, param_name in required_fields
+                    )
                 )
             parameters = param_objs
 
