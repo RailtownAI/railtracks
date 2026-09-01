@@ -9,7 +9,11 @@ human actually sits is entirely up to `approve_fn` -- these examples show a
 few shapes.
 
 For the `Verdict` shape, timeout semantics, and how pre/post compose with
-each other and with other middleware (e.g. `Retry`), see the docs <!!!TODO add the docs link later when the pre/post PR is merged and the docs are live>
+each other and with other middleware (e.g. `Retry`), see the
+[Verifiers docs](../../docs/documentation/agent_design/middleware/verifiers/overview.md).
+`llm_approval_demo.py` and `webhook_demo/` also have guided walkthroughs:
+[LLM Reviewers](../../docs/tutorials/walkthroughs/hil_llm_reviewer.md) and
+[Webhook Approvals](../../docs/tutorials/walkthroughs/hil_webhook_approval.md).
 
 - `basic_verifiers_usage_demo.py` -> the core primitives: `pre_verifier`
   gating whether a call happens at all, `post_verifier` gating/rewriting a

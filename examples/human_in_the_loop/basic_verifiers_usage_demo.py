@@ -1,14 +1,6 @@
-"""Local demo of #1485's pre_verifier / post_verifier.
-
-Not part of the PR -- untracked, for poking around locally only.
-
-- pre_verifier gates a call BEFORE it runs: decline and the node's body
-  never executes.
-- post_verifier gates a call's OUTPUT AFTER it has already run: its approve
-  function takes the produced `result` as its FIRST argument, then the
-  node's own args. Decline can't undo the call, only stop the result from
-  propagating; accept can optionally rewrite what propagates via
-  Verdict(result=...).
+"""Core pre_verifier / post_verifier primitives: pre-only, post-only, and
+both composed on one node. See ../README.md for the docs link covering the
+full `Verdict` shape, timeouts, and composition semantics.
 
 Run: uv run python examples/human_in_the_loop/basic_verifiers_usage_demo.py
 """
