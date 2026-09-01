@@ -170,9 +170,7 @@ class AppleFMLLM(ModelBase):
             kwargs["guardrails"] = (
                 rails.DEFAULT
                 if self._guardrails
-                else getattr(
-                    rails, "PERMISSIVE_CONTENT_TRANSFORMATIONS", rails.DEFAULT
-                )
+                else getattr(rails, "PERMISSIVE_CONTENT_TRANSFORMATIONS", rails.DEFAULT)
             )
         return fm.SystemLanguageModel(**kwargs)
 
@@ -230,9 +228,7 @@ class AppleFMLLM(ModelBase):
                     "(OpenAI, Anthropic) for multimodal input."
                 )
 
-    def _split_history(
-        self, messages: MessageHistory
-    ) -> tuple[str, list, str]:
+    def _split_history(self, messages: MessageHistory) -> tuple[str, list, str]:
         """Peel the history into (instructions, prior_turns, final_prompt).
 
         Apple's session takes `instructions=` once at construction; multi-turn
@@ -254,9 +250,7 @@ class AppleFMLLM(ModelBase):
                     prior.append({"role": "user", "contents": [final_prompt]})
                 final_prompt = str(msg.content)
             elif isinstance(msg, AssistantMessage):
-                prior.append(
-                    {"role": "response", "contents": [str(msg.content)]}
-                )
+                prior.append({"role": "response", "contents": [str(msg.content)]})
             else:
                 prior.append({"role": "user", "contents": [str(msg.content)]})
 
@@ -305,9 +299,7 @@ class AppleFMLLM(ModelBase):
         session = fm.LanguageModelSession(instructions=instructions or None)
         return session, final_prompt
 
-    def extract_message_info(
-        self, latency: float | None = None
-    ) -> MessageInfo:
+    def extract_message_info(self, latency: float | None = None) -> MessageInfo:
         """Populate MessageInfo from what Apple gives us — which is nothing.
 
         Named to mirror `LiteLLMWrapper.extract_message_info` so the two files
@@ -373,9 +365,7 @@ class AppleFMLLM(ModelBase):
     ) -> Response:
         return self._run_sync(self._astructured(messages, schema))
 
-    def _chat_with_tools(
-        self, messages: MessageHistory, tools: List[Tool]
-    ) -> Response:
+    def _chat_with_tools(self, messages: MessageHistory, tools: List[Tool]) -> Response:
         raise NotImplementedError(
             "AppleFMLLM does not support tool calling. Apple's on-device SDK "
             "drives the tool loop internally and provides no intent-only "
@@ -461,7 +451,7 @@ class AppleFMLLM(ModelBase):
                 stream = session.stream_response(prompt)
             async for snapshot in stream:
                 text = str(snapshot)
-                delta = text[len(prev):]
+                delta = text[len(prev) :]
                 prev = text
                 if delta:
                     yield delta
