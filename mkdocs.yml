@@ -113,6 +113,7 @@ nav:
                 - Overview: documentation/agent_design/middleware/guardrails/overview.md
                 - Quickstart: documentation/agent_design/middleware/guardrails/quickstart.md
                 - Contributing: documentation/agent_design/middleware/guardrails/contributions.md
+              - Verifiers: documentation/agent_design/middleware/verifiers/overview.md
               - Prebuilt:
                 - Overview: documentation/agent_design/middleware/prebuilt/overview.md
                 - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
