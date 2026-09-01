@@ -3,6 +3,15 @@
 Snippet regions (--8<-- [start:name]) are pulled into the verifiers
 overview page by MkDocs. Type-checked in CI via scripts/docs_validation.sh.
 Kept local/synchronous -- no API keys or servers required to read the docs.
+
+NOTE on the `type: ignore[arg-type]` in `retry_ordering`: Retry (and
+Timeout/MaxCalls/Lock) subclass the bare `Middleware` generic instead of
+parameterizing it, which mypy collapses to `Middleware[Never, Never]` and
+breaks list-element unification whenever one of them is combined with
+another middleware in one `middleware=[...]` list. Runtime behavior is
+unaffected; this is a pre-existing, static-typing-only gap in the prebuilt
+middleware base classes, unrelated to pre_verifier/post_verifier. Tracked
+separately -- not fixed here.
 """
 
 from __future__ import annotations
@@ -89,7 +98,7 @@ def confirm_settled_result(result: str, order_id: str, amount: float) -> Verdict
 # Retry is innermost, post_verifier is outermost: retries happen silently on
 # transient failures, and the reviewer only ever sees the final settled
 # result -- not every intermediate attempt.
-@rt.function_node(
+@rt.function_node(  # type: ignore[arg-type]  # see NOTE below
     middleware=[
         post_verifier(confirm_settled_result, name="confirm_settled_result"),
         Retry(3),
