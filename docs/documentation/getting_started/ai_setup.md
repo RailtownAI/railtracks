@@ -33,7 +33,7 @@ pip install 'railtracks[visual]'
 
 === "Claude Code"
 
-    Installs a skill file at `.claude/skills/agent-builder/SKILL.md`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.
+    Installs a skill directory at `.claude/skills/agent-builder/`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.
 
     ```bash
     railtracks add claude:agent-builder
@@ -44,8 +44,14 @@ pip install 'railtracks[visual]'
         .claude/
         └── skills/
             └── agent-builder/
-                └── SKILL.md   ← railtracks agent-building knowledge
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
+
+    !!! note "Supporting files"
+        A skill can ship more than `SKILL.md`; `references/`, `scripts/`, and so on. The whole
+        directory is copied, with its sub-paths intact. Claude Code loads a supporting file only
+        when `SKILL.md` links it, on demand, so nothing extra enters the context until it is needed.
 
 === "GitHub Copilot"
 
@@ -118,6 +124,11 @@ Skills are bundled **inside the railtracks package**, no internet connection req
 
 !!! warning "Existing files"
     For Claude Code and Cursor, if the target file already exists you'll be prompted to confirm before overwriting. Pass `--force` to skip the prompt.
+
+!!! note "Re-installing after an upgrade"
+    Installing copies what the version you have ships. It does not yet remove a supporting file that
+    an *older* railtracks shipped and the current one dropped; delete the skill directory first if
+    you want a clean slate.
 
 ## Example: Building Your First Agent
 

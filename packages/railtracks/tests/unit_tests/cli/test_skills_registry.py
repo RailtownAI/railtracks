@@ -65,6 +65,27 @@ class TestBundledSkills:
         """No handler reads `tools:` yet, so nothing bundled should author it."""
         assert discover_skills()[name].tools == {}
 
+    @pytest.mark.parametrize("name", BUNDLED_SKILLS)
+    def test_supporting_files_are_linked_from_the_body(self, name):
+        """Claude Code reads a supporting file only when `SKILL.md` links it.
+
+        Copilot auto-discovers the whole directory instead, so a skill authored for
+        auto-discovery silently under-delivers on Claude Code. Explicit relative
+        links are the house style: strict for Claude, free for everyone else.
+        Vacuous while nothing bundled ships extras, load-bearing the moment one does.
+        """
+        skill = discover_skills()[name]
+
+        unlinked = [
+            relative
+            for relative in skill.supporting_files
+            if relative.as_posix() not in skill.body
+        ]
+        assert not unlinked, (
+            f"skill '{name}': {unlinked} ship in the directory but nothing in "
+            f"SKILL.md links them, so Claude Code will never read them."
+        )
+
 
 class TestLegacySkillsMapping:
     """`SKILLS` must expose the same keys and values the hardcoded dict did."""

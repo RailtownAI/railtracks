@@ -1,4 +1,6 @@
-"""CLI stdout helpers (stdlib + colorama only)."""
+"""CLI terminal I/O helpers (stdlib + colorama only)."""
+
+from pathlib import Path
 
 from colorama import Fore, Style
 
@@ -26,3 +28,17 @@ def _print_update_available() -> None:
         f"{Fore.YELLOW}[{cli_name}] A newer UI is available! "
         f"Run 'railtracks update' to upgrade.{Style.RESET_ALL}"
     )
+
+
+def confirm_overwrite(path: Path) -> bool:
+    """Prompt the user before overwriting `path`. Returns True to proceed."""
+    try:
+        answer = (
+            input(f"[{cli_name}] '{path}' already exists. Overwrite? [y/N] ")
+            .strip()
+            .lower()
+        )
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    return answer in ("y", "yes")
