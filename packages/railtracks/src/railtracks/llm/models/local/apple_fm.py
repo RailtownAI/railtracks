@@ -25,6 +25,7 @@ from typing import Any, AsyncGenerator, List, Literal, Type
 
 from pydantic import BaseModel
 
+from ....exceptions.errors import LLMError
 from ...history import MessageHistory
 from ...message import (
     AssistantMessage,
@@ -36,7 +37,6 @@ from ...providers import ModelProvider
 from ...response import MessageInfo, Response
 from ...retries.base import RetryApproach
 from ...tools import Tool
-from ....exceptions.errors import LLMError
 from .._model_exception_base import (
     ModelError,
     UnsupportedHyperparameterError,
@@ -207,6 +207,29 @@ class AppleFMLLM(ModelBase):
     def model_gateway(cls) -> ModelProvider:
         return ModelProvider.APPLE_FM
 
+    def _reject_attachments(self, messages: MessageHistory) -> None:
+        """Fail loudly if the message history carries any attachment.
+
+        Apple exposes `fm.ImageAttachment`, but current SDK builds (0.2.x,
+        compiled against macOS 26 SDKs) raise `ImagePromptError` at call
+        time — the on-device model does not process images yet. Silently
+        dropping the attachment means the model hallucinates a description
+        of an image it never saw, which is the worst possible failure
+        mode. Reject up front instead.
+        """
+        for msg in messages:
+            if isinstance(msg, UserMessage) and getattr(msg, "attachment", None):
+                raise NotImplementedError(
+                    "AppleFMLLM does not support UserMessage attachments. "
+                    "Apple's on-device SDK exposes fm.ImageAttachment but "
+                    "current SDK builds do not process images (they require "
+                    "macOS 27 SDKs that are not yet released), so silently "
+                    "dropping the attachment would cause the model to "
+                    "hallucinate a description of an image it never saw. "
+                    "Send text-only prompts, or use another provider "
+                    "(OpenAI, Anthropic) for multimodal input."
+                )
+
     def _split_history(
         self, messages: MessageHistory
     ) -> tuple[str, list, str]:
@@ -217,6 +240,8 @@ class AppleFMLLM(ModelBase):
         `Transcript.from_dict`. We build a fresh session per call, so we hand
         prior turns to `from_transcript` when there are any.
         """
+        self._reject_attachments(messages)
+
         instructions_parts: list[str] = []
         prior: list = []
         final_prompt: str | None = None

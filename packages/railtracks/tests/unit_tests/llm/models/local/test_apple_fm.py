@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import BaseModel
 
-
 # ---------- fixtures ------------------------------------------------------
 
 
@@ -348,8 +347,8 @@ def test_normalizer_handles_nested_ref_enum_and_list():
     v2_test_agent/apple-fm/structured.py (Event/Attendee).
     """
     from typing import Literal, Optional
-    from pydantic import BaseModel, Field
 
+    from pydantic import BaseModel, Field
     from railtracks.llm.models.local.apple_fm import (
         _normalize_schema_for_apple,
     )
@@ -407,12 +406,37 @@ def test_normalizer_handles_nested_ref_enum_and_list():
     }
 
 
+def test_attachment_raises_not_implemented(fake_sdk):
+    """A UserMessage with an attachment must fail loudly rather than
+    silently dropping the image and letting the model hallucinate a
+    description of something it never saw.
+    """
+    from railtracks.llm import MessageHistory, UserMessage
+
+    AppleFMLLM, _, _ = _import_apple_fm_llm()
+    llm = AppleFMLLM()
+
+    # A stubbed attachment on the message — real Attachment construction
+    # requires a valid file path, so hand the UserMessage an object with
+    # the same duck-typed shape.
+    msg = UserMessage(content="what is this?")
+    msg.attachment = [object()]
+    history = MessageHistory([msg])
+
+    async def run():
+        with pytest.raises(NotImplementedError) as exc:
+            await llm.achat(history)
+        assert "attachment" in str(exc.value).lower()
+        assert "hallucinate" in str(exc.value).lower()
+
+    asyncio.run(run())
+
+
 def test_normalizer_is_idempotent():
     """Running the normalizer twice should be a no-op on the second pass —
     guards against duplicate x-order entries or clobbered additionalProperties.
     """
     from pydantic import BaseModel, Field
-
     from railtracks.llm.models.local.apple_fm import (
         _normalize_schema_for_apple,
     )
