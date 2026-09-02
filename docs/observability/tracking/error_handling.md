@@ -48,13 +48,7 @@ All internal errors include helpful debugging notes and formatted error messages
     If you need the full history in a log line for debugging, render it explicitly at the call site:
 
     ```python
-    from railtracks.exceptions import LLMError
-
-    try:
-        ...
-    except LLMError as err:
-        logger.error("LLM call failed: %s", err.format_verbose())
-        # or route err.message_history wherever your data-handling policy allows
+    --8<-- "docs/scripts/error_handling.py:msg_hist"
     ```
 
 ## Error Handling Patterns
