@@ -850,6 +850,11 @@ class LiteLLMWrapper(ModelBase, ABC):
             )
         except JSONDecodeError as jde:
             raise jde
+        except ProviderError:
+            # Already classified by `_call_provider`. Re-wrapping as a `ModelError` would
+            # erase the type callers branch on (timeout / rate limit / auth / exhausted
+            # retries), leaving structured output as the one path that cannot be handled.
+            raise
         except Exception as e:
             raise ModelError(
                 reason="Structured LLM call failed",

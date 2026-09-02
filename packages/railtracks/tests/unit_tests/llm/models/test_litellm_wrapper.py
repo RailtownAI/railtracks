@@ -34,6 +34,7 @@ from railtracks.llm.models._litellm_wrapper import (
 from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.retries import FixedRetry
 from railtracks.llm.tools.tool import ToolCreationError
 
 
@@ -1275,6 +1276,68 @@ class TestClassifyProviderError:
 
     def test_retry_error_with_no_recorded_exceptions(self):
         assert classify_provider_error(RetryError("x", "y", [], [])) is None
+
+
+class TestStructuredPreservesProviderErrors:
+    """Structured output must classify failures the same way plain `chat` does.
+
+    `_structured` wraps its body in a catch-all that turns failures into `ModelError`.
+    Provider errors are already classified by `_call_provider`, so re-wrapping them
+    would leave structured output as the only path where a caller cannot tell a
+    timeout from an auth failure, or detect that retries were exhausted.
+    """
+
+    @pytest.mark.parametrize(
+        "litellm_exc,expected",
+        [
+            (litellm.exceptions.Timeout("t", "m", "p"), ProviderTimeoutError),
+            (litellm.exceptions.RateLimitError("r", "m", "p"), ProviderRateLimitError),
+            (
+                litellm.exceptions.AuthenticationError("a", "m", "p"),
+                ProviderAuthenticationError,
+            ),
+        ],
+        ids=["timeout", "rate_limit", "auth"],
+    )
+    def test_classified_provider_errors_are_not_rewrapped(
+        self, message_history, litellm_exc, expected
+    ):
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="test-model")
+        with patch.object(litellm, "completion", side_effect=litellm_exc):
+            with pytest.raises(expected):
+                wrapper.structured(message_history, schema=Schema)
+
+    def test_exhausted_retries_stay_detectable(self, message_history):
+        """`RetryError` must survive so callers can distinguish it from a single failure."""
+
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="test-model",
+            retry_approach=FixedRetry(max_tries=2, delay=0),
+        )
+        with patch.object(
+            litellm,
+            "completion",
+            side_effect=litellm.exceptions.Timeout("t", "m", "p"),
+        ):
+            with pytest.raises(RetryError):
+                wrapper.structured(message_history, schema=Schema)
+
+    def test_unclassified_failures_still_become_model_error(self, message_history):
+        """The catch-all still applies to anything that is not a provider error."""
+
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="test-model")
+        with patch.object(litellm, "completion", side_effect=ValueError("who knows")):
+            with pytest.raises(ModelError, match="Structured LLM call failed"):
+                wrapper.structured(message_history, schema=Schema)
 
 
 # =================================== END classify_provider_error Tests ====================================
