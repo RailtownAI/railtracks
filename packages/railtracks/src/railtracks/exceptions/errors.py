@@ -72,17 +72,26 @@ class LLMError(NodeInvocationError):
         super().__init__(message, notes=notes, fatal=fatal)
 
     def __str__(self):
+        """Render the error with the message history redacted.
+
+        Conversation contents may carry PII, credentials or customer data, so they are
+        summarised rather than embedded. `format_verbose` renders them in full, and
+        `self.message_history` stays available for programmatic access.
+        """
+        return self._render(verbose=False)
+
+    def format_verbose(self) -> str:
+        """Render the error with the full input `MessageHistory` embedded."""
+        return self._render(verbose=True)
+
+    def _render(self, *, verbose: bool) -> str:
         # Bypasses NodeInvocationError.__str__ so the base message is not coloured twice.
         base = Exception.__str__(self)
         details = []
         if self.message_history:
-            mh_str = str(self.message_history)
-            indented_mh = "\n".join(
-                "    " + line for line in mh_str.splitlines()
-            )  # 2 indents (2-spaces) per indent
             details.append(
-                self._color("Message History:\n", self.BOLD_GREEN)
-                + self._color(indented_mh, self.GREEN)
+                self._color("Message History:", self.BOLD_GREEN)
+                + self._color(self._history_detail(verbose=verbose), self.GREEN)
             )
         if self.notes:
             details.append(
@@ -99,6 +108,23 @@ class LLMError(NodeInvocationError):
             )
             return f"\n{self._color(base, self.RED)}{notes_str}"
         return self._color(base, self.RED)
+
+    def _history_detail(self, *, verbose: bool) -> str:
+        if verbose:
+            indented_mh = "\n".join(
+                "    " + line for line in str(self.message_history).splitlines()
+            )  # 2 indents (2-spaces) per indent
+            return f"\n{indented_mh}"
+
+        try:
+            count = len(self.message_history)
+        except TypeError:
+            count = None
+        subject = f"{count} message(s)" if count is not None else "message history"
+        return (
+            f" {subject} redacted; "
+            "call err.format_verbose() to render or read err.message_history"
+        )
 
 
 class LLMTimeoutError(LLMError):

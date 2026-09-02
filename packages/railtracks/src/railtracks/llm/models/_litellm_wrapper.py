@@ -42,7 +42,7 @@ from .._exceptions import (
 )
 from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
-from ..message import AssistantMessage, Message, ToolMessage, UserMessage
+from ..message import AssistantMessage, Attachment, Message, ToolMessage, UserMessage
 from ..model import ModelBase
 from ..response import MessageInfo, Response
 from ..retries import RetryApproach
@@ -912,6 +912,55 @@ class LiteLLMWrapper(ModelBase, ABC):
         """
         return self._model_name
 
+    def _to_litellm_attachment_content(
+        self, text: str, attachments: List[Attachment]
+    ) -> List[Dict[str, Any]]:
+        """Build the multimodal content list for a UserMessage with attachments."""
+        content_list: List[Dict[str, Any]] = [{"type": "text", "text": text}]
+
+        for msg_attachment in attachments:
+            url = (
+                msg_attachment.encoding
+                if msg_attachment.encoding is not None
+                else msg_attachment.url
+            )
+            if msg_attachment.modality == "document":
+                # Only trust litellm's PDF-support check when the model is in
+                # litellm's capability catalog. Custom deployment names (Azure
+                # Foundry etc.) route fine but have no capability metadata,
+                # so supports_pdf_input returns False by default and would
+                # falsely reject valid deployments. When the model isn't in
+                # the catalog, skip the pre-check and let the API decide.
+                if _model_in_litellm_catalog(
+                    self._model_name
+                ) and not litellm.utils.supports_pdf_input(self._model_name):
+                    raise ValueError(
+                        f"Model {self._model_name!r} does not support PDF attachments. "
+                        "Use a PDF-capable model or render the PDF pages to images first."
+                    )
+                fallback_ext = (
+                    mimetypes.guess_extension(msg_attachment.mime_type or "") or ""
+                )
+                content_list.append(
+                    {
+                        "type": "file",
+                        "file": {
+                            "file_data": url,
+                            "filename": msg_attachment.filename
+                            or f"attachment{fallback_ext}",
+                        },
+                    }
+                )
+            else:
+                content_list.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": url},
+                    }
+                )
+
+        return content_list
+
     def _to_litellm_message(self, msg: Message) -> Dict[str, Any]:
         """
         Convert your Message (UserMessage, AssistantMessage, ToolMessage) into
@@ -920,52 +969,9 @@ class LiteLLMWrapper(ModelBase, ABC):
         base: Dict[str, Any] = {"role": msg.role}
         # handle the special case where the message is a tool so we have to link it to the tool id.
         if isinstance(msg, UserMessage) and msg.attachment is not None:
-            # Initiate content list with text component
-            content_list: List[Dict[str, Any]] = [{"type": "text", "text": msg.content}]
-
-            # Add attachments (images or documents)
-            for msg_attachment in msg.attachment:
-                url = (
-                    msg_attachment.encoding
-                    if msg_attachment.encoding is not None
-                    else msg_attachment.url
-                )
-                if msg_attachment.modality == "document":
-                    # Only trust litellm's PDF-support check when the model is in
-                    # litellm's capability catalog. Custom deployment names (Azure
-                    # Foundry etc.) route fine but have no capability metadata,
-                    # so supports_pdf_input returns False by default and would
-                    # falsely reject valid deployments. When the model isn't in
-                    # the catalog, skip the pre-check and let the API decide.
-                    if _model_in_litellm_catalog(
-                        self._model_name
-                    ) and not litellm.utils.supports_pdf_input(self._model_name):
-                        raise ValueError(
-                            f"Model {self._model_name!r} does not support PDF attachments. "
-                            "Use a PDF-capable model or render the PDF pages to images first."
-                        )
-                    fallback_ext = (
-                        mimetypes.guess_extension(msg_attachment.mime_type or "") or ""
-                    )
-                    content_list.append(
-                        {
-                            "type": "file",
-                            "file": {
-                                "file_data": url,
-                                "filename": msg_attachment.filename
-                                or f"attachment{fallback_ext}",
-                            },
-                        }
-                    )
-                else:
-                    content_list.append(
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": url},
-                        }
-                    )
-
-            base["content"] = content_list
+            base["content"] = self._to_litellm_attachment_content(
+                msg.content, msg.attachment
+            )
 
         elif isinstance(msg, ToolMessage):
             base["name"] = msg.content.name
@@ -1010,6 +1016,9 @@ class LiteLLMWrapper(ModelBase, ABC):
                 for key, value in raw_dict.items():
                     if key not in _standard_fields and value is not None:
                         base[key] = value
+        elif isinstance(msg.content, BaseModel):
+            # searlize base model to string before passing along
+            base["content"] = msg.content.model_dump_json()
         else:
             base["content"] = msg.content
         return base

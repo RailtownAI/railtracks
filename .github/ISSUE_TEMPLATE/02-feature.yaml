@@ -1,0 +1,54 @@
+name: Feature Request
+description: Propose a new feature or improvement for railtracks.
+type: Feature
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open-ended ideas and "have you thought about X" belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions). Bugs in existing behavior belong in the **Bug Report** template.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Which subsystem is this feature for? Pick the closest match.
+      options:
+        - Agents / Nodes
+        - Tools
+        - LLM Providers
+        - Middleware
+        - Guardrails
+        - RAG / Retrieval
+        - Prebuilt Add-ons
+        - Human-in-the-loop
+        - Observability / Visualizer
+        - MCP Integration
+        - Evaluations
+        - Other / Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do that railtracks doesn't support today? Include the concrete use case.
+      placeholder: I want to run guardrails on tool outputs before they reach the LLM, but the current guardrail hooks only fire on model input/output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to see? An API sketch, a reference to how another framework does it, or the shape of the behavior is fine.
+      placeholder: Extend `@rt.output_guard` to also accept tool events, or add a new `@rt.tool_output_guard` decorator.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, or other ways railtracks could solve this.
