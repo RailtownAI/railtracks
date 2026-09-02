@@ -6,11 +6,7 @@ from .api_providers import (
     OpenAILLM,
 )
 from .cloud import AzureAILLM, PortKeyLLM
-from .local.apple_fm import (
-    AppleFMLLM,
-    AppleFMSafetyRefusalError,
-    AppleFMUnavailableError,
-)
+from .local.apple_fm import AppleFMLLM
 from .local.ollama import OllamaLLM
 
 __all__ = [
@@ -20,8 +16,6 @@ __all__ = [
     AzureAILLM,
     OllamaLLM,
     AppleFMLLM,
-    AppleFMUnavailableError,
-    AppleFMSafetyRefusalError,
     HuggingFaceLLM,
     PortKeyLLM,
     "OpenAICompatibleProvider",

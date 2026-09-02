@@ -6,8 +6,6 @@ from .model import ModelBase
 from .models import (
     AnthropicLLM,
     AppleFMLLM,
-    AppleFMSafetyRefusalError,
-    AppleFMUnavailableError,
     AzureAILLM,
     GeminiLLM,
     HuggingFaceLLM,
@@ -54,8 +52,6 @@ __all__ = [
     "Tool",
     "AnthropicLLM",
     "AppleFMLLM",
-    "AppleFMUnavailableError",
-    "AppleFMSafetyRefusalError",
     "AzureAILLM",
     "HuggingFaceLLM",
     "OpenAILLM",
