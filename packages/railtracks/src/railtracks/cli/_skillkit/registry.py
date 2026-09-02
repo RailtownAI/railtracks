@@ -212,8 +212,14 @@ def load_skill(directory: Path) -> Skill:
 
 
 def default_skills_directory() -> Path:
-    """The directory the bundled skills are shipped in."""
-    return Path(__file__).parent / "skills"
+    """The directory the bundled skills are shipped in.
+
+    `cli/skills/`, one level above this package: the content sits beside the CLI rather
+    than beside the code that reads it, because every directory under that root has to
+    be a skill — `discover_skills` rejects anything without a `SKILL.md`, so a Python
+    package could not live among them.
+    """
+    return Path(__file__).parent.parent / "skills"
 
 
 def discover_skills(skills_dir: Path | None = None) -> dict[str, Skill]:

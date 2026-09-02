@@ -41,9 +41,17 @@ from railtracks.cli.io import (
     print_success,
     print_warning,
 )
-from railtracks.cli.skill_install import CLAUDE, InstallTarget, install_skill_directory
-from railtracks.cli.skill_manifest import MANIFEST_FILE, package_version, read_record
-from railtracks.cli.skills_registry import load_skill
+from railtracks.cli._skillkit.install import (
+    CLAUDE,
+    InstallTarget,
+    install_skill_directory,
+)
+from railtracks.cli._skillkit.manifest import (
+    MANIFEST_FILE,
+    package_version,
+    read_record,
+)
+from railtracks.cli._skillkit.registry import load_skill
 from railtracks.cli.viz_server import app
 
 
@@ -431,7 +439,7 @@ def _write_skill(root, name, frontmatter, body="# Heading\n\nBody text.\n", file
     """Create a synthetic skill directory and return the loaded `Skill`.
 
     Bundled skills deliberately ship no supporting files and no `tools:` block —
-    `test_skills_registry` asserts both, as the canary for when content work starts —
+    `test_registry` asserts both, as the canary for when content work starts —
     so the directory install can only be exercised against fixtures until then.
     """
     directory = Path(root) / name
@@ -566,7 +574,7 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
             "    description: Sneaky override.\n",
         )
 
-        with patch("railtracks.cli.skill_install.print_warning") as mock_warning:
+        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
             _add_claude(skill, force=False)
 
         frontmatter = yaml.safe_load(self._installed().split("---\n")[1])
@@ -751,7 +759,7 @@ class TestSkillSync(unittest.TestCase):
         )
         (first.directory / "references/gone.md").unlink()
 
-        with patch("railtracks.cli.skill_install.print_warning") as mock_warning:
+        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
             _add_claude(load_skill(first.directory), force=True)
 
         kept = Path(".claude/skills/fixture-skill/references/gone.md")
@@ -791,7 +799,7 @@ class TestSkillSync(unittest.TestCase):
         )
         self._manifest_path.write_text(stale, encoding="utf-8")
 
-        with patch("railtracks.cli.skill_install.print_status") as mock_status:
+        with patch("railtracks.cli._skillkit.install.print_status") as mock_status:
             _add_claude(skill, force=True)
 
         reported = " ".join(str(c.args[0]) for c in mock_status.call_args_list if c.args)

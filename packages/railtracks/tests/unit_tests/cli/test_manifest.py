@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
-from railtracks.cli.skill_manifest import (
+from railtracks.cli._skillkit.manifest import (
     MANIFEST_FILE,
     MANIFEST_VERSION,
     InstalledFile,

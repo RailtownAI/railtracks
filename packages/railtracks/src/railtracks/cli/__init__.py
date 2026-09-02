@@ -33,6 +33,7 @@ from colorama import Fore, Style
 
 from railtracks.paths import resolve_railtracks_home
 
+from ._skillkit import CLAUDE, Skill, discover_skills, install_skill_directory
 from .constants import (
     DEFAULT_PORT,
     cli_directory,
@@ -47,8 +48,6 @@ from .io import (
     print_success,
     print_warning,
 )
-from .skill_install import CLAUDE, install_skill_directory
-from .skills_registry import Skill, discover_skills
 
 # ---------------------------------------------------------------------------
 # Skill registry — derived from the bundled skill directories on disk
@@ -290,7 +289,7 @@ def _add_claude(skill: Skill, force: bool) -> list[Path]:
     """Install a skill for Claude Code as a skill directory, and report what it wrote.
 
     Thin by design: everything here that another assistant would also need lives in
-    `skill_install`, parameterised by root path and projection, so the remaining
+    `_skillkit.install`, parameterised by root path and projection, so the remaining
     handlers become the same two values rather than the same function again.
     """
     return install_skill_directory(skill, CLAUDE, force)

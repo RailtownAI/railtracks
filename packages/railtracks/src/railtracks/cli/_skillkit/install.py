@@ -19,7 +19,7 @@ things differ per target, so those two are the parameters and
 Claude Code is the first target through here. The remaining three wait on the
 install manifest, which owns removing the legacy installs they are migrating from.
 
-Re-installing is a **sync**, not a copy: `skill_manifest` records what each install
+Re-installing is a **sync**, not a copy: `manifest` records what each install
 wrote, so the next one can remove a supporting file we shipped before and no longer
 do. Removal is gated on proof — the file must be one we recorded *and* still be
 byte-for-byte what we left — so a file somebody edited is reported and kept.
@@ -42,8 +42,8 @@ from typing import Any, Callable, Mapping, Sequence
 
 import yaml
 
-from .io import confirm_overwrite, print_status, print_success, print_warning
-from .skill_manifest import (
+from ..io import confirm_overwrite, print_status, print_success, print_warning
+from .manifest import (
     is_ours_unmodified,
     prune,
     read_record,
@@ -52,7 +52,7 @@ from .skill_manifest import (
     version_skew,
     write_record,
 )
-from .skills_registry import SKILL_FILE, Skill
+from .registry import SKILL_FILE, Skill
 
 
 @dataclass(frozen=True)

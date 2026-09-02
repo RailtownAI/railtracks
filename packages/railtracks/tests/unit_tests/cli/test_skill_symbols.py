@@ -14,7 +14,7 @@ TODO: (Suggested) Fix this bahaviour by adding a no-bare-name rule for skills.
 import re
 
 import railtracks
-from railtracks.cli.skills_registry import discover_skills
+from railtracks.cli._skillkit.registry import discover_skills
 
 # `rt.` is the aliased import every skill uses; `railtracks.` is the spelled-out form.
 _ATTRIBUTE_PATTERN = re.compile(r"\b(?:rt|railtracks)\.[A-Za-z_][\w.]*")
