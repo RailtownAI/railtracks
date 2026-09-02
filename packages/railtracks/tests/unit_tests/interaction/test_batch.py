@@ -1,6 +1,6 @@
-import pytest
 from unittest.mock import patch
 
+import pytest
 from railtracks.interaction.batch import call_batch
 
 
@@ -10,7 +10,10 @@ async def test_batch_single_iterable_returns_results_in_order():
         return f"result_{args[0]}"
 
     with patch("railtracks.interaction.batch.call", new=mock_call):
-        node = lambda x: x  # Dummy node
+
+        def node(x):  # Dummy node
+            return x
+
         inputs = [1, 2, 3]
 
         results = await call_batch(node, inputs)
@@ -24,7 +27,10 @@ async def test_batch_multiple_iterables_passes_all_args():
         return f"sum_{sum(args)}"
 
     with patch("railtracks.interaction.batch.call", new=mock_call):
-        node = lambda x, y: x + y  # Dummy node
+
+        def node(x, y):  # Dummy node
+            return x + y
+
         inputs1 = [1, 2, 3]
         inputs2 = [10, 20, 30]
 
@@ -41,7 +47,10 @@ async def test_batch_with_exceptions_returned():
         return f"good_{args[0]}"
 
     with patch("railtracks.interaction.batch.call", new=mock_call):
-        node = lambda x: x
+
+        def node(x):
+            return x
+
         inputs = ["good", "bad", "good"]
 
         results = await call_batch(node, inputs, return_exceptions=True)
@@ -59,7 +68,10 @@ async def test_batch_with_exceptions_raised():
         return f"ok_{args[0]}"
 
     with patch("railtracks.interaction.batch.call", new=mock_call):
-        node = lambda x: x
+
+        def node(x):
+            return x
+
         inputs = ["ok", "fail", "ok"]
 
         with pytest.raises(RuntimeError, match="Fail!"):

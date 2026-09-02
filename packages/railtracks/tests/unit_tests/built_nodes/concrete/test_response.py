@@ -1,17 +1,24 @@
-import pytest
 from pydantic import BaseModel
-from railtracks.built_nodes.llm.response import LLMResponse, StructuredResponse, StringResponse
+from railtracks.built_nodes.llm.response import (
+    LLMResponse,
+    StringResponse,
+    StructuredResponse,
+)
+
 
 class DummyContent:
     def __repr__(self):
         return "DummyContent()"
 
+
 class DummyMessageHistory:
     def __repr__(self):
         return "DummyMessageHistory()"
 
+
 class DummyModel(BaseModel):
     x: int
+
 
 def test_llmresponse_repr():
     content = DummyContent()
@@ -21,6 +28,7 @@ def test_llmresponse_repr():
     assert resp.message_history is history
     assert repr(resp) == "LLMResponse(DummyContent())"
 
+
 def test_structured_response():
     model = DummyModel(x=42)
     history = DummyMessageHistory()
@@ -28,6 +36,7 @@ def test_structured_response():
     assert resp.content == model
     assert resp.message_history is history
     assert resp.structured == model
+
 
 def test_string_response():
     content = "hello world"
@@ -37,11 +46,13 @@ def test_string_response():
     assert resp.message_history is history
     assert resp.text == content
 
+
 def test_structured_response_repr():
     model = DummyModel(x=99)
     history = DummyMessageHistory()
     resp = StructuredResponse(model, history)
     assert repr(resp) == f"LLMResponse({model})"
+
 
 def test_string_response_repr():
     content = "abc"
@@ -49,17 +60,20 @@ def test_string_response_repr():
     resp = StringResponse(content, history)
     assert repr(resp) == "LLMResponse(abc)"
 
+
 def test_llmresponse_str():
     content = DummyContent()
     history = DummyMessageHistory()
     resp = LLMResponse(content, history)
     assert str(resp) == "DummyContent()"
 
+
 def test_string_response_str():
     content = "abc"
     history = DummyMessageHistory()
     resp = StringResponse(content, history)
     assert str(resp) == "abc"
+
 
 def test_structured_response_str():
     model = DummyModel(x=99)

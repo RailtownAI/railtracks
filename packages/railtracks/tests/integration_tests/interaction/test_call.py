@@ -218,6 +218,7 @@ async def test_no_context_call():
             key="This is a test keyword argument",
         )
 
+
 def add(x: float, y: float):
     """A simple synchronous function that adds two numbers."""
     return x + y
@@ -306,13 +307,12 @@ async def test_simple_rng():
 
 
 class NestedManyCalls(Node):
-    def __init__(self, ):
+    def __init__(
+        self,
+    ):
         super().__init__()
 
-    async def invoke(
-        self,
-        num_calls: int, parallel_calls: int, depth: int
-    ):
+    async def invoke(self, num_calls: int, parallel_calls: int, depth: int):
         data = []
         for _ in range(num_calls):
             if depth == 0:

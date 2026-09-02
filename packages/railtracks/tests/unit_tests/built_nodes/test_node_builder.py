@@ -9,7 +9,7 @@ from railtracks.built_nodes._node_builder import (
     safe_create_node,
 )
 from railtracks.built_nodes.function.node_builder import FunctionNodeBuilder
-from railtracks.built_nodes.llm.middleware import after_llm
+from railtracks.built_nodes.llm.middleware import post_llm
 from railtracks.built_nodes.llm.node_builder import LLMNodeBuilder
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.guardrails.core import GuardrailDecision
@@ -35,6 +35,7 @@ async def async_func(x: int) -> int:
 
 # --- LLMNodeBuilder.llm ---
 
+
 def test_nodebuilder_llm_basic_build():
     node_cls = LLMNodeBuilder.llm("TestNode", model=dummy_model()).build()
     assert issubclass(node_cls, Node)
@@ -48,14 +49,15 @@ def test_nodebuilder_llm_default_class_name():
 
 
 def test_nodebuilder_llm_custom_class_name():
-    node_cls = LLMNodeBuilder.llm("MyLLM", class_name="Custom", model=dummy_model()).build()
+    node_cls = LLMNodeBuilder.llm(
+        "MyLLM", class_name="Custom", model=dummy_model()
+    ).build()
     assert node_cls.__name__ == "CustomNode"
 
 
 def test_nodebuilder_llm_has_invoke():
     node_cls = LLMNodeBuilder.llm("TestNode", model=dummy_model()).build()
     assert hasattr(node_cls, "invoke")
-
 
 
 def test_nodebuilder_llm_with_tool_details_has_tool_info():
@@ -116,6 +118,7 @@ def test_nodebuilder_llm_duplicate_param_names_error():
 
 
 # --- tool_nodes accessor ---
+
 
 def _tool_node(func, name):
     return FunctionNodeBuilder.function(func, name=name).build()
@@ -197,6 +200,7 @@ def test_nodebuilder_llm_tool_nodes_survives_extend_middleware():
 
 # --- duplicate tool names ---
 
+
 def test_nodebuilder_llm_duplicate_tool_names_error():
     a = _tool_node(async_func, "power")
     b = _tool_node(async_func, "power")
@@ -257,6 +261,7 @@ def test_nodebuilder_llm_same_node_passed_twice_is_not_a_duplicate_name_error():
 
 
 # --- NodeBuilder.function ---
+
 
 def test_nodebuilder_function_basic_build():
     node_cls = FunctionNodeBuilder.function(async_func).build()
@@ -319,6 +324,7 @@ def test_nodebuilder_function_invoke_calls_func():
 
 # --- safe_create_node ---
 
+
 def test_safe_create_node_basic():
     async def invoke(self):
         return "ok"
@@ -357,6 +363,7 @@ def test_safe_create_node_optional_none_values_excluded():
 
 
 # --- classmethod_preserving_function_meta ---
+
 
 def test_classmethod_preserving_function_meta():
     def f(x):
@@ -558,7 +565,7 @@ def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
                 reason="always redact",
             )
 
-    @after_llm
+    @post_llm
     def overwrite_after_guardrail(response):
         return Response(
             message=AssistantMessage("overwritten by user middleware"),

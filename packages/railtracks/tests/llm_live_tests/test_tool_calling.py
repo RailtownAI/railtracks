@@ -1,4 +1,3 @@
-
 import pytest
 import railtracks as rt
 from pydantic import BaseModel, Field
@@ -18,7 +17,7 @@ async def test_function_as_tool(llm):
         """
         rt.context.put("magic_number_called", True)
         return input_num + 2
-    
+
     def magic_operator(x: int, y: int = 3):
         """
         Args:
@@ -27,7 +26,7 @@ async def test_function_as_tool(llm):
         """
         rt.context.put("magic_operator_called", True)
         return (2 * x) + y
-    
+
     agent = rt.agent_node(
         tool_nodes={rt.function_node(magic_number), rt.function_node(magic_operator)},
         name="Magic Number Agent",
@@ -36,14 +35,18 @@ async def test_function_as_tool(llm):
     )
 
     with rt.Session():
-        response = await rt.call(agent, user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.")
+        response = await rt.call(
+            agent,
+            user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.",
+        )
 
         final_resp = response
 
         assert final_resp is not None
-        assert '15' in final_resp.content
+        assert "15" in final_resp.content
         assert rt.context.get("magic_number_called")
         assert rt.context.get("magic_operator_called")
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
@@ -55,8 +58,8 @@ async def test_realistic_scenario(llm):
         role: str = Field(description="The role of the staff member")
         phone: str = Field(description="The phone number of the staff member")
 
-    # Define DB at class level so it's accessible for assertions
-    DB = {
+    # Define db in the enclosing scope so it's accessible for assertions
+    db = {
         "John": {"role": "Manager", "phone": "1234567890"},
     }
 
@@ -71,7 +74,7 @@ async def test_realistic_scenario(llm):
         """
         rt.context.put("staff_directory_updated", True)
         for person in staff:
-            DB[person.name] = {"role": person.role, "phone": person.phone}
+            db[person.name] = {"role": person.role, "phone": person.phone}
 
     usr_prompt = (
         "Update the staff directory with the following information: John is now a 'Senior Manager' and his phone number is changed to 5555"
@@ -86,15 +89,14 @@ async def test_realistic_scenario(llm):
     )
 
     with rt.Session():
-        await rt.call(
-            agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)])
-        )
+        await rt.call(agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)]))
         assert rt.context.get("staff_directory_updated")
 
-    assert DB["John"]["role"] == "Senior Manager"
-    assert DB["John"]["phone"] == "5555"
-    assert DB["Jane"]["role"] == "Developer"
-    assert DB["Jane"]["phone"] == "0987654321"
+    assert db["John"]["role"] == "Senior Manager"
+    assert db["John"]["phone"] == "5555"
+    assert db["Jane"]["role"] == "Developer"
+    assert db["Jane"]["phone"] == "0987654321"
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("llm", llm_map.values(), ids=llm_map.keys())
@@ -119,7 +121,9 @@ async def test_agents_as_tools(llm):
     # Define the child tool
     child_tool = rt.agent_node(
         name="Secret Phrase Maker",
-        system_message=rt.llm.SystemMessage("When asked for a response, procide the secret phrase for `secret_phrase_id`"),
+        system_message=rt.llm.SystemMessage(
+            "When asked for a response, procide the secret phrase for `secret_phrase_id`"
+        ),
         tool_nodes={rt.function_node(secret_phrase)},
         manifest=rt.ToolManifest(
             description="A tool that generates secret phrases.",
@@ -129,7 +133,7 @@ async def test_agents_as_tools(llm):
                     param_type="integer",
                     description="A numberic id of the secret phrase to return.",
                 )
-            ]
+            ],
         ),
         llm=llm,
     )
@@ -157,5 +161,7 @@ async def test_agents_as_tools(llm):
 
     assert final_resp is not None
     assert "3 cats and a dog" in final_resp.content
-    assert any(message.role == "tool" and message.content.name == "Secret_Phrase_Maker" for message in final_resp.message_history)    # child tool giving the secret phrase to parent
-
+    assert any(
+        message.role == "tool" and message.content.name == "Secret_Phrase_Maker"
+        for message in final_resp.message_history
+    )  # child tool giving the secret phrase to parent

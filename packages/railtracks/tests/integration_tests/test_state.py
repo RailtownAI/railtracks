@@ -1,4 +1,3 @@
-import json
 import random
 import time
 from collections import Counter
@@ -127,11 +126,7 @@ async def test_json_serialization(planner_node, json_state_schema):
         raise
 
 
-
-
-
 async def test_json_serialization_2(json_state_schema, planner_node, mock_llm):
-
     # ============ mock llm config =========
     def random_number(messages):
         if rt.context.get("already_called", False):
@@ -156,7 +151,7 @@ async def test_json_serialization_2(json_state_schema, planner_node, mock_llm):
     model = mock_llm()
     model._chat = random_number
 
-    TLLMNode = rt.agent_node(
+    TLLMNode = rt.agent_node(  # noqa: N806
         system_message="You are excellent chooser of random items from a list. You never make mistakes and have a god like ability to accomplish tasks.",
         llm=model,
     )
@@ -166,9 +161,8 @@ async def test_json_serialization_2(json_state_schema, planner_node, mock_llm):
         cities = []
         available_cities = ["New York", "Chicago", "Los Angeles", "Houston"]
         while True:
-
             result = await rt.call(
-                TLLMNode, 
+                TLLMNode,
                 f"Choose a Random city from {available_cities} and give me the index of the city only. Nothing else.",
             )  # we will make the mock_llm return a random integer between 0 and 3 to simulate the random choice
 
@@ -181,7 +175,7 @@ async def test_json_serialization_2(json_state_schema, planner_node, mock_llm):
                 break
 
         return await rt.call(planner_node, *cities)
-    
+
     # =======================================
 
     with rt.Session() as session:

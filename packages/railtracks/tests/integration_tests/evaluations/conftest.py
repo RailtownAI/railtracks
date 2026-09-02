@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 AGENT_ID_1 = "aaaaaaaa-0000-0000-0000-000000000001"
@@ -58,7 +57,10 @@ def make_session_dict(
                                         "model_name": "gpt-4",
                                         "model_provider": "OpenAI",
                                         "input": [
-                                            {"role": "system", "content": "You are helpful."},
+                                            {
+                                                "role": "system",
+                                                "content": "You are helpful.",
+                                            },
                                             {"role": "user", "content": "Stock price?"},
                                         ],
                                         "output": {

@@ -16,14 +16,6 @@ load_dotenv()  # Load environment variables from .env file
 model = rt.llm.AnthropicLLM("claude-sonnet-4-6")
 # --8<-- [end: anthropic]
 
-# --8<-- [start: cohere]
-import railtracks as rt
-from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env file
-
-model = rt.llm.CohereLLM("command-a-03-2025")
-# --8<-- [end: cohere]
-
 # --8<-- [start: gemini]
 import railtracks as rt
 from dotenv import load_dotenv
@@ -93,6 +85,5 @@ Agent = rt.agent_node(
     system_message="You are a helpful AI assistant.",
 )
 # --8<-- [end: to_agent]
-
 
 

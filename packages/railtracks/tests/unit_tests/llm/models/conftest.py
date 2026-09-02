@@ -128,17 +128,16 @@ class MockLogger(logging.Logger):
     @property
     def completion_start_time(self):
         return None
-    
+
     def _update_completion_start_time(self, completion_start_time):
         pass
 
     @property
     def _llm_caching_handler(self):
         return None
-    
+
     def success_handler(self, *args, **kwargs):
         pass
-
 
 
 class MockDelta(BaseModel):
@@ -171,11 +170,9 @@ class MockLiteLLMWrapper(LiteLLMWrapper):
     @classmethod
     def model_gateway(cls):
         return "mock"
-    
+
     def model_provider(self):
         return self.model_gateway()
-    
-
 
     def _invoke_content(self):
         return (

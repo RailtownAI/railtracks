@@ -23,7 +23,7 @@ def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMoc
     paginator.paginate.return_value = [{"Contents": page_contents}]
     client.get_paginator.return_value = paginator
 
-    def _get_object(Bucket: str, Key: str, **_: Any) -> dict[str, Any]:
+    def _get_object(Bucket: str, Key: str, **_: Any) -> dict[str, Any]:  # noqa: N803
         text = objects[Key]
         return {"Body": MagicMock(read=MagicMock(return_value=text.encode(encoding)))}
 
@@ -51,7 +51,9 @@ def make_container_client_for_loading(
     def _get_blob_client(blob_name: str) -> MagicMock:
         blob_client = MagicMock()
         text = blobs.get(blob_name, "")
-        blob_client.download_blob.return_value.readall.return_value = text.encode(encoding)
+        blob_client.download_blob.return_value.readall.return_value = text.encode(
+            encoding
+        )
         return blob_client
 
     container_client.get_blob_client.side_effect = _get_blob_client

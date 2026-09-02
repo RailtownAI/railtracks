@@ -146,9 +146,7 @@ async def test_all_chunkers_astream_documents(factory, multi_paragraph_doc):
 @pytest.mark.asyncio
 async def test_all_chunkers_concurrent_achunk(multi_paragraph_doc):
     chunkers = [f() for f in ALL_CHUNKERS]
-    results = await asyncio.gather(
-        *[c.achunk(multi_paragraph_doc) for c in chunkers]
-    )
+    results = await asyncio.gather(*[c.achunk(multi_paragraph_doc) for c in chunkers])
     assert len(results) == len(ALL_CHUNKERS)
     for chunks in results:
         assert len(chunks) >= 1
