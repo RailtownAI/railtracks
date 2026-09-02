@@ -15,7 +15,6 @@ from .models import (
     OpenAICompatibleProvider,
     OpenAILLM,
     PortKeyLLM,
-    # TelusLLM,
 )
 from .models._model_exception_base import (
     FunctionCallingNotSupportedError,
@@ -62,9 +61,6 @@ __all__ = [
     "OpenAILLM",
     "GeminiLLM",
     "OllamaLLM",
-    "AzureAILLM",
-    "GeminiLLM",
-    # "TelusLLM",
     "PortKeyLLM",
     "OpenAICompatibleProvider",
     # Parameter types
