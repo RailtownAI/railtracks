@@ -67,7 +67,7 @@ The code remains the same as [LLM Providers](providers.md) with the provider nam
         - Python 3.10+
         - Install with `pip install railtracks[apple]`
 
-    !!! caution "No tool calling in v1"
+    !!! caution "No tool calling"
 
         Apple's on-device SDK drives its own tool-calling loop and exposes
         no interception hook, so `AppleFMLLM.chat_with_tools()` raises

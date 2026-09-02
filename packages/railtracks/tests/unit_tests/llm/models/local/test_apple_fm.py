@@ -194,7 +194,7 @@ def test_construction_stores_metadata(fake_sdk):
     mod = _import_apple_fm_llm()
 
     llm = mod.AppleFMLLM()
-    assert llm.model_name() == "apple-fm-general"
+    assert llm.model_name() == "apple-fm"
 
     from railtracks.llm import ModelProvider
 
@@ -245,7 +245,7 @@ def test_achat_returns_response_with_null_usage(fake_sdk):
     assert info.output_tokens is None
     assert info.total_cost is None
     assert info.system_fingerprint is None
-    assert info.model_name == "apple-fm-general"
+    assert info.model_name == "apple-fm"
     assert info.latency is not None and info.latency >= 0
 
 
@@ -262,12 +262,12 @@ def test_chat_sync_raises_inside_running_loop(fake_sdk):
     _, _, session = fake_sdk
     session.respond = AsyncMock(return_value="x")
     mod = _import_apple_fm_llm()
-    from railtracks.llm import ModelError
+    from railtracks.exceptions.errors import LLMError
 
     llm = mod.AppleFMLLM()
 
     async def run():
-        with pytest.raises(ModelError) as exc:
+        with pytest.raises(LLMError) as exc:
             llm.chat(_msg_history(user="hi"))
         assert "cannot be called from inside a running event loop" in str(exc.value)
 

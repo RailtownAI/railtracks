@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, AsyncGenerator, List, Literal, Type
+from typing import Any, AsyncGenerator, List, Type
 
 from pydantic import BaseModel
 
@@ -37,10 +37,7 @@ from ...providers import ModelProvider
 from ...response import MessageInfo, Response
 from ...retries.base import RetryApproach
 from ...tools import Tool
-from .._model_exception_base import (
-    ModelError,
-    UnsupportedHyperparameterError,
-)
+from .._model_exception_base import UnsupportedHyperparameterError
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +80,7 @@ def _normalize_schema_for_apple(schema: dict) -> dict:
     return schema
 
 
-class AppleFMUnavailableError(ModelError):
+class AppleFMUnavailableError(LLMError):
     """Raised when the on-device model is not available on this machine.
 
     Covers: unsupported OS/hardware, Apple Intelligence disabled, model assets
@@ -94,14 +91,14 @@ class AppleFMUnavailableError(ModelError):
         super().__init__(reason=reason)
 
 
-class AppleFMSafetyRefusalError(ModelError):
+class AppleFMSafetyRefusalError(LLMError):
     """Raised when the on-device model refuses a request on safety grounds.
 
     Maps `fm.GuardrailViolationError` and `fm.RefusalError` so callers can
     distinguish safety refusals from other model failures.
     """
 
-    def __init__(self, reason: str, message_history: MessageHistory | None = None):
+    def __init__(self, reason: str, message_history: MessageHistory):
         super().__init__(reason=reason, message_history=message_history)
 
 
@@ -115,12 +112,47 @@ class AppleFMLLM(ModelBase):
     See the module docstring for the deliberate scope: chat, structured
     output, and streaming chat are supported; tool calling and streaming
     structured output raise `NotImplementedError`.
+
+    Only the `general` on-device preset is used. Apple also ships a
+    `content_tagging` preset tuned for classification-shaped outputs, but
+    classification is not an agent-loop shape and doesn't fit railtracks'
+    purpose. Users who need it should drop down to `apple_fm_sdk`
+    directly.
+
+    Args:
+        temperature (float | None, optional): Sampling temperature.
+            Passed through to `fm.GenerationOptions`. None uses the
+            SDK default.
+        maximum_response_tokens (int | None, optional): Hard cap on
+            the number of tokens the model may produce.
+        sampling_seed (int | None, optional): If set, sampling runs
+            in `SamplingMode.random(seed=...)` for reproducible
+            outputs across runs.
+        guardrails (bool, optional): When True (default) uses Apple's
+            `SystemLanguageModelGuardrails.DEFAULT`. When False,
+            switches to `PERMISSIVE_CONTENT_TRANSFORMATIONS` if the
+            SDK exposes it. Safety refusals still raise
+            `AppleFMSafetyRefusalError` in either mode.
+        retry_approach (RetryApproach | None, optional): Retry
+            strategy passed to `ModelBase` for transient failures.
+        **kwargs: Rejected. Any non-None value here raises
+            `UnsupportedHyperparameterError` — Apple's SDK does not
+            accept `top_p`, penalties, or stop tokens, so silently
+            accepting them would mislead callers.
+
+    Raises:
+        ImportError: `apple_fm_sdk` is not installed. Install with
+            `pip install railtracks[apple]`.
+        AppleFMUnavailableError: The on-device model is unavailable
+            on this machine — unsupported OS/hardware, Apple
+            Intelligence disabled, or assets not yet downloaded.
+        UnsupportedHyperparameterError: An unknown kwarg was passed
+            with a non-None value.
     """
 
     def __init__(
         self,
         *,
-        use_case: Literal["general", "content_tagging"] = "general",
         temperature: float | None = None,
         maximum_response_tokens: int | None = None,
         sampling_seed: int | None = None,
@@ -140,13 +172,12 @@ class AppleFMLLM(ModelBase):
         for k, v in kwargs.items():
             if v is not None:
                 raise UnsupportedHyperparameterError(
-                    model_name=f"apple-fm-{use_case}", hyperparameter=k, value=v
+                    model_name="apple-fm", hyperparameter=k, value=v
                 )
 
         super().__init__(retry_approach=retry_approach)
 
         self._fm = fm
-        self._use_case = use_case
         self._guardrails = guardrails
         self._temperature = temperature
         self._maximum_response_tokens = maximum_response_tokens
@@ -160,11 +191,17 @@ class AppleFMLLM(ModelBase):
             )
 
     def _make_model_handle(self):
+        """Build the `fm.SystemLanguageModel` handle used to check
+        availability and to seed sessions. Uses `getattr` for the enum
+        classes so an older SDK build without one of them still loads.
+        Always uses the `GENERAL` preset; the `content_tagging` preset
+        is deliberately out of scope for this agentic framework.
+        """
         fm = self._fm
         kwargs: dict[str, Any] = {}
         cases = getattr(fm, "SystemLanguageModelUseCase", None)
         if cases is not None:
-            kwargs["use_case"] = getattr(cases, self._use_case.upper(), cases.GENERAL)
+            kwargs["use_case"] = cases.GENERAL
         rails = getattr(fm, "SystemLanguageModelGuardrails", None)
         if rails is not None:
             kwargs["guardrails"] = (
@@ -175,6 +212,12 @@ class AppleFMLLM(ModelBase):
         return fm.SystemLanguageModel(**kwargs)
 
     def _build_options(self) -> Any | None:
+        """Assemble an `fm.GenerationOptions` from the stored knobs, or
+        `None` if none are set. Returning `None` lets `respond()` be
+        called without the `options=` kwarg, which matters when the
+        installed SDK is older than expected and doesn't have
+        `GenerationOptions` at all.
+        """
         fm = self._fm
         opts_cls = getattr(fm, "GenerationOptions", None)
         if opts_cls is None:
@@ -196,13 +239,20 @@ class AppleFMLLM(ModelBase):
         return opts_cls(**kwargs) if kwargs else None
 
     def model_name(self) -> str:
-        return f"apple-fm-{self._use_case}"
+        """Return `"apple-fm"`. There is no preset suffix: the class
+        always uses Apple's `GENERAL` on-device preset.
+        """
+        return "apple-fm"
 
     def model_provider(self) -> ModelProvider:
+        """Return `ModelProvider.APPLE_FM`. See the enum's docstring."""
         return ModelProvider.APPLE_FM
 
     @classmethod
     def model_gateway(cls) -> ModelProvider:
+        """Return `ModelProvider.APPLE_FM`. Same as `model_provider`
+        because on-device Apple has no separate gateway routing.
+        """
         return ModelProvider.APPLE_FM
 
     def _reject_attachments(self, messages: MessageHistory) -> None:
@@ -264,6 +314,18 @@ class AppleFMLLM(ModelBase):
         return instructions, prior, final_prompt
 
     def _make_session(self, messages: MessageHistory) -> tuple[Any, str]:
+        """Build a fresh `fm.LanguageModelSession` for this turn and
+        return it along with the final-user prompt string.
+
+        Two paths:
+          - No prior turns: plain `LanguageModelSession(instructions=...)`.
+          - Prior turns: reconstruct an `fm.Transcript` via
+            `Transcript.from_dict` and seed the session with
+            `from_transcript`. If `from_dict` isn't available or the
+            reconstruction raises (SDK-version shape drift), fall back
+            to a plain single-turn session and log a warning — better
+            than hard-failing multi-turn calls when the SDK changes.
+        """
         fm = self._fm
         instructions, prior, final_prompt = self._split_history(messages)
 
@@ -318,6 +380,10 @@ class AppleFMLLM(ModelBase):
         )
 
     def _prepare_response(self, content: Any, latency: float) -> Response:
+        """Wrap raw model output into a `Response`. Mirrors the
+        `_prepare_response` helper in `LiteLLMWrapper` so both providers
+        return the same shape to the framework.
+        """
         return Response(
             AssistantMessage(content),
             self.extract_message_info(latency=latency),
@@ -325,7 +391,13 @@ class AppleFMLLM(ModelBase):
 
     def _translate_fm_error(
         self, e: BaseException, messages: MessageHistory
-    ) -> ModelError:
+    ) -> LLMError:
+        """Map an `fm.FoundationModelsError` subclass to the closest
+        railtracks-native error. Safety refusals become
+        `AppleFMSafetyRefusalError`, missing-asset failures become
+        `AppleFMUnavailableError`, everything else falls back to a
+        generic `LLMError`.
+        """
         fm = self._fm
         safety = tuple(
             cls
@@ -345,12 +417,17 @@ class AppleFMLLM(ModelBase):
         return LLMError(reason=str(e), message_history=messages)
 
     def _run_sync(self, coro):
+        """Bridge a sync-API call to Apple's async-only SDK. Uses
+        `asyncio.run` when no loop is running; refuses if one is,
+        because nesting an event loop inside another silently corrupts
+        state — the caller has to switch to the async variants.
+        """
         try:
             asyncio.get_running_loop()
         except RuntimeError:
             return asyncio.run(coro)
         coro.close()
-        raise ModelError(
+        raise LLMError(
             reason=(
                 "AppleFMLLM sync API cannot be called from inside a running "
                 "event loop. Use achat / astructured / astream_chat instead."
@@ -413,8 +490,13 @@ class AppleFMLLM(ModelBase):
         schema: Type[BaseModel],
         messages: MessageHistory,
     ) -> BaseModel:
+        """Convert Apple's `GeneratedContent` (or a raw string in some
+        SDK versions) into an instance of `schema`. Raises `LLMError` if
+        the payload doesn't validate — treated as a model failure the
+        caller should retry or surface, not a bug in the schema.
+        """
         to_json = getattr(result, "to_json", None)
-        raw = to_json() if callable(to_json) else str(result)
+        raw: str = str(to_json()) if callable(to_json) else str(result)
         try:
             return schema.model_validate_json(raw)
         except Exception as e:
