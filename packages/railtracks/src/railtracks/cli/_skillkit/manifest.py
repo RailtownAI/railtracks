@@ -1,26 +1,12 @@
-"""What an install left on disk, so a re-install can be a sync rather than a copy.
+"""The record an install leaves behind, so the next one can sync instead of copy.
 
-A plain directory copy cannot remove anything. When a skill drops a `references/`
-page, the old page stays in the user's repo and the assistant goes on reading it —
-the failure this module exists to prevent. Removing it safely needs one thing a copy
-never has: **proof that we wrote the file and that nobody has touched it since.**
-That is the whole reason each record carries a per-file hash rather than just a path.
+Every install writes `.railtracks.json` into the skill directory: which skill and
+target it was, the railtracks version that wrote it, and a hash per file. The hashes
+are what make removal safe — only a file this record names, whose bytes are still
+unchanged, may be deleted on a re-install.
 
-One manifest per installed skill, written into the skill directory itself as
-`.railtracks.json`. The record and the files it describes are therefore created,
-overwritten and deleted together, so a manifest can never outlive its files or
-describe a directory somebody removed by hand. Every target uses the same shape,
-because every target's modern install is the same shape: `<root>/<name>/SKILL.md`
-plus supporting files.
-
-**Legacy installs are deliberately not in here.** Copilot's marker block in
-`copilot-instructions.md` and Cursor's `.cursor/rules/<name>.mdc` are shapes we no
-longer write (D10), so no manifest we produce will ever record one, and the ones
-already on users' disks predate manifests entirely — there is nothing to look up.
-They get `find_legacy_installs`: detection that reports and never removes, because
-a `.mdc` carries nothing that says railtracks and deleting on a filename guess
-eventually eats a rule someone hand-wrote. That detection is time-boxed to one minor
-cycle after the directory install ships, and then deleted along with this comment.
+`find_legacy_installs` covers skill installs written in the other shapes older
+railtracks versions used; it reports them and never removes them.
 """
 
 from __future__ import annotations
@@ -33,20 +19,30 @@ from pathlib import Path
 
 MANIFEST_FILE = ".railtracks.json"
 
-# Bumped only when an older CLI could misread a newer record. A record whose version
-# we do not recognise is treated as absent: we will overwrite files we cannot prove
-# are ours, but we will never delete one on a guess.
 MANIFEST_VERSION = 1
+"""Schema version of the `.railtracks.json` payload.
+
+`from_json` accepts only this exact value; anything else parses to None and the
+install proceeds as if no record existed — prompting before it overwrites, and
+removing nothing. That failure direction holds whichever side is newer: an old CLI
+will not act on fields it cannot interpret, and a new CLI will not assume an older
+record's fields still mean what its own do.
+
+Bump it only when a change would make either of those misread the other: a field
+removed or repurposed, a hash algorithm swapped, `path` changing what it is relative
+to. Adding an optional field that older readers can ignore does not need a bump,
+because they never see it — `from_json` reads named keys and drops the rest.
+
+Bumping costs every installed skill one silent degradation to copy semantics until
+its next re-install rewrites the manifest, so it is not free.
+"""
 
 _UNKNOWN_VERSION = "unknown"
 
 
 def package_version() -> str:
-    """The installed railtracks version, or `"unknown"` outside an install.
-
-    Read from package metadata rather than importing `railtracks`, which would pull
-    the whole SDK into a CLI that deliberately stays light.
-    """
+    """The installed railtracks version, or `"unknown"` outside an install."""
+    # NOTE: read from metadata, not `import railtracks`, to keep the CLI light.
     try:
         return version("railtracks")
     except PackageNotFoundError:
@@ -78,9 +74,8 @@ class InstallRecord:
     def to_json(self) -> str:
         """Serialise deterministically.
 
-        No timestamp, deliberately: re-installing an unchanged skill then produces a
-        byte-identical manifest, so a committed manifest does not churn the diff every
-        time somebody re-runs the command.
+        Carries no timestamp, so re-installing an unchanged skill rewrites the same
+        bytes and a committed manifest does not churn the diff.
         """
         return (
             json.dumps(
@@ -98,11 +93,10 @@ class InstallRecord:
 
     @classmethod
     def from_json(cls, text: str) -> InstallRecord | None:
-        """Parse a manifest, or return None if it is unreadable or too new.
+        """Parse a manifest, or return None if it is unreadable or not `MANIFEST_VERSION`.
 
-        Tolerant on purpose. A corrupt or future manifest must degrade to "we know
-        nothing about this directory", which costs an overwrite prompt, rather than
-        raising and blocking the install or licensing a delete.
+        Never raises: an unusable record degrades to "nothing is known about this
+        directory", which costs a prompt rather than blocking the install.
         """
         try:
             raw = json.loads(text)
@@ -164,10 +158,9 @@ def record_for(
 def is_ours_unmodified(
     path: Path, destination: Path, previous: InstallRecord | None
 ) -> bool:
-    """True if `previous` says we wrote `path` and its bytes still match.
+    """True if `previous` names `path` and its bytes still match what was recorded.
 
-    The one question that licenses acting on a file without asking. A file we never
-    recorded, or one whose bytes have moved since, answers no.
+    The only question that licenses touching a file without asking.
     """
     if previous is None:
         return False
@@ -186,9 +179,8 @@ def stale_files(
 ) -> tuple[list[Path], list[Path]]:
     """Split what the last install wrote and this one does not into (removable, edited).
 
-    `removable` is every file we recorded, no longer ship, and can still prove is
-    byte-for-byte what we left. `edited` is the rest — present but changed since we
-    wrote it, so somebody has put work into it and it is not ours to delete.
+    `removable` is recorded, unshipped and byte-for-byte unchanged. `edited` is the
+    rest: present but altered since it was written, so not ours to delete.
     """
     if previous is None:
         return [], []
@@ -201,7 +193,7 @@ def stale_files(
             continue
         path = destination / recorded.path
         if not path.is_file():
-            continue  # already gone; nothing to do and nothing to report
+            continue  # already gone
         if is_ours_unmodified(path, destination, previous):
             removable.append(path)
         else:
@@ -239,7 +231,8 @@ def version_skew(previous: InstallRecord | None) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Legacy install detection — report only, and time-boxed (D10)
+# Legacy install detection — report only
+# TODO: drop this section once the older install shapes are out of circulation.
 # ---------------------------------------------------------------------------
 
 COPILOT_INSTRUCTIONS = Path(".github") / "copilot-instructions.md"
@@ -248,16 +241,15 @@ CURSOR_RULES = Path(".cursor") / "rules"
 
 @dataclass(frozen=True)
 class LegacyInstall:
-    """An install in a shape we no longer write, found on disk.
+    """A skill install found on disk in one of the older shapes.
 
     Attributes:
         target: The assistant it was installed for.
         path: The file holding it.
         shape: `"region"` for a fenced block inside a file the user also owns,
-            `"file"` for a whole file. The two need different removals, which is why
-            the distinction is recorded rather than inferred at the call site.
+            `"file"` for a whole file. Each needs a different removal.
         confirmed: Whether the install identifies itself as ours. Copilot's markers
-            do; a Cursor `.mdc` never can, so it is a name match and nothing more.
+            do; a Cursor `.mdc` cannot, so it is a name match and nothing more.
     """
 
     target: str
@@ -266,7 +258,7 @@ class LegacyInstall:
     confirmed: bool
 
     def advice(self) -> str:
-        """What to tell the user, given we will not remove it for them."""
+        """What to tell the user, given it will not be removed for them."""
         if self.shape == "region":
             return (
                 f"{self.path} still carries a legacy {self.target} install of this "
@@ -289,12 +281,10 @@ class LegacyInstall:
 def find_legacy_installs(
     skill_name: str, project: Path | None = None
 ) -> list[LegacyInstall]:
-    """Find installs of `skill_name` in shapes this version no longer writes.
+    """Find installs of `skill_name` in the older shapes, under `project`.
 
-    Detection only. Nothing here removes anything, and nothing should start to:
-    these installs predate the manifest, so there is no record saying we wrote them,
-    and Cursor's file carries no marker of its own. A name match is a reason to tell
-    the user, never a reason to delete their file.
+    Detection only, and it must stay that way: no manifest describes these, and a
+    Cursor `.mdc` carries no marker, so a match is never proof the file is ours.
     """
     root = Path(".") if project is None else project
     found: list[LegacyInstall] = []
@@ -321,8 +311,7 @@ def find_legacy_installs(
             text = rule.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             text = ""
-        # The strongest signal available: the frontmatter our generator emitted. It
-        # raises confidence for the report; it never authorises a delete.
+        # Matching our generated frontmatter raises confidence; it never licenses a delete.
         found.append(
             LegacyInstall(
                 target="Cursor",

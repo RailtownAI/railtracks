@@ -1,35 +1,9 @@
-"""Installing a discovered skill directory into an assistant's native layout.
+"""Installing a skill directory into an assistant's native layout.
 
-Every assistant that supports skill *directories* takes the same install: copy
-``SKILL.md`` plus its supporting files to ``<root>/<name>/``, with the skill's
-frontmatter projected into the keys that assistant actually consumes. Only two
-things differ per target, so those two are the parameters and
-`install_skill_directory` is the shared body:
-
-* **the root path** — ``.claude/skills``, ``.agents/skills``, ``.github/skills``,
-  ``.cursor/skills``. Each assistant gets its own native path even where the paths
-  cross-read, so that one ``railtracks add`` maps to exactly one directory on disk.
-* **the projection** — how the skill's metadata and body become the file the target
-  reads. Both halves live here rather than in a handler: the frontmatter half
-  because targets consume different key sets, and the body half because
-  ``$ARGUMENTS`` is substituted only by Claude Code and must be resolved away for
-  everyone else. A handler that copies ``skill.body`` straight to disk reintroduces
-  that bug for its target.
-
-Claude Code is the first target through here. The remaining three wait on the
-install manifest, which owns removing the legacy installs they are migrating from.
-
-Re-installing is a **sync**, not a copy: `manifest` records what each install
-wrote, so the next one can remove a supporting file we shipped before and no longer
-do. Removal is gated on proof — the file must be one we recorded *and* still be
-byte-for-byte what we left — so a file somebody edited is reported and kept.
-
-**Authoring constraint for skills that ship supporting files:** Claude Code reads a
-supporting file only when ``SKILL.md`` links it, while Copilot auto-discovers the
-whole directory. A skill written for auto-discovery therefore silently
-under-delivers on Claude Code, so every supporting file must be linked from the
-body by explicit relative path. That is the strict case, and it is free for every
-other target.
+An `InstallTarget` supplies the two things that differ per assistant — the root path
+it reads skills from, and the projection that renders `SKILL.md` for it.
+`install_skill_directory` does the rest: copy the directory, drop what a previous
+install left and this one does not ship, and record the result for the next one.
 """
 
 from __future__ import annotations
@@ -67,8 +41,7 @@ class InstallTarget:
             the project the user is running in.
         frontmatter: Renders the skill's metadata into the target's frontmatter
             block, `---` delimiters and trailing blank line included.
-        body: Renders the Markdown body the target receives. Only Claude Code
-            passes it through unchanged; see the module docstring.
+        body: Renders the Markdown body the target receives.
     """
 
     key: str
@@ -86,21 +59,16 @@ def render_frontmatter(
 ) -> str:
     """Render a frontmatter block from projected keys plus a target's `tools:` block.
 
-    `ordered` carries the keys every install of this target emits, in the order it
-    emits them, and is rendered verbatim — a value of None omits its key entirely,
-    which is how an absent `argument-hint` avoids shipping the literal "None".
-    `extra` is the target's own `tools.<assistant>` block: rendered through YAML
-    rather than by hand, because its values are whatever the skill author wrote and
-    unknown keys have to survive unchanged. Leaf collections stay in flow style, so a
-    hand-written `allowed-tools: [Read, Edit]` comes back out the way it went in.
+    `ordered` is emitted verbatim in the given order; a value of None omits its key.
+    `extra` is the target's `tools.<assistant>` block, dumped through YAML so that
+    author-written values and unknown keys survive unchanged.
     """
     lines = [f"{key}: {value}\n" for key, value in ordered if value is not None]
 
     emitted = {key for key, value in ordered if value is not None}
     passthrough = {}
     for key, value in (extra or {}).items():
-        # A duplicate key would be silently resolved by whichever YAML parser reads
-        # the result, so the projected key wins and the collision is reported.
+        # A duplicate key would be resolved silently by the reader, so warn instead.
         if key in emitted:
             print_warning(
                 f"skill '{skill_name}': '{key}' in the tools block is ignored; "
@@ -127,11 +95,8 @@ def _quote(value: str) -> str:
 def claude_frontmatter(skill: Skill) -> str:
     """Project a skill into the frontmatter Claude Code consumes.
 
-    `name` and `description` are Claude-native keys already, so this is close to a
-    verbatim copy — which is the point of building the reference handler here.
-    `argument-hint` is Claude-only (no other target has the field or a documented
-    substitution), and `tools.claude` carries the rest: `allowed-tools`, `paths`,
-    `disable-model-invocation`, and anything a later Claude version adds.
+    `name` and `description` map across directly, `argument-hint` is emitted when the
+    skill has one, and `tools.claude` supplies everything else.
     """
     return render_frontmatter(
         (
@@ -153,8 +118,7 @@ CLAUDE = InstallTarget(
     key="claude",
     label="Claude Code",
     root=Path(".claude") / "skills",
-    # Claude Code is the one target that substitutes $ARGUMENTS, so it is the one
-    # target whose body ships as authored.
+    # Claude Code substitutes $ARGUMENTS itself, so its body ships as authored.
     body=lambda skill: skill.body,
     frontmatter=claude_frontmatter,
 )
@@ -176,13 +140,10 @@ def install_skill_directory(
     """Sync `skill` into `target` and return the files written, in write order.
 
     Writes what the package ships now, removes what a previous install wrote and this
-    one does not, and records the result so the *next* install can do the same.
+    one does not, and records the result for the next install.
 
-    Prompts before touching anything it cannot prove is ours and unmodified, unless
-    `force` is set, and exits without writing if the user declines. A file we wrote
-    and nobody has edited is not worth a prompt — re-running the command would
-    otherwise nag about its own output, which only teaches people to reach for
-    `--force` and lose the protection where it matters.
+    Prompts before touching any file it cannot prove was written by a previous
+    install and left untouched, unless `force` is set; exits if the user declines.
     """
     destination = target.root / skill.name
     planned = _planned_files(skill, destination)
@@ -198,8 +159,7 @@ def install_skill_directory(
         if path.exists() and not is_ours_unmodified(path, destination, previous)
     ]
     if at_risk and not force:
-        # One clash reads better named directly; several read better as the
-        # directory they share.
+        # One clash reads better named directly; several, as the directory they share.
         if not confirm_overwrite(at_risk[0] if len(at_risk) == 1 else destination):
             print_status("Aborted.")
             sys.exit(0)

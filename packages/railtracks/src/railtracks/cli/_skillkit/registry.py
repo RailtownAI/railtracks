@@ -1,17 +1,16 @@
 """Discovery and validation of the bundled skill directories.
 
-A skill is a directory under ``cli/skills/`` containing a ``SKILL.md`` whose YAML
-frontmatter carries the metadata the CLI used to hardcode:
+A skill is a directory under ``cli/skills/`` holding a ``SKILL.md`` whose YAML
+frontmatter carries its metadata:
 
 ---
 name: agent-builder            # required, must equal the directory name
 description: ...               # required, non-empty
 argument-hint: "[...]"         # optional
 tools:                         # optional, per-assistant overrides
-    cursor:
+  cursor:
     globs: "**/*.py"
-    alwaysApply: false
-    claude:
+  claude:
     allowed-tools: [Read, Edit, Bash]
 ---
 """
@@ -35,12 +34,7 @@ _IGNORED_DIR_NAMES = frozenset({"__pycache__"})
 
 
 class SkillFormatError(Exception):
-    """A bundled skill directory does not satisfy the on-disk skill format.
-
-    Deliberately its own type rather than ``ValueError``: callers need to tell a
-    malformed skill apart from any other bad value, and the CLI is the only thing
-    that should be reporting it.
-    """
+    """A bundled skill directory does not satisfy the on-disk skill format."""
 
 
 @dataclass(frozen=True)
@@ -80,7 +74,7 @@ def _split_frontmatter(text: str) -> tuple[str, str] | None:
     if not lines or lines[0].strip() != "---":
         return None
     for idx in range(1, len(lines)):
-        # Leave the blank line before the first heading with frontmatter so handlers can re-emit it correctly.
+        # Keep the blank line after the frontmatter so handlers re-emit it.
         if lines[idx].strip() == "---":
             return "".join(lines[1:idx]), "".join(lines[idx + 1 :]).lstrip("\n")
     return None
@@ -89,9 +83,8 @@ def _split_frontmatter(text: str) -> tuple[str, str] | None:
 def _parse_tools(raw: Any, directory: Path) -> Mapping[str, Mapping[str, Any]]:
     """Validate the outer shape of a `tools:` block, leaving its contents alone.
 
-    Unknown assistant names and unknown keys within them are preserved verbatim: an
-    unrecognised `tools.windsurf` is an assistant this version does not support yet,
-    and rejecting it would make the schema a blocker for adding assistants later.
+    Unknown assistant names and unknown keys within them are preserved verbatim; an
+    unrecognised `tools.some-assistant` is one this version does not support yet.
     """
     if raw is None:
         return MappingProxyType({})
@@ -166,7 +159,6 @@ def load_skill(directory: Path) -> Skill:
     """Read and validate one skill directory. Raises `SkillFormatError` if invalid."""
     frontmatter, body = _read_skill_file(directory)
 
-    # raise error on unknown keys
     unknown = sorted(set(frontmatter) - _ALLOWED_KEYS)
     if unknown:
         raise SkillFormatError(
@@ -212,13 +204,8 @@ def load_skill(directory: Path) -> Skill:
 
 
 def default_skills_directory() -> Path:
-    """The directory the bundled skills are shipped in.
-
-    `cli/skills/`, one level above this package: the content sits beside the CLI rather
-    than beside the code that reads it, because every directory under that root has to
-    be a skill — `discover_skills` rejects anything without a `SKILL.md`, so a Python
-    package could not live among them.
-    """
+    """The directory the bundled skills are shipped in: ``cli/skills/``."""
+    # NOTE: every directory here must be a skill, so no Python package may sit among them.
     return Path(__file__).parent.parent / "skills"
 
 
