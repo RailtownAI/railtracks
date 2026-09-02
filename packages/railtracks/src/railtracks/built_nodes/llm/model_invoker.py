@@ -62,13 +62,15 @@ def _stream_queue_if_enabled(
 async def _drain_to_queue(
     model_stream: AsyncIterator[str | Response],
     queue: asyncio.Queue[Any],
+    messages: MessageHistory | None = None,
 ) -> Response:
     """
     Consumes a model token stream, forwarding each `str` chunk onto the astream queue and
     returning the terminal `Response`.
 
     Mirrors the buffered call's fail-fast contract: if the stream ends without producing a
-    `Response`, an `LLMError` is raised rather than returning a partial result.
+    `Response`, an `LLMError` is raised rather than returning a partial result. `messages` is
+    attached to that error so the streaming failure carries the same context as a buffered one.
     """
     final: Any = None
     async for item in model_stream:
@@ -78,7 +80,10 @@ async def _drain_to_queue(
             final = item
 
     if not isinstance(final, Response):
-        raise LLMError(reason="The stream did not yield a final Response object.")
+        raise LLMError(
+            reason="The stream did not yield a final Response object.",
+            message_history=messages,
+        )
 
     return final
 
@@ -202,7 +207,7 @@ class ModelInvoker:
 
                 # _drain_to_queue returns the complete Response (or raises LLMError if the
                 # stream never produced one), mirroring the buffered branch below.
-                return await _drain_to_queue(model_stream, stream_queue)
+                return await _drain_to_queue(model_stream, stream_queue, messages)
 
             if tools is not None and len(tools) > 0:
                 return await asyncio.to_thread(
