@@ -371,7 +371,7 @@ class RetrievalRuntime:
                 ok_chunks.append(chunk)
         return ok_chunks, failures
 
-    async def _embed_and_store(
+    async def _embed_and_store(  # noqa: C901
         self,
         doc: Document,
         chunks: list[Chunk],
