@@ -76,32 +76,35 @@ class LLMError(RTError):
         if not self.message_history:
             return self._color(base, self.RED)
 
-        # Lazy import to keep the exceptions module free of a hard logging dep.
-        from railtracks.utils.logging.config import verbose_llm_errors
-
         try:
             count = len(self.message_history)
         except TypeError:
             count = None
 
-        if verbose_llm_errors():
-            mh_str = str(self.message_history)
-            indented_mh = "\n".join("    " + line for line in mh_str.splitlines())
-            detail = self._color("Message History:\n", self.BOLD_GREEN) + self._color(
-                indented_mh, self.GREEN
-            )
-        else:
-            summary = (
-                f"{count} message(s) redacted; "
-                "enable via rt.enable_logging(verbose_llm_errors=True)"
-                if count is not None
-                else "message history redacted; "
-                "enable via rt.enable_logging(verbose_llm_errors=True)"
-            )
-            detail = self._color("Message History: ", self.BOLD_GREEN) + self._color(
-                summary, self.GREEN
-            )
+        summary = (
+            f"{count} message(s) redacted; "
+            "call err.format_verbose() to render or read err.message_history"
+            if count is not None
+            else "message history redacted; "
+            "call err.format_verbose() to render or read err.message_history"
+        )
+        detail = self._color("Message History: ", self.BOLD_GREEN) + self._color(
+            summary, self.GREEN
+        )
+        notes_str = "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
+        return f"\n{self._color(base, self.RED)}{notes_str}"
 
+    def format_verbose(self) -> str:
+        """Render the exception with the full input ``MessageHistory`` embedded."""
+        base = super().__str__()
+        if not self.message_history:
+            return self._color(base, self.RED)
+
+        mh_str = str(self.message_history)
+        indented_mh = "\n".join("    " + line for line in mh_str.splitlines())
+        detail = self._color("Message History:\n", self.BOLD_GREEN) + self._color(
+            indented_mh, self.GREEN
+        )
         notes_str = "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
         return f"\n{self._color(base, self.RED)}{notes_str}"
 

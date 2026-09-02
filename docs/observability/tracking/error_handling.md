@@ -40,6 +40,23 @@ All internal errors include helpful debugging notes and formatted error messages
     --8<-- "docs/scripts/error_handling.py:fatal_error"
     ```
 
+### Inspecting LLMError message history
+
+`LLMError` carries the input `MessageHistory` on `err.message_history` so you can inspect it programmatically. `str(err)` and `repr(err)` never embed that history. The exception text shows only a redacted summary like `"N message(s) redacted"`. This keeps conversation contents (which may include PII, credentials, or customer data) out of anything that captures the exception string, such as `logger.exception(...)` or a crash reporter.
+
+!!! danger "Full Message History"
+    If you need the full history in a log line for debugging, render it explicitly at the call site:
+
+    ```python
+    from railtracks.exceptions import LLMError
+
+    try:
+        ...
+    except LLMError as err:
+        logger.error("LLM call failed: %s", err.format_verbose())
+        # or route err.message_history wherever your data-handling policy allows
+    ```
+
 ## Error Handling Patterns
 
 ???+ example "Basic Error Handling"

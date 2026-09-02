@@ -49,20 +49,6 @@ Loggers use dotted names (often from `__name__`), e.g. `RT.railtracks._session`.
 
 File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console formatter applies `name_style`.
 
-### LLM error verbosity
-
-When an LLM call fails, `LLMError` carries the input `MessageHistory` on `err.message_history` so you can inspect it programmatically. By default, `str(err)` and `repr(err)` **do not** embed that history and only a redacted summary (`"N message(s) redacted"`) appears in the exception text. This keeps conversation contents (which may include PII, credentials, or customer data) out of anything that captures the exception string, such as `logger.exception(...)` or a crash reporter.
-
-For local debugging, opt in with `verbose_llm_errors=True`:
-
-```python
-import railtracks as rt
-
-rt.enable_logging(level="DEBUG", verbose_llm_errors=True)
-```
-
-With the flag on, the full history is rendered into the exception string as before. Leave it off in production; if you need the history in a controlled way, read `err.message_history` directly in your `except` block and route it wherever your data-handling policy allows.
-
 ### Logging Levels
 
 Railtracks supports six logging levels aligned with the standard Python logging framework:
