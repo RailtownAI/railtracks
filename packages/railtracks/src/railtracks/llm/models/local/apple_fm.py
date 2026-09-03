@@ -25,7 +25,6 @@ from typing import Any, AsyncGenerator, List, Type
 
 from pydantic import BaseModel
 
-from ....exceptions.errors import LLMError
 from ...history import MessageHistory
 from ...message import (
     AssistantMessage,
@@ -37,7 +36,7 @@ from ...providers import ModelProvider
 from ...response import MessageInfo, Response
 from ...retries.base import RetryApproach
 from ...tools import Tool
-from .._model_exception_base import UnsupportedHyperparameterError
+from .._model_exception_base import ModelError, UnsupportedHyperparameterError
 
 logger = logging.getLogger(__name__)
 
@@ -80,22 +79,28 @@ def _normalize_schema_for_apple(schema: dict) -> dict:
     return schema
 
 
-class AppleFMUnavailableError(LLMError):
+class AppleFMUnavailableError(ModelError):
     """Raised when the on-device model is not available on this machine.
 
     Covers: unsupported OS/hardware, Apple Intelligence disabled, model assets
     not yet downloaded. Surfaced from `AppleFMLLM.__init__`.
+
+    A `ModelError`, so inside a node it surfaces as
+    :class:`railtracks.exceptions.LLMError`.
     """
 
     def __init__(self, reason: str):
         super().__init__(reason=reason)
 
 
-class AppleFMSafetyRefusalError(LLMError):
+class AppleFMSafetyRefusalError(ModelError):
     """Raised when the on-device model refuses a request on safety grounds.
 
     Maps `fm.GuardrailViolationError` and `fm.RefusalError` so callers can
     distinguish safety refusals from other model failures.
+
+    A `ModelError`, so inside a node it surfaces as
+    :class:`railtracks.exceptions.LLMError`.
     """
 
     def __init__(self, reason: str, message_history: MessageHistory):
@@ -305,7 +310,7 @@ class AppleFMLLM(ModelBase):
                 prior.append({"role": "user", "contents": [str(msg.content)]})
 
         if final_prompt is None:
-            raise LLMError(
+            raise ModelError(
                 reason="AppleFMLLM requires at least one UserMessage in the history.",
                 message_history=messages,
             )
@@ -391,12 +396,12 @@ class AppleFMLLM(ModelBase):
 
     def _translate_fm_error(
         self, e: BaseException, messages: MessageHistory
-    ) -> LLMError:
+    ) -> ModelError:
         """Map an `fm.FoundationModelsError` subclass to the closest
         railtracks-native error. Safety refusals become
         `AppleFMSafetyRefusalError`, missing-asset failures become
         `AppleFMUnavailableError`, everything else falls back to a
-        generic `LLMError`.
+        generic `ModelError`.
         """
         fm = self._fm
         safety = tuple(
@@ -414,7 +419,7 @@ class AppleFMLLM(ModelBase):
             return AppleFMUnavailableError(
                 f"Apple Foundation Model assets unavailable: {e}"
             )
-        return LLMError(reason=str(e), message_history=messages)
+        return ModelError(reason=str(e), message_history=messages)
 
     def _run_sync(self, coro):
         """Bridge a sync-API call to Apple's async-only SDK. Uses
@@ -427,7 +432,7 @@ class AppleFMLLM(ModelBase):
         except RuntimeError:
             return asyncio.run(coro)
         coro.close()
-        raise LLMError(
+        raise ModelError(
             reason=(
                 "AppleFMLLM sync API cannot be called from inside a running "
                 "event loop. Use achat / astructured / astream_chat instead."
@@ -491,7 +496,7 @@ class AppleFMLLM(ModelBase):
         messages: MessageHistory,
     ) -> BaseModel:
         """Convert Apple's `GeneratedContent` (or a raw string in some
-        SDK versions) into an instance of `schema`. Raises `LLMError` if
+        SDK versions) into an instance of `schema`. Raises `ModelError` if
         the payload doesn't validate — treated as a model failure the
         caller should retry or surface, not a bug in the schema.
         """
@@ -500,7 +505,7 @@ class AppleFMLLM(ModelBase):
         try:
             return schema.model_validate_json(raw)
         except Exception as e:
-            raise LLMError(
+            raise ModelError(
                 reason=(
                     f"AppleFMLLM structured output did not match schema "
                     f"{schema.__name__}: {e}"
