@@ -1,7 +1,7 @@
-The **`JudgeEvaluator`** uses an LLM as a judge to score agent outputs against a set of [`CategoricalMetric`](../metrics/categorical.md)s. For each data point and each metric, it sends the agent's input/output to the judge LLM and records its verdict.
+The **`JudgeEvaluator`** uses an LLM as a judge to score agent outputs against a set of [`CategoricalMetric`](../metrics/categorical.md)s or [`NumericalMetric`](../metrics/numerical.md)s. For each data point and each metric, it sends the agent's input/output to the judge LLM and records its verdict.
 
 !!! note
-    `JudgeEvaluator` only accepts `Categorical` metrics. Passing a `Numerical` metric will log a warning and skip it.
+    `JudgeEvaluator` only accepts `Categorical` and `Numerical` metrics. Passing any other metric type will log a warning and skip it.
 
 ## Usage
 
