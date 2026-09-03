@@ -116,3 +116,28 @@ def test_system_message_is_still_filled(mock_llm, context):
     asyncio.run(flow.ainvoke(MessageHistory([UserMessage("hi")])))
 
     assert delivered == ["Helping context-value at 12:00."]
+
+
+def test_system_message_is_refilled_on_repeated_invocation(mock_llm):
+    """A reused agent renders the current context on every invocation."""
+    delivered: list[str] = []
+
+    def return_message(messages: MessageHistory) -> Response:
+        delivered.extend(m.content for m in messages if m.role == Role.system)
+        return Response(message=Message(role=Role.assistant, content="ok"))
+
+    model = mock_llm()
+    model._chat = return_message
+    agent = rt.agent_node(
+        system_message="Helping {value}.",
+        llm=model,
+        model_middleware=[ContextInjection()],
+    )
+
+    async def invoke_twice():
+        await rt.Flow("EchoFlow", agent, context={"value": "first"}).ainvoke("hi")
+        await rt.Flow("EchoFlow", agent, context={"value": "second"}).ainvoke("hi")
+
+    asyncio.run(invoke_twice())
+
+    assert delivered == ["Helping first.", "Helping second."]
