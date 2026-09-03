@@ -11,8 +11,20 @@ from pydantic import BaseModel
 from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.model_invoker import ModelInvoker
 from railtracks.built_nodes.llm.response import StringResponse, StructuredResponse
-from railtracks.exceptions.errors import LLMError, NodeInvocationError
+from railtracks.exceptions.errors import (
+    LLMAuthenticationError,
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    NodeInvocationError,
+)
 from railtracks.interaction._call import call
+from railtracks.llm._exceptions import (
+    ProviderAuthenticationError,
+    ProviderError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+)
 from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
@@ -22,9 +34,10 @@ from railtracks.llm.message import (
     ToolMessage,
     UserMessage,
 )
+from railtracks.llm.models._litellm_wrapper import classify_provider_error
 from railtracks.llm.response import Response
 from railtracks.llm.tools.parameters._base import Parameter
-from railtracks.llm.tools.tool import Tool
+from railtracks.llm.tools.tool import Tool, ToolCreationError
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_invocation.validation import check_message_history
 
@@ -36,6 +49,31 @@ class StringLLMInvoke(Protocol):
         self: Node,
         user_input: MessageHistory | UserMessage | str | list[Message],
     ) -> StringResponse: ...
+
+
+# Ordered most-specific first.
+_PROVIDER_TO_NODE_ERROR: tuple[tuple[type[ProviderError], type[LLMError]], ...] = (
+    (ProviderTimeoutError, LLMTimeoutError),
+    (ProviderRateLimitError, LLMRateLimitError),
+    (ProviderAuthenticationError, LLMAuthenticationError),
+)
+
+
+def _node_error_for(exc: BaseException) -> type[LLMError]:
+    """The `LLMError` subclass matching a failed model call, else `LLMError`.
+
+    Accepts a raw provider exception as well as a `ProviderError`, so paths that reach
+    the boundary without passing through `_call_provider` -- a failure part way through
+    a stream, most of all -- still classify.
+
+    `classify_provider_error` looks through a `RetryError`, so an exhausted retry of
+    timeouts surfaces as `LLMTimeoutError` whether or not retries were configured.
+    """
+    provider_type = classify_provider_error(exc) or type(exc)
+    for candidate, node_type in _PROVIDER_TO_NODE_ERROR:
+        if issubclass(provider_type, candidate):
+            return node_type
+    return LLMError
 
 
 class StructuredLLMInvoke(Protocol[_TStructured]):
@@ -80,13 +118,38 @@ def llm_invoke_factory(
                 returned_mess = await model_invoker.invoke(
                     message_history, schema=schema, tools=tools
                 )
+            # The single translation point between the `llm` package's errors and the
+            # node-terminating ones users catch. `ProviderError` and `ToolCreationError`
+            # are disjoint roots, so these clauses cannot shadow each other.
             except NodeInvocationError:
-                raise  # e.g. a guardrail block from a gate; surface as-is, don't mask
+                # Already classified; wrapping again would drop `message_history`.
+                raise
+            except ToolCreationError as e:
+                # `e.args[0]`, not `str(e)`: the latter is already rendered with colour
+                # and its own "Tips to debug" block, which the new error would render a
+                # second time around a prematurely reset colour code.
+                raise NodeInvocationError(
+                    message=e.args[0] if e.args else str(e),
+                    notes=e.notes,
+                    fatal=True,
+                ) from e
+            except ProviderError as e:
+                # Carry `reason` across rather than repr()-ing, which would nest ANSI
+                # escapes inside the new message.
+                raise _node_error_for(e)(
+                    reason=getattr(e, "reason", None) or str(e),
+                    message_history=getattr(e, "message_history", None)
+                    or message_history,
+                    notes=getattr(e, "notes", None),
+                ) from e
             except Exception as e:
-                raise LLMError(
+                # Classified too: a provider exception can reach here without passing
+                # through `_call_provider`, so a mid-stream timeout stays catchable as
+                # `LLMTimeoutError` rather than flattening to a bare `LLMError`.
+                raise _node_error_for(e)(
                     reason=f"Exception during model invoke: {repr(e)}",
                     message_history=message_history,
-                )
+                ) from e
 
             path = process_message(returned_mess, schema)
 

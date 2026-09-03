@@ -262,12 +262,12 @@ def test_chat_sync_raises_inside_running_loop(fake_sdk):
     _, _, session = fake_sdk
     session.respond = AsyncMock(return_value="x")
     mod = _import_apple_fm_llm()
-    from railtracks.exceptions.errors import LLMError
+    from railtracks.llm import ModelError
 
     llm = mod.AppleFMLLM()
 
     async def run():
-        with pytest.raises(LLMError) as exc:
+        with pytest.raises(ModelError) as exc:
             llm.chat(_msg_history(user="hi"))
         assert "cannot be called from inside a running event loop" in str(exc.value)
 
@@ -340,15 +340,15 @@ def test_astructured_normalizes_schema(fake_sdk):
     assert "title" not in schema["properties"]["color"]
 
 
-def test_astructured_bad_json_raises_llm_error(fake_sdk):
-    from railtracks.exceptions.errors import LLMError
+def test_astructured_bad_json_raises_model_error(fake_sdk):
+    from railtracks.llm import ModelError
 
     _, _, session = fake_sdk
     session.respond = AsyncMock(return_value=_StubGeneratedContent("not-json"))
     mod = _import_apple_fm_llm()
     llm = mod.AppleFMLLM()
 
-    with pytest.raises(LLMError):
+    with pytest.raises(ModelError):
         asyncio.run(llm.astructured(_msg_history(user="pick"), _Answer))
 
 
@@ -568,13 +568,13 @@ def test_assets_unavailable_becomes_unavailable(fake_sdk):
         asyncio.run(llm.achat(_msg_history(user="hi")))
 
 
-def test_generic_fm_error_becomes_llm_error(fake_sdk):
-    from railtracks.exceptions.errors import LLMError
+def test_generic_fm_error_becomes_model_error(fake_sdk):
+    from railtracks.llm import ModelError
 
     fm, _, session = fake_sdk
     session.respond = AsyncMock(side_effect=fm.FoundationModelsError("boom"))
     mod = _import_apple_fm_llm()
     llm = mod.AppleFMLLM()
 
-    with pytest.raises(LLMError):
+    with pytest.raises(ModelError):
         asyncio.run(llm.achat(_msg_history(user="hi")))

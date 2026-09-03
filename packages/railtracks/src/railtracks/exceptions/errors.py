@@ -5,6 +5,19 @@ from ._base import RTError
 if TYPE_CHECKING:
     from railtracks.llm.history import MessageHistory
 
+__all__ = [
+    "RTError",
+    "NodeInvocationError",
+    "NodeCreationError",
+    "LLMError",
+    "LLMTimeoutError",
+    "LLMRateLimitError",
+    "LLMAuthenticationError",
+    "GlobalTimeOutError",
+    "ContextError",
+    "FatalError",
+]
+
 
 class NodeInvocationError(RTError):
     """
@@ -13,7 +26,10 @@ class NodeInvocationError(RTError):
     """
 
     def __init__(
-        self, message: str = None, notes: list[str] = None, fatal: bool = False
+        self,
+        message: str | None = None,
+        notes: list[str] | None = None,
+        fatal: bool = False,
     ):
         super().__init__(message)
         self.notes = notes or []
@@ -29,6 +45,102 @@ class NodeInvocationError(RTError):
             )
             return f"\n{self._color(base, self.RED)}{notes_str}"
         return self._color(base, self.RED)
+
+
+class LLMError(NodeInvocationError):
+    """
+    Raised when a node terminates because the LLM layer failed.
+
+    The originating `railtracks.llm` error is preserved on `__cause__`.
+
+    Being a `NodeInvocationError` lets callers branch on both axes at once: catch
+    `NodeInvocationError` for "a node terminated", then test for `LLMError` to ask
+    whether the LLM caused it.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        message_history: "MessageHistory | None" = None,
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.reason = reason
+        self.message_history = message_history
+
+        message = f"{self._color('LLM Error: ', self.BOLD_RED)}{self._color(reason, self.RED)}"
+        super().__init__(message, notes=notes, fatal=fatal)
+
+    def __str__(self):
+        """Render the error with the message history redacted.
+
+        Conversation contents may carry PII, credentials or customer data, so they are
+        summarised rather than embedded. `format_verbose` renders them in full, and
+        `self.message_history` stays available for programmatic access.
+        """
+        return self._render(verbose=False)
+
+    def format_verbose(self) -> str:
+        """Render the error with the full input `MessageHistory` embedded."""
+        return self._render(verbose=True)
+
+    def _render(self, *, verbose: bool) -> str:
+        # Bypasses NodeInvocationError.__str__ so the base message is not coloured twice.
+        base = Exception.__str__(self)
+        details = []
+        if self.message_history:
+            details.append(
+                self._color("Message History:", self.BOLD_GREEN)
+                + self._color(self._history_detail(verbose=verbose), self.GREEN)
+            )
+        if self.notes:
+            details.append(
+                self._color("Tips to debug:\n", self.BOLD_GREEN)
+                + "\n".join(
+                    self._color(f"    - {note}", self.GREEN) for note in self.notes
+                )  # match the message history block's indent
+            )
+        if details:
+            notes_str = (
+                "\n"
+                + self._color("Details:\n", self.BOLD_GREEN)
+                + "\n".join(f"  {d}" for d in details)
+            )
+            return f"\n{self._color(base, self.RED)}{notes_str}"
+        return self._color(base, self.RED)
+
+    def _history_detail(self, *, verbose: bool) -> str:
+        if verbose:
+            indented_mh = "\n".join(
+                "    " + line for line in str(self.message_history).splitlines()
+            )  # 2 indents (2-spaces) per indent
+            return f"\n{indented_mh}"
+
+        try:
+            count = len(self.message_history)
+        except TypeError:
+            count = None
+        subject = f"{count} message(s)" if count is not None else "message history"
+        return (
+            f" {subject} redacted; "
+            "call err.format_verbose() to render or read err.message_history"
+        )
+
+
+class LLMTimeoutError(LLMError):
+    """The model did not answer in time.
+
+    Not a builtin `TimeoutError`, matching `GlobalTimeOutError`, so that no `except`
+    clause catches one Railtracks timeout and misses the other.
+    """
+
+
+class LLMRateLimitError(LLMError):
+    """The provider rejected the call for rate or quota reasons. Usually worth backing off."""
+
+
+class LLMAuthenticationError(LLMError):
+    """The provider rejected the credentials. Retrying will not help; fix the config."""
 
 
 class NodeCreationError(RTError):
@@ -53,60 +165,6 @@ class NodeCreationError(RTError):
             )
             return f"\n{self._color(base, self.RED)}{notes_str}"
         return self._color(base, self.RED)
-
-
-class LLMError(RTError):
-    """
-    Raised when an error occurs during LLM invocation or completion.
-    """
-
-    def __init__(
-        self,
-        reason: str,
-        message_history: "MessageHistory" = None,
-    ):
-        self.reason = reason
-        self.message_history = message_history
-
-        message = f"{self._color('LLM Error: ', self.BOLD_RED)}{self._color(reason, self.RED)}"
-        super().__init__(message)
-
-    def __str__(self):
-        base = super().__str__()
-        if not self.message_history:
-            return self._color(base, self.RED)
-
-        try:
-            count = len(self.message_history)
-        except TypeError:
-            count = None
-
-        summary = (
-            f"{count} message(s) redacted; "
-            "call err.format_verbose() to render or read err.message_history"
-            if count is not None
-            else "message history redacted; "
-            "call err.format_verbose() to render or read err.message_history"
-        )
-        detail = self._color("Message History: ", self.BOLD_GREEN) + self._color(
-            summary, self.GREEN
-        )
-        notes_str = "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
-        return f"\n{self._color(base, self.RED)}{notes_str}"
-
-    def format_verbose(self) -> str:
-        """Render the exception with the full input ``MessageHistory`` embedded."""
-        base = super().__str__()
-        if not self.message_history:
-            return self._color(base, self.RED)
-
-        mh_str = str(self.message_history)
-        indented_mh = "\n".join("    " + line for line in mh_str.splitlines())
-        detail = self._color("Message History:\n", self.BOLD_GREEN) + self._color(
-            indented_mh, self.GREEN
-        )
-        notes_str = "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
-        return f"\n{self._color(base, self.RED)}{notes_str}"
 
 
 class GlobalTimeOutError(RTError):

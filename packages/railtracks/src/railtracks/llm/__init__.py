@@ -1,4 +1,11 @@
 from . import retries
+from ._exceptions import (
+    ProviderAuthenticationError,
+    ProviderError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from .content import ToolCall, ToolCalls, ToolResponse
 from .history import MessageHistory
 from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
@@ -29,11 +36,18 @@ from .tools import (
     Parameter,
     RefParameter,
     Tool,
+    ToolCreationError,
     UnionParameter,
 )
 
 __all__ = [
     "ModelBase",
+    "ProviderError",
+    "ProviderTimeoutError",
+    "ProviderRateLimitError",
+    "ProviderAuthenticationError",
+    "RetryError",
+    "ToolCreationError",
     "ModelError",
     "ModelNotFoundError",
     "FunctionCallingNotSupportedError",

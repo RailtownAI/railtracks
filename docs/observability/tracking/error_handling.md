@@ -9,18 +9,64 @@ All Railtracks errors inherit from the base `RTError` class, which provides colo
 ```
 RTError (base)
 ├── NodeCreationError
-├── NodeInvocationError
-├── LLMError
+├── NodeInvocationError               "a node terminated unexpectedly"
+│   ├── LLMError                      ...because the LLM layer failed
+│   │   ├── LLMTimeoutError           ......the model did not answer in time
+│   │   ├── LLMRateLimitError         ......rate or quota limit hit
+│   │   └── LLMAuthenticationError    ......bad credentials; do not retry
+│   └── GuardrailBlockedError         ...because a guardrail blocked it
 ├── GlobalTimeOutError
 ├── ContextError
 └── FatalError
 ```
 
+`NodeInvocationError` tells you *that* a node terminated; its subclasses tell you *why*. Every level is a plain `except` clause, so you handle only as much detail as you care about:
+
+```python
+--8<-- "docs/scripts/error_handling.py:llm_dispatch"
+```
+
+!!! note "Order your `except` clauses most-specific first"
+
+    `LLMError` is a `NodeInvocationError`. Python takes the first *matching* clause, not the closest one, so putting `except NodeInvocationError` above `except LLMError` makes the second unreachable.
+
+### LLM layer errors
+
+`railtracks.llm` is self-contained and raises its own errors, under two unrelated roots:
+
+```
+ProviderError                    talking to a model provider
+├── ProviderTimeoutError
+├── ProviderRateLimitError
+├── ProviderAuthenticationError
+├── ModelError
+│   ├── FunctionCallingNotSupportedError
+│   └── UnsupportedHyperparameterError
+├── ModelNotFoundError
+└── RetryError
+
+ToolCreationError        defining a tool -- a bug in your code, not a provider failure
+```
+
+You only see these when calling a model **directly**. Inside a node they are translated once, at the boundary, and the original stays reachable on `__cause__`:
+
+| raised in `railtracks.llm` | surfaces from a node as |
+| --- | --- |
+| `ProviderTimeoutError` | `LLMTimeoutError` |
+| `ProviderRateLimitError` | `LLMRateLimitError` |
+| `ProviderAuthenticationError` | `LLMAuthenticationError` |
+| `ProviderError` (anything else) | `LLMError` |
+| `ToolCreationError` | `NodeInvocationError` with `fatal=True` |
+
+You never have to unwrap anything to find out *what* went wrong: an exhausted retry of timeouts arrives as an `LLMTimeoutError`, whether or not a retry approach was configured.
+
+Because wrapping produces a *new* exception object, `e` is the `LLMError` and `e.__cause__` is the original. The two hierarchies share no ancestor, so `isinstance(e, RetryError)` is always `False`.
+
 ## Error Types
 
 ### Internally Raised Errors
 
-These errors are automatically raised by Railtracks when issues occur during execution. All inherit from `RTError` and provide colored terminal output with debugging information.
+These errors are automatically raised by Railtracks when issues occur during execution. They provide colored terminal output with debugging information.
 
 - **`NodeCreationError`** - Raised during node setup and validation
 - **`NodeInvocationError`** - Raised during node execution (has `fatal` flag)
@@ -52,6 +98,15 @@ All internal errors include helpful debugging notes and formatted error messages
     ```
 
 ## Error Handling Patterns
+
+???+ example "Degrading gracefully inside a node"
+
+    Each `except` narrows the response to what actually failed: retry a slow model,
+    switch tiers when rate limited, and give up gracefully on anything else.
+
+    ```python
+    --8<-- "docs/scripts/error_handling.py:custom_node"
+    ```
 
 ???+ example "Basic Error Handling"
 

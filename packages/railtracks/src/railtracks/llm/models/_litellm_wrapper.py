@@ -33,7 +33,13 @@ from litellm.types.utils import (
 )
 from pydantic import BaseModel, Field
 
-from ...exceptions.errors import LLMError, NodeInvocationError
+from .._exceptions import (
+    ProviderAuthenticationError,
+    ProviderError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
 from ..message import AssistantMessage, Attachment, Message, ToolMessage, UserMessage
@@ -42,12 +48,14 @@ from ..response import MessageInfo, Response
 from ..retries import RetryApproach
 from ..tools import Tool
 from ..tools.parameters import Parameter
+from ..tools.tool import ToolCreationError
 from ._hyperparameter_support import (
     default_reasoning_effort_for_tools,
     find_mutually_exclusive_conflict,
     is_hyperparameter_supported,
 )
 from ._model_exception_base import (
+    ModelError,
     MutuallyExclusiveHyperparametersError,
     UnsupportedHyperparameterError,
 )
@@ -133,13 +141,35 @@ def _parameters_to_json_schema(
     ):
         return _handle_set_of_parameters(list(parameters))
 
-    raise NodeInvocationError(
+    raise ToolCreationError(
         message=f"Unable to parse Tool.parameters. It was {parameters}",
-        fatal=True,
         notes=[
             "Tool.parameters must be a set of Parameter objects",
         ],
     )
+
+
+# Ordered most-specific first; litellm's Timeout subclasses APIConnectionError.
+_LITELLM_ERROR_MAP: tuple[tuple[type[Exception], type[ProviderError]], ...] = (
+    (litellm.exceptions.Timeout, ProviderTimeoutError),
+    (litellm.exceptions.RateLimitError, ProviderRateLimitError),
+    (litellm.exceptions.AuthenticationError, ProviderAuthenticationError),
+)
+
+
+def classify_provider_error(exc: BaseException) -> type[ProviderError] | None:
+    """The `ProviderError` subclass that best describes `exc`, or None if none do.
+
+    Looks through a `RetryError` at what was actually retried, so an exhausted retry of
+    timeouts classifies as a timeout.
+    """
+    if isinstance(exc, RetryError):
+        underlying = exc.exception_list[-1] if exc.exception_list else None
+        return classify_provider_error(underlying) if underlying else None
+    for litellm_type, provider_type in _LITELLM_ERROR_MAP:
+        if isinstance(exc, litellm_type):
+            return provider_type
+    return None
 
 
 def _model_in_litellm_catalog(model_name: str) -> bool:
@@ -335,6 +365,26 @@ class LiteLLMWrapper(ModelBase, ABC):
         stream: Literal[False] = ...,
     ) -> Tuple[ModelResponse, float]: ...
 
+    def _call_provider(self, completion_function: Callable[[], _T]) -> _T:
+        """Run the provider call, translating litellm's exceptions into ours.
+
+        Classification must stay *outside* the retry wrapper: retry approaches match on
+        litellm's own exception types, so translating earlier would stop retries firing.
+        """
+        try:
+            if self.retry_approach is not None:
+                return self.retry_approach.call_with_retry(completion_function)
+            return completion_function()
+        except ProviderError:
+            # Already ours. `RetryError` in particular must keep its type, since that is
+            # how callers detect exhausted retries.
+            raise
+        except Exception as e:
+            provider_error = classify_provider_error(e)
+            if provider_error is None:
+                raise
+            raise provider_error(str(e)) from e
+
     def _invoke(
         self,
         messages: MessageHistory,
@@ -398,10 +448,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                 **merged,
             )
 
-        if self.retry_approach is not None:
-            completion = self.retry_approach.call_with_retry(completion_function)
-        else:
-            completion = completion_function()
+        completion = self._call_provider(completion_function)
 
         if isinstance(completion, CustomStreamWrapper):
             return completion, start_time
@@ -803,8 +850,13 @@ class LiteLLMWrapper(ModelBase, ABC):
             )
         except JSONDecodeError as jde:
             raise jde
+        except ProviderError:
+            # Already classified by `_call_provider`. Re-wrapping as a `ModelError` would
+            # erase the type callers branch on (timeout / rate limit / auth / exhausted
+            # retries), leaving structured output as the one path that cannot be handled.
+            raise
         except Exception as e:
-            raise LLMError(
+            raise ModelError(
                 reason="Structured LLM call failed",
                 message_history=messages,
             ) from e
