@@ -74,7 +74,7 @@ class RequestFailureAction(RequestCompletionBase):
     ):
         """
         A simple abstraction of a message when a request fails.
-        \
+
         Args:
             node_name (str): The name of the child node that failed.
             exception (Exception): The exception that was raised during the request.

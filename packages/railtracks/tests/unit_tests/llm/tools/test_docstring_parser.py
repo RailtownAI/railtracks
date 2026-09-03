@@ -87,6 +87,58 @@ class TestExtractArgsSection:
         assert "param1 (str): Description of param1." in result
         assert "param2 (int): Description of param2." in result
 
+    def test_param_description_on_next_line(self):
+        """A parameter whose description starts on the next line stays in the section."""
+        docstring = """
+        This is a docstring.
+
+        Args:
+            param1:
+                Description of param1.
+            param2: Description of param2.
+
+        Returns:
+            The return value.
+        """
+        result = extract_args_section(docstring)
+        assert "param1:" in result
+        assert "Description of param1." in result
+        assert "param2: Description of param2." in result
+        assert "The return value." not in result
+
+    def test_description_ending_in_colon(self):
+        """A description that ends in a colon does not end the section."""
+        docstring = """
+        Args:
+            mapping: Maps keys to values as follows:
+                a -> b
+            other: Another parameter.
+        """
+        result = extract_args_section(docstring)
+        assert "mapping: Maps keys to values as follows:" in result
+        assert "other: Another parameter." in result
+
+    def test_empty_args_section(self):
+        """An empty Args section does not absorb the section that follows it."""
+        docstring = """Returns a list of available currencies.
+        Args:
+        Returns:
+            List[str]: A list of available currencies.
+        """
+        assert extract_args_section(docstring).strip() == ""
+
+    def test_section_header_at_parameter_indent(self):
+        """A following section is recognised even at parameter indentation."""
+        docstring = """
+        Args:
+            param1: Description of param1.
+        Returns:
+            The return value.
+        """
+        result = extract_args_section(docstring)
+        assert "param1: Description of param1." in result
+        assert "The return value." not in result
+
 
 class TestParseArgsSection:
     """Tests for the parse_args_section function."""
@@ -138,6 +190,18 @@ class TestParseArgsSection:
         expected = {
             "headers": "Optional dict of extra headers. Note: keys are case-insensitive.",
             "timeout": "Optional request timeout.",
+        }
+        assert parse_args_section(args_section) == expected
+
+    def test_shallower_param_is_not_swallowed(self):
+        """A parameter indented less than the first one still starts a new entry."""
+        args_section = """
+                headers: extra headers
+            timeout: request timeout
+        """
+        expected = {
+            "headers": "extra headers",
+            "timeout": "request timeout",
         }
         assert parse_args_section(args_section) == expected
 
@@ -232,6 +296,48 @@ class TestParseDocstringArgs:
             "required": "Whether the parameter is required. Defaults to True.",
         }
         assert parse_docstring_args(docstring) == expected
+
+    def test_description_starting_on_next_line(self):
+        """Descriptions starting on the line after the parameter are parsed."""
+        docstring = """
+        Fetches a URL.
+
+        Args:
+            headers:
+                Optional dict of extra headers.
+            timeout: Optional request timeout.
+
+        Returns:
+            The response body.
+        """
+        expected = {
+            "headers": "Optional dict of extra headers.",
+            "timeout": "Optional request timeout.",
+        }
+        assert parse_docstring_args(docstring) == expected
+
+    def test_description_ending_in_colon(self):
+        """A description ending in a colon does not truncate the Args section."""
+        docstring = """
+        Args:
+            mapping: Maps keys to values as follows:
+                a -> b
+            other: Another parameter.
+        """
+        expected = {
+            "mapping": "Maps keys to values as follows: a -> b",
+            "other": "Another parameter.",
+        }
+        assert parse_docstring_args(docstring) == expected
+
+    def test_empty_args_section(self):
+        """An empty Args section yields no parameters."""
+        docstring = """Returns a list of available currencies.
+        Args:
+        Returns:
+            List[str]: A list of available currencies.
+        """
+        assert parse_docstring_args(docstring) == {}
 
 
 class TestEdgeCases:
