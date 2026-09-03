@@ -126,5 +126,14 @@ async def call_with_fallback(primary_node, fallback_node, user_input):
         raise
 # --8<-- [end: fallback]
 
+# --8<-- [start: msg_hist]
+from railtracks.exceptions import LLMError
+
+try:
+    ...
+except LLMError as err:
+    logger.error("LLM call failed: %s", err.format_verbose())
+    # or route err.message_history wherever your data-handling policy allows
+# --8<-- [end: msg_hist]
 
 
