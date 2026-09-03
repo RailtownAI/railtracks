@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from railtracks.cli import (
     SKILLS,
@@ -462,6 +463,52 @@ class TestSkillInstallers(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("$ARGUMENTS", content)
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+@pytest.mark.parametrize("force", [False, True])
+def test_add_all_matches_individual_installs(tool, force, tmp_path, monkeypatch):
+    individual = tmp_path / "individual"
+    individual.mkdir()
+    bulk = tmp_path / "bulk"
+    bulk.mkdir()
+    if force:
+        for directory in (individual, bulk):
+            monkeypatch.chdir(directory)
+            for skill_name in SKILLS:
+                add_skill(f"{tool}:{skill_name}")
+
+    monkeypatch.chdir(individual)
+    for skill_name in SKILLS:
+        add_skill(f"{tool}:{skill_name}", force=force)
+    expected = {
+        path.relative_to(individual): path.read_bytes()
+        for path in individual.rglob("*")
+        if path.is_file()
+    }
+
+    monkeypatch.chdir(bulk)
+    args = ["railtracks", "add", f"{tool}:all"]
+    if force:
+        args.append("--force")
+    monkeypatch.setattr(sys, "argv", args)
+    with patch("builtins.input", side_effect=AssertionError("Unexpected prompt")):
+        main()
+    actual = {
+        path.relative_to(bulk): path.read_bytes()
+        for path in bulk.rglob("*")
+        if path.is_file()
+    }
+    assert actual == expected
+
+
+@pytest.mark.parametrize("spec", ["unknown:all", "claude:unknown"])
+def test_add_all_preserves_invalid_spec_errors(spec, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        add_skill(spec)
+    assert exc.value.code == 1
+    assert list(tmp_path.iterdir()) == []
 
 
 class TestListSkills(unittest.TestCase):

@@ -79,6 +79,24 @@ pip install 'railtracks[visual]'
             └── agent-builder.mdc   ← railtracks agent-building knowledge
         ```
 
+### Install all skills
+
+Use `all` instead of a skill name to install every bundled skill for an assistant:
+
+```bash
+railtracks add claude:all
+railtracks add codex:all
+railtracks add copilot:all
+railtracks add cursor:all
+```
+
+Each skill uses the same installer and overwrite behavior as an individual install.
+To replace existing skills without prompting, append `--force`:
+
+```bash
+railtracks add claude:all --force
+```
+
 ## Options
 
 | Flag | Description |
