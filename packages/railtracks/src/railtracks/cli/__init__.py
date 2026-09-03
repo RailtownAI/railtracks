@@ -454,7 +454,7 @@ _TOOL_HANDLERS = {
 
 
 def add_skill(spec: str, force: bool = False) -> None:
-    """Parse <tool>:<skill-name> and install the skill for the given AI coding tool."""
+    """Parse <tool>:<skill-name|all> and install skills for the given AI coding tool."""
     if ":" not in spec:
         print_error(
             f"Invalid format '{spec}'. Expected '<tool>:<skill>', e.g. 'claude:agent-builder'."
@@ -472,15 +472,17 @@ def add_skill(spec: str, force: bool = False) -> None:
         )
         sys.exit(1)
 
-    if skill_name not in SKILLS:
+    if skill_name != "all" and skill_name not in SKILLS:
         print_error(
             f"Unknown skill '{skill_name}'. Available skills: {', '.join(SKILLS)}"
         )
         sys.exit(1)
 
-    meta = SKILLS[skill_name]
-    content = _load_skill_content(skill_name)
-    _TOOL_HANDLERS[tool](skill_name, meta, content, force)
+    skill_names = SKILLS if skill_name == "all" else [skill_name]
+    for name in skill_names:
+        meta = SKILLS[name]
+        content = _load_skill_content(name)
+        _TOOL_HANDLERS[tool](name, meta, content, force)
 
 
 def list_skills() -> None:
@@ -501,6 +503,7 @@ def list_skills() -> None:
     print(f"  {bold}Supported tools:{rst}  {', '.join(SUPPORTED_TOOLS)}")
     print()
     print(f"  {dim}Install with:{rst}  {green}{cli_name} add <tool>:<skill>{rst}")
+    print(f"  {dim}Install all:{rst}   {green}{cli_name} add <tool>:all{rst}")
     print()
 
 
@@ -593,7 +596,7 @@ def _exit_visual_deps_missing() -> None:
 
 
 def _run_add(args: list[str]) -> None:
-    """Handle `railtracks add`: either list the bundled skills or install one."""
+    """Handle `railtracks add`: list bundled skills, or install one or all."""
     if any(a in ("--list", "-l") for a in args):
         list_skills()
         return
