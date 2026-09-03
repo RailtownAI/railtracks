@@ -123,12 +123,28 @@ Skills are bundled **inside the railtracks package**, no internet connection req
     These files are small and stable. Committing them means every developer on your team gets the same assistant behaviour out of the box, no manual setup required.
 
 !!! warning "Existing files"
-    For Claude Code and Cursor, if the target file already exists you'll be prompted to confirm before overwriting. Pass `--force` to skip the prompt.
+    You'll be prompted before anything is overwritten that railtracks can't confirm it wrote itself
+    and that nobody has edited since. Re-running the command over an untouched install doesn't
+    prompt; there's nothing of yours to lose. Pass `--force` to skip the prompt entirely.
 
-!!! note "Re-installing after an upgrade"
-    Installing copies what the version you have ships. It does not yet remove a supporting file that
-    an *older* railtracks shipped and the current one dropped; delete the skill directory first if
-    you want a clean slate.
+## Keeping Skills in Sync
+
+Each installed skill carries a small `.railtracks.json` recording what was written, which railtracks
+version wrote it, and a checksum per file. **Commit it along with the skill** — it's what makes the
+next install a sync rather than a copy:
+
+- A supporting file an older railtracks shipped and the current one dropped is **removed**, so a
+  stale page can't linger and get read by your assistant.
+- A file you've since edited is **never** removed. Railtracks reports it and leaves it alone.
+- Re-installing an unchanged skill rewrites the manifest byte-for-byte, so it won't churn your diff.
+- If the install came from a different railtracks version, you'll be told when you re-install.
+
+!!! note "Skills installed before this feature"
+    Older railtracks versions installed GitHub Copilot skills as a marker block inside
+    `.github/copilot-instructions.md`, and Cursor skills as `.cursor/rules/<name>.mdc`. Those
+    predate the manifest, so railtracks can spot them but won't delete them — a `.mdc` looks
+    identical to a rule you wrote yourself. You'll be told where they are; removing them is your
+    call.
 
 ## Example: Building Your First Agent
 

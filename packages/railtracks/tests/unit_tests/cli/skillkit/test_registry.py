@@ -2,7 +2,7 @@
 
 import pytest
 from railtracks.cli import SKILLS
-from railtracks.cli.skills_registry import (
+from railtracks.cli._skillkit.registry import (
     SkillFormatError,
     default_skills_directory,
     discover_skills,
