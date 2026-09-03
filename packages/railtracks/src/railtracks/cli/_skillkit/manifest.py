@@ -19,23 +19,8 @@ from pathlib import Path
 
 MANIFEST_FILE = ".railtracks.json"
 
+# Schema version of the `.railtracks.json` payload; bump only on a breaking change.
 MANIFEST_VERSION = 1
-"""Schema version of the `.railtracks.json` payload.
-
-`from_json` accepts only this exact value; anything else parses to None and the
-install proceeds as if no record existed — prompting before it overwrites, and
-removing nothing. That failure direction holds whichever side is newer: an old CLI
-will not act on fields it cannot interpret, and a new CLI will not assume an older
-record's fields still mean what its own do.
-
-Bump it only when a change would make either of those misread the other: a field
-removed or repurposed, a hash algorithm swapped, `path` changing what it is relative
-to. Adding an optional field that older readers can ignore does not need a bump,
-because they never see it — `from_json` reads named keys and drops the rest.
-
-Bumping costs every installed skill one silent degradation to copy semantics until
-its next re-install rewrites the manifest, so it is not free.
-"""
 
 _UNKNOWN_VERSION = "unknown"
 
