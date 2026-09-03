@@ -297,7 +297,7 @@ def validate_tool_metadata(
 
 # ================================================================= START Tool init error ===========================================================
 def validate_tool_params(parameters: Any, param_type) -> bool:
-    if not (isinstance(parameters, (set, dict)) or parameters is None):
+    if not (isinstance(parameters, (set, list, dict)) or parameters is None):
         raise NodeCreationError(
             message=get_message(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_MSG),
             notes=get_notes(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_NOTES),
@@ -328,7 +328,7 @@ def validate_tool_params(parameters: Any, param_type) -> bool:
                 notes=get_notes(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_NOTES),
             ) from e
 
-    elif isinstance(parameters, set):
+    elif isinstance(parameters, (set, list)):
         if not all(isinstance(x, param_type) for x in parameters):
             raise NodeCreationError(
                 message=ExceptionMessageKey.PARAMETER_SET_CONTAINS_INVALID_TYPE_MSG,

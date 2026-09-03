@@ -43,12 +43,19 @@ class Tool:
         Args:
             name: The name of the tool.
             detail: A detailed description of the tool.
-            parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
+            parameters: Parameters attached to this tool; a set or list of Parameter objects, or a dict.
         """
+        # Local import: validation.py imports railtracks.llm, which imports this
+        # module, so a module-level import here would cycle.
+        from railtracks.validation.node_creation.validation import (
+            validate_tool_params,
+        )
+
+        validate_tool_params(parameters, Parameter)
 
         if (
             isinstance(parameters, dict) and len(parameters) > 0
-        ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
+        ):  # if parameters is a JSON-output_schema, convert into Parameter objects
             props = parameters.get("properties") or {}
             required_fields = list(parameters.get("required", []))
             if not props and required_fields:
