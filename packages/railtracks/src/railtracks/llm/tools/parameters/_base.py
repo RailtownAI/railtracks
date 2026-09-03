@@ -29,14 +29,31 @@ class ParameterType(str, Enum):
         return mapping.get(py_type, cls.OBJECT)
 
 
+# The JSON-schema type strings a Parameter may declare. Anything else that
+# reaches to_json_schema() is silently emitted into the manifest, and the LLM
+# backend eventually rejects it with a deep, unrelated traceback (#1393).
+_VALID_SCHEMA_TYPES = frozenset(t.value for t in ParameterType)
+
+
 def _normalize_param_type_scalar(
     param_type: Union[str, ParameterType, type],
 ) -> str:
-    """Map ParameterType enum, JSON schema type string, or Python type to a schema type string."""
+    """Map ParameterType enum, JSON schema type string, or Python type to a schema type string.
+
+    Raises:
+        ValueError: if a string is not a valid JSON-schema type. The caller
+            (Parameter.__init__) adds the parameter name to the message.
+    """
     if isinstance(param_type, ParameterType):
         return param_type.value
     if isinstance(param_type, type):
         return ParameterType.from_python_type(param_type).value
+    if param_type not in _VALID_SCHEMA_TYPES:
+        raise ValueError(
+            f"param_type {param_type!r} is not a valid JSON-schema type; "
+            f"expected one of {sorted(_VALID_SCHEMA_TYPES)} or a "
+            f"ParameterType / Python type"
+        )
     return param_type
 
 
@@ -86,12 +103,17 @@ class Parameter(ABC):
         self.enum = enum
         self.default_present = default_present
         if param_type is not None:
-            if isinstance(param_type, list):
-                self.param_type = [
-                    _normalize_param_type_scalar(pt) for pt in param_type
-                ]
-            else:
-                self.param_type = _normalize_param_type_scalar(param_type)
+            try:
+                if isinstance(param_type, list):
+                    self.param_type = [
+                        _normalize_param_type_scalar(pt) for pt in param_type
+                    ]
+                else:
+                    self.param_type = _normalize_param_type_scalar(param_type)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid param_type for parameter '{name}': {exc}"
+                ) from exc
         elif hasattr(self, "param_type") and self.param_type is None:
             self.param_type = None
 
