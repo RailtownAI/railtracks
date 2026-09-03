@@ -12,20 +12,21 @@ from unittest.mock import patch
 import yaml
 from railtracks.cli import (
     _add_claude,
-    _strip_skill_arguments,
     add_skill,
 )
-from railtracks.cli._skillkit.install import (
+from railtracks.cli._skillkit import (
     CLAUDE,
+    CODEX,
+    COPILOT,
+    CURSOR,
+    MANIFEST_FILE,
     InstallTarget,
     install_skill_directory,
-)
-from railtracks.cli._skillkit.manifest import (
-    MANIFEST_FILE,
+    load_skill,
     package_version,
     read_record,
+    strip_skill_arguments,
 )
-from railtracks.cli._skillkit.registry import load_skill
 
 
 def _write_skill(root, name, frontmatter, body="# Heading\n\nBody text.\n", files=None):
@@ -408,6 +409,396 @@ class TestSkillSync(unittest.TestCase):
         self.assertEqual(written, [Path(".claude/skills/agent-builder/SKILL.md")])
 
 
+class TestCodexDirectoryInstall(unittest.TestCase):
+    """`railtracks add codex:<skill>` writes a skill directory under .agents/skills."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.source = Path(tempfile.mkdtemp())
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.source)
+
+    def _installed(self, name="fixture-skill"):
+        return Path(f".agents/skills/{name}/SKILL.md").read_text(encoding="utf-8")
+
+    def test_codex_target_writes_to_its_native_path(self):
+        """§3.1 / D8: Codex's native path is `.agents/skills/`."""
+        self.assertEqual(CODEX.root, Path(".agents") / "skills")
+
+    def test_argument_placeholder_is_stripped(self):
+        """Codex documents no substitution, so `$ARGUMENTS` never survives (D9)."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+            body="Do the thing: $ARGUMENTS\n\nMore body.\n",
+        )
+
+        install_skill_directory(skill, CODEX)
+
+        self.assertNotIn("$ARGUMENTS", self._installed())
+
+    def test_argument_hint_is_dropped_from_the_frontmatter(self):
+        """`argument-hint` is Claude-only; §3.5 keeps it off every other target."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            'name: fixture-skill\ndescription: A fixture.\nargument-hint: "[what]"\n',
+        )
+
+        install_skill_directory(skill, CODEX)
+
+        self.assertNotIn("argument-hint", self._installed())
+
+    def test_supporting_files_ride_along(self):
+        """The whole point of the migration: `references/` travels with the skill."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+            files={"references/api.md": "# Generated\n"},
+        )
+
+        install_skill_directory(skill, CODEX)
+
+        self.assertEqual(
+            Path(".agents/skills/fixture-skill/references/api.md").read_text(
+                encoding="utf-8"
+            ),
+            "# Generated\n",
+        )
+
+    def test_install_writes_a_manifest_beside_the_skill(self):
+        """Codex now participates in sync semantics — the record makes it so."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+        )
+
+        install_skill_directory(skill, CODEX)
+
+        record = read_record(Path(".agents/skills/fixture-skill"))
+        self.assertEqual(record.target, "codex")
+        self.assertEqual([f.path for f in record.files], ["SKILL.md"])
+
+
+class TestCopilotDirectoryInstall(unittest.TestCase):
+    """`railtracks add copilot:<skill>` writes a skill directory under .github/skills."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.source = Path(tempfile.mkdtemp())
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.source)
+
+    def _installed(self, name="fixture-skill"):
+        return Path(f".github/skills/{name}/SKILL.md").read_text(encoding="utf-8")
+
+    def test_copilot_target_writes_to_its_native_path(self):
+        """§3.1 / D8: Copilot's native path is `.github/skills/`, not `.claude/skills`."""
+        self.assertEqual(COPILOT.root, Path(".github") / "skills")
+
+    def test_argument_placeholder_is_stripped(self):
+        """Copilot documents no substitution, so `$ARGUMENTS` never survives (D9)."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+            body="Do the thing: $ARGUMENTS\n\nMore body.\n",
+        )
+
+        install_skill_directory(skill, COPILOT)
+
+        self.assertNotIn("$ARGUMENTS", self._installed())
+
+    def test_argument_hint_is_dropped_from_the_frontmatter(self):
+        """`argument-hint` is Claude-only; §3.5 keeps it off every other target."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            'name: fixture-skill\ndescription: A fixture.\nargument-hint: "[what]"\n',
+        )
+
+        install_skill_directory(skill, COPILOT)
+
+        self.assertNotIn("argument-hint", self._installed())
+
+    def test_tools_copilot_block_is_merged_into_the_frontmatter(self):
+        """`allowed-tools` and `license` from `tools.copilot` reach the target (§3.5)."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n"
+            "tools:\n"
+            "  copilot:\n"
+            "    license: MIT\n"
+            "    allowed-tools: [Read, Edit]\n",
+        )
+
+        install_skill_directory(skill, COPILOT)
+
+        frontmatter = yaml.safe_load(self._installed().split("---\n")[1])
+        self.assertEqual(frontmatter["license"], "MIT")
+        self.assertEqual(frontmatter["allowed-tools"], ["Read", "Edit"])
+
+    def test_other_assistants_tool_blocks_are_not_emitted(self):
+        """`tools.claude` is Claude's projection to make, not Copilot's."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n"
+            "tools:\n"
+            "  claude:\n"
+            "    allowed-tools: [Read]\n",
+        )
+
+        install_skill_directory(skill, COPILOT)
+
+        content = self._installed()
+        self.assertNotIn("Read", content)
+        self.assertNotIn("allowed-tools", content)
+
+    def test_supporting_files_ride_along(self):
+        """The whole point of D8's directory install: `references/` travels with it."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+            files={"references/api.md": "# Generated\n"},
+        )
+
+        install_skill_directory(skill, COPILOT)
+
+        self.assertEqual(
+            Path(".github/skills/fixture-skill/references/api.md").read_text(
+                encoding="utf-8"
+            ),
+            "# Generated\n",
+        )
+
+
+class TestCursorDirectoryInstall(unittest.TestCase):
+    """`railtracks add cursor:<skill>` writes a skill directory under .cursor/skills."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.source = Path(tempfile.mkdtemp())
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.source)
+
+    def _installed(self, name="fixture-skill"):
+        return Path(f".cursor/skills/{name}/SKILL.md").read_text(encoding="utf-8")
+
+    def test_cursor_target_writes_to_its_native_path(self):
+        """§3.1 / D8: Cursor's native path is `.cursor/skills/`, not `.cursor/rules`."""
+        self.assertEqual(CURSOR.root, Path(".cursor") / "skills")
+
+    def test_argument_placeholder_is_stripped(self):
+        """Cursor documents no substitution, so `$ARGUMENTS` never survives (D9)."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+            body="Do this: $ARGUMENTS\n\nMore body.\n",
+        )
+
+        install_skill_directory(skill, CURSOR)
+
+        self.assertNotIn("$ARGUMENTS", self._installed())
+
+    def test_frontmatter_name_equals_the_folder_name(self):
+        """§3.1 requires `name == folder name`; the projection must preserve it."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+        )
+
+        install_skill_directory(skill, CURSOR)
+
+        frontmatter = yaml.safe_load(self._installed().split("---\n")[1])
+        self.assertEqual(frontmatter["name"], "fixture-skill")
+        # And the folder path derives from it, so the invariant is a real one.
+        self.assertTrue(Path(".cursor/skills/fixture-skill").is_dir())
+
+    def test_tools_cursor_block_is_merged_into_the_frontmatter(self):
+        """`paths` and `disable-model-invocation` from `tools.cursor` reach it (§3.5)."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n"
+            "tools:\n"
+            "  cursor:\n"
+            "    paths: '**/*.py'\n"
+            "    disable-model-invocation: true\n",
+        )
+
+        install_skill_directory(skill, CURSOR)
+
+        frontmatter = yaml.safe_load(self._installed().split("---\n")[1])
+        self.assertEqual(frontmatter["paths"], "**/*.py")
+        self.assertIs(frontmatter["disable-model-invocation"], True)
+
+    def test_legacy_globs_is_normalised_to_paths(self):
+        """§3.5: Cursor's docs renamed `globs` to `paths`; existing skills need no edit."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n"
+            "tools:\n"
+            "  cursor:\n"
+            "    globs: '**/*.py'\n",
+        )
+
+        install_skill_directory(skill, CURSOR)
+
+        frontmatter = yaml.safe_load(self._installed().split("---\n")[1])
+        self.assertEqual(frontmatter["paths"], "**/*.py")
+        self.assertNotIn("globs", frontmatter)
+
+    def test_paths_wins_when_both_are_authored(self):
+        """A skill written for the new key should not have it silently overwritten."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n"
+            "tools:\n"
+            "  cursor:\n"
+            "    paths: '**/*.ts'\n"
+            "    globs: '**/*.py'\n",
+        )
+
+        install_skill_directory(skill, CURSOR)
+
+        frontmatter = yaml.safe_load(self._installed().split("---\n")[1])
+        self.assertEqual(frontmatter["paths"], "**/*.ts")
+
+    def test_supporting_files_ride_along(self):
+        """The whole point of D8's directory install: `references/` travels with it."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+            files={"references/api.md": "# Generated\n"},
+        )
+
+        install_skill_directory(skill, CURSOR)
+
+        self.assertEqual(
+            Path(".cursor/skills/fixture-skill/references/api.md").read_text(
+                encoding="utf-8"
+            ),
+            "# Generated\n",
+        )
+
+
+class TestLegacyDetectionWiredIntoInstall(unittest.TestCase):
+    """§4.4: `find_legacy_installs` reaches the user's terminal through the CLI.
+
+    Tested in isolation on the manifest; here it has to surface through the install
+    itself, so the handler cannot silently grow a private "is this ours?" answer.
+    """
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.source = Path(tempfile.mkdtemp())
+        self.original_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+
+    def tearDown(self):
+        os.chdir(self.original_cwd)
+        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.source)
+
+    def _fixture(self):
+        return _write_skill(
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
+        )
+
+    def _install_legacy_copilot_region(self):
+        instructions = Path(".github/copilot-instructions.md")
+        instructions.parent.mkdir(parents=True, exist_ok=True)
+        instructions.write_text(
+            "<!-- railtracks:fixture-skill:start -->\nold body\n"
+            "<!-- railtracks:fixture-skill:end -->\n",
+            encoding="utf-8",
+        )
+
+    def _install_legacy_cursor_file(self):
+        rule = Path(".cursor/rules/fixture-skill.mdc")
+        rule.parent.mkdir(parents=True, exist_ok=True)
+        rule.write_text(
+            "---\ndescription: x\nalwaysApply: false\n---\n\nold body\n",
+            encoding="utf-8",
+        )
+
+    def test_a_legacy_copilot_region_is_reported_on_a_copilot_install(self):
+        """The migration path: user re-runs `add copilot:x`, learns the old block is stale."""
+        self._install_legacy_copilot_region()
+
+        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
+            install_skill_directory(self._fixture(), COPILOT, force=True)
+
+        reported = " ".join(str(c.args[0]) for c in mock_warning.call_args_list if c.args)
+        self.assertIn("copilot-instructions.md", reported)
+        self.assertIn("legacy", reported)
+
+    def test_a_legacy_cursor_mdc_is_reported_on_a_cursor_install(self):
+        """The migration path: user re-runs `add cursor:x`, learns the old .mdc is stale."""
+        self._install_legacy_cursor_file()
+
+        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
+            install_skill_directory(self._fixture(), CURSOR, force=True)
+
+        reported = " ".join(str(c.args[0]) for c in mock_warning.call_args_list if c.args)
+        self.assertIn("fixture-skill.mdc", reported)
+        self.assertIn("legacy", reported)
+
+    def test_the_legacy_install_is_reported_but_not_removed(self):
+        """D12: the manifest recognises legacy installs; it never deletes them."""
+        self._install_legacy_copilot_region()
+        self._install_legacy_cursor_file()
+        before_copilot = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+        before_cursor = Path(".cursor/rules/fixture-skill.mdc").read_text(encoding="utf-8")
+
+        with patch("railtracks.cli._skillkit.install.print_warning"):
+            install_skill_directory(self._fixture(), COPILOT, force=True)
+
+        self.assertEqual(
+            Path(".github/copilot-instructions.md").read_text(encoding="utf-8"),
+            before_copilot,
+        )
+        self.assertEqual(
+            Path(".cursor/rules/fixture-skill.mdc").read_text(encoding="utf-8"),
+            before_cursor,
+        )
+
+    def test_a_clean_repo_reports_no_legacy_installs(self):
+        """No legacy content on disk, no legacy warnings — the common case is silent."""
+        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
+            install_skill_directory(self._fixture(), COPILOT, force=True)
+
+        self.assertEqual(mock_warning.call_count, 0)
+
+
 class TestInstallTargetParameters(unittest.TestCase):
     """The two parameters are the deliverable: a target root, and a projection."""
 
@@ -440,7 +831,7 @@ class TestInstallTargetParameters(unittest.TestCase):
             label="Some Assistant",
             root=Path(".somewhere") / "skills",
             frontmatter=lambda s: f"---\nname: {s.name}\n---\n\n",
-            body=lambda s: _strip_skill_arguments(s.body),
+            body=lambda s: strip_skill_arguments(s.body),
         )
 
         written = install_skill_directory(skill, elsewhere)

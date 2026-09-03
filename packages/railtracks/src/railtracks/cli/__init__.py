@@ -33,7 +33,15 @@ from colorama import Fore, Style
 
 from railtracks.paths import resolve_railtracks_home
 
-from ._skillkit import CLAUDE, Skill, discover_skills, install_skill_directory
+from ._skillkit import (
+    CLAUDE,
+    CODEX,
+    COPILOT,
+    CURSOR,
+    Skill,
+    discover_skills,
+    install_skill_directory,
+)
 from .constants import (
     DEFAULT_PORT,
     cli_directory,
@@ -42,7 +50,6 @@ from .constants import (
 )
 from .io import (
     _print_update_available,
-    confirm_overwrite,
     print_error,
     print_status,
     print_success,
@@ -249,42 +256,6 @@ def update_railtracks():
 # ---------------------------------------------------------------------------
 
 
-def _strip_skill_arguments(content: str) -> str:
-    """Resolve the `$ARGUMENTS` placeholder for targets that never substitute it.
-
-    Claude Code is the only target with an argument-hint field and documented
-    `$ARGUMENTS` substitution, so it is the only one that gets the placeholder. Codex
-    and Cursor document no substitution, and Copilot reads `copilot-instructions.md` as
-    always-on repository context, so for all three the placeholder would ship to the
-    model literally.
-    """
-    kept: list[str] = []
-    drop_next_blank = False
-    for line in content.splitlines():
-        if drop_next_blank and not line.strip():
-            drop_next_blank = False
-            continue
-        drop_next_blank = False
-
-        if "$ARGUMENTS" not in line:
-            kept.append(line)
-            continue
-
-        # A whole line that only exists to introduce the argument is dropped, along
-        # with the blank line it would otherwise leave behind; an inline mention is
-        # reworded in place.
-        if line.rstrip().endswith(": $ARGUMENTS"):
-            drop_next_blank = bool(kept) and not kept[-1].strip()
-            continue
-
-        kept.append(
-            line.replace("`$ARGUMENTS`", "the request").replace(
-                "$ARGUMENTS", "the request"
-            )
-        )
-    return "\n".join(kept)
-
-
 def _add_claude(skill: Skill, force: bool) -> list[Path]:
     """Install a skill for Claude Code as a skill directory, and report what it wrote.
 
@@ -295,70 +266,19 @@ def _add_claude(skill: Skill, force: bool) -> list[Path]:
     return install_skill_directory(skill, CLAUDE, force)
 
 
-def _add_codex(skill: Skill, force: bool) -> None:
-    """Install a skill for Codex as a repository-scoped SKILL.md file."""
-    target = Path(".agents") / "skills" / skill.name / "SKILL.md"
-    if target.exists() and not force:
-        if not confirm_overwrite(target):
-            print_status("Aborted.")
-            sys.exit(0)
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n\n"
-    target.write_text(
-        frontmatter + _strip_skill_arguments(skill.body), encoding="utf-8"
-    )
-    print_success(f"Installed '{skill.name}' for Codex -> {target}")
+def _add_codex(skill: Skill, force: bool) -> list[Path]:
+    """Install a skill for Codex as a skill directory under .agents/skills."""
+    return install_skill_directory(skill, CODEX, force)
 
 
-def _add_copilot(skill: Skill, force: bool) -> None:
-    """Install skill for GitHub Copilot by appending to copilot-instructions.md."""
-    target = Path(".github") / "copilot-instructions.md"
-    start_marker = f"<!-- railtracks:{skill.name}:start -->"
-    end_marker = f"<!-- railtracks:{skill.name}:end -->"
-
-    if target.exists():
-        existing = target.read_text(encoding="utf-8")
-        if start_marker in existing:
-            print_warning(
-                f"Skill '{skill.name}' is already present in {target}. "
-                "Remove the existing section and re-run to update it, or use --force."
-            )
-            if not force:
-                sys.exit(0)
-            start_idx = existing.index(start_marker)
-            end_idx = existing.index(end_marker) + len(end_marker)
-            existing = existing[:start_idx] + existing[end_idx:]
-    else:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        existing = ""
-
-    # Rewrite rather than append, so regenerating a skill in place is byte-identical
-    # to installing it fresh and repeated --force runs don't accumulate blank lines.
-    preamble = existing.rstrip()
-    section = (
-        f"{start_marker}\n{_strip_skill_arguments(skill.body).strip()}\n{end_marker}\n"
-    )
-    target.write_text(
-        f"{preamble}\n\n{section}" if preamble else section, encoding="utf-8"
-    )
-    print_success(f"Installed '{skill.name}' for GitHub Copilot -> {target}")
+def _add_copilot(skill: Skill, force: bool) -> list[Path]:
+    """Install a skill for GitHub Copilot as a skill directory under .github/skills."""
+    return install_skill_directory(skill, COPILOT, force)
 
 
-def _add_cursor(skill: Skill, force: bool) -> None:
-    """Install skill for Cursor as a .mdc rules file."""
-    target = Path(".cursor") / "rules" / f"{skill.name}.mdc"
-    if target.exists() and not force:
-        if not confirm_overwrite(target):
-            print_status("Aborted.")
-            sys.exit(0)
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = f"---\ndescription: {skill.description}\nalwaysApply: false\n---\n\n"
-    target.write_text(
-        frontmatter + _strip_skill_arguments(skill.body), encoding="utf-8"
-    )
-    print_success(f"Installed '{skill.name}' for Cursor -> {target}")
+def _add_cursor(skill: Skill, force: bool) -> list[Path]:
+    """Install a skill for Cursor as a skill directory under .cursor/skills."""
+    return install_skill_directory(skill, CURSOR, force)
 
 
 _TOOL_HANDLERS = {

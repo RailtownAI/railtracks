@@ -355,19 +355,26 @@ class TestSkillInstallers(unittest.TestCase):
         )
         self.assertNotIn("$ARGUMENTS", content)
 
-    def test_cursor_installs_rules_file(self):
-        """Cursor skills are written as .mdc rules with valid metadata."""
+    def test_cursor_installs_skill_directory(self):
+        """Cursor skills ship as `.cursor/skills/<name>/SKILL.md`, not the legacy .mdc."""
         add_skill("cursor:agent-builder")
 
-        target = Path(".cursor/rules/agent-builder.mdc")
+        target = Path(".cursor/skills/agent-builder/SKILL.md")
         self.assertTrue(target.is_file())
         content = target.read_text(encoding="utf-8")
-        self.assertTrue(content.startswith("---\ndescription: "))
-        self.assertIn("alwaysApply: false", content)
+        self.assertTrue(content.startswith("---\nname: agent-builder\n"))
+        self.assertIn("description:", content)
         self.assertIn("# Build a Railtracks Agent", content)
 
+    def test_cursor_does_not_write_the_legacy_mdc(self):
+        """D10: no legacy writes. The old .mdc path must not be touched."""
+        add_skill("cursor:agent-builder")
+
+        self.assertFalse(Path(".cursor/rules/agent-builder.mdc").exists())
+        self.assertFalse(Path(".cursor/rules").exists())
+
     def test_cursor_does_not_use_other_tool_directories(self):
-        """Cursor installation must use its own rules discovery path."""
+        """Cursor installation must use its own skills discovery path."""
         add_skill("cursor:agent-builder")
 
         self.assertFalse(Path(".claude").exists())
@@ -378,40 +385,36 @@ class TestSkillInstallers(unittest.TestCase):
         """Cursor has no argument-hint field and no substitution, so $ARGUMENTS goes."""
         add_skill("cursor:agent-builder")
 
-        content = Path(".cursor/rules/agent-builder.mdc").read_text(encoding="utf-8")
+        content = Path(".cursor/skills/agent-builder/SKILL.md").read_text(
+            encoding="utf-8"
+        )
         self.assertNotIn("$ARGUMENTS", content)
+
+    def test_copilot_installs_skill_directory(self):
+        """Copilot skills ship as `.github/skills/<name>/SKILL.md` — no marker block."""
+        add_skill("copilot:agent-builder")
+
+        target = Path(".github/skills/agent-builder/SKILL.md")
+        self.assertTrue(target.is_file())
+        content = target.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith("---\nname: agent-builder\n"))
+        self.assertIn("description:", content)
+        self.assertIn("# Build a Railtracks Agent", content)
+
+    def test_copilot_does_not_write_the_legacy_marker_block(self):
+        """D10: no legacy writes. copilot-instructions.md must not be touched."""
+        add_skill("copilot:agent-builder")
+
+        self.assertFalse(Path(".github/copilot-instructions.md").exists())
 
     def test_copilot_resolves_argument_placeholder(self):
-        """Copilot instructions are always-on context, so $ARGUMENTS never survives."""
+        """Copilot's directory install ships no argument-hint field, so $ARGUMENTS goes."""
         add_skill("copilot:agent-builder")
 
-        content = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+        content = Path(".github/skills/agent-builder/SKILL.md").read_text(
+            encoding="utf-8"
+        )
         self.assertNotIn("$ARGUMENTS", content)
-        self.assertIn("<!-- railtracks:agent-builder:start -->", content)
-        self.assertIn("<!-- railtracks:agent-builder:end -->", content)
-
-    def test_copilot_reinstall_is_idempotent(self):
-        """Regenerating a skill in place must not duplicate it or add blank lines."""
-        add_skill("copilot:agent-builder")
-        first = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
-
-        add_skill("copilot:agent-builder", force=True)
-        second = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
-
-        self.assertEqual(first, second)
-
-    def test_copilot_preserves_surrounding_content(self):
-        """Hand-maintained sections around the markers must survive a regeneration."""
-        target = Path(".github/copilot-instructions.md")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("# Hand written preamble\n", encoding="utf-8")
-
-        add_skill("copilot:agent-builder")
-        add_skill("copilot:agent-builder", force=True)
-
-        content = target.read_text(encoding="utf-8")
-        self.assertTrue(content.startswith("# Hand written preamble\n"))
-        self.assertEqual(content.count("<!-- railtracks:agent-builder:start -->"), 1)
 
     def test_claude_keeps_argument_placeholder(self):
         """Claude Code substitutes $ARGUMENTS at invocation, so it must be preserved."""
