@@ -17,9 +17,9 @@ class Verdict(Generic[_R]):
     - decline: ``accepted=False``, ``comment=None``
     - decline with comments: ``accepted=False``, ``comment=<str>``
 
-    ``args``/``kwargs`` mean "forward these into the call instead" -- used by
+    ``args``/``kwargs`` mean "forward these into the call instead" — used by
     pre-call verifiers, which review before the node runs. ``result`` means
-    "propagate this instead of what the call produced" -- used by post-call
+    "propagate this instead of what the call produced" — used by post-call
     verifiers, which review after the node has already run and can no longer
     change what was passed in, only what continues onward.
 
@@ -27,7 +27,7 @@ class Verdict(Generic[_R]):
     node's return type, so a ``result=`` override of the wrong type is a
     type-checker error rather than a silent runtime mismatch. There is no
     runtime validation of ``args``/``kwargs`` overrides against the node's
-    signature -- a bad override surfaces as a ``TypeError`` from the call
+    signature — a bad override surfaces as a ``TypeError`` from the call
     itself.
     """
 

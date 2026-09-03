@@ -30,7 +30,7 @@ Guardrails are model middleware too; a policy layer that inspects inputs and out
 
 ### Verifiers
 
-`pre_verifier` and `post_verifier` are node middleware for gating a call before or after it runs -- the basis for human-in-the-loop workflows in Railtracks. They aren't catalogued in the table above since there are only two, tightly coupled by design; see the [Verifiers](../verifiers/overview.md) overview for the full picture.
+`pre_verifier` and `post_verifier` are node middleware for gating a call before or after it runs — the basis for human-in-the-loop workflows in Railtracks. They aren't catalogued in the table above since there are only two, tightly coupled by design; see the [Verifiers](../verifiers/overview.md) overview for the full picture.
 
 !!! Note
     Don't see what you are looking for? [Create your own middleware](../custom.md) for a custom solution, or [contribute a prebuilt middleware](contributions.md) so others can reuse it.
