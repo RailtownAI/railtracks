@@ -265,6 +265,29 @@ class TestHelpers:
         file_block = litellm_message["content"][1]
         assert file_block["type"] == "file"
 
+    def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
+        """
+        A structured-output AssistantMessage (content is a parsed pydantic
+        BaseModel, not a str) must be serialized to a JSON string, not passed
+        through as a raw BaseModel instance -- litellm/the OpenAI SDK reject
+        non-string content with a 400 when this message is fed back into a
+        later completion call (e.g. manually-threaded multi-turn history).
+        """
+
+        class Reply(BaseModel):
+            text: str
+            wants_to_end: bool
+
+        message = AssistantMessage(content=Reply(text="hi", wants_to_end=False))
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
+
+        assert isinstance(litellm_message["content"], str)
+        assert (
+            litellm_message["content"]
+            == Reply(text="hi", wants_to_end=False).model_dump_json()
+        )
+
     # =================================== END _to_litellm_message Tests ====================================
 
 
