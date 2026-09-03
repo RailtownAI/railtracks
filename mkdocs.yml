@@ -114,6 +114,7 @@ nav:
                 - Overview: documentation/agent_design/middleware/guardrails/overview.md
                 - Quickstart: documentation/agent_design/middleware/guardrails/quickstart.md
                 - Contributing: documentation/agent_design/middleware/guardrails/contributions.md
+              - Verifiers: documentation/agent_design/middleware/verifiers/overview.md
               - Prebuilt:
                 - Overview: documentation/agent_design/middleware/prebuilt/overview.md
                 - Contributing: documentation/agent_design/middleware/prebuilt/contributions.md
@@ -167,11 +168,6 @@ nav:
             - V1 (Stable): observability/agenthub/local.md
             - V2 (Beta): observability/agenthub/local_v2.md
           - Cloud: observability/agenthub/cloud.md
-      - Human in the Loop:
-          - Overview: observability/human_in_the_loop/overview.md
-          - Local Chat Interface: observability/human_in_the_loop/local_chat_ui.md
-          - Terminal Interface: observability/human_in_the_loop/terminal.md
-          - Custom: observability/human_in_the_loop/hil.md
       - Tracking:
           - Logging: observability/tracking/logging.md
           - Broadcasting: observability/tracking/broadcasting.md
@@ -207,6 +203,8 @@ nav:
               - Prompts and Context: tutorials/walkthroughs/prompts_and_context.md
               - Flows: tutorials/walkthroughs/flows.md
               - FastAPI Integration: tutorials/walkthroughs/fastapi.md
+              - "Human-in-the-Loop: LLM Reviewers": tutorials/walkthroughs/hil_llm_reviewer.md
+              - "Human-in-the-Loop: Webhook Approvals": tutorials/walkthroughs/hil_webhook_approval.md
           - Videos:
               - Multiagent Systems: tutorials/videos/multiagent.md
               - Multimodal Agent: tutorials/videos/multimodal_agent.md

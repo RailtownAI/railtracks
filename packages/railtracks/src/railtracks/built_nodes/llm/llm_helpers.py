@@ -364,7 +364,7 @@ def append_system_message(
     """Modifies the object in place"""
     if system_message:
         # Prepend the system message to the message history
-        message_history.insert(0, system_message)
+        message_history.insert(0, deepcopy(system_message))
 
 
 def prepare_structured_response(
