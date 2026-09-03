@@ -1,6 +1,6 @@
 # Human-in-the-Loop: LLM Reviewers
 
-The [Verifiers](../../documentation/agent_design/middleware/verifiers/overview.md) overview covers `pre_verifier`/`post_verifier` mechanics with a fixed threshold as `approve_fn`. In production, the reviewer is more often a second agent applying a written policy — auto-handling the common case, with a human only ever entering the loop for what the policy can't resolve. This walkthrough builds that shape: a refund flow with an LLM reviewing both the request going in and the reply going out.
+The [Verifiers](../../documentation/agent_design/middleware/verifiers/overview.md) overview covers `pre_verifier`/`post_verifier` mechanics with a fixed threshold as `approve_fn`. In production, the reviewer is more often a second agent applying a written policy that auto-handles the common case, with a human only ever entering the loop for what the policy can't resolve. This walkthrough builds that shape: a refund flow with an LLM reviewing both the request going in and the reply going out.
 
 The full runnable file is [`examples/human_in_the_loop/llm_approval_demo.py`](https://github.com/RailtownAI/railtracks/blob/main/examples/human_in_the_loop/llm_approval_demo.py). It makes real LLM calls, so set `OPENAI_API_KEY` (or swap the model) before running it:
 
@@ -46,7 +46,7 @@ def refund(order_id: str, amount: float, note: str) -> str:
     return f"refunded {amount} for {order_id}"
 ```
 
-`approve_fn` can be `async` — it runs an entire `rt.call` to another agent before returning a verdict, which is exactly the "compose a cheap check with an escalation" pattern from the overview, just with an LLM instead of a fixed threshold.
+`approve_fn` can be `async`: it runs an entire `rt.call` to another agent before returning a verdict, which is exactly the "compose a cheap check with an escalation" pattern from the overview, just with an LLM instead of a fixed threshold.
 
 ## Post-check: compliance review of a drafted reply
 
@@ -91,11 +91,11 @@ async def draft_reply(customer_message: str) -> str:
     return resp.content
 ```
 
-`review.revised_reply` is `None` when the draft needed no changes — and `Verdict.result` propagates the original result whenever the override is `None`, so leaving it unset is the correct way for the reviewer to say "no change needed."
+`review.revised_reply` is `None` when the draft needed no changes. `Verdict.result` propagates the original result whenever the override is `None`, so leaving it unset is the correct way for the reviewer to say "no change needed."
 
 ## Both on one node
 
-Nothing new is required to gate the same node on both ends — attach both middleware, in the order you want them evaluated:
+Nothing new is required to gate the same node on both ends: attach both middleware, in the order you want them evaluated.
 
 ```python
 @rt.function_node(
@@ -110,4 +110,4 @@ def refund_with_both(order_id: str, amount: float, note: str) -> str:
 
 ## Escalating to an actual human
 
-An LLM reviewer doesn't have to be the final word. [`custom_approval_demo.py`](https://github.com/RailtownAI/railtracks/blob/main/examples/human_in_the_loop/custom_approval_demo.py) shows the same composition idea in the other direction: auto-approve under a threshold, escalate to a real terminal prompt above it. Since `approve_fn` is just a callable, nothing stops you from combining both — auto-approve, then LLM-review, then escalate to a human only when the LLM itself is unsure.
+An LLM reviewer doesn't have to be the final word. [`custom_approval_demo.py`](https://github.com/RailtownAI/railtracks/blob/main/examples/human_in_the_loop/custom_approval_demo.py) shows the same composition idea in the other direction: auto-approve under a threshold, escalate to a real terminal prompt above it. Since `approve_fn` is just a callable, nothing stops you from combining all three: auto-approve, then LLM-review, then escalate to a human only when the LLM itself is unsure.
