@@ -5,6 +5,7 @@ from .message import AssistantMessage, Message, SystemMessage, ToolMessage, User
 from .model import ModelBase
 from .models import (
     AnthropicLLM,
+    AppleFMLLM,
     AzureAILLM,
     GeminiLLM,
     HuggingFaceLLM,
@@ -12,7 +13,6 @@ from .models import (
     OpenAICompatibleProvider,
     OpenAILLM,
     PortKeyLLM,
-    # TelusLLM,
 )
 from .models._model_exception_base import (
     FunctionCallingNotSupportedError,
@@ -51,14 +51,12 @@ __all__ = [
     "ModelProvider",
     "Tool",
     "AnthropicLLM",
+    "AppleFMLLM",
     "AzureAILLM",
     "HuggingFaceLLM",
     "OpenAILLM",
     "GeminiLLM",
     "OllamaLLM",
-    "AzureAILLM",
-    "GeminiLLM",
-    # "TelusLLM",
     "PortKeyLLM",
     "OpenAICompatibleProvider",
     # Parameter types

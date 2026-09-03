@@ -1,6 +1,6 @@
 """Decorators for authoring guardrails from a plain function.
 
-Mirror the ``@before_llm`` / ``@after_llm`` middleware decorators: wrap a function
+Mirror the ``@pre_llm`` / ``@post_llm`` middleware decorators: wrap a function
 that maps an event to a :class:`GuardrailDecision` and get back a ready-to-use
 :class:`InputGuard` / :class:`OutputGuard` instance.
 
