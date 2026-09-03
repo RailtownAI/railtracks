@@ -15,12 +15,39 @@ from railtracks.prebuilt.middleware import pre_verifier, post_verifier
 
 Both return a node middleware you attach via `middleware=[...]`, and both accept sync or async `approve_fn`s.
 
+## `Verdict`
+
+Both verifiers require `approve_fn` to return a `Verdict`, imported from `railtracks.middleware`:
+
+```python
+from railtracks.middleware import Verdict, VerifierRejectedError
+```
+
+| Field | Meaning |
+|---|---|
+| `accepted` | `True` to let the call through, `False` to decline it |
+| `comment` | Optional; logged on accept, used as the `VerifierRejectedError` message on decline |
+| `args` / `kwargs` | Set on accept to override what gets forwarded into the node call. Only `pre_verifier` reads these back; `post_verifier` ignores them, since the call already happened |
+| `result` | Set on accept to override what propagates onward. Only `post_verifier` reads this back; `pre_verifier` ignores it, since there's no result yet |
+
 !!! info "How `approve_fn`'s arguments relate to the wrapped node"
-    `approve_fn` always receives the exact `*args`/`**kwargs` the node is about to be invoked with at that middleware layer. That's not necessarily the original call-site arguments if an outer `pre_verifier` already overrode them.
+    `approve_fn` always receives the exact `*args`/`**kwargs` the node is about to be invoked with at that middleware layer, regardless of which override fields it sets on the returned `Verdict`. That's not necessarily the original call-site arguments if an outer `pre_verifier` already overrode them.
 
     - `pre_verifier`'s `approve_fn(*args, **kwargs)` sees what's about to be forwarded onward (to the node, or to the next inner middleware). If its `Verdict` sets `args`/`kwargs`, those replace what gets forwarded.
     - `post_verifier`'s `approve_fn(result, *args, **kwargs)` sees the `result` the node actually produced, plus the same `args`/`kwargs` the node was called with, already reflecting any override from an outer `pre_verifier`.
     - When both wrap the same node, list order decides which is outer: `pre_verifier` listed first means it can rewrite the arguments before `post_verifier` (and the node) ever see them. See [Middleware Ordering](../overview.md#middleware-ordering).
+
+`Verdict` is generic over `result`'s type (`Verdict[_R]`), matching the wrapped node's return type, so a `result=` override of the wrong type is a type-checker error. There's no equivalent runtime check on `args`/`kwargs`: a bad override surfaces as a `TypeError` from the node call itself.
+
+A declined verdict raises `VerifierRejectedError`. For `pre_verifier` this prevents the node from running at all; for `post_verifier` the node has already run, so decline only stops the result from propagating; it can't undo the call.
+
+### Timeouts
+
+If `approve_fn` doesn't respond within `timeout` seconds, the call is treated as declined with `comment="timeout"`.
+
+### Any callable works
+
+`approve_fn` can be anything matching the signature above: a fixed threshold, a lookup against an internal service, an LLM call, or a real human at a terminal or behind a webhook. Composing backends — a cheap automatic check that only escalates to a human when needed — is common and needs nothing special: it's just one `approve_fn` that calls another. See the [Tutorials](#guided-walkthroughs) below for worked examples of an LLM-as-reviewer and a webhook-based approval flow.
 
 ## Usage
 
@@ -40,35 +67,6 @@ Both can gate the same node: the request is approved going in, then the result i
 ```python
 --8<-- "docs/scripts/verifiers.py:composed"
 ```
-
-## `Verdict`
-
-Both verifiers require `approve_fn` to return a `Verdict`, imported from `railtracks.middleware`:
-
-```python
-from railtracks.middleware import Verdict, VerifierRejectedError
-```
-
-| Field | Meaning |
-|---|---|
-| `accepted` | `True` to let the call through, `False` to decline it |
-| `comment` | Optional; logged on accept, used as the `VerifierRejectedError` message on decline |
-| `args` / `kwargs` | Set on accept to override what gets forwarded into the node call. Only `pre_verifier` reads these back; `post_verifier` ignores them, since the call already happened |
-| `result` | Set on accept to override what propagates onward. Only `post_verifier` reads this back; `pre_verifier` ignores it, since there's no result yet |
-
-Both verifiers' `approve_fn` receives the node's original `args`/`kwargs` as input (see the signatures above) regardless of which override fields it sets on the returned `Verdict`.
-
-`Verdict` is generic over `result`'s type (`Verdict[_R]`), matching the wrapped node's return type, so a `result=` override of the wrong type is a type-checker error. There's no equivalent runtime check on `args`/`kwargs`: a bad override surfaces as a `TypeError` from the node call itself.
-
-A declined verdict raises `VerifierRejectedError`. For `pre_verifier` this prevents the node from running at all; for `post_verifier` the node has already run, so decline only stops the result from propagating; it can't undo the call.
-
-### Timeouts
-
-If `approve_fn` doesn't respond within `timeout` seconds, the call is treated as declined with `comment="timeout"`.
-
-### Any callable works
-
-`approve_fn` can be anything matching the signature above: a fixed threshold, a lookup against an internal service, an LLM call, or a real human at a terminal or behind a webhook. Composing backends — a cheap automatic check that only escalates to a human when needed — is common and needs nothing special: it's just one `approve_fn` that calls another. See the [Tutorials](#guided-walkthroughs) below for worked examples of an LLM-as-reviewer and a webhook-based approval flow.
 
 ## Composing with other middleware
 
