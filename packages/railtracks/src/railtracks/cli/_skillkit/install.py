@@ -1,9 +1,10 @@
 """Installing a skill directory into an assistant's native layout.
 
 An `InstallTarget` supplies the two things that differ per assistant — the root path
-it reads skills from, and the projection that renders `SKILL.md` for it.
-`install_skill_directory` does the rest: copy the directory, drop what a previous
-install left and this one does not ship, and record the result for the next one.
+it reads skills from, and the projection that renders `SKILL.md` for it. Concrete
+targets live in `providers/`, one file per assistant; adding another one is a copy of
+one of those files. This module owns the workflow: copy the directory, drop what a
+previous install left and this one does not ship, and record the result.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import yaml
 
 from ..io import confirm_overwrite, print_status, print_success, print_warning
 from .manifest import (
+    find_legacy_installs,
     is_ours_unmodified,
     prune,
     read_record,
@@ -27,6 +29,42 @@ from .manifest import (
     write_record,
 )
 from .registry import SKILL_FILE, Skill
+
+
+def strip_skill_arguments(content: str) -> str:
+    """Resolve the `$ARGUMENTS` placeholder for targets that never substitute it.
+
+    Claude Code is the only target with an argument-hint field and documented
+    `$ARGUMENTS` substitution, so it is the only one that gets the placeholder. For
+    every other target the placeholder would ship to the model literally, so we drop
+    a whole line whose sole purpose is to introduce the argument and reword an
+    inline mention as "the request".
+
+    Lives on the projection so a handler cannot skip it.
+    """
+    kept: list[str] = []
+    drop_next_blank = False
+    for line in content.splitlines():
+        if drop_next_blank and not line.strip():
+            drop_next_blank = False
+            continue
+        drop_next_blank = False
+
+        if "$ARGUMENTS" not in line:
+            kept.append(line)
+            continue
+
+        # Drop the whole intro line (and its trailing blank); reword inline mentions in place.
+        if line.rstrip().endswith(": $ARGUMENTS"):
+            drop_next_blank = bool(kept) and not kept[-1].strip()
+            continue
+
+        kept.append(
+            line.replace("`$ARGUMENTS`", "the request").replace(
+                "$ARGUMENTS", "the request"
+            )
+        )
+    return "\n".join(kept)
 
 
 @dataclass(frozen=True)
@@ -77,51 +115,15 @@ def render_frontmatter(
             continue
         passthrough[key] = value
 
+    # Force block style: a one-key flow map after block-style lines is ambiguous YAML.
     rendered_extra = (
         yaml.safe_dump(
-            passthrough, default_flow_style=None, sort_keys=False, allow_unicode=True
+            passthrough, default_flow_style=False, sort_keys=False, allow_unicode=True
         )
         if passthrough
         else ""
     )
     return "---\n" + "".join(lines) + rendered_extra + "---\n\n"
-
-
-def _quote(value: str) -> str:
-    """Emit a string as a double-quoted YAML scalar."""
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def claude_frontmatter(skill: Skill) -> str:
-    """Project a skill into the frontmatter Claude Code consumes.
-
-    `name` and `description` map across directly, `argument-hint` is emitted when the
-    skill has one, and `tools.claude` supplies everything else.
-    """
-    return render_frontmatter(
-        (
-            ("name", skill.name),
-            ("description", skill.description),
-            (
-                "argument-hint",
-                _quote(skill.argument_hint)
-                if skill.argument_hint is not None
-                else None,
-            ),
-        ),
-        skill.tools.get("claude"),
-        skill_name=skill.name,
-    )
-
-
-CLAUDE = InstallTarget(
-    key="claude",
-    label="Claude Code",
-    root=Path(".claude") / "skills",
-    # Claude Code substitutes $ARGUMENTS itself, so its body ships as authored.
-    body=lambda skill: skill.body,
-    frontmatter=claude_frontmatter,
-)
 
 
 def _planned_files(skill: Skill, destination: Path) -> list[tuple[Path, Path | None]]:
@@ -148,6 +150,10 @@ def install_skill_directory(
     destination = target.root / skill.name
     planned = _planned_files(skill, destination)
     previous = read_record(destination)
+
+    # Report legacy Copilot/Cursor installs the new handler will not touch.
+    for legacy in find_legacy_installs(skill.name):
+        print_warning(legacy.advice())
 
     skew = version_skew(previous)
     if skew:
