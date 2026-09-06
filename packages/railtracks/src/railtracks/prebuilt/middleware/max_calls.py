@@ -1,7 +1,9 @@
+from typing import Any
+
 from railtracks.middleware.core import Middleware
 
 
-class MaxCalls(Middleware):
+class MaxCalls(Middleware[Any, Any]):
     """Fail the wrapped call once it has been invoked ``max_calls`` times.
 
     Slot-agnostic: works both as node middleware (``middleware=``) and as model

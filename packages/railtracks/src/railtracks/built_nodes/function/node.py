@@ -6,6 +6,7 @@ import inspect
 import warnings
 from types import BuiltinFunctionType
 from typing import (
+    Any,
     Callable,
     Coroutine,
     Iterable,
@@ -43,7 +44,7 @@ def function_node(  # pyright: ignore[reportOverlappingOverload]
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any]] | None = None,
 ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
@@ -54,7 +55,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any]] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
@@ -78,7 +79,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any]] | None = None,
 ) -> Callable[
     [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
     RTFunction[_P, _TOutput],
@@ -182,7 +183,7 @@ def _single_function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any]] | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput] | CallableAsyncRTFunction[_P, _TOutput]:
     """
     Creates a new Node type from a function that can be used in `rt.call()`.
@@ -261,7 +262,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any]] | None = None,
 ) -> (
     CallableAsyncRTFunction[_P, _TOutput]
     | CallableSyncRTFunction[_P, _TOutput]

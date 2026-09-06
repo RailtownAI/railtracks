@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from railtracks.middleware.core import Middleware
 
 
-class Lock(Middleware):
+class Lock(Middleware[Any, Any]):
     """Serialize concurrent invocations of the wrapped call.
 
     Reuse one instance across nodes that must not execute concurrently.

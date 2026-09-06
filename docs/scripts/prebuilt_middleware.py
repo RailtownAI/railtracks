@@ -6,11 +6,9 @@ pages by MkDocs. Type-checked in CI via scripts/docs_validation.sh.
 
 from __future__ import annotations
 
-
 # --8<-- [start: retry]
 import railtracks as rt
 from railtracks.prebuilt.middleware import Retry
-
 
 # Retry is slot-agnostic: use it as node middleware, model middleware, or both.
 RetryAgent = rt.agent_node(
@@ -61,6 +59,22 @@ LimitedApiCall = rt.function_node(
 # --8<-- [end: max_calls]
 
 
+# --8<-- [start: combined]
+import railtracks as rt
+from railtracks.prebuilt.middleware import Retry, Timeout
+
+
+# Prebuilt middleware can be freely combined in one list. Each class is
+# parameterized as Middleware[Any, Any] so mypy keeps the wrapped function's
+# real (*args, **kwargs) signature instead of collapsing it to Never.
+@rt.function_node(middleware=[Retry(3), Timeout(seconds=5)])
+def combined_example(x: str) -> str:
+    return x
+
+
+# --8<-- [end: combined]
+
+
 # --8<-- [start: lock]
 import railtracks as rt
 from railtracks.prebuilt.middleware import Lock
@@ -77,7 +91,6 @@ LockedAgent = rt.agent_node(
 # --8<-- [start: context_injection]
 import railtracks as rt
 from railtracks.prebuilt.middleware import ContextInjection
-
 
 # ContextInjection is model-level only. It fills {placeholders} in the prompt
 # from the active session context before each model call.
