@@ -9,6 +9,7 @@ import asyncio
 
 import pytest
 import railtracks as rt
+from railtracks.prebuilt.middleware import MaxCalls, Retry, Timeout
 
 
 def test_function_node_middleware_runs():
@@ -145,3 +146,38 @@ def test_after_replaces_return_value_on_success():
             return await rt.call(five)
 
     assert asyncio.run(top_level()) == 50
+
+
+def test_multiple_prebuilt_middleware_in_one_list():
+    """Two prebuilt middleware in a single middleware= list must not collapse
+    _P to Never.  Regression for #1538: Retry, Timeout, and MaxCalls all
+    subclassed the bare Middleware generic, which mypy resolved as
+    Middleware[Never, Never] under invariant generics, breaking list-element
+    unification when combining any two of them."""
+
+    @rt.function_node(middleware=[Retry(max_tries=1), Timeout(seconds=5)])
+    def add(x: str) -> str:
+        return x
+
+    async def top_level():
+        with rt.Session():
+            return await rt.call(add, "hello")
+
+    assert asyncio.run(top_level()) == "hello"
+
+
+def test_three_different_prebuilt_middleware_in_one_list():
+    """Combining three distinct prebuilt middleware in one list must work both
+    at runtime and under static analysis (no Never collapse)."""
+
+    @rt.function_node(
+        middleware=[Retry(max_tries=1), Timeout(seconds=5), MaxCalls(max_calls=3)]
+    )
+    def echo(x: int) -> int:
+        return x
+
+    async def top_level():
+        with rt.Session():
+            return await rt.call(echo, 42)
+
+    assert asyncio.run(top_level()) == 42

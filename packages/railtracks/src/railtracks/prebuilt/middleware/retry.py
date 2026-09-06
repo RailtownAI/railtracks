@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 from railtracks.llm.retries import ExponentialRetry, RetryApproach
 from railtracks.middleware.core import Middleware
 
 
-class Retry(Middleware):
+class Retry(Middleware[Any, Any]):
     """Retry the wrapped call when it raises a transient error.
 
     Slot-agnostic: works both as node middleware (``middleware=``) and as model
