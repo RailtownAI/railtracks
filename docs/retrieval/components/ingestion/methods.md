@@ -108,6 +108,12 @@ Each object — array element or JSONL line — becomes one `Document`.
 --8<-- "docs/scripts/retrieval/ingestion_example.py:json_loader"
 ```
 
+Nested values can be normalized before embedding with a content extractor:
+
+```python
+--8<-- "docs/scripts/retrieval/ingestion_example.py:json_structured_content"
+```
+
 For `.jsonl`:
 
 ```python
@@ -124,6 +130,7 @@ For `.jsonl`:
 | `ignore_keys` | `list[str] | None` | `None` | Keys dropped entirely |
 | `content_separator` | `str` | `"\n"` | Used to join content-key values |
 | `encoding` | `str` | `"utf-8-sig"` | File encoding |
+| `content_extractor` | `ContentExtractor | None` | `None` | Converts selected values to text. Omitted preserves existing serialization. |
 
 ---
 
@@ -295,9 +302,25 @@ For gated datasets set `HF_TOKEN` in your environment, or pass
 | `metadata_columns` | `list[str] \| None` | `None` | Columns copied into `metadata` |
 | `content_separator` | `str` | `"\n"` | Used to join `content_columns` values |
 | `dataset_kwargs` | `dict \| None` | `None` | Forwarded to `datasets.load_dataset` |
+| `content_extractor` | `ContentExtractor \| None` | `None` | Converts each selected content-column value to text. Omitted uses `StrExtractor`. |
 
 **Document metadata**: `row_index` plus any column listed in
 `metadata_columns`. `Document.source` is `"{dataset_name}/{split}"`.
+
+### Structured content extractors
+
+Both `JSONLoader` and `HuggingFaceDatasetLoader` accept any callable matching
+`ContentExtractor`: it receives one selected value and returns a string. The
+built-ins are importable from `railtracks.retrieval`:
+
+- `StrExtractor` uses `str(value)` and is the Hugging Face loader default.
+- `JsonExtractor` produces valid JSON and preserves Unicode text.
+- `ProseExtractor` renders nested dictionaries and lists as labelled prose.
+
+For example, the `passages` column in `ms_marco` is structured. The
+`hf_kwargs` example above uses `ProseExtractor` so the nested labels and values
+become useful embedding input. Extractors apply only to content fields;
+`metadata_columns` stay as their original Python values.
 
 ---
 # LangChain Loaders

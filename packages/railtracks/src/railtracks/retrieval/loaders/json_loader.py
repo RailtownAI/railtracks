@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any, Literal
 
+from railtracks.retrieval.content_extraction import ContentExtractor
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import Document, DocumentType
 
@@ -47,6 +48,10 @@ class JSONLoader(BaseDocumentLoader):
         ignore_keys: Keys to drop entirely from both content and metadata.
         content_separator: String used to join multiple content-key values.
             Defaults to `"\\n"`.
+        content_extractor: Optional callable used to turn content-key values
+            into text. When omitted, the loader preserves its existing JSON
+            serialization for `content_keys="*"` and `str(value)` behavior
+            for explicit keys.
         encoding: File encoding. Defaults to `utf-8-sig`.
 
     Raises:
@@ -67,12 +72,14 @@ class JSONLoader(BaseDocumentLoader):
         ignore_keys: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
+        content_extractor: ContentExtractor | None = None,
     ) -> None:
         self._path = Path(file_path)
         self._content_keys = content_keys
         self._id_key = id_key
         self._ignore_keys = set(ignore_keys or [])
         self._content_separator = content_separator
+        self._content_extractor = content_extractor
         self._encoding = encoding
 
     def _object_to_document(
@@ -99,9 +106,11 @@ class JSONLoader(BaseDocumentLoader):
                 present in `obj`.
         """
         if self._content_keys == "*":
-            content = json.dumps(
-                {k: v for k, v in obj.items() if k not in self._ignore_keys},
-                ensure_ascii=False,
+            content_value = {k: v for k, v in obj.items() if k not in self._ignore_keys}
+            content = (
+                self._content_extractor(content_value)
+                if self._content_extractor is not None
+                else json.dumps(content_value, ensure_ascii=False)
             )
             metadata: dict[str, Any] = {}
         else:
@@ -111,7 +120,7 @@ class JSONLoader(BaseDocumentLoader):
                     f"content_keys {unknown} not found in object at index {index} in {source_prefix}"
                 )
             content = self._content_separator.join(
-                f"{k}: {obj[k]}" for k in self._content_keys
+                f"{k}: {self._extract_content(obj[k])}" for k in self._content_keys
             )
             content_key_set = set(self._content_keys)
             metadata = {
@@ -133,6 +142,11 @@ class JSONLoader(BaseDocumentLoader):
             source=f"{source_prefix}#{obj_id}",
             metadata=metadata,
         )
+
+    def _extract_content(self, value: Any) -> str:
+        if self._content_extractor is None:
+            return str(value)
+        return self._content_extractor(value)
 
     async def _stream_file(self, path: Path) -> AsyncGenerator[Document, None]:
         """Stream documents from a single JSON or JSONL file.

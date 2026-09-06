@@ -6,6 +6,7 @@ import pytest
 
 pytest.importorskip("datasets")
 
+from railtracks.retrieval import JsonExtractor, ProseExtractor  # noqa: E402
 from railtracks.retrieval.loaders.huggingface_loader import (  # noqa: E402
     HuggingFaceDatasetLoader,
 )
@@ -270,3 +271,63 @@ class TestHuggingFaceLoaderSyncWrapper:
         ).load()
         assert len(docs) == len(fake_rows)
         assert docs[0].metadata["row_index"] == 0
+
+
+class TestHuggingFaceLoaderContentExtractors:
+    async def test_json_extractor_serializes_nested_columns(self, mock_load_dataset):
+        mock_load_dataset.return_value = _FakeIterableDataset(
+            [{"question": {"text": "Why?", "tokens": ["Why", "?"]}}]
+        )
+
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds",
+            split="train",
+            content_columns=["question"],
+            content_extractor=JsonExtractor(),
+        ).aload()
+
+        assert docs[0].content == '{"text": "Why?", "tokens": ["Why", "?"]}'
+
+    async def test_prose_extractor_keeps_metadata_values_raw(self, mock_load_dataset):
+        nested = {"text": "Why?", "tokens": ["Why", "?"]}
+        mock_load_dataset.return_value = _FakeIterableDataset(
+            [{"question": nested, "metadata": {"source": "manual"}}]
+        )
+
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds",
+            split="train",
+            content_columns=["question"],
+            metadata_columns=["metadata"],
+            content_extractor=ProseExtractor(),
+        ).aload()
+
+        assert docs[0].content == "text: Why?; tokens: [Why, ?]"
+        assert docs[0].metadata["metadata"] == {"source": "manual"}
+
+    async def test_custom_content_extractor_is_supported(self, mock_load_dataset):
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds",
+            split="train",
+            content_columns=["query"],
+            content_extractor=lambda value: str(value).upper(),
+        ).aload()
+
+        assert docs[0].content == "WHAT IS RAG"
+
+    async def test_falsey_custom_extractor_is_not_replaced(self, mock_load_dataset):
+        class FalseyExtractor:
+            def __bool__(self) -> bool:
+                return False
+
+            def __call__(self, value: object) -> str:
+                return f"custom:{value}"
+
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds",
+            split="train",
+            content_columns=["query"],
+            content_extractor=FalseyExtractor(),
+        ).aload()
+
+        assert docs[0].content == "custom:what is rag"

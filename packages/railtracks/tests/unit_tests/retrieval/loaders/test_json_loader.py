@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from railtracks.retrieval import JsonExtractor, ProseExtractor
 from railtracks.retrieval.loaders.json_loader import JSONLoader
 from railtracks.retrieval.models import DocumentType
 
@@ -320,3 +321,48 @@ class TestJSONLoaderErrors:
         loader = JSONLoader(str(f))
         with pytest.raises(ValueError):
             await loader.aload()
+
+
+class TestJSONLoaderContentExtractors:
+    async def test_json_extractor_serializes_nested_content_key(self, tmp_path):
+        f = tmp_path / "nested.json"
+        f.write_text(
+            json.dumps({"question": {"text": "Why?", "tokens": ["Why", "?"]}}),
+            encoding="utf-8",
+        )
+
+        docs = await JSONLoader(
+            str(f),
+            content_keys=["question"],
+            content_extractor=JsonExtractor(),
+        ).aload()
+
+        assert docs[0].content == ('question: {"text": "Why?", "tokens": ["Why", "?"]}')
+
+    async def test_prose_extractor_applies_to_whole_object(self, tmp_path):
+        f = tmp_path / "nested.json"
+        f.write_text(
+            json.dumps({"text": "Why?", "tokens": ["Why", "?"]}),
+            encoding="utf-8",
+        )
+
+        docs = await JSONLoader(str(f), content_extractor=ProseExtractor()).aload()
+
+        assert docs[0].content == "text: Why?; tokens: [Why, ?]"
+
+    async def test_custom_extractor_preserves_unselected_metadata(self, tmp_path):
+        f = tmp_path / "nested.json"
+        metadata = {"source": "manual"}
+        f.write_text(
+            json.dumps({"question": {"text": "Why?"}, "metadata": metadata}),
+            encoding="utf-8",
+        )
+
+        docs = await JSONLoader(
+            str(f),
+            content_keys=["question"],
+            content_extractor=lambda value: value["text"].upper(),
+        ).aload()
+
+        assert docs[0].content == "question: WHY?"
+        assert docs[0].metadata["metadata"] == metadata

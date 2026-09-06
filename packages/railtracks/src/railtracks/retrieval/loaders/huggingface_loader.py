@@ -5,6 +5,7 @@ import warnings
 from collections.abc import AsyncGenerator, Iterator
 from typing import Any, Final
 
+from railtracks.retrieval.content_extraction import ContentExtractor, StrExtractor
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import Document, DocumentType
 
@@ -59,6 +60,10 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
             Default : None.
         content_separator: Separator used to join `content_columns`
             values. Default: `"\\n"`.
+        content_extractor: Callable used to turn each content-column value
+            into text. Defaults to `StrExtractor`, preserving the existing
+            `str(value)` behavior. Use `JsonExtractor`, `ProseExtractor`, or
+            any custom callable for nested values.
         dataset_kwargs: Extra keyword arguments forwarded to
             `datasets.load_dataset`. Use this for subset selection
             (`{"name": "v2.1"}`), pinning a revision, or passing an
@@ -80,6 +85,7 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
         metadata_columns: list[str] | None = None,
         content_separator: str = "\n",
         dataset_kwargs: dict[str, Any] | None = None,
+        content_extractor: ContentExtractor | None = None,
     ) -> None:
         if not content_columns:
             raise ValueError("content_columns must be a non-empty list of column names")
@@ -89,6 +95,9 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
         self._id_column = id_column
         self._metadata_columns = list(metadata_columns or [])
         self._content_separator = content_separator
+        self._content_extractor = (
+            content_extractor if content_extractor is not None else StrExtractor()
+        )
         self._dataset_kwargs = dict(dataset_kwargs or {})
 
     async def astream(self) -> AsyncGenerator[Document, None]:
@@ -152,7 +161,7 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
                 validated = True
 
             content = self._content_separator.join(
-                str(row[col]) for col in self._content_columns
+                self._content_extractor(row[col]) for col in self._content_columns
             )
             metadata: dict[str, Any] = {col: row[col] for col in self._metadata_columns}
             metadata["row_index"] = row_index
