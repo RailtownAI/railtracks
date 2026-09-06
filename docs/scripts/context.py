@@ -47,7 +47,7 @@ def comment_on_issue(comment: str):
 # Define the agent with the tool
 GitHubAgent = rt.agent_node(
     tool_nodes=[find_issue, comment_on_issue],
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are an agent that provides information based on important facts.",
 )
 

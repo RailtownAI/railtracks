@@ -7,7 +7,7 @@ memory = rt.prebuilt.tools.KeyValueMemoryToolSet()
 agent = rt.agent_node(
     name="Memory Agent",
     tool_nodes=[*memory.tool_set()],  # the tools your agent can call
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="...",
 )
 # --8<-- [end: kv_memory]
@@ -29,7 +29,7 @@ memory = rt.prebuilt.tools.KeyValueMemoryToolSet(
 agent = rt.agent_node(
     name="Memory Agent",
     tool_nodes=[*memory.tool_set()],
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message=rt.prebuilt.tools.KeyValueMemoryToolSet.prompt(),
 )
 # --8<-- [end: kv_memory_persistent]

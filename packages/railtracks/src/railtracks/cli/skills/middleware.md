@@ -59,7 +59,7 @@ from railtracks.prebuilt import middleware
 Agent = rt.agent_node(
     "Agent",
     tool_nodes=[send_email],  # has a side effect — don't retry the whole node
-    llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
+    llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
     model_middleware=[middleware.Retry(max_tries=3)],  # retries only the raw LLM call
 )
 ```

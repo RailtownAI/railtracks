@@ -2,7 +2,7 @@
 import railtracks as rt
 
 llm = rt.llm.OpenAILLM(
-    "gpt-4o",
+    "gpt-4.1",
     temperature=0.7,
     top_p=0.9,
     max_tokens=256,
@@ -14,7 +14,7 @@ llm = rt.llm.OpenAILLM(
 # --8<-- [start: reasoning_effort]
 import railtracks as rt
 
-reasoning_llm = rt.llm.OpenAILLM("gpt-5-mini", reasoning_effort="low")
+reasoning_llm = rt.llm.OpenAILLM("gpt-5.4-mini", reasoning_effort="low")
 # --8<-- [end: reasoning_effort]
 
 # --8<-- [start: fail_fast]

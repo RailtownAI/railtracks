@@ -5,7 +5,7 @@ import railtracks as rt
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 
-model = rt.llm.OpenAILLM("gpt-4o")
+model = rt.llm.OpenAILLM("gpt-5.4-mini")
 # --8<-- [end: open_ai]
 
 # --8<-- [start: anthropic]
@@ -13,7 +13,7 @@ import railtracks as rt
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 
-model = rt.llm.AnthropicLLM("claude-sonnet-4-6")
+model = rt.llm.AnthropicLLM("claude-sonnet-5")
 # --8<-- [end: anthropic]
 
 # --8<-- [start: gemini]
@@ -21,7 +21,7 @@ import railtracks as rt
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 
-model = rt.llm.GeminiLLM(model_name="gemini-3-flash-preview")
+model = rt.llm.GeminiLLM(model_name="gemini-3.7-flash")
 # --8<-- [end: gemini]
 
 # --8<-- [start: azure]
@@ -43,9 +43,9 @@ from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file under PORTKEY_API_KEY
 
 # using gpt through Portkey
-model = rt.llm.PortKeyLLM("@<your opennai slug>/gpt-4o")
+model = rt.llm.PortKeyLLM("@<your opennai slug>/gpt-5.4-mini")
 # using claude through Portkey
-model = rt.llm.PortKeyLLM("@<your anthropic slug>/claude-sonnet-4-5-20250929")
+model = rt.llm.PortKeyLLM("@<your anthropic slug>/claude-sonnet-5")
 # --8<-- [end: portkey]
 
 # --8<-- [start: openaicompat]

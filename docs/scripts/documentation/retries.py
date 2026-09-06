@@ -8,7 +8,7 @@ exponentialRetry = rt.llm.retries.ExponentialRetry(
 )
 # Now pass in that expoential configuration into your llm. 
 rt.llm.OpenAILLM(
-    model_name="gpt-4",
+    model_name="gpt-5.4-mini",
     retry_approach=exponentialRetry,
 )
 # --8<-- [end: exponential_backoff]

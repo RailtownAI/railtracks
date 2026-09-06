@@ -13,7 +13,7 @@ class MaxCalls(Middleware):
 
         rt.agent_node(
             "Agent",
-            llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
+            llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
             middleware=[middleware.MaxCalls(5)],  # cap calls to the whole node
             model_middleware=[middleware.MaxCalls(5)],  # cap raw model calls
         )

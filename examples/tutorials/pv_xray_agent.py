@@ -47,14 +47,14 @@ class Link(BaseModel):
 XRAY_agent = rt.agent_node(
     name="Prime Video Agent",
     system_message="You recognize actors and actresses in a given photo",
-    llm=rt.llm.GeminiLLM("gemini-3-flash-preview"),
+    llm=rt.llm.GeminiLLM("gemini-3.7-flash"),
     output_schema=Cast,
 )
 
 IMDB_agent = rt.agent_node(
     name="IMDB Agent",
     system_message="You find IMDB profiles given actors or actresses names",
-    llm=rt.llm.GeminiLLM("gemini-3-flash-preview"),
+    llm=rt.llm.GeminiLLM("gemini-3.7-flash"),
     tool_nodes=[web_search],
     output_schema=Link,
 )
