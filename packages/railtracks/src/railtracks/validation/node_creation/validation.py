@@ -295,13 +295,6 @@ def validate_tool_metadata(
 # ================================================ END Common Validation accross easy_usage_wrappers ===========================================================
 
 
-# ================================================================= START Tool init error ===========================================================
-# validate_tool_params moved to railtracks.llm.tools.tool._validate_tool_params: it
-# validates railtracks.llm.tools.tool.Tool's constructor argument, and the llm package
-# must not depend on this one (see test_llm_package_does_not_import_upward).
-# ================================================================== END Tool init error ===========================================================
-
-
 # ============================================================== START Tool Manifest Verification ===========================================================
 def _check_manifest_params_exist_in_function(
     func_params: dict, manifest_params: dict

@@ -26,19 +26,23 @@ from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
 
 
-def _validate_tool_params(parameters: Any, param_type: type) -> None:
+def _validate_tool_params(parameters: Any, param_type: type) -> Any:
     """Validate the shape of ``parameters`` before a Tool is built from it.
 
     Lives in this module rather than in ``railtracks.validation`` so the ``llm``
     package never imports upward: errors it raises on Tool's behalf must be
     ToolCreationError, defined right here, not the outer package's NodeCreationError.
+
+    Returns the (possibly materialized) parameters for the caller to store. A
+    single-pass iterable (e.g. a generator) must be materialized here, before
+    validation consumes it, or the caller is left with an exhausted iterator.
     """
     if parameters is None:
-        return
+        return None
 
     if isinstance(parameters, dict):
         if not parameters:
-            return
+            return parameters
         if parameters.get("type") != "object":
             raise ToolCreationError(
                 message="A 'type' key set to 'object' must be provided in the JSON schema for Tool parameters.",
@@ -53,9 +57,10 @@ def _validate_tool_params(parameters: Any, param_type: type) -> None:
                     "Add a 'properties' entry, even an empty one, describing the tool's parameters."
                 ],
             )
-        return
+        return parameters
 
     if isinstance(parameters, ABCIterable) and not isinstance(parameters, (str, bytes)):
+        parameters = list(parameters)
         if not all(isinstance(x, param_type) for x in parameters):
             raise ToolCreationError(
                 message="Parameters must be an iterable of Parameter objects, a dict, or None.",
@@ -63,7 +68,7 @@ def _validate_tool_params(parameters: Any, param_type: type) -> None:
                     "If the tool expects no parameters, use None or pass in an empty list instead."
                 ],
             )
-        return
+        return parameters
 
     raise ToolCreationError(
         message="Tool parameters must be an iterable of Parameter objects (e.g. a list, set, or tuple), a dict, or None.",
@@ -95,7 +100,7 @@ class Tool:
             detail: A detailed description of the tool.
             parameters: Parameters attached to this tool; a set or list of Parameter objects, or a dict.
         """
-        _validate_tool_params(parameters, Parameter)
+        parameters = _validate_tool_params(parameters, Parameter)
 
         if (
             isinstance(parameters, dict) and len(parameters) > 0

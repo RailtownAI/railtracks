@@ -60,8 +60,7 @@ class TestToolFromSchemaDict:
         """additionalProperties has no downstream effect (schema_parser.py and
         _handle_set_of_parameters both default a missing key to False, and the
         latter never re-emits the top-level key anyway), so a schema that omits
-        it must build a Tool exactly as it did before validate_tool_params was
-        wired in."""
+        it must still build a Tool normally."""
         tool = Tool(
             name="incomplete",
             detail="Promises a property but never sets additionalProperties.",
@@ -109,6 +108,16 @@ class TestToolParametersTypeGuard:
         )
 
         assert [p.name for p in tool.parameters] == ["city"]
+
+    def test_generator_of_parameter_objects_is_not_exhausted(self):
+        params = (Parameter(name=n, param_type="string") for n in ["city", "country"])
+        tool = Tool(
+            name="from_generator",
+            detail="A single-pass iterable: validating it must not empty it.",
+            parameters=params,
+        )
+
+        assert [p.name for p in tool.parameters] == ["city", "country"]
 
     def test_list_with_non_parameter_element_raises(self):
         with pytest.raises(ToolCreationError, match="iterable of Parameter objects"):
