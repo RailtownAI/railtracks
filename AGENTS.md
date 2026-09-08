@@ -146,7 +146,7 @@ where each concept lives internally, plus a doc link for the how-to:
 ## Code conventions
 
 See `.claude/skills/code-style/SKILL.md` for this repo's code-style conventions. It's a
-project-scoped Claude Code skill: Claude auto-invokes it based on its description whenever it's writing or
+project-scoped coding-assistant skill: the assistant auto-invokes it based on its description whenever it's writing or
 editing code here, which is a model-driven nudge from the skill matching, not a hard-enforced hook, so
 still sanity-check the diff against it yourself.
 
