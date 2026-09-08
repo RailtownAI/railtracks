@@ -1,4 +1,5 @@
 import json
+import pytest
 
 from railtracks.llm.tools.parameters._base import Parameter, ParameterType
 
@@ -41,9 +42,18 @@ def test_param_type_from_python_type():
     assert ParameterType.from_python_type(type(None)) == ParameterType.NONE
 
 def test_param_type_from_python_type_unrecognized_type():
-    import pytest
-    with pytest.raises(ValueError, match="Unrecognized python type"):
-        ParameterType.from_python_type("invalid_type")
+    # Verify graceful fallback to OBJECT for unannotated/unrecognized types
+    assert ParameterType.from_python_type("invalid_type") == ParameterType.OBJECT
+
+def test_explicit_param_type_strictly_rejects_unrecognized_string():
+    # Verify that explicit unrecognized string types are strictly rejected
+    with pytest.raises(ValueError, match="Unrecognized schema parameter type"):
+        Parameter("foo", param_type="invalid_schema_type")
+
+def test_nullable_union_resolves_correctly():
+    # Verify ["string", "null"] / Optional[str] equivalent resolves cleanly
+    p = Parameter("foo", param_type=["string", "null"])
+    assert p.param_type == ["string", "null"]
 
 def test_parameter_accepts_python_type_str():
     p = Parameter("query", description="The search query string.", param_type=str)

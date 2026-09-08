@@ -26,9 +26,7 @@ class ParameterType(str, Enum):
             type(None): cls.NONE,
             "none": cls.NONE,  # in case of recieving a list of string (type = ["object", "none"])
         }
-        if py_type not in mapping:
-            raise ValueError(f"Unrecognized python type: {py_type}")
-        return mapping[py_type]
+        return mapping.get(py_type, cls.OBJECT)
 
 
 def _normalize_param_type_scalar(
@@ -39,6 +37,12 @@ def _normalize_param_type_scalar(
         return param_type.value
     if isinstance(param_type, type):
         return ParameterType.from_python_type(param_type).value
+    if isinstance(param_type, str):
+        valid_schema_types = {pt.value for pt in ParameterType}
+        if param_type not in valid_schema_types:
+            raise ValueError(
+                f"Unrecognized schema parameter type: '{param_type}'. Must be one of {valid_schema_types}"
+            )
     return param_type
 
 
