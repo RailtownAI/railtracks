@@ -370,3 +370,71 @@ class TestRestArgsSection:
         docstring = """This is a docstring without param fields."""
         assert parse_rest_args_section(docstring) == {}
         assert parse_docstring_args(docstring) == {}
+
+    def test_rest_main_description_strips_fields(self):
+        """Pure reST docstrings must not ship raw :param lines as the tool description."""
+        docstring = """Fetches a URL.
+
+    :param url: The endpoint to hit.
+    :type url: str
+    :returns: The body.
+"""
+        assert extract_main_description(docstring) == "Fetches a URL."
+        assert parse_docstring_args(docstring) == {"url": "The endpoint to hit."}
+
+
+class TestFirstMatchStyleSelection:
+    """Regression tests for non-destructive first-match parsing (Google → NumPy → reST)."""
+
+    def test_google_wins_over_numpy_without_merging(self):
+        """Mixed Google+NumPy docstrings return only Google args (no blind-merge)."""
+        docstring = """
+        Do something.
+
+        Args:
+            a: google arg
+
+        Parameters
+        ----------
+        b : int
+            numpy arg
+        """
+        assert parse_docstring_args(docstring) == {"a": "google arg"}
+
+    def test_google_args_section_stops_at_numpy_header(self):
+        """Google Args: extraction must not swallow a following NumPy Parameters block."""
+        docstring = """
+        Args:
+            a: google
+
+        Parameters
+        ----------
+        b : int
+            numpy
+        """
+        section = extract_args_section(docstring)
+        assert "a: google" in section
+        assert "numpy" not in section
+        assert "Parameters" not in section
+        assert parse_docstring_args(docstring) == {"a": "google"}
+
+    def test_numpy_used_when_no_google_args(self):
+        """NumPy is selected when Google Args is absent."""
+        docstring = """
+        Do something.
+
+        Parameters
+        ----------
+        x : int
+            The x value
+        """
+        assert parse_docstring_args(docstring) == {"x": "The x value"}
+
+    def test_rest_used_when_no_google_or_numpy(self):
+        """reST is selected when Google and NumPy sections are absent."""
+        docstring = """
+        Do something.
+
+        :param y: The y value.
+        """
+        assert parse_docstring_args(docstring) == {"y": "The y value."}
