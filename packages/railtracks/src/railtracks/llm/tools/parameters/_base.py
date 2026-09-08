@@ -26,7 +26,9 @@ class ParameterType(str, Enum):
             type(None): cls.NONE,
             "none": cls.NONE,  # in case of recieving a list of string (type = ["object", "none"])
         }
-        return mapping.get(py_type, cls.OBJECT)
+        if py_type not in mapping:
+            raise ValueError(f"Unrecognized python type: {py_type}")
+        return mapping[py_type]
 
 
 def _normalize_param_type_scalar(

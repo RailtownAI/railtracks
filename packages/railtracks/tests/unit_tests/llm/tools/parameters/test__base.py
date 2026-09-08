@@ -40,6 +40,10 @@ def test_param_type_from_python_type():
     assert ParameterType.from_python_type(dict) == ParameterType.OBJECT
     assert ParameterType.from_python_type(type(None)) == ParameterType.NONE
 
+def test_param_type_from_python_type_unrecognized_type():
+    import pytest
+    with pytest.raises(ValueError, match="Unrecognized python type"):
+        ParameterType.from_python_type("invalid_type")
 
 def test_parameter_accepts_python_type_str():
     p = Parameter("query", description="The search query string.", param_type=str)
