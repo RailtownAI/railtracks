@@ -355,17 +355,12 @@ def _check_manifest_params_exist_in_function(
                     "Remove the extra parameter from the tool manifest or add it to the function signature.",
                 ],
             )
-        try:
-            func_param_type = ParameterType.from_python_type(func_params[param_name].annotation)
-        except ValueError as e:
+        if (
+            ParameterType.from_python_type(func_params[param_name].annotation)
+            != manifest_params[param_name]
+        ):
             raise NodeCreationError(
-                message=f"Failed to infer schema type for parameter '{param_name}': {e}",
-                notes=["Please ensure the parameter type is a valid python type or schema type."]
-            ) from e
-
-        if func_param_type != manifest_params[param_name]:
-            raise NodeCreationError(
-                message=f"Type mismatch for parameter '{param_name}': function expects '{func_param_type}', but manifest specifies '{manifest_params[param_name]}'.",
+                message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
                 notes=[
                     "Ensure the parameter types in the tool manifest match the function signature.",
                     "Refer to the ParameterType enum for valid types.",
