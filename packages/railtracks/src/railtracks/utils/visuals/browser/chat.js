@@ -163,10 +163,7 @@ function handleSSEMessage(data) {
             break;
             
         case 'error':
-            const errorIcon = document.createElement('i');
-            errorIcon.className = 'fa-solid fa-circle-xmark status-icon-error';
-            const errorMessage = `${errorIcon.outerHTML} ${data.data}`;
-            addMessage('system', errorMessage, data.timestamp);
+            addMessage('system', data.data, data.timestamp, 'fa-solid fa-circle-xmark status-icon-error');
             setProcessing(false);
             endButton.disabled = false;
             break;
@@ -184,33 +181,53 @@ function handleSSEMessage(data) {
     }
 }
 
-function addMessage(type, content, timestamp) {
+// Render markdown for assistant messages, sanitizing the result before it reaches the
+// DOM. Model output is attacker-influenceable through the content an agent reads, so it
+// is never trusted markup. Returns null when either library is unavailable, which leaves
+// the caller on the plain-text path.
+function renderMarkdown(content) {
+    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+        return null;
+    }
+    try {
+        return DOMPurify.sanitize(marked.parse(content));
+    } catch (error) {
+        console.warn('Markdown rendering failed, falling back to plain text:', error);
+        return null;
+    }
+}
+
+function addMessage(type, content, timestamp, iconClass) {
     const messagesContainer = document.getElementById('chatMessages');
     const template = document.getElementById('messageTemplate');
     const messageElement = template.content.cloneNode(true);
-    
+
     const messageDiv = messageElement.querySelector('.message');
     messageDiv.classList.add(type);
-    
+
     const messageText = messageElement.querySelector('.message-text');
     const timestampElement = messageElement.querySelector('.timestamp');
-    
-    // Parse markdown for assistant messages using marked.js, keep plain text for user/system messages
-    let processedContent;
-    if (type === 'assistant' && typeof marked !== 'undefined') {
-        try {
-            processedContent = marked.parse(content);
-        } catch (error) {
-            console.warn('Markdown parsing failed, falling back to plain text:', error);
-            processedContent = content.replace(/\n/g, '<br>');
-        }
-    } else {
-        processedContent = content.replace(/\n/g, '<br>');
+
+    if (iconClass) {
+        const icon = document.createElement('i');
+        icon.className = iconClass;
+        messageText.appendChild(icon);
+        messageText.appendChild(document.createTextNode(' '));
     }
-    
-    messageText.innerHTML = processedContent;
+
+    const rendered = type === 'assistant' ? renderMarkdown(content) : null;
+    if (rendered === null) {
+        // Plain text, so the CSS class supplies the line breaks that markup would.
+        messageText.classList.add('plain-text');
+        messageText.appendChild(document.createTextNode(content));
+    } else {
+        const markdownBody = document.createElement('span');
+        markdownBody.innerHTML = rendered;
+        messageText.appendChild(markdownBody);
+    }
+
     timestampElement.textContent = timestamp || new Date().toLocaleTimeString();
-    
+
     messagesContainer.appendChild(messageElement);
     
     // Auto-scroll to bottom with smooth behavior
@@ -347,9 +364,7 @@ async function sendMessage() {
         
     } catch (error) {
         console.error('Error sending message:', error);
-        const errorIcon = document.createElement('i');
-        errorIcon.className = 'fa-solid fa-circle-xmark status-icon-error';
-        addMessage('system', `${errorIcon.outerHTML} Error: ${error.message}`, new Date().toLocaleTimeString());
+        addMessage('system', `Error: ${error.message}`, new Date().toLocaleTimeString(), 'fa-solid fa-circle-xmark status-icon-error');
         setProcessing(false);
         endButton.disabled = false;
     }
@@ -398,15 +413,11 @@ async function endSession(event) {
         }
         
         console.log('Shutdown triggered successfully:', result);
-        const successIcon = document.createElement('i');
-        successIcon.className = 'fa-solid fa-circle-check status-icon-success';
-        addMessage('system', `${successIcon.outerHTML} Server shutting down`, new Date().toLocaleTimeString());
+        addMessage('system', 'Server shutting down', new Date().toLocaleTimeString(), 'fa-solid fa-circle-check status-icon-success');
         
     } catch (error) {
         console.error('Error shutting down:', error);
-        const errorIcon = document.createElement('i');
-        errorIcon.className = 'fa-solid fa-circle-xmark status-icon-error';
-        addMessage('system', `${errorIcon.outerHTML} Error shutting down: ${error.message}`, new Date().toLocaleTimeString());
+        addMessage('system', `Error shutting down: ${error.message}`, new Date().toLocaleTimeString(), 'fa-solid fa-circle-xmark status-icon-error');
         
         // Re-enable UI elements on error
         endButton.disabled = false;
