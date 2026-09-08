@@ -52,7 +52,9 @@ def pre_verifier(
     is treated as declined with reason ``"timeout"``.
 
     See also :func:`~railtracks.prebuilt.middleware.post_verifier.post_verifier`,
-    which gates a call's output AFTER it has already run.
+    which gates a call's output AFTER it has already run. For the full
+    picture (composing with other middleware, custom approval backends,
+    guided walkthroughs), see the Verifiers docs.
     """
 
     if approve_fn is None:
