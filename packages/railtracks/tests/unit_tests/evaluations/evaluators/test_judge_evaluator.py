@@ -10,8 +10,10 @@ from railtracks.evaluations.evaluators.judge_evaluator import (
 from railtracks.evaluations.evaluators.metrics import (
     Categorical,
     Category,
+    LLMMetric,
     Metric,
     Numerical,
+    ToolMetric,
 )
 from railtracks.evaluations.result import AggregateForest, MetricResult
 
@@ -75,6 +77,27 @@ def test_init_filters_non_categorical_metrics(caplog):
     assert HELPFULNESS.identifier in j._metrics
     assert base.identifier not in j._metrics
     assert any("will be skipped" in r.message for r in caplog.records)
+
+
+def test_init_filters_llm_and_tool_metrics(caplog):
+    """LLMMetric/ToolMetric subclass Numerical but must not be judged."""
+    import logging
+
+    llm = make_mock_llm()
+    llm_metric = LLMMetric(name="Latency", min_value=0.0)
+    tool_metric = ToolMetric(name="Runtime", min_value=0.0)
+    numerical = Numerical(name="score", min_value=0.0, max_value=10.0)
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        with caplog.at_level(logging.WARNING):
+            j = JudgeEvaluator(
+                llm=llm, metrics=[HELPFULNESS, llm_metric, tool_metric, numerical]
+            )
+    assert HELPFULNESS.identifier in j._metrics
+    assert numerical.identifier in j._metrics
+    assert llm_metric.identifier not in j._metrics
+    assert tool_metric.identifier not in j._metrics
+    skipped = [r.message for r in caplog.records if "will be skipped" in r.message]
+    assert len(skipped) == 2
 
 
 def test_init_custom_system_prompt():
