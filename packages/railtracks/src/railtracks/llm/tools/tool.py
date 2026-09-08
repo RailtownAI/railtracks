@@ -7,6 +7,7 @@ parameters and descriptions.
 
 import inspect
 import warnings
+from collections.abc import Iterable as ABCIterable
 from typing import Any, Callable, Dict, Iterable, List, Type
 
 from pydantic import BaseModel
@@ -23,6 +24,55 @@ from .parameter_handlers import (
 )
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
+
+
+def _validate_tool_params(parameters: Any, param_type: type) -> None:
+    """Validate the shape of ``parameters`` before a Tool is built from it.
+
+    Lives in this module rather than in ``railtracks.validation`` so the ``llm``
+    package never imports upward: errors it raises on Tool's behalf must be
+    ToolCreationError, defined right here, not the outer package's NodeCreationError.
+    """
+    if parameters is None:
+        return
+
+    if isinstance(parameters, dict):
+        if not parameters:
+            return
+        if parameters.get("type") != "object":
+            raise ToolCreationError(
+                message="A 'type' key set to 'object' must be provided in the JSON schema for Tool parameters.",
+                notes=[
+                    "If you are having issues with passing in a JSON schema, try providing a list of Parameter objects instead."
+                ],
+            )
+        if "properties" not in parameters:
+            raise ToolCreationError(
+                message="A 'properties' key must be provided in the JSON schema for Tool parameters.",
+                notes=[
+                    "Add a 'properties' entry, even an empty one, describing the tool's parameters."
+                ],
+            )
+        return
+
+    if isinstance(parameters, ABCIterable) and not isinstance(parameters, (str, bytes)):
+        if not all(isinstance(x, param_type) for x in parameters):
+            raise ToolCreationError(
+                message="Parameters must be an iterable of Parameter objects, a dict, or None.",
+                notes=[
+                    "If the tool expects no parameters, use None or pass in an empty list instead."
+                ],
+            )
+        return
+
+    raise ToolCreationError(
+        message="Tool parameters must be an iterable of Parameter objects (e.g. a list, set, or tuple), a dict, or None.",
+        notes=[
+            "If the tool expects no parameters, use None.",
+            "If you are having issues with passing in a JSON schema, try providing a list of Parameter objects instead.",
+            "You can make a Tool object from a custom function. \nEg.-\ndef my_function():\n    ...\nsample_tool = rc.llm.Tool.from_function(my_function)",
+        ],
+    )
 
 
 class Tool:
@@ -45,18 +95,12 @@ class Tool:
             detail: A detailed description of the tool.
             parameters: Parameters attached to this tool; a set or list of Parameter objects, or a dict.
         """
-        # Local import: validation.py imports railtracks.llm, which imports this
-        # module, so a module-level import here would cycle.
-        from railtracks.validation.node_creation.validation import (
-            validate_tool_params,
-        )
-
-        validate_tool_params(parameters, Parameter)
+        _validate_tool_params(parameters, Parameter)
 
         if (
             isinstance(parameters, dict) and len(parameters) > 0
         ):  # if parameters is a JSON-output_schema, convert into Parameter objects
-            props = parameters.get("properties") or {}
+            props = parameters["properties"]
             required_fields = list(parameters.get("required", []))
             if not props and required_fields:
                 raise ToolCreationError(

@@ -5,7 +5,6 @@ This module contains tests for railtracks.llm.tools.tool.Tool.
 """
 
 import pytest
-from railtracks.exceptions.errors import NodeCreationError
 from railtracks.llm.tools import Parameter, Tool
 from railtracks.llm.tools.tool import ToolCreationError
 
@@ -57,18 +56,29 @@ class TestToolFromSchemaDict:
                 },
             )
 
-    def test_schema_missing_additional_properties_now_raises(self):
-        """validate_tool_params is wired into __init__: a schema that never says
-        additionalProperties: False used to construct a Tool silently and blow up
-        later at LLM-call time instead."""
-        with pytest.raises(NodeCreationError, match="additionalProperties"):
+    def test_schema_missing_additional_properties_is_accepted(self):
+        """additionalProperties has no downstream effect (schema_parser.py and
+        _handle_set_of_parameters both default a missing key to False, and the
+        latter never re-emits the top-level key anyway), so a schema that omits
+        it must build a Tool exactly as it did before validate_tool_params was
+        wired in."""
+        tool = Tool(
+            name="incomplete",
+            detail="Promises a property but never sets additionalProperties.",
+            parameters={
+                "type": "object",
+                "properties": {"city": {"type": "string"}},
+            },
+        )
+
+        assert [p.name for p in tool.parameters] == ["city"]
+
+    def test_schema_with_wrong_type_raises(self):
+        with pytest.raises(ToolCreationError, match="'type' key set to 'object'"):
             Tool(
-                name="incomplete",
-                detail="Promises a property but never sets additionalProperties.",
-                parameters={
-                    "type": "object",
-                    "properties": {"city": {"type": "string"}},
-                },
+                name="wrong_type",
+                detail="A schema whose outer type is not object.",
+                parameters={"type": "array", "properties": {}},
             )
 
 
@@ -82,10 +92,36 @@ class TestToolParametersTypeGuard:
 
         assert [p.name for p in tool.parameters] == ["city"]
 
+    def test_tuple_of_parameter_objects_is_accepted(self):
+        tool = Tool(
+            name="from_tuple",
+            detail="A tuple of Parameter objects, not just set/list.",
+            parameters=(Parameter(name="city", param_type="string"),),
+        )
+
+        assert [p.name for p in tool.parameters] == ["city"]
+
+    def test_frozenset_of_parameter_objects_is_accepted(self):
+        tool = Tool(
+            name="from_frozenset",
+            detail="A frozenset of Parameter objects, not just set/list.",
+            parameters=frozenset({Parameter(name="city", param_type="string")}),
+        )
+
+        assert [p.name for p in tool.parameters] == ["city"]
+
     def test_list_with_non_parameter_element_raises(self):
-        with pytest.raises(NodeCreationError):
+        with pytest.raises(ToolCreationError, match="iterable of Parameter objects"):
             Tool(
                 name="bad_list",
                 detail="A list that is not made of Parameter objects.",
                 parameters=["city"],
+            )
+
+    def test_non_iterable_non_dict_raises(self):
+        with pytest.raises(ToolCreationError, match="iterable of Parameter objects"):
+            Tool(
+                name="bad_type",
+                detail="An int is neither a dict nor an iterable of Parameter objects.",
+                parameters=1,
             )
