@@ -20,7 +20,7 @@ class ModelProvider(str, Enum):
         HUGGINGFACE: HuggingFace-hosted models.
         AZUREAI: Azure OpenAI Service models.
         OLLAMA: Ollama local LLMs.
-        COHERE: Cohere models.
+        APPLE_FM: Apple on-device Foundation Model (macOS 26+ Apple Silicon).
     """
 
     OPENAI = "OpenAI"
@@ -29,7 +29,6 @@ class ModelProvider(str, Enum):
     HUGGINGFACE = "HuggingFace"
     AZUREAI = "AzureAI"
     OLLAMA = "Ollama"
-    COHERE = "cohere_chat"
-    TELUS = "Telus"
     PORTKEY = "PortKey"
+    APPLE_FM = "apple"
     UNKNOWN = "Unknown"

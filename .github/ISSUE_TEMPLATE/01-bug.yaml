@@ -1,0 +1,79 @@
+name: Bug Report
+description: Report a bug in railtracks.
+type: Bug
+
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Which subsystem is affected? Pick the closest match.
+      options:
+        - Agents / Nodes
+        - Tools
+        - LLM Providers
+        - Middleware
+        - Guardrails
+        - RAG / Retrieval
+        - Prebuilt Add-ons
+        - Human-in-the-loop
+        - Observability / Visualizer
+        - MCP Integration
+        - Evaluations
+        - Other / Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What did you expect to happen? What happened instead?
+      placeholder: |
+        I expected my agent to call the `search_docs` tool when I asked "how do I configure middleware?", but it answered from its training data. `resp.tool_calls` is empty.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal, self-contained example. Should run in a fresh Python file with `railtracks` installed and no other dependencies.
+      render: python
+      placeholder: |
+        import railtracks as rt
+
+        @rt.function_node
+        def search_docs(query: str) -> str:
+            """Search the internal docs."""
+            return f"Results for {query}"
+
+        Agent = rt.agent_node(
+            name="doc-agent",
+            llm=rt.llm.OpenAILLM("gpt-4o"),
+            tool_nodes=[search_docs],
+        )
+
+        resp = await rt.call(Agent, "how do I configure middleware?")
+        print(resp.tool_calls)  # []
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Error trace / logs
+      description: Full traceback and any relevant log output. Leave blank if the bug is behavioral (no exception).
+      render: shell
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: System info
+      description: Fill in the values below if any of them might be relevant.
+      render: shell
+      placeholder: |
+        Railtracks version:   # pip show railtracks | grep Version
+        Python version:       # python --version
+        Operating system:     # e.g. macOS 14.5, Ubuntu 22.04, Windows 11
+        LLM SDK versions:     # pip freeze | grep -E "openai|anthropic|google-genai|cohere|mistralai"

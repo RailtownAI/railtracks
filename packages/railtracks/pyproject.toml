@@ -55,6 +55,11 @@ visual = [
 # For each Integration package dependencies go here.
 portkey = ["portkey_ai >= 2.0.2"]
 
+# Apple on-device Foundation Model provider. Requires macOS 26+ Apple Silicon
+# with Apple Intelligence enabled at runtime; the install itself is unmarked so
+# users on other platforms get a clear pip failure rather than a silent skip.
+apple = ["apple-fm-sdk >= 0.1.0"]
+
 # Prebuilt WebSearchToolSet: the official tavily-python SDK for the default
 # search backend (Brave, an alternate backend, uses httpx directly since
 # Brave has no official SDK), httpx + trafilatura for the default fetch

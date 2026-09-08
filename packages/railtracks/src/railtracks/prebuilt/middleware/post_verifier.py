@@ -65,12 +65,11 @@ def post_verifier(
     call's OUTPUT AFTER it has already run.
 
     The wrapped node always runs first. ``approve_fn`` is then called with the
-    produced value as its first argument, followed by the node's own
-    ``*args, **kwargs`` — sync or async, both supported — and must return a
-    `Verdict`. ``result`` comes first (rather than trailing as a keyword) so
-    the whole call is statically checkable: a `Verdict` mistyped against the
-    node's actual return type, or an ``approve_fn`` with the wrong shape, is
-    a type-checker error instead of a runtime surprise.
+    produced value as its first positional parameter, followed by the node's
+    own ``*args, **kwargs`` — sync or async, both supported — and must return
+    a `Verdict`. This shape is validated eagerly, at ``post_verifier(...)``
+    call time: an ``approve_fn`` that doesn't take ``result`` first raises
+    `TypeError` immediately, naming what was found instead.
 
     Decline can't undo the call (it already happened) but still raises
     `VerifierRejectedError`, stopping the result from propagating onward. On
@@ -80,13 +79,10 @@ def post_verifier(
     If ``timeout`` is set and ``approve_fn`` doesn't respond in time, the call
     is treated as declined with reason ``"timeout"``.
 
-    ``approve_fn``'s shape is checked eagerly, when ``post_verifier(...)`` is
-    called -- not deferred to the first real invocation. An ``approve_fn``
-    that doesn't take ``result`` as its first positional parameter raises
-    `TypeError` immediately, with a message naming what was found instead.
-
     See also :func:`~railtracks.prebuilt.middleware.pre_verifier.pre_verifier`,
-    which gates whether a call happens at all, BEFORE it runs.
+    which gates whether a call happens at all, BEFORE it runs. For the full
+    picture (composing with other middleware, custom approval backends,
+    guided walkthroughs), see the Verifiers docs.
     """
 
     if approve_fn is None:

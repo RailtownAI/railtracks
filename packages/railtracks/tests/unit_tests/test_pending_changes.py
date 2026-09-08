@@ -60,7 +60,6 @@ SURVIVING_GUARDRAIL_NAMES = [
 OFFLINE_PROVIDERS = [
     ("OpenAILLM", "gpt-4o"),
     ("GeminiLLM", "gemini-2.5-flash"),
-    ("CohereLLM", "command-r"),
     ("AzureAILLM", "azure/deployment"),
 ]
 

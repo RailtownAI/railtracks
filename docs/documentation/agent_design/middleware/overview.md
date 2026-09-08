@@ -19,7 +19,7 @@ We provide a suite of prebuilt middleware for common use cases. Check out the co
 ## Types of Middleware
 
 ### Node Middleware
-Most middleware will wrap an entire node or function call, including `rt.function_node`. Common examples include logging, retry logic, HIL verification, rate limiting, caching, and more. Outside of what we supply, you can create your own with a small decorator API.
+Most middleware will wrap an entire node or function call, including `rt.function_node`. Common examples include logging, retry logic, [HIL verification](verifiers/overview.md), rate limiting, caching, and more. Outside of what we supply, you can create your own with a small decorator API.
 
 | Decorator | Runs |
 |---|---|
