@@ -7,6 +7,7 @@ hide:
 <div class="rt-hero">
   <img src="assets/logo.svg" alt="Railtracks Logo" width="280">
   <h1>Made by Agent Builders<br>for Agent Builders</h1>
+  <p>A Python framework for building agent harnesses: the loop, tools, context, and controls around a model.</p>
 </div>
 
 <div class="grid cards rt-home-cards">
@@ -14,9 +15,9 @@ hide:
     <h3>Learn</h3>
     <p>If you are curious to learn about AI Agents, how they work, and other concepts.</p>
   </a>
-  <a class="card" href="documentation/agent_design/overview">
+  <a class="card" href="documentation/harness/overview">
     <h3>Build</h3>
-    <p>If you want to know how to build agents using Railtracks</p>
+    <p>If you want to build an agent harness: the loop, tools, context, and controls around a model</p>
   </a>
   <a class="card" href="observability/agenthub/local">
     <h3>Observe</h3>

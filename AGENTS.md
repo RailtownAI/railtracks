@@ -1,7 +1,8 @@
 ## Repository Overview
 
-Railtracks (`rt`) is a Python framework for building agentic systems: agents, tools, and multi-step flows
-defined entirely in standard Python (no YAML/DSLs). This is a `uv` workspace monorepo:
+Railtracks (`rt`) is a Python framework for building agent harnesses: the loop, tools, context, controls,
+and record around a model, defined entirely in standard Python (no YAML/DSLs). This is a `uv` workspace
+monorepo:
 
 ```
 Root
@@ -75,6 +76,10 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 users via `railtracks add claude:agent-builder`) or the docs linked below; don't re-teach usage here. Just
 where each concept lives internally, plus a doc link for the how-to:
 
+- **Harness**: not a class, the assembled whole (loop + tool surface + context + controls + record). The
+  page mapping each part to the primitive that covers it is `docs/documentation/harness/overview.md`
+  ([Agent Harness](https://docs.railtracks.org/documentation/harness/overview/)), with runnable versions
+  in `examples/harness/`. Use it as the framing when someone asks "how do I build an agent that does X".
 - **Tool** (`rt.function_node`): `built_nodes/function/node.py`.
   [Function Tools](https://docs.railtracks.org/documentation/agent_design/tools/function_tools/).
 - **Agent** (`rt.agent_node`): `built_nodes/llm/node.py`; always a single dynamically built node, no
