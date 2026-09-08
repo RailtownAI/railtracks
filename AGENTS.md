@@ -150,15 +150,6 @@ project-scoped Claude Code skill: Claude auto-invokes it based on its descriptio
 editing code here, which is a model-driven nudge from the skill matching, not a hard-enforced hook, so
 still sanity-check the diff against it yourself.
 
-### Model references in examples
-
-- Use current, provider-documented model IDs in user-facing examples and bundled CLI skills. Verify IDs
-  against the provider's model catalog and deprecation page when adding or refreshing examples.
-- Keep a model-specific reference only when the example demonstrates behavior unique to that model, and
-  explain that choice nearby when it would otherwise look stale.
-- Historical upgrade guides and tests that intentionally exercise model-name passthrough may retain older
-  IDs; do not rewrite them as if they described current recommendations.
-
 ## Notes on dependency structure
 - Root `pyproject.toml` = dev tooling only (`docs`/`test`/`lint` groups via `uv`). Never add runtime
   package dependencies here.
