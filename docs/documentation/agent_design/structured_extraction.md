@@ -27,6 +27,8 @@ async def flow_func(arg: str)->str:
 
     second_resp = await rt.call(StructuredAgent, first_step.message_history) # or pass in first_step.content
 ```
+See [Message History](../invocation/message_history.md) for how returned history can be passed safely
+between calls.
 !!! warning "`ToolCallingAgent` vs `StructuredAgent`"
     As noted in the first section of this page, the pure `TooCallingAgent` should **_not_** be passed an `output_schema` for things to work optimally this way, and similarly the `StructuredAgent` should not have `tool_nodes` passed to it.
 

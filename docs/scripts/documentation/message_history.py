@@ -1,10 +1,12 @@
+# --8<-- [start: message_history_setup]
 import railtracks as rt
 
 ChatAgent = rt.agent_node(
     name="ChatAgent",
     system_message="Answer clearly and remember details from the conversation.",
-    llm=rt.llm.OpenAILLM("gpt-5.1"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
 )
+# --8<-- [end: message_history_setup]
 
 
 # --8<-- [start: direct_handoff]
