@@ -125,6 +125,22 @@ class Response:
             )
         return content
 
+    @property
+    def reasoning(self) -> str | None:
+        """
+        The model's reasoning/"thinking" text for this response, if the provider
+        returned any.
+
+        This is a convenience accessor for the human-readable reasoning; it is None
+        when the message carries no reasoning (a non-reasoning model, or one that
+        was not asked to expose its thinking). The structured, signed form is on
+        `response.message.thinking_blocks`.
+
+        Returns:
+            str | None: The reasoning text, or None if there is none.
+        """
+        return getattr(self._message, "reasoning_content", None)
+
     def __str__(self):
         if self._message is not None:
             return str(self._message)
