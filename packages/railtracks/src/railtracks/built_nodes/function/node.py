@@ -33,6 +33,14 @@ from .node_builder import FunctionNodeBuilder
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
+# Separate TypeVars for the decorator-factory overload so the middleware parameter
+# constrains the decorated function rather than accepting everything via Any.
+# When slot-agnostic middleware (Middleware[Any, Any]) is provided the inferred
+# _MW_P / _MW_Out will be Any, which is the correct result: slot-agnostic middleware
+# imposes no constraint and lets any function through.
+_MW_P = ParamSpec("_MW_P")
+_MW_Out = TypeVar("_MW_Out")
+
 
 # note there is an intentional overlap in overloads
 # by running the first overload check it will pick up all `async` functions
@@ -79,10 +87,10 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[Any, Any]] | None = None,
+    middleware: Iterable[Middleware[_MW_P, _MW_Out]] | None = None,
 ) -> Callable[
-    [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
-    RTFunction[_P, _TOutput],
+    [Callable[_MW_P, Coroutine[None, None, _MW_Out]] | Callable[_MW_P, _MW_Out]],
+    RTFunction[_MW_P, _MW_Out],
 ]:
     pass
 
