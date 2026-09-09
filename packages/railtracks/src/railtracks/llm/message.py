@@ -382,6 +382,11 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         # it back without any manual reconstruction.
         self.raw_litellm_message: Any | None = None
 
+        # Reasoning/"thinking" the model surfaced alongside its answer, when the
+        # provider returns it (Anthropic, DeepSeek, Gemini, OpenAI in part).
+        self.reasoning_content: str | None = None  # human-readable text
+        self.thinking_blocks: list[dict[str, Any]] | None = None  # structured blocks of reasoning, e.g. Gemini's thought_signature
+
     def encode(self):
         encoded = super().encode()
 
@@ -389,6 +394,13 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         # spoke with its calls; surface it the way providers put it on the wire.
         if isinstance(self.content, ToolCalls) and self.content.text is not None:
             encoded["text"] = self.content.text
+
+        # Surface reasoning in the serialized message so it is visible in the run
+        # graph/session data, not just on the live object.
+        if self.reasoning_content is not None:
+            encoded["reasoning_content"] = self.reasoning_content
+        if self.thinking_blocks is not None:
+            encoded["thinking_blocks"] = self.thinking_blocks
 
         return encoded
 
