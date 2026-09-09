@@ -4,7 +4,9 @@ import asyncio
 import functools
 from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, overload
 
-from railtracks.middleware.core import Middleware, wrap_node
+from typing_extensions import Never
+
+from railtracks.middleware.core import Middleware, _MiddlewareSignature, wrap_node
 from railtracks.middleware.verdict import Verdict, VerifierRejectedError
 from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.unpack import unpack_async_sync
@@ -17,6 +19,7 @@ _R = TypeVar("_R")
 _ApproveFn = Callable[_P, Verdict | Awaitable[Verdict]]
 
 
+# A pre-verifier constrains the call arguments but leaves the node output free.
 @overload
 def pre_verifier(
     approve_fn: _ApproveFn[_P],
@@ -24,11 +27,13 @@ def pre_verifier(
     *,
     timeout: float | None = None,
     name: str | None = None,
-) -> Middleware[_P, Any]: ...
+) -> Middleware[_P, Any, _MiddlewareSignature[_P, Never]]: ...
 @overload
 def pre_verifier(
     *, timeout: float | None = None, name: str | None = None
-) -> Callable[[_ApproveFn[_P]], Middleware[_P, Any]]: ...
+) -> Callable[
+    [_ApproveFn[_P]], Middleware[_P, Any, _MiddlewareSignature[_P, Never]]
+]: ...
 
 
 def pre_verifier(
@@ -37,7 +42,10 @@ def pre_verifier(
     *,
     timeout: float | None = None,
     name: str | None = None,
-) -> Middleware[_P, Any] | Callable[[_ApproveFn[_P]], Middleware[_P, Any]]:
+) -> (
+    Middleware[_P, Any, _MiddlewareSignature[_P, Never]]
+    | Callable[[_ApproveFn[_P]], Middleware[_P, Any, _MiddlewareSignature[_P, Never]]]
+):
     """Build a node-verification middleware around ``approve_fn`` that gates a call
     BEFORE it runs.
 

@@ -149,11 +149,7 @@ def test_after_replaces_return_value_on_success():
 
 
 def test_multiple_prebuilt_middleware_in_one_list():
-    """Two prebuilt middleware in a single middleware= list must not collapse
-    _P to Never.  Regression for #1538: Retry, Timeout, and MaxCalls all
-    subclassed the bare Middleware generic, which mypy resolved as
-    Middleware[Never, Never] under invariant generics, breaking list-element
-    unification when combining any two of them."""
+    """Two prebuilt middleware in one list must compose around a function node."""
 
     @rt.function_node(middleware=[Retry(max_tries=1), Timeout(seconds=5)])
     def add(x: str) -> str:
@@ -167,8 +163,7 @@ def test_multiple_prebuilt_middleware_in_one_list():
 
 
 def test_three_different_prebuilt_middleware_in_one_list():
-    """Combining three distinct prebuilt middleware in one list must work both
-    at runtime and under static analysis (no Never collapse)."""
+    """Three distinct prebuilt middleware must compose in one list."""
 
     @rt.function_node(
         middleware=[Retry(max_tries=1), Timeout(seconds=5), MaxCalls(max_calls=3)]
