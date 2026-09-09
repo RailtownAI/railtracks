@@ -124,7 +124,7 @@ class Parameter(ABC):
         # default can be None, 0, False; None means optional parameter
         if self.default_present:
             schema_dict["default"] = self.default
-        elif isinstance(self.param_type, list) and "none" in self.param_type:
+        elif isinstance(self.param_type, list) and "null" in self.param_type:
             schema_dict["default"] = None
 
         return schema_dict

@@ -82,3 +82,11 @@ def test_parameter_accepts_python_type_int():
 def test_parameter_list_accepts_mixed_python_and_schema_types():
     p = Parameter("x", param_type=[str, "null"])
     assert p.param_type == ["string", "null"]
+
+
+def test_to_json_schema_default_injection_with_none():
+    # Repro case from Maintainer: ensure 'none' in a list is normalized to 'null'
+    # and default=None is correctly injected
+    p = Parameter("foo", param_type=["string", "none"])
+    schema = p.to_json_schema()
+    assert schema == {"type": ["string", "null"], "default": None}
