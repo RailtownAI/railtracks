@@ -43,8 +43,9 @@ def test_param_type_from_python_type():
 
 
 def test_param_type_from_python_type_unrecognized_type():
-    # Verify graceful fallback to OBJECT for unannotated/unrecognized types
-    assert ParameterType.from_python_type("invalid_type") == ParameterType.OBJECT
+    # Verify ValueError is raised for unannotated/unrecognized types
+    with pytest.raises(ValueError, match="Unmapped Python type"):
+        ParameterType.from_python_type(bytes)
 
 
 def test_explicit_param_type_strictly_rejects_unrecognized_string():

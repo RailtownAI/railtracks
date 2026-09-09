@@ -225,7 +225,13 @@ class Tool:
         param_objs = set()
         for name, prop in properties.items():
             required = name in required_fields
-            param_objs.add(parse_json_schema_to_parameter(name, prop, required))
+            try:
+                param_objs.add(parse_json_schema_to_parameter(name, prop, required))
+            except Exception:
+                # Fallback to a basic object parameter if parsing fails (e.g. invalid type string)
+                param_objs.add(
+                    Parameter(name=name, param_type="object", required=required)
+                )
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
 
