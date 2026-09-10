@@ -181,3 +181,64 @@ def test_three_different_prebuilt_middleware_in_one_list():
             return await rt.call(echo, 42)
 
     assert asyncio.run(top_level()) == 42
+
+
+def test_decorator_factory_form_preserves_signature():
+    """The parametrized-decorator form must pass the decorated function's
+    signature through to the returned RTFunction unchanged.
+
+    This is the runtime-observable half of the 'no Never collapse' contract:
+    if _P were collapsed to Never the node call below would fail at runtime
+    because the wrapped call would receive the wrong argument shape.
+    """
+
+    @rt.function_node(middleware=[Retry(max_tries=1), MaxCalls(max_calls=5)])
+    def greet(name: str, times: int) -> str:
+        """Greet someone.
+
+        Args:
+            name: who to greet
+            times: repetition count
+        """
+        return (name + " ") * times
+
+    async def top_level():
+        with rt.Session():
+            return await rt.call(greet, "hi", 3)
+
+    assert asyncio.run(top_level()) == "hi hi hi "
+    # Verify the LLM-facing tool info preserves the original parameter names.
+    params = {p.name for p in greet.node_type.tool_info().parameters}
+    assert params == {"name", "times"}, (
+        "Decorator-factory form collapsed _P: parameter names were lost"
+    )
+
+
+def test_prebuilt_middleware_does_not_constrain_function_signature():
+    """Slot-agnostic prebuilt middleware (Middleware[Any, Any]) must impose no
+    constraint on the decorated function's signature -- verified by using two
+    structurally different functions with the same middleware list.
+
+    If the middleware list constrained _P, mypy/pyright would infer the
+    intersection of both functions' signatures, narrowing at least one to Never.
+    The runtime proxy of that inference is that rt.call would reject the call
+    or the node would drop parameters; this test catches both.
+    """
+
+    @rt.function_node(middleware=[Retry(max_tries=1), Timeout(seconds=5)])
+    def int_fn(x: int) -> int:
+        return x * 2
+
+    @rt.function_node(middleware=[Retry(max_tries=1), Timeout(seconds=5)])
+    def str_fn(label: str, count: int) -> str:
+        return label * count
+
+    async def top_level():
+        with rt.Session():
+            a = await rt.call(int_fn, 7)
+            b = await rt.call(str_fn, "x", 3)
+            return a, b
+
+    a, b = asyncio.run(top_level())
+    assert a == 14
+    assert b == "xxx"
