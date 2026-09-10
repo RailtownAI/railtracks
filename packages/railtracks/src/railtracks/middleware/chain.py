@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import (
+    Any,
     Awaitable,
     Callable,
     Generic,
@@ -90,5 +92,18 @@ class MiddlewareChain(Generic[_P, _R]):
 
         return await func(*args, **kwargs)
 
+    def __deepcopy__(self, memo: dict[int, Any]) -> MiddlewareChain[_P, _R]:
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k == "_middleware":
+                # Shallow copy the list, preserving middleware instances by reference
+                # so stateful middleware (e.g. MaxCalls, Lock) are shared and not duplicated.
+                setattr(result, k, list(v))
+            else:
+                setattr(result, k, deepcopy(v, memo))
+        return result
+
     def __repr__(self) -> str:
-        return f"MiddlewareChain(middleware={self._middleware!r}, "
+        return f"MiddlewareChain(middleware={self._middleware!r})"

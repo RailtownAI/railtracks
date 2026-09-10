@@ -78,3 +78,169 @@ async def test_wrapped_exception_propagates_and_still_counts_the_call():
         await max_calls.wrap(broken)()
 
     assert max_calls._call_count == 1
+
+
+def test_node_middleware_slot_enforces_limit_inside_single_run():
+    import railtracks as rt
+
+    @rt.function_node(middleware=[MaxCalls(2, custom_message="tool budget hit")])
+    def limited(x: str) -> str:
+        return x
+
+    @rt.function_node
+    async def driver(n: int) -> list[str]:
+        out = []
+        for i in range(n):
+            try:
+                out.append(await rt.call(limited, x=str(i)))
+            except Exception as e:
+                out.append(type(e).__name__)
+        return out
+
+    flow = rt.Flow("node-slot-repro", entry_point=driver)
+    results = flow.invoke(n=4)
+    assert results == ["0", "1", "MaxCallsExceededError", "MaxCallsExceededError"]
+
+
+def test_node_middleware_slot_starts_fresh_on_subsequent_run():
+    import railtracks as rt
+
+    @rt.function_node(middleware=[MaxCalls(2, custom_message="tool budget hit")])
+    def limited(x: str) -> str:
+        return x
+
+    @rt.function_node
+    async def driver(n: int) -> list[str]:
+        out = []
+        for i in range(n):
+            try:
+                out.append(await rt.call(limited, x=str(i)))
+            except Exception as e:
+                out.append(type(e).__name__)
+        return out
+
+    flow = rt.Flow("node-slot-fresh-run", entry_point=driver)
+    assert flow.invoke(n=2) == ["0", "1"]
+    assert flow.invoke(n=2) == ["0", "1"]
+
+
+def test_multiple_nodes_share_combined_budget():
+    import railtracks as rt
+
+    shared_budget = MaxCalls(3, custom_message="shared cap hit")
+
+    @rt.function_node(middleware=[shared_budget])
+    def tool_a(x: str) -> str:
+        return f"A:{x}"
+
+    @rt.function_node(middleware=[shared_budget])
+    def tool_b(x: str) -> str:
+        return f"B:{x}"
+
+    @rt.function_node
+    async def driver() -> list[str]:
+        out = []
+        for f, arg in [(tool_a, "1"), (tool_a, "2"), (tool_b, "3"), (tool_b, "4")]:
+            try:
+                out.append(await rt.call(f, x=arg))
+            except Exception as e:
+                out.append(type(e).__name__)
+        return out
+
+    flow = rt.Flow("shared-budget-flow", entry_point=driver)
+    assert flow.invoke() == ["A:1", "A:2", "B:3", "MaxCallsExceededError"]
+    assert flow.invoke() == ["A:1", "A:2", "B:3", "MaxCallsExceededError"]
+
+
+def test_lifetime_budget_with_per_run_false():
+    import railtracks as rt
+
+    budget = MaxCalls(2, custom_message="lifetime hit", per_run=False)
+
+    @rt.function_node(middleware=[budget])
+    def tool(x: str) -> str:
+        return x
+
+    @rt.function_node
+    async def driver(x: str) -> str:
+        return await rt.call(tool, x=x)
+
+    flow = rt.Flow("lifetime-flow", entry_point=driver)
+    assert flow.invoke(x="1") == "1"
+    assert flow.invoke(x="2") == "2"
+
+    with pytest.raises(Exception) as exc_info:
+        flow.invoke(x="3")
+    assert "lifetime hit" in str(exc_info.value) or isinstance(
+        exc_info.value, MaxCallsExceededError
+    )
+
+
+@pytest.mark.asyncio
+async def test_call_count_property_and_reset():
+    async def noop():
+        return None
+
+    max_calls = MaxCalls(3)
+    assert max_calls.call_count == 0
+
+    await max_calls.wrap(noop)()
+    await max_calls.wrap(noop)()
+    assert max_calls.call_count == 2
+
+    max_calls.reset()
+    assert max_calls.call_count == 0
+
+    await max_calls.wrap(noop)()
+    assert max_calls.call_count == 1
+
+
+def test_lock_middleware_shared_across_nodes_preserves_reference():
+    import railtracks as rt
+    from railtracks.prebuilt.middleware.lock import Lock
+
+    shared_lock = Lock()
+
+    @rt.function_node(middleware=[shared_lock])
+    def t1(x: int) -> int:
+        return x
+
+    @rt.function_node(middleware=[shared_lock])
+    def t2(x: int) -> int:
+        return x
+
+    assert t1.node_type._user_middleware[0] is shared_lock
+    assert t2.node_type._user_middleware[0] is shared_lock
+
+    node1 = t1.node_type()
+    node2 = t2.node_type()
+    assert node1.middleware.middleware[0] is shared_lock
+    assert node2.middleware.middleware[0] is shared_lock
+
+    # safe_copy must also keep the reference
+    copied_node = node1.safe_copy()
+    assert copied_node.middleware.middleware[0] is shared_lock
+
+
+def test_agent_node_preserves_middleware_reference(mock_llm):
+    from railtracks.built_nodes.llm.node import agent_node
+
+    budget = MaxCalls(5)
+    agent_a = agent_node("AgentA", llm=mock_llm, middleware=[budget])
+    agent_b = agent_node("AgentB", llm=mock_llm, middleware=[budget])
+
+    assert agent_a._user_middleware[0] is budget
+    assert agent_b._user_middleware[0] is budget
+    assert agent_a._user_middleware[0] is agent_b._user_middleware[0]
+
+
+def test_agent_node_preserves_model_middleware_reference(mock_llm):
+    from railtracks.built_nodes.llm.node import agent_node
+
+    budget = MaxCalls(5)
+    agent_a = agent_node("AgentA", llm=mock_llm, model_middleware=[budget])
+    agent_b = agent_node("AgentB", llm=mock_llm, model_middleware=[budget])
+
+    assert agent_a._user_model_middleware[0] is budget
+    assert agent_b._user_model_middleware[0] is budget
+    assert agent_a._user_model_middleware[0] is agent_b._user_model_middleware[0]
