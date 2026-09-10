@@ -43,15 +43,20 @@ def test_param_type_from_python_type():
 
 
 def test_param_type_from_python_type_unrecognized_type():
-    # Verify ValueError is raised for unannotated/unrecognized types
-    with pytest.raises(ValueError, match="Unmapped Python type"):
-        ParameterType.from_python_type(bytes)
+    # Verify graceful fallback to OBJECT for unannotated/unrecognized types
+    assert ParameterType.from_python_type(bytes) == ParameterType.OBJECT
 
 
 def test_explicit_param_type_strictly_rejects_unrecognized_string():
     # Verify that explicit unrecognized string types are strictly rejected
     with pytest.raises(ValueError, match="Unrecognized schema parameter type"):
         Parameter("foo", param_type="invalid_schema_type")
+
+
+def test_explicit_param_type_strictly_rejects_unmapped_python_type():
+    # Verify that explicit unmapped python types are strictly rejected
+    with pytest.raises(ValueError, match="Unmapped Python type"):
+        Parameter("foo", param_type=bytes)
 
 
 def test_explicit_param_type_none_alias_resolves_to_null():

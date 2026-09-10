@@ -26,9 +26,7 @@ class ParameterType(str, Enum):
             type(None): cls.NONE,
             "none": cls.NONE,  # in case of recieving a list of string (type = ["object", "none"])
         }
-        if py_type not in mapping:
-            raise ValueError(f"Unmapped Python type: {py_type}")
-        return mapping[py_type]
+        return mapping.get(py_type, cls.OBJECT)
 
 
 def _normalize_param_type_scalar(
@@ -38,7 +36,10 @@ def _normalize_param_type_scalar(
     if isinstance(param_type, ParameterType):
         return param_type.value
     if isinstance(param_type, type):
-        return ParameterType.from_python_type(param_type).value
+        mapped = ParameterType.from_python_type(param_type)
+        if mapped == ParameterType.OBJECT and param_type is not dict:
+            raise ValueError(f"Unmapped Python type: {param_type}")
+        return mapped.value
     if isinstance(param_type, str):
         if param_type == "none":
             return ParameterType.NONE.value
