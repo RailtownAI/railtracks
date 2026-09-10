@@ -73,7 +73,7 @@ Five parts. Take the ones your problem needs, wire them together in plain Python
 | **Tool surface** | What the agent can actually do | `rt.function_node`, `rt.ToolManifest` for agents-as-tools, `rt.connect_mcp` for MCP servers |
 | **Context** | What the model sees on this turn | `system_message`, `rt.context`, todo and key-value memory toolsets, retrieval |
 | **Controls** | What it's allowed to do, and how much of it | `MaxCalls`, `Timeout`, `Retry`, `Lock`, human-in-the-loop verifiers, guardrails |
-| **Record** | What happened, and whether you can replay it | Session state, `railtracks viz`, `rt.evaluate` |
+| **Record** | What happened, and whether you can replay it | Session state, `railtracks viz`, `rt.evaluations.evaluate` |
 
 The shapes this usually takes:
 

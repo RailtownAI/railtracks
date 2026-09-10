@@ -5,16 +5,20 @@ Shows the full set of harness parts on tools that actually mutate state:
 - tool surface   -> read/write/list files, plus an allowlisted shell
 - context        -> a todo list the agent revises, and key-value memory
 - controls       -> path confinement, an executable allowlist, human approval,
-                    a turn budget, and deadlines
-- record         -> `save_state=True`, replayable with `railtracks viz`
+                    a call budget, and deadlines
+- record         -> every run replayable with `railtracks viz`
 
-Everything the agent writes is confined to a scratch workspace (override with
-HARNESS_WORKSPACE); paths that escape it are rejected before the model's request
-ever reaches the filesystem.
+`write_file` is confined to a scratch workspace (override with HARNESS_WORKSPACE):
+paths that escape it are rejected before the request reaches the filesystem.
+`run_shell` is NOT a sandbox. It only sets `cwd`, and an interpreter the agent is
+allowed to run (`python`, or `pytest` executing test files the agent just wrote)
+can reach the rest of the disk. That is exactly why every shell call stops for
+approval: the human is the real control here, not the allowlist.
 
 Run: uv run python examples/harness/coding_harness.py
 """
 
+import asyncio
 import os
 import shlex
 import subprocess
@@ -27,7 +31,9 @@ from railtracks.prebuilt.middleware import MaxCalls, Timeout, pre_verifier
 
 MODEL_NAME = os.environ.get("HARNESS_MODEL", "claude-sonnet-5")
 WORKSPACE = Path(
-    os.environ.get("HARNESS_WORKSPACE", Path(tempfile.gettempdir()) / "harness_workspace")
+    os.environ.get(
+        "HARNESS_WORKSPACE", Path(tempfile.gettempdir()) / "harness_workspace"
+    )
 )
 ALLOWED_EXECUTABLES = {"git", "ls", "pytest", "python", "ruff"}
 
@@ -50,14 +56,28 @@ def _resolve_in_workspace(path: str) -> Path:
 ##### 1. Controls: an allowlist, then a human, before anything mutates #####
 
 
-def approve_write(path: str, content: str) -> Verdict:
+async def _ask(prompt: str) -> bool:
+    """Prompt the operator without blocking the event loop.
+
+    `approve_fn` runs on the loop thread, so a bare `input()` would stall every
+    other in-flight node until the human answers.
+
+    Args:
+        prompt (str): Question to show the operator.
+    """
+    answer = await asyncio.to_thread(input, prompt)
+    return answer.strip().lower() == "y"
+
+
+async def approve_write(path: str, content: str) -> Verdict:
     """Ask the operator to approve a file write, showing what will change."""
     print(f"\n--- write {path} ({len(content)} chars) ---\n{content[:400]}\n---")
-    answer = input(f"Write {path}? [y/N] ").strip().lower()
-    return Verdict(accepted=answer == "y", comment="declined by the operator")
+    if await _ask(f"Write {path}? [y/N] "):
+        return Verdict(accepted=True)
+    return Verdict(accepted=False, comment="declined by the operator")
 
 
-def approve_shell(command: str) -> Verdict:
+async def approve_shell(command: str) -> Verdict:
     """Allowlist the executable, then ask the operator about the exact command."""
     parts = shlex.split(command)
     if not parts:
@@ -68,8 +88,9 @@ def approve_shell(command: str) -> Verdict:
             comment=f"{parts[0]!r} is not on the allowlist: {sorted(ALLOWED_EXECUTABLES)}",
         )
 
-    answer = input(f"\nRun `{command}` in the workspace? [y/N] ").strip().lower()
-    return Verdict(accepted=answer == "y", comment="declined by the operator")
+    if await _ask(f"\nRun `{command}` in the workspace? [y/N] "):
+        return Verdict(accepted=True)
+    return Verdict(accepted=False, comment="declined by the operator")
 
 
 ##### 2. Tool surface: reads are free, writes are gated #####
@@ -112,9 +133,10 @@ def write_file(path: str, content: str) -> str:
 
 @rt.function_node(middleware=[pre_verifier(approve_shell), Timeout(120)])
 def run_shell(command: str) -> str:
-    """Run a shell command inside the workspace and return its output.
+    """Run a shell command with the workspace as the working directory.
 
-    Only these executables are permitted: git, ls, pytest, python, ruff.
+    Only these executables are permitted: git, ls, pytest, python, ruff. Every
+    call needs operator approval before it runs.
 
     Args:
         command (str): Command to run, as it would be typed in a terminal.
@@ -158,27 +180,34 @@ CodingHarness = rt.agent_node(
         *memory.tool_set(),
     ],
     middleware=[Timeout(900)],
-    model_middleware=[MaxCalls(40, custom_message="turn budget exhausted")],
+    # Cumulative for the life of this agent, not per run: a second invoke
+    # inherits whatever the first already spent.
+    model_middleware=[MaxCalls(40, custom_message="model call budget exhausted")],
 )
 
 
 ##### 4. The record #####
 
-if __name__ == "__main__":
+
+async def main() -> None:
+    """Run the harness once, then print the plan it worked through."""
     WORKSPACE.mkdir(parents=True, exist_ok=True)
     print(f"Workspace: {WORKSPACE}")
 
     flow = rt.Flow(
         "coding-harness",
         entry_point=CodingHarness,
-        save_state=True,
         context={"workspace": str(WORKSPACE)},
     )
-    result = flow.invoke(
+    result = await flow.ainvoke(
         "Write a fizzbuzz(n) function in fizzbuzz.py, write pytest tests for it in "
         "test_fizzbuzz.py, then run the tests and report the outcome."
     )
 
     print(f"\n{result.text}")
-    print(f"\n{todos.pretty_dashboard()}")
+    print(f"\n{await todos.pretty_dashboard()}")
     print("\nRun `railtracks viz` to replay this run.")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

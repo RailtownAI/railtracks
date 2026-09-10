@@ -76,20 +76,25 @@ HARNESS_SYSTEM_MESSAGE = "\n\n".join(
 
 
 # --8<-- [start: controls]
+import asyncio
+
 from railtracks.middleware import Verdict
 from railtracks.prebuilt.middleware import MaxCalls, Timeout, pre_verifier
 
 ALLOWED_EXECUTABLES = {"git", "ls", "pytest", "ruff"}
 
 
-def approve_shell(command: str) -> Verdict:
+async def approve_shell(command: str) -> Verdict:
     """Allowlist the executable, then ask a human about the specific command."""
     parts = shlex.split(command)
     if not parts or parts[0] not in ALLOWED_EXECUTABLES:
         return Verdict(accepted=False, comment=f"{command!r} is not on the allowlist")
 
-    answer = input(f"Run `{command}`? [y/N] ").strip().lower()
-    return Verdict(accepted=answer == "y", comment="declined by the operator")
+    # approve_fn runs on the event loop, so never block it with a bare input()
+    answer = await asyncio.to_thread(input, f"Run `{command}`? [y/N] ")
+    if answer.strip().lower() == "y":
+        return Verdict(accepted=True)
+    return Verdict(accepted=False, comment="declined by the operator")
 
 
 gated_shell = rt.function_node(
@@ -113,17 +118,24 @@ RepoHarness = rt.agent_node(
         *memory.tool_set(),
     ],
     middleware=[Timeout(600)],
-    model_middleware=[MaxCalls(40, custom_message="turn budget exhausted")],
+    model_middleware=[MaxCalls(40, custom_message="model call budget exhausted")],
 )
 
 harness_flow = rt.Flow(
     "repo-harness",
     entry_point=RepoHarness,
-    save_state=True,
     context={"repo_root": "."},
 )
 
-outcome = harness_flow.invoke("Find the slowest unit test and explain why it is slow.")
-print(outcome.text)
-print(todos.pretty_dashboard())
+
+async def run_harness() -> None:
+    outcome = await harness_flow.ainvoke(
+        "Find the slowest unit test and explain why it is slow."
+    )
+    print(outcome.text)
+    # every ToDoToolSet read is async, pretty_dashboard included
+    print(await todos.pretty_dashboard())
+
+
+asyncio.run(run_harness())
 # --8<-- [end: record]

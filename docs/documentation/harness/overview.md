@@ -14,7 +14,7 @@ Railtracks is an agent harness framework. Every part of that list is an ordinary
 | **Tool surface** | What can the agent actually do? | [`rt.function_node`](../agent_design/tools/function_tools.md), [`rt.ToolManifest`](../agent_design/tools/agents_as_tools.md), [`rt.connect_mcp`](../agent_design/tools/mcp.md) |
 | **Context** | What does the model see on this turn? | `system_message`, [`rt.context`](../advanced/context.md), [`ToDoToolSet`](../agent_design/tools/prebuilt/todos.md), [`KeyValueMemoryToolSet`](../agent_design/tools/prebuilt/key_value_memory.md), [retrieval](../../retrieval/runtime/quickstart.md) |
 | **Controls** | What is it allowed to do, and how much of it? | [`middleware=` / `model_middleware=`](../agent_design/middleware/overview.md): `MaxCalls`, `Timeout`, `Retry`, `Lock`, [verifiers](../agent_design/middleware/verifiers/overview.md), [guardrails](../agent_design/middleware/guardrails/overview.md) |
-| **Record** | What happened, and can I replay it? | session state, [`railtracks viz`](../../observability/agenthub/local.md), [`rt.evaluate`](../../evaluations/quickstart.md) |
+| **Record** | What happened, and can I replay it? | session state, [`railtracks viz`](../../observability/agenthub/local.md), [`rt.evaluations.evaluate`](../../evaluations/quickstart.md) |
 
 The sections below build one harness up part by part: a repository assistant that reads code, plans its work, and runs shell commands only with permission.
 
@@ -61,7 +61,7 @@ For large corpora the answer is retrieval rather than a bigger prompt: see the [
 
 ## 4. Controls
 
-Controls are what make a harness safe to point at real systems. In Railtracks they are middleware, applied at two boundaries: `middleware=` wraps the whole node (one call in, one result out) and `model_middleware=` wraps each individual model call inside the loop. The distinction matters for budgets: `MaxCalls(40)` as node middleware allows forty runs of the agent, while the same thing as model middleware caps the agent at forty turns within a single run.
+Controls are what make a harness safe to point at real systems. In Railtracks they are middleware, applied at two boundaries: `middleware=` wraps the whole node (one call in, one result out) and `model_middleware=` wraps each individual model call inside the loop. The distinction matters for budgets: `MaxCalls(40)` as node middleware allows forty invocations of the agent, while the same thing as model middleware allows forty raw model calls. Either way the counter is cumulative for the life of the agent you attached it to, not per run: a second `invoke` of the same agent inherits whatever it already spent. `agent_node` copies the middleware you hand it, so the budget belongs to that agent, and rebuilding the agent is what gives you a fresh one.
 
 ```python
 --8<-- "docs/scripts/documentation/harness.py:controls"

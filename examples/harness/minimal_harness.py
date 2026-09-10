@@ -61,14 +61,16 @@ RepoReader = rt.agent_node(
     ),
     tool_nodes=[list_files, read_file, find_files],
     middleware=[Timeout(300)],
-    model_middleware=[MaxCalls(20, custom_message="turn budget exhausted")],
+    # Cumulative for the life of this agent, not per run: a second invoke
+    # inherits whatever the first already spent.
+    model_middleware=[MaxCalls(20, custom_message="model call budget exhausted")],
 )
 
 
-##### 3. The record: save_state makes the run replayable in `railtracks viz` #####
+##### 3. The record: runs are recorded by default, replay with `railtracks viz` #####
 
 if __name__ == "__main__":
-    flow = rt.Flow("minimal-harness", entry_point=RepoReader, save_state=True)
+    flow = rt.Flow("minimal-harness", entry_point=RepoReader)
     result = flow.invoke(
         "Which optional dependency extras does the railtracks package declare, and what is in each?"
     )
