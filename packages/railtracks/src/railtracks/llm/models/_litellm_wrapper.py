@@ -207,6 +207,19 @@ def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     return litellm_tool
 
 
+def _attach_reasoning(assistant_msg: AssistantMessage, source: Any) -> AssistantMessage:
+    """Copy any reasoning/thinking the provider returned from a litellm message or
+    delta onto the assistant message.
+
+    `reasoning_content` (text) and `thinking_blocks` (signed structured blocks) are
+    only present on `source` when the provider surfaced reasoning, so both are read
+    with `getattr(..., None)`. Returns the same message for convenient chaining.
+    """
+    assistant_msg.reasoning_content = getattr(source, "reasoning_content", None)
+    assistant_msg.thinking_blocks = getattr(source, "thinking_blocks", None)
+    return assistant_msg
+
+
 class StreamedToolCall(BaseModel):
     tool: ToolCall
     args: str | None = Field(default=None)  # accumulating string of arguments (in json)
@@ -548,6 +561,11 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         """
         accumulated_content = ""
+        # Reasoning/"thinking" arrives in its own deltas (before the content deltas)
+        # on providers that surface it; accumulate the text and collect the signed
+        # blocks so the final Response carries them like a buffered call would.
+        accumulated_reasoning = ""
+        accumulated_thinking_blocks: List[dict] = []
 
         # fall back on empty message info if we don't get one from the stream.
         message_info = MessageInfo()
@@ -575,6 +593,13 @@ class LiteLLMWrapper(ModelBase, ABC):
                 stream_finished = True
                 continue
 
+            reasoning_delta = getattr(choice.delta, "reasoning_content", None)
+            if reasoning_delta:
+                accumulated_reasoning += reasoning_delta
+            thinking_delta = getattr(choice.delta, "thinking_blocks", None)
+            if thinking_delta:
+                accumulated_thinking_blocks.extend(thinking_delta)
+
             if choice.delta.tool_calls:
                 # Some providers batch several calls into a single delta, so every entry
                 # has to be consumed rather than just the first.
@@ -599,6 +624,8 @@ class LiteLLMWrapper(ModelBase, ABC):
             tools=tools,
             output_schema=output_schema,
             message_info=message_info,
+            reasoning_content=accumulated_reasoning or None,
+            thinking_blocks=accumulated_thinking_blocks or None,
         )
 
         yield r
@@ -611,11 +638,15 @@ class LiteLLMWrapper(ModelBase, ABC):
         tools: list[ToolCall],
         output_schema: type[BaseModel] | None,
         message_info: MessageInfo,
+        reasoning_content: str | None = None,
+        thinking_blocks: list[dict] | None = None,
     ):
         """
         From the provided content, creates a completes a response object dyanmically.
 
         This function handles the normalization of the different response `content` types.
+        Any `reasoning_content`/`thinking_blocks` accumulated from the stream are attached
+        to the built assistant message.
         """
         structured_response: BaseModel | None = None
 
@@ -623,24 +654,17 @@ class LiteLLMWrapper(ModelBase, ABC):
             structured_response = output_schema(**json.loads(accumulated_content))
 
         if structured_response is not None:
-            r = Response(
-                message=AssistantMessage(content=structured_response),
-                message_info=message_info,
-            )
+            message = AssistantMessage(content=structured_response)
         elif len(tools) > 0:
-            r = Response(
-                message=AssistantMessage(
-                    content=ToolCalls(tools, text=accumulated_content or None)
-                ),
-                message_info=message_info,
+            message = AssistantMessage(
+                content=ToolCalls(tools, text=accumulated_content or None)
             )
         else:
-            r = Response(
-                message=AssistantMessage(content=accumulated_content),
-                message_info=message_info,
-            )
+            message = AssistantMessage(content=accumulated_content)
 
-        return r
+        message.reasoning_content = reasoning_content
+        message.thinking_blocks = thinking_blocks
+        return Response(message=message, message_info=message_info)
 
     def _is_stream_finished(self, choice) -> bool:
         """Check if the stream has finished.
@@ -781,8 +805,11 @@ class LiteLLMWrapper(ModelBase, ABC):
     # ================ START Base Handlers ==================
 
     def _chat_handle_base(self, raw: ModelResponse, info: MessageInfo):
-        content = raw["choices"][0]["message"]["content"]
-        return Response(message=AssistantMessage(content=content), message_info=info)
+        message = raw["choices"][0]["message"]
+        assistant_msg = _attach_reasoning(
+            AssistantMessage(content=message["content"]), message
+        )
+        return Response(message=assistant_msg, message_info=info)
 
     def _structured_handle_base(
         self,
@@ -790,9 +817,10 @@ class LiteLLMWrapper(ModelBase, ABC):
         info: MessageInfo,
         schema: Type[BaseModel],
     ) -> Response:
-        content_str = raw["choices"][0]["message"]["content"]
-        parsed = schema(**json.loads(content_str))
-        return Response(message=AssistantMessage(content=parsed), message_info=info)
+        message = raw["choices"][0]["message"]
+        parsed = schema(**json.loads(message["content"]))
+        assistant_msg = _attach_reasoning(AssistantMessage(content=parsed), message)
+        return Response(message=assistant_msg, message_info=info)
 
     def _chat_with_tools_handler_base(
         self, raw: ModelResponse, info: MessageInfo
@@ -805,10 +833,11 @@ class LiteLLMWrapper(ModelBase, ABC):
         if choice.finish_reason == "stop" and not choice.message.tool_calls:
             # litellm types content as str | None, but a plain "stop" completion always
             # carries (possibly empty) text content.
-            return Response(
-                message=AssistantMessage(content=cast(str, choice.message.content)),
-                message_info=info,
+            assistant_msg = _attach_reasoning(
+                AssistantMessage(content=cast(str, choice.message.content)),
+                choice.message,
             )
+            return Response(message=assistant_msg, message_info=info)
 
         calls: List[ToolCall] = []
         for tc in choice.message.tool_calls or []:
@@ -819,8 +848,9 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         # Keep any text the model returned alongside the tool calls (e.g. "I will
         # check the weather in London for you"), it is part of the answer.
-        assistant_msg = AssistantMessage(
-            content=ToolCalls(calls, text=choice.message.content)
+        assistant_msg = _attach_reasoning(
+            AssistantMessage(content=ToolCalls(calls, text=choice.message.content)),
+            choice.message,
         )
 
         # Preserve the raw litellm message so that provider-specific metadata
