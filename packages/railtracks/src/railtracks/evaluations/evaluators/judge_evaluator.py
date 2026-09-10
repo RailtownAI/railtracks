@@ -17,7 +17,7 @@ from ..result import (
     MetricResult,
 )
 from .evaluator import Evaluator
-from .metrics import Categorical, Metric, Numerical
+from .metrics import Categorical, LLMMetric, Metric, Numerical, ToolMetric
 
 logger = get_rt_logger(__name__)
 
@@ -52,14 +52,18 @@ class JudgeEvaluator(Evaluator):
             reasoning: A flag indicating whether the judge should provide reasoning for its evaluations.
         """
         # These are config not state
-        self._metrics: dict[str, Metric] = {m.identifier: m for m in metrics}
+        self._metrics: dict[str, Metric] = {}
         for m in metrics:
-            if isinstance(m, Categorical):
-                self._metrics[m.identifier] = m
-            else:
+            # LLMMetric/ToolMetric subclass Numerical but are usage-stat metrics,
+            # not meant to be scored by the LLM judge.
+            if isinstance(m, (LLMMetric, ToolMetric)) or not isinstance(
+                m, (Categorical, Numerical)
+            ):
                 logger.warning(
-                    f"JudgeEvaluator currently only supports Categorical metrics, metric {m.name} of type {type(m)} will be skipped."
+                    f"JudgeEvaluator currently only supports Categorical and Numerical metrics, metric {m.name} of type {type(m)} will be skipped."
                 )
+            else:
+                self._metrics[m.identifier] = m
         self._llm = llm
         self._reasoning: bool = reasoning
         self._template = self._load_yaml()
@@ -74,7 +78,6 @@ class JudgeEvaluator(Evaluator):
         self._judge = rt.agent_node(
             llm=self._llm,
             output_schema=JudgeResponseSchema,
-            tool_nodes=[],
         )
 
     def run(
@@ -215,11 +218,44 @@ class JudgeEvaluator(Evaluator):
                 f"\nYour metric_value must be exactly one of these category "
                 f"names: {category_names}."
             )
+        elif isinstance(metric, Numerical):
+            system_prompt += f"\n{self._numeric_bounds_text(metric)}"
+            if metric.shots:
+                system_prompt += self._numeric_shots_text(metric)
 
         if self._reasoning:
             system_prompt += self._template["reasoning"]
 
         return system_prompt
+
+    def _numeric_bounds_text(self, metric: Numerical) -> str:
+        if metric.min_value is not None and metric.max_value is not None:
+            return (
+                f"Your metric_value must be a single number between "
+                f"{metric.min_value} and {metric.max_value} inclusive."
+            )
+        if metric.min_value is not None:
+            return (
+                f"Your metric_value must be a single number of at least "
+                f"{metric.min_value}."
+            )
+        if metric.max_value is not None:
+            return (
+                f"Your metric_value must be a single number of at most "
+                f"{metric.max_value}."
+            )
+        return "Your metric_value must be a single number."
+
+    def _numeric_shots_text(self, metric: Numerical) -> str:
+        text = "\nUse the following anchor points to calibrate your scoring:"
+        for value, description in metric.shots or []:
+            text += f"\n- A score of {value} means: {description}"
+        text += (
+            "\nFor scores between the provided anchor points, "
+            "interpolate based on how closely the agent's output "
+            "matches the descriptions of the nearest anchors."
+        )
+        return text
 
     def _load_yaml(self):
         yaml_path = Path(__file__).parent / "judge_evaluator.yaml"
