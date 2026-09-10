@@ -195,52 +195,26 @@ async def test_call_count_property_and_reset():
     assert max_calls.call_count == 1
 
 
-def test_lock_middleware_shared_across_nodes_preserves_reference():
+def test_agent_node_middleware_slot_enforces_limit(mock_llm):
     import railtracks as rt
-    from railtracks.prebuilt.middleware.lock import Lock
 
-    shared_lock = Lock()
+    agent = rt.agent_node(
+        "Agent",
+        llm=mock_llm(custom_response="hello"),
+        middleware=[MaxCalls(2, custom_message="agent limit hit")],
+    )
 
-    @rt.function_node(middleware=[shared_lock])
-    def t1(x: int) -> int:
-        return x
+    @rt.function_node
+    async def driver(n: int) -> list[str]:
+        out = []
+        for i in range(n):
+            try:
+                res = await rt.call(agent, user_input=f"query {i}")
+                out.append(res.content)
+            except Exception as e:
+                out.append(type(e).__name__)
+        return out
 
-    @rt.function_node(middleware=[shared_lock])
-    def t2(x: int) -> int:
-        return x
-
-    assert t1.node_type._user_middleware[0] is shared_lock
-    assert t2.node_type._user_middleware[0] is shared_lock
-
-    node1 = t1.node_type()
-    node2 = t2.node_type()
-    assert node1.middleware.middleware[0] is shared_lock
-    assert node2.middleware.middleware[0] is shared_lock
-
-    # safe_copy must also keep the reference
-    copied_node = node1.safe_copy()
-    assert copied_node.middleware.middleware[0] is shared_lock
-
-
-def test_agent_node_preserves_middleware_reference(mock_llm):
-    from railtracks.built_nodes.llm.node import agent_node
-
-    budget = MaxCalls(5)
-    agent_a = agent_node("AgentA", llm=mock_llm, middleware=[budget])
-    agent_b = agent_node("AgentB", llm=mock_llm, middleware=[budget])
-
-    assert agent_a._user_middleware[0] is budget
-    assert agent_b._user_middleware[0] is budget
-    assert agent_a._user_middleware[0] is agent_b._user_middleware[0]
-
-
-def test_agent_node_preserves_model_middleware_reference(mock_llm):
-    from railtracks.built_nodes.llm.node import agent_node
-
-    budget = MaxCalls(5)
-    agent_a = agent_node("AgentA", llm=mock_llm, model_middleware=[budget])
-    agent_b = agent_node("AgentB", llm=mock_llm, model_middleware=[budget])
-
-    assert agent_a._user_model_middleware[0] is budget
-    assert agent_b._user_model_middleware[0] is budget
-    assert agent_a._user_model_middleware[0] is agent_b._user_model_middleware[0]
+    flow = rt.Flow("agent-node-slot", entry_point=driver)
+    results = flow.invoke(n=3)
+    assert results == ["hello", "hello", "MaxCallsExceededError"]

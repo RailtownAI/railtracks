@@ -89,9 +89,11 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         casted_instance._node_class = "Agent"
 
         unwrapped_model_middleware: list[ModelMiddleware] = (
-            list(model_middleware) if model_middleware is not None else []
+            list(deepcopy(model_middleware)) if model_middleware is not None else []
         )
-        unwrapped_middleware = list(middleware) if middleware is not None else []
+        unwrapped_middleware = (
+            list(deepcopy(middleware)) if middleware is not None else []
+        )
 
         tool_nodes = list(deepcopy(connected_nodes)) if connected_nodes else None
         _check_duplicate_tool_names(tool_nodes)

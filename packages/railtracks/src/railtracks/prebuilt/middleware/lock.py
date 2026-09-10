@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 from railtracks.middleware.core import Middleware
 
@@ -15,10 +14,6 @@ class Lock(Middleware):
     def __init__(self):
         self._lock = asyncio.Lock()
         super().__init__(self._middleware_fn)
-
-    def __deepcopy__(self, memo: dict[int, Any]) -> Lock:
-        memo[id(self)] = self
-        return self
 
     async def _middleware_fn(self, call, *args, **kwargs):
         async with self._lock:
