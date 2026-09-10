@@ -4352,6 +4352,7 @@ all = [
     { name = "pypdf" },
     { name = "pypdfium2" },
     { name = "pytesseract" },
+    { name = "pytz" },
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-learn", version = "1.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "sqlalchemy" },
@@ -4451,6 +4452,7 @@ tiktok = [
 visual = [
     { name = "duckdb" },
     { name = "fastapi" },
+    { name = "pytz" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 websearch = [
@@ -4489,6 +4491,7 @@ requires-dist = [
     { name = "pypdfium2", marker = "extra == 'ocr'", specifier = ">=4.30.0" },
     { name = "pytesseract", marker = "extra == 'ocr'", specifier = ">=0.3.10" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "pytz", marker = "extra == 'visual'", specifier = ">=2024.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "railtracks", extras = ["aws"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["azure-blob"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
