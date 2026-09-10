@@ -56,6 +56,27 @@ def test_assistant_message():
     assert repr(message) == "assistant: Assistant response"
 
 
+def test_assistant_message_reasoning_defaults_none_and_absent_from_encode():
+    message = AssistantMessage("Assistant response")
+    assert message.reasoning_content is None
+    assert message.thinking_blocks is None
+    encoded = message.encode()
+    assert "reasoning_content" not in encoded
+    assert "thinking_blocks" not in encoded
+
+
+def test_assistant_message_encode_surfaces_reasoning():
+    blocks = [{"type": "thinking", "thinking": "2 + 2", "signature": "sig"}]
+    message = AssistantMessage("4")
+    message.reasoning_content = "2 + 2 is 4"
+    message.thinking_blocks = blocks
+
+    encoded = message.encode()
+
+    assert encoded["reasoning_content"] == "2 + 2 is 4"
+    assert encoded["thinking_blocks"] == blocks
+
+
 def test_tool_message():
     tool_response = ToolResponse(name="tool1", result="result", identifier="123")
     message = ToolMessage(tool_response)
