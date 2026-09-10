@@ -74,6 +74,21 @@ LockedAgent = rt.agent_node(
 # --8<-- [end: lock]
 
 
+# --8<-- [start: combining]
+import railtracks as rt
+from railtracks.prebuilt.middleware import Retry, Timeout
+
+
+# Multiple prebuilt middleware can be combined in one middleware= list.
+# Previously, mixing any two caused mypy to collapse _P to Never (issue #1538).
+@rt.function_node(middleware=[Retry(3), Timeout(seconds=30)])
+def fetch_data(url: str) -> str:
+    return url  # placeholder
+
+
+# --8<-- [end: combining]
+
+
 # --8<-- [start: context_injection]
 import railtracks as rt
 from railtracks.prebuilt.middleware import ContextInjection

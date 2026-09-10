@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from railtracks.middleware.core import Middleware
 
 
-class Timeout(Middleware):
+class Timeout(Middleware[Any, Any]):
     """Fail the wrapped call when it runs longer than ``seconds``.
 
     The timeout applies to the complete wrapped call. When the deadline expires,

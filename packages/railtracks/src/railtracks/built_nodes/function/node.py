@@ -6,6 +6,7 @@ import inspect
 import warnings
 from types import BuiltinFunctionType
 from typing import (
+    Any,
     Callable,
     Coroutine,
     Iterable,
@@ -78,7 +79,7 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any]] | None = None,
 ) -> Callable[
     [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
     RTFunction[_P, _TOutput],
