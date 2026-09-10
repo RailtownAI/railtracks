@@ -73,9 +73,7 @@ ErrorHandlerWithRetry = rt.function_node(error_handler_with_retry)
 @pytest.mark.timeout(5)
 async def test_error_handler_with_retry():
     for num_retries in range(5, 15):
-        conn = rt.Flow(
-            "test_error_handler_with_retry", ErrorHandlerWithRetry
-        ).connect()
+        conn = rt.Flow("test_error_handler_with_retry", ErrorHandlerWithRetry).connect()
         await conn.ainvoke(num_retries)
         result = conn.session.info
 

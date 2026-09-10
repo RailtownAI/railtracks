@@ -72,9 +72,9 @@ def test_prompt_numerical(mock_llm):
     async def entry(user_input):
         return await rt.call(node, user_input=user_input)
 
-    response = rt.Flow(
-        "test_prompt_numerical", entry, context={"1": "tomato"}
-    ).invoke(MessageHistory())
+    response = rt.Flow("test_prompt_numerical", entry, context={"1": "tomato"}).invoke(
+        MessageHistory()
+    )
 
     assert response.content == "tomato"
 

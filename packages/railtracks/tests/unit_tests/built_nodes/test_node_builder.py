@@ -532,9 +532,9 @@ def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
     async def entry(user_input):
         return await rt.call(node_cls, user_input)
 
-    rt.Flow(
-        "test_nodebuilder_llm_guardrails_input_and_output_both_fire", entry
-    ).invoke("hello")
+    rt.Flow("test_nodebuilder_llm_guardrails_input_and_output_both_fire", entry).invoke(
+        "hello"
+    )
     assert fired == {"input": True, "output": True}
 
 
@@ -573,9 +573,7 @@ def test_nodebuilder_llm_empty_model_middleware_is_a_no_op(mock_llm):
         return await rt.call(node_cls, user_input)
 
     assert (
-        rt.Flow(
-            "test_nodebuilder_llm_empty_model_middleware_is_a_no_op", entry
-        )
+        rt.Flow("test_nodebuilder_llm_empty_model_middleware_is_a_no_op", entry)
         .invoke("hello")
         .content
         == "hi"

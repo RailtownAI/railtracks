@@ -29,9 +29,9 @@ def test_from_mcp_server_with_llm():
 
     # Run the parent tool
     message_history = rt.llm.MessageHistory([rt.llm.UserMessage("What time is it?")])
-    response = rt.Flow(
-        "test_from_mcp_server_with_llm", entry, timeout=1000
-    ).invoke(message_history)
+    response = rt.Flow("test_from_mcp_server_with_llm", entry, timeout=1000).invoke(
+        message_history
+    )
 
     assert response is not None
     assert response.content != "It didn't work!"
@@ -58,9 +58,9 @@ def test_from_mcp_server_with_http():
     message_history = rt.llm.MessageHistory(
         [rt.llm.UserMessage("Tell me about the website conductr.ai")]
     )
-    response = rt.Flow(
-        "test_from_mcp_server_with_http", entry, timeout=1000
-    ).invoke(message_history)
+    response = rt.Flow("test_from_mcp_server_with_http", entry, timeout=1000).invoke(
+        message_history
+    )
 
     assert response is not None
     assert response.content != "It didn't work!"

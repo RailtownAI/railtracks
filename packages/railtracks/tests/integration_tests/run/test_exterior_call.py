@@ -37,9 +37,7 @@ async def test_runner_call_with_context():
     response = await conn.ainvoke()
     assert isinstance(response, float), "Expected a float result from RNGNode"
     info = conn.session.info
-    assert info.answer == response, (
-        "Expected the answer to be the same as the response"
-    )
+    assert info.answer == response, "Expected the answer to be the same as the response"
 
 
 async def config_test_async():
@@ -144,9 +142,7 @@ def test_back_to_defaults():
     def entry():
         return None
 
-    conn = rt.Flow(
-        "test_back_to_defaults_explicit", entry, end_on_error=True
-    ).connect()
+    conn = rt.Flow("test_back_to_defaults_explicit", entry, end_on_error=True).connect()
     conn.invoke()
     assert conn.session.rt_state.executor_config.end_on_error
 

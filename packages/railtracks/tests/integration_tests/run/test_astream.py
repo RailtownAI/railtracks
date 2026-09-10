@@ -333,6 +333,4 @@ async def test_astream_timeout_raises_global_timeout_error(mock_llm):
             with pytest.raises(GlobalTimeOutError):
                 _ = stream.result
 
-    await rt.Flow(
-        "test_astream_timeout_raises_global_timeout_error", entry
-    ).ainvoke()
+    await rt.Flow("test_astream_timeout_raises_global_timeout_error", entry).ainvoke()

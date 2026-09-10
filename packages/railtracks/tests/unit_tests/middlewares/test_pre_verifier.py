@@ -155,7 +155,7 @@ class TestPreVerifierEndToEnd:
             return await rt.call(refund, order_id=order_id, amount=amount)
 
         with pytest.raises(VerifierRejectedError):
-            rt.Flow(
-                "test_declined_call_blocks_the_node_and_propagates", entry
-            ).invoke(order_id="A1", amount=500)
+            rt.Flow("test_declined_call_blocks_the_node_and_propagates", entry).invoke(
+                order_id="A1", amount=500
+            )
         assert ran["value"] is False

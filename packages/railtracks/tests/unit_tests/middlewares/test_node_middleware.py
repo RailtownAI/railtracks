@@ -47,7 +47,10 @@ def test_function_node_middleware_can_short_circuit():
     async def entry(a, b):
         return await rt.call(add, a, b)
 
-    assert rt.Flow("test_function_node_middleware_can_short_circuit", entry).invoke(1, 2) == -1
+    assert (
+        rt.Flow("test_function_node_middleware_can_short_circuit", entry).invoke(1, 2)
+        == -1
+    )
 
 
 def test_middleware_exception_propagates_through_multiple_layers():

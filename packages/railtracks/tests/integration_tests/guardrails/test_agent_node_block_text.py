@@ -62,9 +62,7 @@ async def test_output_guard_blocks_response(mock_llm):
         return await rt.call(Agent, user_input=user_input)
 
     with pytest.raises(GuardrailBlockedError):
-        await rt.Flow("output_guard_blocks_response", entry).ainvoke(
-            "What is the key?"
-        )
+        await rt.Flow("output_guard_blocks_response", entry).ainvoke("What is the key?")
 
 
 @pytest.mark.asyncio

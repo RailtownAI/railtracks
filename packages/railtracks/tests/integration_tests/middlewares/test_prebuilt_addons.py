@@ -94,6 +94,6 @@ async def test_retry_exhaustion_surfaces_after_max_tries(mock_llm):
         return await rt.call(agent, user_input=user_input)
 
     with pytest.raises(Exception):
-        await rt.Flow(
-            "test_retry_exhaustion_surfaces_after_max_tries", entry
-        ).ainvoke("hi")
+        await rt.Flow("test_retry_exhaustion_surfaces_after_max_tries", entry).ainvoke(
+            "hi"
+        )

@@ -17,7 +17,9 @@ import railtracks as rt
 )
 async def test_parallel_calls(parallel_node, timeout_config, expected, buffer):
     start_time = time.time()
-    results = await rt.Flow("test_parallel_calls", parallel_node).ainvoke(timeout_config)
+    results = await rt.Flow("test_parallel_calls", parallel_node).ainvoke(
+        timeout_config
+    )
     assert abs(time.time() - start_time - expected) < buffer
     assert results == timeout_config
 
