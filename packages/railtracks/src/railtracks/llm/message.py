@@ -385,7 +385,9 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         # Reasoning/"thinking" the model surfaced alongside its answer, when the
         # provider returns it (Anthropic, DeepSeek, Gemini, OpenAI in part).
         self.reasoning_content: str | None = None  # human-readable text
-        self.thinking_blocks: list[dict[str, Any]] | None = None  # structured blocks of reasoning, e.g. Gemini's thought_signature
+        self.thinking_blocks: list[dict[str, Any]] | None = (
+            None  # structured blocks of reasoning, e.g. Gemini's thought_signature
+        )
 
     def encode(self):
         encoded = super().encode()
