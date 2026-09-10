@@ -52,8 +52,11 @@ async def _run(node, *args):
 
 
 async def _run_agent(node_cls, user_input="hello"):
-    with rt.Session():
+    @rt.function_node
+    async def entry(user_input):
         return await rt.call(node_cls, user_input=user_input)
+
+    return await rt.Flow("test_couple_agent", entry).ainvoke(user_input)
 
 
 # =============================== middleware ===============================

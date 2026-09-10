@@ -12,8 +12,7 @@ RNGNode = rt.function_node(random.random)
 
 @pytest.mark.timeout(1)
 async def test_simple_request():
-    with rt.Session():
-        result = await rt.call(RNGNode)
+    result = await rt.Flow("test_simple_request", RNGNode).ainvoke()
 
     assert isinstance(result, float)
     assert 0 < result < 1
@@ -31,9 +30,8 @@ ErrorThrower = rt.function_node(error_thrower)
 
 
 async def test_error():
-    with rt.Session():
-        with pytest.raises(CustomTestError):
-            await rt.call(ErrorThrower)
+    with pytest.raises(CustomTestError):
+        await rt.Flow("test_error", ErrorThrower).ainvoke()
 
 
 async def error_handler():
@@ -48,15 +46,15 @@ ErrorHandler = rt.function_node(error_handler)
 
 @pytest.mark.timeout(1)
 async def test_error_handler():
-    with rt.Session():
-        result = await rt.call(ErrorHandler)
+    result = await rt.Flow("test_error_handler", ErrorHandler).ainvoke()
     assert result == "Caught the error"
 
 
 async def test_error_handler_wo_retry():
     with pytest.raises(CustomTestError):
-        with rt.Session(end_on_error=True):
-            await rt.call(ErrorHandler)
+        await rt.Flow(
+            "test_error_handler_wo_retry", ErrorHandler, end_on_error=True
+        ).ainvoke()
 
 
 async def error_handler_with_retry(retries: int):
@@ -75,9 +73,11 @@ ErrorHandlerWithRetry = rt.function_node(error_handler_with_retry)
 @pytest.mark.timeout(5)
 async def test_error_handler_with_retry():
     for num_retries in range(5, 15):
-        with rt.Session() as run:
-            result = await rt.call(ErrorHandlerWithRetry, num_retries)
-            result = run.info
+        conn = rt.Flow(
+            "test_error_handler_with_retry", ErrorHandlerWithRetry
+        ).connect()
+        await conn.ainvoke(num_retries)
+        result = conn.session.info
 
         assert result.answer == "Caught the error"
         i_r = result.request_forest.insertion_request[0]
@@ -107,8 +107,9 @@ ParallelErrorHandler = rt.function_node(parallel_error_handler)
 
 async def test_parallel_error_tester():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Session():
-            result = await rt.call(ParallelErrorHandler, n_c, p_c)
+        result = await rt.Flow(
+            "test_parallel_error_tester", ParallelErrorHandler
+        ).ainvoke(n_c, p_c)
 
         assert isinstance(result, list)
         assert len(result) == n_c * p_c
@@ -128,16 +129,16 @@ ErrorHandlerWrapper = rt.function_node(error_handler_wrapper)
 
 async def test_parallel_error_wrapper():
     for n_c, p_c in [(10, 10), (3, 20), (1, 10), (60, 10)]:
-        with rt.Session() as run:
-            result = await rt.call(ErrorHandlerWrapper, n_c, p_c)
+        conn = rt.Flow("test_parallel_error_wrapper", ErrorHandlerWrapper).connect()
+        result = await conn.ainvoke(n_c, p_c)
 
         assert len(result) == n_c * p_c
         assert all(isinstance(x, CustomTestError) for x in result)
-        i_r = run.info.request_forest.insertion_request[0]
+        i_r = conn.session.info.request_forest.insertion_request[0]
 
-        children = run.info.request_forest.children(i_r.sink_id)
+        children = conn.session.info.request_forest.children(i_r.sink_id)
         assert len(children) == 1
-        full_children = run.info.request_forest.children(children[0].sink_id)
+        full_children = conn.session.info.request_forest.children(children[0].sink_id)
         for r in children:
             assert r.output == result
 

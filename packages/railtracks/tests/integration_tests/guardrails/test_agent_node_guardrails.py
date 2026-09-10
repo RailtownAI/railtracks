@@ -86,9 +86,13 @@ async def test_terminal_input_block_skips_llm(mock_llm, block_input):
         llm=llm,
         model_middleware=[block_input],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="hello")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("terminal_input_block", entry).ainvoke("hello")
     assert counts["n"] == 0
 
 
@@ -101,8 +105,12 @@ async def test_terminal_input_allow_calls_llm(mock_llm, allow_input):
         llm=llm,
         model_middleware=[allow_input],
     )
-    with rt.Session():
-        out = await rt.call(Agent, user_input="hello")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    out = await rt.Flow("terminal_input_allow", entry).ainvoke("hello")
     assert counts["n"] == 1
     assert isinstance(out, StringResponse)
     assert "ok" in out.text
@@ -118,8 +126,11 @@ async def test_terminal_guardrails_allow(mock_llm, allow_input):
         model_middleware=[allow_input],
     )
 
-    with rt.Session():
-        result = await rt.call(Agent, user_input="hi")
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    result = await rt.Flow("terminal_guardrails_allow", entry).ainvoke("hi")
 
     assert counts["n"] == 1
     assert isinstance(result, StringResponse)
@@ -140,9 +151,13 @@ async def test_structured_input_block_skips_llm(mock_llm, block_input):
         llm=llm,
         model_middleware=[block_input],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="q")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("structured_input_block", entry).ainvoke("q")
     assert counts["n"] == 0
 
 
@@ -159,9 +174,13 @@ async def test_structured_output_block_after_llm(mock_llm, allow_input):
             FnOutputGuard(lambda _e: GuardrailDecision.block(reason="output policy")),
         ],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="q")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("structured_output_block", entry).ainvoke("q")
 
 
 @pytest.mark.asyncio
@@ -175,8 +194,11 @@ async def test_structured_guardrails_allow(mock_llm, allow_input):
         model_middleware=[allow_input],
     )
 
-    with rt.Session():
-        result = await rt.call(Agent, user_input="hi")
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    result = await rt.Flow("structured_guardrails_allow", entry).ainvoke("hi")
 
     assert counts["n"] == 1
     assert isinstance(result, StructuredResponse)
@@ -195,9 +217,13 @@ async def test_terminal_output_block(mock_llm, allow_input):
             FnOutputGuard(lambda _e: GuardrailDecision.block(reason="no")),
         ],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="q")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("terminal_output_block", entry).ainvoke("q")
 
 
 # ============================================================
@@ -218,9 +244,13 @@ async def test_tool_call_input_block_skips_llm(mock_llm, block_input):
         llm=llm,
         model_middleware=[block_input],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="hello")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("tool_call_input_block", entry).ainvoke("hello")
     assert counts["n"] == 0
 
 
@@ -237,8 +267,12 @@ async def test_tool_call_input_allow_calls_llm(mock_llm, allow_input):
         llm=llm,
         model_middleware=[allow_input],
     )
-    with rt.Session():
-        out = await rt.call(Agent, user_input="hello")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    out = await rt.Flow("tool_call_input_allow", entry).ainvoke("hello")
     assert counts["n"] >= 1
     assert isinstance(out, StringResponse)
 
@@ -257,9 +291,13 @@ async def test_tool_call_output_block(mock_llm, allow_input):
             FnOutputGuard(lambda _e: GuardrailDecision.block(reason="blocked output")),
         ],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="hello")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("tool_call_output_block", entry).ainvoke("hello")
 
 
 @pytest.mark.asyncio
@@ -286,8 +324,12 @@ async def test_tool_call_output_transform_updates_response_and_history(
             ),
         ],
     )
-    with rt.Session():
-        result = await rt.call(Agent, user_input="hello")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    result = await rt.Flow("tool_call_output_transform", entry).ainvoke("hello")
     assert isinstance(result, StringResponse)
     assert result.content == transformed
     assert result.message_history[-1].content == transformed
@@ -327,8 +369,12 @@ async def test_tool_call_output_guard_fires_only_on_final_reply(mock_llm, allow_
         llm=llm,
         model_middleware=[allow_input, FnOutputGuard(_counting_guard)],
     )
-    with rt.Session():
-        await rt.call(Agent, user_input="weather?")
+
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(Agent, user_input=user_input)
+
+    await rt.Flow("tool_call_output_fires_once", entry).ainvoke("weather?")
 
     assert fire_count["n"] == 1
 

@@ -1,5 +1,3 @@
-import asyncio
-
 import railtracks as rt
 from railtracks.llm import Message, MessageHistory
 from railtracks.llm.message import Role
@@ -25,12 +23,13 @@ def test_context_injection(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    async def top_level():
-        with rt.Session(context={"secret": "tomato"}):
-            response = await rt.call(node, user_input=MessageHistory())
-        return response
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(node, user_input=user_input)
 
-    response = asyncio.run(top_level())
+    response = rt.Flow(
+        "test_context_injection", entry, context={"secret": "tomato"}
+    ).invoke(MessageHistory())
     assert response.content == "tomato"
 
 
@@ -46,12 +45,13 @@ def test_context_injection_bypass(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    async def top_level():
-        with rt.Session(context={"secret_value": "tomato"}):
-            response = await rt.call(node, user_input=MessageHistory())
-        return response
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(node, user_input=user_input)
 
-    response = asyncio.run(top_level())
+    response = rt.Flow(
+        "test_context_injection_bypass", entry, context={"secret_value": "tomato"}
+    ).invoke(MessageHistory())
 
     assert response.content == "{secret_value}"
 
@@ -68,12 +68,13 @@ def test_prompt_numerical(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    async def top_level():
-        with rt.Session(context={"1": "tomato"}):
-            response = await rt.call(node, user_input=MessageHistory())
-        return response
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(node, user_input=user_input)
 
-    response = asyncio.run(top_level())
+    response = rt.Flow(
+        "test_prompt_numerical", entry, context={"1": "tomato"}
+    ).invoke(MessageHistory())
 
     assert response.content == "tomato"
 
@@ -90,13 +91,11 @@ def test_prompt_not_in_context(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    async def top_level():
-        with rt.Session():
-            response = await rt.call(node, user_input=MessageHistory())
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(node, user_input=user_input)
 
-        return response
-
-    response = asyncio.run(top_level())
+    response = rt.Flow("test_prompt_not_in_context", entry).invoke(MessageHistory())
 
     assert response.content == "{secret2}"
 
@@ -113,13 +112,15 @@ def test_no_injection_without_middleware(mock_llm):
         llm=model,
     )
 
-    async def top_level():
-        with rt.Session(context={"secret_value": "tomato"}):
-            response = await rt.call(node, user_input=MessageHistory())
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(node, user_input=user_input)
 
-        return response
-
-    response = asyncio.run(top_level())
+    response = rt.Flow(
+        "test_no_injection_without_middleware",
+        entry,
+        context={"secret_value": "tomato"},
+    ).invoke(MessageHistory())
     assert response.content == "{secret_value}"
 
 
@@ -147,13 +148,17 @@ def test_context_injection_shared_middleware_list_stays_independent(mock_llm):
         model_middleware=[],
     )
 
-    async def top_level():
-        with rt.Session(context={"secret_value": "tomato"}):
-            on = await rt.call(node_on, user_input=MessageHistory())
-            off = await rt.call(node_off, user_input=MessageHistory())
+    @rt.function_node
+    async def entry(user_input):
+        on = await rt.call(node_on, user_input=user_input)
+        off = await rt.call(node_off, user_input=user_input)
         return on, off
 
-    on, off = asyncio.run(top_level())
+    on, off = rt.Flow(
+        "test_context_injection_shared_middleware_list_stays_independent",
+        entry,
+        context={"secret_value": "tomato"},
+    ).invoke(MessageHistory())
     assert on.content == "tomato"
     assert off.content == "{secret_value}"
     assert len(shared_middleware) == 1

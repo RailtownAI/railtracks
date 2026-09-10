@@ -1,4 +1,3 @@
-import asyncio
 import sys
 
 import pytest
@@ -24,12 +23,15 @@ def test_from_mcp_server_with_llm():
         llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(parent_tool, user_input=user_input)
+
     # Run the parent tool
-    with rt.Session(timeout=1000):
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("What time is it?")]
-        )
-        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
+    message_history = rt.llm.MessageHistory([rt.llm.UserMessage("What time is it?")])
+    response = rt.Flow(
+        "test_from_mcp_server_with_llm", entry, timeout=1000
+    ).invoke(message_history)
 
     assert response is not None
     assert response.content != "It didn't work!"
@@ -48,12 +50,17 @@ def test_from_mcp_server_with_http():
         llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(parent_tool, user_input=user_input)
+
     # Run the parent tool
-    with rt.Session(timeout=1000):
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("Tell me about the website conductr.ai")]
-        )
-        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
+    message_history = rt.llm.MessageHistory(
+        [rt.llm.UserMessage("Tell me about the website conductr.ai")]
+    )
+    response = rt.Flow(
+        "test_from_mcp_server_with_http", entry, timeout=1000
+    ).invoke(message_history)
 
     assert response is not None
     assert response.content != "It didn't work!"

@@ -33,13 +33,13 @@ async def test_runner_call_basic():
 
 @pytest.mark.skip(reason="Skipping test for now, will be fixed in future release")
 async def test_runner_call_with_context():
-    with rt.Session() as run:
-        response = await rt.call(RNGNode)
-        assert isinstance(response, float), "Expected a float result from RNGNode"
-        info = run.info
-        assert info.answer == response, (
-            "Expected the answer to be the same as the response"
-        )
+    conn = rt.Flow("test_runner_call_with_context", RNGNode).connect()
+    response = await conn.ainvoke()
+    assert isinstance(response, float), "Expected a float result from RNGNode"
+    info = conn.session.info
+    assert info.answer == response, (
+        "Expected the answer to be the same as the response"
+    )
 
 
 async def config_test_async():
@@ -52,9 +52,15 @@ async def config_test_async():
 
     async def run_with_config_w_context():
         railtracks.context.central.set_config(end_on_error=False)
-        with rt.Session() as session:
+
+        @rt.function_node
+        async def entry():
             info = await rt.call(RNGNode)
-            assert not session.rt_state.executor_config.end_on_error
+            return info
+
+        conn = rt.Flow("config_test_async_w_context", entry).connect()
+        info = await conn.ainvoke()
+        assert not conn.session.rt_state.executor_config.end_on_error
         response = info
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
@@ -78,9 +84,14 @@ async def test_different_config_local_set_async():
 def config_test_threads():
     async def run_with_config_w_context():
         railtracks.context.central.set_config(end_on_error=False)
-        with rt.Session() as session:
-            response = await rt.call(RNGNode)
-            assert not session.rt_state.executor_config.end_on_error
+
+        @rt.function_node
+        async def entry():
+            return await rt.call(RNGNode)
+
+        conn = rt.Flow("config_test_threads_w_context", entry).connect()
+        response = await conn.ainvoke()
+        assert not conn.session.rt_state.executor_config.end_on_error
         assert isinstance(response, float), "Expected a float result from RNGNode"
         assert 0 < response < 1, "Expected a float result from RNGNode"
 
@@ -99,28 +110,49 @@ async def test_sequence_of_changes():
     railtracks.context.central.set_config(end_on_error=True)
     railtracks.context.central.set_config(end_on_error=False)
     railtracks.context.central.set_config(end_on_error=True)
-    with rt.Session() as session:
-        response = await rt.call(RNGNode)
-        assert session.rt_state.executor_config.end_on_error
-        assert response == session.info.answer
+
+    @rt.function_node
+    async def entry():
+        return await rt.call(RNGNode)
+
+    conn = rt.Flow("test_sequence_of_changes", entry).connect()
+    response = await conn.ainvoke()
+    assert conn.session.rt_state.executor_config.end_on_error
+    assert response == conn.session.info.answer
 
 
 async def test_sequence_of_changes_overwrite():
     railtracks.context.central.set_config(end_on_error=True)
     railtracks.context.central.set_config(end_on_error=False)
-    with rt.Session(end_on_error=True) as session:
-        response = await rt.call(RNGNode)
-        assert session.rt_state.executor_config.end_on_error
-        assert response == session.info.answer
+
+    @rt.function_node
+    async def entry():
+        return await rt.call(RNGNode)
+
+    conn = rt.Flow(
+        "test_sequence_of_changes_overwrite", entry, end_on_error=True
+    ).connect()
+    response = await conn.ainvoke()
+    assert conn.session.rt_state.executor_config.end_on_error
+    assert response == conn.session.info.answer
 
 
 def test_back_to_defaults():
     rt.set_config(end_on_error=True)
-    with rt.Session(end_on_error=True) as run:
-        assert run.rt_state.executor_config.end_on_error
 
-    with rt.Session() as run:
-        assert run.rt_state.executor_config.end_on_error
+    @rt.function_node
+    def entry():
+        return None
+
+    conn = rt.Flow(
+        "test_back_to_defaults_explicit", entry, end_on_error=True
+    ).connect()
+    conn.invoke()
+    assert conn.session.rt_state.executor_config.end_on_error
+
+    conn = rt.Flow("test_back_to_defaults_default", entry).connect()
+    conn.invoke()
+    assert conn.session.rt_state.executor_config.end_on_error
 
 
 message = "Hello, World!"
@@ -146,9 +178,8 @@ async def test_streaming_inserted_globally():
     handler = StreamHandler()
 
     railtracks.context.central.set_config(broadcast_callback=handler.handle)
-    with rt.Session():
-        result = await rt.call(StreamingNode)
-        assert result is None
+    result = await rt.Flow("test_streaming_inserted_globally", StreamingNode).ainvoke()
+    assert result is None
 
     sleep(0.1)
     assert len(handler.message) == 1
@@ -158,9 +189,12 @@ async def test_streaming_inserted_globally():
 async def test_streaming_inserted_locally():
     handler = StreamHandler()
 
-    with rt.Session(broadcast_callback=handler.handle):
-        result = await rt.call(StreamingNode)
-        assert result is None
+    result = await rt.Flow(
+        "test_streaming_inserted_locally",
+        StreamingNode,
+        broadcast_callback=handler.handle,
+    ).ainvoke()
+    assert result is None
 
     sleep(0.1)
     assert len(handler.message) == 1
@@ -175,9 +209,12 @@ async def test_streaming_overwrite():
     handler = StreamHandler()
 
     railtracks.context.central.set_config(broadcast_callback=fake_handler)
-    with rt.Session(broadcast_callback=handler.handle):
-        result = await rt.call(StreamingNode)
-        assert result is None
+    result = await rt.Flow(
+        "test_streaming_overwrite",
+        StreamingNode,
+        broadcast_callback=handler.handle,
+    ).ainvoke()
+    assert result is None
 
     sleep(0.1)
     assert len(handler.message) == 1

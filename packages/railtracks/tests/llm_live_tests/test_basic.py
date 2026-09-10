@@ -57,11 +57,16 @@ async def test_terminal_llm(llm):
         llm=llm,
     )
 
-    with rt.Session():
-        response = await rt.call(terminal_node, user_input="Please reverse '12345'.")
-        final_resp: StringResponse | None = response
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(terminal_node, user_input=user_input)
 
-        assert final_resp is not None and "54321" in final_resp.content
+    response = await rt.Flow("test_terminal_llm", entry).ainvoke(
+        "Please reverse '12345'."
+    )
+    final_resp: StringResponse | None = response
+
+    assert final_resp is not None and "54321" in final_resp.content
 
 
 @pytest.mark.asyncio
@@ -79,16 +84,21 @@ async def test_structured_llm(llm, test_case):
         llm=llm,
     )
 
-    with rt.Session():
-        response = await rt.call(structured_node, user_input=test_case["user_input"])
+    @rt.function_node
+    async def entry(user_input):
+        return await rt.call(structured_node, user_input=user_input)
 
-        final_resp = response
+    response = await rt.Flow("test_structured_llm", entry).ainvoke(
+        test_case["user_input"]
+    )
 
-        # Basic type check
-        assert final_resp is not None
-        assert isinstance(final_resp.structured, test_case["schema"])
+    final_resp = response
 
-        # Custom validation
-        assert test_case["validator"](final_resp), (
-            f"Validation failed for {test_case['case_id']}"
-        )
+    # Basic type check
+    assert final_resp is not None
+    assert isinstance(final_resp.structured, test_case["schema"])
+
+    # Custom validation
+    assert test_case["validator"](final_resp), (
+        f"Validation failed for {test_case['case_id']}"
+    )

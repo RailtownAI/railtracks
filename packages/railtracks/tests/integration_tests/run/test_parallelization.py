@@ -51,6 +51,9 @@ TopLevel = rt.function_node(top_level)
 @pytest.mark.asyncio
 @pytest.mark.parametrize("node", [TopLevel, TopLevelAsync], ids=["sync", "async"])
 async def test_async_style_parallel(node):
-    with rt.Session():
-        result = await rt.call(node)
-        assert result == [1, 2, 3, 2, 1]
+    @rt.function_node
+    async def entry():
+        return await rt.call(node)
+
+    result = await rt.Flow("test_async_style_parallel", entry).ainvoke()
+    assert result == [1, 2, 3, 2, 1]

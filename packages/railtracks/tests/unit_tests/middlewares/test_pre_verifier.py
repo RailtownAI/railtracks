@@ -129,11 +129,16 @@ class TestPreVerifierEndToEnd:
             """Refund an order."""
             return f"refunded {amount} for {order_id}"
 
-        async def top_level():
-            with rt.Session():
-                return await rt.call(refund, order_id="A1", amount=50)
+        @rt.function_node
+        async def entry(order_id, amount):
+            return await rt.call(refund, order_id=order_id, amount=amount)
 
-        assert asyncio.run(top_level()) == "refunded 50 for A1"
+        assert (
+            rt.Flow("test_approved_call_runs_the_node", entry).invoke(
+                order_id="A1", amount=50
+            )
+            == "refunded 50 for A1"
+        )
 
     def test_declined_call_blocks_the_node_and_propagates(self):
         gate = pre_verifier(lambda order_id, amount: Verdict(accepted=amount <= 100))
@@ -145,10 +150,12 @@ class TestPreVerifierEndToEnd:
             ran["value"] = True
             return f"refunded {amount} for {order_id}"
 
-        async def top_level():
-            with rt.Session():
-                return await rt.call(refund, order_id="A1", amount=500)
+        @rt.function_node
+        async def entry(order_id, amount):
+            return await rt.call(refund, order_id=order_id, amount=amount)
 
         with pytest.raises(VerifierRejectedError):
-            asyncio.run(top_level())
+            rt.Flow(
+                "test_declined_call_blocks_the_node_and_propagates", entry
+            ).invoke(order_id="A1", amount=500)
         assert ran["value"] is False

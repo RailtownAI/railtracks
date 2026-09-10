@@ -29,8 +29,15 @@ async def test_injects_active_session_context_before_calling_onward():
 
     history = MessageHistory([SystemMessage("You are helping {user_name}.")])
 
-    with rt.Session(context={"user_name": "Alice"}):
-        result = await ContextInjection().wrap(fake_call)(history, None, None)
+    @rt.function_node
+    async def entry(user_input):
+        return await ContextInjection().wrap(fake_call)(user_input, None, None)
+
+    result = await rt.Flow(
+        "test_injects_active_session_context_before_calling_onward",
+        entry,
+        context={"user_name": "Alice"},
+    ).ainvoke(history)
 
     assert result == "response"
     assert seen["content"] == "You are helping Alice."

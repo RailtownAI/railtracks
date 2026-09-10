@@ -16,11 +16,10 @@ import railtracks as rt
     ],
 )
 async def test_parallel_calls(parallel_node, timeout_config, expected, buffer):
-    with rt.Session():
-        start_time = time.time()
-        results = await rt.call(parallel_node, timeout_config)
-        assert abs(time.time() - start_time - expected) < buffer
-        assert results == timeout_config
+    start_time = time.time()
+    results = await rt.Flow("test_parallel_calls", parallel_node).ainvoke(timeout_config)
+    assert abs(time.time() - start_time - expected) < buffer
+    assert results == timeout_config
 
 
 exc = ValueError("This is a test exception")
@@ -85,8 +84,9 @@ async def test_batch_error_handling_default_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Session():
-        await rt.call(ErrorThrowerTopLevel, num_times=num_times)
+    await rt.Flow(
+        "test_batch_error_handling_default_error_prop", ErrorThrowerTopLevel
+    ).ainvoke(num_times=num_times)
 
 
 @pytest.mark.parametrize(
@@ -97,8 +97,9 @@ async def test_batch_error_handling_true_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Session():
-        await rt.call(ErrorThrowerTopLevel, num_times=num_times, return_exceptions=True)
+    await rt.Flow(
+        "test_batch_error_handling_true_error_prop", ErrorThrowerTopLevel
+    ).ainvoke(num_times=num_times, return_exceptions=True)
 
 
 @pytest.mark.parametrize(
@@ -109,8 +110,7 @@ async def test_batch_error_handling_false_error_prop(num_times):
     """
     Test that batch execution handles errors correctly.
     """
-    with rt.Session():
-        with pytest.raises(type(exc)):
-            await rt.call(
-                ErrorThrowerTopLevel, num_times=num_times, return_exceptions=False
-            )
+    with pytest.raises(type(exc)):
+        await rt.Flow(
+            "test_batch_error_handling_false_error_prop", ErrorThrowerTopLevel
+        ).ainvoke(num_times=num_times, return_exceptions=False)

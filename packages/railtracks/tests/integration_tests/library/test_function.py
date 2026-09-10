@@ -42,13 +42,16 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "What is the secret phrase? Only return the secret phrase, no other text.",
-            )
-            assert "Constantinople" in response.content
-            assert rt.context.get("secret_phrase_called")
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("secret_phrase_called")
+
+        response, secret_called = await rt.Flow("test_empty_function", entry).ainvoke(
+            "What is the secret phrase? Only return the secret phrase, no other text."
+        )
+        assert "Constantinople" in response.content
+        assert secret_called
 
     async def test_single_int_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single int parameter works correctly."""
@@ -81,13 +84,16 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "Find what the magic function output is for 6? Only return the magic number, no other text.",
-            )
-            assert rt.context.get("magic_number_called")
-            assert "666666" in response.content
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_number_called")
+
+        response, called = await rt.Flow("test_single_int_input", entry).ainvoke(
+            "Find what the magic function output is for 6? Only return the magic number, no other text.",
+        )
+        assert called
+        assert "666666" in response.content
 
     async def test_single_str_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single str parameter works correctly."""
@@ -120,13 +126,16 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text.",
-            )
-            assert rt.context.get("magic_phrase_called")
-            assert "h$e$l$l$o" in response.content
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_phrase_called")
+
+        response, called = await rt.Flow("test_single_str_input", entry).ainvoke(
+            "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text.",
+        )
+        assert called
+        assert "h$e$l$l$o" in response.content
 
     async def test_single_float_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single float parameter works correctly."""
@@ -159,14 +168,17 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "Does 5 pass the magic test? Only return the result, no other text.",
-            )
-            assert rt.context.get("magic_test_called")
-            resp: str = response.content
-            assert "True" in resp
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_test_called")
+
+        response, called = await rt.Flow("test_single_float_input", entry).ainvoke(
+            "Does 5 pass the magic test? Only return the result, no other text.",
+        )
+        assert called
+        resp: str = response.content
+        assert "True" in resp
 
     async def test_single_bool_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single bool parameter works correctly."""
@@ -199,12 +211,16 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent, "Is the magic test true? Only return the result, no other text."
-            )
-            assert rt.context.get("magic_test_called")
-            assert "Wish Granted" in response.content
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_test_called")
+
+        response, called = await rt.Flow("test_single_bool_input", entry).ainvoke(
+            "Is the magic test true? Only return the result, no other text."
+        )
+        assert called
+        assert "Wish Granted" in response.content
 
     # TODO: think carefully about how we can test the graceful error handling. This test is temporary.
     async def test_function_error_handling(self, _agent_node_factory, mock_llm):
@@ -238,14 +254,17 @@ class TestPrimitiveInputTypes:
             llm,
         )
 
-        with rt.Session():
-            output = await rt.call(
-                agent,
-                "What does the tool return for an input of 0? Only return the result, no other text.",
-            )
+        @rt.function_node
+        async def entry(user_input):
+            output = await rt.call(agent, user_input)
+            return output, rt.context.get("magic_test_called")
 
-            assert "There was an error" in output.content  # graceful error handling
-            assert rt.context.get("magic_test_called")
+        output, called = await rt.Flow("test_function_error_handling", entry).ainvoke(
+            "What does the tool return for an input of 0? Only return the result, no other text.",
+        )
+
+        assert "There was an error" in output.content  # graceful error handling
+        assert called
 
 
 class TestSequenceInputTypes:
@@ -282,13 +301,16 @@ class TestSequenceInputTypes:
             llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "What is the magic list for ['1', '2', '3']? Only return the result, no other text.",
-            )
-            assert "3 2 1" in response.content
-            assert rt.context.get("magic_list_called")
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_list_called")
+
+        response, called = await rt.Flow("test_single_list_input", entry).ainvoke(
+            "What is the magic list for ['1', '2', '3']? Only return the result, no other text.",
+        )
+        assert "3 2 1" in response.content
+        assert called
 
     async def test_single_tuple_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single tuple parameter works correctly."""
@@ -320,14 +342,18 @@ class TestSequenceInputTypes:
             magic_tuple,
             llm,
         )
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text.",
-            )
 
-            assert "3 2 1" in response.content
-            assert rt.context.get("magic_tuple_called")
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_tuple_called")
+
+        response, called = await rt.Flow("test_single_tuple_input", entry).ainvoke(
+            "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text.",
+        )
+
+        assert "3 2 1" in response.content
+        assert called
 
     async def test_lists(self, _agent_node_factory, mock_llm):
         """Test that a function with a list parameter works correctly."""
@@ -361,11 +387,14 @@ class TestSequenceInputTypes:
             magic_result,
             llm,
         )
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
-            )
+
+        @rt.function_node
+        async def entry(user_input):
+            return await rt.call(agent, user_input)
+
+        response = await rt.Flow("test_lists", entry).ainvoke(
+            "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
+        )
 
         assert "25.5" in response.content
 
@@ -388,13 +417,16 @@ class TestDictionaryInputTypes:
 
         with pytest.raises(Exception):
             agent = _agent_node_factory(dict_func, mock_llm())
-            with rt.Session():
-                await rt.call(
-                    agent,
-                    rt.llm.MessageHistory(
-                        [rt.llm.UserMessage("What is the result for {'key': 'value'}?")]
-                    ),
-                )
+
+            @rt.function_node
+            async def entry(user_input):
+                return await rt.call(agent, user_input)
+
+            await rt.Flow("test_dict_input_raises_error", entry).ainvoke(
+                rt.llm.MessageHistory(
+                    [rt.llm.UserMessage("What is the result for {'key': 'value'}?")]
+                ),
+            )
 
 
 class TestUnionAndOptionalParameter:
@@ -441,13 +473,16 @@ class TestUnionAndOptionalParameter:
             llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
-            )
-            assert rt.context.get("magic_number_called")
-            assert len(re.findall(r"21", response.content)) == 2  # 21 appears twice
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_number_called")
+
+        response, called = await rt.Flow("test_union_parameter", entry).ainvoke(
+            "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
+        )
+        assert called
+        assert len(re.findall(r"21", response.content)) == 2  # 21 appears twice
 
     @pytest.mark.parametrize(
         "default_value, expected",
@@ -487,20 +522,21 @@ class TestUnionAndOptionalParameter:
 
         agent = _agent_node_factory(magic_number, llm)
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                "Calculate the magic number for 21. Then calculate the magic number with no args.",
-            )
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input)
+            return response, rt.context.get("magic_number_called")
 
-            # verify each expected number appears in the response
-            for val in expected:
-                assert str(val) in response.content
+        response, called = await rt.Flow("test_optional_parameter", entry).ainvoke(
+            "Calculate the magic number for 21. Then calculate the magic number with no args.",
+        )
 
-            # also check counts if you want stricter validation
-            for val in set(expected):
-                assert len(re.findall(str(val), response.content)) == expected.count(
-                    val
-                )
+        # verify each expected number appears in the response
+        for val in expected:
+            assert str(val) in response.content
 
-            assert rt.context.get("magic_number_called")
+        # also check counts if you want stricter validation
+        for val in set(expected):
+            assert len(re.findall(str(val), response.content)) == expected.count(val)
+
+        assert called
