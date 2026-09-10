@@ -33,6 +33,7 @@ from railtracks.llm.message import (
     SystemMessage,
     ToolMessage,
     UserMessage,
+    _AgentSystemMessage,
 )
 from railtracks.llm.models._litellm_wrapper import classify_provider_error
 from railtracks.llm.response import Response
@@ -325,13 +326,20 @@ def prepare_message_history(
     system_message: SystemMessage | None,
     user_input: MessageHistory | UserMessage | str | list[Message],
 ) -> MessageHistory:
+    """Build the message history for a single invocation of an agent.
+
+    Args:
+        system_message: The agent node's configured system message, if it has one.
+        user_input: The caller's input, as a history, a single message, or a plain string.
+
+    Returns:
+        A copy of the caller's input with the agent's system message placed at the front.
+    """
     message_history = create_message_history(user_input)
 
-    check_message_history(
-        message_history, system_message.content if system_message else None
-    )
-
     append_system_message(message_history, system_message)
+
+    check_message_history(message_history)
 
     return message_history
 
@@ -360,11 +368,24 @@ def create_message_history(
 
 def append_system_message(
     message_history: MessageHistory, system_message: SystemMessage | None
-):
-    """Modifies the object in place"""
-    if system_message:
-        # Prepend the system message to the message history
-        message_history.insert(0, deepcopy(system_message))
+) -> None:
+    """Place the agent's own system message at the front of the history, modifying it in place.
+
+    Any agent system message already in the history is dropped first, so handing an agent back the
+    history it returned never accumulates copies of its prompt. A fresh copy is inserted on every
+    call because the node-level message is shared across invocations while prompt injection fills
+    templates in place.
+
+    Args:
+        message_history: The history to modify in place.
+        system_message: The agent node's configured system message, if it has one.
+    """
+    message_history[:] = [
+        m for m in message_history if not isinstance(m, _AgentSystemMessage)
+    ]
+
+    if system_message is not None:
+        message_history.insert(0, _AgentSystemMessage(system_message.content))
 
 
 def prepare_structured_response(
@@ -379,7 +400,7 @@ def prepare_structured_response(
     )
 
     return StructuredResponse(
-        content=content, message_history=message_history.removed_system_messages()
+        content=content, message_history=message_history.without_agent_system_messages()
     )
 
 
@@ -395,5 +416,5 @@ def prepare_string_response(
     )
 
     return StringResponse(
-        content=content, message_history=message_history.removed_system_messages()
+        content=content, message_history=message_history.without_agent_system_messages()
     )
