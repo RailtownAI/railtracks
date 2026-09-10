@@ -24,7 +24,7 @@ Both are recorded by default, so `railtracks viz` replays the full request graph
 
 | Piece | Import | Used for |
 |---|---|---|
-| `MaxCalls` | `railtracks.prebuilt.middleware` | Capping calls so a confused agent cannot loop on your budget. Cumulative for the life of the agent, so it does not reset per run |
+| `MaxCalls` | `railtracks.prebuilt.middleware` | Capping model calls inside a run so a tool loop cannot spin on your budget. Must go in the `model_middleware=` slot; the node slot does not enforce ([#1560](https://github.com/RailtownAI/railtracks/issues/1560)) |
 | `Timeout` | `railtracks.prebuilt.middleware` | Wall-clock deadline on a tool or on the whole agent |
 | `pre_verifier` | `railtracks.prebuilt.middleware` | Gating a call before it runs; the approver is any callable |
 | `Verdict` | `railtracks.middleware` | What an approval function returns |

@@ -61,7 +61,10 @@ For large corpora the answer is retrieval rather than a bigger prompt: see the [
 
 ## 4. Controls
 
-Controls are what make a harness safe to point at real systems. In Railtracks they are middleware, applied at two boundaries: `middleware=` wraps the whole node (one call in, one result out) and `model_middleware=` wraps each individual model call inside the loop. The distinction matters for budgets: `MaxCalls(40)` as node middleware allows forty invocations of the agent, while the same thing as model middleware allows forty raw model calls. Either way the counter is cumulative for the life of the agent you attached it to, not per run: a second `invoke` of the same agent inherits whatever it already spent. `agent_node` copies the middleware you hand it, so the budget belongs to that agent, and rebuilding the agent is what gives you a fresh one.
+Controls are what make a harness safe to point at real systems. In Railtracks they are middleware, applied at two boundaries: `middleware=` wraps the whole node (one call in, one result out) and `model_middleware=` wraps each individual model call inside the loop. The distinction matters for budgets: `MaxCalls(40)` as `model_middleware` caps the agent at forty model calls inside one run, which is how you stop a tool-calling loop from spinning. Counters do not carry across runs, so every `invoke` starts from a full budget.
+
+!!! warning "Put budgets in `model_middleware=`, not `middleware=`"
+    Node middleware is rebuilt on every invocation, so a `MaxCalls` counter in the `middleware=` slot resets each time and never reaches its limit. Use `model_middleware=` for budgets until [issue #1560](https://github.com/RailtownAI/railtracks/issues/1560) is resolved.
 
 ```python
 --8<-- "docs/scripts/documentation/harness.py:controls"

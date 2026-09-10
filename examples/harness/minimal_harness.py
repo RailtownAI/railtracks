@@ -61,8 +61,8 @@ RepoReader = rt.agent_node(
     ),
     tool_nodes=[list_files, read_file, find_files],
     middleware=[Timeout(300)],
-    # Cumulative for the life of this agent, not per run: a second invoke
-    # inherits whatever the first already spent.
+    # Caps model calls inside one run; the counter starts fresh each run.
+    # Budgets belong in model_middleware: the node slot does not enforce (see #1560).
     model_middleware=[MaxCalls(20, custom_message="model call budget exhausted")],
 )
 

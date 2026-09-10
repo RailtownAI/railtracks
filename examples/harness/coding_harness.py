@@ -180,8 +180,8 @@ CodingHarness = rt.agent_node(
         *memory.tool_set(),
     ],
     middleware=[Timeout(900)],
-    # Cumulative for the life of this agent, not per run: a second invoke
-    # inherits whatever the first already spent.
+    # Caps model calls inside one run; the counter starts fresh each run.
+    # Budgets belong in model_middleware: the node slot does not enforce (see #1560).
     model_middleware=[MaxCalls(40, custom_message="model call budget exhausted")],
 )
 
