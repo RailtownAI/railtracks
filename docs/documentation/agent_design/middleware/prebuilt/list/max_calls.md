@@ -9,16 +9,10 @@
 Because it only controls the wrapped call, `Max Calls` works in both
 `middleware=` (capping whole-node invocations) and `model_middleware=` (capping raw model calls inside the agent tool loop). The limit is enforced on the complete call in the selected slot.
 
-### Budget Scoping (`per_run`)
+### Workflow Run Scoping
 
-By default (`per_run=True`), the budget is scoped to each workflow run / session. When a new run begins (e.g. via `flow.invoke()` or `rt.call()`), the call counter starts fresh.
+The budget is scoped to each workflow run / session. When a new run begins (e.g. via `flow.invoke()` or `rt.call()`), the call counter starts fresh.
 
-If you want a cumulative budget across multiple runs for the lifetime of the Python instance, set `per_run=False`:
-
-```python
-# Lifetime budget: allows 10 calls total across all runs
-lifetime_budget = MaxCalls(max_calls=10, per_run=False)
-```
 
 ### Shared Budgets Across Nodes
 

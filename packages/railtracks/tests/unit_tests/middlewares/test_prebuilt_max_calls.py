@@ -152,30 +152,6 @@ def test_multiple_nodes_share_combined_budget():
     assert flow.invoke() == ["A:1", "A:2", "B:3", "MaxCallsExceededError"]
 
 
-def test_lifetime_budget_with_per_run_false():
-    import railtracks as rt
-
-    budget = MaxCalls(2, custom_message="lifetime hit", per_run=False)
-
-    @rt.function_node(middleware=[budget])
-    def tool(x: str) -> str:
-        return x
-
-    @rt.function_node
-    async def driver(x: str) -> str:
-        return await rt.call(tool, x=x)
-
-    flow = rt.Flow("lifetime-flow", entry_point=driver)
-    assert flow.invoke(x="1") == "1"
-    assert flow.invoke(x="2") == "2"
-
-    with pytest.raises(Exception) as exc_info:
-        flow.invoke(x="3")
-    assert "lifetime hit" in str(exc_info.value) or isinstance(
-        exc_info.value, MaxCallsExceededError
-    )
-
-
 @pytest.mark.asyncio
 async def test_call_count_property_and_reset():
     async def noop():
