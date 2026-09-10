@@ -6,19 +6,23 @@ import inspect
 import warnings
 from types import BuiltinFunctionType
 from typing import (
+    Any,
     Callable,
     Coroutine,
     Iterable,
     List,
     ParamSpec,
+    Protocol,
     TypeVar,
     cast,
     overload,
 )
 
+from typing_extensions import Never
+
 from railtracks.built_nodes.function.base import RTFunction
 from railtracks.exceptions import NodeCreationError
-from railtracks.middleware.core import Middleware
+from railtracks.middleware.core import Middleware, _MiddlewareSignature
 from railtracks.nodes.manifest import ToolManifest
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import (
@@ -31,6 +35,57 @@ from .node_builder import FunctionNodeBuilder
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
+_TDecoratedOutput = TypeVar("_TDecoratedOutput")
+_PDecorated = ParamSpec("_PDecorated")
+_Constraint = TypeVar("_Constraint", covariant=True)
+
+
+class _FunctionNodeDecorator(Protocol[_Constraint]):
+    """Apply deferred, argument-only, or complete middleware constraints."""
+
+    @overload
+    def __call__(  # type: ignore[overload-overlap]
+        self: _FunctionNodeDecorator[Never],
+        func: Callable[_PDecorated, Coroutine[None, None, _TDecoratedOutput]],
+        /,
+    ) -> CallableAsyncRTFunction[_PDecorated, _TDecoratedOutput]: ...
+
+    @overload
+    def __call__(  # type: ignore[overload-overlap]
+        self: _FunctionNodeDecorator[_MiddlewareSignature[_P, Never]],
+        func: Callable[_P, Coroutine[None, None, _TDecoratedOutput]],
+        /,
+    ) -> CallableAsyncRTFunction[_P, _TDecoratedOutput]: ...
+
+    @overload
+    def __call__(  # type: ignore[overload-overlap]
+        self: _FunctionNodeDecorator[_MiddlewareSignature[_P, _TOutput]],
+        func: Callable[_P, Coroutine[None, None, _TOutput]],
+        /,
+    ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
+
+    @overload
+    def __call__(
+        self: _FunctionNodeDecorator[Never],
+        func: Callable[_PDecorated, _TDecoratedOutput],
+        /,
+    ) -> CallableSyncRTFunction[_PDecorated, _TDecoratedOutput]: ...
+
+    @overload
+    def __call__(
+        self: _FunctionNodeDecorator[_MiddlewareSignature[_P, Never]],
+        func: Callable[_P, _TDecoratedOutput],
+        /,
+    ) -> CallableSyncRTFunction[_P, _TDecoratedOutput]: ...
+
+    @overload
+    def __call__(
+        self: _FunctionNodeDecorator[_MiddlewareSignature[_P, _TOutput]],
+        func: Callable[_P, _TOutput],
+        /,
+    ) -> CallableSyncRTFunction[_P, _TOutput]: ...
+
+    def __call__(self, func: Callable[..., Any], /) -> RTFunction[..., Any]: ...
 
 
 # note there is an intentional overlap in overloads
@@ -43,7 +98,8 @@ def function_node(  # pyright: ignore[reportOverlappingOverload]
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any, _MiddlewareSignature[_P, _TOutput]]]
+    | None = None,
 ) -> CallableAsyncRTFunction[_P, _TOutput]: ...
 
 
@@ -54,7 +110,8 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
+    middleware: Iterable[Middleware[Any, Any, _MiddlewareSignature[_P, _TOutput]]]
+    | None = None,
 ) -> CallableSyncRTFunction[_P, _TOutput]:
     pass
 
@@ -78,11 +135,32 @@ def function_node(
     *,
     name: str | None = None,
     manifest: ToolManifest | None = None,
-    middleware: Iterable[Middleware[_P, _TOutput]] | None = None,
-) -> Callable[
-    [Callable[_P, Coroutine[None, None, _TOutput]] | Callable[_P, _TOutput]],
-    RTFunction[_P, _TOutput],
-]:
+    middleware: None = None,
+) -> _FunctionNodeDecorator[Never]:
+    pass
+
+
+@overload
+def function_node(
+    func: None = None,
+    /,
+    *,
+    name: str | None = None,
+    manifest: ToolManifest | None = None,
+    middleware: Iterable[Middleware[Any, Any, Never]],
+) -> _FunctionNodeDecorator[Never]:
+    pass
+
+
+@overload
+def function_node(
+    func: None = None,
+    /,
+    *,
+    name: str | None = None,
+    manifest: ToolManifest | None = None,
+    middleware: Iterable[Middleware[Any, Any, _Constraint]],
+) -> _FunctionNodeDecorator[_Constraint]:
     pass
 
 
