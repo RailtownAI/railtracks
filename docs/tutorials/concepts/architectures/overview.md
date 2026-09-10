@@ -21,9 +21,9 @@ The same flow model supports multiple agent architectures without introducing ne
   </a>
 
   <a class="card" href="../sequential/">
-    <h3>Sequential Agent</h3>
+    <h3>Sequential Flow</h3>
     <p>
-      Linear flows and branching logic between agents, tools, and functions defined programmatically in Python.
+      A fixed order of agents, tools, and functions defined programmatically in Python.
     </p>
   </a>
 </div>
