@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import uuid
-from collections import defaultdict
-from typing import ClassVar
-
 from railtracks.context.central import get_session_identity, is_context_present
+from railtracks.exceptions.errors import ContextError
 from railtracks.middleware.core import Middleware
 
 
@@ -40,16 +37,16 @@ class MaxCalls(Middleware):
             ``max_calls`` times.
     """
 
-    _counts: ClassVar[dict[tuple[str, str | None], int]] = defaultdict(int)
-
     def __init__(
         self,
         max_calls: int,
         custom_message: str | None = None,
     ):
         self._max_calls = max_calls
-        self._budget_id = str(uuid.uuid4())
         self._custom_message = custom_message
+        # Keyed by session_id (str) when inside a run; None when outside.
+        # Each session gets its own independent counter.
+        self._session_counts: dict[str | None, int] = {}
         super().__init__(self._middleware_fn)
 
     @property
@@ -57,46 +54,42 @@ class MaxCalls(Middleware):
         """The maximum number of calls allowed before raising."""
         return self._max_calls
 
-    def _get_current_key(self) -> tuple[str, str | None]:
-        sess_id = None
+    def _current_session_id(self) -> str | None:
+        """Return the active session ID, or ``None`` if not inside a run."""
         if is_context_present():
             try:
-                sess_id = get_session_identity().session_id
-            except Exception:
-                sess_id = None
-        return (self._budget_id, sess_id)
+                return get_session_identity().session_id
+            except ContextError:
+                return None
+        return None
 
     @property
     def call_count(self) -> int:
         """The current number of calls made against this budget in the active session."""
-        return self._counts.get(self._get_current_key(), 0)
+        return self._session_counts.get(self._current_session_id(), 0)
 
-    @property
-    def _call_count(self) -> int:
-        return self.call_count
+    def reset(self) -> None:
+        """Reset the call counter for the current session.
 
-    def reset(self, session_id: str | None = None) -> None:
-        """Reset the call counter.
-
-        Args:
-            session_id: If provided, resets only the counter for that session ID.
-                If None, clears all session counters for this budget.
+        When called inside a run, clears only the active session's counter.
+        When called outside a run, clears the out-of-session counter.
         """
-        if session_id is not None:
-            self._counts.pop((self._budget_id, session_id), None)
-        else:
-            keys_to_remove = [k for k in self._counts if k[0] == self._budget_id]
-            for k in keys_to_remove:
-                del self._counts[k]
+        self._session_counts.pop(self._current_session_id(), None)
+
+    def reset_all(self) -> None:
+        """Reset call counters for all sessions."""
+        self._session_counts.clear()
 
     async def _middleware_fn(self, call, *args, **kwargs):
-        key = self._get_current_key()
-        current_count = self._counts.get(key, 0)
+        sess_id = self._current_session_id()
+        # Read-modify-write is safe under a single event loop (no await
+        # between the read and the write).
+        current_count = self._session_counts.get(sess_id, 0)
         if current_count >= self._max_calls:
             if self._custom_message:
                 raise MaxCallsExceededError(self._custom_message)
             raise MaxCallsExceededError("Maximum number of calls exceeded")
-        self._counts[key] = current_count + 1
+        self._session_counts[sess_id] = current_count + 1
         return await call(*args, **kwargs)
 
 

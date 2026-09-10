@@ -11,8 +11,7 @@ Because it only controls the wrapped call, `Max Calls` works in both
 
 ### Workflow Run Scoping
 
-The budget is scoped to each workflow run / session. When a new run begins (e.g. via `flow.invoke()` or `rt.call()`), the call counter starts fresh.
-
+The budget is scoped to each workflow run / session. When a new run begins (e.g. via `flow.invoke()` or `rt.call()`), the call counter starts fresh automatically.
 
 ### Shared Budgets Across Nodes
 
@@ -34,9 +33,12 @@ You can inspect the current call count and reset the counter programmatically:
 ```python
 budget = MaxCalls(max_calls=3)
 
-# Inspect current spend
+# Inspect current spend (scoped to the active session)
 print(budget.call_count)
 
-# Reset counter
+# Reset counter for the current session
 budget.reset()
-```
+
+# Reset counters for all sessions
+budget.reset_all()
+```
