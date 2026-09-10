@@ -62,11 +62,19 @@ class Tool:
                 )
             param_objs: List[Parameter] = []
             for param_name, prop in props.items():
-                param_objs.append(
-                    parse_json_schema_to_parameter(
-                        param_name, prop, param_name in required_fields
+                try:
+                    param_objs.append(
+                        parse_json_schema_to_parameter(
+                            param_name, prop, param_name in required_fields
+                        )
                     )
-                )
+                except ValueError as e:
+                    raise ToolCreationError(
+                        f"Tool {name!r}: failed to parse schema for parameter '{param_name}': {e}",
+                        notes=[
+                            "Check that the parameter's 'type' is a valid JSON schema type."
+                        ],
+                    ) from e
             parameters = param_objs
 
         self._name = name
@@ -227,7 +235,10 @@ class Tool:
             required = name in required_fields
             try:
                 param_objs.add(parse_json_schema_to_parameter(name, prop, required))
-            except Exception:
+            except Exception as e:
+                warnings.warn(
+                    f"Tool {tool.name!r}: failed to parse schema for parameter '{name}': {e}. Falling back to basic object."
+                )
                 # Fallback to a basic object parameter if parsing fails (e.g. invalid type string)
                 param_objs.add(
                     Parameter(name=name, param_type="object", required=required)
