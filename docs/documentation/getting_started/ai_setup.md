@@ -91,6 +91,10 @@ railtracks add cursor:all
 ```
 
 Each skill uses the same installer and overwrite behavior as an individual install.
+If a Copilot skill is already present, or you decline an overwrite for Claude Code,
+Codex, or Cursor, the bulk command keeps that skill unchanged and continues with
+the remaining skills. It reports installed and skipped totals at the end. Re-running
+the command installs any missing skills without requiring you to replace existing ones.
 To replace existing skills without prompting, append `--force`:
 
 ```bash

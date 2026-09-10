@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from railtracks.cli import (
+    _TOOL_HANDLERS,
     SKILLS,
     SUPPORTED_TOOLS,
     _visual_dependencies_available,
@@ -500,6 +501,92 @@ def test_add_all_matches_individual_installs(tool, force, tmp_path, monkeypatch)
         if path.is_file()
     }
     assert actual == expected
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+@pytest.mark.parametrize(
+    "preinstalled", [[next(iter(SKILLS))], ["rag-pipeline"], list(SKILLS)]
+)
+def test_add_all_continues_after_skips(
+    tool, preinstalled, tmp_path, monkeypatch, capsys
+):
+    bulk = tmp_path / "bulk"
+    bulk.mkdir()
+    monkeypatch.chdir(bulk)
+    for name in preinstalled:
+        add_skill(f"{tool}:{name}")
+    for path in bulk.rglob("*"):
+        if path.is_file():
+            path.write_text(
+                path.read_text(encoding="utf-8") + "\n# Keep my edits\n",
+                encoding="utf-8",
+            )
+
+    individual = tmp_path / "individual"
+    shutil.copytree(bulk, individual)
+    monkeypatch.chdir(individual)
+    for name in SKILLS:
+        if name not in preinstalled:
+            add_skill(f"{tool}:{name}")
+    expected = {
+        path.relative_to(individual): path.read_bytes()
+        for path in individual.rglob("*")
+        if path.is_file()
+    }
+
+    monkeypatch.chdir(bulk)
+    capsys.readouterr()
+    with patch("builtins.input", return_value="n") as prompt:
+        add_skill(f"{tool}:all")
+    assert prompt.call_count == (0 if tool == "copilot" else len(preinstalled))
+    actual = {
+        path.relative_to(bulk): path.read_bytes()
+        for path in bulk.rglob("*")
+        if path.is_file()
+    }
+    assert actual == expected
+    installed = len(SKILLS) - len(preinstalled)
+    assert (
+        f"{installed} installed, {len(preinstalled)} skipped" in capsys.readouterr().out
+    )
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+def test_single_skill_preserves_skip_exit(tool, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    add_skill(f"{tool}:agent-builder")
+    with patch("builtins.input", return_value="n"), pytest.raises(SystemExit) as exc:
+        add_skill(f"{tool}:agent-builder")
+    assert exc.value.code == 0
+
+
+@pytest.mark.parametrize("code", [1, 2, "installation failed"])
+def test_add_all_propagates_installation_errors(code, monkeypatch, capsys):
+    handler = MagicMock(side_effect=SystemExit(code))
+    monkeypatch.setitem(_TOOL_HANDLERS, "claude", handler)
+    with pytest.raises(SystemExit) as exc:
+        add_skill("claude:all")
+    assert exc.value.code == code
+    handler.assert_called_once()
+    assert "installed," not in capsys.readouterr().out
+
+
+def test_add_all_propagates_missing_skill(monkeypatch):
+    monkeypatch.setitem(SKILLS, "missing-bundle", {})
+    handler = MagicMock()
+    monkeypatch.setitem(_TOOL_HANDLERS, "claude", handler)
+    with pytest.raises(SystemExit) as exc:
+        add_skill("claude:all")
+    assert exc.value.code == 1
+    assert handler.call_count == len(SKILLS) - 1
+
+
+def test_help_mentions_bulk_install(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["railtracks"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 1
+    assert "railtracks add claude:all" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("spec", ["unknown:all", "claude:unknown"])

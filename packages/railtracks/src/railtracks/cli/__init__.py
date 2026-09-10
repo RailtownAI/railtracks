@@ -479,10 +479,23 @@ def add_skill(spec: str, force: bool = False) -> None:
         sys.exit(1)
 
     skill_names = SKILLS if skill_name == "all" else [skill_name]
+    installed = skipped = 0
     for name in skill_names:
         meta = SKILLS[name]
         content = _load_skill_content(name)
-        _TOOL_HANDLERS[tool](name, meta, content, force)
+        try:
+            _TOOL_HANDLERS[tool](name, meta, content, force)
+        except SystemExit as exc:
+            # Existing installers exit successfully when skipped or declined.
+            if skill_name != "all" or exc.code != 0:
+                raise
+            skipped += 1
+            print_status(f"Skipped '{name}'; continuing with remaining skills.")
+        else:
+            installed += 1
+
+    if skill_name == "all":
+        print_status(f"Finished: {installed} installed, {skipped} skipped.")
 
 
 def list_skills() -> None:
@@ -549,7 +562,7 @@ def _print_help():
     print(
         cmd(
             "add",
-            f"Install an AI coding assistant skill  {dim}(--list to see them all){rst}",
+            f"Install AI coding assistant skills  {dim}(<tool>:all for all skills; --list to see them){rst}",
         )
     )
     print()
@@ -560,6 +573,12 @@ def _print_help():
         example(
             f"{cli_name} add claude:agent-builder",
             "Install agent-builder skill for Claude Code",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add claude:all",
+            "Install all bundled skills for Claude Code",
         )
     )
     print(
