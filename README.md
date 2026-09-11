@@ -23,9 +23,14 @@
   </a>
 </p>
 
+<p align="center">
+  <b>Own the AI!</b><br>
+  Assemble a custom agent harness in plain Python. The loop, the tools, the context, the controls, the record. All yours.
+</p>
+
 ## What is Railtracks?
 
-Railtracks is a Python framework for building agentic systems. Agent behavior, tools, and multi-step flows are defined entirely in standard Python using the control flow and abstractions you already know.
+Railtracks is a Python **agent framework** for building your own **harness**. Every piece is an ordinary Python object you assemble yourself: a tool-calling loop, a tool surface of functions, sub-agents and MCP servers, context management, permission and budget controls, and a replayable record of every run. No YAML, no DSL, no black-box runtime.
 
 
 ```python
@@ -55,6 +60,28 @@ print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
 Execution order, branching, and looping are expressed using standard Python control flow.
+
+## What is an agent harness?
+
+Everything around the model call. The model brings judgment. The harness brings the loop that keeps calling it, the tools it can reach, what lands in its context, the limits on what it may do, and the record of what it did. Change your model tomorrow and the harness is what you still own.
+
+Five parts. Take the ones your problem needs, wire them together in plain Python, leave the rest out.
+
+| Part | What it decides | Railtracks primitives |
+|---|---|---|
+| **Loop** | When the agent keeps going, and when it's done | `rt.agent_node` runs the tool-calling loop; `rt.Flow` and `rt.call` drive multi-step work |
+| **Tool surface** | What the agent can actually do | `rt.function_node`, `rt.ToolManifest` for agents-as-tools, `rt.connect_mcp` for MCP servers |
+| **Context** | What the model sees on this turn | `system_message`, `rt.context`, todo and key-value memory toolsets, retrieval |
+| **Controls** | What it's allowed to do, and how much of it | `MaxCalls`, `Timeout`, `Retry`, `Lock`, human-in-the-loop verifiers, guardrails |
+| **Record** | What happened, and whether you can replay it | Session state, `railtracks viz`, `rt.evaluations.evaluate` |
+
+The shapes this usually takes:
+
+- **Coding harness.** Read, edit, and shell tools, a todo list that survives across turns, human approval on anything that touches the working tree. Runnable in [`examples/harness/coding_harness.py`](examples/harness/coding_harness.py).
+- **Research harness.** Search and fetch, retrieval over what it has gathered, memory for findings, a structured-output pass to force the report into a schema.
+- **Operations harness.** A few high-consequence tools, each behind a real approver, with an audit trail you can hand to someone else.
+
+Start with the [Agent Harness guide](https://docs.railtracks.org/documentation/harness/overview/), or run the [harness examples](examples/harness) as they are: a read-only harness in under 80 lines, and a coding harness whose file writes and shell commands each stop for your approval.
 
 ## Why Railtracks?
 

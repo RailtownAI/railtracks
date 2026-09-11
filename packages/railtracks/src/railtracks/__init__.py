@@ -2,7 +2,7 @@
 #   Copyright (c) Railtown AI. All rights reserved.
 #   Licensed under the MIT License. See LICENSE in project root for information.
 #   -------------------------------------------------------------
-"""The Railtracks Framework for building resilient agentic systems in simple python"""
+"""Build agent harnesses in plain Python: the loop, tools, context, and controls around an LLM"""
 
 from __future__ import annotations
 
