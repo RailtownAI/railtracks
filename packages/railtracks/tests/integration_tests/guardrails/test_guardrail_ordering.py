@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
-from railtracks.built_nodes.llm.middleware import before_llm
+from railtracks.built_nodes.llm.middleware import pre_llm
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
@@ -163,7 +163,7 @@ async def test_output_guards_fire_in_reverse_list_order(mock_llm):
 async def test_guard_and_plain_middleware_interleave_by_position(mock_llm):
     trace = []
 
-    @before_llm
+    @pre_llm
     async def plain_tracer(message_history, schema, tools):
         trace.append("plain")
         return message_history, schema, tools

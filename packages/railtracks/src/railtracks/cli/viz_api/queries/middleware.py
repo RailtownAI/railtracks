@@ -53,13 +53,13 @@ _INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
 #: Kind per ``middleware_type_id``, as a precedence ladder over the *specialised*
 #: event types a middleware emits.
 #:
-#: Most-specific-wins is load-bearing, not defensive. ``@before_llm`` and
-#: ``@after_llm`` are both built on ``@wrap_llm``, so each emits its own
+#: Most-specific-wins is load-bearing, not defensive. ``@pre_llm`` and
+#: ``@post_llm`` are both built on ``@wrap_llm``, so each emits its own
 #: specialised pair *and* the generic ``middleware.model.invocation`` /
 #: ``.response``. Measured on one agent run with every decorator stacked,
 #: ``middleware.model.invocation`` fires four times — once each for the
-#: ``@before_llm``, the ``@after_llm``, the ``@wrap_llm`` and ``_llm_observe``.
-#: Rewriting these ``LIKE``s as equality tests would label a ``@before_llm`` a
+#: ``@pre_llm``, the ``@post_llm``, the ``@wrap_llm`` and ``_llm_observe``.
+#: Rewriting these ``LIKE``s as equality tests would label a ``@pre_llm`` a
 #: plain model wrapper.
 #:
 #: The final band fallback catches an LLM-band middleware that emits no
@@ -74,7 +74,7 @@ _INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
 #: as ``llm_wrapper``.
 #:
 #: The consequence is worth stating plainly rather than discovering: a
-#: ``@before_llm`` is reported as a request transform **only when the framework
+#: ``@pre_llm`` is reported as a request transform **only when the framework
 #: emits the specialised pair for it**, and where it does not, the honest answer
 #: from the stream is "something wrapped the LLM call". The ladder is not guessing
 #: past what was recorded, and the ``.input.%`` / ``.output.%`` rungs are kept

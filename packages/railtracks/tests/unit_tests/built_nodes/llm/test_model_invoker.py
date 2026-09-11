@@ -287,6 +287,26 @@ async def test_drain_to_queue_raises_llmerror_when_stream_never_yields_a_respons
         await _drain_to_queue(model_stream(), queue)
 
 
+@pytest.mark.asyncio
+async def test_drain_to_queue_failure_carries_the_message_history():
+    """A streamed failure must carry the same context a buffered one does.
+
+    `LLMError` is a `NodeInvocationError`, so it is re-raised as-is at the
+    `llm_helpers` boundary rather than picking up the history on the way out.
+    Whatever is attached here is all the caller ever sees.
+    """
+    messages = MessageHistory([UserMessage("hi")])
+
+    async def model_stream():
+        yield "a"
+
+    queue: asyncio.Queue = asyncio.Queue()
+    with pytest.raises(LLMError) as exc_info:
+        await _drain_to_queue(model_stream(), queue, messages)
+
+    assert exc_info.value.message_history is messages
+
+
 # ---------------------------------------------------------------------------
 # ModelInvoker.invoke — buffered dispatch
 # ---------------------------------------------------------------------------

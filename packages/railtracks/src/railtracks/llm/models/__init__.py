@@ -1,12 +1,12 @@
 from .api_providers import (
     AnthropicLLM,
-    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OpenAICompatibleProvider,
     OpenAILLM,
 )
 from .cloud import AzureAILLM, PortKeyLLM
+from .local.apple_fm import AppleFMLLM
 from .local.ollama import OllamaLLM
 
 __all__ = [
@@ -15,8 +15,8 @@ __all__ = [
     GeminiLLM,
     AzureAILLM,
     OllamaLLM,
+    AppleFMLLM,
     HuggingFaceLLM,
     PortKeyLLM,
-    CohereLLM,
     "OpenAICompatibleProvider",
 ]

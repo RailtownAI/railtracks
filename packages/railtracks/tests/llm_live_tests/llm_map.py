@@ -7,5 +7,4 @@ llm_map = {
         "together/deepseek-ai/DeepSeek-R1"
     ),  # this model is a little dumb, see test_function_as_tool test case
     "gemini": rt.llm.GeminiLLM("gemini-2.5-flash"),
-    # "cohere": rt.llm.CohereLLM("command-a-03-2025"), # TODO: #uncomment after https://github.com/RailtownAI/railtracks/issues/775
 }

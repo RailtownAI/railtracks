@@ -6,7 +6,7 @@ import pytest
 import railtracks as rt
 from jsonschema import validate
 from pydantic import BaseModel, Field
-from railtracks.built_nodes.llm.middleware import before_llm
+from railtracks.built_nodes.llm.middleware import pre_llm
 from railtracks.exceptions.errors import LLMError
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
@@ -678,7 +678,7 @@ class TestGuardrailsEndToEnd:
                 trace.append("output")
                 return GuardrailDecision.allow()
 
-        @before_llm
+        @pre_llm
         async def plain_tracer(message_history, schema, tools):
             trace.append("plain")
             return message_history, schema, tools

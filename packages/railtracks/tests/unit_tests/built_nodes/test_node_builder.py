@@ -9,7 +9,7 @@ from railtracks.built_nodes._node_builder import (
     safe_create_node,
 )
 from railtracks.built_nodes.function.node_builder import FunctionNodeBuilder
-from railtracks.built_nodes.llm.middleware import after_llm
+from railtracks.built_nodes.llm.middleware import post_llm
 from railtracks.built_nodes.llm.node_builder import LLMNodeBuilder
 from railtracks.exceptions.errors import NodeCreationError
 from railtracks.guardrails.core import GuardrailDecision
@@ -565,7 +565,7 @@ def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
                 reason="always redact",
             )
 
-    @after_llm
+    @post_llm
     def overwrite_after_guardrail(response):
         return Response(
             message=AssistantMessage("overwritten by user middleware"),

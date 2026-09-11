@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import warnings
 from typing import Any, Callable, Coroutine
 
 
@@ -30,18 +29,11 @@ class ExecutorConfig:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
             broadcast_callback (Callable or Coroutine): A function or coroutine that receives items published with `rt.broadcast`.
-            save_state (bool | None): Deprecated. If passed, emits a DeprecationWarning. `RAILTRACKS_DISABLE_EVENTS=True` skips the write regardless. Otherwise, explicit value wins; when unset, defaults to True (save).
+            save_state (bool | None): Deprecated at the user-facing API layer (see Flow). `RAILTRACKS_DISABLE_EVENTS=True` skips the write regardless. Otherwise, explicit value wins; when unset, defaults to True (save).
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
         self.subscriber = broadcast_callback
-        if save_state is not None:
-            warnings.warn(
-                "The save_state parameter is being deprecated. Use the "
-                "RAILTRACKS_DISABLE_EVENTS env var instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         # During test runs, disable save_state by default unless
         # RAILTRACKS_ALLOW_PERSISTENCE is set (see `save_state` property).
         self._user_save_state = save_state
@@ -74,7 +66,7 @@ class ExecutorConfig:
         """
         If any of the parameters are provided (not None), it will create a new update the current instance with the new values and return a deep copied reference to it.
         """
-        new = ExecutorConfig(
+        return ExecutorConfig(
             timeout=timeout,
             end_on_error=end_on_error
             if end_on_error is not None
@@ -82,14 +74,11 @@ class ExecutorConfig:
             broadcast_callback=subscriber
             if subscriber is not None
             else self.subscriber,
-            save_state=save_state,
+            save_state=save_state if save_state is not None else self._user_save_state,
             payload_callback=payload_callback
             if payload_callback is not None
             else self.payload_callback,
         )
-        if save_state is None:
-            new._user_save_state = self._user_save_state
-        return new
 
     def __repr__(self):
         return (

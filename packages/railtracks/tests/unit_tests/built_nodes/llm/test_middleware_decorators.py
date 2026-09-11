@@ -1,9 +1,7 @@
-"""Unit tests for wrap_llm/before_llm/after_llm's `name` handling.
+"""Unit tests for wrap_llm/pre_llm/post_llm's `name` handling.
 
-The bare decorator forms (@wrap_llm, @before_llm, @after_llm) are already exercised
-elsewhere (e.g. test_guardrail_ordering.py uses a bare @before_llm), but the
-parametrized form -- @wrap_llm(name=...), @before_llm(name=...), @after_llm(name=...)
--- had zero direct test coverage before this file.
+The bare decorator forms (@wrap_llm, @pre_llm, @post_llm) are exercised
+as well as the parametrized form -- @wrap_llm(name=...), @pre_llm(name=...), @post_llm(name=...).
 
 The bare-form `.name` tests below are regression tests for a bug where, with no
 explicit name, `.name` fell back to the decorator's internal inner-closure name
@@ -13,7 +11,7 @@ explicit name, `.name` fell back to the decorator's internal inner-closure name
 from __future__ import annotations
 
 import pytest
-from railtracks.built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
+from railtracks.built_nodes.llm.middleware import post_llm, pre_llm, wrap_llm
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.llm.response import MessageInfo, Response
@@ -48,13 +46,13 @@ async def test_wrap_llm_parametrized_sets_name_and_still_runs():
 
 
 @pytest.mark.asyncio
-async def test_before_llm_parametrized_sets_name_and_transforms_request():
-    @before_llm(name="custom-before")
+async def test_pre_llm_parametrized_sets_name_and_transforms_request():
+    @pre_llm(name="custom-pre")
     async def middleware(message_history, schema, tools):
         new_history = MessageHistory([*message_history, UserMessage("appended")])
         return new_history, schema, tools
 
-    assert middleware.name == "custom-before"
+    assert middleware.name == "custom-pre"
 
     seen = {}
 
@@ -69,15 +67,15 @@ async def test_before_llm_parametrized_sets_name_and_transforms_request():
 
 
 @pytest.mark.asyncio
-async def test_after_llm_parametrized_sets_name_and_transforms_response():
-    @after_llm(name="custom-after")
+async def test_post_llm_parametrized_sets_name_and_transforms_response():
+    @post_llm(name="custom-post")
     async def middleware(response):
         return Response(
             message=AssistantMessage(content=response.text.upper()),
             message_info=response.message_info,
         )
 
-    assert middleware.name == "custom-after"
+    assert middleware.name == "custom-post"
 
     async def core(message_history, schema, tools):
         return _response("hi")
@@ -101,17 +99,17 @@ def test_wrap_llm_bare_defaults_name_to_original_function():
     assert my_wrap_middleware.name == "my_wrap_middleware"
 
 
-def test_before_llm_bare_defaults_name_to_original_function():
-    @before_llm
-    async def my_before_middleware(message_history, schema, tools):
+def test_pre_llm_bare_defaults_name_to_original_function():
+    @pre_llm
+    async def my_pre_middleware(message_history, schema, tools):
         return message_history, schema, tools
 
-    assert my_before_middleware.name == "my_before_middleware"
+    assert my_pre_middleware.name == "my_pre_middleware"
 
 
-def test_after_llm_bare_defaults_name_to_original_function():
-    @after_llm
-    async def my_after_middleware(response):
+def test_post_llm_bare_defaults_name_to_original_function():
+    @post_llm
+    async def my_post_middleware(response):
         return response
 
-    assert my_after_middleware.name == "my_after_middleware"
+    assert my_post_middleware.name == "my_post_middleware"

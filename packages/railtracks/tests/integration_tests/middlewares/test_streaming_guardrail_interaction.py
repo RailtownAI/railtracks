@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 import railtracks as rt
-from railtracks.built_nodes.llm.middleware import before_llm
+from railtracks.built_nodes.llm.middleware import pre_llm
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
     GuardrailDecision,
@@ -118,7 +118,7 @@ async def test_output_guard_and_plain_middleware_both_fire_while_streaming(mock_
     after-hook runs, no matter which nests inside the other."""
     trace = []
 
-    @before_llm
+    @pre_llm
     async def plain_tracer(message_history, schema, tools):
         trace.append("plain")
         return message_history, schema, tools

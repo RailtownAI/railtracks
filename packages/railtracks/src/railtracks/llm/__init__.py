@@ -1,19 +1,25 @@
 from . import retries
+from ._exceptions import (
+    ProviderAuthenticationError,
+    ProviderError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from .content import ToolCall, ToolCalls, ToolResponse
 from .history import MessageHistory
 from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
 from .model import ModelBase
 from .models import (
     AnthropicLLM,
+    AppleFMLLM,
     AzureAILLM,
-    CohereLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
     OpenAICompatibleProvider,
     OpenAILLM,
     PortKeyLLM,
-    # TelusLLM,
 )
 from .models._model_exception_base import (
     FunctionCallingNotSupportedError,
@@ -30,11 +36,18 @@ from .tools import (
     Parameter,
     RefParameter,
     Tool,
+    ToolCreationError,
     UnionParameter,
 )
 
 __all__ = [
     "ModelBase",
+    "ProviderError",
+    "ProviderTimeoutError",
+    "ProviderRateLimitError",
+    "ProviderAuthenticationError",
+    "RetryError",
+    "ToolCreationError",
     "ModelError",
     "ModelNotFoundError",
     "FunctionCallingNotSupportedError",
@@ -52,18 +65,14 @@ __all__ = [
     "ModelProvider",
     "Tool",
     "AnthropicLLM",
+    "AppleFMLLM",
     "AzureAILLM",
-    "CohereLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
     "GeminiLLM",
     "OllamaLLM",
-    "AzureAILLM",
-    "GeminiLLM",
-    # "TelusLLM",
     "PortKeyLLM",
     "OpenAICompatibleProvider",
-    "CohereLLM",
     # Parameter types
     "Parameter",
     "UnionParameter",

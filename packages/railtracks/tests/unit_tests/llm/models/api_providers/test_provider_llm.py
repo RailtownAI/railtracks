@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import litellm
 import pytest
-from railtracks.llm import AnthropicLLM, CohereLLM, GeminiLLM, HuggingFaceLLM, OpenAILLM
-from railtracks.llm._exceptions import RTLLMError
+from railtracks.llm import AnthropicLLM, GeminiLLM, HuggingFaceLLM, OpenAILLM
+from railtracks.llm._exceptions import ProviderError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._model_exception_base import (
     MutuallyExclusiveHyperparametersError,
@@ -19,7 +19,6 @@ class TestInvalidModelNames:
         [
             (OpenAILLM, "claude-3-5-sonnet-20240620"),  # Anthropic model for OpenAI
             (AnthropicLLM, "gpt-4o"),  # OpenAI model for Anthropic
-            (CohereLLM, "gpt-4o"),  # OpenAI model for Cohere
             (GeminiLLM, "gpt-4o"),  # OpenAI model for Gemini
             (OpenAILLM, "gemini-pro"),  # Gemini model for OpenAI
             (AnthropicLLM, "gemini-pro"),  # Gemini model for Anthropic
@@ -57,7 +56,7 @@ class TestInvalidModelNames:
                 # Return the actual provider, which should mismatch with the class being tested
                 mock_provider.return_value = ("something", actual_provider, "info")
 
-                with pytest.raises(RTLLMError):
+                with pytest.raises(ProviderError):
                     _ = provider_class(model_name)
 
 
@@ -74,7 +73,6 @@ class TestFunctionCallingSupport:
                 "gemini/gemini-2.0-flash-exp-image-generation",
                 "vertex_ai",
             ),  # gemini models return "vertex_ai" as the provider when we call get_llm_provider
-            (CohereLLM, "cohere/command-a-03-2025", "cohere_chat"),
         ],
     )
     def test_no_function_calling_support(
@@ -92,7 +90,7 @@ class TestFunctionCallingSupport:
                 assert model is not None
 
                 with pytest.raises(
-                    RTLLMError, match="does not support function calling"
+                    ProviderError, match="does not support function calling"
                 ):
                     model.chat_with_tools(MessageHistory([]), [])
 

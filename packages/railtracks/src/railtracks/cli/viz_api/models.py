@@ -113,13 +113,13 @@ class MiddlewareKind(str, Enum):
     ``parent_middleware_type_id`` — see :func:`queries._middleware_kind_case`.
 
     The derivation is a precedence ladder rather than a switch, and that is
-    load-bearing: ``@before_llm`` and ``@after_llm`` are both built on
+    load-bearing: ``@pre_llm`` and ``@post_llm`` are both built on
     ``@wrap_llm``, so each emits its own specialised pair *and* the generic
     ``middleware.model.invocation`` / ``.response``. Measured on one agent run
     with every decorator stacked, ``middleware.model.invocation`` fires four
-    times — once each for the ``@before_llm``, the ``@after_llm``, the
+    times — once each for the ``@pre_llm``, the ``@post_llm``, the
     ``@wrap_llm`` and the framework's own ``_llm_observe``. Equality tests would
-    call a ``@before_llm`` a plain model wrapper; only most-specific-wins is
+    call a ``@pre_llm`` a plain model wrapper; only most-specific-wins is
     right.
 
     ``NODE_WRAPPER`` and ``LLM_WRAPPER`` are the same decorator shape in the two
@@ -137,9 +137,9 @@ class MiddlewareKind(str, Enum):
     ============================ ==========================================
     ``INPUT_GUARD``              ``@input_guard`` / ``InputGuard`` subclass
     ``OUTPUT_GUARD``             ``@output_guard`` / ``OutputGuard`` subclass
-    ``REQUEST_TRANSFORM``        ``@before_llm``
-    ``RESPONSE_TRANSFORM``       ``@after_llm``
-    ``RESULT_HOOK``              ``@after_node``
+    ``REQUEST_TRANSFORM``        ``@pre_llm``
+    ``RESPONSE_TRANSFORM``       ``@post_llm``
+    ``RESULT_HOOK``              ``@post_node``
     ``LLM_WRAPPER``              ``@wrap_llm`` (``model_middleware=``)
     ``NODE_WRAPPER``             ``@wrap_node`` (``middleware=``)
     ============================ ==========================================

@@ -8,12 +8,12 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 |---|---|---|---|
 | `rt.wrap_node` | `async fn(call, *args, **kwargs) -> result` | `middleware=` or `model_middleware=` | Yes — you control the try/except |
 | `rt.wrap_llm` | `async fn(llm_call, message_history, schema, tools) -> Response` | `model_middleware=` only | Yes |
-| `rt.before_llm` | `fn(message_history, schema, tools) -> (message_history, schema, tools)` (sync or async) | `model_middleware=` only | N/A (runs before the call) |
-| `rt.after_llm` | `fn(response) -> response` (sync or async) | `model_middleware=` only | No — skipped on exception |
-| `rt.after_node` | `fn(result) -> result` (sync or async) | `middleware=` or `model_middleware=` | No — skipped on exception |
+| `rt.pre_llm` | `fn(message_history, schema, tools) -> (message_history, schema, tools)` (sync or async) | `model_middleware=` only | N/A (runs before the call) |
+| `rt.post_llm` | `fn(response) -> response` (sync or async) | `model_middleware=` only | No — skipped on exception |
+| `rt.post_node` | `fn(result) -> result` (sync or async) | `middleware=` or `model_middleware=` | No — skipped on exception |
 
-- All five accept optional keyword-only `name=` and work bare or called: `@rt.before_llm`, `@rt.after_node(name="print_after")`.
-- `wrap_node`/`wrap_llm` require `async def` (`TypeError` otherwise). `before_llm`/`after_llm`/`after_node` accept sync or async.
+- All five accept optional keyword-only `name=` and work bare or called: `@rt.pre_llm`, `@rt.post_node(name="print_after")`.
+- `wrap_node`/`wrap_llm` require `async def` (`TypeError` otherwise). `pre_llm`/`post_llm`/`post_node` accept sync or async.
 - `middleware=` wraps the whole node call (an agent's full tool-calling loop, including every tool node it invokes). `model_middleware=` wraps one raw LLM call inside that loop.
 - Attach at creation — `rt.agent_node(..., middleware=[...], model_middleware=[...])` — or after the fact without mutating the original — `rt.couple(node, middleware=[...], model_middleware=[...])`.
 - List order = wrapping order: `middleware=[A, B, C]` → `A` wraps `B` wraps `C` wraps the node. `rt.couple`-ing more onto an already-middlewared node adds the new ones innermost; existing middleware stays outermost.
@@ -23,7 +23,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 ## Best practices
 
 ### 1. Exception handling & retries
-- `before_llm`, `after_llm`, `after_node` **only run on success** — an exception skips them entirely. If you need to react to failure (cleanup, translation, fallback), use `wrap_node`/`wrap_llm` and put your own `try`/`except` around `await call(...)`.
+- `pre_llm`, `post_llm`, `post_node` **only run on success** — an exception skips them entirely. If you need to react to failure (cleanup, translation, fallback), use `wrap_node`/`wrap_llm` and put your own `try`/`except` around `await call(...)`.
 - **Where you put a retry changes what it re-executes:**
   - `model_middleware=` retry only re-issues the raw LLM call — safe by default, no side effects beyond the model provider request.
   - `middleware=` retry on an agent re-runs the **entire node**, including every tool call that already succeeded in that attempt. Only retry at this slot if the tools involved are safe to re-run (idempotent, or guarded by an idempotency key) — otherwise a transient failure after a non-idempotent tool call (e.g. "send email", "charge card") causes it to fire twice.
@@ -38,7 +38,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 
 ### 3. Ordering & composition
 - Two different things happen depending on middleware shape — know which one you're ordering:
-  - **Input-transforming middleware** (`before_llm`-style: mutates `message_history`/`schema`/`tools` before calling onward) — earlier entries in the list run first and hand their result to later entries. Put transformations before validations: `model_middleware=[ContextInjection(), my_guard]` so the guard sees the filled-in prompt, not the raw template.
+  - **Input-transforming middleware** (`pre_llm`-style: mutates `message_history`/`schema`/`tools` before calling onward) — earlier entries in the list run first and hand their result to later entries. Put transformations before validations: `model_middleware=[ContextInjection(), my_guard]` so the guard sees the filled-in prompt, not the raw template.
   - **Span-wrapping middleware** (retry, timing, logging that brackets a whole call) — the outermost entry sees the aggregate outcome; the innermost is what actually gets re-invoked on each attempt. `middleware=[Retry(3), log_after]` → the log fires once per retry attempt (it's inside the retry). `middleware=[log_after, Retry(3)]` → the log fires once, for the final outcome only (it's outside the retry). Pick based on whether you want per-attempt or per-call visibility.
 - When `rt.couple`-ing middleware onto a node that already has some, the new list is innermost — it can't run "before" existing outer middleware like auth checks.
 
@@ -76,7 +76,7 @@ def block_secrets(event: rt.guardrails.LLMGuardrailEvent) -> rt.guardrails.Guard
     return rt.guardrails.GuardrailDecision.allow()
 
 # Not a policy decision -> plain middleware
-@rt.before_llm
+@rt.pre_llm
 def log_prompt(message_history, schema, tools):
     print(message_history)
     return message_history, schema, tools
@@ -86,7 +86,7 @@ def log_prompt(message_history, schema, tools):
 ```python
 import railtracks as rt
 
-@rt.after_node(name="print_after")
+@rt.post_node(name="print_after")
 async def log_result(result):
     print("Finished:", result)
     return result
@@ -114,5 +114,5 @@ Adjusted = rt.couple(
 - Don't retry at `middleware=` on an agent with non-idempotent tools — it re-runs every tool call in that attempt, not just the failed step.
 - Don't hand-roll a content allow/block check as plain middleware — use `input_guard`/`output_guard` so it shows up in `GuardrailTrace` like the rest of your rails.
 - Don't write a plain `def` for `wrap_node`/`wrap_llm` — it must be `async def`.
-- Don't expect `after_llm`/`after_node` to run on failure — they're success-only; use `wrap_llm`/`wrap_node` if you need failure-aware logic.
+- Don't expect `post_llm`/`post_node` to run on failure — they're success-only; use `wrap_llm`/`wrap_node` if you need failure-aware logic.
 - Don't assume `name=` changes what shows up in railtracks' own traces — it doesn't (yet), outside of guardrails.

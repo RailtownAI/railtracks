@@ -1,0 +1,48 @@
+name: "Task"
+description: "A well-scoped, unambiguous piece of work."
+type: Task
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > **Maintainer only.** This template is for maintainers filing scoped work items. Outside contributors: please use **Bug Report** for bugs, **Feature Request** for features, or [Discussions](https://github.com/RailtownAI/railtracks/discussions) for questions.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Agents / Nodes
+        - Tools
+        - LLM Providers
+        - Middleware
+        - Guardrails
+        - RAG / Retrieval
+        - Prebuilt Add-ons
+        - Human-in-the-loop
+        - Observability / Visualizer
+        - MCP Integration
+        - Evaluations
+        - Cross-cutting / Multiple
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the change, in code terms? Include specific requirements as a bulleted list.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How do we know it's done? Concrete checklist a reviewer can verify.
+      placeholder: |
+        - [ ] New API accepts X and returns Y
+        - [ ] Tests cover the happy path and the error case
+        - [ ] Docs page updated
