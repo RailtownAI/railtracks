@@ -64,7 +64,9 @@ async def test_output_guard_allows_clean_response(mock_llm):
         model_middleware=[BlockTextOutputGuard(pattern=r"API_KEY")],
     )
 
-    result = await rt.Flow("output_guard_allows_clean", Agent).ainvoke(user_input="Hello")
+    result = await rt.Flow("output_guard_allows_clean", Agent).ainvoke(
+        user_input="Hello"
+    )
     assert isinstance(result, StringResponse)
     assert "answer" in result.text
 

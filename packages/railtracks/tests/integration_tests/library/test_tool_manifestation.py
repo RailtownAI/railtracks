@@ -158,9 +158,9 @@ async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_mess
         system_message="You are a helpful assistant that uses the encoder tool.",
     )
 
-    response = await rt.Flow("test_agent_as_tool_result_is_not_wrapped", caller).ainvoke(
-        "Encode 'hello world'"
-    )
+    response = await rt.Flow(
+        "test_agent_as_tool_result_is_not_wrapped", caller
+    ).ainvoke("Encode 'hello world'")
     tool_results = [
         message.content.result
         for message in response.message_history

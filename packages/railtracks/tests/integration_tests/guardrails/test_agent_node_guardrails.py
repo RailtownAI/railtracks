@@ -174,7 +174,9 @@ async def test_structured_guardrails_allow(mock_llm, allow_input):
         model_middleware=[allow_input],
     )
 
-    result = await rt.Flow("structured_guardrails_allow", Agent).ainvoke(user_input="hi")
+    result = await rt.Flow("structured_guardrails_allow", Agent).ainvoke(
+        user_input="hi"
+    )
 
     assert counts["n"] == 1
     assert isinstance(result, StructuredResponse)
