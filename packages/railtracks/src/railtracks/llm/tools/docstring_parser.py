@@ -10,32 +10,15 @@ from typing import Dict
 
 from .parameters import Parameter, ParameterType
 
-# Section headers that can follow an "Args:" block and therefore end it.
+# Section headers that can follow an "Args:" block and therefore end it. Matched
+# case-sensitively, so a lowercase parameter of the same name still parses.
 _SECTION_HEADERS = frozenset(
     {
-        "args",
-        "arguments",
-        "attributes",
-        "example",
-        "examples",
-        "keyword args",
-        "keyword arguments",
-        "methods",
-        "note",
-        "notes",
-        "other parameters",
-        "parameters",
-        "raises",
-        "references",
-        "return",
-        "returns",
-        "see also",
-        "todo",
-        "warning",
-        "warnings",
-        "warns",
-        "yield",
-        "yields",
+        "Args",
+        "Attributes",
+        "Raises",
+        "Returns",
+        "Yields",
     }
 )
 
@@ -50,7 +33,7 @@ def _indent_of(line: str) -> int:
 def _is_section_header(line: str) -> bool:
     """Returns whether a line is a bare section header, e.g. ``Returns:``."""
     stripped = line.strip()
-    return stripped.endswith(":") and stripped[:-1].strip().lower() in _SECTION_HEADERS
+    return stripped.endswith(":") and stripped[:-1].strip() in _SECTION_HEADERS
 
 
 # HELPER

@@ -339,6 +339,34 @@ class TestParseDocstringArgs:
         """
         assert parse_docstring_args(docstring) == {}
 
+    def test_parameter_named_like_a_section(self):
+        """A parameter named ``notes`` is not mistaken for a section header."""
+        docstring = """
+        Args:
+            notes:
+                Notes attached to the record.
+            value: The value.
+        """
+        expected = {
+            "notes": "Notes attached to the record.",
+            "value": "The value.",
+        }
+        assert parse_docstring_args(docstring) == expected
+
+    def test_lowercase_parameter_matching_a_section_name(self):
+        """Section headers are matched case-sensitively, so ``args:`` is a parameter."""
+        docstring = """
+        Args:
+            args:
+                Positional arguments forwarded to the handler.
+            value: The value.
+        """
+        expected = {
+            "args": "Positional arguments forwarded to the handler.",
+            "value": "The value.",
+        }
+        assert parse_docstring_args(docstring) == expected
+
 
 class TestEdgeCases:
     """Tests for edge cases in docstring parsing."""
