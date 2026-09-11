@@ -129,12 +129,8 @@ class TestPreVerifierEndToEnd:
             """Refund an order."""
             return f"refunded {amount} for {order_id}"
 
-        @rt.function_node
-        async def entry(order_id, amount):
-            return await rt.call(refund, order_id=order_id, amount=amount)
-
         assert (
-            rt.Flow("test_approved_call_runs_the_node", entry).invoke(
+            rt.Flow("test_approved_call_runs_the_node", refund).invoke(
                 order_id="A1", amount=50
             )
             == "refunded 50 for A1"
@@ -150,12 +146,8 @@ class TestPreVerifierEndToEnd:
             ran["value"] = True
             return f"refunded {amount} for {order_id}"
 
-        @rt.function_node
-        async def entry(order_id, amount):
-            return await rt.call(refund, order_id=order_id, amount=amount)
-
         with pytest.raises(VerifierRejectedError):
-            rt.Flow("test_declined_call_blocks_the_node_and_propagates", entry).invoke(
+            rt.Flow("test_declined_call_blocks_the_node_and_propagates", refund).invoke(
                 order_id="A1", amount=500
             )
         assert ran["value"] is False

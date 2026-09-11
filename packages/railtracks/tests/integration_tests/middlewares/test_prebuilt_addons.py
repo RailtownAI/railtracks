@@ -37,12 +37,8 @@ async def test_retry_in_model_middleware_recovers_from_transient_llm_error(mock_
         model_middleware=[_fast_retry()],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input=user_input)
-
     out = await rt.Flow(
-        "test_retry_in_model_middleware_recovers_from_transient_llm_error", entry
+        "test_retry_in_model_middleware_recovers_from_transient_llm_error", agent
     ).ainvoke("hi")
 
     assert isinstance(out, StringResponse)
@@ -64,12 +60,8 @@ async def test_retry_in_node_middleware_retries_a_flaky_function():
         middleware=[_fast_retry(retry_on=(Exception,))],
     )
 
-    @rt.function_node
-    async def entry():
-        return await rt.call(node)
-
     out = await rt.Flow(
-        "test_retry_in_node_middleware_retries_a_flaky_function", entry
+        "test_retry_in_node_middleware_retries_a_flaky_function", node
     ).ainvoke()
 
     assert out == "done"
@@ -89,11 +81,7 @@ async def test_retry_exhaustion_surfaces_after_max_tries(mock_llm):
         model_middleware=[_fast_retry(max_tries=2)],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input=user_input)
-
     with pytest.raises(Exception):
-        await rt.Flow("test_retry_exhaustion_surfaces_after_max_tries", entry).ainvoke(
+        await rt.Flow("test_retry_exhaustion_surfaces_after_max_tries", agent).ainvoke(
             "hi"
         )

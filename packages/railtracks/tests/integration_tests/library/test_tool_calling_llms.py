@@ -93,12 +93,8 @@ class TestSimpleToolCalling:
             llm=llm,
         )
 
-        @rt.function_node
-        async def entry(user_input):
-            return await rt.call(agent, user_input=user_input)
-
         response = await rt.Flow(
-            "test_text_returned_with_tool_call_is_kept", entry
+            "test_text_returned_with_tool_call_is_kept", agent
         ).ainvoke("What is the secret phrase?")
 
         tool_call_messages = [
@@ -197,12 +193,8 @@ class TestFunctionNodeCallWithFunctionList:
             ),
         )
 
-        @rt.function_node
-        async def entry(user_input):
-            return await rt.call(AgentHandler, user_input)
-
         result = await rt.Flow(
-            "test_function_node_call_with_function_list_parameter", entry
+            "test_function_node_call_with_function_list_parameter", AgentHandler
         ).ainvoke(
             rt.llm.MessageHistory(
                 [

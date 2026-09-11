@@ -1159,11 +1159,7 @@ class TestSessionPersistence:
             "PersistAgent", llm=mock_llm(custom_response="ok"), middleware=[tracer]
         )
 
-        @rt.function_node
-        async def entry(user_input):
-            return await rt.call(agent, user_input=user_input)
-
-        flow = rt.Flow("PersistAgent", entry)
+        flow = rt.Flow("PersistAgent", agent)
         conn = flow.connect()
         await conn.ainvoke("hi")
 

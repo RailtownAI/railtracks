@@ -23,12 +23,8 @@ def test_context_injection(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
     response = rt.Flow(
-        "test_context_injection", entry, context={"secret": "tomato"}
+        "test_context_injection", node, context={"secret": "tomato"}
     ).invoke(MessageHistory())
     assert response.content == "tomato"
 
@@ -45,12 +41,8 @@ def test_context_injection_bypass(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
     response = rt.Flow(
-        "test_context_injection_bypass", entry, context={"secret_value": "tomato"}
+        "test_context_injection_bypass", node, context={"secret_value": "tomato"}
     ).invoke(MessageHistory())
 
     assert response.content == "{secret_value}"
@@ -68,11 +60,7 @@ def test_prompt_numerical(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
-    response = rt.Flow("test_prompt_numerical", entry, context={"1": "tomato"}).invoke(
+    response = rt.Flow("test_prompt_numerical", node, context={"1": "tomato"}).invoke(
         MessageHistory()
     )
 
@@ -91,11 +79,7 @@ def test_prompt_not_in_context(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
-    response = rt.Flow("test_prompt_not_in_context", entry).invoke(MessageHistory())
+    response = rt.Flow("test_prompt_not_in_context", node).invoke(MessageHistory())
 
     assert response.content == "{secret2}"
 
@@ -112,13 +96,9 @@ def test_no_injection_without_middleware(mock_llm):
         llm=model,
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
     response = rt.Flow(
         "test_no_injection_without_middleware",
-        entry,
+        node,
         context={"secret_value": "tomato"},
     ).invoke(MessageHistory())
     assert response.content == "{secret_value}"

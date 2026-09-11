@@ -388,11 +388,7 @@ class TestSequenceInputTypes:
             llm,
         )
 
-        @rt.function_node
-        async def entry(user_input):
-            return await rt.call(agent, user_input)
-
-        response = await rt.Flow("test_lists", entry).ainvoke(
+        response = await rt.Flow("test_lists", agent).ainvoke(
             "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
         )
 
@@ -418,11 +414,7 @@ class TestDictionaryInputTypes:
         with pytest.raises(Exception):
             agent = _agent_node_factory(dict_func, mock_llm())
 
-            @rt.function_node
-            async def entry(user_input):
-                return await rt.call(agent, user_input)
-
-            await rt.Flow("test_dict_input_raises_error", entry).ainvoke(
+            await rt.Flow("test_dict_input_raises_error", agent).ainvoke(
                 rt.llm.MessageHistory(
                     [rt.llm.UserMessage("What is the result for {'key': 'value'}?")]
                 ),

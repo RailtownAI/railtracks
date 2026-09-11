@@ -62,12 +62,8 @@ class TestWebSearchToolCalling:
             llm=llm,
         )
 
-        @rt.function_node
-        async def entry(user_input):
-            return await rt.call(agent, user_input=user_input)
-
         response = await rt.Flow(
-            "test_search_tool_round_trips_through_agent", entry
+            "test_search_tool_round_trips_through_agent", agent
         ).ainvoke("What is railtracks?")
         assert "An agentic framework" in response.text
         assert _contains_url(response.text, "https://railtracks.org")
@@ -100,11 +96,7 @@ class TestWebSearchToolCalling:
             llm=llm,
         )
 
-        @rt.function_node
-        async def entry(user_input):
-            return await rt.call(agent, user_input=user_input)
-
         response = await rt.Flow(
-            "test_fetch_tool_round_trips_through_agent", entry
+            "test_fetch_tool_round_trips_through_agent", agent
         ).ainvoke("Read https://railtracks.org")
         assert "Full page content here" in response.text

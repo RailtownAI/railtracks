@@ -24,11 +24,7 @@ def test_function_node_middleware_runs():
         """Add two numbers."""
         return a + b
 
-    @rt.function_node
-    async def entry(a, b):
-        return await rt.call(add, a, b)
-
-    result = rt.Flow("test_function_node_middleware_runs", entry).invoke(1, 2)
+    result = rt.Flow("test_function_node_middleware_runs", add).invoke(1, 2)
     assert result == 3
     assert events == ["before", "after"]
 
@@ -43,12 +39,8 @@ def test_function_node_middleware_can_short_circuit():
         """Add two numbers."""
         return a + b
 
-    @rt.function_node
-    async def entry(a, b):
-        return await rt.call(add, a, b)
-
     assert (
-        rt.Flow("test_function_node_middleware_can_short_circuit", entry).invoke(1, 2)
+        rt.Flow("test_function_node_middleware_can_short_circuit", add).invoke(1, 2)
         == -1
     )
 
@@ -76,13 +68,9 @@ def test_middleware_exception_propagates_through_multiple_layers():
     def boom(a: int, b: int) -> int:
         raise ValueError("kaboom")
 
-    @rt.function_node
-    async def entry(a, b):
-        return await rt.call(boom, a, b)
-
     with pytest.raises(ValueError, match="kaboom"):
         rt.Flow(
-            "test_middleware_exception_propagates_through_multiple_layers", entry
+            "test_middleware_exception_propagates_through_multiple_layers", boom
         ).invoke(1, 2)
     assert log == ["outer-in", "inner-in", "inner-out", "outer-out"]
 
@@ -109,11 +97,9 @@ def test_multiple_middleware_outer_to_inner_order():
         log.append("core")
         return x
 
-    @rt.function_node
-    async def entry(x):
-        return await rt.call(identity, x)
-
-    result = rt.Flow("test_multiple_middleware_outer_to_inner_order", entry).invoke(5)
+    result = rt.Flow("test_multiple_middleware_outer_to_inner_order", identity).invoke(
+        5
+    )
     assert result == 5
     assert log == ["first-in", "second-in", "core", "second-out", "first-out"]
 
@@ -129,12 +115,8 @@ def test_after_does_not_run_when_call_raises():
     def boom() -> int:
         raise ValueError("nope")
 
-    @rt.function_node
-    async def entry():
-        return await rt.call(boom)
-
     with pytest.raises(ValueError, match="nope"):
-        rt.Flow("test_after_does_not_run_when_call_raises", entry).invoke()
+        rt.Flow("test_after_does_not_run_when_call_raises", boom).invoke()
     assert fn_called["value"] is False
 
 
@@ -143,8 +125,4 @@ def test_after_replaces_return_value_on_success():
     def five() -> int:
         return 5
 
-    @rt.function_node
-    async def entry():
-        return await rt.call(five)
-
-    assert rt.Flow("test_after_replaces_return_value_on_success", entry).invoke() == 50
+    assert rt.Flow("test_after_replaces_return_value_on_success", five).invoke() == 50

@@ -413,12 +413,8 @@ def test_nodebuilder_llm_middleware_sets_user_middleware(mock_llm):
         "TestNode", model=mock_llm(custom_response="hi"), middleware=[tag]
     ).build()
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node_cls, user_input=user_input)
-
-    rt.Flow("test_nodebuilder_llm_middleware_sets_user_middleware", entry).invoke(
-        "hello"
+    rt.Flow("test_nodebuilder_llm_middleware_sets_user_middleware", node_cls).invoke(
+        user_input="hello"
     )
     assert fired["value"]
     assert len(node_cls._user_middleware) == 1
@@ -438,13 +434,9 @@ def test_nodebuilder_llm_model_middleware_wraps_model_call(mock_llm):
         "TestNode", model=mock_llm(custom_response="hi"), model_middleware=[tracer]
     ).build()
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node_cls, user_input=user_input)
-
     result = rt.Flow(
-        "test_nodebuilder_llm_model_middleware_wraps_model_call", entry
-    ).invoke("hello")
+        "test_nodebuilder_llm_model_middleware_wraps_model_call", node_cls
+    ).invoke(user_input="hello")
     assert result.content == "hi"
     assert calls == ["in", "out"]
 
@@ -466,14 +458,10 @@ def test_nodebuilder_llm_context_injection_via_middleware(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     ).build()
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node_cls, user_input=user_input)
-
     assert (
         rt.Flow(
             "test_nodebuilder_llm_context_injection_via_middleware",
-            entry,
+            node_cls,
             context={"secret": "tomato"},
         )
         .invoke(MessageHistory())
@@ -493,14 +481,10 @@ def test_nodebuilder_llm_no_injection_by_default(mock_llm):
         system_message=SystemMessage(content="{secret}"),
     ).build()
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node_cls, user_input=user_input)
-
     assert (
         rt.Flow(
             "test_nodebuilder_llm_no_injection_by_default",
-            entry,
+            node_cls,
             context={"secret": "tomato"},
         )
         .invoke(MessageHistory())
@@ -528,13 +512,9 @@ def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
         model_middleware=[MarkInputGuard(), MarkOutputGuard()],
     ).build()
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node_cls, user_input)
-
-    rt.Flow("test_nodebuilder_llm_guardrails_input_and_output_both_fire", entry).invoke(
-        "hello"
-    )
+    rt.Flow(
+        "test_nodebuilder_llm_guardrails_input_and_output_both_fire", node_cls
+    ).invoke("hello")
     assert fired == {"input": True, "output": True}
 
 
@@ -552,12 +532,8 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
         model_middleware=[MarkInputGuard()],
     ).build()
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node_cls, user_input)
-
     result = rt.Flow(
-        "test_nodebuilder_llm_guardrails_input_only_does_not_fire_output", entry
+        "test_nodebuilder_llm_guardrails_input_only_does_not_fire_output", node_cls
     ).invoke("hello")
     assert fired["input"]
     assert result.content == "hi"
@@ -568,12 +544,8 @@ def test_nodebuilder_llm_empty_model_middleware_is_a_no_op(mock_llm):
         "EmptyGuardNode", model=mock_llm(custom_response="hi"), model_middleware=[]
     ).build()
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node_cls, user_input)
-
     assert (
-        rt.Flow("test_nodebuilder_llm_empty_model_middleware_is_a_no_op", entry)
+        rt.Flow("test_nodebuilder_llm_empty_model_middleware_is_a_no_op", node_cls)
         .invoke("hello")
         .content
         == "hi"
@@ -616,11 +588,7 @@ def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
     ).build()
 
     def run(node_cls, flow_name):
-        @rt.function_node
-        async def entry(user_input):
-            return await rt.call(node_cls, user_input=user_input)
-
-        return rt.Flow(flow_name, entry).invoke("hi")
+        return rt.Flow(flow_name, node_cls).invoke(user_input="hi")
 
     guard_first_result = run(guard_first_cls, "guard_first_order")
     user_first_result = run(user_first_cls, "user_first_order")

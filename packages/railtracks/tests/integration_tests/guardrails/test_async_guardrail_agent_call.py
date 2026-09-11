@@ -49,12 +49,10 @@ async def test_async_input_guard_blocks_using_a_judge_agent(mock_llm):
     counts = _counting_chat(guarded_llm)
     agent = rt.agent_node(name="guarded", llm=guarded_llm, model_middleware=[llm_judge])
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input=user_input)
-
     with pytest.raises(GuardrailBlockedError) as exc:
-        await rt.Flow("async_input_guard_blocks", entry).ainvoke("something sketchy")
+        await rt.Flow("async_input_guard_blocks", agent).ainvoke(
+            user_input="something sketchy"
+        )
 
     assert counts["n"] == 0
     assert "UNSAFE" in seen["verdict"]
@@ -82,11 +80,9 @@ async def test_async_input_guard_allows_using_a_judge_agent(mock_llm):
         name="guarded-ok", llm=guarded_llm, model_middleware=[llm_judge]
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input=user_input)
-
-    out = await rt.Flow("async_input_guard_allows", entry).ainvoke("a normal question")
+    out = await rt.Flow("async_input_guard_allows", agent).ainvoke(
+        user_input="a normal question"
+    )
 
     assert counts["n"] == 1
     assert isinstance(out, StringResponse)
@@ -113,12 +109,10 @@ async def test_async_output_guard_blocks_using_a_judge_agent(mock_llm):
         model_middleware=[llm_judge],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input=user_input)
-
     with pytest.raises(GuardrailBlockedError) as exc:
-        await rt.Flow("async_output_guard_blocks", entry).ainvoke("tell me a secret")
+        await rt.Flow("async_output_guard_blocks", agent).ainvoke(
+            user_input="tell me a secret"
+        )
 
     assert exc.value.reason == "judge flagged output"
 
@@ -154,11 +148,9 @@ async def test_async_guard_transform_via_agent_rewrites_history(mock_llm):
         name="guarded-transform", llm=guarded_llm, model_middleware=[rewrite]
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input=user_input)
-
-    await rt.Flow("async_guard_transform", entry).ainvoke("the original question")
+    await rt.Flow("async_guard_transform", agent).ainvoke(
+        user_input="the original question"
+    )
 
     assert any("sanitized question" in m for m in seen["messages"])
     assert not any("the original question" in m for m in seen["messages"])

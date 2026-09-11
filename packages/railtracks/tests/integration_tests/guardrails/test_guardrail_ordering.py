@@ -55,11 +55,7 @@ async def test_input_guards_fire_in_list_order(mock_llm):
         model_middleware=[guard_a, guard_b],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
-    await rt.Flow("input_guards_fire_in_list_order", entry).ainvoke("hi")
+    await rt.Flow("input_guards_fire_in_list_order", Agent).ainvoke(user_input="hi")
 
     assert trace == ["A", "B"]
 
@@ -87,11 +83,9 @@ async def test_input_guard_transform_is_seen_by_the_next_guard_in_the_chain(mock
         model_middleware=[FnInputGuard(redact), FnInputGuard(record)],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
-    await rt.Flow("input_guard_transform_chain", entry).ainvoke("my secret is X")
+    await rt.Flow("input_guard_transform_chain", Agent).ainvoke(
+        user_input="my secret is X"
+    )
 
     assert seen["last_content"] == "my [REDACTED] is X"
 
@@ -114,12 +108,8 @@ async def test_input_guard_block_short_circuits_later_guards_in_the_list(mock_ll
         model_middleware=[block, counter],
     )
 
-    @rt.function_node
-    async def entry1(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
     with pytest.raises(GuardrailBlockedError):
-        await rt.Flow("block_first", entry1).ainvoke("hi")
+        await rt.Flow("block_first", Agent).ainvoke(user_input="hi")
     assert counts["n"] == 0
 
     # counter listed first: it runs before the later guard blocks
@@ -129,12 +119,8 @@ async def test_input_guard_block_short_circuits_later_guards_in_the_list(mock_ll
         model_middleware=[counter, block],
     )
 
-    @rt.function_node
-    async def entry2(user_input):
-        return await rt.call(Agent2, user_input=user_input)
-
     with pytest.raises(GuardrailBlockedError):
-        await rt.Flow("block_second", entry2).ainvoke("hi")
+        await rt.Flow("block_second", Agent2).ainvoke(user_input="hi")
     assert counts["n"] == 1
 
 
@@ -162,11 +148,7 @@ async def test_output_guards_fire_in_reverse_list_order(mock_llm):
         model_middleware=[guard_a, guard_b],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
-    await rt.Flow("output_guards_reverse_order", entry).ainvoke("hi")
+    await rt.Flow("output_guards_reverse_order", Agent).ainvoke(user_input="hi")
 
     # guard_b is closest to the raw model call (innermost), so it observes the
     # response and fires before guard_a, which wraps around it.
@@ -198,11 +180,7 @@ async def test_guard_and_plain_middleware_interleave_by_position(mock_llm):
         model_middleware=[plain_tracer, guard],
     )
 
-    @rt.function_node
-    async def entry1(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
-    await rt.Flow("interleave_plain_first", entry1).ainvoke("hi")
+    await rt.Flow("interleave_plain_first", Agent).ainvoke(user_input="hi")
     assert trace == ["plain", "guard"]
 
     trace.clear()
@@ -212,9 +190,5 @@ async def test_guard_and_plain_middleware_interleave_by_position(mock_llm):
         model_middleware=[guard, plain_tracer],
     )
 
-    @rt.function_node
-    async def entry2(user_input):
-        return await rt.call(Agent2, user_input=user_input)
-
-    await rt.Flow("interleave_guard_first", entry2).ainvoke("hi")
+    await rt.Flow("interleave_guard_first", Agent2).ainvoke(user_input="hi")
     assert trace == ["guard", "plain"]

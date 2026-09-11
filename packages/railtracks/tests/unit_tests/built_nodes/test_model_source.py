@@ -18,11 +18,7 @@ def test_agent_node_accepts_model_factory(mock_llm):
 
     node = rt.agent_node(system_message="hello", llm=lambda: model)
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
-    response = rt.Flow("test_agent_node_accepts_model_factory", entry).invoke(
+    response = rt.Flow("test_agent_node_accepts_model_factory", node).invoke(
         MessageHistory()
     )
     assert response.content == "hello"
@@ -43,11 +39,7 @@ def test_model_factory_resolved_per_call(mock_llm):
     current = {"model": model_a}
     node = rt.agent_node(system_message="hi", llm=lambda: current["model"])
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
-    flow = rt.Flow("test_model_factory_resolved_per_call", entry)
+    flow = rt.Flow("test_model_factory_resolved_per_call", node)
 
     assert flow.invoke(MessageHistory()).content == "from-a"
     current["model"] = model_b
@@ -73,13 +65,9 @@ def test_model_middleware_list_mutation_after_build_does_not_affect_built_agent(
     )
     shared.append(tracer)  # mutate after build
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(node, user_input=user_input)
-
     rt.Flow(
         "test_model_middleware_list_mutation_after_build_does_not_affect_built_agent",
-        entry,
+        node,
     ).invoke("hello")
     assert calls == [
         "ran"
@@ -103,16 +91,8 @@ def test_two_agents_built_from_same_model_middleware_list_are_independent(mock_l
         "B", llm=mock_llm(custom_response="b"), model_middleware=shared
     )
 
-    @rt.function_node
-    async def entry_a(user_input):
-        return await rt.call(node_a, user_input=user_input)
-
-    @rt.function_node
-    async def entry_b(user_input):
-        return await rt.call(node_b, user_input=user_input)
-
-    rt.Flow("independent_agent_a", entry_a).invoke("hi")
-    rt.Flow("independent_agent_b", entry_b).invoke("hi")
+    rt.Flow("independent_agent_a", node_a).invoke("hi")
+    rt.Flow("independent_agent_b", node_b).invoke("hi")
     assert calls_a == [
         "ran"
     ]  # node_a still ran tracer_a despite the later `shared.clear()`

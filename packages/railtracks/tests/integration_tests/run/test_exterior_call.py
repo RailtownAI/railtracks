@@ -51,12 +51,7 @@ async def config_test_async():
     async def run_with_config_w_context():
         railtracks.context.central.set_config(end_on_error=False)
 
-        @rt.function_node
-        async def entry():
-            info = await rt.call(RNGNode)
-            return info
-
-        conn = rt.Flow("config_test_async_w_context", entry).connect()
+        conn = rt.Flow("config_test_async_w_context", RNGNode).connect()
         info = await conn.ainvoke()
         assert not conn.session.rt_state.executor_config.end_on_error
         response = info
@@ -83,11 +78,7 @@ def config_test_threads():
     async def run_with_config_w_context():
         railtracks.context.central.set_config(end_on_error=False)
 
-        @rt.function_node
-        async def entry():
-            return await rt.call(RNGNode)
-
-        conn = rt.Flow("config_test_threads_w_context", entry).connect()
+        conn = rt.Flow("config_test_threads_w_context", RNGNode).connect()
         response = await conn.ainvoke()
         assert not conn.session.rt_state.executor_config.end_on_error
         assert isinstance(response, float), "Expected a float result from RNGNode"
@@ -109,11 +100,7 @@ async def test_sequence_of_changes():
     railtracks.context.central.set_config(end_on_error=False)
     railtracks.context.central.set_config(end_on_error=True)
 
-    @rt.function_node
-    async def entry():
-        return await rt.call(RNGNode)
-
-    conn = rt.Flow("test_sequence_of_changes", entry).connect()
+    conn = rt.Flow("test_sequence_of_changes", RNGNode).connect()
     response = await conn.ainvoke()
     assert conn.session.rt_state.executor_config.end_on_error
     assert response == conn.session.info.answer
@@ -123,19 +110,15 @@ async def test_sequence_of_changes_overwrite():
     railtracks.context.central.set_config(end_on_error=True)
     railtracks.context.central.set_config(end_on_error=False)
 
-    @rt.function_node
-    async def entry():
-        return await rt.call(RNGNode)
-
     conn = rt.Flow(
-        "test_sequence_of_changes_overwrite", entry, end_on_error=True
+        "test_sequence_of_changes_overwrite", RNGNode, end_on_error=True
     ).connect()
     response = await conn.ainvoke()
     assert conn.session.rt_state.executor_config.end_on_error
     assert response == conn.session.info.answer
 
 
-def test_back_to_defaults():
+async def test_back_to_defaults():
     rt.set_config(end_on_error=True)
 
     @rt.function_node
@@ -143,11 +126,11 @@ def test_back_to_defaults():
         return None
 
     conn = rt.Flow("test_back_to_defaults_explicit", entry, end_on_error=True).connect()
-    conn.invoke()
+    await conn.ainvoke()
     assert conn.session.rt_state.executor_config.end_on_error
 
     conn = rt.Flow("test_back_to_defaults_default", entry).connect()
-    conn.invoke()
+    await conn.ainvoke()
     assert conn.session.rt_state.executor_config.end_on_error
 
 

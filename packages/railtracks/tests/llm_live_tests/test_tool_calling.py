@@ -34,11 +34,7 @@ async def test_function_as_tool(llm):
         llm=llm,
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input=user_input)
-
-    conn = rt.Flow("test_function_as_tool", entry).connect()
+    conn = rt.Flow("test_function_as_tool", agent).connect()
     response = await conn.ainvoke(
         "First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.",
     )
@@ -91,11 +87,7 @@ async def test_realistic_scenario(llm):
         llm=llm,
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(agent, user_input)
-
-    conn = rt.Flow("test_realistic_scenario", entry).connect()
+    conn = rt.Flow("test_realistic_scenario", agent).connect()
     await conn.ainvoke(rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)]))
     assert conn.context.get("staff_directory_updated")
 
@@ -155,12 +147,8 @@ async def test_agents_as_tools(llm):
         llm=llm,
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(parent_tool, user_input=user_input)
-
     # Run the parent tool
-    conn = rt.Flow("test_agents_as_tools", entry, timeout=100).connect()
+    conn = rt.Flow("test_agents_as_tools", parent_tool, timeout=100).connect()
     response = await conn.ainvoke("Get me the secret phrase for id `1`.")
 
     final_resp = response

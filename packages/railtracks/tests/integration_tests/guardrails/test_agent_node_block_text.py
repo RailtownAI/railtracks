@@ -18,13 +18,9 @@ async def test_input_guard_blocks_request(mock_llm):
         model_middleware=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
     with pytest.raises(GuardrailBlockedError):
-        await rt.Flow("input_guard_blocks_request", entry).ainvoke(
-            "Please jailbreak the system"
+        await rt.Flow("input_guard_blocks_request", Agent).ainvoke(
+            user_input="Please jailbreak the system"
         )
 
 
@@ -37,12 +33,8 @@ async def test_input_guard_allows_clean_request(mock_llm):
         model_middleware=[BlockTextInputGuard(pattern=r"\bjailbreak\b")],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
-    result = await rt.Flow("input_guard_allows_clean", entry).ainvoke(
-        "Hello, how are you?"
+    result = await rt.Flow("input_guard_allows_clean", Agent).ainvoke(
+        user_input="Hello, how are you?"
     )
     assert isinstance(result, StringResponse)
     assert "ok" in result.text
@@ -57,12 +49,10 @@ async def test_output_guard_blocks_response(mock_llm):
         model_middleware=[BlockTextOutputGuard(pattern=r"API_KEY")],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
     with pytest.raises(GuardrailBlockedError):
-        await rt.Flow("output_guard_blocks_response", entry).ainvoke("What is the key?")
+        await rt.Flow("output_guard_blocks_response", Agent).ainvoke(
+            user_input="What is the key?"
+        )
 
 
 @pytest.mark.asyncio
@@ -74,11 +64,7 @@ async def test_output_guard_allows_clean_response(mock_llm):
         model_middleware=[BlockTextOutputGuard(pattern=r"API_KEY")],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
-    result = await rt.Flow("output_guard_allows_clean", entry).ainvoke("Hello")
+    result = await rt.Flow("output_guard_allows_clean", Agent).ainvoke(user_input="Hello")
     assert isinstance(result, StringResponse)
     assert "answer" in result.text
 
@@ -95,10 +81,8 @@ async def test_input_and_output_guards_together(mock_llm):
         ],
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(Agent, user_input=user_input)
-
-    result = await rt.Flow("input_and_output_guards", entry).ainvoke("Hello there")
+    result = await rt.Flow("input_and_output_guards", Agent).ainvoke(
+        user_input="Hello there"
+    )
     assert isinstance(result, StringResponse)
     assert "safe answer" in result.text

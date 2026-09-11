@@ -6,7 +6,8 @@ from railtracks.rt_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.mark.skip(reason="Skipped due to LLM stochasticity")
-def test_from_mcp_server_with_llm():
+@pytest.mark.asyncio
+async def test_from_mcp_server_with_llm():
     time_server = rt.connect_mcp(
         MCPStdioParams(
             command=sys.executable,
@@ -23,22 +24,19 @@ def test_from_mcp_server_with_llm():
         llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(parent_tool, user_input=user_input)
-
     # Run the parent tool
     message_history = rt.llm.MessageHistory([rt.llm.UserMessage("What time is it?")])
-    response = rt.Flow("test_from_mcp_server_with_llm", entry, timeout=1000).invoke(
-        message_history
-    )
+    response = await rt.Flow(
+        "test_from_mcp_server_with_llm", parent_tool, timeout=1000
+    ).ainvoke(message_history)
 
     assert response is not None
     assert response.content != "It didn't work!"
 
 
 @pytest.mark.skip(reason="Skipped due to LLM stochasticity")
-def test_from_mcp_server_with_http():
+@pytest.mark.asyncio
+async def test_from_mcp_server_with_http():
     time_server = rt.connect_mcp(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
     parent_tool = rt.agent_node(
         tool_nodes={*time_server.tools},
@@ -50,17 +48,13 @@ def test_from_mcp_server_with_http():
         llm=rt.llm.OpenAILLM("gpt-4o"),
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(parent_tool, user_input=user_input)
-
     # Run the parent tool
     message_history = rt.llm.MessageHistory(
         [rt.llm.UserMessage("Tell me about the website conductr.ai")]
     )
-    response = rt.Flow("test_from_mcp_server_with_http", entry, timeout=1000).invoke(
-        message_history
-    )
+    response = await rt.Flow(
+        "test_from_mcp_server_with_http", parent_tool, timeout=1000
+    ).ainvoke(message_history)
 
     assert response is not None
     assert response.content != "It didn't work!"

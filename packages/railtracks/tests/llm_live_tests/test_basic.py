@@ -57,11 +57,7 @@ async def test_terminal_llm(llm):
         llm=llm,
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(terminal_node, user_input=user_input)
-
-    response = await rt.Flow("test_terminal_llm", entry).ainvoke(
+    response = await rt.Flow("test_terminal_llm", terminal_node).ainvoke(
         "Please reverse '12345'."
     )
     final_resp: StringResponse | None = response
@@ -84,11 +80,7 @@ async def test_structured_llm(llm, test_case):
         llm=llm,
     )
 
-    @rt.function_node
-    async def entry(user_input):
-        return await rt.call(structured_node, user_input=user_input)
-
-    response = await rt.Flow("test_structured_llm", entry).ainvoke(
+    response = await rt.Flow("test_structured_llm", structured_node).ainvoke(
         test_case["user_input"]
     )
 
