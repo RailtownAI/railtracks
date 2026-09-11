@@ -1,7 +1,7 @@
 We support using agents as tools in the following two ways:
 
 ## 1. Python Function
-By using a python function to call your agent, you can have the flexibility of your agent being invoked in different ways in different contexts. You will then simply [pass this function as a tool]() to your Orchestrator.
+By using a python function to call your agent, you can have the flexibility of your agent being invoked in different ways in different contexts. You will then simply [pass this function as a tool](function_tools.md) to your Orchestrator.
 ```python
 import railtracks as rt
 from my_agents import SomeAgent
@@ -17,8 +17,8 @@ def some_way(arg1: arg1_type, arg2: arg2_type) -> return_type
     ...
 ```
 
-## 2. Agent Manifest
-In this way, at agent definition time, you also define how this agent can be used by other agents.
+## 2. Tool Manifest
+A **tool manifest** is the description an agent carries of how other agents may call it: a description of what it does and the parameters it expects. Passing `manifest=` at agent definition time means any other agent can take this one as a tool without a wrapper function.
 ```python
 import railtracks as rt
 
@@ -37,4 +37,4 @@ WorkerAgent = rt.agent_node(
 )
 ```
 
-You can refer to [API Reference](../../../api_reference/railtracks.html) for more information. Or take a look at our [Tutorials]() section.
+You can refer to [API Reference](../../../api_reference/railtracks.html) for more information. Or take a look at the [Agents as Tools](../../../tutorials/walkthroughs/agents_as_tools.md) walkthrough.

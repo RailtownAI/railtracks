@@ -11,7 +11,7 @@ Streaming is requested at the call site rather than baked into the agent, so the
 - `rt.call(agent, ...)` runs buffered, with no streaming overhead and no chunks.
 - `rt.astream(agent, ...)` streams the agent's LLM response chunk by chunk as it runs.
 
-`rt.astream` targets **agent nodes only**. Passing a `@function_node` (or any non-agent node) raises an error; run those with `rt.call` and reach for `rt.astream` on the agent inside them.
+`rt.astream` targets **[agent nodes](../../documentation/agent_design/overview.md#agent-node) only**. Passing a [`function_node`](../../documentation/agent_design/tools/function_tools.md#what-a-function-node-is) (or any non-agent node) raises an error; run those with `rt.call` and reach for `rt.astream` on the agent inside them.
 
 `rt.astream` returns a `Stream`, an async iterator that yields only the `str` chunks. The final result is kept separate and read from `.result` once the stream is exhausted, so a chunk is never confused with the final value:
 

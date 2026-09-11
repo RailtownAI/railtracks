@@ -44,6 +44,7 @@ theme:
     - content.code.copy
     - content.code.highlight
     - content.code.annotate
+    - content.tooltips
 
 plugins:
   - search
@@ -61,8 +62,14 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:mermaid2.fence_mermaid_custom
+  - abbr
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  # Glossary terms are appended to every page so `abbr` can turn them into
+  # hover definitions. The appended file is generated from docs/glossary.md
+  # by scripts/mkdocs_hooks.py.
+  - pymdownx.snippets:
+      auto_append:
+        - docs/includes/glossary_tooltips.md
   - pymdownx.highlight:
       anchor_linenums: true
       pygments_lang_class: true
@@ -74,11 +81,19 @@ extra_css:
 extra:
   generator: false
 
+# Generated include, appended to every page rather than published as one.
+exclude_docs: |
+  includes/
+
 # Per-middleware prebuilt pages are intentionally kept out of the sidebar (they are
 # reached from the prebuilt Overview catalog) so the nav stays clean as the
 # catalog grows. Listing them here silences the "not in nav" build warning.
 not_in_nav: |
   /documentation/agent_design/middleware/prebuilt/list/*.md
+
+validation:
+  links:
+    anchors: warn
 
 nav:
   - Home: index.md
@@ -228,5 +243,7 @@ nav:
               - Overview: tutorials/concepts/architectures/overview.md
               - Validation Loops: tutorials/concepts/architectures/validation_loop.md
               - Sequential Flows: tutorials/concepts/architectures/sequential.md
+
+  - Glossary: glossary.md
 
   - API Reference: api_reference.md

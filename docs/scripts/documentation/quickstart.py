@@ -8,8 +8,8 @@ Agent = rt.agent_node(
 )
 
 
-# Create your flow and set the entry point to the function we just created. 
-# Then we can invoke the flow with a the input to the function node. 
+# Create your flow and set the entry point to the agent we just created.
+# Then we can invoke the flow with the input to that agent.
 flow = rt.Flow("Quickstart Example", entry_point=Agent)
 
 result = flow.invoke("Hello, what can you do?")

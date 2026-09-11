@@ -6,7 +6,7 @@ One of the most important parts of any agentic system is the **set of tools** th
 
 A **tool** provides the agent with the ability to interact with external systems, perform actions, or access information that is not contained within the LLM's training data. Tools can be anything from APIs, databases, or even simple functions that perform specific tasks.
 
-At a technical level, tools are often defined as **functions** that the agent can call. Large Language Models (LLMs) like OpenAI’s or Anthropic’s support something called `tool_calls` or `function_calls`. These allow the LLM to output structured `JSON`.
+At a technical level, tools are often defined as **functions** that the agent can call. Large Language Models (LLMs) like OpenAI’s or Anthropic’s support something called `tool_calls` or `function_calls`. These allow the LLM to output structured `JSON`. In Railtracks a tool is any node given to an agent, most often a [function node](../../documentation/agent_design/tools/function_tools.md#what-a-function-node-is).
 
 !!! info "Common Tools"
     * Search the web

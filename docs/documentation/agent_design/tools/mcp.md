@@ -108,7 +108,7 @@ For detailed setup and usage instructions for specific MCP tools:
 
 ### Overview
 
-You can expose any Railtrack Node as an MCP-compatible tool, making it accessible to any MCP client or LLM agent that supports the [Model Context Protocol (MCP)](mcp.md). This allows you to share your custom RT logic with other frameworks, agents, or applications that use MCP.
+You can expose any Railtracks [node](../overview.md#node) as an MCP-compatible tool, making it accessible to any MCP client or LLM agent that supports the [Model Context Protocol (MCP)](mcp.md). This allows you to share your custom RT logic with other frameworks, agents, or applications that use MCP.
 
 RC provides utilities to convert your Nodes into MCP tools and run a FastMCP server, so your tools are discoverable and callable via standard MCP transports (HTTP, SSE, stdio).
 
@@ -120,7 +120,7 @@ RC provides utilities to convert your Nodes into MCP tools and run a FastMCP ser
 
 #### 1. Convert RT Nodes to MCP Tools
 
-Use the `create_mcp_server` utility to expose your RT nodes as MCP tools:
+Use the `create_mcp_server` utility to expose your nodes as MCP tools:
 
 ```python
 --8<-- "docs/scripts/RTtoMCP.py:simple_mcp_creation"
