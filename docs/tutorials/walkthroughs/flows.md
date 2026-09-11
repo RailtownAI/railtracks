@@ -2,6 +2,9 @@
 
 Railtracks makes it easy to create custom agents with access to tools they can call to complete tasks. But what if you want to use agents themselves as tools? In this section, we’ll explore more complex flows and how Railtracks gives you control over them.
 
+!!! note
+    “Flow” is used here in its informal sense, meaning the shape of an agent graph. For the `rt.Flow` object that wraps a graph as a reusable entry point, see [Flows](../../documentation/invocation/flows.md).
+
 To start, let’s look at the simplest case: an agent that uses another agent as a tool.
 
 ### Example

@@ -70,6 +70,16 @@ Use admonitions sparingly, and match the existing tone:
 - External links must be full `https://` URLs.
 - Do not link to `main`-branch file paths for pages that are also in the nav;
   link to the rendered page instead.
+- Link to the **anchor that holds the definition**, not to the top of the page that contains it: `../invocation/flows.md#entry-point`, not `../invocation/flows.md`. Broken anchors fail `mkdocs build --strict`.
+
+## Keywords and the glossary
+
+Railtracks vocabulary (node, agent node, Flow, entry point, run, middleware and so on) is defined in exactly one place, and every other page links to it.
+
+- **One canonical home per term.** The page that owns a subject owns the full description of its terms, with the reasons and an example. Do not restate a definition on a second page, link to it.
+- **Link the first mention on a page**, not every mention. A reader who already followed the link does not need it again three paragraphs later.
+- **Add an entry to [the glossary](../../glossary.md)** when you introduce a term. Entries there are pointers rather than documentation: at most two sentences, always ending in a link to the canonical section, and never any code.
+- Glossary entries also become **hover definitions** site-wide. The `abbr` definitions behind them are generated from `docs/glossary.md` by `scripts/mkdocs_hooks.py`, so a tooltip and its glossary entry cannot drift apart. A term whose capitalized form also appears in an unrelated sense (Run, Tool, Context) is listed in that script's denylist and stays out of the tooltips.
 
 ## Building and previewing locally
 

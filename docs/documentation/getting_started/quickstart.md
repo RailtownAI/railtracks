@@ -12,7 +12,7 @@ pip install 'railtracks[visual]'
 
 ## 2. Running your Agent
 
-Define an agent with a model and system message, then call it with a prompt:
+Define an [agent](../agent_design/overview.md#agent-node) with a model and system message, wrap it in a [Flow](../invocation/flows.md), then invoke it with a prompt:
 
 ```python
 --8<-- "docs/scripts/documentation/quickstart.py:setup"
