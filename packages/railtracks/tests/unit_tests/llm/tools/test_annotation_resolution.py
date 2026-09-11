@@ -23,6 +23,12 @@ from railtracks.llm.tools.tool import Tool
 from . import _pep563_module as pep563
 
 
+class Payload(BaseModel):
+    """Module-level model, so a forward reference to it resolves from func globals."""
+
+    value: str
+
+
 def _params(func) -> Dict[str, Parameter]:
     """Return the inferred parameters of ``func`` keyed by name."""
     return {p.name: p for p in Tool.from_function(func).parameters}
@@ -266,9 +272,11 @@ def test_optional_list_of_str_is_a_typed_array():
         """
         return ""
 
+    # identical to the schema a non-optional `List[str]` produces; `Optional` is
+    # carried by `required`, not by the shape of the schema
     assert _schema(func, "tags") == {
         "type": "array",
-        "items": {"type": "string"},
+        "items": {"type": "string", "description": "Tags to filter on."},
         "description": "Tags to filter on.",
     }
 
@@ -321,12 +329,92 @@ def test_nested_list_of_lists_resolves_both_levels():
     }
 
 
-def test_union_containing_a_tuple_does_not_nest_unions():
+def test_union_containing_a_tuple_keeps_the_tuple_a_container():
     def func(value: Union[Tuple[str, int], bool]) -> str:
         return ""
 
+    anyof = _schema(func, "value")["anyOf"]
+
     # a nested UnionParameter would raise TypeError during construction
-    assert {"type": "boolean"} in _schema(func, "value")["anyOf"]
+    assert {"type": "boolean"} in anyof
+    # the tuple stays one arm of the union rather than dissolving into two scalars
+    assert {
+        "type": "array",
+        "items": {"anyOf": [{"type": "string"}, {"type": "integer"}]},
+        "maxItems": 2,
+        "minItems": 2,
+    } in anyof
+
+
+def test_tuple_keeps_the_function_parameter_name():
+    def func(coords: Tuple[float, float]) -> str:
+        return ""
+
+    param = _params(func)["coords"]
+
+    # a renamed parameter would produce tool calls the function cannot accept
+    assert param.name == "coords"
+    assert param.to_json_schema() == {
+        "type": "array",
+        "items": {"type": "number"},
+        "maxItems": 2,
+        "minItems": 2,
+    }
+
+
+def test_variadic_tuple_has_no_length_bound():
+    def func(parts: Tuple[str, ...]) -> str:
+        return ""
+
+    assert _schema(func, "parts") == {"type": "array", "items": {"type": "string"}}
+
+
+def test_forward_ref_nested_in_a_generic_resolves():
+    schema = _schema(pep563.nested_forward_refs, "points")
+
+    assert set(schema["items"]["properties"]) == {"x", "y"}
+
+
+def test_forward_ref_nested_two_levels_deep_resolves():
+    schema = _schema(pep563.nested_forward_refs, "grid")
+
+    assert set(schema["items"]["items"]["properties"]) == {"x", "y"}
+
+
+def test_one_unresolvable_parameter_does_not_degrade_the_others():
+    with pytest.warns(UserWarning, match="NotARealName"):
+        params = _params(pep563.partially_unresolvable)
+
+    assert set(params["points"].to_json_schema()["items"]["properties"]) == {"x", "y"}
+    # under PEP 563 the whole annotation is one expression, so it degrades whole
+    assert params["bad"].to_json_schema()["type"] == "object"
+
+
+def test_one_unresolvable_arm_does_not_degrade_the_container():
+    def func(good: List["Payload"], bad: List["NotARealName"]) -> str:  # noqa: F821
+        return ""
+
+    with pytest.warns(UserWarning, match="NotARealName"):
+        params = _params(func)
+
+    assert set(params["good"].to_json_schema()["items"]["properties"]) == {"value"}
+    # the outer list survives; only the unresolvable element type falls back
+    assert params["bad"].to_json_schema() == {
+        "type": "array",
+        "items": {"type": "object"},
+    }
+
+
+def test_literal_including_none_is_optional_like_optional_literal():
+    def literal_none(mode: Literal["fast", None]) -> str:
+        return ""
+
+    def optional_literal(mode: Optional[Literal["fast"]]) -> str:
+        return ""
+
+    # both spellings mean "may be omitted or None"
+    assert _params(literal_none)["mode"].required is False
+    assert _params(optional_literal)["mode"].required is False
 
 
 def test_array_of_models_still_describes_the_item():
@@ -379,7 +467,7 @@ def test_manifest_matching_literal_and_generic_parameters_is_accepted():
         )
 
 
-def test_manifest_type_mismatch_warns_instead_of_raising():
+def test_manifest_contradicting_a_reliable_annotation_is_rejected():
     def func(a: int) -> str:
         """Take an int.
 
@@ -388,11 +476,28 @@ def test_manifest_type_mismatch_warns_instead_of_raising():
         """
         return ""
 
-    with pytest.warns(UserWarning, match="Type mismatch for parameter 'a'"):
-        node = rt.function_node(func, manifest=_manifest(("a", "string", True)))
+    with pytest.raises(NodeCreationError, match="Type mismatch for parameter 'a'"):
+        rt.function_node(func, manifest=_manifest(("a", "string", True)))
 
-    # the manifest, not the inference, is what reaches the model
-    assert node.node_type.tool_info().parameters[0].param_type == "string"
+
+def test_manifest_for_an_underivable_model_does_not_warn():
+    class Unbuildable(BaseModel):
+        value: "NeverDefined"  # noqa: F821 -- a forward ref that cannot resolve
+
+    def func(payload: Unbuildable) -> str:
+        """Take a payload.
+
+        Args:
+            payload: A payload.
+        """
+        return ""
+
+    # the advice attached to a degraded schema is "pass a ToolManifest"; one was
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        node = rt.function_node(func, manifest=_manifest(("payload", "object", True)))
+
+    assert node.node_type.tool_info().parameters[0].param_type == "object"
 
 
 def test_unannotated_parameter_does_not_constrain_the_manifest():

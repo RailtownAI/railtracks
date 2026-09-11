@@ -19,6 +19,7 @@ class ArrayParameter(Parameter):
         default: Any = None,
         max_items: Optional[int] = None,
         additional_properties: bool = False,
+        min_items: Optional[int] = None,
     ):
         """Initialize an ArrayParameter instance.
 
@@ -30,10 +31,12 @@ class ArrayParameter(Parameter):
             default (Any): Default value for the parameter.
             max_items (Optional[int]): Maximum number of items allowed in the array.
             additional_properties (bool): Whether additional properties are allowed (relevant if items are objects).
+            min_items (Optional[int]): Minimum number of items required in the array.
         """
         super().__init__(name, description, required, default)
         self.items = items
         self.max_items = max_items
+        self.min_items = min_items
         self.additional_properties = (
             additional_properties  # might be relevant if items is object type
         )
@@ -53,6 +56,9 @@ class ArrayParameter(Parameter):
         if self.max_items is not None:
             schema["maxItems"] = self.max_items
 
+        if self.min_items is not None:
+            schema["minItems"] = self.min_items
+
         # Set defaults and enum if present at the array level
         if self.default is not None:
             schema["default"] = self.default
@@ -69,5 +75,6 @@ class ArrayParameter(Parameter):
             f"ArrayParameter(name={self.name!r}, items={self.items!r}, "
             f"description={self.description!r}, required={self.required!r}, "
             f"default={self.default!r}, max_items={self.max_items!r}, "
+            f"min_items={self.min_items!r}, "
             f"additional_properties={self.additional_properties!r})"
         )

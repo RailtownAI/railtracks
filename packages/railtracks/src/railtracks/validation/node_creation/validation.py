@@ -1,6 +1,15 @@
 import inspect
-import warnings
-from typing import Any, Callable, Dict, Iterable, List, Set, Union, get_origin
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Set,
+    Tuple,
+    Union,
+    get_origin,
+)
 
 from pydantic import BaseModel
 from railtracks.exceptions.errors import NodeCreationError
@@ -11,12 +20,75 @@ from railtracks.exceptions.messages.exception_messages import (
 )
 from railtracks.llm import Parameter, SystemMessage
 from railtracks.llm.tools.annotations import resolved_signature
-from railtracks.llm.tools.parameter_handlers import build_parameter
+from railtracks.llm.tools.parameter_handlers import (
+    build_parameter,
+    degrade_warnings_suppressed,
+)
 from railtracks.llm.tools.parameters import ParameterType
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation
 logger = get_rt_logger(__name__)
+
+
+def _model_field_annotations(annotation: Any) -> Iterable[Tuple[str, Any]]:
+    """Yield the ``(field name, annotation)`` pairs of a pydantic model.
+
+    ``model_fields`` is used rather than ``__annotations__`` because pydantic has
+    already resolved the field types, so the pairs carry inherited fields and real
+    types where ``__annotations__`` carries neither.
+
+    Args:
+        annotation: Any annotation; only ``BaseModel`` subclasses yield anything.
+
+    Returns:
+        The model's named field annotations, empty for anything else.
+    """
+    if not (isinstance(annotation, type) and issubclass(annotation, BaseModel)):
+        return ()
+
+    try:
+        fields = annotation.model_fields
+    except AttributeError:  # a model that pydantic never finished building
+        return ()
+
+    return [
+        (name, field.annotation)
+        for name, field in fields.items()
+        if field.annotation is not None
+    ]
+
+
+def _check_for_nested_dict(annotation: Any, param_name: str, path: str = "") -> None:
+    """Raise if ``annotation`` is, or contains, a dict type.
+
+    Args:
+        annotation: The annotation to inspect.
+        param_name: The parameter the annotation came from, for the error message.
+        path: Dotted path to the annotation within that parameter.
+
+    Raises:
+        NodeCreationError: If a dict is reachable from the annotation.
+    """
+    origin = get_origin(annotation)
+    # Direct dict or typing.Dict
+    if annotation is dict or origin in (dict, Dict):
+        notes = get_notes(ExceptionMessageKey.DICT_PARAMETER_NOT_ALLOWED_NOTES)
+        notes[0] = notes[0].format(param_name=param_name, path=path)
+        raise NodeCreationError(
+            message=get_message(
+                ExceptionMessageKey.DICT_PARAMETER_NOT_ALLOWED_MSG
+            ).format(param_name=param_name, path=path or param_name),
+            notes=notes,
+        )
+
+    for field_name, field_annotation in _model_field_annotations(annotation):
+        _check_for_nested_dict(
+            field_annotation, param_name, f"{path or param_name}.{field_name}"
+        )
+
+    for idx, arg in enumerate(getattr(annotation, "__args__", None) or ()):
+        _check_for_nested_dict(arg, param_name, f"{path or param_name}[{idx}]")
 
 
 def validate_function(func: Callable) -> None:
@@ -31,44 +103,10 @@ def validate_function(func: Callable) -> None:
     Raises:
         NodeCreationError: If the function has dict or Dict parameters, even nested.
     """
-
-    def check_for_nested_dict(annotation, param_name, path=""):
-        origin = get_origin(annotation)
-        # Direct dict or typing.Dict
-        if annotation is dict or origin in (dict, Dict):
-            notes = get_notes(ExceptionMessageKey.DICT_PARAMETER_NOT_ALLOWED_NOTES)
-            notes[0] = notes[0].format(param_name=param_name, path=path)
-            raise NodeCreationError(
-                message=get_message(
-                    ExceptionMessageKey.DICT_PARAMETER_NOT_ALLOWED_MSG
-                ).format(param_name=param_name, path=path or param_name),
-                notes=notes,
-            )
-        # If annotation is a subclass of BaseModel, check its fields recursively
-        try:
-            if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-                for field_name, field in annotation.__annotations__.items():
-                    check_for_nested_dict(
-                        field, param_name, f"{path or param_name}.{field_name}"
-                    )
-        except (
-            AttributeError
-        ):  # Only swallow attribute errors (e.g., __annotations__ missing)
-            pass
-        except Exception as e:  # if a nested error is caught, pass it along (includes passing up NodeCreationError)
-            raise e
-
-        args = getattr(annotation, "__args__", None)
-        if args:
-            for idx, arg in enumerate(args):
-                nested_path = f"{path or param_name}[{idx}]"
-                check_for_nested_dict(arg, param_name, nested_path)
-
     # resolved so PEP 563 string annotations do not slip past the dict check
     sig = resolved_signature(func)
     for param in sig.parameters.values():
-        annotation = param.annotation
-        check_for_nested_dict(annotation, param.name)
+        _check_for_nested_dict(param.annotation, param.name)
 
 
 def check_classmethod(method: Any, method_name: str) -> None:
@@ -383,7 +421,10 @@ def _infer_param_type(annotation: Any) -> Union[str, List[str], None]:
         # Unannotated, or an annotation we could not resolve
         return None
 
-    inferred = build_parameter(param_annotation=annotation).param_type
+    with degrade_warnings_suppressed():
+        # the parameter is built to read its type back, not to be sent to a model,
+        # so the "pass an explicit ToolManifest" advice does not apply here
+        inferred = build_parameter(param_annotation=annotation).param_type
 
     if _as_type_set(inferred) == {ParameterType.OBJECT.value}:
         # 'object' is the fallback for an annotation the type mapping does not
@@ -396,19 +437,23 @@ def _infer_param_type(annotation: Any) -> Union[str, List[str], None]:
     return inferred
 
 
-def _warn_on_type_mismatch(
+def _check_type_mismatch(
     param_name: str, func_param: inspect.Parameter, declared_type: Any
 ) -> None:
-    """Warn when a manifest's declared type disagrees with the function signature.
+    """Reject a manifest whose declared type contradicts the function signature.
 
-    The manifest is what gets sent to the model. Signature
-    inference is a heuristic and cannot express every intent, so a disagreement is
-    reported rather than raised.
+    Only a confident inference is compared. Where the signature carries no reliable
+    type -- an unannotated parameter, or one that only reaches the generic object
+    fallback -- the manifest is the better description of the two and nothing is
+    checked, which is what makes a manifest a usable escape hatch.
 
     Args:
         param_name: Name of the parameter being checked.
         func_param: The (annotation-resolved) parameter from the function signature.
         declared_type: The ``param_type`` declared by the manifest.
+
+    Raises:
+        NodeCreationError: If the declared type shares no type with the inferred one.
     """
     inferred = _infer_param_type(func_param.annotation)
     if inferred is None:
@@ -419,12 +464,13 @@ def _warn_on_type_mismatch(
     if not declared_types or inferred_types & declared_types:
         return
 
-    warnings.warn(
-        f"Type mismatch for parameter '{param_name}': the function signature implies "
-        f"'{inferred}', but the tool manifest declares '{declared_type}'. The manifest "
-        "is used as-is; update it if this is not intentional.",
-        UserWarning,
-        stacklevel=4,
+    raise NodeCreationError(
+        message=f"Type mismatch for parameter '{param_name}': the function signature "
+        f"implies '{inferred}', but the tool manifest declares '{declared_type}'.",
+        notes=[
+            "Ensure the parameter types in the tool manifest match the function signature.",
+            "Refer to the ParameterType enum for valid types.",
+        ],
     )
 
 
@@ -441,7 +487,7 @@ def _check_manifest_params_exist_in_function(
                     "Remove the extra parameter from the tool manifest or add it to the function signature.",
                 ],
             )
-        _warn_on_type_mismatch(
+        _check_type_mismatch(
             param_name, func_params[param_name], manifest_params[param_name]
         )
 
@@ -473,18 +519,18 @@ def validate_tool_manifest_against_function(
     2. Required function parameters are present in manifest (unless they have defaults)
     3. No extra parameters in manifest that don't exist in function
 
-    Parameter types are also compared against the (annotation-resolved) signature,
-    but a disagreement only warns: the manifest is an explicit declaration and is
-    used as the tool schema, whereas signature inference is a heuristic. No
-    comparison is made at all where inference is unreliable -- an unannotated
-    parameter, or one whose annotation only reaches the generic object fallback.
+    Parameter types are compared against the (annotation-resolved) signature and a
+    contradiction is rejected. The comparison is skipped where inference is
+    unreliable -- an unannotated parameter, or one whose annotation only reaches the
+    generic object fallback -- so a manifest stays usable for exactly the
+    annotations the framework cannot read.
 
     Args:
         func: The function to validate against
         manifest_params: List of Parameter objects from ToolManifest, or None
 
     Raises:
-        NodeCreationError: If a parameter name check fails
+        NodeCreationError: If a parameter name or type check fails
     """
     try:
         sig = resolved_signature(func)

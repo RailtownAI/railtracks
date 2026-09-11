@@ -67,9 +67,14 @@ annotations are understood:
 | `str`, `int`, `float`, `bool` | `{"type": "string"}`, `"integer"`, `"number"`, `"boolean"` |
 | `Literal["a", "b"]` | `{"type": "string", "enum": ["a", "b"]}` |
 | `List[str]`, `list[float]` | `{"type": "array", "items": {...}}` |
+| `Tuple[X, Y]` | `{"type": "array", ...}` with `minItems`/`maxItems` pinned to the tuple's length |
+| `Tuple[X, ...]` | `{"type": "array", "items": {...}}`, no length bound |
 | `Optional[X]`, `X \| None` | the schema for `X`, marked not required |
 | `X \| Y` | `{"anyOf": [...]}` |
 | A `pydantic.BaseModel` | `{"type": "object", "properties": {...}}` |
+
+Forward references are resolved at every level, so `List["Payload"]` and modules using
+`from __future__ import annotations` describe their parameters in full.
 
 Anything Railtracks cannot recognise falls back to `{"type": "object"}`.
 
@@ -98,6 +103,8 @@ node = rt.function_node(
 )
 ```
 
-The manifest is the schema sent to the model. Railtracks still
-checks that the parameter *names* line up with the function signature and raises if they
-do not. A type that disagrees with the signature only warns.
+The manifest is the schema sent to the model. Railtracks still checks it against the
+function signature and raises if the parameter *names* do not line up, or if a declared
+type contradicts one the signature states unambiguously. Where the signature carries no
+reliable type, the manifest is taken as given and nothing is checked, which is what makes
+it a usable escape hatch for annotations inference cannot read.

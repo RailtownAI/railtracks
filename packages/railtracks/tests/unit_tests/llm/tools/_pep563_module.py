@@ -45,6 +45,26 @@ def deferred_generics(
     return ""
 
 
+def nested_forward_refs(points: List["Point"], grid: List[List["Point"]]) -> str:
+    """Forward references nested inside generics, not just at the top level.
+
+    Args:
+        points: A list of points.
+        grid: A list of lists of points.
+    """
+    return ""
+
+
+def partially_unresolvable(points: List["Point"], bad: List[NotARealName]) -> str:  # noqa: F821
+    """One resolvable generic and one that references a missing name.
+
+    Args:
+        points: A list of points.
+        bad: A list of something undefined.
+    """
+    return ""
+
+
 def takes_a_dict(payload: Dict[str, int]) -> str:
     """Not allowed as a node.
 

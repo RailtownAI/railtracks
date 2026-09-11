@@ -3,7 +3,19 @@ import inspect
 import types
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, List, Literal, Optional, Tuple, Union, get_args, get_origin
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import (
+    Any,
+    Generator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from pydantic import BaseModel
 
@@ -15,6 +27,29 @@ from .parameters import (
     UnionParameter,
 )
 from .schema_parser import parse_model_properties
+
+_degrade_warnings_suppressed: ContextVar[bool] = ContextVar(
+    "_degrade_warnings_suppressed", default=False
+)
+
+
+@contextmanager
+def degrade_warnings_suppressed() -> Generator[None, None, None]:
+    """Silence the warnings emitted when a parameter degrades to a generic object.
+
+    Those warnings tell the caller to describe the parameter with a
+    :class:`~railtracks.ToolManifest`. Callers that build a parameter only to read
+    its inferred type back -- manifest validation, for one -- would surface that
+    advice to users who have already followed it.
+
+    Yields:
+        Nothing; the suppression lasts for the duration of the block.
+    """
+    token = _degrade_warnings_suppressed.set(True)
+    try:
+        yield
+    finally:
+        _degrade_warnings_suppressed.reset(token)
 
 
 class ParameterHandler(ABC):
@@ -56,44 +91,41 @@ class UnionParameterHandler(ParameterHandler):
         description: Optional[str],
         required: bool,
     ) -> Parameter:
-        union_args = getattr(param_annotation, "__args__", [])
-        options: List[Parameter] = []
-        is_optional = False
-        for t in union_args:
-            if t is type(None):
-                is_optional = True
-            else:
-                # Dispatch through the full chain so nested generics, literals and
-                # models keep their structure instead of collapsing to 'object'.
-                options.append(build_parameter(param_annotation=t))
+        union_args = getattr(param_annotation, "__args__", ())
+        members = [t for t in union_args if t is not type(None)]
+        # a None member makes the parameter omissible, it is not a branch of its own
+        required = required and len(members) == len(union_args)
 
-        # If no options parsed (e.g. all None?), fallback to DefaultParameter 'none'
-        if not options:
-            options.append(
-                Parameter(
-                    name=param_name,
-                    param_type="none",
-                    description=description,
-                    required=required,
-                )
+        if not members:
+            return Parameter(
+                name=param_name,
+                param_type="none",
+                description=description,
+                required=required,
             )
 
-        options = _flatten_union_options(options)
+        if len(members) == 1:
+            # `Optional[X]` is a union in name only; build X's schema directly with
+            # the parameter's own metadata rather than emitting a single-branch
+            # anyOf. Optionality is carried by `required`.
+            return build_parameter(
+                param_annotation=members[0],
+                param_name=param_name,
+                description=description,
+                required=required,
+            )
 
-        if len(options) == 1:
-            # `Optional[X]` is a union in name only; emit X's schema directly rather
-            # than a single-branch anyOf. Optionality is carried by `required`.
-            only = options[0]
-            only.name = param_name
-            only.description = description or only.description
-            only.required = required and not is_optional
-            return only
+        # Dispatch through the full chain so nested generics, literals and models
+        # keep their structure instead of collapsing to 'object'.
+        options = _flatten_union_options(
+            [build_parameter(param_annotation=t) for t in members]
+        )
 
         return UnionParameter(
             name=param_name,
             options=options,
             description=description,
-            required=required and not is_optional,
+            required=required,
         )
 
 
@@ -123,13 +155,15 @@ def _model_object_parameter(
     try:
         schema = model.model_json_schema()
     except Exception as exc:  # noqa: BLE001 any schema failure degrades the same way
-        warnings.warn(
-            f"Could not derive a JSON schema for '{getattr(model, '__name__', model)}' "
-            f"(parameter '{param_name}'): {exc}. Falling back to an unconstrained "
-            "object; pass an explicit ToolManifest to describe this parameter.",
-            UserWarning,
-            stacklevel=4,
-        )
+        if not _degrade_warnings_suppressed.get():
+            warnings.warn(
+                f"Could not derive a JSON schema for "
+                f"'{getattr(model, '__name__', model)}' (parameter '{param_name}'): "
+                f"{exc}. Falling back to an unconstrained object; pass an explicit "
+                "ToolManifest to describe this parameter.",
+                UserWarning,
+                stacklevel=4,
+            )
         return ObjectParameter(
             name=param_name,
             properties=[],
@@ -169,6 +203,74 @@ class PydanticModelHandler(ParameterHandler):
         )
 
 
+def _tuple_parameter(
+    param_name: str,
+    element_types: Tuple[Any, ...],
+    description: Optional[str],
+    required: bool,
+) -> Parameter:
+    """Describe a tuple annotation as a JSON array.
+
+    A tuple is a sequence, so it stays an array parameter under its own name. A
+    fixed-length tuple pins its length through ``minItems``/``maxItems`` and, when
+    its members differ, admits any member type per element; ``Tuple[X, ...]``
+    carries no length bound.
+
+    Args:
+        param_name: Name to give the resulting parameter.
+        element_types: The tuple's type arguments, as written in the annotation.
+        description: Description to attach.
+        required: Whether the parameter is required.
+
+    Returns:
+        An ``ArrayParameter`` describing the tuple.
+    """
+    variadic = len(element_types) == 2 and element_types[1] is Ellipsis
+    positional = [t for t in element_types if t is not Ellipsis]
+
+    # `Tuple[float, float]` constrains every element the same way; only distinct
+    # member types need a branch in the item schema.
+    members: List[Any] = []
+    for element_type in positional:
+        if not any(element_type == seen for seen in members):
+            members.append(element_type)
+
+    if not members:
+        # bare `tuple`, or `Tuple[()]`: no element type to describe
+        item: Parameter = Parameter(
+            name=f"{param_name}_item",
+            param_type=ParameterType.STRING.value,
+            description=description,
+            required=True,
+        )
+    elif len(members) == 1:
+        item = build_parameter(
+            param_name=f"{param_name}_item",
+            param_annotation=members[0],
+            description=description,
+        )
+    else:
+        options = _flatten_union_options(
+            [build_parameter(param_annotation=t) for t in members]
+        )
+        item = UnionParameter(
+            name=f"{param_name}_item",
+            options=options,
+            description=description,
+        )
+
+    length = None if variadic or not positional else len(positional)
+    return ArrayParameter(
+        name=param_name,
+        items=item,
+        description=description,
+        required=required,
+        max_items=length,
+        min_items=length,
+        additional_properties=False,
+    )
+
+
 class SequenceParameterHandler(ParameterHandler):
     """Handler for sequence parameters (lists and tuples)."""
 
@@ -190,28 +292,12 @@ class SequenceParameterHandler(ParameterHandler):
         else:
             is_tuple = param_annotation in (tuple, Tuple)
 
-        sequence_args = getattr(param_annotation, "__args__", [])
+        sequence_args: Tuple[Any, ...] = tuple(
+            getattr(param_annotation, "__args__", ())
+        )
 
         if is_tuple:
-            # For tuple of multiple types, fallback to UnionParameter of those types
-            options = []
-            for idx, t in enumerate(sequence_args):
-                options.append(
-                    build_parameter(
-                        param_name=f"{param_name}_tuple_option_{idx}",
-                        param_annotation=t,
-                        description=f"Option {idx} of tuple",
-                    )
-                )
-            # Create UnionParameter to capture all possible tuple element types
-            return UnionParameter(
-                name=f"{param_name}_tuple_options",
-                options=_flatten_union_options(options),
-                description=f"{description} (tuple of multiple types)"
-                if description
-                else None,
-                required=required,
-            )
+            return _tuple_parameter(param_name, sequence_args, description, required)
         else:
             # For lists, single element type
             if sequence_args:
@@ -305,7 +391,9 @@ class LiteralParameterHandler(ParameterHandler):
             name=param_name,
             param_type=param_type,
             description=description,
-            required=required,
+            # `Literal["a", None]` and `Optional[Literal["a"]]` say the same thing,
+            # so a None member makes the parameter omissible in both spellings.
+            required=required and None not in values,
             enum=values,
         )
 
@@ -339,7 +427,8 @@ def _flatten_union_options(options: List[Parameter]) -> List[Parameter]:
     """Expand nested :class:`UnionParameter` options into a flat list.
 
     ``UnionParameter`` rejects unions inside its own options, and nesting can arise
-    from annotations such as ``Union[Tuple[str, int], bool]``.
+    wherever a union member is itself described by a union, such as an
+    ``Annotated[Union[...], ...]`` branch.
 
     Args:
         options: Parameters destined for a ``UnionParameter``.
