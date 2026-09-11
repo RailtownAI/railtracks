@@ -5,8 +5,6 @@ These tests prove the chain holds for function nodes built via the parametrized
 decorator form (`@rt.function_node(middleware=[...])`).
 """
 
-import asyncio
-
 import pytest
 import railtracks as rt
 
@@ -26,11 +24,7 @@ def test_function_node_middleware_runs():
         """Add two numbers."""
         return a + b
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(add, 1, 2)
-
-    result = asyncio.run(top_level())
+    result = rt.Flow("test_function_node_middleware_runs", add).invoke(1, 2)
     assert result == 3
     assert events == ["before", "after"]
 
@@ -45,11 +39,10 @@ def test_function_node_middleware_can_short_circuit():
         """Add two numbers."""
         return a + b
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(add, 1, 2)
-
-    assert asyncio.run(top_level()) == -1
+    assert (
+        rt.Flow("test_function_node_middleware_can_short_circuit", add).invoke(1, 2)
+        == -1
+    )
 
 
 def test_middleware_exception_propagates_through_multiple_layers():
@@ -75,12 +68,10 @@ def test_middleware_exception_propagates_through_multiple_layers():
     def boom(a: int, b: int) -> int:
         raise ValueError("kaboom")
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(boom, 1, 2)
-
     with pytest.raises(ValueError, match="kaboom"):
-        asyncio.run(top_level())
+        rt.Flow(
+            "test_middleware_exception_propagates_through_multiple_layers", boom
+        ).invoke(1, 2)
     assert log == ["outer-in", "inner-in", "inner-out", "outer-out"]
 
 
@@ -106,11 +97,9 @@ def test_multiple_middleware_outer_to_inner_order():
         log.append("core")
         return x
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(identity, 5)
-
-    result = asyncio.run(top_level())
+    result = rt.Flow("test_multiple_middleware_outer_to_inner_order", identity).invoke(
+        5
+    )
     assert result == 5
     assert log == ["first-in", "second-in", "core", "second-out", "first-out"]
 
@@ -126,12 +115,8 @@ def test_after_does_not_run_when_call_raises():
     def boom() -> int:
         raise ValueError("nope")
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(boom)
-
     with pytest.raises(ValueError, match="nope"):
-        asyncio.run(top_level())
+        rt.Flow("test_after_does_not_run_when_call_raises", boom).invoke()
     assert fn_called["value"] is False
 
 
@@ -140,8 +125,4 @@ def test_after_replaces_return_value_on_success():
     def five() -> int:
         return 5
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(five)
-
-    assert asyncio.run(top_level()) == 50
+    assert rt.Flow("test_after_replaces_return_value_on_success", five).invoke() == 50

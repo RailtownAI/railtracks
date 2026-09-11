@@ -1,4 +1,3 @@
-import asyncio
 import sys
 
 import pytest
@@ -7,7 +6,8 @@ from railtracks.rt_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.mark.skip(reason="Skipped due to LLM stochasticity")
-def test_from_mcp_server_with_llm():
+@pytest.mark.asyncio
+async def test_from_mcp_server_with_llm():
     time_server = rt.connect_mcp(
         MCPStdioParams(
             command=sys.executable,
@@ -25,18 +25,18 @@ def test_from_mcp_server_with_llm():
     )
 
     # Run the parent tool
-    with rt.Session(timeout=1000):
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("What time is it?")]
-        )
-        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
+    message_history = rt.llm.MessageHistory([rt.llm.UserMessage("What time is it?")])
+    response = await rt.Flow(
+        "test_from_mcp_server_with_llm", parent_tool, timeout=1000
+    ).ainvoke(message_history)
 
     assert response is not None
     assert response.content != "It didn't work!"
 
 
 @pytest.mark.skip(reason="Skipped due to LLM stochasticity")
-def test_from_mcp_server_with_http():
+@pytest.mark.asyncio
+async def test_from_mcp_server_with_http():
     time_server = rt.connect_mcp(MCPHttpParams(url="https://mcp.deepwiki.com/sse"))
     parent_tool = rt.agent_node(
         tool_nodes={*time_server.tools},
@@ -49,11 +49,12 @@ def test_from_mcp_server_with_http():
     )
 
     # Run the parent tool
-    with rt.Session(timeout=1000):
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("Tell me about the website conductr.ai")]
-        )
-        response = asyncio.run(rt.call(parent_tool, user_input=message_history))
+    message_history = rt.llm.MessageHistory(
+        [rt.llm.UserMessage("Tell me about the website conductr.ai")]
+    )
+    response = await rt.Flow(
+        "test_from_mcp_server_with_http", parent_tool, timeout=1000
+    ).ainvoke(message_history)
 
     assert response is not None
     assert response.content != "It didn't work!"

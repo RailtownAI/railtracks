@@ -34,18 +34,17 @@ async def test_function_as_tool(llm):
         llm=llm,
     )
 
-    with rt.Session():
-        response = await rt.call(
-            agent,
-            user_input="First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.",
-        )
+    conn = rt.Flow("test_function_as_tool", agent).connect()
+    response = await conn.ainvoke(
+        "First find the magic number for 4. Then use the magic_operator with `x` as the result from magic_number and `y` as 3. Return the result from the magic_operator.",
+    )
 
-        final_resp = response
+    final_resp = response
 
-        assert final_resp is not None
-        assert "15" in final_resp.content
-        assert rt.context.get("magic_number_called")
-        assert rt.context.get("magic_operator_called")
+    assert final_resp is not None
+    assert "15" in final_resp.content
+    assert conn.context.get("magic_number_called")
+    assert conn.context.get("magic_operator_called")
 
 
 @pytest.mark.asyncio
@@ -88,9 +87,9 @@ async def test_realistic_scenario(llm):
         llm=llm,
     )
 
-    with rt.Session():
-        await rt.call(agent, rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)]))
-        assert rt.context.get("staff_directory_updated")
+    conn = rt.Flow("test_realistic_scenario", agent).connect()
+    await conn.ainvoke(rt.llm.MessageHistory([rt.llm.UserMessage(usr_prompt)]))
+    assert conn.context.get("staff_directory_updated")
 
     assert db["John"]["role"] == "Senior Manager"
     assert db["John"]["phone"] == "5555"
@@ -149,15 +148,13 @@ async def test_agents_as_tools(llm):
     )
 
     # Run the parent tool
-    with rt.Session(timeout=100):
-        response = await rt.call(
-            parent_tool, user_input="Get me the secret phrase for id `1`."
-        )
+    conn = rt.Flow("test_agents_as_tools", parent_tool, timeout=100).connect()
+    response = await conn.ainvoke("Get me the secret phrase for id `1`.")
 
-        final_resp = response
+    final_resp = response
 
-        assert final_resp is not None
-        assert rt.context.get("secret_phrase_called")
+    assert final_resp is not None
+    assert conn.context.get("secret_phrase_called")
 
     assert final_resp is not None
     assert "3 cats and a dog" in final_resp.content

@@ -413,11 +413,9 @@ def test_nodebuilder_llm_middleware_sets_user_middleware(mock_llm):
         "TestNode", model=mock_llm(custom_response="hi"), middleware=[tag]
     ).build()
 
-    async def top():
-        with rt.Session():
-            return await rt.call(node_cls, user_input="hello")
-
-    asyncio.run(top())
+    rt.Flow("test_nodebuilder_llm_middleware_sets_user_middleware", node_cls).invoke(
+        user_input="hello"
+    )
     assert fired["value"]
     assert len(node_cls._user_middleware) == 1
 
@@ -436,11 +434,9 @@ def test_nodebuilder_llm_model_middleware_wraps_model_call(mock_llm):
         "TestNode", model=mock_llm(custom_response="hi"), model_middleware=[tracer]
     ).build()
 
-    async def top():
-        with rt.Session():
-            return await rt.call(node_cls, user_input="hello")
-
-    result = asyncio.run(top())
+    result = rt.Flow(
+        "test_nodebuilder_llm_model_middleware_wraps_model_call", node_cls
+    ).invoke(user_input="hello")
     assert result.content == "hi"
     assert calls == ["in", "out"]
 
@@ -462,11 +458,16 @@ def test_nodebuilder_llm_context_injection_via_middleware(mock_llm):
         model_middleware=[rt.prebuilt.middleware.ContextInjection()],
     ).build()
 
-    async def top():
-        with rt.Session(context={"secret": "tomato"}):
-            return await rt.call(node_cls, user_input=MessageHistory())
-
-    assert asyncio.run(top()).content == "tomato"
+    assert (
+        rt.Flow(
+            "test_nodebuilder_llm_context_injection_via_middleware",
+            node_cls,
+            context={"secret": "tomato"},
+        )
+        .invoke(MessageHistory())
+        .content
+        == "tomato"
+    )
 
 
 def test_nodebuilder_llm_no_injection_by_default(mock_llm):
@@ -480,11 +481,16 @@ def test_nodebuilder_llm_no_injection_by_default(mock_llm):
         system_message=SystemMessage(content="{secret}"),
     ).build()
 
-    async def top():
-        with rt.Session(context={"secret": "tomato"}):
-            return await rt.call(node_cls, user_input=MessageHistory())
-
-    assert asyncio.run(top()).content == "{secret}"
+    assert (
+        rt.Flow(
+            "test_nodebuilder_llm_no_injection_by_default",
+            node_cls,
+            context={"secret": "tomato"},
+        )
+        .invoke(MessageHistory())
+        .content
+        == "{secret}"
+    )
 
 
 def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
@@ -506,11 +512,9 @@ def test_nodebuilder_llm_guardrails_input_and_output_both_fire(mock_llm):
         model_middleware=[MarkInputGuard(), MarkOutputGuard()],
     ).build()
 
-    async def top():
-        with rt.Session():
-            return await rt.call(node_cls, "hello")
-
-    asyncio.run(top())
+    rt.Flow(
+        "test_nodebuilder_llm_guardrails_input_and_output_both_fire", node_cls
+    ).invoke("hello")
     assert fired == {"input": True, "output": True}
 
 
@@ -528,11 +532,9 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
         model_middleware=[MarkInputGuard()],
     ).build()
 
-    async def top():
-        with rt.Session():
-            return await rt.call(node_cls, "hello")
-
-    result = asyncio.run(top())
+    result = rt.Flow(
+        "test_nodebuilder_llm_guardrails_input_only_does_not_fire_output", node_cls
+    ).invoke("hello")
     assert fired["input"]
     assert result.content == "hi"
 
@@ -542,11 +544,12 @@ def test_nodebuilder_llm_empty_model_middleware_is_a_no_op(mock_llm):
         "EmptyGuardNode", model=mock_llm(custom_response="hi"), model_middleware=[]
     ).build()
 
-    async def top():
-        with rt.Session():
-            return await rt.call(node_cls, "hello")
-
-    assert asyncio.run(top()).content == "hi"
+    assert (
+        rt.Flow("test_nodebuilder_llm_empty_model_middleware_is_a_no_op", node_cls)
+        .invoke("hello")
+        .content
+        == "hi"
+    )
 
 
 def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
@@ -584,12 +587,11 @@ def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
         model_middleware=[overwrite_after_guardrail, AlwaysRedactOutputGuard()],
     ).build()
 
-    async def top(node_cls):
-        with rt.Session():
-            return await rt.call(node_cls, user_input="hi")
+    def run(node_cls, flow_name):
+        return rt.Flow(flow_name, node_cls).invoke(user_input="hi")
 
-    guard_first_result = asyncio.run(top(guard_first_cls))
-    user_first_result = asyncio.run(top(user_first_cls))
+    guard_first_result = run(guard_first_cls, "guard_first_order")
+    user_first_result = run(user_first_cls, "user_first_order")
 
     assert guard_first_result.content == "[REDACTED BY GUARDRAIL]"
     assert user_first_result.content == "overwritten by user middleware"

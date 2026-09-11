@@ -41,14 +41,17 @@ class TestSimpleToolCalling:
             llm=llm,
         )
 
-        with rt.Session():
-            response = await rt.call(
-                agent,
-                user_input="What is the secret phrase? Only return the secret phrase, no other text.",
-            )
-            assert response is not None
-            assert "Constantinople" in response.text
-            assert rt.context.get("secret_phrase_called")
+        @rt.function_node
+        async def entry(user_input):
+            response = await rt.call(agent, user_input=user_input)
+            return response, rt.context.get("secret_phrase_called")
+
+        response, secret_called = await rt.Flow("test_simple_tool", entry).ainvoke(
+            "What is the secret phrase? Only return the secret phrase, no other text."
+        )
+        assert response is not None
+        assert "Constantinople" in response.text
+        assert secret_called
 
     @pytest.mark.asyncio
     async def test_text_returned_with_tool_call_is_kept(self, mock_llm):
@@ -90,8 +93,9 @@ class TestSimpleToolCalling:
             llm=llm,
         )
 
-        with rt.Session():
-            response = await rt.call(agent, user_input="What is the secret phrase?")
+        response = await rt.Flow(
+            "test_text_returned_with_tool_call_is_kept", agent
+        ).ainvoke("What is the secret phrase?")
 
         tool_call_messages = [
             m for m in response.message_history if isinstance(m.content, ToolCalls)
@@ -135,13 +139,22 @@ class TestLimitedToolCalling:
         )
 
         message = "Get the magic number and divide it by 2."
-        with rt.Session():
+
+        @rt.function_node
+        async def entry(user_input):
             _reset_tools_called()
-            _ = await rt.call(agent, user_input=message)
-            assert rt.context.get("tools_called") == 1
+            _ = await rt.call(agent, user_input=user_input)
+            count1 = rt.context.get("tools_called")
             _reset_tools_called()
-            _ = await rt.call(agent, user_input=message)
-            assert rt.context.get("tools_called") == 1
+            _ = await rt.call(agent, user_input=user_input)
+            count2 = rt.context.get("tools_called")
+            return count1, count2
+
+        count1, count2 = await rt.Flow(
+            "test_context_reset_between_runs", entry
+        ).ainvoke(message)
+        assert count1 == 1
+        assert count2 == 1
 
 
 class TestFunctionNodeCallWithFunctionList:
@@ -180,14 +193,14 @@ class TestFunctionNodeCallWithFunctionList:
             ),
         )
 
-        with rt.Session(name="AgentHandlerNode"):
-            result = await rt.call(
-                AgentHandler,
-                rt.llm.MessageHistory(
-                    [
-                        rt.llm.UserMessage("Give me a number and add 50 to it please"),
-                    ]
-                ),
+        result = await rt.Flow(
+            "test_function_node_call_with_function_list_parameter", AgentHandler
+        ).ainvoke(
+            rt.llm.MessageHistory(
+                [
+                    rt.llm.UserMessage("Give me a number and add 50 to it please"),
+                ]
             )
+        )
 
         assert "92" in result.content

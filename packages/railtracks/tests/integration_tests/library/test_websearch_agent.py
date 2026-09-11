@@ -62,10 +62,11 @@ class TestWebSearchToolCalling:
             llm=llm,
         )
 
-        with rt.Session():
-            response = await rt.call(agent, user_input="What is railtracks?")
-            assert "An agentic framework" in response.text
-            assert _contains_url(response.text, "https://railtracks.org")
+        response = await rt.Flow(
+            "test_search_tool_round_trips_through_agent", agent
+        ).ainvoke("What is railtracks?")
+        assert "An agentic framework" in response.text
+        assert _contains_url(response.text, "https://railtracks.org")
 
     @pytest.mark.asyncio
     async def test_fetch_tool_round_trips_through_agent(self, mock_llm):
@@ -95,6 +96,7 @@ class TestWebSearchToolCalling:
             llm=llm,
         )
 
-        with rt.Session():
-            response = await rt.call(agent, user_input="Read https://railtracks.org")
-            assert "Full page content here" in response.text
+        response = await rt.Flow(
+            "test_fetch_tool_round_trips_through_agent", agent
+        ).ainvoke("Read https://railtracks.org")
+        assert "Full page content here" in response.text
