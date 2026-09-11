@@ -25,10 +25,9 @@ async def test_simple_streamer():
             self.finished_message = item
 
     sub = SubObject()
-    with rt.Session(
-        broadcast_callback=sub.handle,
-    ):
-        finished_result = await rt.call(StreamingRNGNode)
+    finished_result = await rt.Flow(
+        "test_simple_streamer", StreamingRNGNode, broadcast_callback=sub.handle
+    ).ainvoke()
 
     # force close streams flag must be set to false to allow the slow streaming to finish.
 
@@ -50,8 +49,9 @@ async def test_slow_streamer():
             self.finished_message = item
 
     sub = Sub()
-    with rt.Session(broadcast_callback=sub.handle):
-        finished_result = await rt.call(StreamingRNGNode)
+    finished_result = await rt.Flow(
+        "test_slow_streamer", StreamingRNGNode, broadcast_callback=sub.handle
+    ).ainvoke()
 
     assert isinstance(finished_result, float)
     assert sub.finished_message is not None
@@ -89,10 +89,9 @@ async def rng_stream_tester(
                 self.total_streams.append(item)
 
     sub = Sub()
-    with rt.Session(broadcast_callback=sub.handle):
-        finished_result = await rt.call(
-            RNGTreeStreamer, num_calls, parallel_call_nums, multiplier
-        )
+    finished_result = await rt.Flow(
+        "rng_stream_tester", RNGTreeStreamer, broadcast_callback=sub.handle
+    ).ainvoke(num_calls, parallel_call_nums, multiplier)
 
     assert isinstance(finished_result, list)
     assert len(finished_result) == num_calls * parallel_call_nums

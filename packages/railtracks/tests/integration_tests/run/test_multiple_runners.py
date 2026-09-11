@@ -18,9 +18,9 @@ SlowRNG = rt.function_node(slow_rng)
 @pytest.mark.asyncio
 async def test_async_runners_w_async():
     async def run_rng(timeout_len: float):
-        with rt.Session() as run:
-            await rt.call(SlowRNG, timeout_len)
-            return run.info
+        conn = rt.Flow("test_async_runners_w_async", SlowRNG).connect()
+        await conn.ainvoke(timeout_len)
+        return conn.session.info
 
     contracts = [run_rng(0.2) for _ in range(5)]
 
@@ -36,9 +36,9 @@ async def test_async_runners_w_executor():
     with concurrent.futures.ThreadPoolExecutor() as executor:
 
         async def run_rng(timeout_len: float):
-            with rt.Session() as run:
-                await rt.call(SlowRNG, timeout_len)
-                return run.info
+            conn = rt.Flow("test_async_runners_w_executor", SlowRNG).connect()
+            await conn.ainvoke(timeout_len)
+            return conn.session.info
 
         mapped_results = executor.map(lambda x: asyncio.run(run_rng(x)), [0.2] * 5)
 
@@ -48,9 +48,7 @@ async def test_async_runners_w_executor():
 
 @pytest.mark.asyncio
 async def nested_runner_call():
-    with rt.Session():
-        result = await rt.call(SlowRNG, 0.2)
-        return result
+    return await rt.Flow("nested_runner_call", SlowRNG).ainvoke(0.2)
 
 
 NestedRunner = rt.function_node(nested_runner_call)

@@ -86,15 +86,25 @@ async def test_astream_two_concurrent_streams_are_isolated(mock_llm):
     async def drain(stream):
         return [chunk async for chunk in stream]
 
-    with rt.Session():
+    captured = {}
+
+    @rt.function_node
+    async def entry():
         a = rt.astream(agent_a, user_input="go")
         b = rt.astream(agent_b, user_input="go")
         a_chunks, b_chunks = await asyncio.gather(drain(a), drain(b))
+        captured["a"] = a
+        captured["b"] = b
+        return a_chunks, b_chunks
+
+    a_chunks, b_chunks = await rt.Flow(
+        "test_astream_two_concurrent_streams_are_isolated", entry
+    ).ainvoke()
 
     assert a_chunks == ["A", "A", "A", "A"]
     assert b_chunks == ["B", "B", "B", "B"]
-    assert a.result.text == "AAAA"
-    assert b.result.text == "BBBB"
+    assert captured["a"].result.text == "AAAA"
+    assert captured["b"].result.text == "BBBB"
 
 
 @pytest.mark.asyncio
@@ -224,8 +234,12 @@ async def test_astream_mid_stream_node_failure_propagates_and_cleans_up(mock_llm
 
     agent = rt.agent_node(name="Failer", system_message="stream", llm=_FailingLLM())
 
-    with rt.Session():
+    captured = {}
+
+    @rt.function_node
+    async def entry():
         stream = rt.astream(agent, user_input="go")
+        captured["stream"] = stream
         seen = []
         # the model's raw error is wrapped as LLMError by the tool-calling loop
         # (llm_helpers.llm_invoke), same as a non-streamed rt.call would see.
@@ -236,9 +250,13 @@ async def test_astream_mid_stream_node_failure_propagates_and_cleans_up(mock_llm
         assert seen == ["a", "b"]
         assert stream._sub_id is None
 
+    await rt.Flow(
+        "test_astream_mid_stream_node_failure_propagates_and_cleans_up", entry
+    ).ainvoke()
+
     # .result re-raises the same error rather than hanging or resetting state
     with pytest.raises(LLMError, match="boom mid-stream"):
-        _ = stream.result
+        _ = captured["stream"].result
 
 
 @pytest.mark.asyncio
@@ -246,10 +264,15 @@ async def test_astream_result_before_finished_raises_runtime_error(mock_llm):
     """Accessing `.result` before the stream has been consumed raises RuntimeError."""
     agent = _agent(mock_llm, "abc")
 
-    with rt.Session():
+    @rt.function_node
+    async def entry():
         stream = rt.astream(agent, user_input="go")
         with pytest.raises(RuntimeError, match="has not finished"):
             _ = stream.result
+
+    await rt.Flow(
+        "test_astream_result_before_finished_raises_runtime_error", entry
+    ).ainvoke()
 
 
 @pytest.mark.asyncio
@@ -298,12 +321,16 @@ async def test_astream_timeout_raises_global_timeout_error(mock_llm):
 
     agent = rt.agent_node(name="Slow", system_message="stream", llm=_SlowLLM())
 
-    with rt.Session(timeout=0.05):
-        stream = rt.astream(agent, user_input="go")
-        with pytest.raises(GlobalTimeOutError):
-            async for _ in stream:
-                pass
+    @rt.function_node
+    async def entry():
+        with rt.Session(timeout=0.05):
+            stream = rt.astream(agent, user_input="go")
+            with pytest.raises(GlobalTimeOutError):
+                async for _ in stream:
+                    pass
 
-        # re-accessing .result re-raises the same timeout rather than hanging
-        with pytest.raises(GlobalTimeOutError):
-            _ = stream.result
+            # re-accessing .result re-raises the same timeout rather than hanging
+            with pytest.raises(GlobalTimeOutError):
+                _ = stream.result
+
+    await rt.Flow("test_astream_timeout_raises_global_timeout_error", entry).ainvoke()

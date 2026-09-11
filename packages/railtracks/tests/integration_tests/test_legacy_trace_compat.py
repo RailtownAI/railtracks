@@ -42,9 +42,9 @@ def tool_calling_payload(mock_llm):
     )
 
     async def run():
-        with rt.Session(flow_name="legacy-trace-compat") as session:
-            await rt.call(agent, "What is the secret phrase?")
-        return session.payload()
+        conn = rt.Flow("legacy-trace-compat", agent).connect()
+        await conn.ainvoke("What is the secret phrase?")
+        return conn.session.payload()
 
     return run
 

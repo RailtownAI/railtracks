@@ -218,11 +218,12 @@ class TestPostVerifierEndToEnd:
             """Refund an order."""
             return f"refunded {amount} for {order_id}"
 
-        async def top_level():
-            with rt.Session():
-                return await rt.call(refund, order_id="A1", amount=50)
-
-        assert asyncio.run(top_level()) == "refunded 50 for A1"
+        assert (
+            rt.Flow("test_approved_call_propagates_the_result", refund).invoke(
+                order_id="A1", amount=50
+            )
+            == "refunded 50 for A1"
+        )
 
     def test_accepted_with_override_propagates_the_overridden_result(self):
         gate = post_verifier(
@@ -234,11 +235,12 @@ class TestPostVerifierEndToEnd:
             """Refund an order."""
             return f"refunded {amount} for {order_id}"
 
-        async def top_level():
-            with rt.Session():
-                return await rt.call(refund, order_id="A1", amount=50)
-
-        assert asyncio.run(top_level()) == "redacted"
+        assert (
+            rt.Flow(
+                "test_accepted_with_override_propagates_the_overridden_result", refund
+            ).invoke(order_id="A1", amount=50)
+            == "redacted"
+        )
 
     def test_declined_call_still_ran_the_node_but_blocks_propagation(self):
         gate = post_verifier(
@@ -252,12 +254,10 @@ class TestPostVerifierEndToEnd:
             ran["value"] = True
             return f"refunded {amount} for {order_id}"
 
-        async def top_level():
-            with rt.Session():
-                return await rt.call(refund, order_id="A1", amount=500)
-
         with pytest.raises(VerifierRejectedError):
-            asyncio.run(top_level())
+            rt.Flow(
+                "test_declined_call_still_ran_the_node_but_blocks_propagation", refund
+            ).invoke(order_id="A1", amount=500)
         assert ran["value"] is True
 
 
@@ -290,13 +290,9 @@ class TestVerifierComposition:
             """Send an email."""
             return f"sent to {to}: {subject}"
 
-        async def top_level():
-            with rt.Session():
-                return await rt.call(
-                    send_email, to="a@b.com", subject="hi", body="hello"
-                )
-
-        result = asyncio.run(top_level())
+        result = rt.Flow("test_pre_and_post_both_apply_on_one_node", send_email).invoke(
+            to="a@b.com", subject="hi", body="hello"
+        )
         assert result == "sent to a@b.com: hi"
         assert pre_seen["value"] is True
         assert post_seen["value"] is True
@@ -324,10 +320,12 @@ class TestVerifierComposition:
                 raise ValueError("downstream hiccup")
             return f"refunded {amount} for {order_id}"
 
-        async def top_level():
-            with rt.Session():
-                return await rt.call(flaky_refund, order_id="A1", amount=50)
-
-        assert asyncio.run(top_level()) == "refunded 50 for A1"
+        assert (
+            rt.Flow(
+                "test_post_placed_outside_retry_only_sees_the_final_settled_result",
+                flaky_refund,
+            ).invoke(order_id="A1", amount=50)
+            == "refunded 50 for A1"
+        )
         assert attempts["count"] == 3
         assert reviewed_results == ["refunded 50 for A1"]
