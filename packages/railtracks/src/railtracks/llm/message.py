@@ -358,6 +358,20 @@ class SystemMessage(_StringOnlyContent[Role.system]):
         super().__init__(content=content, role=Role.system)
 
 
+class _AgentSystemMessage(SystemMessage):
+    """
+    The system message an agent node carries as part of its own configuration.
+
+    Kept distinct from a caller-authored `SystemMessage` so the framework can insert exactly one of
+    these at the front of every request and strip it back out of the returned history, leaving
+    system messages the caller placed in the history untouched. See
+    https://docs.railtracks.org/documentation/agent_design/llms/system_messages/.
+
+    Args:
+        content (str): The content of the system message.
+    """
+
+
 class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     """
     A simple class that represents a message from the assistant.

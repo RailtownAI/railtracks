@@ -103,6 +103,7 @@ nav:
               - Agents as Tools: documentation/agent_design/tools/agents_as_tools.md
               - MCP: documentation/agent_design/tools/mcp.md
           - LLMs:
+              - System Messages: documentation/agent_design/llms/system_messages.md
               - Modalities: documentation/agent_design/llms/modalities.md
               - Failures: documentation/agent_design/llms/handling_failures.md
               - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
