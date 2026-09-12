@@ -29,6 +29,7 @@ recurring, repeated PR review comment on railtracks, not a hypothetical style pr
   `Any` as a quick fix to silence something that's actually broken, either; fix the real type mismatch.
 - **TODOs**: no inline `# TODO` comments. Either fix it now or file a tracked GitHub issue and reference it.
 - **Cruft**: no dead/commented-out code, no stray debug/scratch files left in a change.
+- **Documentation paragraphs**: keep prose paragraphs on one line, matching the existing docs; do not hard-wrap sentences. Preserve code-block formatting.
 - **Mutable defaults**: don't store a mutable default (`x or []`) by reference and mutate it later; copy
   defensively.
 - **Errors**: use `repr(e)` rather than `str(e)` in error/log messages.

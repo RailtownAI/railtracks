@@ -19,3 +19,5 @@ resp = await rt.call(AgentName, "user message to the agent")
 The `call` API is also useful when you want to use agents as tools by having them wrapped within another a function (see [Agents as Tools](../agent_design/tools/agents_as_tools.md)). 
 
 For configuration management such as context, observability through invocations, and other settings we recommend using [Flows](../invocation/flows.md).
+
+To continue a conversation across calls, see [Message History](message_history.md).
