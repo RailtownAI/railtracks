@@ -26,7 +26,7 @@ By default, `JudgeEvaluator` uses a built-in prompt that instructs the LLM to sc
 
 ```python
 judge = eval.JudgeEvaluator(
-    llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
+    llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
     metrics=[relevance],
     system_prompt="You are a financial analyst. Evaluate whether the agent's response is accurate and compliant with regulations.",
 )

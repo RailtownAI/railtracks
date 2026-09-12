@@ -21,13 +21,13 @@ web = rt.prebuilt.WebSearchToolSet()
 Researcher = rt.agent_node(
     name="Researcher",
     tool_nodes=web.tool_set(),
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message=web.prompt(),
 )
 
 Summarizer = rt.agent_node(
     name="Summarizer",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message=(
         "Answer the user's question using only the provided source material. "
         "Cite the URL your answer came from."

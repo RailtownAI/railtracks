@@ -259,7 +259,7 @@ async def search_knowledge_base(query: str) -> str:
 RagAgent = rt.agent_node(
     "RAG Agent",
     tool_nodes=[search_knowledge_base],
-    llm=rt.llm.AnthropicLLM("claude-sonnet-4-6"),
+    llm=rt.llm.AnthropicLLM("claude-sonnet-5"),
     system_message="You are a helpful assistant. Always search the knowledge base before answering.",
 )
 flow = rt.Flow(name="RAG Flow", entry_point=RagAgent)

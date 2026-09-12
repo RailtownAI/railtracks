@@ -15,7 +15,7 @@ from railtracks.prebuilt.middleware import Retry
 # Retry is slot-agnostic: use it as node middleware, model middleware, or both.
 RetryAgent = rt.agent_node(
     name="retry-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     middleware=[Retry(3)],  # retry the whole node call
     model_middleware=[Retry(3)],  # retry each raw model call
 )
@@ -39,7 +39,7 @@ from railtracks.prebuilt.middleware import Timeout
 
 TimedAgent = rt.agent_node(
     name="timeout-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     middleware=[Timeout(seconds=30)],
 )
 # --8<-- [end: timeout]
@@ -68,7 +68,7 @@ from railtracks.prebuilt.middleware import Lock
 shared_lock = Lock()
 LockedAgent = rt.agent_node(
     name="lock-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     middleware=[shared_lock],
 )
 # --8<-- [end: lock]
@@ -83,7 +83,7 @@ from railtracks.prebuilt.middleware import ContextInjection
 # from the active session context before each model call.
 CtxAgent = rt.agent_node(
     name="context-injection-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are helping {user_name}. Keep answers short.",
     model_middleware=[ContextInjection()],
 )

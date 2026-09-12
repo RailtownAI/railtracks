@@ -3,7 +3,7 @@ import railtracks as rt
 
 # To create your agent, you just need a model and a system message. 
 Agent = rt.agent_node(
-    llm=rt.llm.OpenAILLM("gpt-5"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful AI assistant."
 )
 

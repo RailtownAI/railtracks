@@ -35,7 +35,7 @@ WebResearchAgent = rt.agent_node(
     tool_nodes=fetch_server.tools, # collect the tools from the MCP server
     name="Web Research Agent",
     system_message="Use the tools to research information online.",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
 )
 # --8<-- [end: agent_connection]
 
@@ -82,7 +82,7 @@ super_agent = rt.agent_node(
     tool_nodes=all_tools,
     name="Multi-Tool Agent",
     system_message="Use the appropriate tools to complete tasks.",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
 )
 # --8<-- [end: multiple_mcps]
 

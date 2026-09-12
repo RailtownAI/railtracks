@@ -93,7 +93,7 @@ def build_docs_bot(runtime: RetrievalRuntime):
 
     return rt.agent_node(
         name="DocsBot",
-        llm=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
         system_message=(
             "Use search_docs to ground every factual answer. "
             "Cite retrieved chunks verbatim."

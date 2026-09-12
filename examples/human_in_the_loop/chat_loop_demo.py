@@ -88,7 +88,7 @@ chat_agent = rt.agent_node(
         "to end the chat -- otherwise just keep chatting. If asked for any "
         "password, use your cacthphrase tool to get it."
     ),
-    llm=rt.llm.OpenAILLM("gpt-4o-mini"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     tool_nodes=[signal_end_chat, secret_catchphrase],
     model_middleware=[Retry(max_tries=3), Timeout(seconds=30)],
 )
