@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from railtracks.retrieval import JsonExtractor, ProseExtractor
 from railtracks.retrieval.loaders.json_loader import JSONLoader
 from railtracks.retrieval.models import DocumentType
 
@@ -320,3 +321,78 @@ class TestJSONLoaderErrors:
         loader = JSONLoader(str(f))
         with pytest.raises(ValueError):
             await loader.aload()
+
+
+class TestJSONLoaderContentExtractors:
+    @pytest.mark.parametrize("content_keys", ["*", ["question"]])
+    @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
+    async def test_extractor_failure_names_key_index_and_source(
+        self, tmp_path, content_keys, suffix
+    ):
+        f = tmp_path / f"rows{suffix}"
+        rows = [{"question": "valid"}, {"question": "invalid"}]
+        f.write_text(
+            json.dumps(rows) if suffix == ".json" else "\n".join(map(json.dumps, rows)),
+            encoding="utf-8",
+        )
+        original_error = TypeError("unsupported content")
+
+        def extract(value: object) -> str:
+            if value == "invalid" or value == rows[1]:
+                raise original_error
+            return str(value)
+
+        stream = JSONLoader(
+            str(f), content_keys=content_keys, content_extractor=extract
+        ).astream()
+        assert (await anext(stream)).metadata["index"] == 0
+        with pytest.raises(ValueError) as exc:
+            await anext(stream)
+        key = "*" if content_keys == "*" else "question"
+        assert f"key {key!r}" in str(exc.value)
+        assert "index 1" in str(exc.value)
+        assert str(f) in str(exc.value)
+        assert exc.value.__cause__ is original_error
+
+    async def test_json_extractor_serializes_nested_content_key(self, tmp_path):
+        f = tmp_path / "nested.json"
+        f.write_text(
+            json.dumps({"question": {"text": "Why?", "tokens": ["Why", "?"]}}),
+            encoding="utf-8",
+        )
+
+        docs = await JSONLoader(
+            str(f),
+            content_keys=["question"],
+            content_extractor=JsonExtractor(),
+        ).aload()
+
+        assert docs[0].content == ('question: {"text": "Why?", "tokens": ["Why", "?"]}')
+
+    async def test_prose_extractor_applies_to_whole_object(self, tmp_path):
+        f = tmp_path / "nested.json"
+        f.write_text(
+            json.dumps({"text": "Why?", "tokens": ["Why", "?"]}),
+            encoding="utf-8",
+        )
+
+        docs = await JSONLoader(str(f), content_extractor=ProseExtractor()).aload()
+
+        assert docs[0].content == "text: Why?; tokens: [Why, ?]"
+
+    async def test_custom_extractor_preserves_unselected_metadata(self, tmp_path):
+        f = tmp_path / "nested.json"
+        metadata = {"source": "manual"}
+        f.write_text(
+            json.dumps({"question": {"text": "Why?"}, "metadata": metadata}),
+            encoding="utf-8",
+        )
+
+        docs = await JSONLoader(
+            str(f),
+            content_keys=["question"],
+            content_extractor=lambda value: value["text"].upper(),
+        ).aload()
+
+        assert docs[0].content == "question: WHY?"
+        assert docs[0].metadata["metadata"] == metadata
