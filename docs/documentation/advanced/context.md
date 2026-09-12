@@ -28,8 +28,7 @@ Here’s how you can use context during a run:
 
 ## Real-World Examples
 
-For a complete example that carries conversation history between nodes through context, see
-[Message History](../invocation/message_history.md#share-history-between-nodes-in-one-run).
+For a complete example that carries conversation history between nodes through context, see [Message History](../invocation/message_history.md#share-history-between-nodes-in-one-run).
 
 ### Prevent Hallucinations in Agentic Systems
 In agentic systems, you can use context to store important facts or constraints that agents will need to use. This helps reduce hallucinations by providing a reliable source of truth.
