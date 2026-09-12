@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -274,6 +275,26 @@ class TestHuggingFaceLoaderSyncWrapper:
 
 
 class TestHuggingFaceLoaderContentExtractors:
+    async def test_json_extractor_failure_names_column_row_and_dataset(
+        self, mock_load_dataset
+    ):
+        mock_load_dataset.return_value = _FakeIterableDataset(
+            [{"question": "valid"}, {"question": datetime(2026, 1, 1)}]
+        )
+        stream = HuggingFaceDatasetLoader(
+            "fake/ds",
+            split="train",
+            content_columns=["question"],
+            content_extractor=JsonExtractor(),
+        ).astream()
+        assert (await anext(stream)).metadata["row_index"] == 0
+        with pytest.raises(ValueError) as exc:
+            await anext(stream)
+        assert "column 'question'" in str(exc.value)
+        assert "row index 1" in str(exc.value)
+        assert "fake/ds/train" in str(exc.value)
+        assert isinstance(exc.value.__cause__, TypeError)
+
     async def test_json_extractor_serializes_nested_columns(self, mock_load_dataset):
         mock_load_dataset.return_value = _FakeIterableDataset(
             [{"question": {"text": "Why?", "tokens": ["Why", "?"]}}]

@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any, Literal
 
-from railtracks.retrieval.content_extraction import ContentExtractor
+from railtracks.retrieval.content_extraction import ContentExtractor, JsonExtractor
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import Document, DocumentType
 
@@ -48,11 +48,11 @@ class JSONLoader(BaseDocumentLoader):
         ignore_keys: Keys to drop entirely from both content and metadata.
         content_separator: String used to join multiple content-key values.
             Defaults to `"\\n"`.
+        encoding: File encoding. Defaults to `utf-8-sig`.
         content_extractor: Optional callable used to turn content-key values
             into text. When omitted, the loader preserves its existing JSON
             serialization for `content_keys="*"` and `str(value)` behavior
             for explicit keys.
-        encoding: File encoding. Defaults to `utf-8-sig`.
 
     Raises:
         FileNotFoundError: If `file_path` does not exist.
@@ -61,7 +61,7 @@ class JSONLoader(BaseDocumentLoader):
             (e.g. a `.json` file that is neither object nor array of
             objects, or a `.jsonl` line that is not a JSON object), or any
             key in `content_keys` or `id_key` is not found in a parsed
-            object.
+            object, or a content extractor fails (with key, index, and source).
     """
 
     def __init__(
@@ -79,6 +79,7 @@ class JSONLoader(BaseDocumentLoader):
         self._id_key = id_key
         self._ignore_keys = set(ignore_keys or [])
         self._content_separator = content_separator
+        # Unlike the HF loader, the default depends on the content-keys mode.
         self._content_extractor = content_extractor
         self._encoding = encoding
 
@@ -107,10 +108,8 @@ class JSONLoader(BaseDocumentLoader):
         """
         if self._content_keys == "*":
             content_value = {k: v for k, v in obj.items() if k not in self._ignore_keys}
-            content = (
-                self._content_extractor(content_value)
-                if self._content_extractor is not None
-                else json.dumps(content_value, ensure_ascii=False)
+            content = self._extract_content(
+                content_value, JsonExtractor(), "*", source_prefix, index
             )
             metadata: dict[str, Any] = {}
         else:
@@ -120,7 +119,8 @@ class JSONLoader(BaseDocumentLoader):
                     f"content_keys {unknown} not found in object at index {index} in {source_prefix}"
                 )
             content = self._content_separator.join(
-                f"{k}: {self._extract_content(obj[k])}" for k in self._content_keys
+                f"{k}: {self._extract_content(obj[k], str, k, source_prefix, index)}"
+                for k in self._content_keys
             )
             content_key_set = set(self._content_keys)
             metadata = {
@@ -143,10 +143,23 @@ class JSONLoader(BaseDocumentLoader):
             metadata=metadata,
         )
 
-    def _extract_content(self, value: Any) -> str:
-        if self._content_extractor is None:
-            return str(value)
-        return self._content_extractor(value)
+    def _extract_content(
+        self,
+        value: Any,
+        fallback: ContentExtractor,
+        key: str,
+        source_prefix: str,
+        index: int,
+    ) -> str:
+        extractor = (
+            self._content_extractor if self._content_extractor is not None else fallback
+        )
+        try:
+            return extractor(value)
+        except Exception as exc:
+            raise ValueError(
+                f"Content extraction failed for key {key!r} at index {index} in {source_prefix}: {exc!r}"
+            ) from exc
 
     async def _stream_file(self, path: Path) -> AsyncGenerator[Document, None]:
         """Stream documents from a single JSON or JSONL file.

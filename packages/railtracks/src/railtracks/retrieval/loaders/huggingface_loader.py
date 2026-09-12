@@ -60,20 +60,21 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
             Default : None.
         content_separator: Separator used to join `content_columns`
             values. Default: `"\\n"`.
-        content_extractor: Callable used to turn each content-column value
-            into text. Defaults to `StrExtractor`, preserving the existing
-            `str(value)` behavior. Use `JsonExtractor`, `ProseExtractor`, or
-            any custom callable for nested values.
         dataset_kwargs: Extra keyword arguments forwarded to
             `datasets.load_dataset`. Use this for subset selection
             (`{"name": "v2.1"}`), pinning a revision, or passing an
             auth token. `streaming=True` is always set; any `streaming`
             entry here is ignored.
+        content_extractor: Callable used to turn each content-column value
+            into text. Defaults to `StrExtractor`, preserving the existing
+            `str(value)` behavior. Use `JsonExtractor`, `ProseExtractor`, or
+            any custom callable for nested values.
 
     Raises:
         ValueError: If `content_columns` is empty, or if any name in
             `content_columns`, `metadata_columns`, or `id_column` isn't
-            present in the dataset schema.
+            present in the dataset schema, or content extraction fails (with
+            column, row index, and dataset source).
     """
 
     def __init__(
@@ -161,7 +162,8 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
                 validated = True
 
             content = self._content_separator.join(
-                self._content_extractor(row[col]) for col in self._content_columns
+                self._extract_content(row[col], col, row_index)
+                for col in self._content_columns
             )
             metadata: dict[str, Any] = {col: row[col] for col in self._metadata_columns}
             metadata["row_index"] = row_index
@@ -179,3 +181,12 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
                 metadata=metadata,
             )
             row_index += 1
+
+    def _extract_content(self, value: Any, column: str, row_index: int) -> str:
+        try:
+            return self._content_extractor(value)
+        except Exception as exc:
+            raise ValueError(
+                f"Content extraction failed for column {column!r} at row index {row_index} "
+                f"in {self._dataset_name}/{self._split}: {exc!r}"
+            ) from exc

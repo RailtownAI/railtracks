@@ -125,12 +125,12 @@ For `.jsonl`:
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `file_path` | `str` | required | Path to a `.json` / `.jsonl` file, or a directory containing them |
-| `content_keys` | `list[str] | "*"` | `"*"` | Keys whose values form `content`. `"*"` serialises the whole object. |
-| `id_key` | `str | None` | `None` | Top-level key whose value is the per-object id in `Document.source`. Falls back to position (array index or JSONL line). |
-| `ignore_keys` | `list[str] | None` | `None` | Keys dropped entirely |
+| `content_keys` | `list[str] \| "*"` | `"*"` | Keys whose values form `content`. `"*"` serialises the whole object. |
+| `id_key` | `str \| None` | `None` | Top-level key whose value is the per-object id in `Document.source`. Falls back to position (array index or JSONL line). |
+| `ignore_keys` | `list[str] \| None` | `None` | Keys dropped entirely |
 | `content_separator` | `str` | `"\n"` | Used to join content-key values |
 | `encoding` | `str` | `"utf-8-sig"` | File encoding |
-| `content_extractor` | `ContentExtractor | None` | `None` | Converts selected values to text. Omitted preserves existing serialization. |
+| `content_extractor` | `ContentExtractor \| None` | `None` | Converts selected values to text. Omitted preserves existing serialization. |
 
 ---
 
@@ -307,7 +307,7 @@ For gated datasets set `HF_TOKEN` in your environment, or pass
 **Document metadata**: `row_index` plus any column listed in
 `metadata_columns`. `Document.source` is `"{dataset_name}/{split}"`.
 
-### Structured content extractors
+## Structured content extractors
 
 Both `JSONLoader` and `HuggingFaceDatasetLoader` accept any callable matching
 `ContentExtractor`: it receives one selected value and returns a string. The
@@ -315,12 +315,14 @@ built-ins are importable from `railtracks.retrieval`:
 
 - `StrExtractor` uses `str(value)` and is the Hugging Face loader default.
 - `JsonExtractor` produces valid JSON and preserves Unicode text.
-- `ProseExtractor` renders nested dictionaries and lists as labelled prose.
+- `ProseExtractor` renders nested dictionaries and lists as labelled prose, with braces around nested dictionaries and brackets around lists to show their boundaries.
 
 For example, the `passages` column in `ms_marco` is structured. The
 `hf_kwargs` example above uses `ProseExtractor` so the nested labels and values
-become useful embedding input. Extractors apply only to content fields;
+remain visible in the extracted text, including `is_selected` flags and raw URLs. For retrieval focused on passage content, use a custom extractor that selects only `passage_text`. Extractors apply only to content fields;
 `metadata_columns` stay as their original Python values.
+
+Extraction failures stop loading and raise a `ValueError` naming the content column or key, zero-based row or object index, and source; the original exception is preserved as the cause. They do not currently produce per-document recovery events. For `JSONLoader(content_keys="*")`, the reported key is `"*"` because the extractor receives the entire filtered object.
 
 ---
 # LangChain Loaders

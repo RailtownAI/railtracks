@@ -9,7 +9,7 @@ from typing import Any, Protocol
 class ContentExtractor(Protocol):
     """Convert one loader field value into searchable text."""
 
-    def __call__(self, value: Any) -> str: ...
+    def __call__(self, value: Any, /) -> str: ...
 
 
 class StrExtractor:
@@ -30,13 +30,14 @@ class ProseExtractor:
     """Flatten nested JSON-like values into readable, labelled text."""
 
     def __call__(self, value: Any) -> str:
-        return self._render(value)
+        return self._render(value, nested=False)
 
-    def _render(self, value: Any) -> str:
+    def _render(self, value: Any, *, nested: bool = True) -> str:
         if isinstance(value, dict):
-            return "; ".join(
+            rendered = "; ".join(
                 f"{key}: {self._render(item)}" for key, item in value.items()
             )
+            return f"{{{rendered}}}" if nested else rendered
         if isinstance(value, (list, tuple)):
             return f"[{', '.join(self._render(item) for item in value)}]"
         if value is None:
