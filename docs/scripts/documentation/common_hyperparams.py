@@ -1,10 +1,10 @@
 # --8<-- [start: basic_usage]
 import railtracks as rt
 
+# GPT-4.1 is a non-reasoning model used here to demonstrate sampling controls.
 llm = rt.llm.OpenAILLM(
     "gpt-4.1",
     temperature=0.7,
-    top_p=0.9,
     max_tokens=256,
     frequency_penalty=0.2,
     presence_penalty=0.1,

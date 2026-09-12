@@ -30,7 +30,7 @@ def calculator_tool(expression: str) -> str:
         return f"Error: {e}"
 
 # 2. Create the Agent and the Flow
-llm = rt.llm.GeminiLLM("gemini-3.1-pro-preview")
+llm = rt.llm.GeminiLLM("gemini-3.7-flash")
 MathAgent = rt.agent_node("MathAgent", tool_nodes=[calculator_tool], llm=llm)
 my_flow = rt.Flow(name="Math Workflow", entry_point=MathAgent)
 
