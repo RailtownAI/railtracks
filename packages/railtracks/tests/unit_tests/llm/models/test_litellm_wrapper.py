@@ -663,14 +663,27 @@ class TestAsyncStreaming:
 
 
 # ================= START streamed delta accumulation tests =========================
-def _delta_chunk(*, content=None, tool_calls=None, finish_reason=None, usage=None):
+def _delta_chunk(
+    *,
+    content=None,
+    tool_calls=None,
+    finish_reason=None,
+    usage=None,
+    reasoning_content=None,
+    thinking_blocks=None,
+):
     """A single `ModelResponseStream` shaped the way litellm hands them to the handler."""
     return ModelResponseStream(
         model="mock-model",
         choices=[
             StreamingChoices(
                 index=0,
-                delta=Delta(content=content, tool_calls=tool_calls),
+                delta=Delta(
+                    content=content,
+                    tool_calls=tool_calls,
+                    reasoning_content=reasoning_content,
+                    thinking_blocks=thinking_blocks,
+                ),
                 finish_reason=finish_reason,
             )
         ],
@@ -1165,6 +1178,121 @@ def test_common_hyperparameter_passed_to_litellm_completion(
 
 
 # ================= END common hyperparameter support tests =========================
+
+# ================= START #1431 reasoning/thinking surfacing tests ===================
+
+_THINKING_BLOCKS = [{"type": "thinking", "thinking": "2 + 2", "signature": "sig-abc"}]
+
+
+def _model_response(*, content, finish_reason="stop", reasoning=False, tool_calls=None):
+    """A non-streamed `ModelResponse`, optionally carrying reasoning on its message."""
+    message = {
+        "role": "assistant",
+        "content": content,
+        "tool_calls": tool_calls,
+    }
+    if reasoning:
+        message["reasoning_content"] = "2 + 2 is 4"
+        message["thinking_blocks"] = _THINKING_BLOCKS
+    return ModelResponse(choices=[{"message": message, "finish_reason": finish_reason}])
+
+
+class TestReasoningSurfacing:
+    """#1431: reasoning/thinking the provider returns must surface on the assistant
+    message (so it rides along in history and the run graph) and via `Response.reasoning`,
+    across every response-building path, and stay None when the provider returns none."""
+
+    def test_chat_handle_base_surfaces_reasoning(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="4", reasoning=True)
+
+        response = wrapper._chat_handle_base(raw, MessageInfo())
+
+        assert response.reasoning == "2 + 2 is 4"
+        assert response.message.reasoning_content == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_chat_handle_base_without_reasoning_is_none(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="4", reasoning=False)
+
+        response = wrapper._chat_handle_base(raw, MessageInfo())
+
+        assert response.reasoning is None
+        assert response.message.reasoning_content is None
+        assert response.message.thinking_blocks is None
+
+    def test_structured_handle_base_surfaces_reasoning(self, mock_litellm_wrapper):
+        class Reply(BaseModel):
+            answer: int
+
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content='{"answer": 4}', reasoning=True)
+
+        response = wrapper._structured_handle_base(raw, MessageInfo(), Reply)
+
+        assert isinstance(response.message.content, Reply)
+        assert response.message.reasoning_content == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_chat_with_tools_plain_reply_surfaces_reasoning(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="4", reasoning=True)
+
+        response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
+
+        assert response.reasoning == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_chat_with_tools_tool_call_surfaces_reasoning(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(
+            content=None,
+            finish_reason="tool_calls",
+            reasoning=True,
+            tool_calls=[
+                litellm.ChatCompletionMessageToolCall(
+                    function=litellm.Function(arguments="{}", name="tool_x"),
+                    id="id123",
+                    type="function",
+                )
+            ],
+        )
+
+        response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
+
+        assert isinstance(response.message.content, ToolCalls)
+        assert response.message.reasoning_content == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_streamed_reasoning_deltas_accumulate_onto_final_response(
+        self, mock_litellm_wrapper
+    ):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(reasoning_content="2 + 2 ", thinking_blocks=_THINKING_BLOCKS),
+            _delta_chunk(reasoning_content="is 4"),
+            _delta_chunk(content="4"),
+            _delta_chunk(finish_reason="stop"),
+        ]
+
+        text, final = _drain(wrapper, chunks)
+
+        assert "".join(text) == "4"
+        assert final.reasoning == "2 + 2 is 4"
+        assert final.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_streamed_without_reasoning_is_none(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        chunks = [_delta_chunk(content="4"), _delta_chunk(finish_reason="stop")]
+
+        _text, final = _drain(wrapper, chunks)
+
+        assert final.reasoning is None
+        assert final.message.thinking_blocks is None
+
+
+# ================= END #1431 reasoning/thinking surfacing tests =====================
 
 # ================= START #1394 reasoning_effort-default-for-tools tests =============
 
