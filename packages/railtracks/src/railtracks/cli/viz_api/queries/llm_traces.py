@@ -272,7 +272,7 @@ def list_llm_trace_rows(
       r.exception_message                            AS error_message,
       COALESCE(r.input_tokens, 0)                    AS input_tokens,
       COALESCE(r.output_tokens, 0)                   AS output_tokens,
-      COALESCE(r.total_cost, 0.0)                    AS total_cost,
+      r.total_cost                                    AS total_cost,
       r.latency                                      AS latency_seconds,
       CAST(r.message_input AS VARCHAR)               AS message_input_json,
       CAST(r.output AS VARCHAR)                      AS output_json

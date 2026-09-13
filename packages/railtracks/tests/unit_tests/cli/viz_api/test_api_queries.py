@@ -444,3 +444,131 @@ def test_query_failures_emit_structured_error_logs(
     assert payload["path"] == "/api/v2/sessions"
     assert payload["error_type"] == "RuntimeError"
     assert payload["error"] == "duckdb exploded"
+
+
+def _llm_session_events(
+    session_id: str,
+    node_id: str,
+    llm_id: str,
+    total_cost: float | None,
+) -> list[dict[str, object]]:
+    """Minimal event stream for a session with one LLM response.
+
+    ``total_cost`` is passed through unchanged so callers can write either a
+    known value or ``None`` (unpriced model) and verify how the API renders it.
+    """
+    stamp = "2026-01-01T00:00:00+00:00"
+    return [
+        _event(
+            f"started-{session_id}",
+            "session.started",
+            session_id,
+            {"session_id": session_id, "flow_name": f"flow-{session_id}"},
+            stamp=stamp,
+        ),
+        _event(
+            f"node-{session_id}",
+            "node.creation",
+            session_id,
+            {"node_id": node_id, "name": "agent", "node_type": "Agent"},
+            stamp=stamp,
+        ),
+        _event(
+            f"llm-creation-{session_id}",
+            "llm.creation",
+            session_id,
+            {"llm_id": llm_id, "model_provider": "openai", "model_name": "gpt-4o"},
+            stamp=stamp,
+        ),
+        _event(
+            f"llm-response-{session_id}",
+            "llm.response",
+            session_id,
+            {
+                "spatial_parent_node_id": node_id,
+                "parent_llm_type_id": llm_id,
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_cost": total_cost,
+                "message_input": [{"role": "user", "content": "hi"}],
+                "output": {"role": "assistant", "content": "hello"},
+            },
+            stamp=stamp,
+        ),
+        _event(
+            f"completed-{session_id}",
+            "session.completed",
+            session_id,
+            {"status": "success", "duration_seconds": 1.0},
+            stamp=stamp,
+        ),
+    ]
+
+
+def test_null_cost_surfaces_as_null_in_session_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed pricing lookup must not silently render as $0.00.
+
+    When every LLM call in a session has total_cost=NULL (unpriced model),
+    the session-list endpoint must return total_cost=null, not 0.0.
+    """
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    _write_events(
+        tmp_path,
+        "unpriced",
+        *_llm_session_events("unpriced", "node-u", "llm-u", total_cost=None),
+    )
+
+    response = TestClient(app).get("/api/v2/sessions")
+
+    assert response.status_code == 200
+    rows = response.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["total_cost"] is None, (
+        f"expected null for unpriced model, got {rows[0]['total_cost']!r}"
+    )
+
+
+def test_zero_cost_surfaces_as_zero_in_session_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A genuinely free call must still render as $0.00, not null."""
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    _write_events(
+        tmp_path,
+        "free",
+        *_llm_session_events("free", "node-f", "llm-f", total_cost=0.0),
+    )
+
+    response = TestClient(app).get("/api/v2/sessions")
+
+    assert response.status_code == 200
+    rows = response.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["total_cost"] == 0.0, (
+        f"expected 0.0 for a free call, got {rows[0]['total_cost']!r}"
+    )
+
+
+def test_null_cost_surfaces_as_null_in_llm_traces(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """total_cost=null must pass through the LLM-traces endpoint unchanged."""
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    _write_events(
+        tmp_path,
+        "trace-unpriced",
+        *_llm_session_events(
+            "trace-unpriced", "node-t", "llm-t", total_cost=None
+        ),
+    )
+
+    response = TestClient(app).get("/api/llm-traces")
+
+    assert response.status_code == 200
+    rows = response.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["total_cost"] is None, (
+        f"expected null for unpriced trace, got {rows[0]['total_cost']!r}"
+    )
