@@ -224,7 +224,7 @@ async def get_node_detail(
         tool_output=tool_output,
         model_name=model_name,
         model_provider=model_provider,
-        total_cost=float(totals["total_cost"] or 0.0),
+        total_cost=float(totals["total_cost"]) if totals["total_cost"] is not None else None,
         input_tokens=int(totals["input_tokens"] or 0),
         output_tokens=int(totals["output_tokens"] or 0),
         guardrails=[Guardrail(**g) for g in guardrails],
@@ -250,7 +250,7 @@ async def get_session_graph(
     graph_nodes: list[GraphNode] = []
     graph_edges: list[GraphEdge] = []
     for n in node_rows:
-        totals = llm_totals.get(n["node_id"], {})
+        totals = llm_totals.get(n["node_id"], {"total_cost": 0.0})
         graph_nodes.append(
             GraphNode(
                 id=n["node_id"],
@@ -259,7 +259,7 @@ async def get_session_graph(
                 time=n["started_at"] or n["created_at"],
                 model_name=totals.get("model_name"),
                 model_provider=totals.get("model_provider"),
-                total_cost=float(totals.get("total_cost") or 0.0),
+                total_cost=float(totals["total_cost"]) if totals.get("total_cost") is not None else None,
                 input_tokens=int(totals.get("input_tokens") or 0),
                 output_tokens=int(totals.get("output_tokens") or 0),
                 latency_seconds=_latency(n),
