@@ -970,6 +970,73 @@ class TestStreamedUsage:
         assert info.total_cost is not None
         assert info.total_cost > 0
 
+    @pytest.mark.parametrize(
+        "cache_usage",
+        [
+            {"prompt_tokens_details": {"cached_tokens": 900}},
+            {"cache_read_input_tokens": 900},
+        ],
+        ids=["openai-compatible", "anthropic"],
+    )
+    def test_streamed_cached_input_tokens_are_priced_at_the_cache_rate(
+        self, cache_usage
+    ):
+        """Provider-normalized cache details must reach the fallback calculator.
+
+        OpenAI-compatible providers report cached tokens in ``prompt_tokens_details``;
+        Anthropic reports ``cache_read_input_tokens``. ``Usage`` normalizes the latter
+        into both shapes, matching the objects returned by litellm.
+        """
+        plain_response = ModelResponseStream(
+            model="claude-sonnet-4-5-20250929",
+            choices=[],
+            usage=Usage(prompt_tokens=1000, completion_tokens=100, total_tokens=1100),
+        )
+        cached_response = ModelResponseStream(
+            model="claude-sonnet-4-5-20250929",
+            choices=[],
+            usage=Usage(
+                prompt_tokens=1000,
+                completion_tokens=100,
+                total_tokens=1100,
+                **cache_usage,
+            ),
+        )
+
+        plain_info = LiteLLMWrapper.extract_message_info(
+            plain_response,
+            0.0,
+            requested_model="anthropic/claude-sonnet-4-5-20250929",
+        )
+        cached_info = LiteLLMWrapper.extract_message_info(
+            cached_response,
+            0.0,
+            requested_model="anthropic/claude-sonnet-4-5-20250929",
+        )
+
+        assert plain_info.total_cost is not None
+        assert cached_info.total_cost is not None
+        assert cached_info.total_cost < plain_info.total_cost
+
+    def test_buffered_response_uses_litellm_reported_cost(self):
+        """Buffered responses should use LiteLLM's precomputed cost directly."""
+        response = ModelResponse(
+            model="claude-sonnet-4-5-20250929",
+            choices=[],
+            usage=Usage(prompt_tokens=1000, completion_tokens=100, total_tokens=1100),
+        )
+        response._hidden_params["response_cost"] = 0.00123
+
+        with patch("litellm.completion_cost") as completion_cost:
+            info = LiteLLMWrapper.extract_message_info(
+                response,
+                0.0,
+                requested_model="anthropic/claude-sonnet-4-5-20250929",
+            )
+
+        completion_cost.assert_not_called()
+        assert info.total_cost == pytest.approx(0.00123)
+
     def test_streamed_invocations_request_usage(self):
         """Anthropic and Gemini emit no usage on a stream unless it is asked for."""
         captured = {}
