@@ -12,11 +12,12 @@ from railtracks.middleware.core import Middleware
 
 
 class ConversationMemory(Middleware):
-    """Automatically persist and append conversation history across node invocations.
+    """Automatically cache and append conversation history across node invocations.
 
-    Node-level middleware (``middleware=``). Manages conversation history in the
-    active session's context variables (``rt.context``) and automatically prepends
-    prior conversation turns to incoming inputs:
+    Node-level middleware (``middleware=``). Caches conversation history in the
+    active session's context variables (``rt.context``) so it does not need to be
+    manually passed back in a loop, and automatically prepends prior conversation
+    turns to incoming inputs:
 
         import railtracks as rt
         from railtracks.prebuilt import middleware
@@ -31,24 +32,33 @@ class ConversationMemory(Middleware):
         res1 = await rt.call(Agent, "What is your name?")
         res2 = await rt.call(Agent, "What did I just ask?")  # Agent remembers!
 
-    History is automatically injected into the session context under ``context_key``
-    (defaults to ``"conversation_history"``), allowing inspection via
-    ``rt.context.get("conversation_history")`` or ``session.context["conversation_history"]``.
+    When attached to a named agent or node, conversation history is automatically
+    namespaced under ``conversation_history_<name>`` (e.g. ``"conversation_history_ChatAgent"``),
+    ensuring multiple agents in the same flow have isolated, independent memory stores.
+    To override this key or intentionally share memory between agents, pass an
+    explicit ``context_key``.
+
+    History can be inspected via ``rt.context.get(memory.context_key)``,
+    ``session.context[memory.context_key]``, or ``memory.get_history()``.
 
     Args:
-        context_key: Key under which the conversation history is injected into
-            the session context (``rt.context``). Defaults to ``"conversation_history"``.
+        context_key: Optional explicit key under which conversation history is cached
+            in the session context (``rt.context``). If None, defaults to
+            auto-namespacing by the agent/node name (or ``"conversation_history"`` if
+            unbound).
         max_messages: Optional maximum number of recent messages to retain in
             history. If None, history is unbounded.
     """
 
     def __init__(
         self,
-        context_key: str = "conversation_history",
+        context_key: str | None = None,
         *,
         max_messages: int | None = None,
     ):
-        self._context_key = context_key
+        self._explicit_key = context_key is not None
+        self._context_key = context_key or "conversation_history"
+        self._agent_name: str | None = None
         self._max_messages = max_messages
         self._state: dict[str, MessageHistory | None] = {"history": None}
         super().__init__(self._middleware_fn)
@@ -57,6 +67,13 @@ class ConversationMemory(Middleware):
     def context_key(self) -> str:
         """The session context key holding the conversation history."""
         return self._context_key
+
+    def bind_node_name(self, name: str) -> None:
+        """Bind the agent/node name to namespace the session context key."""
+        self._agent_name = name
+        if not self._explicit_key:
+            sanitized = name.replace(" ", "_")
+            self._context_key = f"conversation_history_{sanitized}"
 
     def get_history(self) -> MessageHistory | None:
         """Return the current conversation history from session context or instance."""
@@ -70,6 +87,11 @@ class ConversationMemory(Middleware):
                 context.delete(self._context_key)
             except KeyError:
                 pass
+            if not self._explicit_key and self._context_key != "conversation_history":
+                try:
+                    context.delete("conversation_history")
+                except KeyError:
+                    pass
 
     def __deepcopy__(self, memo: dict) -> ConversationMemory:
         cls = self.__class__
@@ -126,6 +148,13 @@ class ConversationMemory(Middleware):
                     return hist
             except KeyError:
                 pass
+            if not self._explicit_key and self._context_key != "conversation_history":
+                try:
+                    hist = context.get("conversation_history")
+                    if hist is not None:
+                        return hist
+                except KeyError:
+                    pass
         return self._state.get("history")
 
     def _save_result(self, result: object) -> None:

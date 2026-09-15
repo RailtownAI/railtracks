@@ -270,7 +270,7 @@ async def test_flow_connection_reaches_injected_session_context():
     assert res.text == "Processed: Hello from connection"
 
     # Context is reachable on the FlowConnection as session variable
-    hist = conn.context.get("conversation_history")
+    hist = conn.context.get(memory.context_key)
     assert hist is not None
     assert len(hist) == 2
     assert hist[0].content == "Hello from connection"
@@ -294,3 +294,64 @@ def test_sync_flow_invoke_with_conversation_memory():
     res2 = flow.invoke("World")
     assert res2.text == "Processed: World"
     assert len(fake_model.seen_messages[1]) == 3
+
+
+@pytest.mark.asyncio
+async def test_two_agents_in_one_flow_have_different_memory():
+    fake_model = _FakeEchoModel()
+    memory_researcher = ConversationMemory()
+    memory_writer = ConversationMemory()
+
+    researcher = rt.agent_node(
+        "Researcher",
+        llm=fake_model,
+        middleware=[memory_researcher],
+    )
+    writer = rt.agent_node(
+        "Writer",
+        llm=fake_model,
+        middleware=[memory_writer],
+    )
+
+    # Verify auto-namespaced context keys by agent name
+    assert memory_researcher.context_key == "conversation_history_Researcher"
+    assert memory_writer.context_key == "conversation_history_Writer"
+
+    # Run both agents within the same session
+    with rt.Session() as s:
+        # Researcher turn 1 and turn 2
+        await rt.call(researcher, "Find market trends")
+        await rt.call(researcher, "Summarize what you found")
+
+        # Writer turn 1 inside the same session context
+        await rt.call(writer, "Write an intro")
+
+        # Researcher should have its own 4 messages
+        researcher_hist = s.context.get("conversation_history_Researcher")
+        assert len(researcher_hist) == 4
+        assert researcher_hist[0].content == "Find market trends"
+
+        # Writer should have only its OWN 2 messages
+        writer_hist = s.context.get("conversation_history_Writer")
+        assert len(writer_hist) == 2
+        assert writer_hist[0].content == "Write an intro"
+
+        # Verify they did not collide or share memory
+        assert researcher_hist != writer_hist
+
+
+@pytest.mark.asyncio
+async def test_two_agents_can_share_memory_with_explicit_context_key():
+    fake_model = _FakeEchoModel()
+    mem1 = ConversationMemory(context_key="shared_chat")
+    mem2 = ConversationMemory(context_key="shared_chat")
+
+    assert mem1.context_key == "shared_chat"
+    assert mem2.context_key == "shared_chat"
+
+    rt.agent_node("AgentA", llm=fake_model, middleware=[mem1])
+    rt.agent_node("AgentB", llm=fake_model, middleware=[mem2])
+
+    # Because context_key was explicit, binding agent name does not overwrite it
+    assert mem1.context_key == "shared_chat"
+    assert mem2.context_key == "shared_chat"
