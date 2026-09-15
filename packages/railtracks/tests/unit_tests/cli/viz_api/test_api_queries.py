@@ -559,9 +559,7 @@ def test_null_cost_surfaces_as_null_in_llm_traces(
     _write_events(
         tmp_path,
         "trace-unpriced",
-        *_llm_session_events(
-            "trace-unpriced", "node-t", "llm-t", total_cost=None
-        ),
+        *_llm_session_events("trace-unpriced", "node-t", "llm-t", total_cost=None),
     )
 
     response = TestClient(app).get("/api/llm-traces")
