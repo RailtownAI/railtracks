@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from copy import deepcopy
 
 import railtracks.context as context
@@ -32,10 +33,10 @@ class ConversationMemory(Middleware):
         res1 = await rt.call(Agent, "What is your name?")
         res2 = await rt.call(Agent, "What did I just ask?")  # Agent remembers!
 
-    When attached to a named agent or node, conversation history is automatically
-    namespaced under ``conversation_history_<name>`` (e.g. ``"conversation_history_ChatAgent"``),
-    ensuring multiple agents in the same flow have isolated, independent memory stores.
-    To override this key or intentionally share memory between agents, pass an
+    When attached to an agent or node, conversation history is automatically
+    isolated under a unique key (e.g. ``"conversation_history_a1b2c3d4"``),
+    ensuring multiple agents in the same flow have independent memory stores.
+    To specify a custom key or intentionally share memory between agents, pass an
     explicit ``context_key``.
 
     History can be inspected via ``rt.context.get(memory.context_key)``,
@@ -43,9 +44,8 @@ class ConversationMemory(Middleware):
 
     Args:
         context_key: Optional explicit key under which conversation history is cached
-            in the session context (``rt.context``). If None, defaults to
-            auto-namespacing by the agent/node name (or ``"conversation_history"`` if
-            unbound).
+            in the session context (``rt.context``). If None, defaults to an
+            auto-isolated per-instance key.
         max_messages: Optional maximum number of recent messages to retain in
             history. If None, history is unbounded.
     """
@@ -56,9 +56,9 @@ class ConversationMemory(Middleware):
         *,
         max_messages: int | None = None,
     ):
+        self._instance_id = uuid.uuid4().hex[:8]
         self._explicit_key = context_key is not None
-        self._context_key = context_key or "conversation_history"
-        self._agent_name: str | None = None
+        self._context_key = context_key or f"conversation_history_{self._instance_id}"
         self._max_messages = max_messages
         self._state: dict[str, MessageHistory | None] = {"history": None}
         super().__init__(self._middleware_fn)
@@ -67,13 +67,6 @@ class ConversationMemory(Middleware):
     def context_key(self) -> str:
         """The session context key holding the conversation history."""
         return self._context_key
-
-    def bind_node_name(self, name: str) -> None:
-        """Bind the agent/node name to namespace the session context key."""
-        self._agent_name = name
-        if not self._explicit_key:
-            sanitized = name.replace(" ", "_")
-            self._context_key = f"conversation_history_{sanitized}"
 
     def get_history(self) -> MessageHistory | None:
         """Return the current conversation history from session context or instance."""
@@ -87,7 +80,7 @@ class ConversationMemory(Middleware):
                 context.delete(self._context_key)
             except KeyError:
                 pass
-            if not self._explicit_key and self._context_key != "conversation_history":
+            if not self._explicit_key:
                 try:
                     context.delete("conversation_history")
                 except KeyError:
@@ -148,7 +141,7 @@ class ConversationMemory(Middleware):
                     return hist
             except KeyError:
                 pass
-            if not self._explicit_key and self._context_key != "conversation_history":
+            if not self._explicit_key:
                 try:
                     hist = context.get("conversation_history")
                     if hist is not None:

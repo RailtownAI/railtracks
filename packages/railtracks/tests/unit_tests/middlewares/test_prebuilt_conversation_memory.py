@@ -43,7 +43,7 @@ async def test_first_call_stores_response_history_in_session_context():
         assert result.text == "Hello!"
 
         # Verify history is injected into the session variable
-        session_hist = s.context.get("conversation_history")
+        session_hist = s.context.get(memory.context_key)
         assert session_hist is not None
         assert len(session_hist) == 2
         assert session_hist[0].content == "Hi there"
@@ -85,7 +85,7 @@ async def test_subsequent_calls_append_to_history():
         assert turn_2_input[2].content == "What did I just ask?"
 
         # Check session context after turn 2
-        session_hist = s.context.get("conversation_history")
+        session_hist = s.context.get(memory.context_key)
         assert len(session_hist) == 4
         assert session_hist[3].content == "Second reply"
 
@@ -148,10 +148,10 @@ async def test_clear_method():
 
     with rt.Session() as s:
         await wrapped("Hi")
-        assert s.context.get("conversation_history") is not None
+        assert s.context.get(memory.context_key) is not None
 
         memory.clear()
-        assert "conversation_history" not in s.context.keys()
+        assert memory.context_key not in s.context.keys()
         assert memory.get_history() is None
 
 
@@ -174,7 +174,7 @@ async def test_max_messages_limit():
 
     with rt.Session() as s:
         await wrapped("input")
-        session_hist = s.context.get("conversation_history")
+        session_hist = s.context.get(memory.context_key)
         assert len(session_hist) == 2
         assert session_hist[0].content == "3"
         assert session_hist[1].content == "4"
@@ -197,10 +197,10 @@ async def test_keyword_arguments_support():
 
     with rt.Session() as s:
         await wrapped(user_input="First message")
-        assert len(s.context.get("conversation_history")) == 2
+        assert len(s.context.get(memory.context_key)) == 2
 
         await wrapped(user_input="Second message")
-        assert len(s.context.get("conversation_history")) == 4
+        assert len(s.context.get(memory.context_key)) == 4
 
 
 class _FakeEchoModel:
@@ -313,9 +313,8 @@ async def test_two_agents_in_one_flow_have_different_memory():
         middleware=[memory_writer],
     )
 
-    # Verify auto-namespaced context keys by agent name
-    assert memory_researcher.context_key == "conversation_history_Researcher"
-    assert memory_writer.context_key == "conversation_history_Writer"
+    # Verify each memory instance has its own unique context key
+    assert memory_researcher.context_key != memory_writer.context_key
 
     # Run both agents within the same session
     with rt.Session() as s:
@@ -327,12 +326,12 @@ async def test_two_agents_in_one_flow_have_different_memory():
         await rt.call(writer, "Write an intro")
 
         # Researcher should have its own 4 messages
-        researcher_hist = s.context.get("conversation_history_Researcher")
+        researcher_hist = s.context.get(memory_researcher.context_key)
         assert len(researcher_hist) == 4
         assert researcher_hist[0].content == "Find market trends"
 
         # Writer should have only its OWN 2 messages
-        writer_hist = s.context.get("conversation_history_Writer")
+        writer_hist = s.context.get(memory_writer.context_key)
         assert len(writer_hist) == 2
         assert writer_hist[0].content == "Write an intro"
 

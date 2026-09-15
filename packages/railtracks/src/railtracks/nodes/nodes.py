@@ -164,10 +164,6 @@ class Node(ABC, Generic[_P, _TOutput]):
                 result = await self.invoke(*a, **kw)
                 return result
 
-        for m in self.middleware.middleware:
-            if hasattr(m, "bind_node_name"):
-                m.bind_node_name(self.name())
-
         # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
         self.middleware.get_scope_manager = lambda: self._scope_manager
         result: _TOutput | None = None

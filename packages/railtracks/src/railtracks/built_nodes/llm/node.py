@@ -70,15 +70,9 @@ def _build_dynamic_agent(
         else system_message
     )
 
-    resolved_name = name if name is not None else "LLM Agent"
-    if middleware is not None:
-        for m in middleware:
-            if hasattr(m, "bind_node_name"):
-                m.bind_node_name(resolved_name)
-
     if output_schema is None:
         nb = LLMNodeBuilder.llm(
-            name=resolved_name,
+            name=name if name is not None else "LLM Agent",
             model=llm,
             system_message=resolved_system,
             connected_nodes=unpacked_tool_nodes,
@@ -91,7 +85,7 @@ def _build_dynamic_agent(
         )
     else:
         nb = LLMNodeBuilder.llm(
-            name=resolved_name,
+            name=name if name is not None else "LLM Agent",
             model=llm,
             system_message=resolved_system,
             schema=output_schema,
