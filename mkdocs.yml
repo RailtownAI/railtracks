@@ -1,6 +1,6 @@
 site_name: Railtracks Docs
 site_url: https://docs.railtracks.org/
-site_description: "Railtracks is a Python framework for building agent harnesses: the loop, tools, context, and controls around an LLM."
+site_description: "Railtracks is a Python framework for building agents and harnesses: the loop, tools, context, and controls around an LLM."
 
 hooks:
   - scripts/mkdocs_hooks.py

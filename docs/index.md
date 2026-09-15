@@ -7,7 +7,6 @@ hide:
 <div class="rt-hero">
   <img src="assets/logo.svg" alt="Railtracks Logo" width="280">
   <h1>Made by Agent Builders<br>for Agent Builders</h1>
-  <p>A Python framework for building agent harnesses: the loop, tools, context, and controls around a model.</p>
 </div>
 
 <div class="grid cards rt-home-cards">

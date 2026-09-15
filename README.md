@@ -30,7 +30,7 @@
 
 ## What is Railtracks?
 
-Railtracks is a Python **agent framework** for building your own **harness**. Every piece is an ordinary Python object you assemble yourself: a tool-calling loop, a tool surface of functions, sub-agents and MCP servers, context management, permission and budget controls, and a replayable record of every run. No YAML, no DSL, no black-box runtime.
+Railtracks is a Python **agent framework** for building your own **agents and/or harness**. Every piece is an ordinary Python object you assemble yourself: a tool-calling loop, a tool surface of functions, sub-agents and MCP servers, context management, permission and budget controls, and a replayable record of every run. No YAML, no DSL, no black-box runtime.
 
 
 ```python

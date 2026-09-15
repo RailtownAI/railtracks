@@ -9,6 +9,7 @@
 
 .rt-hero {
   flex: 0 0 auto;
+  max-width: 320px;
   text-align: center;
 }
 
@@ -24,6 +25,7 @@
 
   .rt-hero {
     width: 100%;
+    max-width: 100%;
   }
 
   .rt-hero img {
