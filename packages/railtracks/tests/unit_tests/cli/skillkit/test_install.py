@@ -112,7 +112,9 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
     def test_absent_argument_hint_omits_the_key(self):
         """An optional key with no value must not ship as the literal "None"."""
         skill = _write_skill(
-            self.source, "fixture-skill", "name: fixture-skill\ndescription: A fixture.\n"
+            self.source,
+            "fixture-skill",
+            "name: fixture-skill\ndescription: A fixture.\n",
         )
 
         _add_claude(skill, force=False)
@@ -236,9 +238,7 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
         """The list has to survive the CLI entry point, not just the handler."""
         written = add_skill("claude:agent-builder")
 
-        self.assertEqual(
-            written, [Path(".claude/skills/agent-builder/SKILL.md")]
-        )
+        self.assertEqual(written, [Path(".claude/skills/agent-builder/SKILL.md")])
 
     def test_a_dropped_supporting_file_is_removed(self):
         """The hazard #1522 exists to close: a slimmed-down skill leaves no leftovers.
@@ -257,7 +257,9 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
 
         _add_claude(load_skill(first.directory), force=True)
 
-        self.assertFalse(Path(".claude/skills/fixture-skill/references/gone.md").exists())
+        self.assertFalse(
+            Path(".claude/skills/fixture-skill/references/gone.md").exists()
+        )
         # The directory it emptied goes too, rather than lingering as a husk.
         self.assertFalse(Path(".claude/skills/fixture-skill/references").exists())
         self.assertTrue(Path(".claude/skills/fixture-skill/SKILL.md").is_file())
@@ -363,7 +365,9 @@ class TestSkillSync(unittest.TestCase):
 
     def test_the_manifest_tracks_a_shrinking_skill(self):
         """After a sync the record describes what is actually on disk."""
-        first = self._fixture({"references/gone.md": "x\n", "references/stays.md": "y\n"})
+        first = self._fixture(
+            {"references/gone.md": "x\n", "references/stays.md": "y\n"}
+        )
         _add_claude(first, force=True)
         (first.directory / "references/gone.md").unlink()
 
@@ -396,7 +400,9 @@ class TestSkillSync(unittest.TestCase):
         with patch("railtracks.cli._skillkit.install.print_status") as mock_status:
             _add_claude(skill, force=True)
 
-        reported = " ".join(str(c.args[0]) for c in mock_status.call_args_list if c.args)
+        reported = " ".join(
+            str(c.args[0]) for c in mock_status.call_args_list if c.args
+        )
         self.assertIn("0.0.1", reported)
 
     def test_a_bundled_skill_installs_and_records_itself(self):
@@ -757,7 +763,9 @@ class TestLegacyDetectionWiredIntoInstall(unittest.TestCase):
         with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
             install_skill_directory(self._fixture(), COPILOT, force=True)
 
-        reported = " ".join(str(c.args[0]) for c in mock_warning.call_args_list if c.args)
+        reported = " ".join(
+            str(c.args[0]) for c in mock_warning.call_args_list if c.args
+        )
         self.assertIn("copilot-instructions.md", reported)
         self.assertIn("legacy", reported)
 
@@ -768,7 +776,9 @@ class TestLegacyDetectionWiredIntoInstall(unittest.TestCase):
         with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
             install_skill_directory(self._fixture(), CURSOR, force=True)
 
-        reported = " ".join(str(c.args[0]) for c in mock_warning.call_args_list if c.args)
+        reported = " ".join(
+            str(c.args[0]) for c in mock_warning.call_args_list if c.args
+        )
         self.assertIn("fixture-skill.mdc", reported)
         self.assertIn("legacy", reported)
 
@@ -776,8 +786,12 @@ class TestLegacyDetectionWiredIntoInstall(unittest.TestCase):
         """D12: the manifest recognises legacy installs; it never deletes them."""
         self._install_legacy_copilot_region()
         self._install_legacy_cursor_file()
-        before_copilot = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
-        before_cursor = Path(".cursor/rules/fixture-skill.mdc").read_text(encoding="utf-8")
+        before_copilot = Path(".github/copilot-instructions.md").read_text(
+            encoding="utf-8"
+        )
+        before_cursor = Path(".cursor/rules/fixture-skill.mdc").read_text(
+            encoding="utf-8"
+        )
 
         with patch("railtracks.cli._skillkit.install.print_warning"):
             install_skill_directory(self._fixture(), COPILOT, force=True)
@@ -844,5 +858,7 @@ class TestInstallTargetParameters(unittest.TestCase):
             ],
         )
         content = written[0].read_text(encoding="utf-8")
-        self.assertEqual(content, "---\nname: fixture-skill\n---\n\nUse the request here.")
+        self.assertEqual(
+            content, "---\nname: fixture-skill\n---\n\nUse the request here."
+        )
         self.assertFalse(Path(".claude").exists())

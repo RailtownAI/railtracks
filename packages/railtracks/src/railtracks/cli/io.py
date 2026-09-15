@@ -1,9 +1,8 @@
 """CLI terminal I/O helpers (stdlib + colorama only)."""
 
-from pathlib import Path
-
 import os
 import sys
+from pathlib import Path
 
 from colorama import Fore, Style
 

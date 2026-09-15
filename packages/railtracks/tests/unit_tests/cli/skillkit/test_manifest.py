@@ -272,7 +272,9 @@ class TestFindLegacyInstalls:
         reason to tell the user and never a reason to delete their file."""
         rule = tmp_path / ".cursor" / "rules" / "fixture-skill.mdc"
         rule.parent.mkdir(parents=True)
-        rule.write_text("---\nalwaysApply: true\n---\n\nhand written\n", encoding="utf-8")
+        rule.write_text(
+            "---\nalwaysApply: true\n---\n\nhand written\n", encoding="utf-8"
+        )
 
         found = find_legacy_installs("fixture-skill", tmp_path)
 
