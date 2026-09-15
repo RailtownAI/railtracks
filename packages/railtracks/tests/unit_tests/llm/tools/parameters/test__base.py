@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from railtracks.llm.tools.parameters._base import Parameter, ParameterType
 
 
@@ -41,6 +42,35 @@ def test_param_type_from_python_type():
     assert ParameterType.from_python_type(type(None)) == ParameterType.NONE
 
 
+def test_param_type_from_python_type_unrecognized_type():
+    # Verify graceful fallback to OBJECT for unannotated/unrecognized types
+    assert ParameterType.from_python_type(bytes) == ParameterType.OBJECT
+
+
+def test_explicit_param_type_strictly_rejects_unrecognized_string():
+    # Verify that explicit unrecognized string types are strictly rejected
+    with pytest.raises(ValueError, match="Unrecognized schema parameter type"):
+        Parameter("foo", param_type="invalid_schema_type")
+
+
+def test_explicit_param_type_strictly_rejects_unmapped_python_type():
+    # Verify that explicit unmapped python types are strictly rejected
+    with pytest.raises(ValueError, match="Unmapped Python type"):
+        Parameter("foo", param_type=bytes)
+
+
+def test_explicit_param_type_none_alias_resolves_to_null():
+    # Verify that 'none' is accepted and resolves to 'null'
+    p = Parameter("foo", param_type="none")
+    assert p.param_type == "null"
+
+
+def test_nullable_union_resolves_correctly():
+    # Verify ["string", "null"] / Optional[str] equivalent resolves cleanly
+    p = Parameter("foo", param_type=["string", "null"])
+    assert p.param_type == ["string", "null"]
+
+
 def test_parameter_accepts_python_type_str():
     p = Parameter("query", description="The search query string.", param_type=str)
     assert p.param_type == "string"
@@ -58,3 +88,11 @@ def test_parameter_accepts_python_type_int():
 def test_parameter_list_accepts_mixed_python_and_schema_types():
     p = Parameter("x", param_type=[str, "null"])
     assert p.param_type == ["string", "null"]
+
+
+def test_to_json_schema_default_injection_with_none():
+    # Repro case from Maintainer: ensure 'none' in a list is normalized to 'null'
+    # and default=None is correctly injected
+    p = Parameter("foo", param_type=["string", "none"])
+    schema = p.to_json_schema()
+    assert schema == {"type": ["string", "null"], "default": None}
