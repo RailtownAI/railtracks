@@ -1,5 +1,5 @@
-"""Semantics for system messages: which ones the framework owns, which ones belong to the caller,
-and what survives a round trip through an agent's response. See
+"""Semantics for system messages: what reaches the model, what comes back to the caller, and
+what the validator warns about. See
 https://docs.railtracks.org/documentation/agent_design/llms/system_messages/.
 """
 
@@ -7,40 +7,27 @@ from __future__ import annotations
 
 import pytest
 import railtracks.built_nodes.llm.llm_helpers as llm_helpers
-from railtracks.built_nodes.llm.llm_helpers import (
-    append_system_message,
-    prepare_message_history,
-)
-from railtracks.exceptions import NodeInvocationError
+from railtracks.built_nodes.llm.llm_helpers import _wire_history
+from railtracks.exceptions import LLMError, NodeInvocationError
+from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
     AssistantMessage,
     Role,
     SystemMessage,
+    ToolMessage,
     UserMessage,
-    _AgentSystemMessage,
 )
 from railtracks.llm.response import Response
 from railtracks.validation.node_invocation.validation import check_message_history
 
 
-def _kinds(history: MessageHistory) -> list[str]:
-    """The class name of every message, so agent-owned and caller-owned system turns differ."""
-    return [type(m).__name__ for m in history]
+def _contents(history: MessageHistory) -> list[str]:
+    return [str(m.content) for m in history]
 
 
-def _invoker_returning(content: str):
-    """A stand-in ModelInvoker whose `invoke` always answers with `content`."""
-
-    class _StaticInvoker:
-        @classmethod
-        def create_with_llm_observe(cls, *args, **kwargs):
-            return cls()
-
-        async def invoke(self, *args, **kwargs):
-            return Response(message=AssistantMessage(content))
-
-    return _StaticInvoker
+def _roles(history: MessageHistory) -> list[str]:
+    return [m.role.value for m in history]
 
 
 class _FakeNode:
@@ -48,117 +35,130 @@ class _FakeNode:
     _scope_manager = None
 
 
+def _recording_invoker(*responses: Response):
+    """A stand-in ModelInvoker that records each history it is handed.
+
+    Answers with `responses` in turn, repeating the last one once they run out.
+    """
+    sent: list[MessageHistory] = []
+
+    class _Invoker:
+        @classmethod
+        def create_with_llm_observe(cls, *args, **kwargs):
+            return cls()
+
+        async def invoke(self, message_history, **kwargs):
+            sent.append(MessageHistory(list(message_history)))
+            return responses[min(len(sent) - 1, len(responses) - 1)]
+
+    return _Invoker, sent
+
+
+def _answer(text: str = "answer") -> Response:
+    return Response(message=AssistantMessage(text))
+
+
+def _tool_request() -> Response:
+    call = ToolCall(identifier="1", name="a_tool", arguments={})
+    return Response(message=AssistantMessage(ToolCalls([call])))
+
+
+def _tool_result() -> ToolResponse:
+    return ToolResponse(identifier="1", name="a_tool", result="tool result")
+
+
 # ---------------------------------------------------------------------------
-# prepare_message_history
+# what reaches the model
 # ---------------------------------------------------------------------------
 
 
-def test_agent_system_message_is_placed_first():
-    prepared = prepare_message_history(SystemMessage("agent"), "hi")
+def test_the_agent_system_message_goes_first():
+    conversation = MessageHistory([UserMessage("hi")])
 
-    assert _kinds(prepared) == ["_AgentSystemMessage", "UserMessage"]
-    assert prepared[0].content == "agent"
+    wire = _wire_history(SystemMessage("agent"), conversation)
 
-
-def test_caller_system_message_is_left_where_it_is():
-    history = MessageHistory([SystemMessage("caller"), UserMessage("hi")])
-
-    prepared = prepare_message_history(None, history)
-
-    assert _kinds(prepared) == ["SystemMessage", "UserMessage"]
+    assert _contents(wire) == ["agent", "hi"]
 
 
-def test_agent_system_message_precedes_a_caller_system_message():
-    history = MessageHistory([SystemMessage("caller"), UserMessage("hi")])
+def test_a_caller_system_message_keeps_its_place():
+    conversation = MessageHistory([SystemMessage("caller"), UserMessage("hi")])
 
-    prepared = prepare_message_history(SystemMessage("agent"), history)
+    wire = _wire_history(SystemMessage("agent"), conversation)
 
-    assert _kinds(prepared) == ["_AgentSystemMessage", "SystemMessage", "UserMessage"]
-    assert [m.content for m in prepared] == ["agent", "caller", "hi"]
+    assert _contents(wire) == ["agent", "caller", "hi"]
 
 
 def test_several_caller_system_messages_keep_their_order():
-    history = MessageHistory(
+    conversation = MessageHistory(
         [SystemMessage("first"), SystemMessage("second"), UserMessage("hi")]
     )
 
-    prepared = prepare_message_history(None, history)
+    wire = _wire_history(None, conversation)
 
-    assert [m.content for m in prepared] == ["first", "second", "hi"]
-
-
-def test_the_callers_history_is_not_modified():
-    history = MessageHistory([SystemMessage("caller"), UserMessage("hi")])
-
-    prepare_message_history(SystemMessage("agent"), history)
-
-    assert _kinds(history) == ["SystemMessage", "UserMessage"]
+    assert _contents(wire) == ["first", "second", "hi"]
 
 
-def test_each_call_gets_its_own_copy_of_the_agent_system_message():
-    system_message = SystemMessage("agent")
+def test_building_the_wire_leaves_the_conversation_alone():
+    conversation = MessageHistory([UserMessage("hi")])
 
-    first = prepare_message_history(system_message, "hi")
-    second = prepare_message_history(system_message, "hi again")
+    _wire_history(SystemMessage("agent"), conversation)
+
+    assert _contents(conversation) == ["hi"]
+
+
+def test_each_wire_carries_its_own_copy_of_the_agent_system_message():
+    """Prompt injection fills templates in place, so the shared node-level message is copied."""
+    system_message = SystemMessage("You are helping {user_name}.")
+    conversation = MessageHistory([UserMessage("hi")])
+
+    first = _wire_history(system_message, conversation)
+    second = _wire_history(system_message, conversation)
 
     assert first[0] is not second[0]
     assert first[0] is not system_message
 
 
-# ---------------------------------------------------------------------------
-# append_system_message
-# ---------------------------------------------------------------------------
+def test_structural_edits_to_a_wire_do_not_reach_the_conversation():
+    conversation = MessageHistory([UserMessage("hi")])
 
+    wire = _wire_history(None, conversation)
+    wire.append(UserMessage("added by middleware"))
 
-def test_append_system_message_replaces_an_existing_agent_message():
-    history = MessageHistory([_AgentSystemMessage("stale"), UserMessage("hi")])
-
-    append_system_message(history, SystemMessage("fresh"))
-
-    assert _kinds(history) == ["_AgentSystemMessage", "UserMessage"]
-    assert history[0].content == "fresh"
-
-
-def test_append_system_message_drops_a_stale_agent_message_when_given_none():
-    history = MessageHistory([_AgentSystemMessage("stale"), UserMessage("hi")])
-
-    append_system_message(history, None)
-
-    assert _kinds(history) == ["UserMessage"]
+    assert _contents(conversation) == ["hi"]
 
 
 # ---------------------------------------------------------------------------
-# the response path
+# what comes back to the caller
 # ---------------------------------------------------------------------------
 
 
-async def test_returned_history_hides_the_agents_own_system_message(monkeypatch):
-    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_returning("answer"))
+async def test_the_agent_system_message_stays_out_of_the_returned_history(monkeypatch):
+    invoker, sent = _recording_invoker(_answer())
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
     invoke = llm_helpers.llm_invoke_factory(object(), SystemMessage("agent"))
 
     response = await invoke(_FakeNode(), "hi")
 
-    assert _kinds(response.message_history) == ["UserMessage", "AssistantMessage"]
+    assert _contents(sent[0]) == ["agent", "hi"]
+    assert _contents(response.message_history) == ["hi", "answer"]
 
 
-async def test_returned_history_keeps_a_caller_system_message(monkeypatch):
+async def test_a_caller_system_message_comes_back(monkeypatch):
     """The bug behind #1350: a caller's prompt used to be stripped out of the response."""
-    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_returning("answer"))
+    invoker, _ = _recording_invoker(_answer())
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
     invoke = llm_helpers.llm_invoke_factory(object(), None)
     history = MessageHistory([SystemMessage("caller"), UserMessage("hi")])
 
     response = await invoke(_FakeNode(), history)
 
-    assert _kinds(response.message_history) == [
-        "SystemMessage",
-        "UserMessage",
-        "AssistantMessage",
-    ]
+    assert _roles(response.message_history) == ["system", "user", "assistant"]
     assert response.message_history[0].content == "caller"
 
 
 async def test_a_caller_system_message_survives_repeated_turns(monkeypatch):
-    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_returning("answer"))
+    invoker, _ = _recording_invoker(_answer())
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
     invoke = llm_helpers.llm_invoke_factory(object(), None)
     history = MessageHistory([SystemMessage("caller"), UserMessage("hi")])
 
@@ -170,27 +170,95 @@ async def test_a_caller_system_message_survives_repeated_turns(monkeypatch):
     assert history[0].content == "caller"
 
 
-async def test_the_agent_prompt_does_not_accumulate_across_turns(monkeypatch):
-    """Feeding a response back to its own agent re-sends one prompt, not one per turn."""
-    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_returning("answer"))
-    sent: list[MessageHistory] = []
-
-    async def _record(self, message_history, **kwargs):
-        sent.append(MessageHistory(list(message_history)))
-        return Response(message=AssistantMessage("answer"))
-
-    invoker = _invoker_returning("answer")
-    monkeypatch.setattr(invoker, "invoke", _record)
+async def test_the_agent_system_message_does_not_accumulate(monkeypatch):
+    """Feeding a response back to its own agent sends one prompt, not one per turn."""
+    invoker, sent = _recording_invoker(_answer())
     monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
     invoke = llm_helpers.llm_invoke_factory(object(), SystemMessage("agent"))
 
-    history: MessageHistory | str = "hi"
+    history = "hi"
     for _ in range(3):
         history = (await invoke(_FakeNode(), history)).message_history
         history.append(UserMessage("again"))
 
     assert [sum(1 for m in h if m.role == Role.system) for h in sent] == [1, 1, 1]
-    assert all(isinstance(h[0], _AgentSystemMessage) for h in sent)
+    assert all(h[0].content == "agent" for h in sent)
+
+
+async def test_the_callers_own_history_object_is_not_modified(monkeypatch):
+    invoker, _ = _recording_invoker(_answer())
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
+    invoke = llm_helpers.llm_invoke_factory(object(), SystemMessage("agent"))
+    history = MessageHistory([UserMessage("hi")])
+
+    await invoke(_FakeNode(), history)
+
+    assert _contents(history) == ["hi"]
+
+
+# ---------------------------------------------------------------------------
+# the tool-calling loop
+# ---------------------------------------------------------------------------
+
+
+async def test_every_model_call_in_the_loop_carries_the_agent_message(monkeypatch):
+    invoker, sent = _recording_invoker(_tool_request(), _answer())
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
+
+    async def _fake_run_tools(response, message_history, tool_nodes):
+        message_history.append(ToolMessage(_tool_result()))
+
+    monkeypatch.setattr(llm_helpers, "run_tools", _fake_run_tools)
+    invoke = llm_helpers.llm_invoke_factory(object(), SystemMessage("agent"))
+
+    response = await invoke(_FakeNode(), "hi")
+
+    assert [h[0].content for h in sent] == ["agent", "agent"]
+    assert sum(1 for m in sent[1] if m.role == Role.system) == 1
+    assert "agent" not in _contents(response.message_history)
+
+
+async def test_the_history_is_validated_once_per_invocation(monkeypatch):
+    invoker, _ = _recording_invoker(_tool_request(), _answer())
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
+
+    async def _fake_run_tools(response, message_history, tool_nodes):
+        message_history.append(ToolMessage(_tool_result()))
+
+    monkeypatch.setattr(llm_helpers, "run_tools", _fake_run_tools)
+
+    calls = []
+    monkeypatch.setattr(llm_helpers, "check_message_history", calls.append)
+    invoke = llm_helpers.llm_invoke_factory(object(), SystemMessage("agent"))
+
+    await invoke(_FakeNode(), "hi")
+
+    assert len(calls) == 1
+
+
+# ---------------------------------------------------------------------------
+# errors
+# ---------------------------------------------------------------------------
+
+
+async def test_an_error_reports_the_history_that_was_sent(monkeypatch):
+    """Errors surface what actually went to the model, agent system message included."""
+
+    class _Exploding:
+        @classmethod
+        def create_with_llm_observe(cls, *args, **kwargs):
+            return cls()
+
+        async def invoke(self, *args, **kwargs):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _Exploding)
+    invoke = llm_helpers.llm_invoke_factory(object(), SystemMessage("agent"))
+
+    with pytest.raises(LLMError) as exc:
+        await invoke(_FakeNode(), "hi")
+
+    assert _contents(exc.value.message_history) == ["agent", "hi"]
 
 
 # ---------------------------------------------------------------------------
@@ -247,16 +315,6 @@ def test_a_mid_conversation_system_message_warns(caplog):
 def test_leading_system_messages_do_not_warn(caplog):
     history = MessageHistory(
         [SystemMessage("a"), SystemMessage("b"), UserMessage("hi")]
-    )
-
-    check_message_history(history)
-
-    assert caplog.text == ""
-
-
-def test_the_agents_own_system_message_counts_as_a_leading_one(caplog):
-    history = MessageHistory(
-        [_AgentSystemMessage("agent"), SystemMessage("caller"), UserMessage("hi")]
     )
 
     check_message_history(history)

@@ -3,22 +3,7 @@
 A system message can reach a model two ways in Railtracks, and they behave differently on purpose. The `system_message=` argument on `rt.agent_node` is part of the **agent's configuration**: it describes who that agent is, and Railtracks sends it on every invocation. A `SystemMessage` you place in a `MessageHistory` is part of the **conversation**: it belongs to the caller, and Railtracks leaves it exactly where you put it.
 
 ```python
-import railtracks as rt
-
-# Configuration: sent on every call to this agent.
-agent = rt.agent_node(
-    "Assistant",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
-    system_message="You are terse.",
-)
-
-# Conversation: part of the history the caller owns.
-history = rt.llm.MessageHistory(
-    [
-        rt.llm.SystemMessage("Var A = 123"),
-        rt.llm.UserMessage("What is Var A?"),
-    ]
-)
+--8<-- "docs/scripts/documentation/system_messages.py:two_sources"
 ```
 
 ## What gets sent
@@ -39,12 +24,7 @@ Passing both is not a conflict and neither one is discarded. The agent's prompt 
 `response.message_history` is the conversation, so it contains every system message the caller put there, and **not** the agent's own configured prompt. That makes the returned history safe to feed straight back in for the next turn.
 
 ```python
-response = await rt.call(agent, history)
-
-next_turn = response.message_history
-next_turn.append(rt.llm.UserMessage("And Var B?"))
-
-response = await rt.call(agent, next_turn)
+--8<-- "docs/scripts/documentation/system_messages.py:next_turn"
 ```
 
 The agent's prompt is re-attached on every call rather than accumulating in the history, so a conversation that runs for fifty turns still sends exactly one copy of it. Because the returned history omits that prompt, handing it to a *different* agent gives you that agent's prompt instead of the first one's, rather than both.
