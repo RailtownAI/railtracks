@@ -81,13 +81,14 @@ async def test_terminal_llm_as_tool_correct_initialization(
         system_message=system_randomizer,
     )
 
-    with rt.Session():
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("The input string is 'hello world'")]
-        )
-        response = await rt.call(randomizer, user_input=message_history)
-        assert "encoder check" in response.content
-        assert "decoder check" in response.content
+    message_history = rt.llm.MessageHistory(
+        [rt.llm.UserMessage("The input string is 'hello world'")]
+    )
+    response = await rt.Flow(
+        "test_terminal_llm_as_tool_correct_initialization", randomizer
+    ).ainvoke(message_history)
+    assert "encoder check" in response.content
+    assert "decoder check" in response.content
 
 
 @pytest.mark.asyncio
@@ -123,13 +124,14 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
         llm=math_llm,
     )
 
-    with rt.Session():
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("Start the Math node.")]
-        )
-        response = await rt.call(math_node, user_input=message_history)
+    message_history = rt.llm.MessageHistory(
+        [rt.llm.UserMessage("Start the Math node.")]
+    )
+    response = await rt.Flow(
+        "test_terminal_llm_as_tool_correct_initialization_no_params", math_node
+    ).ainvoke(message_history)
 
-        assert "[42, 42, 42, 42, 42]" in response.content
+    assert "[42, 42, 42, 42, 42]" in response.content
 
 
 @pytest.mark.timeout(30)
@@ -156,14 +158,15 @@ async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_mess
         system_message="You are a helpful assistant that uses the encoder tool.",
     )
 
-    with rt.Session():
-        response = await rt.call(caller, user_input="Encode 'hello world'")
-        tool_results = [
-            message.content.result
-            for message in response.message_history
-            if message.role == "tool"
-        ]
-        assert tool_results == ["encoder check"]
+    response = await rt.Flow(
+        "test_agent_as_tool_result_is_not_wrapped", caller
+    ).ainvoke("Encode 'hello world'")
+    tool_results = [
+        message.content.result
+        for message in response.message_history
+        if message.role == "tool"
+    ]
+    assert tool_results == ["encoder check"]
 
 
 @pytest.mark.timeout(30)
@@ -203,17 +206,18 @@ async def test_terminal_llm_tool_with_invalid_parameters(
         system_message=system_message,
     )
 
-    with rt.Session():
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("Encode this text but use an invalid parameter name.")]
-        )
-        response = await rt.call(tool_call_llm, user_input=message_history)
-        # Check that there was an error running the tool
-        assert any(
-            message.role == "assistant"
-            and "There was an error during tool execution" in message.content
-            for message in response.message_history
-        )
+    message_history = rt.llm.MessageHistory(
+        [rt.llm.UserMessage("Encode this text but use an invalid parameter name.")]
+    )
+    response = await rt.Flow(
+        "test_terminal_llm_tool_with_invalid_parameters", tool_call_llm
+    ).ainvoke(message_history)
+    # Check that there was an error running the tool
+    assert any(
+        message.role == "assistant"
+        and "There was an error during tool execution" in message.content
+        for message in response.message_history
+    )
 
 
 def test_no_manifest(mock_llm):

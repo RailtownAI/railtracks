@@ -69,16 +69,17 @@ async def test_message_history_not_mutated_terminal_llm(terminal_nodes):
 
     MathGameNode = rt.function_node(make_math_game_node)  # noqa: N806
 
-    with rt.Session():
-        message_history = rt.llm.MessageHistory(
-            [rt.llm.UserMessage("You can start the game")]
-        )
-        original_message_history = deepcopy(message_history)
-        _ = await rt.call(MathGameNode, message_history=message_history)
-        assert all(
-            orig.content == new.content
-            for orig, new in zip(original_message_history, message_history)
-        ), "Message history modified after runner run"
+    message_history = rt.llm.MessageHistory(
+        [rt.llm.UserMessage("You can start the game")]
+    )
+    original_message_history = deepcopy(message_history)
+    _ = await rt.Flow(
+        "test_message_history_not_mutated_terminal_llm", MathGameNode
+    ).ainvoke(message_history=message_history)
+    assert all(
+        orig.content == new.content
+        for orig, new in zip(original_message_history, message_history)
+    ), "Message history modified after runner run"
 
 
 @pytest.mark.asyncio
@@ -138,20 +139,21 @@ async def test_message_history_not_mutated_structured_llm(structured_nodes):
 
     MathProofNode = rt.function_node(math_proof_node)  # noqa: N806
 
-    with rt.Session():
-        message_history = rt.llm.MessageHistory(
-            [
-                rt.llm.UserMessage(
-                    "Prove that the sum of all numbers until infinity is -1/12"
-                )
-            ]
-        )
-        original_message_history = deepcopy(message_history)
-        _ = await rt.call(MathProofNode, message_history=message_history)
-        assert all(
-            orig.content == new.content
-            for orig, new in zip(original_message_history, message_history)
-        ), "Message history modified after runner run"
+    message_history = rt.llm.MessageHistory(
+        [
+            rt.llm.UserMessage(
+                "Prove that the sum of all numbers until infinity is -1/12"
+            )
+        ]
+    )
+    original_message_history = deepcopy(message_history)
+    _ = await rt.Flow(
+        "test_message_history_not_mutated_structured_llm", MathProofNode
+    ).ainvoke(message_history=message_history)
+    assert all(
+        orig.content == new.content
+        for orig, new in zip(original_message_history, message_history)
+    ), "Message history modified after runner run"
 
 
 @pytest.mark.timeout(34)
@@ -194,20 +196,21 @@ async def test_message_history_not_mutated_tool_call_llm(tool_calling_nodes):
         return response
 
     TravelSummarizerNode = rt.function_node(travel_summarizer_node)  # noqa: N806
-    with rt.Session():
-        message_history = rt.llm.MessageHistory(
-            [
-                rt.llm.UserMessage(
-                    "I want to plan a trip to from Delhi to New York for a week. Please provide me with a budget summary for the trip."
-                )
-            ]
-        )
-        original_message_history = deepcopy(message_history)
-        _ = await rt.call(TravelSummarizerNode, message_history=message_history)
-        assert all(
-            orig.content == new.content
-            for orig, new in zip(original_message_history, message_history)
-        ), "Message history modified after runner run"
+    message_history = rt.llm.MessageHistory(
+        [
+            rt.llm.UserMessage(
+                "I want to plan a trip to from Delhi to New York for a week. Please provide me with a budget summary for the trip."
+            )
+        ]
+    )
+    original_message_history = deepcopy(message_history)
+    _ = await rt.Flow(
+        "test_message_history_not_mutated_tool_call_llm", TravelSummarizerNode
+    ).ainvoke(message_history=message_history)
+    assert all(
+        orig.content == new.content
+        for orig, new in zip(original_message_history, message_history)
+    ), "Message history modified after runner run"
 
 
 async def test_no_context_call():
@@ -257,9 +260,9 @@ ManyCalls = rt.function_node(many_calls)
 
 @pytest.mark.asyncio
 async def many_calls_tester(num_calls: int, parallel_calls: int):
-    with rt.Session() as run:
-        finished_result = await rt.call(ManyCalls, num_calls, parallel_calls)
-        info = run.info
+    conn = rt.Flow("many_calls_tester", ManyCalls).connect()
+    finished_result = await conn.ainvoke(num_calls, parallel_calls)
+    info = conn.session.info
 
     ans = finished_result
 
@@ -300,8 +303,7 @@ async def test_large_no_deadlock():
 
 @pytest.mark.asyncio
 async def test_simple_rng():
-    with rt.Session():
-        result = await rt.call(RNGNode)
+    result = await rt.Flow("test_simple_rng", RNGNode).ainvoke()
 
     assert 0 < result < 1
 
@@ -347,10 +349,10 @@ class NestedManyCalls(Node):
 
 @pytest.mark.asyncio
 async def nested_many_calls_tester(num_calls: int, parallel_calls: int, depth: int):
-    with rt.Session() as run:
-        await rt.call(NestedManyCalls, num_calls, parallel_calls, depth)
+    conn = rt.Flow("nested_many_calls_tester", NestedManyCalls).connect()
+    await conn.ainvoke(num_calls, parallel_calls, depth)
 
-    ans = run.info
+    ans = conn.session.info
 
     assert isinstance(ans.answer, list)
     assert len(ans.answer) == (parallel_calls * num_calls) ** (depth + 1)
@@ -397,54 +399,55 @@ async def test_nested_no_deadlock_harder_2():
 
 @pytest.mark.asyncio
 async def test_multiple_runs():
-    with rt.Session() as run:
-        result = await rt.call(RNGNode)
-        assert 0 < result < 1
+    @rt.function_node
+    async def entry():
+        r1 = await rt.call(RNGNode)
+        assert 0 < r1 < 1
+        r2 = await rt.call(RNGNode)
+        return [r1, r2]
 
-        result = await rt.call(RNGNode)
+    conn = rt.Flow("test_multiple_runs", entry).connect()
+    result = await conn.ainvoke()
+    assert isinstance(result, List)
+    assert 0 < result[0] < 1
+    assert 0 < result[1] < 1
 
-        info = run.info
-        assert isinstance(info.answer, List)
-        assert 0 < info.answer[0] < 1
-        assert 0 < info.answer[1] < 1
+    info = conn.session.info
+    insertion_requests = info.request_forest.insertion_request
+    assert isinstance(insertion_requests, List)
+    assert len(insertion_requests) == 1
 
-        insertion_requests = info.request_forest.insertion_request
-
-        assert isinstance(insertion_requests, List)
-        assert len(insertion_requests) == 2
-        for i_r in insertion_requests:
-            i_r_id = i_r.identifier
-
-            subset_info = info._get_info(i_r_id)
-            assert 0 < subset_info.answer < 1
-            assert len(subset_info.node_forest.heap()) == 1
+    # entry generated two child rt.call requests; each returned a float in (0, 1)
+    entry_children = info.request_forest.children(insertion_requests[0].sink_id)
+    assert len(entry_children) == 2
+    for r in entry_children:
+        assert 0 < r.output < 1
 
 
 @pytest.mark.asyncio
 async def test_multiple_runs_async():
-    with rt.Session() as run:
-        result = await rt.call(RNGNode)
-        assert 0 < result < 1
+    @rt.function_node
+    async def entry():
+        r1 = await rt.call(RNGNode)
+        assert 0 < r1 < 1
+        r2 = await rt.call(RNGNode)
+        return [r1, r2]
 
-        result = await rt.call(RNGNode)
+    conn = rt.Flow("test_multiple_runs_async", entry).connect()
+    result = await conn.ainvoke()
+    assert isinstance(result, List)
+    assert 0 < result[0] < 1
+    assert 0 < result[1] < 1
 
-        result = run.info.answer
-        assert isinstance(result, List)
-        assert 0 < result[0] < 1
-        assert 0 < result[1] < 1
+    info = conn.session.info
+    insertion_requests = info.request_forest.insertion_request
+    assert isinstance(insertion_requests, List)
+    assert len(insertion_requests) == 1
 
-        info = run.info
-
-        insertion_requests = info.request_forest.insertion_request
-
-        assert isinstance(insertion_requests, List)
-        assert len(insertion_requests) == 2
-        for i_r in insertion_requests:
-            i_r_id = i_r.identifier
-
-            subset_info = info._get_info(i_r_id)
-            assert 0 < subset_info.answer < 1
-            assert len(subset_info.node_forest.heap()) == 1
+    entry_children = info.request_forest.children(insertion_requests[0].sink_id)
+    assert len(entry_children) == 2
+    for r in entry_children:
+        assert 0 < r.output < 1
 
 
 def level_3(message: str):
@@ -469,13 +472,15 @@ async def test_multi_level_calls(level_2_node):
 
     ALevel1 = rt.function_node(level_1_async)  # noqa: N806
 
-    with rt.Session():
-        result = await rt.call(ALevel1, "Hello from Level 1 (async)")
-        assert result == "Hello from Level 1 (async)"
+    result = await rt.Flow("test_multi_level_calls_1", ALevel1).ainvoke(
+        "Hello from Level 1 (async)"
+    )
+    assert result == "Hello from Level 1 (async)"
 
-    with rt.Session():
-        result = await rt.call(ALevel1, "Hello from Level 1 (async)")
-        assert result == "Hello from Level 1 (async)"
+    result = await rt.Flow("test_multi_level_calls_2", ALevel1).ainvoke(
+        "Hello from Level 1 (async)"
+    )
+    assert result == "Hello from Level 1 (async)"
 
 
 async def timeout_node(timeout_len: float):
@@ -491,9 +496,8 @@ TimeoutNode = rt.function_node(timeout_node)
 
 @pytest.mark.asyncio
 async def test_timeout():
-    with rt.Session(timeout=0.1):
-        with pytest.raises(GlobalTimeOutError):
-            await rt.call(TimeoutNode, 0.3)
+    with pytest.raises(GlobalTimeOutError):
+        await rt.Flow("test_timeout", TimeoutNode, timeout=0.1).ainvoke(0.3)
 
 
 async def timeout_thrower():
@@ -505,11 +509,10 @@ TimeoutThrower = rt.function_node(timeout_thrower)
 
 @pytest.mark.asyncio
 async def test_timeout_thrower():
-    with rt.Session():
-        try:
-            await rt.call(TimeoutThrower)
-        except Exception as e:
-            assert isinstance(e, asyncio.TimeoutError)
+    try:
+        await rt.Flow("test_timeout_thrower", TimeoutThrower).ainvoke()
+    except Exception as e:
+        assert isinstance(e, asyncio.TimeoutError)
 
 
 # ============================================ END Many calls and Timeout tests ============================================
