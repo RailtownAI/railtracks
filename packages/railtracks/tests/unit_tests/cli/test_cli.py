@@ -576,7 +576,9 @@ def test_add_all_continues_after_skips(
     capsys.readouterr()
     with patch("builtins.input", return_value="n") as prompt:
         add_skill(f"{tool}:all")
-    assert prompt.call_count == (0 if tool == "copilot" else len(preinstalled))
+    # Every target (Copilot included, now that it is a directory install) prompts once
+    # per edited pre-install, since the manifest can't prove those files are untouched.
+    assert prompt.call_count == len(preinstalled)
     actual = {
         path.relative_to(bulk): path.read_bytes()
         for path in bulk.rglob("*")
@@ -593,6 +595,14 @@ def test_add_all_continues_after_skips(
 def test_single_skill_preserves_skip_exit(tool, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     add_skill(f"{tool}:agent-builder")
+    # Edit the install so the re-run can't prove it's untouched and must prompt; a
+    # re-install over unedited output is silent by design (manifest checksums).
+    for path in tmp_path.rglob("*"):
+        if path.is_file():
+            path.write_text(
+                path.read_text(encoding="utf-8") + "\n# edited\n",
+                encoding="utf-8",
+            )
     with patch("builtins.input", return_value="n"), pytest.raises(SystemExit) as exc:
         add_skill(f"{tool}:agent-builder")
     assert exc.value.code == 0
