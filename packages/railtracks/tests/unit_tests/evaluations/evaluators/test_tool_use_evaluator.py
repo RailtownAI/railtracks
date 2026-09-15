@@ -1,10 +1,11 @@
 import pytest
-
-from railtracks.evaluations.evaluators.tool_use_evaluator import METRICS, ToolUseEvaluator
+from railtracks.evaluations.evaluators.tool_use_evaluator import (
+    METRICS,
+    ToolUseEvaluator,
+)
 from railtracks.evaluations.point import Status
 
 from .conftest import make_agent_data_point, make_tool_call
-
 
 # ── ToolUseEvaluator ──────────────────────────────────────────────────────────
 
@@ -12,7 +13,9 @@ from .conftest import make_agent_data_point, make_tool_call
 def test_run_returns_expected_metrics(two_agent_data_points):
     result = ToolUseEvaluator().run(two_agent_data_points)
     metric_names = {m.name for m in result.metrics}
-    assert {"ToolFailure", "Runtime", "FailureRate", "UsageCount"}.issubset(metric_names)
+    assert {"ToolFailure", "Runtime", "FailureRate", "UsageCount"}.issubset(
+        metric_names
+    )
 
 
 def test_run_agent_data_ids_populated(two_agent_data_points):
@@ -23,13 +26,17 @@ def test_run_agent_data_ids_populated(two_agent_data_points):
 
 def test_run_usage_count_correct(two_agent_data_points):
     result = ToolUseEvaluator().run(two_agent_data_points)
-    usage_results = [r for r in result.metric_results if r.result_name.startswith("UsageCount")]
+    usage_results = [
+        r for r in result.metric_results if r.result_name.startswith("UsageCount")
+    ]
     assert all(r.value == 1 for r in usage_results)
 
 
 def test_run_failure_rate_zero_when_all_completed(two_agent_data_points):
     result = ToolUseEvaluator().run(two_agent_data_points)
-    failure_rates = [r for r in result.metric_results if r.result_name.startswith("FailureRate")]
+    failure_rates = [
+        r for r in result.metric_results if r.result_name.startswith("FailureRate")
+    ]
     assert all(r.value == 0.0 for r in failure_rates)
 
 
@@ -37,14 +44,18 @@ def test_run_failure_rate_nonzero_when_tool_fails():
     failed = make_tool_call(name="get_price", status=Status.FAILED)
     adp = make_agent_data_point(tool_calls=[failed])
     result = ToolUseEvaluator().run([adp])
-    failure_rates = [r for r in result.metric_results if r.result_name.startswith("FailureRate")]
+    failure_rates = [
+        r for r in result.metric_results if r.result_name.startswith("FailureRate")
+    ]
     values = [r.value for r in failure_rates]
     assert 1.0 in values
 
 
 def test_run_runtime_results_use_tool_runtime(two_agent_data_points):
     result = ToolUseEvaluator().run(two_agent_data_points)
-    runtime_results = [r for r in result.metric_results if r.result_name.startswith("Runtime")]
+    runtime_results = [
+        r for r in result.metric_results if r.result_name.startswith("Runtime")
+    ]
     assert all(r.value == pytest.approx(0.1) for r in runtime_results)
 
 
@@ -57,7 +68,9 @@ def test_run_single_data_point_single_tool_call():
     adp = make_agent_data_point(tool_calls=[make_tool_call(name="get_price")])
     result = ToolUseEvaluator().run([adp])
     metric_names = {m.name for m in result.metrics}
-    assert {"ToolFailure", "Runtime", "FailureRate", "UsageCount"}.issubset(metric_names)
+    assert {"ToolFailure", "Runtime", "FailureRate", "UsageCount"}.issubset(
+        metric_names
+    )
     assert len(result.aggregate_results.roots) > 0
 
 
@@ -74,7 +87,9 @@ def test_run_single_data_point_multiple_calls_same_tool():
     usage = [r for r in result.metric_results if r.result_name.startswith("UsageCount")]
     assert [r.value for r in usage] == [3]
 
-    runtimes = {r.value for r in result.metric_results if r.result_name.startswith("Runtime")}
+    runtimes = {
+        r.value for r in result.metric_results if r.result_name.startswith("Runtime")
+    }
     assert runtimes == {0.1, 0.3, 0.5}
 
 
@@ -87,7 +102,11 @@ def test_run_tool_failure_results_are_failure_indicators():
     )
     result = ToolUseEvaluator().run([adp])
 
-    failures = [r for r in result.metric_results if r.metric_id == METRICS["ToolFailure"].identifier]
+    failures = [
+        r
+        for r in result.metric_results
+        if r.metric_id == METRICS["ToolFailure"].identifier
+    ]
     assert [r.result_name for r in failures] == ["ToolFailure/get_price"] * 2
     assert sorted(r.value for r in failures) == [0, 1]
 
@@ -101,7 +120,9 @@ def test_run_emits_one_runtime_result_per_tool_call():
     )
     result = ToolUseEvaluator().run([adp])
 
-    runtimes = [r for r in result.metric_results if r.metric_id == METRICS["Runtime"].identifier]
+    runtimes = [
+        r for r in result.metric_results if r.metric_id == METRICS["Runtime"].identifier
+    ]
     assert sorted(r.value for r in runtimes) == [0.1, 0.3]
 
 

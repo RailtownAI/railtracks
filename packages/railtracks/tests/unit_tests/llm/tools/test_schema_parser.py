@@ -5,13 +5,16 @@ This module contains tests for the JSON output_schema parsing utilities in the
 railtracks.llm.tools.schema_parser module.
 """
 
-import re
-
+from railtracks.llm.tools import (
+    ArrayParameter,
+    ObjectParameter,
+    Parameter,
+    RefParameter,
+)
 from railtracks.llm.tools.schema_parser import (
     parse_json_schema_to_parameter,
     parse_model_properties,
 )
-from railtracks.llm.tools import Parameter, ArrayParameter, ObjectParameter, RefParameter
 
 
 class TestParseJsonSchemaToParameter:
@@ -428,3 +431,12 @@ class TestParseModelProperties:
         result = parse_model_properties(schema)
 
         assert result == []
+
+
+def test_parse_json_schema_to_parameter_nullable_string():
+    from railtracks.llm.tools.schema_parser import parse_json_schema_to_parameter
+
+    param = parse_json_schema_to_parameter("x", {"type": ["string", "null"]}, True)
+    schema = param.to_json_schema()
+
+    assert schema == {"anyOf": [{"type": "string"}, {"type": "null"}]}

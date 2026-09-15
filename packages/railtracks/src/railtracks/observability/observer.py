@@ -74,7 +74,17 @@ class Observer:
             if self._running:
                 return
             for i, writer in enumerate(self._pending_writers):
-                await self._register_impl(writer, f"writer-{i}")
+                name = f"writer-{i}"
+                try:
+                    await self._register_impl(writer, name)
+                except Exception as exc:
+                    logger.warning(
+                        "observability writer %r failed to start (%s: %s); "
+                        "continuing without it.",
+                        name,
+                        type(exc).__name__,
+                        exc,
+                    )
             self._running = True
 
     async def shutdown(self) -> None:

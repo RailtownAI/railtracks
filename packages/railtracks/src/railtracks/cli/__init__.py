@@ -43,7 +43,10 @@ from ._skillkit import (
     install_skill_directory,
 )
 from .constants import (
+    BETA_PORT,
+    BETA_UI_URL_ENV,
     DEFAULT_PORT,
+    beta_ui_url,
     cli_directory,
     cli_name,
     latest_ui_url,
@@ -142,9 +145,27 @@ def create_railtracks_dir():
         print_status(f"Using existing {railtracks_dir}")
 
 
-def get_stored_ui_version():
+def _ui_subdir(beta: bool) -> str:
+    return "beta-ui" if beta else "ui"
+
+
+def _ui_url(beta: bool) -> str:
+    if beta:
+        return os.environ.get(BETA_UI_URL_ENV, beta_ui_url)
+    return latest_ui_url
+
+
+def _ui_version_filename(beta: bool) -> str:
+    return ".beta_ui_version" if beta else ".ui_version"
+
+
+def _ui_label(beta: bool) -> str:
+    return "beta UI" if beta else "UI"
+
+
+def get_stored_ui_version(beta: bool = False):
     """Get the stored UI version (ETag) from disk"""
-    version_file = resolve_railtracks_home() / ".ui_version"
+    version_file = resolve_railtracks_home() / _ui_version_filename(beta)
     try:
         if version_file.exists():
             return version_file.read_text().strip()
@@ -153,41 +174,53 @@ def get_stored_ui_version():
     return None
 
 
-def save_ui_version(version: str):
+def save_ui_version(version: str, beta: bool = False):
     """Save the UI version (ETag) to disk"""
-    version_file = resolve_railtracks_home() / ".ui_version"
+    version_file = resolve_railtracks_home() / _ui_version_filename(beta)
     try:
         version_file.write_text(version)
     except Exception:
         pass
 
 
-def get_remote_ui_version():
+def get_remote_ui_version(beta: bool = False):
     """Get the remote UI version (ETag or Last-Modified) via HEAD request"""
+    url = _ui_url(beta)
+    if not url:
+        return None
     try:
-        req = urllib.request.Request(latest_ui_url, method="HEAD")
+        req = urllib.request.Request(url, method="HEAD")
         with urllib.request.urlopen(req, timeout=5) as response:
             return response.headers.get("ETag") or response.headers.get("Last-Modified")
     except Exception:
         return None
 
 
-def check_for_ui_update():
+def check_for_ui_update(beta: bool = False):
     """Check if there's an updated UI available and notify the user"""
-    stored = get_stored_ui_version()
+    stored = get_stored_ui_version(beta)
     if stored is None:
         return
-    remote = get_remote_ui_version()
+    remote = get_remote_ui_version(beta)
     if remote is not None and remote != stored:
         _print_update_available()
 
 
-def download_and_extract_ui():
-    """Download the latest frontend UI and extract it to .railtracks/ui"""
-    ui_url = latest_ui_url
-    ui_dir = resolve_railtracks_home() / "ui"
+def download_and_extract_ui(beta: bool = False):
+    """Download the latest frontend UI and extract it to .railtracks/ui or beta-ui"""
+    ui_url = _ui_url(beta)
+    label = _ui_label(beta)
+    if not ui_url:
+        print_error(
+            f"No download URL configured for the {label}. "
+            f"Set {BETA_UI_URL_ENV} to a beta UI zip URL, or stage a build in "
+            f"{resolve_railtracks_home() / _ui_subdir(beta)}."
+        )
+        sys.exit(1)
 
-    print_status("Downloading latest frontend UI...")
+    ui_dir = resolve_railtracks_home() / _ui_subdir(beta)
+
+    print_status(f"Downloading latest {label}...")
 
     temp_zip_path = None
     try:
@@ -205,27 +238,27 @@ def download_and_extract_ui():
 
         ui_dir.mkdir(parents=True, exist_ok=True)
 
-        print_status("Extracting UI files...")
+        print_status(f"Extracting {label} files...")
         with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(ui_dir)
 
         if ui_version:
-            save_ui_version(ui_version)
+            save_ui_version(ui_version, beta)
 
-        print_success("Frontend UI downloaded and extracted successfully")
-        print_status(f"UI files available in: {ui_dir}")
+        print_success(f"{label} downloaded and extracted successfully")
+        print_status(f"{label} files available in: {ui_dir}")
         _warn_if_visual_deps_missing()
 
     except urllib.error.URLError as e:
-        print_error(f"Failed to download UI: {e}")
+        print_error(f"Failed to download {label}: {e}")
         print_error("Please check your internet connection and try again")
         sys.exit(1)
     except zipfile.BadZipFile as e:
-        print_error(f"Failed to extract UI zip file: {e}")
+        print_error(f"Failed to extract {label} zip file: {e}")
         print_error("The downloaded file may be corrupted")
         sys.exit(1)
     except Exception as e:
-        print_error(f"Unexpected error during UI download/extraction: {e}")
+        print_error(f"Unexpected error during {label} download/extraction: {e}")
         sys.exit(1)
     finally:
         if temp_zip_path and os.path.exists(temp_zip_path):
@@ -244,11 +277,12 @@ def init_railtracks():
     print_status("You can now run 'railtracks viz' to start the server")
 
 
-def update_railtracks():
+def update_railtracks(beta: bool = False):
     """Update the frontend UI to the latest version"""
-    print_status("Updating the frontend UI to the latest version...")
-    download_and_extract_ui()
-    print_success("Frontend UI updated successfully!")
+    label = _ui_label(beta)
+    print_status(f"Updating the {label} to the latest version...")
+    download_and_extract_ui(beta=beta)
+    print_success(f"{label} updated successfully!")
 
 
 # ---------------------------------------------------------------------------
@@ -290,9 +324,10 @@ _TOOL_HANDLERS = {
 
 
 def add_skill(spec: str, force: bool = False) -> list[Path] | None:
-    """Parse <tool>:<skill-name> and install the skill for the given AI coding tool.
+    """Parse <tool>:<skill-name|all> and install skills for the given AI coding tool.
 
-    Returns the files the handler wrote, for handlers that report them.
+    Returns the files written for a single-skill install (for handlers that report
+    them); returns None for a bulk `all` install.
     """
     if ":" not in spec:
         print_error(
@@ -311,13 +346,37 @@ def add_skill(spec: str, force: bool = False) -> list[Path] | None:
         )
         sys.exit(1)
 
-    if skill_name not in SKILLS:
+    if skill_name != "all" and skill_name not in SKILLS:
         print_error(
             f"Unknown skill '{skill_name}'. Available skills: {', '.join(SKILLS)}"
         )
         sys.exit(1)
 
-    return _TOOL_HANDLERS[tool](SKILL_REGISTRY[skill_name], force)
+    if skill_name != "all":
+        return _TOOL_HANDLERS[tool](SKILL_REGISTRY[skill_name], force)
+
+    # Bulk install: every bundled skill for this tool. An installer exits 0 when the
+    # user declines an overwrite; treat that as a skip and continue. Any other exit is
+    # a real failure and propagates, stopping the run.
+    installed = skipped = 0
+    for name in SKILLS:
+        if name not in SKILL_REGISTRY:
+            print_error(
+                f"Unknown skill '{name}'. Available skills: {', '.join(SKILLS)}"
+            )
+            sys.exit(1)
+        try:
+            _TOOL_HANDLERS[tool](SKILL_REGISTRY[name], force)
+        except SystemExit as exc:
+            if exc.code != 0:
+                raise
+            skipped += 1
+            print_status(f"Skipped '{name}'; continuing with remaining skills.")
+        else:
+            installed += 1
+
+    print_status(f"Finished: {installed} installed, {skipped} skipped.")
+    return None
 
 
 def list_skills() -> None:
@@ -338,6 +397,7 @@ def list_skills() -> None:
     print(f"  {bold}Supported tools:{rst}  {', '.join(SUPPORTED_TOOLS)}")
     print()
     print(f"  {dim}Install with:{rst}  {green}{cli_name} add <tool>:<skill>{rst}")
+    print(f"  {dim}Install all:{rst}   {green}{cli_name} add <tool>:all{rst}")
     print()
 
 
@@ -368,12 +428,22 @@ def _print_help():
             f"Initialize {cli_name} environment (setup directories, download portable UI)",
         )
     )
-    print(cmd("update", "Update the frontend UI to the latest version"))
-    print(cmd("viz", f"Start the {cli_name} development server"))
+    print(
+        cmd(
+            "update",
+            f"Update the stable UI  {dim}(add --beta to update the beta UI){rst}",
+        )
+    )
+    print(
+        cmd(
+            "viz",
+            f"Start the {cli_name} dev server  {dim}(--beta serves beta-ui on {BETA_PORT}, --debug enables per-request query logging){rst}",
+        )
+    )
     print(
         cmd(
             "add",
-            f"Install an AI coding assistant skill  {dim}(--list to see them all){rst}",
+            f"Install AI coding assistant skills  {dim}(<tool>:all for all skills; --list to see them){rst}",
         )
     )
     print()
@@ -384,6 +454,12 @@ def _print_help():
         example(
             f"{cli_name} add claude:agent-builder",
             "Install agent-builder skill for Claude Code",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} add claude:all",
+            "Install all bundled skills for Claude Code",
         )
     )
     print(
@@ -420,7 +496,7 @@ def _exit_visual_deps_missing() -> None:
 
 
 def _run_add(args: list[str]) -> None:
-    """Handle `railtracks add`: either list the bundled skills or install one."""
+    """Handle `railtracks add`: list bundled skills, or install one or all."""
     if any(a in ("--list", "-l") for a in args):
         list_skills()
         return
@@ -446,32 +522,43 @@ def main():
 
     command = sys.argv[1]
 
+    flags = sys.argv[2:]
+
     if command == "init":
         init_railtracks()
     elif command == "update":
-        update_railtracks()
+        update_railtracks(beta="--beta" in flags)
     elif command == "viz":
         if not _visual_dependencies_available():
             _exit_visual_deps_missing()
 
-        if is_port_in_use(DEFAULT_PORT):
-            print_error(f"Port {DEFAULT_PORT} is already in use!")
+        beta = "--beta" in flags
+        debug = "--debug" in flags
+        port = BETA_PORT if beta else DEFAULT_PORT
+        ui_subdir = _ui_subdir(beta)
+
+        if is_port_in_use(port):
+            print_error(f"Port {port} is already in use!")
             print_status("Please stop the existing server.")
             sys.exit(1)
 
+        from .viz_api._logging import set_debug
         from .viz_server import RailtracksServer
 
+        set_debug(debug)
         create_railtracks_dir()
 
-        ui_index = resolve_railtracks_home() / "ui" / "index.html"
+        ui_index = resolve_railtracks_home() / ui_subdir / "index.html"
         if not ui_index.exists():
-            print_status("UI not found — downloading...")
-            download_and_extract_ui()
+            print_status(f"{_ui_label(beta)} not found — downloading...")
+            download_and_extract_ui(beta=beta)
 
-        update_thread = threading.Thread(target=check_for_ui_update, daemon=True)
+        update_thread = threading.Thread(
+            target=check_for_ui_update, args=(beta,), daemon=True
+        )
         update_thread.start()
 
-        server = RailtracksServer()
+        server = RailtracksServer(port=port, ui_subdir=ui_subdir, beta=beta)
         server.start()
     elif command == "add":
         _run_add(sys.argv[2:])

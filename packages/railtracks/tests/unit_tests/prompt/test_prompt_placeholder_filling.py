@@ -31,7 +31,11 @@ def echo_agent(mock_llm):
 
         model = mock_llm()
         model._chat = return_message
-        return rt.agent_node(system_message=system_message, model_middleware=[ContextInjection()], llm=model)
+        return rt.agent_node(
+            system_message=system_message,
+            model_middleware=[ContextInjection()],
+            llm=model,
+        )
 
     return build
 
@@ -77,8 +81,8 @@ def test_user_input_reaches_the_model_as_written(echo_agent, context, payload):
 def test_escaped_fragment_is_not_filled_while_the_template_is(echo_agent, context):
     """A message may mix a template you wrote with a string you did not."""
     untrusted = "Echo {value} and {holder.attr}"
-    content = (
-        "The current time is {time}:\nUser Message:\n" + rt.escape_braces(untrusted)
+    content = "The current time is {time}:\nUser Message:\n" + rt.escape_braces(
+        untrusted
     )
 
     received = _send(echo_agent(), content, context)
@@ -102,9 +106,38 @@ def test_system_message_is_still_filled(mock_llm, context):
 
     model = mock_llm()
     model._chat = return_message
-    agent = rt.agent_node(system_message="Helping {value} at {time}.", llm=model, model_middleware=[ContextInjection()])
+    agent = rt.agent_node(
+        system_message="Helping {value} at {time}.",
+        llm=model,
+        model_middleware=[ContextInjection()],
+    )
 
     flow = rt.Flow("EchoFlow", agent, context=context)
     asyncio.run(flow.ainvoke(MessageHistory([UserMessage("hi")])))
 
     assert delivered == ["Helping context-value at 12:00."]
+
+
+def test_system_message_is_refilled_on_repeated_invocation(mock_llm):
+    """A reused agent renders the current context on every invocation."""
+    delivered: list[str] = []
+
+    def return_message(messages: MessageHistory) -> Response:
+        delivered.extend(m.content for m in messages if m.role == Role.system)
+        return Response(message=Message(role=Role.assistant, content="ok"))
+
+    model = mock_llm()
+    model._chat = return_message
+    agent = rt.agent_node(
+        system_message="Helping {value}.",
+        llm=model,
+        model_middleware=[ContextInjection()],
+    )
+
+    async def invoke_twice():
+        await rt.Flow("EchoFlow", agent, context={"value": "first"}).ainvoke("hi")
+        await rt.Flow("EchoFlow", agent, context={"value": "second"}).ainvoke("hi")
+
+    asyncio.run(invoke_twice())
+
+    assert delivered == ["Helping first.", "Helping second."]

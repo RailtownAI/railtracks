@@ -4,6 +4,12 @@ import os
 from typing import Any, Callable, Coroutine
 
 
+def _disable_events() -> bool:
+    """Parse RAILTRACKS_DISABLE_EVENTS as a strict True/False env var
+    (case-insensitive). Anything else, including unset, is False."""
+    return os.environ.get("RAILTRACKS_DISABLE_EVENTS", "").strip().lower() == "true"
+
+
 class ExecutorConfig:
     def __init__(
         self,
@@ -13,7 +19,7 @@ class ExecutorConfig:
         broadcast_callback: (
             Callable[[str], None] | Callable[[str], Coroutine[None, None, None]] | None
         ) = None,
-        save_state: bool = True,
+        save_state: bool | None = None,
         payload_callback: Callable[[dict[str, Any]], None] | None = None,
     ):
         """
@@ -23,12 +29,13 @@ class ExecutorConfig:
             timeout (float | None): The maximum number of seconds to wait for a response to your top level request. Pass None (or omit) to disable the timeout entirely.
             end_on_error (bool): If true, the executor will stop execution when an exception is encountered.
             broadcast_callback (Callable or Coroutine): A function or coroutine that receives items published with `rt.broadcast`.
-            save_state (bool): If true, the state of the executor will be saved to disk.
+            save_state (bool | None): Deprecated at the user-facing API layer (see Flow). `RAILTRACKS_DISABLE_EVENTS=True` skips the write regardless. Otherwise, explicit value wins; when unset, defaults to True (save).
         """
         self.timeout = timeout
         self.end_on_error = end_on_error
         self.subscriber = broadcast_callback
-        # During test runs, disable save_state by default unless RAILTRACKS_ALLOW_PERSISTENCE is set
+        # During test runs, disable save_state by default unless
+        # RAILTRACKS_ALLOW_PERSISTENCE is set (see `save_state` property).
         self._user_save_state = save_state
 
         self.payload_callback = payload_callback
@@ -41,7 +48,9 @@ class ExecutorConfig:
             "RAILTRACKS_ALLOW_PERSISTENCE"
         ):
             return False
-        return self._user_save_state
+        if _disable_events():
+            return False
+        return True if self._user_save_state is None else self._user_save_state
 
     def precedence_overwritten(
         self,
@@ -65,7 +74,7 @@ class ExecutorConfig:
             broadcast_callback=subscriber
             if subscriber is not None
             else self.subscriber,
-            save_state=save_state if save_state is not None else self.save_state,
+            save_state=save_state if save_state is not None else self._user_save_state,
             payload_callback=payload_callback
             if payload_callback is not None
             else self.payload_callback,
@@ -74,5 +83,5 @@ class ExecutorConfig:
     def __repr__(self):
         return (
             f"ExecutorConfig(timeout={self.timeout}, end_on_error={self.end_on_error}, "
-            f"save_state={self.save_state}, payload_callback={self.payload_callback})"
+            f"save_state={self._user_save_state}, payload_callback={self.payload_callback})"
         )

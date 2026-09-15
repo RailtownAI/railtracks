@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -26,6 +27,11 @@ def _api_reference_is_fresh(src_dir: Path, output_dir: Path) -> bool:
 
 
 def _generate_api_reference(repo_root: Path, output_dir: Path) -> None:
+    # Wipe the output dir so HTML for removed modules doesn't linger. Orphaned files
+    # pin the freshness check's `min(mtime)` to an old date and cause every build to
+    # regenerate, which triggers `mkdocs serve`'s watcher into an infinite reload loop.
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
     subprocess.run(
         [
             sys.executable,

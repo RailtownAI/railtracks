@@ -30,6 +30,7 @@ class TestBaseDocumentLoaderAbstract:
 
     def test_concrete_subclass_missing_astream_raises(self):
         """A subclass that does not implement astream cannot be instantiated."""
+
         class Incomplete(BaseDocumentLoader):
             pass
 

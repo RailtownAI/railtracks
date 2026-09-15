@@ -82,12 +82,8 @@ class TestSkippedRoles:
 
 
 class TestMetaSummary:
-    def test_meta_contains_redacted_entities(
-        self, guard: PIIRedactInputGuard
-    ) -> None:
-        event = _make_input_event(
-            MessageHistory([UserMessage("SSN: 123-45-6789")])
-        )
+    def test_meta_contains_redacted_entities(self, guard: PIIRedactInputGuard) -> None:
+        event = _make_input_event(MessageHistory([UserMessage("SSN: 123-45-6789")]))
         decision = guard(event)
         assert decision.meta is not None
         assert "redacted_entities" in decision.meta
@@ -96,21 +92,19 @@ class TestMetaSummary:
 
     def test_meta_has_messages_affected(self, guard: PIIRedactInputGuard) -> None:
         event = _make_input_event(
-            MessageHistory([
-                UserMessage("SSN: 123-45-6789"),
-                UserMessage("Hello world"),
-            ])
+            MessageHistory(
+                [
+                    UserMessage("SSN: 123-45-6789"),
+                    UserMessage("Hello world"),
+                ]
+            )
         )
         decision = guard(event)
         assert decision.meta is not None
         assert decision.meta["messages_affected"] == 1
 
-    def test_meta_does_not_contain_raw_value(
-        self, guard: PIIRedactInputGuard
-    ) -> None:
-        event = _make_input_event(
-            MessageHistory([UserMessage("SSN: 123-45-6789")])
-        )
+    def test_meta_does_not_contain_raw_value(self, guard: PIIRedactInputGuard) -> None:
+        event = _make_input_event(MessageHistory([UserMessage("SSN: 123-45-6789")]))
         decision = guard(event)
         meta_str = str(decision.meta)
         assert "123-45-6789" not in meta_str
@@ -119,11 +113,13 @@ class TestMetaSummary:
 class TestMultipleMessages:
     def test_pii_across_several_messages(self, guard: PIIRedactInputGuard) -> None:
         event = _make_input_event(
-            MessageHistory([
-                UserMessage("Email: alice@example.com"),
-                SystemMessage("Server: 192.168.1.1"),
-                UserMessage("Clean message"),
-            ])
+            MessageHistory(
+                [
+                    UserMessage("Email: alice@example.com"),
+                    SystemMessage("Server: 192.168.1.1"),
+                    UserMessage("Clean message"),
+                ]
+            )
         )
         decision = guard(event)
         assert decision.action == GuardrailAction.TRANSFORM

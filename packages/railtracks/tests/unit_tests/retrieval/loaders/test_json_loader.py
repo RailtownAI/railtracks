@@ -13,7 +13,9 @@ class TestJSONLoaderSingleObject:
         docs = await JSONLoader(str(json_object_file)).aload()
         assert len(docs) == 1
 
-    async def test_single_object_content_keys_star_serialises_full_object(self, json_object_file):
+    async def test_single_object_content_keys_star_serialises_full_object(
+        self, json_object_file
+    ):
         """content_keys='*' (default) serialises the whole object as content."""
         docs = await JSONLoader(str(json_object_file)).aload()
         parsed = json.loads(docs[0].content)
@@ -83,16 +85,12 @@ class TestJSONLoaderContentKeys:
 
     async def test_explicit_content_keys_exclude_from_metadata(self, json_object_file):
         """Keys listed in content_keys are not repeated in metadata."""
-        docs = await JSONLoader(
-            str(json_object_file), content_keys=["title"]
-        ).aload()
+        docs = await JSONLoader(str(json_object_file), content_keys=["title"]).aload()
         assert "title" not in docs[0].metadata
 
     async def test_non_content_keys_go_to_metadata(self, json_object_file):
         """Keys not in content_keys (and not ignored) end up in metadata."""
-        docs = await JSONLoader(
-            str(json_object_file), content_keys=["title"]
-        ).aload()
+        docs = await JSONLoader(str(json_object_file), content_keys=["title"]).aload()
         assert docs[0].metadata["body"] == "Content here"
         assert docs[0].metadata["score"] == 42
 
@@ -119,10 +117,12 @@ class TestJSONLoaderIdKey:
         """When id_key is set, its value becomes the source suffix."""
         f = tmp_path / "with_id.json"
         f.write_text(
-            json.dumps([
-                {"_id": "a1", "body": "first"},
-                {"_id": "a2", "body": "second"},
-            ]),
+            json.dumps(
+                [
+                    {"_id": "a1", "body": "first"},
+                    {"_id": "a2", "body": "second"},
+                ]
+            ),
             encoding="utf-8",
         )
         docs = await JSONLoader(str(f), id_key="_id").aload()
@@ -152,14 +152,18 @@ class TestJSONLoaderIdKey:
         """id_key validation runs per object: raise when any object lacks the key."""
         f = tmp_path / "mixed.json"
         f.write_text(
-            json.dumps([
-                {"_id": "a1", "body": "ok"},
-                {"body": "missing-id"},
-            ]),
+            json.dumps(
+                [
+                    {"_id": "a1", "body": "ok"},
+                    {"body": "missing-id"},
+                ]
+            ),
             encoding="utf-8",
         )
         loader = JSONLoader(str(f), id_key="_id")
-        with pytest.raises(ValueError, match="id_key '_id' not found in object at index 1"):
+        with pytest.raises(
+            ValueError, match="id_key '_id' not found in object at index 1"
+        ):
             await loader.aload()
 
 
@@ -168,9 +172,7 @@ class TestJSONLoaderIgnoreKeys:
 
     async def test_ignore_keys_excluded_from_content_star(self, json_object_file):
         """Ignored keys are excluded from the serialised content when using '*'."""
-        docs = await JSONLoader(
-            str(json_object_file), ignore_keys=["score"]
-        ).aload()
+        docs = await JSONLoader(str(json_object_file), ignore_keys=["score"]).aload()
         parsed = json.loads(docs[0].content)
         assert "score" not in parsed
 
@@ -218,8 +220,10 @@ class TestJSONLoaderJSONL:
         """When id_key is set, its value becomes the source suffix per line."""
         f = tmp_path / "data.jsonl"
         f.write_text(
-            json.dumps({"_id": "a1", "body": "x"}) + "\n"
-            + json.dumps({"_id": "a2", "body": "y"}) + "\n",
+            json.dumps({"_id": "a1", "body": "x"})
+            + "\n"
+            + json.dumps({"_id": "a2", "body": "y"})
+            + "\n",
             encoding="utf-8",
         )
         docs = await JSONLoader(str(f), id_key="_id").aload()

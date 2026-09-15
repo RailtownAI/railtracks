@@ -172,9 +172,7 @@ class TestCleanText:
 
 
 class TestMultipleEntities:
-    def test_email_and_phone_in_same_text(
-        self, all_entities_engine: PIIEngine
-    ) -> None:
+    def test_email_and_phone_in_same_text(self, all_entities_engine: PIIEngine) -> None:
         text = "Email alice@example.com or call +1 555-867-5309."
         result, records = all_entities_engine.redact(text)
         assert "[EMAIL_ADDRESS]" in result

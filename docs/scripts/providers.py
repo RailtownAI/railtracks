@@ -16,14 +16,6 @@ load_dotenv()  # Load environment variables from .env file
 model = rt.llm.AnthropicLLM("claude-sonnet-4-6")
 # --8<-- [end: anthropic]
 
-# --8<-- [start: cohere]
-import railtracks as rt
-from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env file
-
-model = rt.llm.CohereLLM("command-a-03-2025")
-# --8<-- [end: cohere]
-
 # --8<-- [start: gemini]
 import railtracks as rt
 from dotenv import load_dotenv
@@ -70,6 +62,14 @@ import railtracks as rt
 model = rt.llm.OllamaLLM("deepseek-r1:8b")
 # --8<-- [end: ollama]
 
+# --8<-- [start: apple_fm]
+import railtracks as rt
+# Requires macOS 26+ Apple Silicon with Apple Intelligence enabled.
+# Install with `pip install railtracks[apple]`.
+
+model = rt.llm.AppleFMLLM(temperature=0.7)
+# --8<-- [end: apple_fm]
+
 # --8<-- [start: huggingface_models]
 rt.llm.HuggingFaceLLM("together_ai/meta-llama/Llama-3.3-70B-Instruct") 
 rt.llm.HuggingFaceLLM("sambanova/meta-llama/Llama-3.3-70B-Instruct")
@@ -93,6 +93,5 @@ Agent = rt.agent_node(
     system_message="You are a helpful AI assistant.",
 )
 # --8<-- [end: to_agent]
-
 
 

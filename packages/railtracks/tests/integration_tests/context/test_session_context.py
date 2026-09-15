@@ -1,19 +1,28 @@
 import asyncio
-import pytest
-from railtracks.nodes.nodes import DebugDetails, Node
 
-from railtracks.context.central import get_session_id, get_run_id, get_parent_id, get_middleware_id, get_current_scope
+import pytest
+import railtracks as rt
+from railtracks.context.central import (
+    get_current_scope,
+    get_middleware_id,
+    get_parent_id,
+    get_run_id,
+    get_session_id,
+)
 from railtracks.context.session_context import ScopeKind
 from railtracks.middleware.core import wrap_node
-import railtracks as rt
+from railtracks.nodes.nodes import Node
 
 
 class BottomLevel(Node):
-    def __init__(self, ):
+    def __init__(
+        self,
+    ):
         super().__init__()
-        
 
-    async def invoke(self,  expected_session_id: str | None, expected_run_id: str | None):
+    async def invoke(
+        self, expected_session_id: str | None, expected_run_id: str | None
+    ):
         session_id = get_session_id()
         run_id = get_run_id()
         parent_id = get_parent_id()
@@ -22,25 +31,22 @@ class BottomLevel(Node):
         assert run_id == expected_run_id
         assert parent_id == self.uuid
 
-        return {
-            "session_id": session_id,
-            "run_id": run_id,
-            "parent_id": parent_id
-        }
-    
+        return {"session_id": session_id, "run_id": run_id, "parent_id": parent_id}
+
     @classmethod
     def name(cls):
         return "Top Level"
-    
+
     @classmethod
     def type(cls):
         return "Tool"
 
 
 class TopLevel(Node):
-    def __init__(self, ):
+    def __init__(
+        self,
+    ):
         super().__init__()
-
 
     async def invoke(self, number_trials: int, expected_session_id: str | None):
         session_id = get_session_id()
@@ -50,13 +56,16 @@ class TopLevel(Node):
         assert session_id == expected_session_id
         assert run_id == self.uuid
         assert parent_id == self.uuid
-        contracts = [rt.call(BottomLevel, expected_session_id, self.uuid) for _ in range(number_trials)]
+        contracts = [
+            rt.call(BottomLevel, expected_session_id, self.uuid)
+            for _ in range(number_trials)
+        ]
         return await asyncio.gather(*contracts)
-    
+
     @classmethod
     def name(cls):
         return "Top Level"
-    
+
     @classmethod
     def type(cls):
         return "Tool"
@@ -65,15 +74,19 @@ class TopLevel(Node):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("num_trials", [1, 5, 10, 50])
 async def test_run_id_propagation(num_trials):
-    
     with rt.Session(name="test_session") as session:
         await rt.call(TopLevel, num_trials, session._identifier)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("num_trials", [1, 5,])
+@pytest.mark.parametrize(
+    "num_trials",
+    [
+        1,
+        5,
+    ],
+)
 async def test_run_id_propagation_multiple_runs(num_trials):
-    
     with rt.Session(name="test_session") as session:
         await rt.call(TopLevel, num_trials, session._identifier)
         await rt.call(TopLevel, num_trials, session._identifier)
@@ -82,19 +95,30 @@ async def test_run_id_propagation_multiple_runs(num_trials):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("num_trials", [1, 5,])
+@pytest.mark.parametrize(
+    "num_trials",
+    [
+        1,
+        5,
+    ],
+)
 async def test_run_id_propagation_multiple_runs_parallel(num_trials):
-    
     with rt.Session(name="test_session") as session:
-        contracts = [rt.call(TopLevel, num_trials, session._identifier) for _ in range(4)]
+        contracts = [
+            rt.call(TopLevel, num_trials, session._identifier) for _ in range(4)
+        ]
         await asyncio.gather(*contracts)
 
 
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("num_trials", [1, 5,])
+@pytest.mark.parametrize(
+    "num_trials",
+    [
+        1,
+        5,
+    ],
+)
 async def test_run_id_propagation_multiple_sessions(num_trials):
-    
     with rt.Session(name="test_session") as session:
         await rt.call(TopLevel, num_trials, session._identifier)
         await rt.call(TopLevel, num_trials, session._identifier)
@@ -106,16 +130,20 @@ async def test_run_id_propagation_multiple_sessions(num_trials):
         await rt.call(TopLevel, num_trials, session._identifier)
         await rt.call(TopLevel, num_trials, session._identifier)
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("num_trials", [1, 5,])
-async def test_run_id_propagation_multiple_sessions_parallel(num_trials):
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "num_trials",
+    [
+        1,
+        5,
+    ],
+)
+async def test_run_id_propagation_multiple_sessions_parallel(num_trials):
     async def runner():
-    
         with rt.Session(name="test_session") as session:
             await rt.call(TopLevel, num_trials, session._identifier)
             await rt.call(TopLevel, num_trials, session._identifier)
-        
 
     await asyncio.gather(runner(), runner())
 
@@ -176,4 +204,7 @@ async def test_middleware_fired_call_lands_under_the_middleware_not_the_node_bod
     assert CAPTURED["middleware_parent_id"] is not None
     assert CAPTURED["middleware_id_at_entry"] is not None
     assert CAPTURED["child_immediate_ancestor_kind"] == ScopeKind.MIDDLEWARE
-    assert CAPTURED["child_immediate_ancestor_id"] == CAPTURED["middleware_id_at_entry"].call_id
+    assert (
+        CAPTURED["child_immediate_ancestor_id"]
+        == CAPTURED["middleware_id_at_entry"].call_id
+    )

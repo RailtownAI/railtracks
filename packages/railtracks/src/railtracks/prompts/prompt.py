@@ -1,6 +1,6 @@
 import railtracks.context as context
 from railtracks.llm import MessageHistory
-from railtracks.utils.prompt_injection import ValueDict, inject_values
+from railtracks.utils.context_injection import ValueDict, inject_values
 
 
 class _ContextDict(ValueDict):

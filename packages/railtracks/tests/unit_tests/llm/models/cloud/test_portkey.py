@@ -1,10 +1,10 @@
 import os
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
+
 import litellm
+import pytest
 from railtracks.llm.models.cloud import PortKeyLLM  # adjust path if needed
 from railtracks.llm.providers import ModelProvider
-
 
 MODEL_NAME = "portkey/deepseek-r1"
 
@@ -14,22 +14,14 @@ def test_model_distributor():
     assert PortKeyLLM.model_gateway() == ModelProvider.PORTKEY
 
 
-
-
-
-
-
-
 def test_init_success_with_env_api_key():
     """Test successful initialization when api_key is taken from environment"""
     example_key = "hello world"
-   
-    with patch.dict(os.environ, {"PORTKEY_API_KEY": example_key}, clear=True):
 
+    with patch.dict(os.environ, {"PORTKEY_API_KEY": example_key}, clear=True):
         llm = PortKeyLLM(model_name=MODEL_NAME)
 
         assert llm.api_key == example_key
-
 
 
 def test_init_missing_api_key():
@@ -85,4 +77,3 @@ def test_custom_llm_provider_passed_to_litellm_completion(message_history):
             assert (
                 mock_completion.call_args.kwargs.get("custom_llm_provider") == "openai"
             )
-

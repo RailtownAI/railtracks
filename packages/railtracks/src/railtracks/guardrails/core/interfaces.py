@@ -21,7 +21,9 @@ class Guardrail(Protocol):
 
     name: str
 
-    def __call__(self, event: Any) -> GuardrailDecision: ...
+    def __call__(
+        self, event: Any
+    ) -> GuardrailDecision | Awaitable[GuardrailDecision]: ...
 
 
 class BaseGuardrail(ABC, Middleware[_P, _R], Generic[_P, _R]):

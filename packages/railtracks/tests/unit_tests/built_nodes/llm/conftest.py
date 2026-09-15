@@ -10,52 +10,68 @@ from railtracks.llm import Parameter
 def mock_llm():
     return MagicMock(name="MockLLM")
 
+
 @pytest.fixture
 def mock_schema():
     class MockSchema(BaseModel):
         x: int
+
     return MockSchema
+
 
 @pytest.fixture
 def mock_function():
-    def f(x : int, y : int) -> int:
+    def f(x: int, y: int) -> int:
         return x + y
+
     return f
+
 
 @pytest.fixture
 def mock_sys_mes():
     return "This is a system message"
 
+
 @pytest.fixture
 def mock_tool_node():
-
     tool_manifest = ToolManifest(
         description="A tool to be called",
-        parameters=[Parameter(
-            name="x",
-            description="Input to the tool",
-            param_type="integer",
-        )]
-        )
+        parameters=[
+            Parameter(
+                name="x",
+                description="Input to the tool",
+                param_type="integer",
+            )
+        ],
+    )
+
     def mock_func():
-        def f(x : int) -> int:
+        def f(x: int) -> int:
             return x
+
         return f
 
-    DummyTool = function_node(mock_func(), name="DummyTool", manifest=tool_manifest)
+    DummyTool = function_node(  # noqa: N806
+        mock_func(), name="DummyTool", manifest=tool_manifest
+    )
     return DummyTool
+
 
 @pytest.fixture
 def mock_manifest():
     tool_manifest = ToolManifest(
-            description="A tool to be called",
-            parameters=[Parameter(
+        description="A tool to be called",
+        parameters=[
+            Parameter(
                 name="x",
                 description="Input to the tool",
                 param_type="integer",
-            ), Parameter(
+            ),
+            Parameter(
                 name="y",
                 description="Another input to the tool",
-                param_type="integer",)]
-            )
+                param_type="integer",
+            ),
+        ],
+    )
     return tool_manifest

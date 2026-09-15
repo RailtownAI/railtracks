@@ -29,8 +29,12 @@ def test_event_defaults():
 
 
 def test_event_ids_are_unique_by_default():
-    a = Event(event_type="x", stamp=Timestamp.now(), scope_type=SCOPE_SESSION, scope_id="s1")
-    b = Event(event_type="x", stamp=Timestamp.now(), scope_type=SCOPE_SESSION, scope_id="s1")
+    a = Event(
+        event_type="x", stamp=Timestamp.now(), scope_type=SCOPE_SESSION, scope_id="s1"
+    )
+    b = Event(
+        event_type="x", stamp=Timestamp.now(), scope_type=SCOPE_SESSION, scope_id="s1"
+    )
     assert a.event_id != b.event_id
 
 

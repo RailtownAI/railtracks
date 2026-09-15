@@ -104,3 +104,24 @@ class RetrievalResult:
     chunks: list[RetrievedChunk]
     total_candidates: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class OCRResult:
+    """Structured output from an OCR engine.
+
+    Attributes:
+        markdown: Full page text as markdown. Tables and headings are
+            represented in markdown syntax where the engine supports it.
+        json_result: Raw structured layout data from the engine, if available.
+            Schema is engine-specific; ``None`` when the engine does not
+            return structured layout data. For GLM-OCR this is the value of
+            ``PipelineResult.to_dict()["json_result"]``, which contains
+            bounding boxes, tables, and reading order.
+    """
+
+    markdown: str
+    json_result: dict[str, Any] | list[Any] | None = None
+
+    def to_text(self) -> str:
+        return self.markdown

@@ -150,44 +150,44 @@ class TestRawInputCoercion:
 class TestRunIntegration:
     """Decorated guards run via .run() like hand-written subclasses."""
 
-    def test_run_allows(self) -> None:
+    async def test_run_allows(self) -> None:
         @input_guard
         def rail(event) -> GuardrailDecision:
             return GuardrailDecision.allow()
 
         event = _input_event(MessageHistory([UserMessage("hi")]))
-        value, traces, decision = rail.run(event=event, value=event.messages)
+        value, traces, decision = await rail.run(event=event, value=event.messages)
         assert decision.action == GuardrailAction.ALLOW
         assert len(traces) == 1
 
-    def test_run_stops_on_block(self) -> None:
+    async def test_run_stops_on_block(self) -> None:
         @input_guard
         def rail(event) -> GuardrailDecision:
             return GuardrailDecision.block(reason="blocked")
 
         event = _input_event(MessageHistory([UserMessage("hi")]))
-        _, _, decision = rail.run(event=event, value=event.messages)
+        _, _, decision = await rail.run(event=event, value=event.messages)
         assert decision is not None
         assert decision.action == GuardrailAction.BLOCK
 
 
 class TestFailOpen:
-    def test_fail_open_lets_request_continue_on_error(self) -> None:
+    async def test_fail_open_lets_request_continue_on_error(self) -> None:
         @input_guard(fail_open=True)
         def rail(event) -> GuardrailDecision:
             raise RuntimeError("boom")
 
         event = _input_event(MessageHistory([UserMessage("hi")]))
-        value, traces, decision = rail.run(event=event, value=event.messages)
+        value, traces, decision = await rail.run(event=event, value=event.messages)
         assert traces  # the exception was recorded
 
-    def test_fail_closed_blocks_on_error(self) -> None:
+    async def test_fail_closed_blocks_on_error(self) -> None:
         @input_guard
         def rail(event) -> GuardrailDecision:
             raise RuntimeError("boom")
 
         event = _input_event(MessageHistory([UserMessage("hi")]))
-        _, _, decision = rail.run(event=event, value=event.messages)
+        _, _, decision = await rail.run(event=event, value=event.messages)
         assert decision is not None
         assert decision.action == GuardrailAction.BLOCK
 

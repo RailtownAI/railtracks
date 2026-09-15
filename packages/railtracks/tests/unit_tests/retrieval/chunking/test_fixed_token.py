@@ -111,8 +111,7 @@ async def test_achunk_text():
 async def test_concurrent_achunk():
     chunker = FixedTokenChunker(chunk_size=10, overlap=2)
     docs = [
-        Document(content=f"Document number {i}. " * 20, type="text")
-        for i in range(5)
+        Document(content=f"Document number {i}. " * 20, type="text") for i in range(5)
     ]
     results = await asyncio.gather(*[chunker.achunk(doc) for doc in docs])
     assert len(results) == 5

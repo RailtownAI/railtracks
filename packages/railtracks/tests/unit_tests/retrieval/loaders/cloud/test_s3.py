@@ -6,11 +6,9 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from railtracks.retrieval.models import Document, DocumentType
 
 from .conftest import make_s3_client
-
 
 # ---------------------------------------------------------------------------
 # S3Loader

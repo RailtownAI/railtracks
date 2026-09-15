@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.prebuilt.guardrails import PIIRedactOutputGuard
 from railtracks.llm import MessageHistory
 from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.prebuilt.guardrails import PIIRedactOutputGuard
@@ -70,9 +69,7 @@ class TestMetaSummary:
         decision = guard(event)
         assert "messages_affected" not in decision.meta
 
-    def test_meta_does_not_contain_raw_value(
-        self, guard: PIIRedactOutputGuard
-    ) -> None:
+    def test_meta_does_not_contain_raw_value(self, guard: PIIRedactOutputGuard) -> None:
         event = _make_output_event("SSN: 123-45-6789")
         decision = guard(event)
         meta_str = str(decision.meta)
@@ -81,9 +78,9 @@ class TestMetaSummary:
 
 class TestNonStringOutput:
     def test_non_string_content_skipped(self, guard: PIIRedactOutputGuard) -> None:
-        from railtracks.llm.message import AssistantMessage as AM
+        from railtracks.llm.message import AssistantMessage
 
-        msg = AM(content=[])
+        msg = AssistantMessage(content=[])
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
             messages=MessageHistory([UserMessage("hi")]),

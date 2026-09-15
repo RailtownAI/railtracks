@@ -44,10 +44,12 @@ def json_array_file(tmp_path):
     """A .json file containing an array of two JSON objects."""
     f = tmp_path / "data.json"
     f.write_text(
-        json.dumps([
-            {"title": "First", "body": "Content 1"},
-            {"title": "Second", "body": "Content 2"},
-        ]),
+        json.dumps(
+            [
+                {"title": "First", "body": "Content 1"},
+                {"title": "Second", "body": "Content 2"},
+            ]
+        ),
         encoding="utf-8",
     )
     return f
@@ -66,12 +68,15 @@ def jsonl_file(tmp_path):
     """A .jsonl file with three objects and one blank line in the middle."""
     f = tmp_path / "data.jsonl"
     f.write_text(
-        "\n".join([
-            json.dumps({"title": "First", "body": "Content 1"}),
-            "",
-            json.dumps({"title": "Second", "body": "Content 2"}),
-            json.dumps({"title": "Third", "body": "Content 3"}),
-        ]) + "\n",
+        "\n".join(
+            [
+                json.dumps({"title": "First", "body": "Content 1"}),
+                "",
+                json.dumps({"title": "Second", "body": "Content 2"}),
+                json.dumps({"title": "Third", "body": "Content 3"}),
+            ]
+        )
+        + "\n",
         encoding="utf-8",
     )
     return f
@@ -80,9 +85,7 @@ def jsonl_file(tmp_path):
 @pytest.fixture
 def jsonl_dir(tmp_path):
     """Directory with a .json file and a .jsonl file in known sorted order."""
-    (tmp_path / "a.json").write_text(
-        json.dumps({"key": "val_a"}), encoding="utf-8"
-    )
+    (tmp_path / "a.json").write_text(json.dumps({"key": "val_a"}), encoding="utf-8")
     (tmp_path / "b.jsonl").write_text(
         json.dumps({"key": "val_b1"}) + "\n" + json.dumps({"key": "val_b2"}) + "\n",
         encoding="utf-8",

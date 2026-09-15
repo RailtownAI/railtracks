@@ -1,9 +1,4 @@
-import pytest
-from unittest.mock import patch
-
-import pytest
 import railtracks as rt
-from railtracks.execution.task import Task
 
 
 def hello_world():

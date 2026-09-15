@@ -1,5 +1,4 @@
 import pytest
-
 from railtracks.evaluations.evaluators.metrics import (
     Categorical,
     Category,
@@ -8,7 +7,6 @@ from railtracks.evaluations.evaluators.metrics import (
     Numerical,
     ToolMetric,
 )
-
 
 # ── Metric ─────────────────────────────────────────────────────────────────────
 
@@ -90,6 +88,32 @@ def test_numerical_no_bounds():
     assert n.max_value is None
 
 
+def test_numerical_shots():
+    n = Numerical(
+        name="score",
+        min_value=0,
+        max_value=10,
+        shots=[(0, "bad"), (5, "ok"), (10, "great")],
+    )
+    assert n.shots == [(0, "bad"), (5, "ok"), (10, "great")]
+
+
+def test_numerical_identifier_includes_shots():
+    n1 = Numerical(name="score", min_value=0, max_value=10, shots=[(0, "bad")])
+    n2 = Numerical(name="score", min_value=0, max_value=10, shots=[(0, "terrible")])
+    assert n1.identifier != n2.identifier
+
+
+def test_numerical_shot_below_min_raises():
+    with pytest.raises(Exception):
+        Numerical(name="score", min_value=0, max_value=10, shots=[(-1, "bad")])
+
+
+def test_numerical_shot_above_max_raises():
+    with pytest.raises(Exception):
+        Numerical(name="score", min_value=0, max_value=10, shots=[(11, "great")])
+
+
 # ── Categorical ───────────────────────────────────────────────────────────────
 
 
@@ -112,7 +136,10 @@ def test_categorical_accepts_category_objects():
             Category(name="bad", status="fail"),
         ],
     )
-    assert c.categories == [Category(name="good", status="pass"), Category(name="bad", status="fail")]
+    assert c.categories == [
+        Category(name="good", status="pass"),
+        Category(name="bad", status="fail"),
+    ]
     assert c.categories[0].status == "pass"
     assert c.categories[1].status == "fail"
 
@@ -152,7 +179,10 @@ def test_categorical_category_names_with_string_input():
 def test_categorical_category_names_with_category_object_input():
     c = Categorical(
         name="quality",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     assert c.category_names == ["good", "bad"]
 
@@ -160,7 +190,10 @@ def test_categorical_category_names_with_category_object_input():
 def test_categorical_serializes_categories_as_strings():
     c = Categorical(
         name="quality",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     dumped = c.model_dump(mode="json")
     assert dumped["categories"] == ["good", "bad"]
@@ -192,7 +225,10 @@ def test_categorical_status_lists_empty_when_no_statuses():
 def test_categorical_status_lists_appear_in_serialization():
     c = Categorical(
         name="quality",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     dumped = c.model_dump(mode="json")
     assert dumped["pass_categories"] == ["good"]

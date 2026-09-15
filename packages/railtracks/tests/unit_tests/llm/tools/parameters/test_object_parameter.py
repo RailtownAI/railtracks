@@ -1,16 +1,21 @@
-import pytest
-from railtracks.llm.tools.parameters.object_parameter import ObjectParameter
 from railtracks.llm.tools.parameters._base import Parameter, ParameterType
+from railtracks.llm.tools.parameters.object_parameter import ObjectParameter
+
 
 class DummyParameter(Parameter):
     param_type = ParameterType.STRING
+
     def to_json_schema(self):
         return {"type": "string"}
+
 
 def test_object_parameter_basic():
     obj = ObjectParameter(
         "obj",
-        properties=[DummyParameter("foo", required=True), DummyParameter("bar", required=False)],
+        properties=[
+            DummyParameter("foo", required=True),
+            DummyParameter("bar", required=False),
+        ],
         description="desc",
         required=True,
         additional_properties=True,
@@ -23,6 +28,7 @@ def test_object_parameter_basic():
     assert schema["description"] == "desc"
     assert schema["additionalProperties"] is True
     assert "required" in schema and "foo" in schema["required"]
+
 
 def test_object_parameter_repr():
     obj = ObjectParameter("obj", properties=[])

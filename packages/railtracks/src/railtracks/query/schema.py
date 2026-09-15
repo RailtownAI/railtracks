@@ -15,16 +15,15 @@ _KIND_TO_DUCKDB: dict[ColumnKind, str] = {
     ColumnKind.BOOLEAN: "BOOLEAN",
     ColumnKind.TIMESTAMP_TZ: "TIMESTAMP WITH TIME ZONE",
     ColumnKind.JSON: "JSON",
+    # Keep stored discriminators as text.  The registry still records their known
+    # members for validation and documentation, but a newer or older event value
+    # must remain visible instead of being coerced to NULL by a physical ENUM.
+    ColumnKind.ENUM: "VARCHAR",
 }
 
 
 def _duckdb_type(spec: ColumnSpec) -> str:
     """Render a ``ColumnSpec`` as a DuckDB type string."""
-    if spec.kind is ColumnKind.ENUM:
-        rendered = ", ".join(
-            "'" + m.replace("'", "''") + "'" for m in spec.enum_members
-        )
-        return f"ENUM({rendered})"
     return _KIND_TO_DUCKDB[spec.kind]
 
 

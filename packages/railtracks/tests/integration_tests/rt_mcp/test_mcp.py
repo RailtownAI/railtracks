@@ -1,20 +1,18 @@
 import asyncio
-import time
-
-import railtracks as rt
-from railtracks.nodes.nodes import Node
-
-import pytest
 import subprocess
 import sys
+import time
 
+import pytest
+import railtracks as rt
+from railtracks.nodes.nodes import Node
 from railtracks.rt_mcp.main import MCPHttpParams, MCPStdioParams
 
 
 @pytest.fixture(scope="session", autouse=True)
 def install_mcp_server_time():
     """Install mcp_server_time and ensure mcp dependency is available.
-    
+
     This fixture ensures that both mcp and mcp_server_time are properly installed,
     which is particularly important on Windows where dependency resolution
     may not work correctly when packages are installed separately.
@@ -23,19 +21,26 @@ def install_mcp_server_time():
         # Install both packages together to ensure proper dependency resolution.
         # --no-cache-dir forces pip to fetch live metadata from PyPI so transitive
         # deps (e.g. tzlocal) are never missed due to a stale CI pip cache.
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install", "--no-cache-dir",
-            "mcp>=1.9.0", "mcp_server_time"
-        ])
-        
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--no-cache-dir",
+                "mcp>=1.9.0",
+                "mcp_server_time",
+            ]
+        )
+
         # Verify that the critical modules can be imported
         # This helps catch environment/path issues early
         try:
-            import mcp.server  # This is what mcp_server_time needs
-            import mcp_server_time
+            import mcp.server  # noqa: F401 - this is what mcp_server_time needs
+            import mcp_server_time  # noqa: F401
         except ImportError as e:
             pytest.fail(f"MCP packages installed but cannot be imported: {e}")
-            
+
     except subprocess.CalledProcessError as e:
         pytest.fail(f"Failed to install required MCP packages: {e}")
 
@@ -51,7 +56,6 @@ def test_from_mcp_server_basic():
     assert all(issubclass(tool, Node) for tool in time_server.tools)
 
 
-
 class MockClient:
     def __init__(self, delay=1):
         self.delay = delay
@@ -61,24 +65,24 @@ class MockClient:
         return f"done {tool_name}"
 
     async def list_tools(self):
-        Tool = type("Tool", (), {
-            "name": "tool1",
-            "description": "Mock tool 1",
-            "inputSchema": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        })
-        Tool2 = type("Tool", (), {
-            "name": "tool2",
-            "description": "Mock tool 2",
-            "inputSchema": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        })
+        Tool = type(  # noqa: N806
+            "Tool",
+            (),
+            {
+                "name": "tool1",
+                "description": "Mock tool 1",
+                "inputSchema": {"type": "object", "properties": {}, "required": []},
+            },
+        )
+        Tool2 = type(  # noqa: N806
+            "Tool",
+            (),
+            {
+                "name": "tool2",
+                "description": "Mock tool 2",
+                "inputSchema": {"type": "object", "properties": {}, "required": []},
+            },
+        )
         return type("ToolResponse", (), {"tools": [Tool, Tool2]})()
 
 

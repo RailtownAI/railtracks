@@ -213,6 +213,13 @@ class Session:
                 content = json.dumps(self.payload())
                 file_path.write_text(content)
 
+            except OSError as exc:
+                logger.warning(
+                    "Could not persist session state to disk (%s: %s). "
+                    "Set RAILTRACKS_DISABLE_EVENTS=True to silence this warning.",
+                    type(exc).__name__,
+                    exc,
+                )
             except Exception as e:
                 logger.error(
                     "Error while saving execution info to file: %s",

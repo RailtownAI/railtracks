@@ -13,7 +13,7 @@ from .parameters import (
     RefParameter,
     UnionParameter,
 )
-from .tool import Tool
+from .tool import Tool, ToolCreationError
 
 __all__ = [
     "Parameter",
@@ -23,4 +23,5 @@ __all__ = [
     "UnionParameter",
     "RefParameter",
     "Tool",
+    "ToolCreationError",
 ]

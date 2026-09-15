@@ -19,6 +19,7 @@ T = TypeVar("T")
 def _run_in_session(session_id: str, fn: Callable[[], T]) -> T:
     """Run `fn` inside a fresh contextvars.Context with runner_context set.
     Isolates contextvar changes from other tests."""
+
     def _body() -> T:
         register_globals(
             session_id=session_id,

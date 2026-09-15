@@ -6,6 +6,7 @@ from railtracks.rt_mcp.main import MCPAsyncClient, MCPHttpParams, MCPServer, fro
 
 # ============= START MCPHttpParams tests =============
 
+
 def test_mcp_httpparams_defaults():
     params = MCPHttpParams(url="abc")
     assert params.url == "abc"
@@ -14,6 +15,7 @@ def test_mcp_httpparams_defaults():
     assert params.sse_read_timeout.total_seconds() == 60 * 5
     assert params.terminate_on_close is True
 
+
 def test_mcp_httpparams_custom(mcp_http_params):
     assert mcp_http_params.url == "http://test-url"
     assert mcp_http_params.headers == {"Authorization": "Bearer fake"}
@@ -21,9 +23,11 @@ def test_mcp_httpparams_custom(mcp_http_params):
     assert mcp_http_params.sse_read_timeout.total_seconds() == 32
     assert mcp_http_params.terminate_on_close is False
 
+
 # ============== END MCPHttpParams tests ==============
 
 # ======== START MCPAsyncClient context tests =========
+
 
 @pytest.mark.asyncio
 async def test_async_client_enter_exit_stdio(
@@ -31,7 +35,7 @@ async def test_async_client_enter_exit_stdio(
     mock_client_session,
     # DO NOT REMOVE: these patched mocks are set up in conftest and being used in the test in the background
     patch_stdio_client,
-    patch_ClientSession,
+    patch_client_session,
 ):
     # ClientSession and stdio_client are now context managers set up by the fixtures
     client = MCPAsyncClient(stdio_config, mock_client_session)
@@ -43,17 +47,19 @@ async def test_async_client_enter_exit_stdio(
         await client.close()
         assert not client._entered
 
+
 @pytest.mark.asyncio
 async def test_async_client_enter_exit_http(
     mcp_http_params,
     # DO NOT REMOVE: these patched mocks are set up in conftest and being used in the test in the background
     patch_streamablehttp_client,
-    patch_ClientSession,
+    patch_client_session,
 ):
     # Patch HTTPX client to return no oauth metadata
     client = MCPAsyncClient(mcp_http_params)
     await client.connect()
     assert isinstance(client, MCPAsyncClient)
+
 
 # ========== END MCPAsyncClient context tests =========
 
@@ -71,6 +77,7 @@ async def test_async_client_list_tools(
     assert tools[0].name == "toolA"
     assert mock_client_session.list_tools.call_count == 1
 
+
 @pytest.mark.asyncio
 async def test_async_client_call_tool(mock_client_session, stdio_config):
     client = MCPAsyncClient(stdio_config, client_session=mock_client_session)
@@ -78,7 +85,9 @@ async def test_async_client_call_tool(mock_client_session, stdio_config):
     assert result.content == "output"
     mock_client_session.call_tool.assert_awaited_with("toolA", {"x": 2})
 
+
 # ====== END MCPAsyncClient.list_tools/call_tool tests ===
+
 
 # =============== START MCPAsyncClient _init_http tests ============
 @pytest.mark.asyncio
@@ -87,8 +96,8 @@ async def test_async_client_init_http_uses_correct_transport(
     # DO NOT REMOVE: these patched mocks are set up in conftest and being used in the test in the background
     patch_streamablehttp_client,
     patch_sse_client,
-    patch_ClientSession,
-    mock_client_session
+    patch_client_session,
+    mock_client_session,
 ):
     # SSE URL usage
     mcp_http_params.url = "https://host.com/api/sse"
@@ -106,24 +115,29 @@ async def test_async_client_init_http_uses_correct_transport(
 
 # =============== START from_mcp tests =================
 
+
 def test_from_mcp_returns_node_class(fake_tool, mcp_http_params):
     mock_loop = MagicMock()
     mock_client = AsyncMock()
 
     result_class = from_mcp(fake_tool, mock_client, mock_loop)
-    node = result_class()
+    result_class()
     assert result_class.name() == f"{fake_tool.name}"
-    with patch.object(result_class, 'tool_info', wraps=result_class.tool_info):
-        Tool = type("Tool", (), {"from_mcp": staticmethod(lambda tool: "X")})
+    with patch.object(result_class, "tool_info", wraps=result_class.tool_info):
+        Tool = type(  # noqa: N806
+            "Tool", (), {"from_mcp": staticmethod(lambda tool: "X")}
+        )
         result_class.tool_info = classmethod(lambda cls: Tool.from_mcp(fake_tool))
         assert result_class.tool_info() == "X"
+
 
 def test_from_mcp_prepare_args(fake_tool, mcp_http_params):
     mock_loop = MagicMock()
     mock_client = AsyncMock()
     result_class = from_mcp(fake_tool, mock_client, mock_loop)
-    
+
     assert result_class.prepare_args(one=1, two=2) == {"one": 1, "two": 2}
+
 
 @pytest.mark.asyncio
 async def test_from_mcp_invoke(fake_tool, mcp_http_params):

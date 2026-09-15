@@ -1,5 +1,6 @@
+import inspect
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any, Awaitable, Generic, TypeVar, cast
 
 from pydantic import BaseModel
 from typing_extensions import Literal
@@ -15,6 +16,7 @@ from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.logging.create import get_rt_logger
+from railtracks.utils.unpack import unpack_async_sync
 
 logger = get_rt_logger("guardrails")
 
@@ -47,8 +49,15 @@ class BaseLLMGuardrail(
         self.fail_open = fail_open
 
     @abstractmethod
-    def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        """Evaluate the event and return a decision. Implemented by each concrete guard."""
+    def __call__(
+        self, event: LLMGuardrailEvent
+    ) -> GuardrailDecision | Awaitable[GuardrailDecision]:
+        """Evaluate the event and return a decision. Implemented by each concrete guard.
+
+        May be sync or async. An ``async def`` implementation is awaited before its
+        decision is dispatched, so a guard is free to ``await rt.call(...)`` and
+        delegate the judgement to another agent.
+        """
         pass
 
     @abstractmethod
@@ -61,10 +70,31 @@ class BaseLLMGuardrail(
     def decide(
         self, value: str | Message | MessageHistory | LLMGuardrailEvent, /
     ) -> GuardrailDecision:
-        """Convert value to an event and run this guard on it directly, outside a chain."""
+        """Convert value to an event and run this guard on it directly, outside a chain.
+
+        Synchronous guards only. An ``async def`` guard would return an un-awaited
+        coroutine here, so use :meth:`adecide` for those.
+        """
+        if self._is_async():
+            raise TypeError(
+                f"Guardrail {self._rail_name()} is async; "
+                f"use `await {type(self).__name__}.adecide(...)` instead of `.decide(...)`."
+            )
         converted_event = self.convert(value)
 
-        return self(converted_event)
+        return cast(GuardrailDecision, self(converted_event))
+
+    async def adecide(
+        self, value: str | Message | MessageHistory | LLMGuardrailEvent, /
+    ) -> GuardrailDecision:
+        """Async counterpart to :meth:`decide`; accepts sync and async guards alike."""
+        converted_event = self.convert(value)
+
+        return await unpack_async_sync(self(converted_event))
+
+    def _is_async(self) -> bool:
+        """Whether this guard's ``__call__`` is a coroutine function."""
+        return inspect.iscoroutinefunction(type(self).__call__)
 
     @staticmethod
     def _coerce_to_message_history(
@@ -134,7 +164,7 @@ class BaseLLMGuardrail(
         )
         return ("stop", value, block)
 
-    def run(
+    async def run(
         self,
         *,
         event: LLMGuardrailEvent,
@@ -152,7 +182,7 @@ class BaseLLMGuardrail(
         """
         traces: list[GuardrailTrace] = []
 
-        step = self._eval_one_rail(
+        step = await self._eval_one_rail(
             event=event,
             value=value,
             traces=traces,
@@ -169,7 +199,7 @@ class BaseLLMGuardrail(
             decision if decision is not None else GuardrailDecision.allow(),
         )
 
-    def _eval_one_rail(
+    async def _eval_one_rail(
         self,
         event: LLMGuardrailEvent,
         value: _TValue,
@@ -178,9 +208,9 @@ class BaseLLMGuardrail(
         tuple[Literal["continue"], _TValue, LLMGuardrailEvent, GuardrailDecision | None]
         | tuple[Literal["stop"], _TValue, GuardrailDecision]
     ):
-        """Call this guard, validate the returned decision, and dispatch it."""
+        """Call this guard, await it if async, validate the decision, and dispatch it."""
         try:
-            decision = self(event)
+            decision = await unpack_async_sync(self(event))
             if not isinstance(decision, GuardrailDecision):
                 raise TypeError(
                     f"Guardrail {self._rail_name()} returned {type(decision).__name__}, expected GuardrailDecision."

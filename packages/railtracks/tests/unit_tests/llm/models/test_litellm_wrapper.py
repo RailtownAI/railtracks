@@ -1,26 +1,41 @@
 import asyncio
 import gc
-import json
 import threading
-from json import JSONDecodeError
-from typing import Generator, Literal
 from json import JSONDecodeError
 from unittest.mock import patch
 
 import litellm
 import pytest
+from litellm.types.utils import (
+    ChatCompletionDeltaToolCall,
+    Delta,
+    Function,
+    ModelResponse,
+    ModelResponseStream,
+    StreamingChoices,
+    Usage,
+)
 from pydantic import BaseModel
-from railtracks.exceptions import LLMError, NodeInvocationError
 from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
+from railtracks.llm._exceptions import (
+    ProviderAuthenticationError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
     _retrieve_worker_exception,
     _to_litellm_tool,
+    classify_provider_error,
 )
+from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.retries import FixedRetry
+from railtracks.llm.tools.tool import ToolCreationError
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper):
@@ -60,7 +75,7 @@ class TestHelpers:
         """
         Test _parameters_to_json_schema with invalid input.
         """
-        with pytest.raises(NodeInvocationError):
+        with pytest.raises(ToolCreationError):
             _parameters_to_json_schema(123)  # type: ignore
 
     # =================================== END _parameters_to_json_schema Tests ====================================
@@ -259,6 +274,29 @@ class TestHelpers:
         file_block = litellm_message["content"][1]
         assert file_block["type"] == "file"
 
+    def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
+        """
+        A structured-output AssistantMessage (content is a parsed pydantic
+        BaseModel, not a str) must be serialized to a JSON string, not passed
+        through as a raw BaseModel instance -- litellm/the OpenAI SDK reject
+        non-string content with a 400 when this message is fed back into a
+        later completion call (e.g. manually-threaded multi-turn history).
+        """
+
+        class Reply(BaseModel):
+            text: str
+            wants_to_end: bool
+
+        message = AssistantMessage(content=Reply(text="hi", wants_to_end=False))
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
+
+        assert isinstance(litellm_message["content"], str)
+        assert (
+            litellm_message["content"]
+            == Reply(text="hi", wants_to_end=False).model_dump_json()
+        )
+
     # =================================== END _to_litellm_message Tests ====================================
 
 
@@ -285,12 +323,18 @@ def test_litellm_wrapper_model_name_property(mock_litellm_wrapper):
 
 # ================= START completion methods tests =========================
 class TestCompletionMethods:
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_chat", False),
-        ("_achat", True),
-    ], ids=["sync_chat", "async_chat"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat", False),
+            ("_achat", True),
+        ],
+        ids=["sync_chat", "async_chat"],
+    )
     @pytest.mark.asyncio
-    async def test_chat(self, mock_litellm_wrapper, message_history, method_name, is_async):
+    async def test_chat(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
         content = "Mocked response"
         wrapper = mock_litellm_wrapper(content=content)
         method = getattr(wrapper, method_name)
@@ -304,12 +348,18 @@ class TestCompletionMethods:
         assert isinstance(result.message, AssistantMessage)
         assert result.message.content == content
 
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_structured", False),
-        ("_astructured", True),
-    ], ids=["sync_structured", "async_structured"])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_structured", False),
+            ("_astructured", True),
+        ],
+        ids=["sync_structured", "async_structured"],
+    )
     @pytest.mark.asyncio
-    async def test_structured(self, mock_litellm_wrapper, message_history, method_name, is_async):
+    async def test_structured(
+        self, mock_litellm_wrapper, message_history, method_name, is_async
+    ):
         class ExampleSchema(BaseModel):
             field: str
 
@@ -345,9 +395,9 @@ class TestCompletionMethods:
             wrapper = mock_litellm_wrapper(content="Invalid JSON")
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -358,29 +408,35 @@ class TestCompletionMethods:
         ],
         ids=["sync_structured", "async_structured"],
     )
-    async def test_structured_invalid_json_raises_llm_error(
+    async def test_structured_invalid_json_raises_model_error(
         self, mock_litellm_wrapper, message_history, method_name, is_async
     ):
         class Schema(BaseModel):
             val: int
 
-        with pytest.raises(LLMError, match="Structured LLM call failed"):
+        # The llm package raises its own ProviderError type; the node layer translates
+        # it into LLMError at the llm_helpers boundary, not here.
+        with pytest.raises(ModelError, match="Structured LLM call failed"):
             wrapper = mock_litellm_wrapper(
                 content='{"field": "VAL", "invalid": "json"}'
             )
             method = getattr(wrapper, method_name)
             if is_async:
-                result = await method(message_history, schema=Schema)
+                await method(message_history, schema=Schema)
             else:
-                result = method(message_history, schema=Schema)
+                method(message_history, schema=Schema)
 
-    @pytest.mark.parametrize("method_name,is_async", [
-        ("_chat_with_tools", False),
-        ("_achat_with_tools", True),
-    ], ids=[
-        "sync_chat_with_tools",
-        "async_chat_with_tools",
-        ])
+    @pytest.mark.parametrize(
+        "method_name,is_async",
+        [
+            ("_chat_with_tools", False),
+            ("_achat_with_tools", True),
+        ],
+        ids=[
+            "sync_chat_with_tools",
+            "async_chat_with_tools",
+        ],
+    )
     @pytest.mark.asyncio
     async def test_chat_with_tools(
         self, mock_litellm_wrapper, message_history, tool, method_name, is_async
@@ -512,7 +568,9 @@ class TestAsyncStreaming:
 
         with patch.object(wrapper, "_invoke", side_effect=_boom):
             with pytest.raises(RuntimeError, match="stream open failed"):
-                async for _ in wrapper.astream_chat(MessageHistory([UserMessage("hi")])):
+                async for _ in wrapper.astream_chat(
+                    MessageHistory([UserMessage("hi")])
+                ):
                     pass
 
     @pytest.mark.asyncio
@@ -602,6 +660,392 @@ class TestAsyncStreaming:
 
 
 # ================= END async streaming (sync bridge) tests =========================
+
+
+# ================= START streamed delta accumulation tests =========================
+def _delta_chunk(*, content=None, tool_calls=None, finish_reason=None, usage=None):
+    """A single `ModelResponseStream` shaped the way litellm hands them to the handler."""
+    return ModelResponseStream(
+        model="mock-model",
+        choices=[
+            StreamingChoices(
+                index=0,
+                delta=Delta(content=content, tool_calls=tool_calls),
+                finish_reason=finish_reason,
+            )
+        ],
+        usage=usage,
+    )
+
+
+def _tool_delta(*, index=0, call_id=None, name=None, arguments=None):
+    return ChatCompletionDeltaToolCall(
+        index=index,
+        id=call_id,
+        type="function",
+        function=Function(name=name, arguments=arguments),
+    )
+
+
+def _drain(wrapper, chunks, *, output_schema=None):
+    """Run `_stream_handler_base` over `chunks`, returning (text_chunks, final Response)."""
+    text, final = [], None
+    for item in wrapper._stream_handler_base(iter(chunks), 0.0, output_schema):
+        if isinstance(item, str):
+            text.append(item)
+        else:
+            final = item
+    return text, final
+
+
+class TestStreamedToolCallAccumulation:
+    """The tool-call delta handler has to cope with every shape providers stream in.
+
+    These drive `_stream_handler_base` with hand-built deltas rather than a live call, so
+    each provider's wire shape is pinned without any network request.
+    """
+
+    def test_fragmented_arguments_are_assembled(self, mock_litellm_wrapper):
+        """OpenAI / Anthropic shape: id and name first, then argument fragments."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(call_id="call_1", name="get_weather", arguments="")
+                ]
+            ),
+            _delta_chunk(tool_calls=[_tool_delta(arguments='{"city"')]),
+            _delta_chunk(tool_calls=[_tool_delta(arguments=': "Vancouver"}')]),
+            _delta_chunk(finish_reason="tool_calls"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        calls = final.message.content
+        assert [c.name for c in calls] == ["get_weather"]
+        assert calls[0].arguments == {"city": "Vancouver"}
+
+    def test_whole_call_in_opening_delta_keeps_its_arguments(
+        self, mock_litellm_wrapper
+    ):
+        """Gemini shape: the entire call, arguments included, arrives in one delta.
+
+        Regression test: the opening delta's arguments used to be discarded, so every
+        Gemini tool call reached its tool node with an empty argument dict.
+        """
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        call_id="call_1",
+                        name="get_weather",
+                        arguments='{"city": "Vancouver"}',
+                    )
+                ]
+            ),
+            _delta_chunk(finish_reason="tool_calls"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message.content[0].arguments == {"city": "Vancouver"}
+
+    def test_multiple_calls_in_one_delta_are_all_captured(self, mock_litellm_wrapper):
+        """A provider batching parallel calls into a single delta must not lose all but
+        the first: only `tool_calls[0]` used to be read."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        index=0,
+                        call_id="call_1",
+                        name="get_weather",
+                        arguments='{"city": "Vancouver"}',
+                    ),
+                    _tool_delta(
+                        index=1,
+                        call_id="call_2",
+                        name="get_weather",
+                        arguments='{"city": "Toronto"}',
+                    ),
+                ]
+            ),
+            _delta_chunk(finish_reason="tool_calls"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        calls = final.message.content
+        assert [c.identifier for c in calls] == ["call_1", "call_2"]
+        assert [c.arguments["city"] for c in calls] == ["Vancouver", "Toronto"]
+
+    def test_parallel_calls_streamed_on_separate_indices(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        index=0, call_id="call_1", name="get_weather", arguments=""
+                    )
+                ]
+            ),
+            _delta_chunk(
+                tool_calls=[_tool_delta(index=0, arguments='{"city": "Vancouver"}')]
+            ),
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        index=1, call_id="call_2", name="get_weather", arguments=""
+                    )
+                ]
+            ),
+            _delta_chunk(
+                tool_calls=[_tool_delta(index=1, arguments='{"city": "Toronto"}')]
+            ),
+            _delta_chunk(finish_reason="tool_calls"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert [c.arguments["city"] for c in final.message.content] == [
+            "Vancouver",
+            "Toronto",
+        ]
+
+    def test_reused_index_retires_the_earlier_call(self, mock_litellm_wrapper):
+        """A second call announced on an index already in use used to overwrite, and so
+        silently drop, the call already accumulated there."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        index=0,
+                        call_id="call_1",
+                        name="get_weather",
+                        arguments='{"city": "Vancouver"}',
+                    )
+                ]
+            ),
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        index=0,
+                        call_id="call_2",
+                        name="get_weather",
+                        arguments='{"city": "Toronto"}',
+                    )
+                ]
+            ),
+            _delta_chunk(finish_reason="tool_calls"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        calls = final.message.content
+        assert [c.identifier for c in calls] == ["call_1", "call_2"]
+        assert [c.arguments["city"] for c in calls] == ["Vancouver", "Toronto"]
+
+    def test_truncated_turn_still_reports_its_tool_calls(self, mock_litellm_wrapper):
+        """`finish_reason` is not always `stop`/`tool_calls`; a turn ended for any other
+        reason must still surface the calls it completed."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        call_id="call_1",
+                        name="get_weather",
+                        arguments='{"city": "Vancouver"}',
+                    )
+                ]
+            ),
+            _delta_chunk(finish_reason="length"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message.content[0].arguments == {"city": "Vancouver"}
+
+    def test_stream_without_finish_reason_still_reports_tool_calls(
+        self, mock_litellm_wrapper
+    ):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                tool_calls=[
+                    _tool_delta(
+                        call_id="call_1",
+                        name="get_weather",
+                        arguments='{"city": "Vancouver"}',
+                    )
+                ]
+            ),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message.content[0].arguments == {"city": "Vancouver"}
+
+    def test_content_after_finish_reason_is_not_emitted(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(content="he"),
+            _delta_chunk(content="llo"),
+            _delta_chunk(finish_reason="stop"),
+            _delta_chunk(content=" ignored"),
+        ]
+
+        text, final = _drain(wrapper, chunks)
+
+        assert text == ["he", "llo"]
+        assert final.message.content == "hello"
+
+
+class TestStreamedUsage:
+    """Token counts and cost have to survive the streaming path, or every streamed agent
+    turn reports nothing to the observability layer."""
+
+    def test_usage_chunk_without_choices_is_read(self, mock_litellm_wrapper):
+        """The trailing usage-only chunk carries no choices, so it can neither be indexed
+        into nor skipped."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(content="hi"),
+            _delta_chunk(finish_reason="stop"),
+            ModelResponseStream(
+                model="mock-model",
+                choices=[],
+                usage=Usage(prompt_tokens=11, completion_tokens=7, total_tokens=18),
+            ),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message_info.input_tokens == 11
+        assert final.message_info.output_tokens == 7
+
+    def test_usage_on_the_finish_chunk_is_read(self, mock_litellm_wrapper):
+        """Some providers attach usage to the `finish_reason` chunk rather than a
+        trailing one, so its position must not be assumed."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(content="hi"),
+            _delta_chunk(
+                finish_reason="stop",
+                usage=Usage(prompt_tokens=3, completion_tokens=4, total_tokens=7),
+            ),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message_info.input_tokens == 3
+        assert final.message_info.output_tokens == 4
+
+    def test_missing_usage_leaves_message_info_empty(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+
+        _, final = _drain(
+            wrapper, [_delta_chunk(content="hi"), _delta_chunk(finish_reason="stop")]
+        )
+
+        assert final.message_info.input_tokens is None
+        assert final.message_info.output_tokens is None
+
+    def test_cost_is_priced_from_usage_when_litellm_leaves_it_unset(self):
+        """litellm only fills `response_cost` in for a buffered response, so a streamed
+        call has to be priced from its usage chunk to report what a buffered one does."""
+        usage_chunk = ModelResponseStream(
+            model="gpt-4o",
+            choices=[],
+            usage=Usage(prompt_tokens=1000, completion_tokens=1000, total_tokens=2000),
+        )
+
+        info = LiteLLMWrapper.extract_message_info(
+            usage_chunk, 0.0, requested_model="gpt-4o"
+        )
+
+        assert info.total_cost is not None
+        assert info.total_cost > 0
+
+    def test_streamed_invocations_request_usage(self):
+        """Anthropic and Gemini emit no usage on a stream unless it is asked for."""
+        captured = {}
+
+        def _fake_completion(**kwargs):
+            captured.update(kwargs)
+            return ModelResponse(
+                choices=[{"message": {"content": "hi"}, "finish_reason": "stop"}]
+            )
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="gpt-4o")
+        with patch("litellm.completion", side_effect=_fake_completion):
+            wrapper._invoke(MessageHistory([UserMessage("hi")]), stream=True)
+        assert captured["stream_options"] == {"include_usage": True}
+
+        captured.clear()
+        with patch("litellm.completion", side_effect=_fake_completion):
+            wrapper._invoke(MessageHistory([UserMessage("hi")]))
+        assert "stream_options" not in captured
+
+    def test_caller_supplied_stream_options_win(self):
+        captured = {}
+
+        def _fake_completion(**kwargs):
+            captured.update(kwargs)
+            return ModelResponse(
+                choices=[{"message": {"content": "hi"}, "finish_reason": "stop"}]
+            )
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="gpt-4o", stream_options={"include_usage": False}
+        )
+        with patch("litellm.completion", side_effect=_fake_completion):
+            wrapper._invoke(MessageHistory([UserMessage("hi")]), stream=True)
+
+        assert captured["stream_options"] == {"include_usage": False}
+
+
+class TestSupportsStreamedToolCalling:
+    """The per-model capability probe that replaced the hardcoded provider blacklist."""
+
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            "gpt-4o",
+            "claude-sonnet-4-5-20250929",
+            "gemini/gemini-2.5-flash",
+        ],
+    )
+    def test_catalogued_streaming_tool_model_is_allowed(self, model_name):
+        assert (
+            _ConcreteLiteLLMWrapperForTest(
+                model_name=model_name
+            ).supports_streamed_tool_calling()
+            is True
+        )
+
+    def test_uncatalogued_deployment_is_attempted(self):
+        """A custom deployment name (Azure Foundry etc.) has no capability metadata, so
+        the probes would report False for a perfectly capable deployment. Attempt it and
+        let the API decide, as tool-calling and PDF support already do."""
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="azure/my-private-deployment"
+        )
+
+        assert wrapper.supports_streamed_tool_calling() is True
+
+    def test_catalogued_model_without_tool_support_is_refused(self):
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="gpt-4o")
+        with patch(
+            "railtracks.llm.models._litellm_wrapper.litellm.supports_function_calling",
+            return_value=False,
+        ):
+            assert wrapper.supports_streamed_tool_calling() is False
+
+    # ================= END streamed delta accumulation tests =========================
 
     @pytest.mark.parametrize(
         "method_name,is_async",
@@ -794,7 +1238,9 @@ class TestReasoningEffortDefaultForTools:
             wrapper.chat(message_history)
             assert "reasoning_effort" not in mock_completion.call_args.kwargs
 
-    def test_no_default_for_non_reasoning_model(self, message_history, tool, monkeypatch):
+    def test_no_default_for_non_reasoning_model(
+        self, message_history, tool, monkeypatch
+    ):
         self._patch_model_info(
             monkeypatch, supports_reasoning=None, supports_none_reasoning_effort=None
         )
@@ -813,3 +1259,108 @@ class TestReasoningEffortDefaultForTools:
 
 
 # ================= END #1394 reasoning_effort-default-for-tools tests ===============
+
+
+# =================================== START classify_provider_error Tests ==================================
+class TestClassifyProviderError:
+    """litellm's exception vocabulary must not leak past the llm package."""
+
+    @pytest.mark.parametrize(
+        "litellm_exc,expected",
+        [
+            (litellm.exceptions.Timeout("t", "m", "p"), ProviderTimeoutError),
+            (
+                litellm.exceptions.RateLimitError("r", "m", "p"),
+                ProviderRateLimitError,
+            ),
+            (
+                litellm.exceptions.AuthenticationError("a", "m", "p"),
+                ProviderAuthenticationError,
+            ),
+        ],
+        ids=["timeout", "rate_limit", "auth"],
+    )
+    def test_known_litellm_errors_are_classified(self, litellm_exc, expected):
+        assert classify_provider_error(litellm_exc) is expected
+
+    def test_unknown_errors_are_left_alone(self):
+        """Anything unrecognised stays unclassified rather than being mislabelled."""
+        assert classify_provider_error(ValueError("who knows")) is None
+
+    def test_retry_error_is_classified_by_what_was_retried(self):
+        """An exhausted retry of timeouts is still a timeout, not a generic failure."""
+        retry_error = RetryError(
+            "exponential",
+            "Max retries exceeded",
+            [],
+            [litellm.exceptions.Timeout("t", "m", "p")],
+        )
+        assert classify_provider_error(retry_error) is ProviderTimeoutError
+
+    def test_retry_error_with_no_recorded_exceptions(self):
+        assert classify_provider_error(RetryError("x", "y", [], [])) is None
+
+
+class TestStructuredPreservesProviderErrors:
+    """Structured output must classify failures the same way plain `chat` does.
+
+    `_structured` wraps its body in a catch-all that turns failures into `ModelError`.
+    Provider errors are already classified by `_call_provider`, so re-wrapping them
+    would leave structured output as the only path where a caller cannot tell a
+    timeout from an auth failure, or detect that retries were exhausted.
+    """
+
+    @pytest.mark.parametrize(
+        "litellm_exc,expected",
+        [
+            (litellm.exceptions.Timeout("t", "m", "p"), ProviderTimeoutError),
+            (litellm.exceptions.RateLimitError("r", "m", "p"), ProviderRateLimitError),
+            (
+                litellm.exceptions.AuthenticationError("a", "m", "p"),
+                ProviderAuthenticationError,
+            ),
+        ],
+        ids=["timeout", "rate_limit", "auth"],
+    )
+    def test_classified_provider_errors_are_not_rewrapped(
+        self, message_history, litellm_exc, expected
+    ):
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="test-model")
+        with patch.object(litellm, "completion", side_effect=litellm_exc):
+            with pytest.raises(expected):
+                wrapper.structured(message_history, schema=Schema)
+
+    def test_exhausted_retries_stay_detectable(self, message_history):
+        """`RetryError` must survive so callers can distinguish it from a single failure."""
+
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="test-model",
+            retry_approach=FixedRetry(max_tries=2, delay=0),
+        )
+        with patch.object(
+            litellm,
+            "completion",
+            side_effect=litellm.exceptions.Timeout("t", "m", "p"),
+        ):
+            with pytest.raises(RetryError):
+                wrapper.structured(message_history, schema=Schema)
+
+    def test_unclassified_failures_still_become_model_error(self, message_history):
+        """The catch-all still applies to anything that is not a provider error."""
+
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="test-model")
+        with patch.object(litellm, "completion", side_effect=ValueError("who knows")):
+            with pytest.raises(ModelError, match="Structured LLM call failed"):
+                wrapper.structured(message_history, schema=Schema)
+
+
+# =================================== END classify_provider_error Tests ====================================

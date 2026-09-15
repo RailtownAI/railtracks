@@ -27,7 +27,11 @@ def test_header_breadcrumb(markdown_doc):
     # Find the chunk under "## Background" -> "### History"
     history_chunks = [c for c in chunks if c.metadata.get("section") == "### History"]
     assert history_chunks, "expected a chunk for the ### History section"
-    assert history_chunks[0].metadata["headers"] == ["# Title", "## Background", "### History"]
+    assert history_chunks[0].metadata["headers"] == [
+        "# Title",
+        "## Background",
+        "### History",
+    ]
 
 
 def test_offsets_slice_back(markdown_doc):
@@ -95,10 +99,7 @@ def test_body_has_no_surrounding_whitespace():
 
 def test_body_offsets_match_stripped_content():
     """doc.content[start:end] must equal the stripped body exactly."""
-    md = (
-        "# Intro\n\nFirst paragraph.\n\n"
-        "## Details\n\nSecond paragraph.\n\n"
-    )
+    md = "# Intro\n\nFirst paragraph.\n\n## Details\n\nSecond paragraph.\n\n"
     doc = Document(content=md, type="markdown")
     chunks = MarkdownHeaderChunker().chunk(doc)
     assert len(chunks) == 2

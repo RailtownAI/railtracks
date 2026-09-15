@@ -5,12 +5,14 @@ from pathlib import Path
 from typing import TextIO
 
 from ...models import Event
+from ...storage import resolve_events_dir
 from ._serialize import RTObserverEncoder
 
 
 class JsonlWriter:
-    def __init__(self, directory: Path):
-        self._directory = directory
+    def __init__(self, directory: Path | None = None):
+        """Write events to ``directory`` or the shared visualizer event store."""
+        self._directory = directory if directory is not None else resolve_events_dir()
         self._files: dict[str, TextIO] = {}
 
     async def start(self) -> None:

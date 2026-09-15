@@ -1,5 +1,6 @@
 from railtracks.llm import GeminiLLM
 
+
 def test_llm_correct_init():
     """
     Test that GeminiLLM initializes correctly with a valid model name.

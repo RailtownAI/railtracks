@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-
 from railtracks.evaluations.evaluators.judge_evaluator import (
     JudgeEvaluator,
     JudgeOutput,
@@ -11,13 +10,14 @@ from railtracks.evaluations.evaluators.judge_evaluator import (
 from railtracks.evaluations.evaluators.metrics import (
     Categorical,
     Category,
+    LLMMetric,
     Metric,
     Numerical,
+    ToolMetric,
 )
 from railtracks.evaluations.result import AggregateForest, MetricResult
 
 from .conftest import make_agent_data_point
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,17 +51,53 @@ def test_init_name(judge):
     assert judge.name == "JudgeEvaluator"
 
 
-def test_init_filters_non_categorical_metrics(caplog):
-    """Non-Categorical metrics generate a warning but are still stored."""
+def test_init_accepts_categorical_and_numerical_metrics(caplog):
+    """Categorical and Numerical metrics are both accepted without a warning."""
     import logging
+
     llm = make_mock_llm()
-    numerical = Numerical(name="score", min_value=0.0)
+    numerical = Numerical(name="score", min_value=0.0, max_value=10.0)
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         with caplog.at_level(logging.WARNING):
             j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS, numerical])
     assert HELPFULNESS.identifier in j._metrics
     assert numerical.identifier in j._metrics
+    assert not any("will be skipped" in r.message for r in caplog.records)
+
+
+def test_init_filters_non_categorical_metrics(caplog):
+    """Plain Metric (not Categorical/Numerical) generates a warning and is skipped."""
+    import logging
+
+    llm = make_mock_llm()
+    base = Metric(name="some_metric")
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        with caplog.at_level(logging.WARNING):
+            j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS, base])
+    assert HELPFULNESS.identifier in j._metrics
+    assert base.identifier not in j._metrics
     assert any("will be skipped" in r.message for r in caplog.records)
+
+
+def test_init_filters_llm_and_tool_metrics(caplog):
+    """LLMMetric/ToolMetric subclass Numerical but must not be judged."""
+    import logging
+
+    llm = make_mock_llm()
+    llm_metric = LLMMetric(name="Latency", min_value=0.0)
+    tool_metric = ToolMetric(name="Runtime", min_value=0.0)
+    numerical = Numerical(name="score", min_value=0.0, max_value=10.0)
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        with caplog.at_level(logging.WARNING):
+            j = JudgeEvaluator(
+                llm=llm, metrics=[HELPFULNESS, llm_metric, tool_metric, numerical]
+            )
+    assert HELPFULNESS.identifier in j._metrics
+    assert numerical.identifier in j._metrics
+    assert llm_metric.identifier not in j._metrics
+    assert tool_metric.identifier not in j._metrics
+    skipped = [r.message for r in caplog.records if "will be skipped" in r.message]
+    assert len(skipped) == 2
 
 
 def test_init_custom_system_prompt():
@@ -142,7 +178,10 @@ def test_generate_system_prompt_lists_category_names_with_category_object_input(
     llm = make_mock_llm()
     metric = Categorical(
         name="Helpfulness",
-        categories=[Category(name="good", status="pass"), Category(name="bad", status="fail")],
+        categories=[
+            Category(name="good", status="pass"),
+            Category(name="bad", status="fail"),
+        ],
     )
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         j = JudgeEvaluator(llm=llm, metrics=[metric])
@@ -156,6 +195,45 @@ def test_generate_system_prompt_lists_category_names_with_category_object_input(
     )
     assert "pass" not in instruction_line
     assert "fail" not in instruction_line
+
+
+def test_generate_system_prompt_numerical_bounded():
+    llm = make_mock_llm()
+    metric = Numerical(name="Usefulness", min_value=0, max_value=10)
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "metric_value must be a single number between 0 and 10 inclusive" in prompt
+
+
+def test_generate_system_prompt_numerical_unbounded():
+    llm = make_mock_llm()
+    metric = Numerical(name="Usefulness")
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "metric_value must be a single number" in prompt
+
+
+def test_generate_system_prompt_numerical_with_shots():
+    llm = make_mock_llm()
+    metric = Numerical(
+        name="Usefulness",
+        min_value=0,
+        max_value=10,
+        shots=[
+            (0, "not useful at all"),
+            (5, "somewhat useful"),
+            (10, "extremely useful"),
+        ],
+    )
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    prompt = j._generate_system_prompt(metric)
+    assert "not useful at all" in prompt
+    assert "somewhat useful" in prompt
+    assert "extremely useful" in prompt
+    assert "interpolate" in prompt.lower()
 
 
 # ── _aggregate_metrics ────────────────────────────────────────────────────────
@@ -198,12 +276,20 @@ def test_aggregate_metrics_skips_base_metric(judge):
 
 
 def _mock_invoke(judge_instance, adp, metric):
-    return [JudgeOutput(metric.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning="looks good"))]
+    return [
+        JudgeOutput(
+            metric.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value="good", reasoning="looks good"),
+        )
+    ]
 
 
 def test_run_returns_evaluator_result(judge):
     adp = make_agent_data_point()
-    with patch.object(judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)):
+    with patch.object(
+        judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)
+    ):
         result = judge.run([adp])
     assert result.evaluator_name == "JudgeEvaluator"
     assert len(result.metric_results) >= 1
@@ -211,7 +297,9 @@ def test_run_returns_evaluator_result(judge):
 
 def test_run_includes_reasoning_result(judge):
     adp = make_agent_data_point()
-    with patch.object(judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)):
+    with patch.object(
+        judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)
+    ):
         result = judge.run([adp])
     names = [r.result_name for r in result.metric_results]
     assert any("JudgeResult" in n for n in names)
@@ -223,7 +311,13 @@ def test_run_no_reasoning_when_disabled():
     with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
         j = JudgeEvaluator(llm=llm, metrics=[HELPFULNESS], reasoning=False)
     adp = make_agent_data_point()
-    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good"))]
+    fake_output = [
+        JudgeOutput(
+            HELPFULNESS.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value="good"),
+        )
+    ]
     with patch.object(j, "_invoke", return_value=fake_output):
         result = j.run([adp])
     names = [r.result_name for r in result.metric_results]
@@ -233,7 +327,13 @@ def test_run_no_reasoning_when_disabled():
 def test_run_reasoning_none_does_not_add_result(judge):
     """When reasoning is enabled but judge returns None reasoning, no reasoning result added."""
     adp = make_agent_data_point()
-    fake_output = [JudgeOutput(HELPFULNESS.identifier, str(adp.identifier), JudgeResponseSchema(metric_value="good", reasoning=None))]
+    fake_output = [
+        JudgeOutput(
+            HELPFULNESS.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value="good", reasoning=None),
+        )
+    ]
     with patch.object(judge, "_invoke", return_value=fake_output):
         result = judge.run([adp])
     names = [r.result_name for r in result.metric_results]
@@ -242,6 +342,32 @@ def test_run_reasoning_none_does_not_add_result(judge):
 
 def test_run_agent_data_ids(judge):
     adp = make_agent_data_point()
-    with patch.object(judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)):
+    with patch.object(
+        judge, "_invoke", return_value=_mock_invoke(judge, adp, HELPFULNESS)
+    ):
         result = judge.run([adp])
     assert adp.identifier in result.agent_data_ids
+
+
+def test_run_numerical_metric():
+    """A Numerical metric produces a numerical MetricResult."""
+    llm = make_mock_llm()
+    metric = Numerical(name="Usefulness", min_value=0, max_value=10)
+    with patch("railtracks.evaluations.evaluators.judge_evaluator.rt.agent_node"):
+        j = JudgeEvaluator(llm=llm, metrics=[metric])
+    adp = make_agent_data_point()
+    fake_output = [
+        JudgeOutput(
+            metric.identifier,
+            str(adp.identifier),
+            JudgeResponseSchema(metric_value=7, reasoning="decent"),
+        )
+    ]
+    with patch.object(j, "_invoke", return_value=fake_output):
+        result = j.run([adp])
+    values = [
+        r.value
+        for r in result.metric_results
+        if r.result_name.startswith("JudgeResult")
+    ]
+    assert values == [7]

@@ -12,8 +12,10 @@ The **Slot** column tells you where each middleware can be attached:
 
 | Middleware | Slot | What it does |
 |---|---|---|
+| [Lock](list/lock.md) | Both | Serialize concurrent invocations that share the same middleware instance. |
 | [Retry](list/retry.md) | Both | Re-run the wrapped call when it raises a transient error, with a configurable backoff. |
 | [Timeout](list/timeout.md) | Both | Cancel the wrapped call and raise `TimeoutError` when it exceeds a deadline. |
+| [MaxCalls](list/max_calls.md) | Both | Raise `MaxCallsExceededError` once the wrapped call has been invoked a set number of times. |
 | [ContextInjection](list/context_injection.md) | Model | Fill `{placeholder}` templates in the prompt from the active session context. |
 
 ### Guardrails
@@ -25,6 +27,10 @@ Guardrails are model middleware too; a policy layer that inspects inputs and out
 | [BlockTextInputGuard / BlockTextOutputGuard](list/block_text.md) | Model | Block an interaction when a regex pattern matches the input or output. |
 | [InputLengthGuard / OutputLengthGuard](list/length.md) | Model | Block an interaction when the character count exceeds a ceiling. |
 | [PIIRedactInputGuard / PIIRedactOutputGuard](list/pii_redaction.md) | Model | Redact PII (emails, phone numbers, custom patterns, …) from inputs and outputs. |
+
+### Verifiers
+
+`pre_verifier` and `post_verifier` are node middleware for gating a call before or after it runs — the basis for human-in-the-loop workflows in Railtracks. They aren't catalogued in the table above since there are only two, tightly coupled by design; see the [Verifiers](../verifiers/overview.md) overview for the full picture.
 
 !!! Note
     Don't see what you are looking for? [Create your own middleware](../custom.md) for a custom solution, or [contribute a prebuilt middleware](contributions.md) so others can reuse it.

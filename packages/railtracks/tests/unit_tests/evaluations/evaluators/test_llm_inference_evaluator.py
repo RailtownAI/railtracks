@@ -1,8 +1,9 @@
-from railtracks.evaluations.evaluators.llm_inference_evaluator import LLMInferenceEvaluator
+from railtracks.evaluations.evaluators.llm_inference_evaluator import (
+    LLMInferenceEvaluator,
+)
 from railtracks.evaluations.result import LLMMetricResult
 
 from .conftest import make_agent_data_point, make_llm_call
-
 
 # ── LLMInferenceEvaluator ─────────────────────────────────────────────────────
 
@@ -21,14 +22,18 @@ def test_run_result_count_matches_calls(agent_data_point):
 
 
 def test_run_multiple_llm_calls():
-    adp = make_agent_data_point(llm_calls=[make_llm_call(index=0), make_llm_call(index=1)])
+    adp = make_agent_data_point(
+        llm_calls=[make_llm_call(index=0), make_llm_call(index=1)]
+    )
     result = LLMInferenceEvaluator().run([adp])
     # 2 calls × 4 metrics = 8 results
     assert len(result.metric_results) == 8
 
 
 def test_run_result_values_correct():
-    call = make_llm_call(input_tokens=100, output_tokens=20, total_cost=0.005, latency=2.5)
+    call = make_llm_call(
+        input_tokens=100, output_tokens=20, total_cost=0.005, latency=2.5
+    )
     adp = make_agent_data_point(llm_calls=[call])
     result = LLMInferenceEvaluator().run([adp])
     by_name = {r.result_name: r.value for r in result.metric_results}

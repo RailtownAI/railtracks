@@ -1,15 +1,14 @@
 import asyncio
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
-from unittest.mock import MagicMock, patch
-
-from railtracks.prebuilt.tools.todo.todos import State, ToDo, ToDoToolSet
-
+from railtracks.prebuilt.tools.todo.todos import State, ToDoToolSet
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def ts():
@@ -44,6 +43,7 @@ async def full_populated(ts):
 # Initialisation
 # ---------------------------------------------------------------------------
 
+
 def test_init_empty_todos(ts):
     assert ts.todos == []
 
@@ -58,6 +58,7 @@ async def test_init_custom_callback():
 # ---------------------------------------------------------------------------
 # add()
 # ---------------------------------------------------------------------------
+
 
 async def test_add_appends_todo(ts):
     await ts.add("buy milk", "Pick up 2 litres of whole milk")
@@ -115,6 +116,7 @@ async def test_add_callback_exception_is_logged_and_todo_still_added(ts):
 # ID assignment
 # ---------------------------------------------------------------------------
 
+
 async def test_first_todo_gets_id_1(ts):
     await ts.add("task", "description")
     assert ts.todos[0].id == 1
@@ -162,6 +164,7 @@ async def test_failed_add_does_not_increment_id_counter(ts):
 # get_all_todos()
 # ---------------------------------------------------------------------------
 
+
 async def test_get_all_todos_empty(ts):
     assert await ts.get_all_todos() == []
 
@@ -182,6 +185,7 @@ async def test_get_all_todos_excludes_no_longer_planned(full_populated):
 # ---------------------------------------------------------------------------
 # get_completed_todos() / get_not_started_todos() / get_incomplete_todos()
 # ---------------------------------------------------------------------------
+
 
 async def test_get_completed_todos(populated):
     result = await populated.get_completed_todos()
@@ -220,6 +224,7 @@ async def test_get_incomplete_todos_excludes_no_longer_planned(full_populated):
 # get_failed_todos()
 # ---------------------------------------------------------------------------
 
+
 async def test_get_failed_todos_empty(populated):
     assert await populated.get_failed_todos() == []
 
@@ -233,6 +238,7 @@ async def test_get_failed_todos_returns_only_failed(full_populated):
 # ---------------------------------------------------------------------------
 # complete_todo_by_id() / start_todo_by_id() / update_todo_by_id()
 # ---------------------------------------------------------------------------
+
 
 async def test_complete_todo_by_id(ts):
     await ts.add("task", "description")
@@ -277,6 +283,7 @@ async def test_update_todo_by_id_not_found(ts):
 # fail_todo_by_id()
 # ---------------------------------------------------------------------------
 
+
 async def test_fail_todo_by_id(ts):
     await ts.add("task", "description")
     todo_id = ts.todos[0].id
@@ -294,6 +301,7 @@ async def test_fail_todo_by_id_not_found(ts):
 # no_longer_plan_todo_by_id()
 # ---------------------------------------------------------------------------
 
+
 async def test_no_longer_plan_todo_by_id(ts):
     await ts.add("task", "description")
     todo_id = ts.todos[0].id
@@ -310,6 +318,7 @@ async def test_no_longer_plan_todo_by_id_not_found(ts):
 # ---------------------------------------------------------------------------
 # make_all_no_longer_planned()
 # ---------------------------------------------------------------------------
+
 
 async def test_make_all_no_longer_planned_affects_not_started_and_in_progress(ts):
     await ts.add("task-a", "desc a")
@@ -340,6 +349,7 @@ async def test_make_all_no_longer_planned_empty(ts):
 # pretty_dashboard()
 # ---------------------------------------------------------------------------
 
+
 async def test_pretty_dashboard_empty(ts):
     assert await ts.pretty_dashboard() == "No todos found."
 
@@ -365,6 +375,7 @@ async def test_pretty_dashboard_only_no_longer_planned_shows_empty(ts):
 # Instance isolation
 # ---------------------------------------------------------------------------
 
+
 async def test_two_instances_are_isolated():
     t1 = ToDoToolSet()
     t2 = ToDoToolSet()
@@ -376,6 +387,7 @@ async def test_two_instances_are_isolated():
 # ---------------------------------------------------------------------------
 # tool_set()
 # ---------------------------------------------------------------------------
+
 
 def test_tool_set_returns_rt_functions(ts):
     tools = ts.tool_set()
@@ -396,6 +408,7 @@ async def test_tool_set_bound_to_instance():
 # prompt()
 # ---------------------------------------------------------------------------
 
+
 def test_prompt_is_non_empty_string():
     result = ToDoToolSet.prompt()
     assert isinstance(result, str)
@@ -405,6 +418,7 @@ def test_prompt_is_non_empty_string():
 # ---------------------------------------------------------------------------
 # Concurrency
 # ---------------------------------------------------------------------------
+
 
 async def test_concurrent_adds_produce_unique_sequential_ids():
     ts = ToDoToolSet()
@@ -422,8 +436,8 @@ async def test_concurrent_adds_produce_unique_sequential_ids():
     assert not errors
     assert len(ts.todos) == n
     ids = [todo.id for todo in ts.todos]
-    assert len(set(ids)) == n               # no duplicates
-    assert set(ids) == set(range(1, n + 1)) # exactly 1..n, no gaps
+    assert len(set(ids)) == n  # no duplicates
+    assert set(ids) == set(range(1, n + 1))  # exactly 1..n, no gaps
 
 
 async def test_concurrent_adds_no_lost_updates():

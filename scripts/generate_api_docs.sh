@@ -17,6 +17,7 @@ if [ ! -d "packages/railtracks/src/railtracks" ]; then
     exit 1
 fi
 
+rm -rf docs/api_reference
 mkdir -p docs/api_reference
 
 echo "Running pdoc to generate API documentation..."

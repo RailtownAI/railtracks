@@ -136,7 +136,6 @@ async def test_success_run_is_bracketed_by_session_events(writer):
     assert started.payload["session_name"] is None
     assert started.payload["entry_point_name"] == "add_one"
 
-
     assert completed.payload["status"] == "success"
     assert completed.payload["error"] is None
     assert completed.payload["duration_seconds"] >= 0

@@ -1,9 +1,8 @@
 import json
 from collections import defaultdict
-
-import pytest
 from uuid import UUID
 
+import pytest
 from railtracks.evaluations.point import (
     EdgeDataPoint,
     MessageRole,
@@ -17,8 +16,7 @@ from railtracks.evaluations.point import (
     resolve_file_paths,
 )
 
-from .conftest import AGENT_ID, TOOL1_ID, TOOL2_ID, SESSION_ID
-
+from .conftest import AGENT_ID, SESSION_ID, TOOL1_ID, TOOL2_ID
 
 # ── load_session ──────────────────────────────────────────────────────────────
 
@@ -176,7 +174,9 @@ def test_extract_agent_io_completed_edge(agent_node, edges):
 
 
 def test_extract_agent_io_no_edges(agent_node):
-    agent_input, agent_output = extract_agent_io(defaultdict(list), agent_node, str(SESSION_ID))
+    agent_input, agent_output = extract_agent_io(
+        defaultdict(list), agent_node, str(SESSION_ID)
+    )
     assert agent_input == {}
     assert agent_output == {}
 
@@ -188,11 +188,18 @@ def test_extract_agent_io_ignores_failed_edge(agent_node):
                 identifier=UUID("eeeeeeee-0000-0000-0000-000000000001"),
                 source=None,
                 target=AGENT_ID,
-                details={"input_args": [], "input_kwargs": {}, "status": "Failed", "output": None},
+                details={
+                    "input_args": [],
+                    "input_kwargs": {},
+                    "status": "Failed",
+                    "output": None,
+                },
             )
         ]
     }
-    agent_input, agent_output = extract_agent_io(failed_sink, agent_node, str(SESSION_ID))
+    agent_input, agent_output = extract_agent_io(
+        failed_sink, agent_node, str(SESSION_ID)
+    )
     assert agent_input == {}
     assert agent_output == {}
 

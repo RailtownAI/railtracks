@@ -31,7 +31,9 @@ def test_custom_llm_provider_passed_to_litellm_completion(message_history):
         mock_completion.return_value = litellm.utils.ModelResponse(
             choices=[{"message": {"content": "ok"}}]
         )
-        llm = OpenAICompatibleProvider(MODEL_NAME, api_base=API_BASE, api_key="test-key")
+        llm = OpenAICompatibleProvider(
+            MODEL_NAME, api_base=API_BASE, api_key="test-key"
+        )
         llm.chat(message_history)
 
         mock_completion.assert_called_once()

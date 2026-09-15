@@ -36,9 +36,7 @@ def test_chunker_is_abstract():
 
 
 def test_make_chunks_propagates_document_id_and_index():
-    doc = Document(
-        content="abc def", type="text", metadata={"source": "test"}
-    )
+    doc = Document(content="abc def", type="text", metadata={"source": "test"})
     chunker = _PassthroughChunker()
     pieces = ["abc ", "def"]
     offsets = [(0, 4), (4, 7)]
@@ -51,9 +49,7 @@ def test_make_chunks_propagates_document_id_and_index():
 
 
 def test_make_chunks_extra_metadata_overrides_inherited_keys():
-    doc = Document(
-        content="text", type="text", metadata={"category": "base"}
-    )
+    doc = Document(content="text", type="text", metadata={"category": "base"})
     chunker = _PassthroughChunker()
     chunks = chunker._make_chunks(
         doc,
@@ -65,9 +61,7 @@ def test_make_chunks_extra_metadata_overrides_inherited_keys():
 
 
 def test_make_chunks_metadata_is_isolated():
-    doc = Document(
-        content="text", type="text", metadata={"shared": ["a"]}
-    )
+    doc = Document(content="text", type="text", metadata={"shared": ["a"]})
     chunker = _PassthroughChunker()
     chunks = chunker._make_chunks(doc, ["text"])
 

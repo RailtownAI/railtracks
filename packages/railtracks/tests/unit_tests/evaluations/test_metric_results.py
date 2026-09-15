@@ -11,28 +11,38 @@ from railtracks.evaluations.result.metric_results import (
 
 
 def test_metric_result_has_uuid_identifier():
-    r = MetricResult(result_name="test", metric_id="abc", agent_data_id=[uuid4()], value=1.0)
+    r = MetricResult(
+        result_name="test", metric_id="abc", agent_data_id=[uuid4()], value=1.0
+    )
     assert isinstance(r.identifier, UUID)
 
 
 def test_metric_result_default_type():
-    r = MetricResult(result_name="test", metric_id="abc", agent_data_id=[uuid4()], value=0)
+    r = MetricResult(
+        result_name="test", metric_id="abc", agent_data_id=[uuid4()], value=0
+    )
     assert r.type == "Base"
 
 
 def test_metric_result_float_value():
     adp = uuid4()
-    r = MetricResult(result_name="latency", metric_id="m", agent_data_id=[adp], value=3.14)
+    r = MetricResult(
+        result_name="latency", metric_id="m", agent_data_id=[adp], value=3.14
+    )
     assert r.value == pytest.approx(3.14)
 
 
 def test_metric_result_int_value():
-    r = MetricResult(result_name="count", metric_id="m", agent_data_id=[uuid4()], value=42)
+    r = MetricResult(
+        result_name="count", metric_id="m", agent_data_id=[uuid4()], value=42
+    )
     assert r.value == 42
 
 
 def test_metric_result_string_value():
-    r = MetricResult(result_name="label", metric_id="m", agent_data_id=[uuid4()], value="good")
+    r = MetricResult(
+        result_name="label", metric_id="m", agent_data_id=[uuid4()], value="good"
+    )
     assert r.value == "good"
 
 

@@ -9,7 +9,7 @@ In Railtracks, prompts are provided as system messages or user messages when int
 
 ## Context Injection
 
-Railtracks provides a powerful feature called "context injection" (also referred to as "prompt injection") that allows you to dynamically insert values from the global context into your prompts. This makes your prompts more flexible and reusable across different scenarios.
+Railtracks provides a powerful feature called "context injection" (also referred to as "prompt injection", "variable insertion", etc. in literature) that allows you to dynamically insert values from the global context into your prompts. This makes your prompts more flexible and reusable across different scenarios.
 
 ### What is Context Injection?
 

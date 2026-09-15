@@ -1,5 +1,6 @@
 from railtracks.llm import AnthropicLLM
 
+
 def test_llm_correct_init():
     """
     Test that AnthropicLLM initializes correctly with a valid model name.

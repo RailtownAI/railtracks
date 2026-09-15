@@ -12,6 +12,7 @@ from railtracks.observability import (
     publish_event,
     shutdown,
 )
+from railtracks.observability.writers.jsonl import JsonlWriter
 
 
 class _CollectingWriter:
@@ -44,7 +45,9 @@ class _RaisingWriter:
         pass
 
 
-def _make_session_event(event_type: str = "test.event", payload: dict[str, Any] | None = None) -> Event:
+def _make_session_event(
+    event_type: str = "test.event", payload: dict[str, Any] | None = None
+) -> Event:
     return Event(
         event_type=event_type,
         scope_type=SCOPE_SESSION,
@@ -124,11 +127,43 @@ async def test_publish_after_shutdown_raises():
     assert [e.event_type for e in writer.events] == ["first"]
 
 
-async def test_ensure_started_before_configure_writers_starts_with_no_writers(caplog):
-    """Calling ensure_started() with no prior configure_writers() is fine —
-    the observer starts with zero pending writers. Subsequent publishes just
-    fan out to nothing."""
+async def test_ensure_started_with_events_disabled_skips_auto_default(caplog):
+    """With RAILTRACKS_DISABLE_EVENTS=True (set by conftest) and no explicit
+    configure_writers, ensure_started() starts with zero pending writers.
+    Subsequent publishes fan out to nothing."""
     await ensure_started()
     assert configure.observer._running is True
+    assert configure.observer._writers == {}
     await publish_event(_make_session_event())
     await shutdown()
+
+
+async def test_ensure_started_auto_injects_default_writer_when_events_enabled(
+    monkeypatch, tmp_path
+):
+    """With RAILTRACKS_DISABLE_EVENTS unset, ensure_started() auto-registers a
+    default JsonlWriter that writes to the resolved events directory."""
+    monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
+    monkeypatch.setenv("RAILTRACKS_EVENTS_DIR", str(tmp_path / "events"))
+    await ensure_started()
+    try:
+        assert len(configure.observer._writers) == 1
+        entry = next(iter(configure.observer._writers.values()))
+        assert isinstance(entry.writer, JsonlWriter)
+    finally:
+        await shutdown()
+
+
+async def test_explicit_configure_writers_wins_over_auto_default(monkeypatch):
+    """A user's explicit configure_writers([...]) suppresses the auto-default
+    even when the env var is unset."""
+    monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
+    user_writer = _CollectingWriter()
+    configure_writers([user_writer])
+    await ensure_started()
+    try:
+        entries = list(configure.observer._writers.values())
+        assert len(entries) == 1
+        assert entries[0].writer is user_writer
+    finally:
+        await shutdown()

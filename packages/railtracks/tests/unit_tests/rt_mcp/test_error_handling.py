@@ -23,32 +23,44 @@ class TestConnectionErrorHandling:
         with pytest.raises(FileNotFoundError) as exc_info:
             MCPServer(
                 config=MCPStdioParams(
-                    command="nonexistent_command_12345",
-                    args=["test"]
+                    command="nonexistent_command_12345", args=["test"]
                 ),
-                setup_timeout=5
+                setup_timeout=5,
             )
-        
+
         # Verify error message is helpful
         assert "nonexistent_command_12345" in str(exc_info.value)
-        assert "PATH" in str(exc_info.value) or "not found" in str(exc_info.value).lower()
+        assert (
+            "PATH" in str(exc_info.value) or "not found" in str(exc_info.value).lower()
+        )
 
     @pytest.mark.skip(reason="Test is flaky, no idea why")
     @pytest.mark.asyncio
-    async def test_setup_exception_propagation(self, stdio_config, mock_client_session, patch_stdio_client, patch_ClientSession):
+    async def test_setup_exception_propagation(
+        self,
+        stdio_config,
+        mock_client_session,
+        patch_stdio_client,
+        patch_client_session,
+    ):
         """Test that exceptions during setup are properly propagated."""
         # Create a mock that raises an exception during connect
-        mock_client_session.initialize.side_effect = ConnectionError("Failed to connect")
-        
+        mock_client_session.initialize.side_effect = ConnectionError(
+            "Failed to connect"
+        )
+
         with pytest.raises(RuntimeError) as exc_info:
-            server = MCPServer(
+            MCPServer(
                 config=stdio_config,
                 client_session=None,  # Force it to create new session
-                setup_timeout=5
+                setup_timeout=5,
             )
-        
+
         # Verify the error was propagated
-        assert "Failed to connect" in str(exc_info.value) or exc_info.value.__cause__ is not None
+        assert (
+            "Failed to connect" in str(exc_info.value)
+            or exc_info.value.__cause__ is not None
+        )
 
 
 class TestErrorContextAndMessages:
@@ -58,13 +70,10 @@ class TestErrorContextAndMessages:
         """Test that FileNotFoundError includes helpful troubleshooting info."""
         with pytest.raises(FileNotFoundError) as exc_info:
             MCPServer(
-                config=MCPStdioParams(
-                    command="missing_mcp_server",
-                    args=[]
-                ),
-                setup_timeout=5
+                config=MCPStdioParams(command="missing_mcp_server", args=[]),
+                setup_timeout=5,
             )
-        
+
         error_msg = str(exc_info.value)
         # Should mention the command name
         assert "missing_mcp_server" in error_msg
@@ -78,23 +87,20 @@ class TestThreadCleanup:
     def test_thread_cleaned_up_after_error(self):
         """Test that background thread is cleaned up after connection error."""
         initial_thread_count = threading.active_count()
-        
+
         try:
             MCPServer(
-                config=MCPStdioParams(
-                    command="nonexistent_command",
-                    args=[]
-                ),
-                setup_timeout=5
+                config=MCPStdioParams(command="nonexistent_command", args=[]),
+                setup_timeout=5,
             )
         except FileNotFoundError:
             pass  # Expected
-        
+
         # Give threads time to clean up
         time.sleep(0.5)
-        
+
         final_thread_count = threading.active_count()
-        
+
         # Should not leak threads (allow small variance for system threads)
         assert final_thread_count <= initial_thread_count + 2
 
@@ -106,29 +112,33 @@ class TestSuccessfulConnection:
     async def test_valid_connection_succeeds(self, stdio_config, mock_client_session):
         """Test that valid connections work correctly."""
         server = MCPServer(
-            config=stdio_config,
-            client_session=mock_client_session,
-            setup_timeout=30
+            config=stdio_config, client_session=mock_client_session, setup_timeout=30
         )
-        
+
         # Should have tools
         assert server.tools is not None
-        
+
         # Clean up
         server.close()
 
-    def test_context_manager_cleanup_after_error(self, stdio_config, mock_client_session, patch_stdio_client, patch_ClientSession):
+    def test_context_manager_cleanup_after_error(
+        self,
+        stdio_config,
+        mock_client_session,
+        patch_stdio_client,
+        patch_client_session,
+    ):
         """Test that context manager properly cleans up after errors."""
         mock_client_session.initialize.side_effect = ConnectionError("Test error")
-        
+
         with pytest.raises(RuntimeError):
             with MCPServer(
                 config=stdio_config,
                 client_session=None,  # Force new session creation
-                setup_timeout=5
-            ) as server:
+                setup_timeout=5,
+            ):
                 pass
-        
+
         # Context manager should handle cleanup even with error
 
 
@@ -141,7 +151,7 @@ class TestCloseMethod:
         server._loop = None
         server._shutdown_event = None
         server._thread = None
-        
+
         # Should not raise an error
         server.close()
 
@@ -162,11 +172,8 @@ class TestCloseMethod:
         with patch.object(MCPServer, "close", delayed_close):
             with pytest.raises(FileNotFoundError) as exc_info:
                 MCPServer(
-                    config=MCPStdioParams(
-                        command="missing_mcp_server",
-                        args=[]
-                    ),
-                    setup_timeout=5
+                    config=MCPStdioParams(command="missing_mcp_server", args=[]),
+                    setup_timeout=5,
                 )
 
         assert "missing_mcp_server" in str(exc_info.value)

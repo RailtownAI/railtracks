@@ -15,8 +15,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from railtracks.cli import (
+    _TOOL_HANDLERS,
     SKILLS,
     SUPPORTED_TOOLS,
     _visual_dependencies_available,
@@ -51,7 +53,7 @@ class TestUtilityFunctions(unittest.TestCase):
         self.assertTrue(result.exists())
         self.assertTrue(result.is_dir())
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_print_functions(self, mock_print):
         """Test all print functions format messages correctly"""
         test_message = "test message"
@@ -86,8 +88,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
         if self._original_railtracks_home is not None:
             os.environ["RAILTRACKS_HOME"] = self._original_railtracks_home
 
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
+    @patch("railtracks.cli.print_status")
+    @patch("railtracks.cli.print_success")
     def test_create_railtracks_dir_new(self, mock_success, mock_status):
         """Test creating .railtracks directory when it doesn't exist"""
         # Ensure .railtracks doesn't exist
@@ -104,8 +106,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
         mock_status.assert_called()
         mock_success.assert_called()
 
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
+    @patch("railtracks.cli.print_status")
+    @patch("railtracks.cli.print_success")
     def test_create_railtracks_dir_existing(self, mock_success, mock_status):
         """Test when .railtracks directory already exists"""
         # Create .railtracks directory first
@@ -118,8 +120,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
         self.assertTrue(railtracks_path.exists())
         self.assertTrue(railtracks_path.is_dir())
 
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
+    @patch("railtracks.cli.print_status")
+    @patch("railtracks.cli.print_success")
     def test_create_railtracks_dir_gitignore_new(self, mock_success, mock_status):
         """Test creating .gitignore with .railtracks entry"""
         create_railtracks_dir()
@@ -133,8 +135,8 @@ class TestCreateRailtracksDir(unittest.TestCase):
             content = f.read()
         self.assertIn(".railtracks", content)
 
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli.print_success')
+    @patch("railtracks.cli.print_status")
+    @patch("railtracks.cli.print_success")
     def test_create_railtracks_dir_gitignore_existing(self, mock_success, mock_status):
         """Test adding .railtracks to existing .gitignore"""
         # Create existing .gitignore
@@ -150,7 +152,7 @@ class TestCreateRailtracksDir(unittest.TestCase):
         self.assertIn("*.pyc", content)
         self.assertIn(".railtracks", content)
 
-    @patch('railtracks.cli.print_status')
+    @patch("railtracks.cli.print_status")
     def test_create_railtracks_dir_gitignore_already_present(self, mock_status):
         """Test when .railtracks is already in .gitignore"""
         # Create .gitignore with .railtracks already present
@@ -179,6 +181,7 @@ class TestFastAPIEndpoints(unittest.TestCase):
 
         # Create .railtracks directory
         from railtracks.paths import resolve_railtracks_home
+
         railtracks_dir = resolve_railtracks_home()
         railtracks_dir.mkdir(parents=True, exist_ok=True)
 
@@ -187,7 +190,7 @@ class TestFastAPIEndpoints(unittest.TestCase):
             "simple.json": {"test": "data"},
             "my agent session.json": {"agent": "session", "data": "test"},
             "file with spaces.json": {"spaces": "test"},
-            "special-chars!@#.json": {"special": "chars"}
+            "special-chars!@#.json": {"special": "chars"},
         }
 
         for filename, content in self.test_files.items():
@@ -299,7 +302,8 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"error": "Session not found"})
 
-    def test_get_session_by_guid_invalid_json(self):
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_session_by_guid_invalid_json(self, mock_print_error):
         """Test /api/sessions/{guid} endpoint with invalid JSON file"""
         # Create sessions directory and invalid JSON file
         sessions_dir = Path(".railtracks/data/sessions")
@@ -312,8 +316,82 @@ class TestFastAPIEndpoints(unittest.TestCase):
 
         response = self.client.get(f"/api/sessions/{guid}")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json())
-        self.assertIn("Invalid JSON", response.json()["error"])
+        self.assertEqual(response.json(), {"error": "Invalid JSON"})
+        logged_error = mock_print_error.call_args.args[0]
+        self.assertIn(invalid_file.name, logged_error)
+        self.assertIn("line 1 column", logged_error)
+
+    def test_get_session_rejects_glob_metacharacters(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        (sessions_dir / "private-guid.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/%2A")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_parent_path_segments(self):
+        Path(".railtracks/data/sessions").mkdir(parents=True)
+        Path(".railtracks/secret.json").write_text('{"private": true}')
+
+        response = self.client.get("/api/sessions/..%2F..%2Fsecret")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
+    def test_get_session_rejects_symlinks_outside_sessions_directory(self):
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        secret = Path("secret.json").resolve()
+        secret.write_text('{"private": true}')
+        (sessions_dir / "escaped-guid.json").symlink_to(secret)
+
+        response = self.client.get("/api/sessions/escaped-guid")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("private", response.text)
+
+    def test_ui_serves_files_inside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "asset.txt").write_text("public asset")
+
+        response = self.client.get("/asset.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "public asset")
+
+    def test_ui_serves_index_at_root(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        (ui_dir / "index.html").write_text("<html>spa shell</html>")
+
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "<html>spa shell</html>")
+
+    def test_ui_rejects_percent_encoded_parent_traversal(self):
+        Path(".railtracks/ui").mkdir(parents=True)
+        Path("secret.txt").write_text("must stay private")
+
+        response = self.client.get("/..%2F..%2Fsecret.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
+
+    def test_ui_rejects_symlinks_outside_selected_bundle(self):
+        ui_dir = Path(".railtracks/ui")
+        ui_dir.mkdir(parents=True)
+        secret = Path("secret.txt").resolve()
+        secret.write_text("must stay private")
+        (ui_dir / "escaped.txt").symlink_to(secret)
+
+        response = self.client.get("/escaped.txt")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("must stay private", response.text)
 
 
 class TestSkillInstallers(unittest.TestCase):
@@ -420,14 +498,148 @@ class TestSkillInstallers(unittest.TestCase):
         """Claude Code substitutes $ARGUMENTS at invocation, so it must be preserved."""
         add_skill("claude:agent-builder")
 
-        content = Path(".claude/skills/agent-builder/SKILL.md").read_text(encoding="utf-8")
+        content = Path(".claude/skills/agent-builder/SKILL.md").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("$ARGUMENTS", content)
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+@pytest.mark.parametrize("force", [False, True])
+def test_add_all_matches_individual_installs(tool, force, tmp_path, monkeypatch):
+    individual = tmp_path / "individual"
+    individual.mkdir()
+    bulk = tmp_path / "bulk"
+    bulk.mkdir()
+    if force:
+        for directory in (individual, bulk):
+            monkeypatch.chdir(directory)
+            for skill_name in SKILLS:
+                add_skill(f"{tool}:{skill_name}")
+
+    monkeypatch.chdir(individual)
+    for skill_name in SKILLS:
+        add_skill(f"{tool}:{skill_name}", force=force)
+    expected = {
+        path.relative_to(individual): path.read_bytes()
+        for path in individual.rglob("*")
+        if path.is_file()
+    }
+
+    monkeypatch.chdir(bulk)
+    args = ["railtracks", "add", f"{tool}:all"]
+    if force:
+        args.append("--force")
+    monkeypatch.setattr(sys, "argv", args)
+    with patch("builtins.input", side_effect=AssertionError("Unexpected prompt")):
+        main()
+    actual = {
+        path.relative_to(bulk): path.read_bytes()
+        for path in bulk.rglob("*")
+        if path.is_file()
+    }
+    assert actual == expected
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+@pytest.mark.parametrize(
+    "preinstalled", [[next(iter(SKILLS))], ["rag-pipeline"], list(SKILLS)]
+)
+def test_add_all_continues_after_skips(
+    tool, preinstalled, tmp_path, monkeypatch, capsys
+):
+    bulk = tmp_path / "bulk"
+    bulk.mkdir()
+    monkeypatch.chdir(bulk)
+    for name in preinstalled:
+        add_skill(f"{tool}:{name}")
+    for path in bulk.rglob("*"):
+        if path.is_file():
+            path.write_text(
+                path.read_text(encoding="utf-8") + "\n# Keep my edits\n",
+                encoding="utf-8",
+            )
+
+    individual = tmp_path / "individual"
+    shutil.copytree(bulk, individual)
+    monkeypatch.chdir(individual)
+    for name in SKILLS:
+        if name not in preinstalled:
+            add_skill(f"{tool}:{name}")
+    expected = {
+        path.relative_to(individual): path.read_bytes()
+        for path in individual.rglob("*")
+        if path.is_file()
+    }
+
+    monkeypatch.chdir(bulk)
+    capsys.readouterr()
+    with patch("builtins.input", return_value="n") as prompt:
+        add_skill(f"{tool}:all")
+    assert prompt.call_count == (0 if tool == "copilot" else len(preinstalled))
+    actual = {
+        path.relative_to(bulk): path.read_bytes()
+        for path in bulk.rglob("*")
+        if path.is_file()
+    }
+    assert actual == expected
+    installed = len(SKILLS) - len(preinstalled)
+    assert (
+        f"{installed} installed, {len(preinstalled)} skipped" in capsys.readouterr().out
+    )
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+def test_single_skill_preserves_skip_exit(tool, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    add_skill(f"{tool}:agent-builder")
+    with patch("builtins.input", return_value="n"), pytest.raises(SystemExit) as exc:
+        add_skill(f"{tool}:agent-builder")
+    assert exc.value.code == 0
+
+
+@pytest.mark.parametrize("code", [1, 2, "installation failed"])
+def test_add_all_propagates_installation_errors(code, monkeypatch, capsys):
+    handler = MagicMock(side_effect=SystemExit(code))
+    monkeypatch.setitem(_TOOL_HANDLERS, "claude", handler)
+    with pytest.raises(SystemExit) as exc:
+        add_skill("claude:all")
+    assert exc.value.code == code
+    handler.assert_called_once()
+    assert "installed," not in capsys.readouterr().out
+
+
+def test_add_all_propagates_missing_skill(monkeypatch):
+    monkeypatch.setitem(SKILLS, "missing-bundle", {})
+    handler = MagicMock()
+    monkeypatch.setitem(_TOOL_HANDLERS, "claude", handler)
+    with pytest.raises(SystemExit) as exc:
+        add_skill("claude:all")
+    assert exc.value.code == 1
+    assert handler.call_count == len(SKILLS) - 1
+
+
+def test_help_mentions_bulk_install(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["railtracks"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 1
+    assert "railtracks add claude:all" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("spec", ["unknown:all", "claude:unknown"])
+def test_add_all_preserves_invalid_spec_errors(spec, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        add_skill(spec)
+    assert exc.value.code == 1
+    assert list(tmp_path.iterdir()) == []
 
 
 class TestListSkills(unittest.TestCase):
     """Test `railtracks add --list`"""
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_list_skills_prints_every_registered_skill(self, mock_print):
         """Every skill in the registry shows up with its description"""
         list_skills()
@@ -437,7 +649,7 @@ class TestListSkills(unittest.TestCase):
             self.assertIn(skill_name, output)
             self.assertIn(meta["description"], output)
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_list_skills_prints_supported_tools(self, mock_print):
         """The skill list is only actionable alongside the tools it installs for"""
         list_skills()
@@ -446,26 +658,26 @@ class TestListSkills(unittest.TestCase):
         for tool in SUPPORTED_TOOLS:
             self.assertIn(tool, output)
 
-    @patch('railtracks.cli.list_skills')
+    @patch("railtracks.cli.list_skills")
     def test_add_list_flag_lists_instead_of_installing(self, mock_list):
         """`add --list` short-circuits before the <tool>:<skill> requirement"""
-        with patch.object(sys, 'argv', ['railtracks', 'add', '--list']):
+        with patch.object(sys, "argv", ["railtracks", "add", "--list"]):
             main()
 
         mock_list.assert_called_once()
 
-    @patch('railtracks.cli.list_skills')
+    @patch("railtracks.cli.list_skills")
     def test_add_short_list_flag(self, mock_list):
         """`-l` is accepted as the short form"""
-        with patch.object(sys, 'argv', ['railtracks', 'add', '-l']):
+        with patch.object(sys, "argv", ["railtracks", "add", "-l"]):
             main()
 
         mock_list.assert_called_once()
 
-    @patch('railtracks.cli.print_error')
+    @patch("railtracks.cli.print_error")
     def test_add_without_spec_still_errors(self, mock_error):
         """A bare `add`, or a lone unrelated flag, remains a usage error"""
-        with patch.object(sys, 'argv', ['railtracks', 'add', '--force']):
+        with patch.object(sys, "argv", ["railtracks", "add", "--force"]):
             with self.assertRaises(SystemExit):
                 main()
 
@@ -487,17 +699,17 @@ class TestPortChecking(unittest.TestCase):
         # Create a socket to occupy a port
         test_port = 65534
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_socket:
-            test_socket.bind(('localhost', test_port))
+            test_socket.bind(("localhost", test_port))
             test_socket.listen(1)
 
             # Now check if the port is in use
             result = is_port_in_use(test_port)
             self.assertTrue(result)
 
-    @patch('railtracks.cli.print_error')
-    @patch('railtracks.cli.is_port_in_use', return_value=True)
-    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
+    @patch("railtracks.cli.print_error")
+    @patch("railtracks.cli.is_port_in_use", return_value=True)
+    @patch("railtracks.cli._visual_dependencies_available", return_value=True)
+    @patch("railtracks.cli.sys.argv", ["railtracks", "viz"])
     def test_viz_command_port_in_use(self, _mock_deps, _mock_port, mock_print_error):
         """Test viz command exits with error when port is in use"""
         with self.assertRaises(SystemExit) as ctx:
@@ -522,7 +734,7 @@ class TestPortChecking(unittest.TestCase):
         if not result:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_socket:
                 try:
-                    test_socket.bind(('localhost', test_port))
+                    test_socket.bind(("localhost", test_port))
                     # If we get here, the port was indeed available
                     self.assertFalse(result)
                 except OSError:
@@ -543,7 +755,7 @@ class TestPortChecking(unittest.TestCase):
             if not result:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_socket:
                     try:
-                        test_socket.bind(('localhost', port))
+                        test_socket.bind(("localhost", port))
                         # If we get here, the port was indeed available
                         self.assertFalse(result)
                     except OSError:
@@ -563,7 +775,7 @@ class TestPortChecking(unittest.TestCase):
         with self.assertRaises(OverflowError):
             is_port_in_use(65536)  # Port number too high
 
-    @patch('railtracks.cli.socket.socket')
+    @patch("railtracks.cli.socket.socket")
     def test_port_checking_socket_error(self, mock_socket_class):
         """Test port checking when socket operations fail"""
         # Mock socket to raise OSError
@@ -573,6 +785,7 @@ class TestPortChecking(unittest.TestCase):
 
         result = is_port_in_use(3030)
         self.assertTrue(result)  # Should return True when socket fails to bind
+
 
 class TestUIVersionTracking(unittest.TestCase):
     """Test UI version persistence and update-check logic"""
@@ -606,9 +819,9 @@ class TestUIVersionTracking(unittest.TestCase):
 
     def test_get_stored_ui_version_strips_whitespace(self):
         """Strips leading/trailing whitespace from the stored value"""
-        Path(".railtracks/.ui_version").write_text('  etag-value  \n')
+        Path(".railtracks/.ui_version").write_text("  etag-value  \n")
         result = get_stored_ui_version()
-        self.assertEqual(result, 'etag-value')
+        self.assertEqual(result, "etag-value")
 
     # --- save_ui_version ---
 
@@ -620,33 +833,39 @@ class TestUIVersionTracking(unittest.TestCase):
 
     def test_save_ui_version_overwrites_existing(self):
         """Overwrites an existing version file"""
-        Path(".railtracks/.ui_version").write_text('old-etag')
-        save_ui_version('new-etag')
-        self.assertEqual(Path(".railtracks/.ui_version").read_text(), 'new-etag')
+        Path(".railtracks/.ui_version").write_text("old-etag")
+        save_ui_version("new-etag")
+        self.assertEqual(Path(".railtracks/.ui_version").read_text(), "new-etag")
 
     # --- get_remote_ui_version ---
 
-    @patch('railtracks.cli.urllib.request.urlopen')
+    @patch("railtracks.cli.urllib.request.urlopen")
     def test_get_remote_ui_version_returns_etag(self, mock_urlopen):
         """Returns the ETag header from the remote HEAD response"""
         mock_response = MagicMock()
-        mock_response.headers.get.side_effect = lambda k: '"remote-etag"' if k == 'ETag' else None
+        mock_response.headers.get.side_effect = lambda k: (
+            '"remote-etag"' if k == "ETag" else None
+        )
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         result = get_remote_ui_version()
         self.assertEqual(result, '"remote-etag"')
 
-    @patch('railtracks.cli.urllib.request.urlopen')
+    @patch("railtracks.cli.urllib.request.urlopen")
     def test_get_remote_ui_version_falls_back_to_last_modified(self, mock_urlopen):
         """Falls back to Last-Modified when ETag is absent"""
         mock_response = MagicMock()
-        mock_response.headers.get.side_effect = lambda k: 'Mon, 16 Mar 2026 00:00:00 GMT' if k == 'Last-Modified' else None
+        mock_response.headers.get.side_effect = lambda k: (
+            "Mon, 16 Mar 2026 00:00:00 GMT" if k == "Last-Modified" else None
+        )
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         result = get_remote_ui_version()
-        self.assertEqual(result, 'Mon, 16 Mar 2026 00:00:00 GMT')
+        self.assertEqual(result, "Mon, 16 Mar 2026 00:00:00 GMT")
 
-    @patch('railtracks.cli.urllib.request.urlopen', side_effect=Exception('network error'))
+    @patch(
+        "railtracks.cli.urllib.request.urlopen", side_effect=Exception("network error")
+    )
     def test_get_remote_ui_version_returns_none_on_error(self, _mock_urlopen):
         """Returns None when the network request fails"""
         result = get_remote_ui_version()
@@ -654,51 +873,52 @@ class TestUIVersionTracking(unittest.TestCase):
 
     # --- check_for_ui_update ---
 
-    @patch('railtracks.cli._print_update_available')
+    @patch("railtracks.cli._print_update_available")
     def test_check_no_stored_version_skips_check(self, mock_print):
         """Does nothing when no version is stored (first-time install)"""
         check_for_ui_update()
         mock_print.assert_not_called()
 
-    @patch('railtracks.cli.get_remote_ui_version', return_value=None)
-    @patch('railtracks.cli._print_update_available')
+    @patch("railtracks.cli.get_remote_ui_version", return_value=None)
+    @patch("railtracks.cli._print_update_available")
     def test_check_remote_unavailable_skips_warning(self, mock_print, _mock_remote):
         """Does not warn when the remote version cannot be fetched"""
-        Path(".railtracks/.ui_version").write_text('stored-etag')
+        Path(".railtracks/.ui_version").write_text("stored-etag")
         check_for_ui_update()
         mock_print.assert_not_called()
 
-    @patch('railtracks.cli.get_remote_ui_version', return_value='stored-etag')
-    @patch('railtracks.cli._print_update_available')
+    @patch("railtracks.cli.get_remote_ui_version", return_value="stored-etag")
+    @patch("railtracks.cli._print_update_available")
     def test_check_versions_match_no_warning(self, mock_print, _mock_remote):
         """Does not warn when stored and remote versions are the same"""
-        Path(".railtracks/.ui_version").write_text('stored-etag')
+        Path(".railtracks/.ui_version").write_text("stored-etag")
         check_for_ui_update()
         mock_print.assert_not_called()
 
-    @patch('railtracks.cli.get_remote_ui_version', return_value='new-etag')
-    @patch('railtracks.cli._print_update_available')
+    @patch("railtracks.cli.get_remote_ui_version", return_value="new-etag")
+    @patch("railtracks.cli._print_update_available")
     def test_check_versions_differ_shows_warning(self, mock_print, _mock_remote):
         """Calls _print_update_available when remote version differs from stored"""
-        Path(".railtracks/.ui_version").write_text('old-etag')
+        Path(".railtracks/.ui_version").write_text("old-etag")
         check_for_ui_update()
         mock_print.assert_called_once()
 
     # --- _print_update_available ---
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_print_update_available_contains_update_command(self, mock_print):
         """Printed message includes the 'railtracks update' command"""
         _print_update_available()
         mock_print.assert_called_once()
         printed_text = mock_print.call_args[0][0]
-        self.assertIn('railtracks update', printed_text)
+        self.assertIn("railtracks update", printed_text)
 
     # --- version file location ---
 
     def test_ui_version_file_inside_railtracks_home(self):
         """Version file is stored inside the resolved railtracks home directory"""
         from railtracks.paths import resolve_railtracks_home
+
         version_file = resolve_railtracks_home() / ".ui_version"
         save_ui_version("test-etag")
         self.assertTrue(
@@ -706,10 +926,17 @@ class TestUIVersionTracking(unittest.TestCase):
             f"Version file not found at expected location: {version_file}",
         )
 
+    @patch.dict(os.environ, {"RAILTRACKS_BETA_UI_URL": "https://example.test/beta.zip"})
+    def test_beta_ui_url_can_be_configured_at_runtime(self):
+        """Beta builds do not require patching an installed package."""
+        import railtracks.cli as cli_module
+
+        self.assertEqual(cli_module._ui_url(beta=True), "https://example.test/beta.zip")
+
     # --- temp file cleanup on failure ---
 
-    @patch('railtracks.cli.sys.exit')
-    @patch('railtracks.cli.urllib.request.urlopen')
+    @patch("railtracks.cli.sys.exit")
+    @patch("railtracks.cli.urllib.request.urlopen")
     def test_temp_file_deleted_on_extraction_failure(self, mock_urlopen, mock_exit):
         """Temp zip file is cleaned up even when zip extraction fails"""
         # Provide a response that returns invalid zip bytes
@@ -728,28 +955,33 @@ class TestUIVersionTracking(unittest.TestCase):
             captured_paths.append(f.name)
             return f
 
-        with patch('railtracks.cli.tempfile.NamedTemporaryFile', side_effect=capturing_ntf):
+        with patch(
+            "railtracks.cli.tempfile.NamedTemporaryFile", side_effect=capturing_ntf
+        ):
             import railtracks.cli as cli_module
+
             cli_module.download_and_extract_ui()
 
         # sys.exit should have been called due to BadZipFile
         mock_exit.assert_called()
         # The temp file should have been deleted by the finally block
         for path in captured_paths:
-            self.assertFalse(os.path.exists(path), f"Temp file {path} was not cleaned up")
+            self.assertFalse(
+                os.path.exists(path), f"Temp file {path} was not cleaned up"
+            )
 
     # --- background thread for update check ---
 
-    @patch('railtracks.cli.download_and_extract_ui')
-    @patch('railtracks.cli.check_for_ui_update')
-    @patch('railtracks.cli.viz_server.RailtracksServer')
-    @patch('railtracks.cli.create_railtracks_dir')
-    @patch('railtracks.cli.is_port_in_use', return_value=False)
-    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
-    def test_viz_runs_update_check_in_background_thread(self, _mock_deps, _mock_port,
-                                                         _mock_dir, mock_server,
-                                                         mock_check, mock_download):
+    @patch("railtracks.cli.download_and_extract_ui")
+    @patch("railtracks.cli.check_for_ui_update")
+    @patch("railtracks.cli.viz_server.RailtracksServer")
+    @patch("railtracks.cli.create_railtracks_dir")
+    @patch("railtracks.cli.is_port_in_use", return_value=False)
+    @patch("railtracks.cli._visual_dependencies_available", return_value=True)
+    @patch("railtracks.cli.sys.argv", ["railtracks", "viz"])
+    def test_viz_runs_update_check_in_background_thread(
+        self, _mock_deps, _mock_port, _mock_dir, mock_server, mock_check, mock_download
+    ):
         """viz command runs check_for_ui_update in a daemon thread, not blocking main"""
         Path(".railtracks/ui").mkdir(parents=True, exist_ok=True)
         Path(".railtracks/ui/index.html").write_text("ok")
@@ -758,7 +990,7 @@ class TestUIVersionTracking(unittest.TestCase):
         real_thread = threading.Thread
 
         def capturing_thread(**kwargs):
-            if kwargs.get('target') is mock_check:
+            if kwargs.get("target") is mock_check:
                 thread_kwargs.update(kwargs)
             return real_thread(**kwargs)
 
@@ -766,29 +998,35 @@ class TestUIVersionTracking(unittest.TestCase):
         mock_server.return_value = mock_server_instance
 
         import railtracks.cli as cli_module
-        with patch('railtracks.cli.threading.Thread', side_effect=capturing_thread):
+
+        with patch("railtracks.cli.threading.Thread", side_effect=capturing_thread):
             cli_module.main()
 
-        self.assertIs(thread_kwargs.get('target'), mock_check,
-                      "check_for_ui_update should be the thread target")
-        self.assertTrue(thread_kwargs.get('daemon'),
-                        "Update-check thread should be a daemon thread")
+        self.assertIs(
+            thread_kwargs.get("target"),
+            mock_check,
+            "check_for_ui_update should be the thread target",
+        )
+        self.assertTrue(
+            thread_kwargs.get("daemon"), "Update-check thread should be a daemon thread"
+        )
         mock_download.assert_not_called()
 
-    @patch('railtracks.cli.download_and_extract_ui')
-    @patch('railtracks.cli.viz_server.RailtracksServer')
-    @patch('railtracks.cli.create_railtracks_dir')
-    @patch('railtracks.cli.is_port_in_use', return_value=False)
-    @patch('railtracks.cli._visual_dependencies_available', return_value=True)
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
-    def test_viz_downloads_ui_when_bundle_missing(self, _mock_deps, _mock_port,
-                                                  _mock_dir, mock_server,
-                                                  mock_download):
+    @patch("railtracks.cli.download_and_extract_ui")
+    @patch("railtracks.cli.viz_server.RailtracksServer")
+    @patch("railtracks.cli.create_railtracks_dir")
+    @patch("railtracks.cli.is_port_in_use", return_value=False)
+    @patch("railtracks.cli._visual_dependencies_available", return_value=True)
+    @patch("railtracks.cli.sys.argv", ["railtracks", "viz"])
+    def test_viz_downloads_ui_when_bundle_missing(
+        self, _mock_deps, _mock_port, _mock_dir, mock_server, mock_download
+    ):
         """viz command downloads UI bundle when local index.html is missing"""
         mock_server_instance = MagicMock()
         mock_server.return_value = mock_server_instance
 
         import railtracks.cli as cli_module
+
         cli_module.main()
 
         mock_download.assert_called_once()
@@ -797,8 +1035,8 @@ class TestUIVersionTracking(unittest.TestCase):
 class TestMainDispatch(unittest.TestCase):
     """Test the main() CLI entrypoint dispatching"""
 
-    @patch('railtracks.cli._print_help')
-    @patch('railtracks.cli.sys.argv', ['railtracks'])
+    @patch("railtracks.cli._print_help")
+    @patch("railtracks.cli.sys.argv", ["railtracks"])
     def test_no_args_shows_help_and_exits(self, mock_help):
         """main() with no command shows help and exits"""
         with self.assertRaises(SystemExit) as ctx:
@@ -806,45 +1044,46 @@ class TestMainDispatch(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
         mock_help.assert_called_once()
 
-    @patch('builtins.print')
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'bogus'])
+    @patch("builtins.print")
+    @patch("railtracks.cli.sys.argv", ["railtracks", "bogus"])
     def test_unknown_command_exits(self, mock_print):
         """main() with an unknown command prints error and exits"""
         with self.assertRaises(SystemExit) as ctx:
             main()
         self.assertEqual(ctx.exception.code, 1)
         printed = [call[0][0] for call in mock_print.call_args_list]
-        self.assertTrue(any('bogus' in s for s in printed))
+        self.assertTrue(any("bogus" in s for s in printed))
 
-    @patch('railtracks.cli.print_error')
-    @patch('railtracks.cli.print_status')
-    @patch('railtracks.cli._visual_dependencies_available', return_value=False)
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'viz'])
-    def test_viz_exits_when_visual_deps_missing(self, _mock_deps,
-                                                mock_status, mock_error):
+    @patch("railtracks.cli.print_error")
+    @patch("railtracks.cli.print_status")
+    @patch("railtracks.cli._visual_dependencies_available", return_value=False)
+    @patch("railtracks.cli.sys.argv", ["railtracks", "viz"])
+    def test_viz_exits_when_visual_deps_missing(
+        self, _mock_deps, mock_status, mock_error
+    ):
         """main() viz exits gracefully when visual extras are not installed"""
         with self.assertRaises(SystemExit) as ctx:
             main()
         self.assertEqual(ctx.exception.code, 1)
-        error_messages = ' '.join(c[0][0] for c in mock_error.call_args_list)
-        self.assertIn('optional dependencies', error_messages)
+        error_messages = " ".join(c[0][0] for c in mock_error.call_args_list)
+        self.assertIn("optional dependencies", error_messages)
 
-    @patch('railtracks.cli.init_railtracks')
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'init'])
+    @patch("railtracks.cli.init_railtracks")
+    @patch("railtracks.cli.sys.argv", ["railtracks", "init"])
     def test_init_command(self, mock_init):
         """main() dispatches 'init' to init_railtracks()"""
         main()
         mock_init.assert_called_once()
 
-    @patch('railtracks.cli.update_railtracks')
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'update'])
+    @patch("railtracks.cli.update_railtracks")
+    @patch("railtracks.cli.sys.argv", ["railtracks", "update"])
     def test_update_command(self, mock_update):
         """main() dispatches 'update' to update_railtracks()"""
         main()
         mock_update.assert_called_once()
 
-    @patch('railtracks.cli.print_error')
-    @patch('railtracks.cli.sys.argv', ['railtracks', 'add'])
+    @patch("railtracks.cli.print_error")
+    @patch("railtracks.cli.sys.argv", ["railtracks", "add"])
     def test_add_no_spec_exits(self, mock_error):
         """main() add with no spec shows usage and exits"""
         with self.assertRaises(SystemExit) as ctx:
@@ -855,19 +1094,23 @@ class TestMainDispatch(unittest.TestCase):
 class TestVisualDepsCheck(unittest.TestCase):
     """Test _visual_dependencies_available()"""
 
-    @patch('railtracks.cli.importlib.util.find_spec')
+    @patch("railtracks.cli.importlib.util.find_spec")
     def test_returns_true_when_both_present(self, mock_find_spec):
         mock_find_spec.return_value = MagicMock()
         self.assertTrue(_visual_dependencies_available())
 
-    @patch('railtracks.cli.importlib.util.find_spec')
+    @patch("railtracks.cli.importlib.util.find_spec")
     def test_returns_false_when_fastapi_missing(self, mock_find_spec):
-        mock_find_spec.side_effect = lambda name: None if name == 'fastapi' else MagicMock()
+        mock_find_spec.side_effect = lambda name: (
+            None if name == "fastapi" else MagicMock()
+        )
         self.assertFalse(_visual_dependencies_available())
 
-    @patch('railtracks.cli.importlib.util.find_spec')
+    @patch("railtracks.cli.importlib.util.find_spec")
     def test_returns_false_when_uvicorn_missing(self, mock_find_spec):
-        mock_find_spec.side_effect = lambda name: None if name == 'uvicorn' else MagicMock()
+        mock_find_spec.side_effect = lambda name: (
+            None if name == "uvicorn" else MagicMock()
+        )
         self.assertFalse(_visual_dependencies_available())
 
 
@@ -877,19 +1120,23 @@ class TestLazyGetattr(unittest.TestCase):
     def test_app_resolves(self):
         """railtracks.cli.app lazily loads the FastAPI app from viz_server"""
         import railtracks.cli as cli_module
+
         self.assertIsNotNone(cli_module.app)
         from railtracks.cli.viz_server import app as direct_app
+
         self.assertIs(cli_module.app, direct_app)
 
     def test_railtracks_server_resolves(self):
         """railtracks.cli.RailtracksServer lazily loads the class from viz_server"""
         import railtracks.cli as cli_module
         from railtracks.cli.viz_server import RailtracksServer
+
         self.assertIs(cli_module.RailtracksServer, RailtracksServer)
 
     def test_unknown_attr_raises(self):
         """Accessing an undefined name raises AttributeError"""
         import railtracks.cli as cli_module
+
         with self.assertRaises(AttributeError):
             _ = cli_module.nonexistent_thing
 

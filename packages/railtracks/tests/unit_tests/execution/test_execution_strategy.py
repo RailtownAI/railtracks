@@ -1,14 +1,14 @@
 from contextlib import contextmanager
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-
 from railtracks.execution.execution_strategy import (
     AsyncioExecutionStrategy,
 )
-from railtracks.pubsub.messages import RequestSuccess, RequestFailure
+from railtracks.pubsub.messages import RequestFailure, RequestSuccess
 
 # ============ START AsyncioExecutionStrategy Tests ===============
+
 
 @pytest.mark.asyncio
 @patch("railtracks.execution.execution_strategy.NodeState")
@@ -32,6 +32,7 @@ async def test_asyncio_execute_success(
     assert response.node_state == "fake-node-state"
     mock_publisher.publish.assert_awaited_once_with(response)
 
+
 @pytest.mark.asyncio
 @patch("railtracks.execution.execution_strategy.NodeState")
 @patch("railtracks.execution.execution_strategy.get_publisher")
@@ -54,9 +55,11 @@ async def test_asyncio_execute_failure(
     assert response.node_state == "nstate"
     mock_publisher.publish.assert_awaited_once_with(response)
 
+
 def test_asyncio_shutdown_is_noop():
     strat = AsyncioExecutionStrategy()
     strat.shutdown()  # Should not throw
+
 
 @pytest.mark.asyncio
 @patch("railtracks.execution.execution_strategy.NodeState")
@@ -85,7 +88,9 @@ async def test_asyncio_execute_binds_scope_manager_and_enters_node_scope(
     mock_task.node.bind_scope_manager.assert_called_once_with(scope_manager)
     assert calls == [("enter_node", "mock-uuid")]
 
+
 # ============ END AsyncioExecutionStrategy Tests ===============
+
 
 # ============ START Miscellaneous Structure Tests ===============
 def test_task_execution_strategy_base_shutdown():
@@ -95,5 +100,6 @@ def test_task_execution_strategy_base_shutdown():
 
     strat = DummyStrategy()
     strat.shutdown()  # should be no-op
+
 
 # ============ END Miscellaneous Structure Tests ===============

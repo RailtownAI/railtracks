@@ -20,7 +20,6 @@ from railtracks.exceptions.errors import LLMError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.middleware import ModelMiddleware
 from railtracks.llm.model import ModelBase
-from railtracks.llm.providers import TOOL_CALLING_STREAMING_BLACKLIST
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.middleware.chain import MiddlewareChain
@@ -38,8 +37,9 @@ def _stream_queue_if_enabled(
 
     Streaming is requested at the call site (`rt.astream`), which sets a per-call queue on the
     entry frame's context. This returns that queue only when streaming is genuinely available
-    for this call, otherwise None (the call runs buffered). Tool-calling requests against
-    blacklisted providers fall back to a buffered call (with a warning) instead of erroring.
+    for this call, otherwise None (the call runs buffered). A tool-calling request against a
+    model that cannot stream tool calls falls back to a buffered call (with a warning) instead
+    of erroring.
     """
     queue = get_stream_queue()
     if queue is None:
@@ -47,11 +47,12 @@ def _stream_queue_if_enabled(
     if (
         tools is not None
         and len(tools) > 0
-        and model.model_provider() in TOOL_CALLING_STREAMING_BLACKLIST
+        and not model.supports_streamed_tool_calling()
     ):
         logger.warning(
-            "Streaming is not supported with %s for tool calling; falling back to a "
+            "Streaming is not supported by %s (%s) for tool calling; falling back to a "
             "buffered response.",
+            model.model_name(),
             model.model_provider(),
         )
         return None
@@ -61,13 +62,15 @@ def _stream_queue_if_enabled(
 async def _drain_to_queue(
     model_stream: AsyncIterator[str | Response],
     queue: asyncio.Queue[Any],
+    messages: MessageHistory | None = None,
 ) -> Response:
     """
     Consumes a model token stream, forwarding each `str` chunk onto the astream queue and
     returning the terminal `Response`.
 
     Mirrors the buffered call's fail-fast contract: if the stream ends without producing a
-    `Response`, an `LLMError` is raised rather than returning a partial result.
+    `Response`, an `LLMError` is raised rather than returning a partial result. `messages` is
+    attached to that error so the streaming failure carries the same context as a buffered one.
     """
     final: Any = None
     async for item in model_stream:
@@ -77,7 +80,10 @@ async def _drain_to_queue(
             final = item
 
     if not isinstance(final, Response):
-        raise LLMError(reason="The stream did not yield a final Response object.")
+        raise LLMError(
+            reason="The stream did not yield a final Response object.",
+            message_history=messages,
+        )
 
     return final
 
@@ -126,7 +132,7 @@ class ModelInvoker:
     round-trip (i.e. inside the tool-calling loop). The core callable takes
     ``(messages, schema, tools)`` and returns a :class:`Response`. Middleware wraps
     symmetrically (an earlier list entry is outer: it runs first going in and last
-    coming out), so a ``@before_llm``/``@wrap_llm`` layer earlier in the list
+    coming out), so a ``@pre_llm``/``@wrap_llm`` layer earlier in the list
     sees/transforms the request before one placed later, and sees the final
     ``Response`` after it on the way back out.
 
@@ -201,7 +207,7 @@ class ModelInvoker:
 
                 # _drain_to_queue returns the complete Response (or raises LLMError if the
                 # stream never produced one), mirroring the buffered branch below.
-                return await _drain_to_queue(model_stream, stream_queue)
+                return await _drain_to_queue(model_stream, stream_queue, messages)
 
             if tools is not None and len(tools) > 0:
                 return await asyncio.to_thread(

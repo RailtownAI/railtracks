@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from railtracks.context.central import is_context_present
 from railtracks.exceptions import GlobalTimeOutError, LLMError, NodeCreationError
 from railtracks.llm import ToolCall
-from railtracks.llm.providers import ModelProvider
 
 
 def _agent(mock_llm, response: str):
@@ -87,15 +86,25 @@ async def test_astream_two_concurrent_streams_are_isolated(mock_llm):
     async def drain(stream):
         return [chunk async for chunk in stream]
 
-    with rt.Session():
+    captured = {}
+
+    @rt.function_node
+    async def entry():
         a = rt.astream(agent_a, user_input="go")
         b = rt.astream(agent_b, user_input="go")
         a_chunks, b_chunks = await asyncio.gather(drain(a), drain(b))
+        captured["a"] = a
+        captured["b"] = b
+        return a_chunks, b_chunks
+
+    a_chunks, b_chunks = await rt.Flow(
+        "test_astream_two_concurrent_streams_are_isolated", entry
+    ).ainvoke()
 
     assert a_chunks == ["A", "A", "A", "A"]
     assert b_chunks == ["B", "B", "B", "B"]
-    assert a.result.text == "AAAA"
-    assert b.result.text == "BBBB"
+    assert captured["a"].result.text == "AAAA"
+    assert captured["b"].result.text == "BBBB"
 
 
 @pytest.mark.asyncio
@@ -171,25 +180,25 @@ async def test_astream_structured_agent_yields_final_result(mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_astream_tool_calling_blacklisted_provider_falls_back_buffered(mock_llm):
-    """A blacklisted provider (tool calling + streaming unsupported together) still
-    succeeds under rt.astream: the call falls back to buffered, so no chunks are
-    emitted, but `.result` is unaffected."""
+async def test_astream_tool_calling_unsupported_model_falls_back_buffered(mock_llm):
+    """A model that reports it cannot stream tool calls still succeeds under
+    rt.astream: the call falls back to buffered, so no chunks are emitted, but
+    `.result` is unaffected."""
 
-    class BlacklistedProviderLLM(mock_llm):
-        def model_provider(self):
-            return ModelProvider.ANTHROPIC
+    class NoToolStreamingLLM(mock_llm):
+        def supports_streamed_tool_calling(self):
+            return False
 
     def secret_phrase():
         return "Constantinople"
 
-    llm = BlacklistedProviderLLM(
+    llm = NoToolStreamingLLM(
         requested_tool_calls=[
             ToolCall(name="secret_phrase", identifier="id_42424242", arguments={})
         ]
     )
     agent = rt.agent_node(
-        name="BlacklistedToolStreamer",
+        name="UnstreamableToolStreamer",
         tool_nodes={rt.function_node(secret_phrase)},
         system_message="you can call tools",
         llm=llm,
@@ -225,8 +234,12 @@ async def test_astream_mid_stream_node_failure_propagates_and_cleans_up(mock_llm
 
     agent = rt.agent_node(name="Failer", system_message="stream", llm=_FailingLLM())
 
-    with rt.Session():
+    captured = {}
+
+    @rt.function_node
+    async def entry():
         stream = rt.astream(agent, user_input="go")
+        captured["stream"] = stream
         seen = []
         # the model's raw error is wrapped as LLMError by the tool-calling loop
         # (llm_helpers.llm_invoke), same as a non-streamed rt.call would see.
@@ -237,9 +250,13 @@ async def test_astream_mid_stream_node_failure_propagates_and_cleans_up(mock_llm
         assert seen == ["a", "b"]
         assert stream._sub_id is None
 
+    await rt.Flow(
+        "test_astream_mid_stream_node_failure_propagates_and_cleans_up", entry
+    ).ainvoke()
+
     # .result re-raises the same error rather than hanging or resetting state
     with pytest.raises(LLMError, match="boom mid-stream"):
-        _ = stream.result
+        _ = captured["stream"].result
 
 
 @pytest.mark.asyncio
@@ -247,10 +264,15 @@ async def test_astream_result_before_finished_raises_runtime_error(mock_llm):
     """Accessing `.result` before the stream has been consumed raises RuntimeError."""
     agent = _agent(mock_llm, "abc")
 
-    with rt.Session():
+    @rt.function_node
+    async def entry():
         stream = rt.astream(agent, user_input="go")
         with pytest.raises(RuntimeError, match="has not finished"):
             _ = stream.result
+
+    await rt.Flow(
+        "test_astream_result_before_finished_raises_runtime_error", entry
+    ).ainvoke()
 
 
 @pytest.mark.asyncio
@@ -299,12 +321,16 @@ async def test_astream_timeout_raises_global_timeout_error(mock_llm):
 
     agent = rt.agent_node(name="Slow", system_message="stream", llm=_SlowLLM())
 
-    with rt.Session(timeout=0.05):
-        stream = rt.astream(agent, user_input="go")
-        with pytest.raises(GlobalTimeOutError):
-            async for _ in stream:
-                pass
+    @rt.function_node
+    async def entry():
+        with rt.Session(timeout=0.05):
+            stream = rt.astream(agent, user_input="go")
+            with pytest.raises(GlobalTimeOutError):
+                async for _ in stream:
+                    pass
 
-        # re-accessing .result re-raises the same timeout rather than hanging
-        with pytest.raises(GlobalTimeOutError):
-            _ = stream.result
+            # re-accessing .result re-raises the same timeout rather than hanging
+            with pytest.raises(GlobalTimeOutError):
+                _ = stream.result
+
+    await rt.Flow("test_astream_timeout_raises_global_timeout_error", entry).ainvoke()

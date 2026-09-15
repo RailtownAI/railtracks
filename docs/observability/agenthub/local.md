@@ -1,4 +1,4 @@
-# Visualization
+# Local Visualization (Stable)
 
 One of the number one complaints when working with LLMs is that they can be a black box. Agentic applications exacerbate this problem by adding even more complexity. Railtracks aims to make it easier than ever to visualize your runs. 
 
@@ -24,6 +24,10 @@ Railtracks comes with a built-in visualization tool that runs locally with **no 
     ```
 
 This will create a `.railtracks` directory at your project root and open the web app in your browser. Once initialised, railtracks will find that directory automatically, even if you run your agents from a subdirectory, by walking up the folder tree until it locates `.railtracks`.
+
+!!! info "Looking for the beta visualizer?"
+    The event-stream visualizer is documented separately in
+    [Local Visualization (Beta)](local_v2.md).
 
 !!! tip "Running from multiple directories?"
     Run `railtracks init` once from your project root (the same level as your `.git` folder). All subsequent agent runs across the project will resolve to that single `.railtracks` directory regardless of which subdirectory they are launched from.
@@ -55,6 +59,9 @@ As we continue to support the local visualizer and add more features, you may ch
 ```bash title="Update UI elements"
 railtracks update
 ```
+
+This updates the stable build in `.railtracks/ui`. The beta UI is installed and
+updated separately.
 
 ## Remote Visualization 
 !!! Note

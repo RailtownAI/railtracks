@@ -126,7 +126,6 @@ async def test_clear_scope():
     store = VectorStore(InMemoryBackend())
 
     scope_a = StoreScope(labels={"user_id": "alice"})
-    scope_b = StoreScope(labels={"user_id": "bob"})
 
     entry_a1 = _make_entry(user_id="alice", vector=[1.0, 0.0, 0.0])
     entry_a2 = _make_entry(user_id="alice", vector=[0.0, 1.0, 0.0])
@@ -240,9 +239,7 @@ async def test_cosine_ranking_correctness():
     await store.write(near)
     await store.write(orthogonal)
 
-    results = await store.read(
-        _make_query(user_id="alice", embedding=[1.0, 0.0, 0.0])
-    )
+    results = await store.read(_make_query(user_id="alice", embedding=[1.0, 0.0, 0.0]))
     assert len(results) == 2
     assert results[0].rank == 0
     assert results[0].entry.id == near.id

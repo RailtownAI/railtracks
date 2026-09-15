@@ -5,15 +5,14 @@ from __future__ import annotations
 import sys
 
 import pytest
-
 from railtracks.retrieval.models import Document, DocumentType
 
 from .conftest import make_sqlite_engine
 
 ROWS = [
-    {"id": "doc-1", "title": "First Doc",  "body": "Content of first document."},
+    {"id": "doc-1", "title": "First Doc", "body": "Content of first document."},
     {"id": "doc-2", "title": "Second Doc", "body": "Content of second document."},
-    {"id": "doc-3", "title": "Third Doc",  "body": "Content of third document."},
+    {"id": "doc-3", "title": "Third Doc", "body": "Content of third document."},
 ]
 
 
@@ -48,6 +47,7 @@ class TestSQLLoaderInit:
         original = sys.modules.pop("sqlalchemy", None)
         try:
             from unittest.mock import patch
+
             with patch.dict(sys.modules, {"sqlalchemy": None}):
                 from railtracks.retrieval.loaders.cloud.sql import SQLLoader
 

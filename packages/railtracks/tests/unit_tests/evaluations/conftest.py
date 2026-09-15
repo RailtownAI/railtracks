@@ -2,7 +2,6 @@ import json
 from uuid import UUID
 
 import pytest
-
 from railtracks.evaluations.point import (
     EdgeDataPoint,
     NodeDataPoint,
@@ -51,13 +50,23 @@ def edges():
             identifier=UUID("dddddddd-0000-0000-0000-000000000001"),
             source=AGENT_ID,
             target=TOOL1_ID,
-            details={"input_args": [], "input_kwargs": {"ticker": "AMZN"}, "status": "Completed", "output": 214.88},
+            details={
+                "input_args": [],
+                "input_kwargs": {"ticker": "AMZN"},
+                "status": "Completed",
+                "output": 214.88,
+            },
         ),
         (AGENT_ID, TOOL2_ID): EdgeDataPoint(
             identifier=UUID("dddddddd-0000-0000-0000-000000000002"),
             source=AGENT_ID,
             target=TOOL2_ID,
-            details={"input_args": [], "input_kwargs": {}, "status": "Completed", "output": "2026-03-10"},
+            details={
+                "input_args": [],
+                "input_kwargs": {},
+                "status": "Completed",
+                "output": "2026-03-10",
+            },
         ),
         (None, AGENT_ID): EdgeDataPoint(
             identifier=UUID("dddddddd-0000-0000-0000-000000000003"),
@@ -99,10 +108,19 @@ def session_json():
                                         "model_name": "gpt-4",
                                         "model_provider": "OpenAI",
                                         "input": [
-                                            {"role": "system", "content": "You are an assistant."},
-                                            {"role": "user", "content": "What is the stock price?"},
+                                            {
+                                                "role": "system",
+                                                "content": "You are an assistant.",
+                                            },
+                                            {
+                                                "role": "user",
+                                                "content": "What is the stock price?",
+                                            },
                                         ],
-                                        "output": {"role": "assistant", "content": "The stock is $100."},
+                                        "output": {
+                                            "role": "assistant",
+                                            "content": "The stock is $100.",
+                                        },
                                         "input_tokens": 50,
                                         "output_tokens": 10,
                                         "total_cost": 0.001,

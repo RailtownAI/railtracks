@@ -1,13 +1,17 @@
-import pytest
 import copy
+
+import pytest
 from railtracks.llm.models._litellm_wrapper import _parameters_to_json_schema
 from railtracks.llm.tools.schema_parser import parse_json_schema_to_parameter
-import json
-from .conftest import load_json_schemas, deep_equal
+
+from .conftest import deep_equal, load_json_schemas
 
 schemas = load_json_schemas()
 
-@pytest.mark.parametrize("input_schema", [pytest.param(s, id=f"Case {i}") for i, s in enumerate(schemas)])
+
+@pytest.mark.parametrize(
+    "input_schema", [pytest.param(s, id=f"Case {i}") for i, s in enumerate(schemas)]
+)
 def test_jsonschema_roundtrip(input_schema):
     # Deepcopy to avoid mutation during test
     schema = copy.deepcopy(input_schema)
@@ -19,14 +23,12 @@ def test_jsonschema_roundtrip(input_schema):
     required = set(schema.get("required", []))
     for name, prop_schema in properties.items():
         param = parse_json_schema_to_parameter(
-            name=name,
-            prop_schema=prop_schema,
-            required=name in required
+            name=name, prop_schema=prop_schema, required=name in required
         )
         parameters.append(param)
 
-    # make a param set 
-    params = list(parameters) 
+    # make a param set
+    params = list(parameters)
 
     # Step 2: Convert back to schema
     regenerated = _parameters_to_json_schema(params)

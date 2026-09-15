@@ -12,12 +12,15 @@ class DummyContent:
     def __repr__(self):
         return "DummyContent()"
 
+
 class DummyMessageHistory:
     def __repr__(self):
         return "DummyMessageHistory()"
 
+
 class DummyModel(BaseModel):
     x: int
+
 
 def test_llmresponse_repr():
     content = DummyContent()
@@ -27,6 +30,7 @@ def test_llmresponse_repr():
     assert resp.message_history is history
     assert repr(resp) == "LLMResponse(DummyContent())"
 
+
 def test_structured_response():
     model = DummyModel(x=42)
     history = DummyMessageHistory()
@@ -34,6 +38,7 @@ def test_structured_response():
     assert resp.content == model
     assert resp.message_history is history
     assert resp.structured == model
+
 
 def test_string_response():
     content = "hello world"
@@ -43,11 +48,13 @@ def test_string_response():
     assert resp.message_history is history
     assert resp.text == content
 
+
 def test_structured_response_repr():
     model = DummyModel(x=99)
     history = DummyMessageHistory()
     resp = StructuredResponse(model, history)
     assert repr(resp) == f"LLMResponse({model})"
+
 
 def test_string_response_repr():
     content = "abc"
@@ -64,7 +71,9 @@ def test_tool_invocations_empty_when_no_tool_calls():
 
 def test_tool_invocations_pairs_single_tool_call_with_its_response():
     tool_call = ToolCall(name="secret_phrase", identifier="id1", arguments={})
-    tool_response = ToolResponse(identifier="id1", name="secret_phrase", result="Constantinople")
+    tool_response = ToolResponse(
+        identifier="id1", name="secret_phrase", result="Constantinople"
+    )
     history = MessageHistory(
         [
             UserMessage("what's the secret phrase?"),

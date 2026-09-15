@@ -23,7 +23,7 @@ class FnInputGuard(InputGuard):
 @pytest.mark.asyncio
 async def test_flow_ainvoke_guarded_terminal_smoke(mock_llm):
     llm = mock_llm(custom_response="flow-ok")
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="flow-guarded",
         llm=llm,
         model_middleware=[FnInputGuard(lambda _e: GuardrailDecision.allow())],
@@ -39,7 +39,7 @@ async def test_flow_ainvoke_guarded_terminal_smoke(mock_llm):
 
 def test_flow_invoke_sync_guarded_terminal_smoke(mock_llm):
     llm = mock_llm(custom_response="sync")
-    Agent = rt.agent_node(
+    Agent = rt.agent_node(  # noqa: N806
         name="flow-guarded-sync",
         llm=llm,
         model_middleware=[FnInputGuard(lambda _e: GuardrailDecision.allow())],

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import pytest
-from railtracks.retrieval import Document
 from railtracks.retrieval.chunking import IdentityChunker
 
 
 def test_checklist(chunker_checklist, multi_paragraph_doc, short_doc, empty_doc):
-    chunker_checklist(lambda: IdentityChunker(), multi_paragraph_doc, short_doc, empty_doc)
+    chunker_checklist(
+        lambda: IdentityChunker(), multi_paragraph_doc, short_doc, empty_doc
+    )
 
 
 def test_empty_document_returns_empty_list(empty_doc):

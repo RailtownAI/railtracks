@@ -1,12 +1,11 @@
-import pytest
-import warnings
-from pathlib import Path
 import asyncio
-import railtracks as rt
-
+import json
 import random
 from datetime import datetime, timedelta
-import json
+from pathlib import Path
+
+import pytest
+import railtracks as rt
 
 
 @rt.function_node
@@ -93,14 +92,9 @@ async def planner(current_city: str, destination_city: str):
     return {"outbound_booking": outbound_booking, "inbound_booking": inbound_booking}
 
 
-
-
 @pytest.fixture
 def planner_node():
     return planner
-
-
-
 
 
 @pytest.fixture

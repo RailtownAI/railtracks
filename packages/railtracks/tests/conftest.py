@@ -61,7 +61,9 @@ class MockLLM(rt.llm.ModelBase):
         if self._errors:
             raise self._errors.pop(0)()
         if self.custom_response:
-            assert isinstance(self.custom_response, str), "custom_response must be a string for terminal LLMs"
+            assert isinstance(self.custom_response, str), (
+                "custom_response must be a string for terminal LLMs"
+            )
         return_message = self.custom_response or "mocked Message"
         return Response(
             message=AssistantMessage(return_message),
@@ -108,13 +110,14 @@ class MockLLM(rt.llm.ModelBase):
                 message_info=self.mocked_message_info,
             )
 
-
     # ==========================================================
     # Override all methods that make network calls with mocks
     async def _achat(self, messages, **kwargs):
         if self.retry_approach is not None:
+
             async def _async_response():
                 return self._make_chat_response()
+
             return await self.retry_approach.acall_with_retry(_async_response)
         return self._make_chat_response()
 
@@ -193,7 +196,7 @@ class MockLLM(rt.llm.ModelBase):
     @classmethod
     def model_gateway(cls) -> str | None:
         return "mock"
-    
+
     def model_provider(self):
         return self.model_gateway()
 
@@ -224,20 +227,22 @@ def mock_llm() -> Type[MockLLM]:
 def disable_persistence_for_tests():
     """
     Automatically disable session persistence during test runs.
-    
+
     This fixture sets the RAILTRACKS_TEST_MODE environment variable to "1" for the
     duration of the test session. This causes the session persistence to be disabled
     automatically in all tests, preventing pollution of the project's .railtracks directory.
-    
+
     This is an autouse fixture, so it applies to all tests without needing to be explicitly
     included in test signatures.
-    
+
     Tests that need to verify persistence behavior can set RAILTRACKS_ALLOW_PERSISTENCE
     to override the default disable behavior.
     """
     os.environ["RAILTRACKS_TEST_MODE"] = "1"
+    os.environ["RAILTRACKS_DISABLE_EVENTS"] = "True"
     yield
     os.environ.pop("RAILTRACKS_TEST_MODE", None)
+    os.environ.pop("RAILTRACKS_DISABLE_EVENTS", None)
 
 
 @pytest.fixture
@@ -254,9 +259,11 @@ def allow_persistence():
             pass
     """
     previous_home = os.environ.pop("RAILTRACKS_HOME", None)
+    previous_disable_events = os.environ.pop("RAILTRACKS_DISABLE_EVENTS", None)
     os.environ["RAILTRACKS_ALLOW_PERSISTENCE"] = "1"
     yield
     os.environ.pop("RAILTRACKS_ALLOW_PERSISTENCE", None)
     if previous_home is not None:
         os.environ["RAILTRACKS_HOME"] = previous_home
-
+    if previous_disable_events is not None:
+        os.environ["RAILTRACKS_DISABLE_EVENTS"] = previous_disable_events

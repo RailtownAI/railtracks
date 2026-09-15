@@ -1,14 +1,17 @@
+from typing import Callable
+
 import pytest
 import railtracks as rt
-from typing import List, Callable, Type
 from pydantic import BaseModel, Field
 from railtracks.llm import SystemMessage
-import random 
+
 
 # ============ System Messages ===========
 @pytest.fixture
 def encoder_system_message():
-    return SystemMessage("You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes.")
+    return SystemMessage(
+        "You are a text encoder. Encode the input string into bytes and do a random operation on them. You can use the following operations: reverse the byte order, or repeat each byte twice, or jumble the bytes."
+    )
 
 
 @pytest.fixture
@@ -20,7 +23,7 @@ def decoder_system_message():
 @pytest.fixture
 def _agent_node_factory():
     """
-    Returns a top level agent node with mock model for testing 
+    Returns a top level agent node with mock model for testing
     """
 
     def _create_node(test_function: Callable, llm: rt.llm.ModelBase):
@@ -57,19 +60,25 @@ class SimpleOutput(BaseModel):  # simple structured output case
 def simple_output_model():
     return SimpleOutput
 
+
 # =====================================================
+
 
 # ============ Context Variables ===========
 @pytest.fixture
 def _reset_tools_called():
     def _reset(val=0):
         rt.context.put("tools_called", val)
+
     return _reset
+
 
 @pytest.fixture
 def _increment_tools_called():
     """Increments the tools_called context variable by 1"""
+
     def _increment():
         count = rt.context.get("tools_called", 0)
         rt.context.put("tools_called", count + 1)
+
     return _increment

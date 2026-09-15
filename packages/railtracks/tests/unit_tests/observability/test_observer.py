@@ -147,7 +147,9 @@ async def test_configure_writers_after_start_raises():
     obs = Observer()
     await obs.start()
     try:
-        with pytest.raises(RuntimeError, match="configure_writers must be called before"):
+        with pytest.raises(
+            RuntimeError, match="configure_writers must be called before"
+        ):
             obs.configure_writers([MemoryWriter()])
     finally:
         await obs.shutdown()
@@ -217,4 +219,40 @@ async def test_drop_oldest_when_queue_full():
         assert obs._drops["gated"] >= 3
     finally:
         gate.set()
+        await obs.shutdown()
+
+
+# ------------------------------------------------------------------------
+# Writer-start resilience (#1049)
+# ------------------------------------------------------------------------
+
+
+class _RaisingStartWriter:
+    async def start(self) -> None:
+        raise OSError(30, "Read-only file system")
+
+    async def write(self, event: Event) -> None:  # pragma: no cover
+        raise AssertionError("write() should not be reached")
+
+    async def shutdown(self) -> None:  # pragma: no cover
+        raise AssertionError("shutdown() should not be reached")
+
+
+async def test_start_skips_writer_whose_start_fails(caplog):
+    """A pending writer whose start() raises does not tank observer bring-up.
+    The good writer still registers and a WARN is logged."""
+    import logging
+
+    good = MemoryWriter()
+    obs = Observer()
+    obs.configure_writers([_RaisingStartWriter(), good])
+    try:
+        with caplog.at_level(logging.WARNING, logger="railtracks"):
+            await obs.start()
+        assert obs._running is True
+        assert "writer-0" not in obs._writers
+        assert "writer-1" in obs._writers
+        assert good.started is True
+        assert any("failed to start" in r.getMessage() for r in caplog.records)
+    finally:
         await obs.shutdown()

@@ -6,7 +6,6 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from railtracks.retrieval.models import Document
 
 from .conftest import make_container_client_for_loading, patch_azure

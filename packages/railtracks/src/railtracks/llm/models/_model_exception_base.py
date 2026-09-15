@@ -1,8 +1,8 @@
-from .._exceptions import RTLLMError
+from .._exceptions import ProviderError
 from ..history import MessageHistory
 
 
-class ModelError(RTLLMError):
+class ModelError(ProviderError):
     """
     Any Large Language Model (LLM) error.
     """
@@ -20,27 +20,43 @@ class ModelError(RTLLMError):
 
     def __str__(self):
         base = super().__str__()
-        details = []
-        if self.message_history:
-            mh_str = str(self.message_history)
-            indented_mh = "\n".join(
-                "    " + line for line in mh_str.splitlines()
-            )  # 2 indents (2-spaces) per indent
-            details.append(
-                self._color("Message History:\n", self.BOLD_GREEN)
-                + self._color(indented_mh, self.GREEN)
-            )
-        if details:
-            notes_str = (
-                "\n"
-                + self._color("Details:\n", self.BOLD_GREEN)
-                + "\n".join(f"  {d}" for d in details)
-            )
-            return f"\n{self._color(base, self.RED)}{notes_str}"
-        return self._color(base, self.RED)
+        if not self.message_history:
+            return self._color(base, self.RED)
+
+        try:
+            count = len(self.message_history)
+        except TypeError:
+            count = None
+
+        summary = (
+            f"{count} message(s) redacted; "
+            "call err.format_verbose() to render or read err.message_history"
+            if count is not None
+            else "message history redacted; "
+            "call err.format_verbose() to render or read err.message_history"
+        )
+        detail = self._color("Message History: ", self.BOLD_GREEN) + self._color(
+            summary, self.GREEN
+        )
+        notes_str = "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
+        return f"\n{self._color(base, self.RED)}{notes_str}"
+
+    def format_verbose(self) -> str:
+        """Render the exception with the full input ``MessageHistory`` embedded."""
+        base = super().__str__()
+        if not self.message_history:
+            return self._color(base, self.RED)
+
+        mh_str = str(self.message_history)
+        indented_mh = "\n".join("    " + line for line in mh_str.splitlines())
+        detail = self._color("Message History:\n", self.BOLD_GREEN) + self._color(
+            indented_mh, self.GREEN
+        )
+        notes_str = "\n" + self._color("Details:\n", self.BOLD_GREEN) + f"  {detail}"
+        return f"\n{self._color(base, self.RED)}{notes_str}"
 
 
-class ModelNotFoundError(RTLLMError):
+class ModelNotFoundError(ProviderError):
     def __init__(self, reason: str, notes: list[str] = None):
         self.reason = reason
         self.notes = notes or []

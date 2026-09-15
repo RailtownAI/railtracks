@@ -57,9 +57,7 @@ def empty_doc() -> Document:
 
 @pytest.fixture
 def short_doc() -> Document:
-    return Document(
-        content=_SHORT_TEXT, type="text", metadata={"kind": "short"}
-    )
+    return Document(content=_SHORT_TEXT, type="text", metadata={"kind": "short"})
 
 
 @pytest.fixture
@@ -160,7 +158,11 @@ def chunker_checklist() -> Callable[..., None]:
 
     Tests invoke it like::
 
-        def test_checklist(chunker_checklist, multi_paragraph_doc, short_doc, empty_doc):
-            chunker_checklist(lambda: MyChunker(...), multi_paragraph_doc, short_doc, empty_doc)
+        def test_checklist(
+            chunker_checklist, multi_paragraph_doc, short_doc, empty_doc
+        ):
+            chunker_checklist(
+                lambda: MyChunker(...), multi_paragraph_doc, short_doc, empty_doc
+            )
     """
     return _run_checklist

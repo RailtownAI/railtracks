@@ -7,12 +7,12 @@ from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
 from railtracks.llm import MessageHistory, UserMessage
 from railtracks.llm.message import AssistantMessage
-from railtracks.prebuilt.guardrails import InputLengthGuard
-from railtracks.prebuilt.guardrails import OutputLengthGuard
+from railtracks.prebuilt.guardrails import InputLengthGuard, OutputLengthGuard
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _input_event(text: str) -> LLMGuardrailEvent:
     return LLMGuardrailEvent(
@@ -32,6 +32,7 @@ def _output_event(text: str) -> LLMGuardrailEvent:
 # ---------------------------------------------------------------------------
 # InputLengthGuard
 # ---------------------------------------------------------------------------
+
 
 class TestInputLengthGuard:
     def test_default_max_chars(self):
@@ -92,6 +93,7 @@ class TestInputLengthGuard:
 
     def test_phase_is_input(self):
         from railtracks.guardrails.core.event import LLMGuardrailPhase
+
         guard = InputLengthGuard()
         assert guard.phase == LLMGuardrailPhase.INPUT
 
@@ -99,6 +101,7 @@ class TestInputLengthGuard:
 # ---------------------------------------------------------------------------
 # OutputLengthGuard
 # ---------------------------------------------------------------------------
+
 
 class TestOutputLengthGuard:
     def test_default_max_chars(self):
@@ -150,6 +153,7 @@ class TestOutputLengthGuard:
 
     def test_phase_is_output(self):
         from railtracks.guardrails.core.event import LLMGuardrailPhase
+
         guard = OutputLengthGuard()
         assert guard.phase == LLMGuardrailPhase.OUTPUT
 

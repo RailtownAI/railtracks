@@ -23,7 +23,6 @@ def dummy_executor_config():
 
 @pytest.fixture(autouse=True)
 def cleanup_globals():
-
     central.delete_globals()
     yield
     central.delete_globals()
@@ -52,7 +51,9 @@ def make_session_context_mock():
 def make_external_context_mock():
     def _make_external_context_mock():
         ec = mock.Mock()
-        ec.get = mock.Mock(side_effect=lambda k, default=None: {"foo": "bar"}.get(k, default))
+        ec.get = mock.Mock(
+            side_effect=lambda k, default=None: {"foo": "bar"}.get(k, default)
+        )
         ec.put = mock.Mock()
         return ec
 
@@ -64,7 +65,9 @@ def make_runner_context_vars(make_session_context_mock, make_external_context_mo
     def _make_runner_context_vars(**kwargs):
         return central.RunnerContextVars(
             session_context=kwargs.get("session_context", make_session_context_mock()),
-            external_context=kwargs.get("external_context", make_external_context_mock()),
+            external_context=kwargs.get(
+                "external_context", make_external_context_mock()
+            ),
         )
 
     return _make_runner_context_vars

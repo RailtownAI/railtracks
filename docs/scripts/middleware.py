@@ -31,8 +31,8 @@ async def timed(call, *args, **kwargs):
 # --8<-- [end: wrappers_timed]
 
 
-# --8<-- [start: after_node_demo]
-@rt.after_node
+# --8<-- [start: post_node_demo]
+@rt.post_node
 def log_result(result):
     print("node finished:", result)
     return result
@@ -43,17 +43,17 @@ async def log_result_async(call, *args, **kwargs):
     result = await call(*args, **kwargs)
     print("node finished:", result)
     return result
-# --8<-- [end: after_node_demo]
+# --8<-- [end: post_node_demo]
 
 
 # --8<-- [start: model_middleware_demo]
-@rt.before_llm
+@rt.pre_llm
 def print_message(message_history: rt.llm.MessageHistory, schema, tools):
     print(message_history)
     return message_history, schema, tools
 
 
-@rt.after_llm
+@rt.post_llm
 def print_response(response: rt.llm.Response):
     print(response.message)
     return response

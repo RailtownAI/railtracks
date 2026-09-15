@@ -77,7 +77,7 @@ class InputGuard(BaseLLMGuardrail[MessageHistory]):
         await emit(input_event)
 
         try:
-            new_messages, traces, decision = self.run(
+            new_messages, traces, decision = await self.run(
                 event=event, value=message_history
             )
         except Exception as e:
@@ -206,7 +206,9 @@ class OutputGuard(BaseLLMGuardrail[Message]):
 
         await emit(input_event)
         try:
-            new_message, traces, decision = self.run(event=event, value=result.message)
+            new_message, traces, decision = await self.run(
+                event=event, value=result.message
+            )
         except Exception as e:
             failure_event = MiddlewareGuardOutputFailureEvent.from_exception(e)
             await emit(failure_event)

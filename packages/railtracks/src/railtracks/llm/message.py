@@ -11,8 +11,8 @@ from urllib import request as urllib_request
 from urllib.parse import urlparse
 
 from .content import Content, ToolCall, ToolCalls, ToolResponse
+from .context_injection_utils import ValueDict, fill_template
 from .encoding import detect_source, encode, ensure_data_uri
-from .prompt_injection_utils import ValueDict, fill_template
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,7 @@ class ModelProvider(str, Enum):
         HUGGINGFACE: HuggingFace-hosted models.
         AZUREAI: Azure OpenAI Service models.
         OLLAMA: Ollama local LLMs.
-        COHERE: Cohere models.
+        APPLE_FM: Apple on-device Foundation Model (macOS 26+ Apple Silicon).
     """
 
     OPENAI = "OpenAI"
@@ -29,22 +29,6 @@ class ModelProvider(str, Enum):
     HUGGINGFACE = "HuggingFace"
     AZUREAI = "AzureAI"
     OLLAMA = "Ollama"
-    COHERE = "cohere_chat"
-    TELUS = "Telus"
     PORTKEY = "PortKey"
+    APPLE_FM = "apple"
     UNKNOWN = "Unknown"
-
-
-# Providers we do not support token streaming for when tool calling is involved. A streamed
-# invocation that reaches one of these providers with tools attached falls back to a buffered
-# model call (with a warning) — the final response is unaffected, only incremental chunks are
-# skipped.
-TOOL_CALLING_STREAMING_BLACKLIST = frozenset(
-    {
-        ModelProvider.ANTHROPIC,
-        ModelProvider.AZUREAI,
-        ModelProvider.GEMINI,
-        ModelProvider.OLLAMA,
-        ModelProvider.HUGGINGFACE,
-    }
-)

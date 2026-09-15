@@ -1,4 +1,5 @@
 """Tests for retry_approach wiring inside LiteLLMWrapper via real provider classes."""
+
 from unittest.mock import patch
 
 import litellm
@@ -11,13 +12,20 @@ from railtracks.llm.retries import ExponentialRetry, FixedRetry
 
 def _ok_response() -> ModelResponse:
     return ModelResponse(
-        choices=[{"message": {"content": "hello", "role": "assistant"}, "finish_reason": "stop"}]
+        choices=[
+            {
+                "message": {"content": "hello", "role": "assistant"},
+                "finish_reason": "stop",
+            }
+        ]
     )
 
 
 def _rate_limit_error() -> litellm.exceptions.RateLimitError:
     return litellm.exceptions.RateLimitError(
-        message="rate limited", llm_provider="anthropic", model="claude-haiku-4-5-20251001"
+        message="rate limited",
+        llm_provider="anthropic",
+        model="claude-haiku-4-5-20251001",
     )
 
 
@@ -25,10 +33,13 @@ def _rate_limit_error() -> litellm.exceptions.RateLimitError:
 # Sync _invoke retry tests — AnthropicLLM
 # ---------------------------------------------------------------------------
 
+
 class TestSyncRetryInWrapper:
     def test_no_retry_approach_passes_through(self, message_history):
         llm = AnthropicLLM("claude-haiku-4-5-20251001")
-        with patch.object(litellm, "completion", return_value=_ok_response()) as mock_completion:
+        with patch.object(
+            litellm, "completion", return_value=_ok_response()
+        ) as mock_completion:
             llm.chat(message_history)
         mock_completion.assert_called_once()
 
@@ -68,7 +79,9 @@ class TestSyncRetryInWrapper:
         def _bad_request(*args, **kwargs):
             call_count["n"] += 1
             raise litellm.exceptions.BadRequestError(
-                message="bad", model="claude-haiku-4-5-20251001", llm_provider="anthropic"
+                message="bad",
+                model="claude-haiku-4-5-20251001",
+                llm_provider="anthropic",
             )
 
         llm = AnthropicLLM(
@@ -109,6 +122,7 @@ class TestSyncRetryInWrapper:
 # `achat` runs the synchronous `litellm.completion` (with the sync retry loop) on a worker
 # thread, so retries are driven by `completion` + `time.sleep`, not the async path.
 # ---------------------------------------------------------------------------
+
 
 class TestAsyncRetryInWrapper:
     @pytest.mark.asyncio
