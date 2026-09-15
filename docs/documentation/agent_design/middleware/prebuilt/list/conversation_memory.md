@@ -29,11 +29,24 @@ By default, an `agent_node` is stateless: each invocation is isolated. Attaching
   agent1 = rt.agent_node("AgentA", llm=model, middleware=[shared_memory])
   agent2 = rt.agent_node("AgentB", llm=model, middleware=[shared_memory])
   ```
-- **Session Context Inspection**: You can inspect an agent's history directly via `rt.context.get(memory.context_key)`, `session.context[memory.context_key]`, or `memory.get_history()`.
-- **Preloading History**: You can seed conversation history by pre-populating the session context:
+- **Context Inspection After Flow Completion**: `flow.invoke()` and `flow.ainvoke()` return only the flow's final result. To inspect context after an invocation finishes, use `flow.connect()`, which returns a `FlowConnection`:
   ```python
-  with rt.Session(context={"team_chat": initial_history}):
-      await flow.ainvoke("Follow up question")
+  conn = flow.connect()
+  result = await conn.ainvoke("Follow up question")
+
+  # Inspect conversation history from the completed run's context:
+  history = conn.context.get(memory.context_key)
+  ```
+  You can also query the middleware instance directly at any time via `memory.get_history()`.
+- **Preloading History**: You can seed conversation history by pre-populating context when defining or invoking the flow:
+  ```python
+  flow = rt.Flow(
+      "ChatFlow",
+      entry_point=ChatAgent,
+      context={"team_chat": initial_history},
+  )
+  # Or override per invocation:
+  await flow.ainvoke("Follow up question", context={"team_chat": initial_history})
   ```
 - **Max Messages**: Pass `max_messages=10` to prune history to the most recent $N$ messages and avoid exceeding model context windows.
 - **Clearing Memory**: Call `memory.clear()` to wipe the stored history from both the instance and the active session context.
