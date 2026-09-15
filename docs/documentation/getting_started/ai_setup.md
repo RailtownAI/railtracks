@@ -55,24 +55,30 @@ pip install 'railtracks[visual]'
 
 === "GitHub Copilot"
 
-    Appends the skill to `.github/copilot-instructions.md`, which Copilot reads as workspace-level instructions in every chat.
+    Installs a skill directory at `.github/skills/agent-builder/`. Copilot auto-discovers skills in `.github/skills` and loads one on demand when its description matches what you're working on.
 
     ```bash
     railtracks add copilot:agent-builder
     ```
 
-    ??? success "What gets created / updated"
+    ??? success "What gets created"
         ```
         .github/
-        └── copilot-instructions.md   ← skill appended inside marker comments
+        └── skills/
+            └── agent-builder/
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
 
-    !!! note "Idempotent"
-        Running this command twice is safe — it detects the existing section and skips it. Use `--force` to replace it.
+    !!! note "Migrated from copilot-instructions.md"
+        Older railtracks versions appended Copilot skills as a marker block inside
+        `.github/copilot-instructions.md`. That path is no longer written; if you have one from a
+        prior install, railtracks reports it on your next `railtracks add` and leaves it in place for
+        you to remove (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
 
 === "Cursor"
 
-    Installs a `.mdc` rules file at `.cursor/rules/agent-builder.mdc`. Cursor loads these rules when they match the current context.
+    Installs a skill directory at `.cursor/skills/agent-builder/`. Cursor discovers skills in `.cursor/skills` and loads one when its description matches the current context.
 
     ```bash
     railtracks add cursor:agent-builder
@@ -81,9 +87,16 @@ pip install 'railtracks[visual]'
     ??? success "What gets created"
         ```
         .cursor/
-        └── rules/
-            └── agent-builder.mdc   ← railtracks agent-building knowledge
+        └── skills/
+            └── agent-builder/
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
+
+    !!! note "Migrated from .cursor/rules"
+        Older railtracks versions installed Cursor skills as a single `.cursor/rules/<name>.mdc`
+        file. That path is no longer written; a `.mdc` from a prior install is reported on your next
+        `railtracks add` and left in place (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
 
 ## Options
 
