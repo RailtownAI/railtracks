@@ -37,17 +37,7 @@ By default, an `agent_node` is stateless: each invocation is isolated. Attaching
   # Inspect conversation history from the completed run's context:
   history = conn.context.get(memory.context_key)
   ```
-  You can also query the middleware instance directly at any time via `memory.get_history()`.
-- **Preloading History**: You can seed conversation history by pre-populating context when defining or invoking the flow:
-  ```python
-  flow = rt.Flow(
-      "ChatFlow",
-      entry_point=ChatAgent,
-      context={"team_chat": initial_history},
-  )
-  # Or override per invocation:
-  await flow.ainvoke("Follow up question", context={"team_chat": initial_history})
-  ```
+- **Avoid Passing History Manually**: Do not pass prior `MessageHistory` as user input when `ConversationMemory` is attached, as the middleware automatically accumulates and prepends history across turns.
 - **Max Messages**: Pass `max_messages=10` to prune history to the most recent $N$ messages and avoid exceeding model context windows.
 - **Clearing Memory**: Call `memory.clear()` to wipe the stored history from both the instance and the active session context.
 

@@ -15,39 +15,17 @@ from railtracks.middleware.core import Middleware
 class ConversationMemory(Middleware):
     """Automatically cache and append conversation history across node invocations.
 
-    Node-level middleware (``middleware=``). Caches conversation history in the
-    active session's context variables (``rt.context``) so it does not need to be
-    manually passed back in a loop, and automatically prepends prior conversation
-    turns to incoming inputs:
+    Node-level middleware (``middleware=``). Automatically preserves multi-turn
+    conversations in session context and prepends prior turns to incoming inputs.
+    Do not manually pass prior message history into invocations when this middleware
+    is attached, as history is accumulated automatically.
 
-        import railtracks as rt
-        from railtracks.prebuilt import middleware
-
-        memory = middleware.ConversationMemory()
-        Agent = rt.agent_node(
-            "ChatAgent",
-            llm=rt.llm.AnthropicLLM("claude-sonnet-4-6"),
-            middleware=[memory],
-        )
-
-        res1 = await rt.call(Agent, "What is your name?")
-        res2 = await rt.call(Agent, "What did I just ask?")  # Agent remembers!
-
-    When attached to an agent or node, conversation history is automatically
-    isolated under a unique key (e.g. ``"conversation_history_a1b2c3d4"``),
-    ensuring multiple agents in the same flow have independent memory stores.
-    To specify a custom key or intentionally share memory between agents, pass an
-    explicit ``context_key``.
-
-    History can be inspected via ``rt.context.get(memory.context_key)``,
-    ``session.context[memory.context_key]``, or ``memory.get_history()``.
+    See: https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/conversation_memory/
 
     Args:
-        context_key: Optional explicit key under which conversation history is cached
-            in the session context (``rt.context``). If None, defaults to an
-            auto-isolated per-instance key.
-        max_messages: Optional maximum number of recent messages to retain in
-            history. If None, history is unbounded.
+        context_key: Optional explicit session context key for sharing or querying
+            history. If None, an isolated per-instance key is generated.
+        max_messages: Optional limit on the number of recent messages to retain.
     """
 
     def __init__(
