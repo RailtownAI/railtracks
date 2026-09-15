@@ -4,6 +4,10 @@
 # ``rt.prebuilt.middleware.<Name>``.
 
 from railtracks.prebuilt.middleware.context_injection import ContextInjection
+from railtracks.prebuilt.middleware.conversation_memory import (
+    GLOBAL_CONVERSATION_STORE,
+    ConversationMemory,
+)
 from railtracks.prebuilt.middleware.lock import Lock
 from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 from railtracks.prebuilt.middleware.post_verifier import post_verifier
@@ -13,6 +17,8 @@ from railtracks.prebuilt.middleware.timeout import Timeout
 
 __all__ = [
     "ContextInjection",
+    "ConversationMemory",
+    "GLOBAL_CONVERSATION_STORE",
     "pre_verifier",
     "post_verifier",
     "Lock",
