@@ -1,5 +1,5 @@
 ## Adding a Structured Output
-Now that you've seen how to add tools. Let's look at your agent can respond with reliable typed outputs. Schemas give you reliable, machine-checked outputs you can safely consume in code, rather than brittle strings.
+Now that you've seen how to add tools. Let's look at how an [agent node](overview.md#agent-node) can respond with reliable typed outputs. Schemas give you reliable, machine-checked outputs you can safely consume in code, rather than brittle strings.
 
 
 ```python 

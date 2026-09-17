@@ -1,3 +1,11 @@
+## What a Function Node Is
+
+A **function node** is one of your own Python functions turned into a [node](../overview.md#node) by the `@rt.function_node` decorator. Railtracks reads the function's type hints to build its parameter schema and its docstring to describe it, so one decorated function serves two purposes at once: a step you can invoke yourself with [`rt.call`](../../invocation/call.md), and a tool an agent is allowed to choose.
+
+Use a function node wherever the work has one correct implementation, such as a calculation, a database query, or an API call. That keeps deterministic work out of the model's hands and leaves the [agent node](../overview.md#agent-node) responsible only for deciding *when* the work should happen.
+
+## Defining a Function Node
+
 Allowing your agents to use your `python` functions as tools for your agents is quite straight forward. You can choose one of the following ways:
 !!! warning "Docstrings"
     Your Python functions need to contain **_typehints_** for parameters and **_docstrings_** formatted in [Google-style docstrings](https://google.github.io/styleguide/pyguide.html#:~:text=one%2Dline%20docstring.-,Args%3A,-List%20each%20parameter) as that is what Railtracks automatically parses to inform your LLM about the capability of the tool
@@ -25,7 +33,7 @@ Allowing your agents to use your `python` functions as tools for your agents is 
     )
     ```
 
-    1. Simply add the `railtracks.function_node` decorator before the definition of your function. This transforms your function into a node type usable upon passing to any agent.
+    1. Simply add the `railtracks.function_node` decorator before the definition of your function.
 
 === "Agent Specific"
 

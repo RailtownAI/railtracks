@@ -2,10 +2,91 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+# Terms whose capitalized form still shows up in unrelated senses across the docs
+# ("a Run", "the Store", "this Document"). `abbr` rewrites every whole-word match on
+# every page, so tooltipping these would litter ordinary prose with dotted
+# underlines. They stay in the glossary; they just do not become tooltips.
+_TOOLTIP_DENYLIST = frozenset(
+    {
+        "Agent",
+        "Context",
+        "Document",
+        "LLM",
+        "Metric",
+        "Run",
+        "Session",
+        "Store",
+        "Tool",
+    }
+)
+
+_GLOSSARY_TERM = re.compile(r"^### (?P<term>.+?)\s*$", re.MULTILINE)
+
+
+def _plain_text(markdown: str) -> str:
+    """Strip the inline markup `abbr` definitions cannot carry.
+
+    Abbreviation definitions render as a plain `title` attribute, so links, emphasis
+    and code spans have to be flattened to their text.
+    """
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", markdown)  # links -> link text
+    text = text.replace("`", "")
+    text = re.sub(r"\*{1,2}([^*]+)\*{1,2}", r"\1", text)  # bold / emphasis
+    return " ".join(text.split())
+
+
+def _first_sentence(paragraph: str) -> str:
+    """Return the paragraph's opening sentence, keeping its terminating period."""
+    match = re.search(r"^.*?[.!?](?=\s|$)", paragraph)
+    return (match.group(0) if match else paragraph).strip()
+
+
+def _glossary_tooltips(glossary: Path) -> str:
+    """Build the `abbr` definition list that gives every glossary term a tooltip.
+
+    Generated rather than hand-written so the tooltip a reader hovers and the entry
+    on the glossary page cannot drift apart.
+    """
+    text = glossary.read_text(encoding="utf-8").replace("\r\n", "\n")
+    matches = list(_GLOSSARY_TERM.finditer(text))
+
+    lines = [
+        "<!-- Generated from docs/glossary.md by scripts/mkdocs_hooks.py. Do not edit. -->",
+        "",
+    ]
+    for current, following in zip(matches, matches[1:] + [None]):
+        term = current.group("term")
+        if term in _TOOLTIP_DENYLIST:
+            continue
+
+        end = following.start() if following is not None else len(text)
+        body = text[current.end() : end].strip()
+        if not body:
+            continue
+
+        definition = _first_sentence(_plain_text(body.split("\n\n")[0]))
+        if definition:
+            lines.append(f"*[{term}]: {definition}")
+
+    return "\n".join(lines) + "\n"
+
+
+def _write_if_changed(path: Path, content: str) -> None:
+    """Write only on a real change, so the file's mtime stays put.
+
+    `mkdocs serve` watches the docs directory. Rewriting a file there on every build
+    would register as a change and kick off another build, looping forever.
+    """
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
 
 
 def _api_reference_is_fresh(src_dir: Path, output_dir: Path) -> bool:
@@ -52,7 +133,7 @@ def _generate_api_reference(repo_root: Path, output_dir: Path) -> None:
 
 
 def on_pre_build(config, **kwargs):
-    """Regenerate API docs before each build.
+    """Regenerate the derived documentation files before each build.
 
     Skips pdoc entirely when output is already newer than all source files,
     which prevents MkDocs' watcher from detecting a spurious change and
@@ -61,6 +142,13 @@ def on_pre_build(config, **kwargs):
     repo_root = Path(__file__).resolve().parent.parent
     src_dir = repo_root / "packages" / "railtracks" / "src" / "railtracks"
     output_dir = repo_root / "docs" / "api_reference"
+
+    glossary = repo_root / "docs" / "glossary.md"
+    if glossary.exists():
+        _write_if_changed(
+            repo_root / "docs" / "includes" / "glossary_tooltips.md",
+            _glossary_tooltips(glossary),
+        )
 
     if _api_reference_is_fresh(src_dir, output_dir):
         return

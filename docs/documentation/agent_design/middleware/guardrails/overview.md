@@ -1,6 +1,6 @@
 # Guardrails Overview
 
-Guardrails are a policy layer around agent execution. They inspect requests before they reach a model and responses before they are returned, letting you enforce rules for safety, reliability, and product behavior.
+Guardrails are a policy layer around agent execution, implemented as [model middleware](../overview.md#model-middleware). They inspect requests before they reach a model and responses before they are returned, letting you enforce rules for safety, reliability, and product behavior.
 
 Guardrails aren't just about blocking unsafe content. They can also:
 

@@ -448,3 +448,14 @@
   color: var(--md-default-fg-color--light);
   margin-top: 1.5rem;
 }
+
+/* Glossary terms are headings as well as tooltipped keywords, and a tooltip on a
+   heading only repeats the text directly beneath it. Keep the definition available
+   without the dotted underline that invites a hover. */
+.md-typeset h1 abbr,
+.md-typeset h2 abbr,
+.md-typeset h3 abbr,
+.md-typeset h4 abbr {
+  text-decoration: none;
+  cursor: inherit;
+}
