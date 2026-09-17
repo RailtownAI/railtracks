@@ -28,10 +28,14 @@ class MaxCalls(Middleware):
             model_middleware=[middleware.MaxCalls(5)],  # cap raw model calls
         )
 
-    The count is tracked per workflow run / session, resetting to zero when a new
-    session begins. A single ``MaxCalls`` instance shared across nodes within the
-    same run enforces a combined budget, while a fresh instance per node gives
-    each its own limit.
+    The count is tracked per session, resetting to zero when a new one begins. A
+    single ``MaxCalls`` instance shared across nodes within the same session
+    enforces a combined budget, while a fresh instance per node gives each its
+    own limit. A bare top-level ``rt.call`` opens a session of its own, so hold
+    several of those under one budget by wrapping them in an explicit session.
+
+    Finished sessions' counters stay readable via :attr:`call_count`, capped at
+    the 64 most recent.
 
     Args:
         max_calls: Number of calls allowed before the limit is enforced.
@@ -77,7 +81,10 @@ class MaxCalls(Middleware):
 
     @property
     def call_count(self) -> int:
-        """Calls made in the active session, or in the run that just finished."""
+        """Calls in the active session, or the run that just finished.
+
+        Returns 0 for a session evicted by the 64-session retention cap.
+        """
         return self._session_counts.get(self._inspection_key(), 0)
 
     def reset(self) -> None:

@@ -11,7 +11,19 @@ Because it only controls the wrapped call, `Max Calls` works in both
 
 ### Workflow Run Scoping
 
-The budget is scoped to each workflow run / session. When a new run begins (e.g. via `flow.invoke()` or `rt.call()`), the call counter starts fresh automatically.
+The budget is scoped to the session, not to the node. Every call made during one session spends the same budget, however deeply nested, and each new session starts fresh. `flow.invoke()` opens a session per invocation, so a node budgeted at 3 gets 3 calls per run rather than 3 for the life of the process.
+
+!!! warning "A bare top-level `rt.call()` is its own session"
+
+    Called outside any session, `rt.call()` opens a short-lived one for that single call, so a budget shared across several top-level calls resets on each and never fires. Wrap them in an explicit session to hold one budget across all of them:
+
+    ```python
+    with rt.Session():
+        await rt.call(tool, x="a")
+        await rt.call(tool, x="b")
+    ```
+
+    Inside a flow or an open session, `rt.call()` joins the running session and spends its budget as expected. This only bites bare top-level calls.
 
 ### Shared Budgets Across Nodes
 
@@ -45,4 +57,8 @@ budget.reset()
 budget.reset_all()
 ```
 
-Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns. Counters for finished runs are retained for this, capped at the 64 most recent sessions.
+Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns.
+
+!!! warning "Only the 64 most recent sessions stay readable"
+
+    Finished runs' counters are kept so they can be inspected afterwards, but a single `MaxCalls` retains at most the 64 most recently used sessions and evicts the oldest beyond that. This bounds memory for a long-lived instance; it does not limit how many runs may overlap. Reading `call_count` for a session evicted that long ago reports `0`, so capture the value you care about near the end of the run rather than much later.
