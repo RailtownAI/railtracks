@@ -3,29 +3,47 @@
 /* Home page hero + cards layout */
 .rt-home-layout {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 3rem;
 }
 
 .rt-hero {
   flex: 0 0 auto;
-  max-width: 320px;
+  max-width: 360px;
   text-align: center;
+}
+
+/* The headline breaks on its own <br>; nowrap keeps it at two lines so the
+   hero stays taller than the card grid and the logo clears the top edge. */
+.rt-hero h1 {
+  white-space: nowrap;
 }
 
 .rt-home-cards {
   flex: 1;
 }
 
+/* `.grid.cards` further down sets `margin: 1.5rem auto`. flex-end aligns margin
+   boxes, so that vertical margin would hold the cards' visible bottom edge above
+   the headline's; drop it here and keep the horizontal auto-centring. */
+.rt-home-layout .grid.cards {
+  margin: 0 auto;
+}
+
 @media screen and (max-width: 768px) {
   .rt-home-layout {
     flex-direction: column;
+    align-items: stretch;
     gap: 1.5rem;
   }
 
   .rt-hero {
     width: 100%;
     max-width: 100%;
+  }
+
+  .rt-hero h1 {
+    white-space: normal;
   }
 
   .rt-hero img {
@@ -386,7 +404,7 @@
 .rt-hero {
   text-align: center;
   margin-top: 2rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
 }
 
 .rt-hero h1 { margin-bottom: 0.25rem; }
