@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from copy import deepcopy
+from typing import Sequence
 
 import railtracks.context as context
 from railtracks.built_nodes.llm.node_builder import UserInput
@@ -10,6 +11,25 @@ from railtracks.context.central import is_context_present
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
 from railtracks.middleware.core import Middleware
+
+
+def _continues(existing: MessageHistory, candidate: Sequence[object]) -> bool:
+    """Return whether ``candidate`` already opens with every message in ``existing``.
+
+    ``Message`` defines no ``__eq__``, so comparing the two lists directly is an
+    identity check that fails the moment either side has been copied. Compare role
+    and content instead, short-circuiting on identity for the common case.
+    """
+    if len(candidate) < len(existing):
+        return False
+    for stored, incoming in zip(existing, candidate):
+        if stored is incoming:
+            continue
+        if not isinstance(incoming, Message):
+            return False
+        if stored.role != incoming.role or stored.content != incoming.content:
+            return False
+    return True
 
 
 class ConversationMemory(Middleware):
@@ -23,9 +43,14 @@ class ConversationMemory(Middleware):
     See: https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/conversation_memory/
 
     Args:
-        context_key: Optional explicit session context key for sharing or querying
-            history. If None, an isolated per-instance key is generated.
+        context_key: Optional explicit session context key for sharing, querying,
+            or seeding history. If None, an isolated per-instance key is generated,
+            which no external caller can address.
         max_messages: Optional limit on the number of recent messages to retain.
+            ``None`` and ``0`` both mean no limit.
+
+    Raises:
+        ValueError: If ``context_key`` is blank or ``max_messages`` is negative.
     """
 
     def __init__(
@@ -34,10 +59,14 @@ class ConversationMemory(Middleware):
         *,
         max_messages: int | None = None,
     ):
+        if context_key is not None and not context_key.strip():
+            raise ValueError("context_key must be a non-empty string when provided.")
+        if max_messages is not None and max_messages < 0:
+            raise ValueError(f"max_messages must not be negative, got {max_messages}.")
+
         self._instance_id = uuid.uuid4().hex[:8]
-        self._explicit_key = context_key is not None
         self._context_key = context_key or f"conversation_history_{self._instance_id}"
-        self._max_messages = max_messages
+        self._max_messages = max_messages or None
         self._state: dict[str, MessageHistory | None] = {"history": None}
         super().__init__(self._middleware_fn)
 
@@ -51,18 +80,19 @@ class ConversationMemory(Middleware):
         return self._get_existing_history()
 
     def clear(self) -> None:
-        """Clear conversation history from both session context and instance."""
+        """Clear the stored conversation history.
+
+        The instance copy is always dropped. The session context entry is removed
+        only when called during a run, since a finished run's context is no longer
+        reachable from here: a ``FlowConnection`` held open on that run can still
+        read the pre-clear value through ``conn.context``.
+        """
         self._state["history"] = None
         if is_context_present():
             try:
                 context.delete(self._context_key)
             except KeyError:
                 pass
-            if not self._explicit_key:
-                try:
-                    context.delete("conversation_history")
-                except KeyError:
-                    pass
 
     def __deepcopy__(self, memo: dict) -> ConversationMemory:
         cls = self.__class__
@@ -90,23 +120,24 @@ class ConversationMemory(Middleware):
         elif isinstance(user_input, UserMessage):
             history.append(user_input)
         elif isinstance(user_input, (list, MessageHistory)):
-            if len(user_input) >= len(history) and list(
-                user_input[: len(history)]
-            ) == list(history):
-                del history[:]
-                history.extend(user_input)
-            else:
-                for msg in user_input:
-                    if isinstance(msg, Message):
-                        history.append(msg)
+            for msg in user_input:
+                if isinstance(msg, Message):
+                    history.append(msg)
         else:
             history.append(UserMessage(str(user_input)))
 
     def _combine_history(
         self, existing: MessageHistory, user_input: object
     ) -> MessageHistory:
-        combined = deepcopy(existing)
-        self._append_to_history(combined, user_input)
+        if isinstance(user_input, (list, MessageHistory)) and _continues(
+            existing, user_input
+        ):
+            # The caller handed back history this middleware already holds, so the
+            # input supersedes the stored copy rather than being appended to it.
+            combined = MessageHistory(deepcopy(list(user_input)))
+        else:
+            combined = deepcopy(existing)
+            self._append_to_history(combined, user_input)
         if self._max_messages is not None and len(combined) > self._max_messages:
             return MessageHistory(combined[-self._max_messages :])
         return combined
@@ -119,13 +150,6 @@ class ConversationMemory(Middleware):
                     return hist
             except KeyError:
                 pass
-            if not self._explicit_key:
-                try:
-                    hist = context.get("conversation_history")
-                    if hist is not None:
-                        return hist
-                except KeyError:
-                    pass
         return self._state.get("history")
 
     def _save_result(self, result: object) -> None:

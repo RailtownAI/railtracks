@@ -108,6 +108,25 @@ async def test_custom_context_key():
 
 
 @pytest.mark.asyncio
+async def test_default_instance_ignores_bare_conversation_history_key():
+    """A default instance owns its generated key and never reads the bare one."""
+    memory = ConversationMemory()
+    seen: list[object] = []
+
+    async def mock_node(user_input):
+        seen.append(user_input)
+        return StringResponse("ack", MessageHistory([AssistantMessage("ack")]))
+
+    wrapped = memory.wrap(mock_node)
+
+    stray = MessageHistory([UserMessage("not mine"), AssistantMessage("not mine")])
+    with rt.Session(context={"conversation_history": stray}):
+        await wrapped("Hi")
+
+    assert seen == ["Hi"]
+
+
+@pytest.mark.asyncio
 async def test_preloaded_session_context():
     preloaded = MessageHistory(
         [
@@ -115,7 +134,7 @@ async def test_preloaded_session_context():
             AssistantMessage("Preloaded answer"),
         ]
     )
-    memory = ConversationMemory()
+    memory = ConversationMemory(context_key="seeded_chat")
     received_inputs: list[object] = []
 
     async def mock_node(user_input):
@@ -125,8 +144,9 @@ async def test_preloaded_session_context():
 
     wrapped = memory.wrap(mock_node)
 
-    # Initialize session with preloaded context
-    with rt.Session(context={"conversation_history": preloaded}):
+    # Seeding requires an explicit context_key: a default instance's generated key
+    # is not addressable from outside.
+    with rt.Session(context={"seeded_chat": preloaded}):
         await wrapped("New question")
         first_input = received_inputs[0]
         assert isinstance(first_input, MessageHistory)
@@ -354,3 +374,45 @@ async def test_two_agents_can_share_memory_with_explicit_context_key():
     # Because context_key was explicit, binding agent name does not overwrite it
     assert mem1.context_key == "shared_chat"
     assert mem2.context_key == "shared_chat"
+
+
+def test_blank_context_key_is_rejected():
+    with pytest.raises(ValueError, match="non-empty"):
+        ConversationMemory(context_key="")
+    with pytest.raises(ValueError, match="non-empty"):
+        ConversationMemory(context_key="   ")
+
+
+def test_negative_max_messages_is_rejected():
+    with pytest.raises(ValueError, match="negative"):
+        ConversationMemory(max_messages=-1)
+
+
+def test_zero_max_messages_means_no_limit():
+    memory = ConversationMemory(max_messages=0)
+    existing = MessageHistory([UserMessage("q1"), AssistantMessage("a1")])
+
+    combined = memory._combine_history(existing, "q2")
+    assert [m.content for m in combined] == ["q1", "a1", "q2"]
+
+
+@pytest.mark.asyncio
+async def test_refed_history_is_not_duplicated():
+    memory = ConversationMemory()
+
+    async def mock_node(user_input):
+        history = MessageHistory(
+            [UserMessage(user_input)] if isinstance(user_input, str) else user_input
+        )
+        history.append(AssistantMessage("ok"))
+        return StringResponse("ok", history)
+
+    wrapped = memory.wrap(mock_node)
+
+    with rt.Session():
+        await wrapped("first turn")
+        assert len(memory.get_history()) == 2
+
+        # A caller re-feeding the history it just read back must not double it.
+        await wrapped(memory.get_history())
+        assert len(memory.get_history()) == 3
