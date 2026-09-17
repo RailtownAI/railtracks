@@ -31,8 +31,8 @@ class MaxCalls(Middleware):
     The count is tracked per session, resetting to zero when a new one begins. A
     single ``MaxCalls`` instance shared across nodes within the same session
     enforces a combined budget, while a fresh instance per node gives each its
-    own limit. A bare top-level ``rt.call`` opens a session of its own, so hold
-    several of those under one budget by wrapping them in an explicit session.
+    own limit. A bare top-level ``rt.call`` is its own run, so hold several calls
+    under one budget by running them inside a ``Flow``.
 
     Finished sessions' counters stay readable via :attr:`call_count`, capped at
     the 64 most recent.

@@ -9,21 +9,68 @@
 Because it only controls the wrapped call, `Max Calls` works in both
 `middleware=` (capping whole-node invocations) and `model_middleware=` (capping raw model calls inside the agent tool loop). The limit is enforced on the complete call in the selected slot.
 
+## End-to-end example
+
+A complete runnable version of the ideas below. It needs no API key: the budgeted work is a plain function tool, so you can drop it into a file and run it as-is.
+
+Two tools share one budget of three. The flow tries four searches, so the fourth is refused, and the budget is still readable once the run returns.
+
+```python
+--8<-- "docs/scripts/max_calls_quickstart.py:setup"
+```
+
+```python
+--8<-- "docs/scripts/max_calls_quickstart.py:flow"
+```
+
+```python
+--8<-- "docs/scripts/max_calls_quickstart.py:first_run"
+```
+
+!!! example "Example output"
+    ```text
+    web results for 'mechanical keyboards'
+    image results for 'mechanical keyboards'
+    web results for 'mechanical keyboards reviews'
+    skipped 'mechanical keyboards alternatives': search budget exhausted for this run
+    spent: 3/3
+    ```
+
+Invoking the same flow again opens a new session, so the budget is back to three:
+
+```python
+--8<-- "docs/scripts/max_calls_quickstart.py:second_run"
+```
+
+!!! example "Example output"
+    ```text
+    web results for 'ergonomic mice'
+    image results for 'ergonomic mice'
+    web results for 'ergonomic mice reviews'
+    skipped 'ergonomic mice alternatives': search budget exhausted for this run
+    spent: 3/3
+    ```
+
 ### Workflow Run Scoping
 
 The budget is scoped to the session, not to the node. Every call made during one session spends the same budget, however deeply nested, and each new session starts fresh. `flow.invoke()` opens a session per invocation, so a node budgeted at 3 gets 3 calls per run rather than 3 for the life of the process.
 
-!!! warning "A bare top-level `rt.call()` is its own session"
+!!! warning "A bare top-level `rt.call()` is its own run"
 
-    Called outside any session, `rt.call()` opens a short-lived one for that single call, so a budget shared across several top-level calls resets on each and never fires. Wrap them in an explicit session to hold one budget across all of them:
+    Called outside any run, `rt.call()` opens a short-lived session for that single call, so a budget shared across several top-level calls resets on each and never fires. Put the work in a `Flow` to hold one budget across all of it:
 
     ```python
-    with rt.Session():
-        await rt.call(tool, x="a")
-        await rt.call(tool, x="b")
+    @rt.function_node
+    async def search_twice(topic: str) -> list[str]:
+        return [
+            await rt.call(WebSearch, query=topic),
+            await rt.call(WebSearch, query=f"{topic} reviews"),
+        ]
+
+    rt.Flow("budgeted", entry_point=search_twice).invoke(topic="keyboards")
     ```
 
-    Inside a flow or an open session, `rt.call()` joins the running session and spends its budget as expected. This only bites bare top-level calls.
+    Inside a flow, `rt.call()` joins the running session and spends its budget as expected. This only bites bare top-level calls.
 
 ### Shared Budgets Across Nodes
 

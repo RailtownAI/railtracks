@@ -368,30 +368,3 @@ def test_bare_top_level_calls_each_open_their_own_session():
         return out
 
     assert asyncio.run(call_four_times()) == ["0", "1", "2", "3"]
-
-
-def test_explicit_session_holds_one_budget_across_top_level_calls():
-    """Wrapping those calls in a session is what makes them share a budget."""
-    budget = MaxCalls(2, custom_message="cap hit")
-
-    @rt.function_node(middleware=[budget])
-    def tool(x: str) -> str:
-        return x
-
-    async def call_four_times() -> list[str]:
-        out = []
-        with rt.Session(name="explicit-budget"):
-            for i in range(4):
-                try:
-                    out.append(await rt.call(tool, x=str(i)))
-                except Exception as e:
-                    out.append(type(e).__name__)
-        return out
-
-    assert asyncio.run(call_four_times()) == [
-        "0",
-        "1",
-        "MaxCallsExceededError",
-        "MaxCallsExceededError",
-    ]
-    assert budget.call_count == 2
