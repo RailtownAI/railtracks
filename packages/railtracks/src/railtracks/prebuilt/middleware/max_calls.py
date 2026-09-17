@@ -6,13 +6,9 @@ from railtracks.context.central import get_session_identity, is_context_present
 from railtracks.exceptions.errors import ContextError
 from railtracks.middleware.core import Middleware
 
+# Counters outlive their session so a finished run's budget stays readable.
+# Keeping only the most recent bounds that without limiting real concurrency.
 _MAX_TRACKED_SESSIONS = 64
-"""Upper bound on the per-session counters a single ``MaxCalls`` retains.
-
-Counters outlive the session that produced them so the budget stays readable
-once a run is over. Retaining the most recent ``_MAX_TRACKED_SESSIONS`` bounds
-that memory without capping how many runs may overlap in practice.
-"""
 
 
 class MaxCalls(Middleware):
@@ -54,12 +50,8 @@ class MaxCalls(Middleware):
     ):
         self._max_calls = max_calls
         self._custom_message = custom_message
-        # Keyed by session_id (str) when inside a run; None when outside. Each
-        # session gets its own independent counter, ordered least- to
-        # most-recently used so the oldest can be evicted at the cap.
+        # Keyed by session_id, or None outside a run; least-recently-used first.
         self._session_counts: OrderedDict[str | None, int] = OrderedDict()
-        # Session whose counter was incremented last, so the budget spent by a
-        # finished run stays readable after its context is gone.
         self._last_session_id: str | None = None
         super().__init__(self._middleware_fn)
 
@@ -78,31 +70,18 @@ class MaxCalls(Middleware):
         return None
 
     def _inspection_key(self) -> str | None:
-        """Return the session that :attr:`call_count` and :meth:`reset` act on.
-
-        Inside a run that is the live session. Outside one it is the most
-        recently counted session, so reading the budget after ``flow.invoke()``
-        returns what that run actually spent rather than zero.
-        """
+        """Return the live session, or the last counted one when outside a run."""
         if is_context_present():
             return self._current_session_id()
         return self._last_session_id
 
     @property
     def call_count(self) -> int:
-        """Calls made against this budget in the active session.
-
-        Outside a run, reports the most recently counted session instead, which
-        is the run that just finished.
-        """
+        """Calls made in the active session, or in the run that just finished."""
         return self._session_counts.get(self._inspection_key(), 0)
 
     def reset(self) -> None:
-        """Reset the call counter that :attr:`call_count` reads.
-
-        Inside a run that is the active session's counter. Outside one it is the
-        most recently counted session's.
-        """
+        """Reset the counter that :attr:`call_count` reads."""
         self._session_counts.pop(self._inspection_key(), None)
 
     def reset_all(self) -> None:
@@ -111,12 +90,10 @@ class MaxCalls(Middleware):
         self._last_session_id = None
 
     async def _middleware_fn(self, call, *args, **kwargs):
-        # Always the live session: a call made outside a run must never spend a
-        # finished run's budget, so this deliberately does not fall back the way
-        # _inspection_key does.
+        # Live session only: a call outside a run must not spend a finished
+        # run's budget, so unlike _inspection_key this never falls back.
         sess_id = self._current_session_id()
-        # Read-modify-write is safe under a single event loop (no await
-        # between the read and the write).
+        # Read-modify-write is safe under one event loop: no await between them.
         current_count = self._session_counts.get(sess_id, 0)
         if current_count >= self._max_calls:
             if self._custom_message:
