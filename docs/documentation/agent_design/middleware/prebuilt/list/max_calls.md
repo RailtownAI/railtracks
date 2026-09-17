@@ -26,6 +26,8 @@ ToolB = rt.function_node(func_b, middleware=[shared_budget])
 
 Calls to either `ToolA` or `ToolB` accumulate against the same budget of 5.
 
+A single instance may be shared by `function_node` and `agent_node` alike; both keep the instance you pass rather than a copy of it, so `call_count` and `reset()` on your handle act on the budget the nodes are actually spending.
+
 ### Inspecting and Resetting
 
 You can inspect the current call count and reset the counter programmatically:
@@ -42,3 +44,5 @@ budget.reset()
 # Reset counters for all sessions
 budget.reset_all()
 ```
+
+Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns. Counters for finished runs are retained for this, capped at the 64 most recent sessions.

@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+from collections import OrderedDict
+
 from railtracks.context.central import get_session_identity, is_context_present
 from railtracks.exceptions.errors import ContextError
 from railtracks.middleware.core import Middleware
+
+_MAX_TRACKED_SESSIONS = 64
+"""Upper bound on the per-session counters a single ``MaxCalls`` retains.
+
+Counters outlive the session that produced them so the budget stays readable
+once a run is over. Retaining the most recent ``_MAX_TRACKED_SESSIONS`` bounds
+that memory without capping how many runs may overlap in practice.
+"""
 
 
 class MaxCalls(Middleware):
@@ -44,9 +54,13 @@ class MaxCalls(Middleware):
     ):
         self._max_calls = max_calls
         self._custom_message = custom_message
-        # Keyed by session_id (str) when inside a run; None when outside.
-        # Each session gets its own independent counter.
-        self._session_counts: dict[str | None, int] = {}
+        # Keyed by session_id (str) when inside a run; None when outside. Each
+        # session gets its own independent counter, ordered least- to
+        # most-recently used so the oldest can be evicted at the cap.
+        self._session_counts: OrderedDict[str | None, int] = OrderedDict()
+        # Session whose counter was incremented last, so the budget spent by a
+        # finished run stays readable after its context is gone.
+        self._last_session_id: str | None = None
         super().__init__(self._middleware_fn)
 
     @property
@@ -63,24 +77,43 @@ class MaxCalls(Middleware):
                 return None
         return None
 
+    def _inspection_key(self) -> str | None:
+        """Return the session that :attr:`call_count` and :meth:`reset` act on.
+
+        Inside a run that is the live session. Outside one it is the most
+        recently counted session, so reading the budget after ``flow.invoke()``
+        returns what that run actually spent rather than zero.
+        """
+        if is_context_present():
+            return self._current_session_id()
+        return self._last_session_id
+
     @property
     def call_count(self) -> int:
-        """The current number of calls made against this budget in the active session."""
-        return self._session_counts.get(self._current_session_id(), 0)
+        """Calls made against this budget in the active session.
+
+        Outside a run, reports the most recently counted session instead, which
+        is the run that just finished.
+        """
+        return self._session_counts.get(self._inspection_key(), 0)
 
     def reset(self) -> None:
-        """Reset the call counter for the current session.
+        """Reset the call counter that :attr:`call_count` reads.
 
-        When called inside a run, clears only the active session's counter.
-        When called outside a run, clears the out-of-session counter.
+        Inside a run that is the active session's counter. Outside one it is the
+        most recently counted session's.
         """
-        self._session_counts.pop(self._current_session_id(), None)
+        self._session_counts.pop(self._inspection_key(), None)
 
     def reset_all(self) -> None:
         """Reset call counters for all sessions."""
         self._session_counts.clear()
+        self._last_session_id = None
 
     async def _middleware_fn(self, call, *args, **kwargs):
+        # Always the live session: a call made outside a run must never spend a
+        # finished run's budget, so this deliberately does not fall back the way
+        # _inspection_key does.
         sess_id = self._current_session_id()
         # Read-modify-write is safe under a single event loop (no await
         # between the read and the write).
@@ -90,6 +123,10 @@ class MaxCalls(Middleware):
                 raise MaxCallsExceededError(self._custom_message)
             raise MaxCallsExceededError("Maximum number of calls exceeded")
         self._session_counts[sess_id] = current_count + 1
+        self._session_counts.move_to_end(sess_id)
+        self._last_session_id = sess_id
+        while len(self._session_counts) > _MAX_TRACKED_SESSIONS:
+            self._session_counts.popitem(last=False)
         return await call(*args, **kwargs)
 
 

@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
+import railtracks as rt
 from railtracks.middleware import Middleware
-from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
+from railtracks.prebuilt.middleware.lock import Lock
+from railtracks.prebuilt.middleware.max_calls import (
+    _MAX_TRACKED_SESSIONS,
+    MaxCalls,
+    MaxCallsExceededError,
+)
 
 
 def test_max_calls_is_a_plain_middleware():
@@ -81,8 +89,6 @@ async def test_wrapped_exception_propagates_and_still_counts_the_call():
 
 
 def test_node_middleware_slot_enforces_limit_inside_single_run():
-    import railtracks as rt
-
     @rt.function_node(middleware=[MaxCalls(2, custom_message="tool budget hit")])
     def limited(x: str) -> str:
         return x
@@ -103,8 +109,6 @@ def test_node_middleware_slot_enforces_limit_inside_single_run():
 
 
 def test_node_middleware_slot_starts_fresh_on_subsequent_run():
-    import railtracks as rt
-
     @rt.function_node(middleware=[MaxCalls(2, custom_message="tool budget hit")])
     def limited(x: str) -> str:
         return x
@@ -125,8 +129,6 @@ def test_node_middleware_slot_starts_fresh_on_subsequent_run():
 
 
 def test_multiple_nodes_share_combined_budget():
-    import railtracks as rt
-
     shared_budget = MaxCalls(3, custom_message="shared cap hit")
 
     @rt.function_node(middleware=[shared_budget])
@@ -172,8 +174,6 @@ async def test_call_count_property_and_reset():
 
 
 def test_agent_node_middleware_slot_enforces_limit(mock_llm):
-    import railtracks as rt
-
     agent = rt.agent_node(
         "Agent",
         llm=mock_llm(custom_response="hello"),
@@ -198,9 +198,6 @@ def test_agent_node_middleware_slot_enforces_limit(mock_llm):
 
 def test_lock_middleware_shared_across_nodes_preserves_reference():
     """Lock instances survive Node.safe_copy() via MiddlewareChain.__deepcopy__."""
-    import railtracks as rt
-    from railtracks.prebuilt.middleware.lock import Lock
-
     shared_lock = Lock()
 
     @rt.function_node(middleware=[shared_lock])
@@ -222,10 +219,8 @@ def test_lock_middleware_shared_across_nodes_preserves_reference():
     assert node1.middleware.middleware[0] is node2.middleware.middleware[0]
 
 
-def test_concurrent_sessions_get_independent_budgets():
-    """Two concurrent runs sharing a MaxCalls instance get independent counters."""
-    import railtracks as rt
-
+def test_separate_flows_get_independent_budgets():
+    """Two sequential runs sharing a MaxCalls instance each start fresh."""
     shared = MaxCalls(2, custom_message="cap hit")
 
     @rt.function_node(middleware=[shared])
@@ -245,6 +240,111 @@ def test_concurrent_sessions_get_independent_budgets():
     flow_a = rt.Flow("session-a", entry_point=driver)
     flow_b = rt.Flow("session-b", entry_point=driver)
 
-    # Each flow gets its own session, so each gets a fresh budget of 2
     assert flow_a.invoke(n=3) == ["0", "1", "MaxCallsExceededError"]
     assert flow_b.invoke(n=3) == ["0", "1", "MaxCallsExceededError"]
+
+
+def test_overlapping_sessions_get_independent_budgets():
+    """Two runs executing at the same time do not spend each other's budget."""
+    shared = MaxCalls(2, custom_message="cap hit")
+
+    @rt.function_node(middleware=[shared])
+    async def tool(x: str) -> str:
+        # Yield so the two runs genuinely interleave rather than running
+        # start-to-finish one after the other.
+        await asyncio.sleep(0)
+        return x
+
+    @rt.function_node
+    async def driver(n: int) -> list[str]:
+        out = []
+        for i in range(n):
+            try:
+                out.append(await rt.call(tool, x=str(i)))
+            except Exception as e:
+                out.append(type(e).__name__)
+        return out
+
+    async def run_both() -> list[list[str]]:
+        flow_a = rt.Flow("overlap-a", entry_point=driver)
+        flow_b = rt.Flow("overlap-b", entry_point=driver)
+        return await asyncio.gather(flow_a.ainvoke(n=3), flow_b.ainvoke(n=3))
+
+    results = asyncio.run(run_both())
+    assert results == [
+        ["0", "1", "MaxCallsExceededError"],
+        ["0", "1", "MaxCallsExceededError"],
+    ]
+
+
+def test_call_count_readable_after_the_run_finishes():
+    budget = MaxCalls(5)
+
+    @rt.function_node(middleware=[budget])
+    def tool(x: str) -> str:
+        return x
+
+    @rt.function_node
+    async def driver(n: int) -> int:
+        for i in range(n):
+            await rt.call(tool, x=str(i))
+        return budget.call_count
+
+    flow = rt.Flow("post-run-inspection", entry_point=driver)
+    assert flow.invoke(n=3) == 3
+
+    # Outside the run the budget still reports what that run spent.
+    assert budget.call_count == 3
+
+    budget.reset()
+    assert budget.call_count == 0
+
+
+def test_retained_session_counters_are_bounded():
+    """Finished runs' counters are kept for inspection, but not without limit."""
+    budget = MaxCalls(1)
+
+    @rt.function_node(middleware=[budget])
+    def tool() -> str:
+        return "ok"
+
+    @rt.function_node
+    async def driver() -> str:
+        return await rt.call(tool)
+
+    for i in range(_MAX_TRACKED_SESSIONS + 10):
+        assert rt.Flow(f"run-{i}", entry_point=driver).invoke() == "ok"
+
+    assert len(budget._session_counts) == _MAX_TRACKED_SESSIONS
+    # The most recent run is never the one evicted.
+    assert budget.call_count == 1
+
+
+def test_agent_nodes_share_one_budget_instance():
+    """agent_node keeps the caller's middleware instance, so budgets combine."""
+    shared = MaxCalls(3)
+
+    agent_a = rt.agent_node("AgentA", llm=None, middleware=[shared])
+    agent_b = rt.agent_node("AgentB", llm=None, middleware=[shared])
+
+    assert agent_a._user_middleware[0] is shared
+    assert agent_a._user_middleware[0] is agent_b._user_middleware[0]
+
+
+def test_agent_nodes_share_one_lock_instance():
+    """The same applies to Lock, which is useless unless shared by reference."""
+    shared_lock = Lock()
+
+    agent_a = rt.agent_node("AgentA", llm=None, middleware=[shared_lock])
+    agent_b = rt.agent_node("AgentB", llm=None, middleware=[shared_lock])
+
+    assert agent_a._user_middleware[0] is shared_lock
+    assert agent_a._user_middleware[0] is agent_b._user_middleware[0]
+
+
+def test_agent_node_model_middleware_keeps_caller_instance():
+    budget = MaxCalls(2)
+
+    agent = rt.agent_node("Agent", llm=None, model_middleware=[budget])
+
+    assert agent._user_model_middleware[0] is budget
