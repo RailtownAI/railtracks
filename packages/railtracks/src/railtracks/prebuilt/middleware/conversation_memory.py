@@ -5,7 +5,6 @@ from copy import deepcopy
 from typing import Sequence
 
 import railtracks.context as context
-from railtracks.built_nodes.llm.node_builder import UserInput
 from railtracks.built_nodes.llm.response import LLMResponse
 from railtracks.context.central import is_context_present
 from railtracks.llm.history import MessageHistory
@@ -95,6 +94,10 @@ class ConversationMemory(Middleware):
                 pass
 
     def __deepcopy__(self, memo: dict) -> ConversationMemory:
+        # ``Node.extend_middleware()`` copies the middleware already attached to a
+        # node when ``rt.couple()`` layers another one on. The history dict is shared
+        # by reference so the handle the caller holds keeps reading what the node
+        # actually spends, rather than diverging from it once the run ends.
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -107,7 +110,7 @@ class ConversationMemory(Middleware):
 
     def _extract_user_input(
         self, args: tuple[object, ...], kwargs: dict[str, object]
-    ) -> tuple[bool, bool, UserInput | None]:
+    ) -> tuple[bool, bool, object | None]:
         if args:
             return True, True, args[0]
         if "user_input" in kwargs:
@@ -153,7 +156,7 @@ class ConversationMemory(Middleware):
         return self._state.get("history")
 
     def _save_result(self, result: object) -> None:
-        if isinstance(result, LLMResponse) and hasattr(result, "message_history"):
+        if isinstance(result, LLMResponse):
             history = result.message_history
             if self._max_messages is not None and len(history) > self._max_messages:
                 history = MessageHistory(history[-self._max_messages :])

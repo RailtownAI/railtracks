@@ -44,6 +44,9 @@ By default, an `agent_node` is stateless: each invocation is isolated. Attaching
   ```
 - **Avoid Passing History Manually**: Do not pass prior `MessageHistory` as user input when `ConversationMemory` is attached, as the middleware automatically accumulates and prepends history across turns.
 - **Max Messages**: Pass `max_messages=10` to prune history to the most recent *N* messages and avoid exceeding model context windows. Both `None` (the default) and `0` mean no limit; a negative value raises `ValueError`.
-- **One Conversation Per Instance**: A memory instance models a single sequential conversation. Invoking the same instance concurrently (for example `asyncio.gather` over one agent) makes both turns read the same prior history, so the later write wins and the other turn is lost. Give each concurrent branch its own `ConversationMemory`.
+- **One Conversation Per Instance**: A memory instance models a single sequential conversation. Invoking the same instance concurrently (for example `asyncio.gather` over one agent) makes both turns read the same prior history, so the later write wins and the other turn is lost. Give each concurrent branch its own `ConversationMemory`, or, if the branches must share one history, put [`Lock`](lock.md) outermost so the read and write are serialized:
+  ```python
+  agent = rt.agent_node("Chat", llm=model, middleware=[Lock(), ConversationMemory()])
+  ```
 - **Clearing Memory**: Call `memory.clear()` to wipe the stored history from both the instance and the active session context. Called after a run has finished there is no active context left to reach, so the instance copy is dropped but a `FlowConnection` still open on that run keeps reading the pre-clear value through `conn.context`.
 

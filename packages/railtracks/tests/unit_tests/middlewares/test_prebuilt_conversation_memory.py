@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 import railtracks as rt
 from railtracks.built_nodes.llm.response import StringResponse
@@ -416,3 +418,30 @@ async def test_refed_history_is_not_duplicated():
         # A caller re-feeding the history it just read back must not double it.
         await wrapped(memory.get_history())
         assert len(memory.get_history()) == 3
+
+
+@pytest.mark.asyncio
+async def test_lock_outermost_serializes_concurrent_turns():
+    """One instance assumes sequential turns; Lock is the documented way to share one."""
+    from railtracks.prebuilt.middleware.lock import Lock
+
+    async def mock_node(user_input):
+        history = MessageHistory(
+            [UserMessage(user_input)] if isinstance(user_input, str) else user_input
+        )
+        await asyncio.sleep(0)
+        history.append(AssistantMessage("ack"))
+        return StringResponse("ack", history)
+
+    unlocked = ConversationMemory()
+    locked = ConversationMemory()
+
+    with rt.Session():
+        bare = unlocked.wrap(mock_node)
+        await asyncio.gather(bare("A"), bare("B"))
+        # Without serialization both turns read the same prior history and one write wins.
+        assert len(unlocked.get_history()) == 2
+
+        guarded = Lock().wrap(locked.wrap(mock_node))
+        await asyncio.gather(guarded("A"), guarded("B"))
+        assert len(locked.get_history()) == 4
