@@ -72,7 +72,7 @@ def safe_get_runner_context() -> RunnerContextVars:
             message="Context is not available. But some function tried to access it.",
             notes=[
                 "You need to have an active runner to access context.",
-                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
+                "Eg.-\n    flow = rt.Flow('my-flow', entry_point=node)\n    result = flow.invoke(user_input)",
             ],
         )
     return context
@@ -113,7 +113,7 @@ def get_publisher() -> RTPublisher:
             message="No publisher is attached to the current context.",
             notes=[
                 "You need to have an active runner to access the publisher.",
-                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
+                "Eg.-\n    flow = rt.Flow('my-flow', entry_point=node)\n    result = flow.invoke(user_input)",
             ],
         )
     return publisher
