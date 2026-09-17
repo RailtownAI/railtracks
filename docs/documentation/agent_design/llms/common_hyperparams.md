@@ -24,6 +24,30 @@ controlling sampling, output length, and reasoning behavior.
 --8<-- "docs/scripts/documentation/common_hyperparams.py:reasoning_effort"
 ```
 
+## Accessing the reasoning a model returned
+
+Reasoning-capable providers (Anthropic, DeepSeek, Gemini, OpenAI in part) can return
+their intermediate "thinking" alongside the answer. When they do, railtracks surfaces it
+on the response so you never have to reach into provider internals:
+
+```python
+response = await model.achat(history)
+
+print(response.reasoning)              # human-readable reasoning text, or None
+print(response.message.reasoning_content)  # same text, on the message
+print(response.message.thinking_blocks)    # structured, signed blocks (or None)
+```
+
+- `response.reasoning` (and `response.message.reasoning_content`) is the plain-text
+  reasoning: `None` when the model returned none (a non-reasoning model, or one not
+  asked to expose its thinking).
+- `response.message.thinking_blocks` holds the structured blocks, including any provider
+  signatures. Because reasoning lives on the assistant *message*, it travels with the
+  message in history and is included when the run graph is serialized.
+
+Streaming works the same way: the reasoning is accumulated and attached to the final
+`Response` yielded by `astream_*` (reasoning is not emitted as separate stream chunks).
+
 ## Not every model supports every hyperparameter
 
 For example, only OpenAI's GPT-5-series supports `verbosity`, and newer Anthropic
