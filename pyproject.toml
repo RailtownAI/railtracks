@@ -22,9 +22,13 @@ members = [
 [dependency-groups]
 docs = [
     "mkdocs>=1.6.1,<2.0.0",
-    "mkdocs-material>=9.6.15",
+    # mkdocs-material <9.7.0 caps pymdown-extensions at ~=10.2.
+    "mkdocs-material>=9.7.0",
     "mkdocs-material-extensions>=1.3.1",
     "mkdocs-mermaid2-plugin>=1.2.1",
+    # Pulled in transitively by mkdocs-material and mkdocs-mermaid2-plugin;
+    # constrained here so the resolver cannot fall back to a 10.x release.
+    "pymdown-extensions>=11.0.2,<12",
     "pdoc>=15.0.4"
 ]
 test = [

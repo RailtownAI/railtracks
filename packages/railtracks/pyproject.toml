@@ -48,9 +48,10 @@ dependencies = [
 
 [project.optional-dependencies]
 visual = [
-    "fastapi >= 0.121.0",
-    "uvicorn[standard] >= 0.24.0",
     "duckdb >= 1.5.0, < 1.5.5",
+    "fastapi >= 0.121.0",
+    "pytz >= 2024.1",
+    "uvicorn[standard] >= 0.24.0",
 ]
 # For each Integration package dependencies go here.
 portkey = ["portkey_ai >= 2.0.2"]
@@ -74,12 +75,12 @@ websearch = [
 # `railtracks[retrieval]` to opt in.
 tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
 semantic = ["scikit-learn>=1.3.0"]
-pdf = ["pypdf >= 4.0.0, <= 6.14.2"]
+pdf = ["pypdf >= 6.16.1, < 7"]
 ocr = [
     "pypdfium2 >= 4.30.0",
     "pytesseract >= 0.3.10",
     "pillow >= 10.0.0",
-    "pypdf >= 4.0.0, <= 6.14.2",
+    "pypdf >= 6.16.1, < 7",
 ]
 glm = [
     "glmocr ~= 0.1.1",

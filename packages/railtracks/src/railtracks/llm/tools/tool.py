@@ -7,6 +7,7 @@ parameters and descriptions.
 
 import inspect
 import warnings
+from collections.abc import Iterable as ABCIterable
 from typing import Any, Callable, Dict, Iterable, List, Type
 
 from pydantic import BaseModel
@@ -23,6 +24,60 @@ from .parameter_handlers import (
 )
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
+
+
+def _validate_tool_params(parameters: Any, param_type: type) -> Any:
+    """Validate the shape of ``parameters`` before a Tool is built from it.
+
+    Lives in this module rather than in ``railtracks.validation`` so the ``llm``
+    package never imports upward: errors it raises on Tool's behalf must be
+    ToolCreationError, defined right here, not the outer package's NodeCreationError.
+
+    Returns the (possibly materialized) parameters for the caller to store. A
+    single-pass iterable (e.g. a generator) must be materialized here, before
+    validation consumes it, or the caller is left with an exhausted iterator.
+    """
+    if parameters is None:
+        return None
+
+    if isinstance(parameters, dict):
+        if not parameters:
+            return parameters
+        if parameters.get("type") != "object":
+            raise ToolCreationError(
+                message="A 'type' key set to 'object' must be provided in the JSON schema for Tool parameters.",
+                notes=[
+                    "If you are having issues with passing in a JSON schema, try providing a list of Parameter objects instead."
+                ],
+            )
+        if "properties" not in parameters:
+            raise ToolCreationError(
+                message="A 'properties' key must be provided in the JSON schema for Tool parameters.",
+                notes=[
+                    "Add a 'properties' entry, even an empty one, describing the tool's parameters."
+                ],
+            )
+        return parameters
+
+    if isinstance(parameters, ABCIterable) and not isinstance(parameters, (str, bytes)):
+        parameters = list(parameters)
+        if not all(isinstance(x, param_type) for x in parameters):
+            raise ToolCreationError(
+                message="Parameters must be an iterable of Parameter objects, a dict, or None.",
+                notes=[
+                    "If the tool expects no parameters, use None or pass in an empty list instead."
+                ],
+            )
+        return parameters
+
+    raise ToolCreationError(
+        message="Tool parameters must be an iterable of Parameter objects (e.g. a list, set, or tuple), a dict, or None.",
+        notes=[
+            "If the tool expects no parameters, use None.",
+            "If you are having issues with passing in a JSON schema, try providing a list of Parameter objects instead.",
+            "You can make a Tool object from a custom function. \nEg.-\ndef my_function():\n    ...\nsample_tool = rc.llm.Tool.from_function(my_function)",
+        ],
+    )
 
 
 class Tool:
@@ -43,13 +98,14 @@ class Tool:
         Args:
             name: The name of the tool.
             detail: A detailed description of the tool.
-            parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
+            parameters: Parameters attached to this tool; a set or list of Parameter objects, or a dict.
         """
+        parameters = _validate_tool_params(parameters, Parameter)
 
         if (
             isinstance(parameters, dict) and len(parameters) > 0
-        ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
-            props = parameters.get("properties") or {}
+        ):  # if parameters is a JSON-output_schema, convert into Parameter objects
+            props = parameters["properties"]
             required_fields = list(parameters.get("required", []))
             if not props and required_fields:
                 raise ToolCreationError(
@@ -62,11 +118,19 @@ class Tool:
                 )
             param_objs: List[Parameter] = []
             for param_name, prop in props.items():
-                param_objs.append(
-                    parse_json_schema_to_parameter(
-                        param_name, prop, param_name in required_fields
+                try:
+                    param_objs.append(
+                        parse_json_schema_to_parameter(
+                            param_name, prop, param_name in required_fields
+                        )
                     )
-                )
+                except ValueError as e:
+                    raise ToolCreationError(
+                        f"Tool {name!r}: failed to parse schema for parameter '{param_name}': {e}",
+                        notes=[
+                            "Check that the parameter's 'type' is a valid JSON schema type."
+                        ],
+                    ) from e
             parameters = param_objs
 
         self._name = name
@@ -225,7 +289,16 @@ class Tool:
         param_objs = set()
         for name, prop in properties.items():
             required = name in required_fields
-            param_objs.add(parse_json_schema_to_parameter(name, prop, required))
+            try:
+                param_objs.add(parse_json_schema_to_parameter(name, prop, required))
+            except Exception as e:
+                warnings.warn(
+                    f"Tool {tool.name!r}: failed to parse schema for parameter '{name}': {e}. Falling back to basic object."
+                )
+                # Fallback to a basic object parameter if parsing fails (e.g. invalid type string)
+                param_objs.add(
+                    Parameter(name=name, param_type="object", required=required)
+                )
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
 
