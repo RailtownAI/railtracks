@@ -18,7 +18,7 @@ controlling sampling, output length, and reasoning behavior.
 --8<-- "docs/scripts/documentation/common_hyperparams.py:basic_usage"
 ```
 
-This sampling example deliberately uses [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), a non-reasoning model. Its `temperature` controls sampling; [OpenAI recommends adjusting either `temperature` or `top_p`, rather than both](https://developers.openai.com/api/reference/python/resources/chat/subresources/completions/methods/create). Check model-specific support before copying these settings to a reasoning model.
+This sampling example deliberately uses [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), a non-reasoning model. Its `temperature` controls sampling; [OpenAI recommends adjusting either `temperature` or `top_p`, rather than both](https://developers.openai.com/api/reference/resources/chat). Check model-specific support before copying these settings to a reasoning model.
 
 `reasoning_effort` accepts one of `"minimal"`, `"low"`, `"medium"`, `"high"`:
 
