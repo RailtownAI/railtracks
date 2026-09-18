@@ -89,7 +89,7 @@ The `callback` parameter fires every time a new todo is added, letting the outer
 --8<-- "docs/scripts/todos.py:todo_callback"
 ```
 
-You can also inspect the todo list directly at any point via the `ToDoToolSet` instance — useful for logging, assertions, or driving downstream logic once the agent finishes.
+You can also inspect the todo list directly at any point via the `ToDoToolSet` instance — useful for logging, assertions, or driving downstream logic once the agent finishes. Every read on the toolset is async, `pretty_dashboard()` included.
 
 ```python
 --8<-- "docs/scripts/todos.py:todo_inspection"
