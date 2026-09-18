@@ -570,3 +570,78 @@ def test_null_cost_surfaces_as_null_in_llm_traces(
     assert rows[0]["total_cost"] is None, (
         f"expected null for unpriced trace, got {rows[0]['total_cost']!r}"
     )
+
+
+def _llm_failure_session_events(
+    session_id: str,
+    node_id: str,
+    llm_id: str,
+) -> list[dict[str, object]]:
+    """Minimal event stream for a session with one LLM failure.
+
+    The failure row has no total_cost in the raw event; the CTE should
+    return 0.0 (nothing is billed for a call that never came back).
+    """
+    stamp = "2026-01-01T00:00:00+00:00"
+    return [
+        _event(
+            f"started-{session_id}",
+            "session.started",
+            session_id,
+            {"session_id": session_id, "flow_name": f"flow-{session_id}"},
+            stamp=stamp,
+        ),
+        _event(
+            f"node-{session_id}",
+            "node.creation",
+            session_id,
+            {"node_id": node_id, "name": "agent", "node_type": "Agent"},
+            stamp=stamp,
+        ),
+        _event(
+            f"llm-creation-{session_id}",
+            "llm.creation",
+            session_id,
+            {"llm_id": llm_id, "model_provider": "openai", "model_name": "gpt-4o"},
+            stamp=stamp,
+        ),
+        _event(
+            f"llm-failure-{session_id}",
+            "llm.failure",
+            session_id,
+            {
+                "spatial_parent_node_id": node_id,
+                "parent_llm_type_id": llm_id,
+                "message_input": [{"role": "user", "content": "hi"}],
+                "exception_name": "TimeoutError",
+                "exception_message": "request timed out",
+            },
+            stamp=stamp,
+        ),
+    ]
+
+
+def test_failed_call_cost_surfaces_as_zero_in_llm_traces(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed LLM call must render total_cost as 0.0, not null.
+
+    Nothing is billed for a call that never returned a response. Returning
+    null here would be misleading -- it reads as "pricing unknown" when the
+    correct meaning is "$0.00 was charged."
+    """
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    _write_events(
+        tmp_path,
+        "failed-call",
+        *_llm_failure_session_events("failed-call", "node-f", "llm-f"),
+    )
+
+    response = TestClient(app).get("/api/llm-traces")
+
+    assert response.status_code == 200
+    rows = response.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["total_cost"] == 0.0, (
+        f"expected 0.0 for failed call, got {rows[0]['total_cost']!r}"
+    )
