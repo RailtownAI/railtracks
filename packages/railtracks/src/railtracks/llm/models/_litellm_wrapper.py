@@ -220,6 +220,20 @@ def _attach_reasoning(assistant_msg: AssistantMessage, source: Any) -> Assistant
     return assistant_msg
 
 
+def _echo_reasoning(base: Dict[str, Any], msg: Message) -> None:
+    """Echo reasoning/thinking back to the provider on every assistant turn, not just
+    the tool-call branch's raw copy. litellm turns `thinking_blocks` into signed
+    provider content blocks (which Anthropic requires to keep a thinking turn valid)
+    and harmlessly ignores `reasoning_content`.
+    """
+    if not isinstance(msg, AssistantMessage):
+        return
+    if msg.thinking_blocks is not None:
+        base["thinking_blocks"] = msg.thinking_blocks
+    if msg.reasoning_content is not None:
+        base["reasoning_content"] = msg.reasoning_content
+
+
 class StreamedToolCall(BaseModel):
     tool: ToolCall
     args: str | None = Field(default=None)  # accumulating string of arguments (in json)
@@ -562,10 +576,14 @@ class LiteLLMWrapper(ModelBase, ABC):
         """
         accumulated_content = ""
         # Reasoning/"thinking" arrives in its own deltas (before the content deltas)
-        # on providers that surface it; accumulate the text and collect the signed
-        # blocks so the final Response carries them like a buffered call would.
+        # on providers that surface it; accumulate the human-readable text here.
+        # The signed `thinking_blocks` are reassembled from the raw chunks after the
+        # stream drains (see below) rather than by concatenating deltas ourselves.
         accumulated_reasoning = ""
-        accumulated_thinking_blocks: List[dict] = []
+        
+        # Keep every raw chunk so litellm can reassemble the signed thinking blocks
+        # for us once the stream drains (see `_assemble_thinking_blocks`).
+        raw_chunks: List[Any] = []
 
         # fall back on empty message info if we don't get one from the stream.
         message_info = MessageInfo()
@@ -576,6 +594,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         stream_finished = False
 
         for chunk in raw:
+            raw_chunks.append(chunk)
             # Usage rides a separate chunk that different providers place differently
             # (alongside or after the `finish_reason` chunk), so take it wherever it turns up.
             if getattr(chunk, "usage", None) is not None:
@@ -596,9 +615,6 @@ class LiteLLMWrapper(ModelBase, ABC):
             reasoning_delta = getattr(choice.delta, "reasoning_content", None)
             if reasoning_delta:
                 accumulated_reasoning += reasoning_delta
-            thinking_delta = getattr(choice.delta, "thinking_blocks", None)
-            if thinking_delta:
-                accumulated_thinking_blocks.extend(thinking_delta)
 
             if choice.delta.tool_calls:
                 # Some providers batch several calls into a single delta, so every entry
@@ -619,17 +635,47 @@ class LiteLLMWrapper(ModelBase, ABC):
             active_tool_calls, completed_tool_calls
         )
 
+        # Anthropic streams thinking as one single-element `thinking_blocks` list per
+        # delta — each a text fragment with `signature=""`, with the real signature
+        # arriving on a final block whose `thinking` is empty. Concatenating those
+        # deltas ourselves yields unsigned fragments Anthropic rejects on round-trip,
+        # so we defer to litellm's own merge over the collected raw chunks, which joins
+        # the text, keeps the last signature, and drops blocks unsigned providers
+        # never sign. Guarded so a litellm change degrades to "no blocks" rather than
+        # raising mid-stream.
+        thinking_blocks = self._assemble_thinking_blocks(raw_chunks)
+
         r = self._prepare_response(
             accumulated_content=accumulated_content,
             tools=tools,
             output_schema=output_schema,
             message_info=message_info,
             reasoning_content=accumulated_reasoning or None,
-            thinking_blocks=accumulated_thinking_blocks or None,
+            thinking_blocks=thinking_blocks,
         )
 
         yield r
         return r
+
+    @staticmethod
+    def _assemble_thinking_blocks(raw_chunks: list) -> list[dict] | None:
+        """Rebuild the signed `thinking_blocks` from the collected stream chunks.
+
+        We hand the raw chunks back to litellm's own `stream_chunk_builder`, which
+        merges the per-delta thinking fragments into whole, signed blocks (and drops
+        blocks that unsigned providers never sign). Anything unexpected degrades to
+        `None` rather than breaking the stream.
+        """
+        if not raw_chunks:
+            return None
+        try:
+            built = litellm.stream_chunk_builder(chunks=raw_chunks)
+            if built is None:
+                return None
+            blocks = getattr(built.choices[0].message, "thinking_blocks", None)
+            return blocks or None
+        except Exception:
+            return None
 
     def _prepare_response(
         self,
@@ -1051,6 +1097,8 @@ class LiteLLMWrapper(ModelBase, ABC):
             base["content"] = msg.content.model_dump_json()
         else:
             base["content"] = msg.content
+
+        _echo_reasoning(base, msg)
         return base
 
     @classmethod

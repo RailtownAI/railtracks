@@ -115,6 +115,34 @@ class TestHelpers:
         assert litellm_message["role"] == "assistant"
         assert litellm_message["content"] == "This is an assistant message."
 
+    def test_to_litellm_message_assistant_message_echoes_reasoning(
+        self, mock_litellm_wrapper
+    ):
+        """#1431: reasoning/thinking set on an assistant message must be echoed back so
+        signed thinking blocks survive the round-trip (Anthropic requires it), even on a
+        plain (non-tool) assistant turn."""
+        message = AssistantMessage(content="4")
+        message.reasoning_content = "2 + 2 is 4"
+        message.thinking_blocks = [
+            {"type": "thinking", "thinking": "2 + 2", "signature": "sig-abc"}
+        ]
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
+        assert litellm_message["content"] == "4"
+        assert litellm_message["reasoning_content"] == "2 + 2 is 4"
+        assert litellm_message["thinking_blocks"] == [
+            {"type": "thinking", "thinking": "2 + 2", "signature": "sig-abc"}
+        ]
+
+    def test_to_litellm_message_assistant_message_without_reasoning_omits_keys(
+        self, mock_litellm_wrapper, assistant_message
+    ):
+        """No reasoning => no reasoning keys on the wire (defaults stay clean)."""
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(assistant_message)
+        assert "reasoning_content" not in litellm_message
+        assert "thinking_blocks" not in litellm_message
+
     def test_to_litellm_message_tool_message(self, mock_litellm_wrapper, tool_message):
         """
         Test _to_litellm_message with a ToolMessage instance.
@@ -1281,6 +1309,45 @@ class TestReasoningSurfacing:
         assert "".join(text) == "4"
         assert final.reasoning == "2 + 2 is 4"
         assert final.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_streamed_fragmented_thinking_blocks_are_reassembled(
+        self, mock_litellm_wrapper
+    ):
+        """Anthropic streams thinking as many single-element `thinking_blocks` deltas,
+        each an unsigned text fragment, with the real signature arriving on a final
+        block whose `thinking` is empty. The final response must carry one merged,
+        signed block (what Anthropic requires echoed back), not the raw fragments."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "Let ", "signature": ""}
+                ]
+            ),
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "me ", "signature": ""}
+                ]
+            ),
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "count.", "signature": ""}
+                ]
+            ),
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "", "signature": "sig-final"}
+                ]
+            ),
+            _delta_chunk(content="4"),
+            _delta_chunk(finish_reason="stop"),
+        ]
+
+        _text, final = _drain(wrapper, chunks)
+
+        assert final.message.thinking_blocks == [
+            {"type": "thinking", "thinking": "Let me count.", "signature": "sig-final"}
+        ]
 
     def test_streamed_without_reasoning_is_none(self, mock_litellm_wrapper):
         wrapper = mock_litellm_wrapper()
