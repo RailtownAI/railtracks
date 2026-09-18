@@ -154,10 +154,10 @@ def llm_invoke_factory(
             path = process_message(returned_mess, schema)
 
             if path == "Content":
-                message_history.append(AssistantMessage(returned_mess.message.content))
+                message_history.append(returned_mess.message)
                 return prepare_string_response(message_history)
             elif path == "Structured":
-                message_history.append(AssistantMessage(returned_mess.message.content))
+                message_history.append(returned_mess.message)
                 assert schema is not None
                 return prepare_structured_response(message_history, schema)
             elif path == "Tool":
@@ -183,9 +183,15 @@ async def run_tools(
         )
     )
 
-    raw = getattr(response.message, "raw_content", None)
+    # `tool_calls` is a copy, so the rebuilt message loses the reasoning/thinking
+    # and raw provider metadata carried on the response message; copy them over so
+    # signed thinking blocks (which Anthropic requires echoed back) survive the
+    # multi-turn tool loop.
+    raw = getattr(response.message, "raw_litellm_message", None)
     if raw is not None:
         hist_msg.raw_litellm_message = raw
+    hist_msg.reasoning_content = response.message.reasoning_content
+    hist_msg.thinking_blocks = response.message.thinking_blocks
 
     message_history.append(hist_msg)
 
