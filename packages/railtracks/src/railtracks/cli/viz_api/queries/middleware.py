@@ -96,6 +96,8 @@ _OUTCOME_PASSED_LITERAL = f"'{MiddlewareOutcome.PASSED.value}'"
 _MIDDLEWARE_KIND_LADDER: list[tuple[str, MiddlewareKind]] = [
     ("event_type LIKE 'middleware.guard.input.%'", MiddlewareKind.INPUT_GUARD),
     ("event_type LIKE 'middleware.guard.output.%'", MiddlewareKind.OUTPUT_GUARD),
+    # Covers both `middleware.verifier.pre.*` and `.post.*`.
+    ("event_type LIKE 'middleware.verifier.%'", MiddlewareKind.VERIFIER),
     ("event_type LIKE 'middleware.model.input.%'", MiddlewareKind.REQUEST_TRANSFORM),
     ("event_type LIKE 'middleware.model.output.%'", MiddlewareKind.RESPONSE_TRANSFORM),
     ("event_type LIKE 'middleware.regular.output.%'", MiddlewareKind.RESULT_HOOK),
@@ -235,7 +237,16 @@ def _middleware_rows_cte() -> str:
              ev.parent_middleware_invoke_id,
              ev.spatial_parent_node_id,
              ev.spatial_parent_llm_invoke_id,
-             ev.decision->>'action'         AS action,
+             -- Verifier decisions ('accept'/'decline' + `overridden`) are
+             -- normalized onto the guard vocabulary ('allow'/'transform'/'block')
+             -- here, so every downstream aggregate reads one vocabulary.
+             CASE ev.decision->>'action'
+               WHEN 'accept' THEN
+                 CASE WHEN ev.decision->>'overridden' = 'true' THEN 'transform'
+                      ELSE 'allow' END
+               WHEN 'decline' THEN 'block'
+               ELSE ev.decision->>'action'
+             END                             AS action,
              ev.decision->>'reason'         AS reason,
              ev.event_type LIKE '%.failure' AS is_failure,
              ev.exception_message,

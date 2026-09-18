@@ -142,7 +142,14 @@ class MiddlewareKind(str, Enum):
     ``RESULT_HOOK``              ``@post_node``
     ``LLM_WRAPPER``              ``@wrap_llm`` (``model_middleware=``)
     ``NODE_WRAPPER``             ``@wrap_node`` (``middleware=``)
+    ``VERIFIER``                 ``pre_verifier(...)`` / ``post_verifier(...)`` (``middleware=``)
     ============================ ==========================================
+
+    ``VERIFIER`` deliberately isn't split into ``PRE_VERIFIER`` / ``POST_VERIFIER``
+    the way the guard pair is: a ``pre_verifier``/``post_verifier`` pair is normally
+    one ``approve_fn`` registered together in ``middleware=[...]``, and splitting
+    the kind would turn that one registration into two rows at the
+    ``(name, kind, band)`` grain the Middleware table aggregates on.
     """
 
     INPUT_GUARD = "input_guard"
@@ -152,6 +159,7 @@ class MiddlewareKind(str, Enum):
     RESULT_HOOK = "result_hook"
     LLM_WRAPPER = "llm_wrapper"
     NODE_WRAPPER = "node_wrapper"
+    VERIFIER = "verifier"
 
 
 class MiddlewareBand(str, Enum):
