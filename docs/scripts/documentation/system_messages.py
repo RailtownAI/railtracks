@@ -4,7 +4,7 @@ import railtracks as rt
 # Configuration: sent on every call to this agent.
 agent = rt.agent_node(
     "Assistant",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are terse.",
 )
 
