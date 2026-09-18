@@ -1,6 +1,6 @@
 # Message History
 
-Each call is stateless: Railtracks does not automatically send an earlier conversation to the next call. An agent response includes the conversation in `response.message_history`, excluding the system message. Railtracks prepends the target agent's system message on each call, so passing the returned history back does not accumulate duplicate system messages.
+Each call is stateless: Railtracks does not automatically send an earlier conversation to the next call. An agent response includes the conversation in `response.message_history`, preserving any system messages supplied by the caller while excluding the target agent's configured system message. Railtracks prepends the configured system message on each call, so passing the returned history back does not accumulate duplicate system messages.
 
 The examples below use this agent:
 
