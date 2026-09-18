@@ -324,7 +324,8 @@ class SessionSummary(BaseModel):
     #: ``session.completed.duration_seconds`` when completed, else ``end_time - start_time``.
     duration: float | None = None
     status: SessionStatus
-    total_cost: float = 0.0
+    #: None when every LLM call in the session had an unresolvable pricing entry.
+    total_cost: float | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     node_count: int = 0
@@ -388,7 +389,8 @@ class NodeDetail(BaseModel):
     tool_output: Any = None
     model_name: str | None = None
     model_provider: str | None = None
-    total_cost: float = 0.0
+    #: None when the node's LLM calls all had an unresolvable pricing entry.
+    total_cost: float | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     guardrails: list[Guardrail] = Field(default_factory=list)
@@ -405,7 +407,8 @@ class GraphNode(BaseModel):
     time: float | None = None
     model_name: str | None = None
     model_provider: str | None = None
-    total_cost: float = 0.0
+    #: None when the node's LLM calls all had an unresolvable pricing entry.
+    total_cost: float | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     latency_seconds: float | None = None
@@ -475,7 +478,8 @@ class LLMTrace(BaseModel):
     error_message: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
-    total_cost: float = 0.0
+    #: None when the model had no pricing entry (unpriced/self-hosted model).
+    total_cost: float | None = None
     #: Per-call latency reported by the provider, in seconds. Null when the
     #: provider did not report one, and always null on an error row.
     latency_seconds: float | None = None

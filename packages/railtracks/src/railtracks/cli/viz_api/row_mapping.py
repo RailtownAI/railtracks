@@ -84,7 +84,7 @@ def _row_to_summary(
         # would give the status filter and the stat tiles a second definition to
         # drift from.
         status=SessionStatus(row["status"]),
-        total_cost=float(row["total_cost"] or 0.0),
+        total_cost=float(row["total_cost"]) if row["total_cost"] is not None else None,
         input_tokens=int(row["input_tokens"] or 0),
         output_tokens=int(row["output_tokens"] or 0),
         node_count=int(row["node_count"] or 0),
@@ -108,7 +108,7 @@ def _row_to_llm_trace(row: dict[str, Any]) -> LLMTrace:
         error_message=row.get("error_message"),
         input_tokens=int(row["input_tokens"] or 0),
         output_tokens=int(row["output_tokens"] or 0),
-        total_cost=float(row["total_cost"] or 0.0),
+        total_cost=float(row["total_cost"]) if row["total_cost"] is not None else None,
         latency_seconds=(
             float(row["latency_seconds"])
             if row.get("latency_seconds") is not None
