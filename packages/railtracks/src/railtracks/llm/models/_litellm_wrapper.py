@@ -461,10 +461,8 @@ class LiteLLMWrapper(ModelBase, ABC):
             merged["reasoning_effort"] = effective_reasoning_effort
 
         if stream:
-            # Some providers (Anthropic among them) only emit a usage chunk on a streamed
-            # response when this is set, so without it every streamed call reports no tokens
-            # and no cost. litellm exempts `stream_options` from its unsupported-param
-            # pruning, so it is safe to send to every provider.
+            # Some providers (e.g. Anthropic) only emit a usage chunk when this is set;
+            # litellm passes it through to every provider, so it is always safe to send.
             merged.setdefault("stream_options", {"include_usage": True})
 
         def completion_function():
@@ -523,10 +521,9 @@ class LiteLLMWrapper(ModelBase, ABC):
                     raise item
                 yield cast("str | Response", item)
         finally:
-            # On early break, signal the worker to stop; it observes `stop` at the next chunk
-            # boundary, closes the stream on its own thread, and exits. Retrieve its result so
-            # a late failure isn't reported as "exception never retrieved" -- via the helper,
-            # since a cancelled worker has nothing to retrieve.
+            # On early break, signal the worker to stop and retrieve its result so a late
+            # failure isn't reported as "exception never retrieved" (via the helper, since a
+            # cancelled worker has nothing to retrieve).
             stop.set()
             if worker.done():
                 _retrieve_worker_exception(worker)
@@ -575,12 +572,10 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         """
         accumulated_content = ""
-        # Reasoning/"thinking" arrives in its own deltas (before the content deltas)
-        # on providers that surface it; accumulate the human-readable text here.
-        # The signed `thinking_blocks` are reassembled from the raw chunks after the
-        # stream drains (see below) rather than by concatenating deltas ourselves.
+        # Accumulate the human-readable reasoning text here; the signed `thinking_blocks`
+        # are reassembled from the raw chunks after the stream drains (see below).
         accumulated_reasoning = ""
-        
+
         # Keep every raw chunk so litellm can reassemble the signed thinking blocks
         # for us once the stream drains (see `_assemble_thinking_blocks`).
         raw_chunks: List[Any] = []
@@ -635,14 +630,9 @@ class LiteLLMWrapper(ModelBase, ABC):
             active_tool_calls, completed_tool_calls
         )
 
-        # Anthropic streams thinking as one single-element `thinking_blocks` list per
-        # delta — each a text fragment with `signature=""`, with the real signature
-        # arriving on a final block whose `thinking` is empty. Concatenating those
-        # deltas ourselves yields unsigned fragments Anthropic rejects on round-trip,
-        # so we defer to litellm's own merge over the collected raw chunks, which joins
-        # the text, keeps the last signature, and drops blocks unsigned providers
-        # never sign. Guarded so a litellm change degrades to "no blocks" rather than
-        # raising mid-stream.
+        # Anthropic streams thinking as unsigned per-delta fragments with the signature
+        # in a final block, so we let litellm's merge reassemble them from the raw chunks
+        # rather than concatenating ourselves (see `_assemble_thinking_blocks`).
         thinking_blocks = self._assemble_thinking_blocks(raw_chunks)
 
         r = self._prepare_response(
