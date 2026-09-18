@@ -259,7 +259,7 @@ class RetrievalRuntime:
 
         await self._ensure_captured_model_seeded()
 
-        if await self._is_complete_duplicate(doc):
+        if await self._is_complete_duplicate(doc, scope):
             stats.documents_skipped += 1
             yield DocumentSkipped(document_id=doc.id, source=doc.source)
             return
@@ -297,7 +297,9 @@ class RetrievalRuntime:
         if doc_errors:
             yield self._record_document_failed(doc, doc_errors, stats)
 
-    async def _is_complete_duplicate(self, doc: Document) -> bool:
+    async def _is_complete_duplicate(
+        self, doc: Document, scope: StoreScope | None
+    ) -> bool:
         """Whether the store already holds a *complete* copy of ``doc``.
 
         Skip re-embedding only when as many chunks are present as the last
@@ -313,6 +315,7 @@ class RetrievalRuntime:
         stale_filters = {
             "source_path": doc.source,
             "content_hash": doc.content_hash,
+            **(scope.to_payload_filters() if scope is not None else {}),
         }
         existing = await self._store.find(stale_filters, limit=1)
         if not existing:
@@ -383,7 +386,12 @@ class RetrievalRuntime:
                 # must not corrupt the store by clearing prior chunks first.
                 self._check_model(batch.metrics.model)
                 if not delete_done:
-                    await self._store.delete_where({"document_id": str(doc.id)})
+                    await self._store.delete_where(
+                        {
+                            "document_id": str(doc.id),
+                            **(scope.to_payload_filters() if scope is not None else {}),
+                        }
+                    )
                     delete_done = True
                 for embedded in batch.chunks:
                     self._capture_model(embedded)

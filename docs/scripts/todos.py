@@ -44,14 +44,16 @@ agent = rt.agent_node(
 # --8<-- [end: todo_callback]
 
 # --8<-- [start: todo_inspection]
-# inspect the todo list after the agent run completes
-print(to_dos.pretty_dashboard())
+# inspect the todo list after the agent run completes (the reads are async)
+import asyncio
+
+print(asyncio.run(to_dos.pretty_dashboard()))
 # To-Dos
 # completed - fetch_data
 # completed - clean_data
 # completed - generate_report
 
-incomplete = to_dos.get_incomplete_todos()
+incomplete = asyncio.run(to_dos.get_incomplete_todos())
 if incomplete:
     raise RuntimeError(f"Agent left tasks unfinished: {incomplete}")
 # --8<-- [end: todo_inspection]

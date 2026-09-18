@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import copy
 from typing import (
+    Any,
     Awaitable,
     Callable,
     Generic,
@@ -68,6 +70,17 @@ class MiddlewareChain(Generic[_P, _R]):
             list(middleware) if middleware is not None else []
         )
         self.get_scope_manager = get_scope_manager
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> MiddlewareChain[_P, _R]:
+        """Shallow-copy the middleware list so stateful middleware instances
+        (e.g. ``MaxCalls``, ``Lock``) are preserved by reference across
+        ``Node.safe_copy()``.  Other attributes are still deep-copied."""
+        cls = type(self)
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        result._middleware = list(self._middleware)  # shallow copy
+        result.get_scope_manager = copy.deepcopy(self.get_scope_manager, memo)
+        return result
 
     def add_middleware(self, m: Middleware[_P, _R]) -> None:
         """Append a user outer middleware (outermost band). Runs around the whole call."""
