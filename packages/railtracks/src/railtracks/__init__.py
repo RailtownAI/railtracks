@@ -17,8 +17,6 @@ if TYPE_CHECKING:
     from railtracks.interaction import interactive as interactive
 
 __all__ = [
-    "Session",
-    "session",
     "call",
     "astream",
     "broadcast",
@@ -79,7 +77,10 @@ from . import (
     prebuilt,
     retrieval,
 )
-from ._session import Session, session
+
+# Reachable for existing code, but out of __all__: the entry point is rt.Flow
+from ._session import Session as Session
+from ._session import session as session
 from .built_nodes.llm.middleware import (
     after_llm,
     before_llm,
@@ -134,5 +135,5 @@ def __getattr__(name: str):
 
 
 def __dir__() -> list[str]:
-    # "interactive" is not in __all__ but is still reachable
-    return sorted({*__all__, "interactive"})
+    # Reachable but out of __all__, so pdoc does not advertise them
+    return sorted({*__all__, "interactive", "Session", "session"})
