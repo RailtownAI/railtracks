@@ -229,7 +229,12 @@ class DefaultParameterHandler(ParameterHandler):
         if isinstance(param_annotation, Parameter):
             return param_annotation  # pass-through if already a Parameter
 
-        mapped_type = ParameterType.from_python_type(param_annotation).value
+        if param_annotation is inspect.Parameter.empty:
+            mapped_type = ParameterType.OBJECT.value
+        else:
+            mapped_type = ParameterType.from_python_type(
+                param_annotation, strict=True
+            ).value
         return Parameter(
             name=param_name,
             param_type=mapped_type,

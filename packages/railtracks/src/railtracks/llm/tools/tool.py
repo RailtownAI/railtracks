@@ -126,7 +126,8 @@ class Tool:
                     )
                 except ValueError as e:
                     raise ToolCreationError(
-                        f"Tool {name!r}: failed to parse schema for parameter '{param_name}': {e}",
+                        f"Tool {name!r}: failed to parse schema for parameter "
+                        f"'{param_name}': {e!r}",
                         notes=[
                             "Check that the parameter's 'type' is a valid JSON schema type."
                         ],
@@ -291,14 +292,14 @@ class Tool:
             required = name in required_fields
             try:
                 param_objs.add(parse_json_schema_to_parameter(name, prop, required))
-            except Exception as e:
-                warnings.warn(
-                    f"Tool {tool.name!r}: failed to parse schema for parameter '{name}': {e}. Falling back to basic object."
-                )
-                # Fallback to a basic object parameter if parsing fails (e.g. invalid type string)
-                param_objs.add(
-                    Parameter(name=name, param_type="object", required=required)
-                )
+            except ValueError as e:
+                raise ToolCreationError(
+                    f"Tool {tool.name!r}: failed to parse schema for parameter "
+                    f"'{name}': {e!r}",
+                    notes=[
+                        "Check that the parameter's 'type' is a valid JSON schema type."
+                    ],
+                ) from e
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
 
