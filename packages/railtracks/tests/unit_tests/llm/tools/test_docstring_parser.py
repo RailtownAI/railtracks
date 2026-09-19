@@ -8,8 +8,10 @@ railtracks.llm.tools.docstring_parser module.
 from railtracks.llm.tools.docstring_parser import (
     extract_args_section,
     extract_main_description,
+    extract_numpy_args_section,
     parse_args_section,
     parse_docstring_args,
+    parse_rest_args_section,
 )
 
 
@@ -381,3 +383,302 @@ class TestEdgeCases:
         # Should only extract the properly formatted parameter
         expected = {"param1": "This is a proper one."}
         assert parse_docstring_args(docstring) == expected
+
+
+class TestNumpyArgsSection:
+    """Tests for NumPy-style docstring parsing."""
+
+    def test_simple_numpy_docstring(self):
+        """Test parsing a simple NumPy-style docstring."""
+        docstring = """
+        Adds two numbers together.
+
+        Parameters
+        ----------
+        a : int
+            The first number.
+        b : int
+            The second number.
+
+        Returns
+        -------
+        int
+            The sum of the two numbers.
+        """
+        expected = {"a": "The first number.", "b": "The second number."}
+        assert parse_docstring_args(docstring) == expected
+
+    def test_numpy_main_description(self):
+        """Test extracting the main description from a NumPy-style docstring."""
+        docstring = """
+        Adds two numbers together.
+
+        Parameters
+        ----------
+        a : int
+            The first number.
+
+        Returns
+        -------
+        int
+            The sum.
+        """
+        assert extract_main_description(docstring) == "Adds two numbers together."
+
+    def test_numpy_with_optional(self):
+        """Test parsing NumPy-style parameters marked optional."""
+        docstring = """
+        Computes a value.
+
+        Parameters
+        ----------
+        x : float, optional
+            The x value. Defaults to 1.0.
+        y : float
+            The y value.
+
+        Returns
+        -------
+        float
+            The result.
+        """
+        expected = {
+            "x": "The x value. Defaults to 1.0.",
+            "y": "The y value.",
+        }
+        assert parse_docstring_args(docstring) == expected
+
+    def test_no_numpy_parameters_section(self):
+        """Test that a docstring without a NumPy Parameters section returns empty."""
+        docstring = """This is a docstring without a Parameters section."""
+        assert extract_numpy_args_section(docstring) == ""
+        assert parse_docstring_args(docstring) == {}
+
+
+class TestRestArgsSection:
+    """Tests for reST/Sphinx-style docstring parsing."""
+
+    def test_simple_rest_docstring(self):
+        """Test parsing a simple reST-style docstring."""
+        docstring = """
+        Adds two numbers together.
+
+        :param a: The first number.
+        :param b: The second number.
+        :type a: int
+        :type b: int
+        :returns: The sum of the two numbers.
+        :rtype: int
+        """
+        expected = {"a": "The first number.", "b": "The second number."}
+        assert parse_docstring_args(docstring) == expected
+
+    def test_rest_with_typed_params(self):
+        """Test parsing reST-style parameters that include types."""
+        docstring = """
+        Greets a person.
+
+        :param str name: The name to greet.
+        :param bool excited: Whether to greet excitedly.
+        """
+        expected = {
+            "name": "The name to greet.",
+            "excited": "Whether to greet excitedly.",
+        }
+        assert parse_docstring_args(docstring) == expected
+
+    def test_rest_with_multiline_description(self):
+        """Test parsing reST-style parameters with multiline descriptions."""
+        docstring = """
+        Computes a value.
+
+        :param x: The x value.
+            It can be negative.
+        :param y: The y value.
+        """
+        expected = {"x": "The x value. It can be negative.", "y": "The y value."}
+        assert parse_docstring_args(docstring) == expected
+
+    def test_no_rest_params(self):
+        """Test that a docstring without :param: fields returns empty."""
+        docstring = """This is a docstring without param fields."""
+        assert parse_rest_args_section(docstring) == {}
+        assert parse_docstring_args(docstring) == {}
+
+    def test_rest_main_description_strips_fields(self):
+        """Pure reST docstrings must not ship raw :param lines as the tool description."""
+        docstring = """Fetches a URL.
+
+    :param url: The endpoint to hit.
+    :type url: str
+    :returns: The body.
+"""
+        assert extract_main_description(docstring) == "Fetches a URL."
+        assert parse_docstring_args(docstring) == {"url": "The endpoint to hit."}
+
+
+class TestFirstMatchStyleSelection:
+    """Regression tests for non-destructive first-match parsing (Google → NumPy → reST)."""
+
+    def test_google_wins_over_numpy_without_merging(self):
+        """Mixed Google+NumPy docstrings return only Google args (no blind-merge)."""
+        docstring = """
+        Do something.
+
+        Args:
+            a: google arg
+
+        Parameters
+        ----------
+        b : int
+            numpy arg
+        """
+        assert parse_docstring_args(docstring) == {"a": "google arg"}
+
+    def test_google_args_section_stops_at_numpy_header(self):
+        """Google Args: extraction must not swallow a following NumPy Parameters block."""
+        docstring = """
+        Args:
+            a: google
+
+        Parameters
+        ----------
+        b : int
+            numpy
+        """
+        section = extract_args_section(docstring)
+        assert "a: google" in section
+        assert "numpy" not in section
+        assert "Parameters" not in section
+        assert parse_docstring_args(docstring) == {"a": "google"}
+
+    def test_numpy_used_when_no_google_args(self):
+        """NumPy is selected when Google Args is absent."""
+        docstring = """
+        Do something.
+
+        Parameters
+        ----------
+        x : int
+            The x value
+        """
+        assert parse_docstring_args(docstring) == {"x": "The x value"}
+
+    def test_rest_used_when_no_google_or_numpy(self):
+        """reST is selected when Google and NumPy sections are absent."""
+        docstring = """
+        Do something.
+
+        :param y: The y value.
+        """
+        assert parse_docstring_args(docstring) == {"y": "The y value."}
+
+
+class TestParsingRegressions:
+    """Regression tests for non-destructive parsing of mixed-style content."""
+
+    def test_google_indented_field_does_not_truncate_args(self):
+        """An indented ``:field:`` line inside Args is continuation text."""
+        docstring = (
+            "Do a thing.\n\nArgs:\n    a: first\n    :note: careful\n    b: second"
+        )
+        assert parse_docstring_args(docstring) == {
+            "a": "first :note: careful",
+            "b": "second",
+        }
+
+    def test_google_dashes_line_does_not_truncate_args(self):
+        """A dashes-only line inside Args does not end the section."""
+        docstring = "Do a thing.\n\nArgs:\n    a: first\n    ---\n    b: second"
+        assert parse_docstring_args(docstring) == {"a": "first ---", "b": "second"}
+
+    def test_google_prose_with_dashes_kept_in_main_description(self):
+        """A prose title followed by dashes in a Google docstring is kept."""
+        docstring = (
+            "Summary line.\n\nDetails\n-------\nmore prose\n\nArgs:\n    x: the x"
+        )
+        expected = "Summary line.\n\nDetails\n-------\nmore prose"
+        assert extract_main_description(docstring) == expected
+
+    def test_google_role_line_kept_in_main_description(self):
+        """A role line at the start of a paragraph is not treated as reST."""
+        docstring = (
+            "Summary.\n\n:class:`Foo` is the entry point.\n\nArgs:\n    x: the x"
+        )
+        assert (
+            extract_main_description(docstring)
+            == "Summary.\n\n:class:`Foo` is the entry point."
+        )
+
+    def test_numpy_indented_note_is_continuation(self):
+        """An indented ``Note:`` line is description text, not a parameter."""
+        docstring = (
+            "Computes a value.\n\n"
+            "Parameters\n"
+            "----------\n"
+            "x : int\n"
+            "    the x value.\n"
+            "    Note: keep this in mind.\n"
+        )
+        assert parse_docstring_args(docstring) == {
+            "x": "the x value. Note: keep this in mind."
+        }
+
+    def test_numpy_grouped_untyped_and_variadic_params(self):
+        """Grouped, untyped, and variadic numpydoc parameters are supported."""
+        docstring = (
+            "Does things.\n\n"
+            "Parameters\n"
+            "----------\n"
+            "x, y : int\n"
+            "    Both numbers.\n"
+            "z\n"
+            "    An untyped number.\n"
+            "*args : tuple\n"
+            "    Extra values.\n"
+            "**kwargs : dict\n"
+            "    Extra keyword values.\n"
+        )
+        assert parse_docstring_args(docstring) == {
+            "x": "Both numbers.",
+            "y": "Both numbers.",
+            "z": "An untyped number.",
+            "args": "Extra values.",
+            "kwargs": "Extra keyword values.",
+        }
+
+    def test_numpy_other_parameters_only(self):
+        """An 'Other Parameters' section is recognized without 'Parameters'."""
+        docstring = (
+            "Does things.\n\n"
+            "Other Parameters\n"
+            "----------------\n"
+            "y : int\n"
+            "    The y value.\n"
+        )
+        assert parse_docstring_args(docstring) == {"y": "The y value."}
+
+    def test_numpy_examples_block_not_parsed_as_parameter(self):
+        """A colon-style 'Examples:' header ends the parameters section."""
+        docstring = (
+            "Does things.\n\n"
+            "Parameters\n"
+            "----------\n"
+            "x : int\n"
+            "    The x value.\n\n"
+            "Examples:\n"
+            "    foo(1)\n"
+        )
+        assert parse_docstring_args(docstring) == {"x": "The x value."}
+
+    def test_rest_subscripted_and_dotted_types(self):
+        """reST type annotations with brackets or dots are not skipped."""
+        docstring = (
+            "Fetches things.\n\n"
+            ":param List[int] items: The items to fetch.\n"
+            ":param module.Type value: The value to use.\n"
+        )
+        assert parse_docstring_args(docstring) == {
+            "items": "The items to fetch.",
+            "value": "The value to use.",
+        }

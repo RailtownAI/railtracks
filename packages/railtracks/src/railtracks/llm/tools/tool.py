@@ -220,10 +220,11 @@ class Tool:
         if params is not None:
             parameters = params
         else:
-            # Check for multiple Args sections (warning)
+            # Check for multiple parameter sections (warning)
             # Only need to do this if we need to.
-            if docstring.count("Args:") > 1:
-                warnings.warn("Multiple 'Args:' sections found in the docstring.")
+            section_markers = ("Args:", "Parameters", ":param")
+            if sum(docstring.count(marker) for marker in section_markers) > 1:
+                warnings.warn("Multiple parameter sections found in the docstring.")
             # Create parameter handlers
             handlers: List[ParameterHandler] = [
                 PydanticModelHandler(),
