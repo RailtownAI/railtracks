@@ -13,6 +13,7 @@ from .parameters import (
     ParameterType,
     UnionParameter,
 )
+from .parameters._base import _strict_parameter_type_from_python_type
 from .schema_parser import parse_model_properties
 
 
@@ -229,10 +230,13 @@ class DefaultParameterHandler(ParameterHandler):
         if isinstance(param_annotation, Parameter):
             return param_annotation  # pass-through if already a Parameter
 
-        mapped_type = ParameterType.from_python_type(param_annotation).value
+        if param_annotation is inspect.Parameter.empty:
+            param_type = ParameterType.OBJECT
+        else:
+            param_type = _strict_parameter_type_from_python_type(param_annotation)
         return Parameter(
             name=param_name,
-            param_type=mapped_type,
+            param_type=param_type,
             description=description,
             required=required,
         )

@@ -4,9 +4,35 @@ Tests for the Tool class.
 This module contains tests for railtracks.llm.tools.tool.Tool.
 """
 
+from decimal import Decimal
+
 import pytest
 from railtracks.llm.tools import Parameter, Tool
 from railtracks.llm.tools.tool import ToolCreationError
+
+
+class UnsupportedParameterType:
+    pass
+
+
+def _takes_bytes(value: bytes):
+    return value
+
+
+def _takes_decimal(value: Decimal):
+    return value
+
+
+def _takes_custom_type(value: UnsupportedParameterType):
+    return value
+
+
+def _takes_list_of_bytes(values: list[bytes]):
+    return values
+
+
+def _takes_bytes_or_text(value: bytes | str):
+    return value
 
 
 class TestToolFromSchemaDict:
@@ -134,3 +160,49 @@ class TestToolParametersTypeGuard:
                 detail="An int is neither a dict nor an iterable of Parameter objects.",
                 parameters=1,
             )
+
+
+class TestToolInferredParameterTypes:
+    @pytest.mark.parametrize(
+        "function",
+        [
+            _takes_bytes,
+            _takes_decimal,
+            _takes_custom_type,
+            _takes_list_of_bytes,
+            _takes_bytes_or_text,
+        ],
+    )
+    def test_rejects_unmapped_annotations(self, function):
+        with pytest.raises(ValueError, match="Unmapped Python type"):
+            Tool.from_function(function)
+
+    def test_unannotated_parameter_keeps_generic_object_schema(self):
+        def accepts_anything(value):
+            return value
+
+        tool = Tool.from_function(accepts_anything)
+
+        assert tool.parameters[0].param_type == "object"
+
+
+class TestToolFromMCP:
+    def test_invalid_parameter_schema_raises_creation_error(self):
+        mcp_tool = type(
+            "MCPTool",
+            (),
+            {
+                "name": "broken_tool",
+                "description": "Has an invalid parameter schema.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"value": {"type": "not-a-schema-type"}},
+                },
+            },
+        )()
+
+        with pytest.raises(
+            ToolCreationError,
+            match="failed to parse schema for parameter 'value'",
+        ):
+            Tool.from_mcp(mcp_tool)

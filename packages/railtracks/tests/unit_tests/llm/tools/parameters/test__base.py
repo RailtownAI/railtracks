@@ -1,7 +1,11 @@
 import json
 
 import pytest
-from railtracks.llm.tools.parameters._base import Parameter, ParameterType
+from railtracks.llm.tools.parameters._base import (
+    Parameter,
+    ParameterType,
+    _strict_parameter_type_from_python_type,
+)
 
 
 def test_parameter_init_and_repr():
@@ -42,9 +46,21 @@ def test_param_type_from_python_type():
     assert ParameterType.from_python_type(type(None)) == ParameterType.NONE
 
 
+def test_parameter_types_include_supported_python_types():
+    assert ParameterType.ARRAY.python_types == (list, tuple, set)
+    assert ParameterType.NONE.python_types == (type(None), "none")
+
+
 def test_param_type_from_python_type_unrecognized_type():
     # Verify graceful fallback to OBJECT for unannotated/unrecognized types
     assert ParameterType.from_python_type(bytes) == ParameterType.OBJECT
+
+
+def test_strict_parameter_type_from_python_type_rejects_unrecognized_type():
+    assert _strict_parameter_type_from_python_type(dict) == ParameterType.OBJECT
+
+    with pytest.raises(ValueError, match="Unmapped Python type"):
+        _strict_parameter_type_from_python_type(bytes)
 
 
 def test_explicit_param_type_strictly_rejects_unrecognized_string():

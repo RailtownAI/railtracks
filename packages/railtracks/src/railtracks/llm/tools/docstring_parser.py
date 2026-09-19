@@ -8,7 +8,8 @@ parameter descriptions and other documentation.
 import re
 from typing import Dict
 
-from .parameters import Parameter, ParameterType
+from .parameters import Parameter
+from .parameters._base import _strict_parameter_type_from_python_type
 
 # Section headers that can follow an "Args:" block and therefore end it. Matched
 # case-sensitively, so a lowercase parameter of the same name still parses.
@@ -40,9 +41,11 @@ def _is_section_header(line: str) -> bool:
 def param_from_python_type(
     py_type, name: str = "", description: str | None = None, required: bool = True
 ) -> Parameter:
-    mapped_type = ParameterType.from_python_type(py_type).value
     return Parameter(
-        name=name, param_type=mapped_type, description=description, required=required
+        name=name,
+        param_type=_strict_parameter_type_from_python_type(py_type),
+        description=description,
+        required=required,
     )
 
 
