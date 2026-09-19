@@ -4,29 +4,37 @@ from typing import Any, Dict, List, Optional, TypeVar, Union
 
 
 class ParameterType(str, Enum):
-    STRING = "string"
-    INTEGER = "integer"
-    FLOAT = "number"
-    BOOLEAN = "boolean"
-    ARRAY = "array"
-    OBJECT = "object"
-    NONE = "null"
+    def __new__(
+        cls, value: str, python_types: tuple[type | str, ...]
+    ) -> "ParameterType":
+        """Create a JSON schema enum member with its supported Python types."""
+        member = str.__new__(cls, value)
+        member._value_ = value
+        member.python_types = python_types
+        return member
+
+    STRING = ("string", (str,))
+    INTEGER = ("integer", (int,))
+    FLOAT = ("number", (float,))
+    BOOLEAN = ("boolean", (bool,))
+    ARRAY = ("array", (list, tuple, set))
+    OBJECT = ("object", (dict,))
+    NONE = ("null", (type(None), "none"))
 
     @classmethod
-    def from_python_type(cls, py_type: type) -> "ParameterType":
-        mapping = {
-            str: cls.STRING,
-            int: cls.INTEGER,
-            float: cls.FLOAT,
-            bool: cls.BOOLEAN,
-            list: cls.ARRAY,
-            tuple: cls.ARRAY,
-            set: cls.ARRAY,
-            dict: cls.OBJECT,
-            type(None): cls.NONE,
-            "none": cls.NONE,  # in case of recieving a list of string (type = ["object", "none"])
-        }
-        return mapping.get(py_type, cls.OBJECT)
+    def from_python_type(cls, py_type: type | str) -> "ParameterType":
+        for parameter_type in cls:
+            if py_type in parameter_type.python_types:
+                return parameter_type
+        return cls.OBJECT
+
+
+def _strict_parameter_type_from_python_type(py_type: type | str) -> ParameterType:
+    """Return the schema type for a supported Python type or raise."""
+    for parameter_type in ParameterType:
+        if py_type in parameter_type.python_types:
+            return parameter_type
+    raise ValueError(f"Unmapped Python type: {py_type}")
 
 
 def _normalize_param_type_scalar(
@@ -36,10 +44,7 @@ def _normalize_param_type_scalar(
     if isinstance(param_type, ParameterType):
         return param_type.value
     if isinstance(param_type, type):
-        mapped = ParameterType.from_python_type(param_type)
-        if mapped == ParameterType.OBJECT and param_type is not dict:
-            raise ValueError(f"Unmapped Python type: {param_type}")
-        return mapped.value
+        return _strict_parameter_type_from_python_type(param_type).value
     if isinstance(param_type, str):
         if param_type == "none":
             return ParameterType.NONE.value
