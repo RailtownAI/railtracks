@@ -562,7 +562,7 @@ def test_null_cost_surfaces_as_null_in_llm_traces(
         *_llm_session_events("trace-unpriced", "node-t", "llm-t", total_cost=None),
     )
 
-    response = TestClient(app).get("/api/llm-traces")
+    response = TestClient(app).get("/api/v2/llm-traces")
 
     assert response.status_code == 200
     rows = response.json()["rows"]
@@ -637,7 +637,7 @@ def test_failed_call_cost_surfaces_as_zero_in_llm_traces(
         *_llm_failure_session_events("failed-call", "node-f", "llm-f"),
     )
 
-    response = TestClient(app).get("/api/llm-traces")
+    response = TestClient(app).get("/api/v2/llm-traces")
 
     assert response.status_code == 200
     rows = response.json()["rows"]
