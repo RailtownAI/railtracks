@@ -177,6 +177,26 @@ class TestStaleFiles:
 
         assert stale_files(tmp_path, None, []) == ([], [])
 
+    def test_a_traversal_path_is_never_removed(self, tmp_path):
+        """A committed manifest must not aim removal outside the skill dir (#1483)."""
+        outside = tmp_path / "project-notes.md"
+        outside.write_text("precious\n", encoding="utf-8")
+        destination = tmp_path / "skill"
+        destination.mkdir()
+        record = InstallRecord(
+            skill="fixture-skill",
+            target="claude",
+            package_version="1.0.0",
+            files=(
+                InstalledFile(path="../project-notes.md", sha256=file_digest(outside)),
+            ),
+        )
+
+        removable, edited = stale_files(destination, record, [])
+
+        assert (removable, edited) == ([], [])
+        assert outside.is_file()
+
 
 class TestPrune:
     def test_removes_files_and_the_directories_they_empty(self, tmp_path):

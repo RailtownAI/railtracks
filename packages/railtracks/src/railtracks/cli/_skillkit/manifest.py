@@ -159,13 +159,34 @@ def is_ours_unmodified(
         return False
 
 
+def _within(destination: Path, relative: str) -> Path | None:
+    """Resolve `relative` under `destination`, or None if it would escape it.
+
+    A manifest is meant to be committed, so a crafted entry — `..` components or an
+    absolute path — could otherwise aim removal at a file outside the skill
+    directory. Anything that does not resolve to `destination` or a path inside it
+    is refused rather than hashed or deleted.
+    """
+    candidate = destination / relative
+    try:
+        resolved = candidate.resolve()
+        base = destination.resolve()
+    except OSError:
+        return None
+    if resolved != base and base not in resolved.parents:
+        return None
+    return candidate
+
+
 def stale_files(
     destination: Path, previous: InstallRecord | None, keeping: list[Path]
 ) -> tuple[list[Path], list[Path]]:
     """Split what the last install wrote and this one does not into (removable, edited).
 
     `removable` is recorded, unshipped and byte-for-byte unchanged. `edited` is the
-    rest: present but altered since it was written, so not ours to delete.
+    rest: present but altered since it was written, so not ours to delete. Recorded
+    paths that escape `destination` are ignored — a committed manifest is not trusted
+    to point removal outside the skill directory.
     """
     if previous is None:
         return [], []
@@ -176,7 +197,9 @@ def stale_files(
     for recorded in previous.files:
         if recorded.path in keep:
             continue
-        path = destination / recorded.path
+        path = _within(destination, recorded.path)
+        if path is None:
+            continue  # crafted path that escapes the skill dir — never ours to touch
         if not path.is_file():
             continue  # already gone
         if is_ours_unmodified(path, destination, previous):
