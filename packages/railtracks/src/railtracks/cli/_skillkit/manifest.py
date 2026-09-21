@@ -239,8 +239,9 @@ def version_skew(previous: InstallRecord | None) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Legacy install detection — report only
-# TODO: drop this section once the older install shapes are out of circulation.
+# Legacy install detection — report only.
+# Deleted once the older install shapes are out of circulation, tracked in
+# https://github.com/RailtownAI/railtracks/issues/1534
 # ---------------------------------------------------------------------------
 
 COPILOT_INSTRUCTIONS = Path(".github") / "copilot-instructions.md"
