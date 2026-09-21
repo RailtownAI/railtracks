@@ -38,6 +38,7 @@ from ._skillkit import (
     CODEX,
     COPILOT,
     CURSOR,
+    InstallTarget,
     Skill,
     discover_skills,
     install_skill_directory,
@@ -63,19 +64,55 @@ from .io import (
 # Skill registry — derived from the bundled skill directories on disk
 # ---------------------------------------------------------------------------
 
-# The rich objects; the source of truth for everything about a bundled skill.
-SKILL_REGISTRY: dict[str, Skill] = discover_skills()
+# The rich objects are the source of truth for everything about a bundled skill;
+# `SKILLS` is the lighter meta view used for help output and lookups. Both are
+# populated on first use by `_load_skills`.
+SKILL_REGISTRY: dict[str, Skill]
+SKILLS: dict[str, dict]
 
-# Legacy skills dict, used for CLI help output and to generate the per-tool SKILL.md files.
-SKILLS: dict[str, dict] = {
-    name: skill.as_meta() for name, skill in SKILL_REGISTRY.items()
+# Tool name -> where and how its skills install. Also the source of the tool list.
+_TOOL_TARGETS: dict[str, InstallTarget] = {
+    "claude": CLAUDE,
+    "codex": CODEX,
+    "copilot": COPILOT,
+    "cursor": CURSOR,
 }
 
-SUPPORTED_TOOLS = ("claude", "codex", "copilot", "cursor")
+SUPPORTED_TOOLS = tuple(_TOOL_TARGETS)
+
+
+def _load_skills() -> None:
+    """Discover the bundled skills into `SKILL_REGISTRY`/`SKILLS`, once, on first use.
+
+    Deferred rather than run at import: `railtracks.cli.io` is pulled in by unrelated
+    code paths (`rt.connect`, the visualizer), so scanning — and possibly raising on
+    — every bundled `SKILL.md` at import time would take down callers that never
+    touch skill management. This reaches only someone actually running `railtracks add`.
+    """
+    if "SKILL_REGISTRY" in globals():
+        return
+    registry = discover_skills()
+    globals()["SKILL_REGISTRY"] = registry
+    globals()["SKILLS"] = {name: skill.as_meta() for name, skill in registry.items()}
+
+
+def _registry() -> dict[str, Skill]:
+    """The bundled skills as `Skill` objects, discovering them on first use."""
+    _load_skills()
+    return globals()["SKILL_REGISTRY"]
+
+
+def _skills() -> dict[str, dict]:
+    """The bundled skills as the lighter meta view, discovering them on first use."""
+    _load_skills()
+    return globals()["SKILLS"]
 
 
 def __getattr__(name: str):
-    """Lazy exports for tests (app / RailtracksServer require railtracks[visual])."""
+    """Lazy exports: the skill registry (deferred discovery) and visual-only server bits."""
+    if name in ("SKILL_REGISTRY", "SKILLS"):
+        _load_skills()
+        return globals()[name]
     if name == "app":
         from . import viz_server
 
@@ -290,83 +327,54 @@ def update_railtracks(beta: bool = False):
 # ---------------------------------------------------------------------------
 
 
-def _add_claude(skill: Skill, force: bool) -> list[Path]:
-    """Install a skill for Claude Code as a skill directory, and report what it wrote.
-
-    Thin by design: everything here that another assistant would also need lives in
-    `_skillkit.install`, parameterised by root path and projection, so the remaining
-    handlers become the same two values rather than the same function again.
-    """
-    return install_skill_directory(skill, CLAUDE, force)
-
-
-def _add_codex(skill: Skill, force: bool) -> list[Path]:
-    """Install a skill for Codex as a skill directory under .agents/skills."""
-    return install_skill_directory(skill, CODEX, force)
-
-
-def _add_copilot(skill: Skill, force: bool) -> list[Path]:
-    """Install a skill for GitHub Copilot as a skill directory under .github/skills."""
-    return install_skill_directory(skill, COPILOT, force)
-
-
-def _add_cursor(skill: Skill, force: bool) -> list[Path]:
-    """Install a skill for Cursor as a skill directory under .cursor/skills."""
-    return install_skill_directory(skill, CURSOR, force)
-
-
-_TOOL_HANDLERS = {
-    "claude": _add_claude,
-    "codex": _add_codex,
-    "copilot": _add_copilot,
-    "cursor": _add_cursor,
-}
-
-
 def add_skill(spec: str, force: bool = False) -> list[Path] | None:
     """Parse <tool>:<skill-name|all> and install skills for the given AI coding tool.
 
-    Returns the files written for a single-skill install (for handlers that report
-    them); returns None for a bulk `all` install.
+    Returns the files written for a single-skill install; returns None for a bulk
+    `all` install.
     """
+    skills = _skills()
+
     if ":" not in spec:
         print_error(
             f"Invalid format '{spec}'. Expected '<tool>:<skill>', e.g. 'claude:agent-builder'."
         )
         print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
-        print_status(f"Available skills: {', '.join(SKILLS)}")
+        print_status(f"Available skills: {', '.join(skills)}")
         sys.exit(1)
 
     tool, skill_name = spec.split(":", 1)
     tool = tool.lower()
 
-    if tool not in _TOOL_HANDLERS:
+    if tool not in _TOOL_TARGETS:
         print_error(
             f"Unknown tool '{tool}'. Supported tools: {', '.join(SUPPORTED_TOOLS)}"
         )
         sys.exit(1)
+    target = _TOOL_TARGETS[tool]
 
-    if skill_name != "all" and skill_name not in SKILLS:
+    if skill_name != "all" and skill_name not in skills:
         print_error(
-            f"Unknown skill '{skill_name}'. Available skills: {', '.join(SKILLS)}"
+            f"Unknown skill '{skill_name}'. Available skills: {', '.join(skills)}"
         )
         sys.exit(1)
 
+    registry = _registry()
     if skill_name != "all":
-        return _TOOL_HANDLERS[tool](SKILL_REGISTRY[skill_name], force)
+        return install_skill_directory(registry[skill_name], target, force)
 
     # Bulk install: every bundled skill for this tool. An installer exits 0 when the
     # user declines an overwrite; treat that as a skip and continue. Any other exit is
     # a real failure and propagates, stopping the run.
     installed = skipped = 0
-    for name in SKILLS:
-        if name not in SKILL_REGISTRY:
+    for name in skills:
+        if name not in registry:
             print_error(
-                f"Unknown skill '{name}'. Available skills: {', '.join(SKILLS)}"
+                f"Unknown skill '{name}'. Available skills: {', '.join(skills)}"
             )
             sys.exit(1)
         try:
-            _TOOL_HANDLERS[tool](SKILL_REGISTRY[name], force)
+            install_skill_directory(registry[name], target, force)
         except SystemExit as exc:
             if exc.code != 0:
                 raise
@@ -390,7 +398,7 @@ def list_skills() -> None:
     print()
     print(f"  {bold}Available skills:{rst}")
     print()
-    for skill_name, meta in SKILLS.items():
+    for skill_name, meta in _skills().items():
         print(f"  {cyan}{bold}{skill_name}{rst}  {dim}{meta['argument_hint']}{rst}")
         print(f"    {meta['description']}")
         print()
@@ -506,7 +514,7 @@ def _run_add(args: list[str]) -> None:
             "Usage: railtracks add [--force] <tool>:<skill> | railtracks add --list"
         )
         print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
-        print_status(f"Available skills: {', '.join(SKILLS)}")
+        print_status(f"Available skills: {', '.join(_skills())}")
         sys.exit(1)
 
     force = "--force" in args
