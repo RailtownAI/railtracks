@@ -9,6 +9,7 @@ previous install left and this one does not ship, and record the result.
 
 from __future__ import annotations
 
+import math
 import shutil
 import sys
 from dataclasses import dataclass
@@ -89,6 +90,22 @@ class InstallTarget:
     body: Callable[[Skill], str]
 
 
+def _yaml_line(key: str, value: Any) -> str:
+    """One `key: value` frontmatter line, with `value` escaped as YAML requires.
+
+    A value such as `"Build agents: tools and flows"` would break the block if
+    interpolated raw, so it goes through the dumper like any other scalar. `width`
+    is unbounded so a long description stays on one line rather than folding.
+    """
+    return yaml.safe_dump(
+        {key: value},
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
+        width=math.inf,
+    )
+
+
 def render_frontmatter(
     ordered: Sequence[tuple[str, Any]],
     extra: Mapping[str, Any] | None = None,
@@ -97,11 +114,12 @@ def render_frontmatter(
 ) -> str:
     """Render a frontmatter block from projected keys plus a target's `tools:` block.
 
-    `ordered` is emitted verbatim in the given order; a value of None omits its key.
-    `extra` is the target's `tools.<assistant>` block, dumped through YAML so that
-    author-written values and unknown keys survive unchanged.
+    `ordered` is emitted in the given order, each value serialised through YAML; a
+    value of None omits its key. `extra` is the target's `tools.<assistant>` block,
+    dumped through YAML so that author-written values and unknown keys survive
+    unchanged.
     """
-    lines = [f"{key}: {value}\n" for key, value in ordered if value is not None]
+    lines = [_yaml_line(key, value) for key, value in ordered if value is not None]
 
     emitted = {key for key, value in ordered if value is not None}
     passthrough = {}
@@ -118,7 +136,11 @@ def render_frontmatter(
     # Force block style: a one-key flow map after block-style lines is ambiguous YAML.
     rendered_extra = (
         yaml.safe_dump(
-            passthrough, default_flow_style=False, sort_keys=False, allow_unicode=True
+            passthrough,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+            width=math.inf,
         )
         if passthrough
         else ""
@@ -134,6 +156,26 @@ def _planned_files(skill: Skill, destination: Path) -> list[tuple[Path, Path | N
         for relative in skill.supporting_files
     ]
     return planned
+
+
+def _directory_conflicts(
+    planned: list[tuple[Path, Path | None]], destination: Path
+) -> list[Path]:
+    """Existing files that sit where this install now needs a directory.
+
+    A previous install may have shipped `references/api` as a file where this one
+    ships `references/api/index.md`. The file blocks the directory, so the `mkdir`
+    below would raise `FileExistsError` after `SKILL.md` was already rewritten.
+    These are the ancestors to clear first.
+    """
+    conflicts: list[Path] = []
+    for path, _ in planned:
+        parent = path.parent
+        while parent != destination and destination in parent.parents:
+            if parent.is_file() and parent not in conflicts:
+                conflicts.append(parent)
+            parent = parent.parent
+    return conflicts
 
 
 def install_skill_directory(
@@ -159,16 +201,28 @@ def install_skill_directory(
     if skew:
         print_status(skew)
 
+    conflicts = _directory_conflicts(planned, destination)
     at_risk = [
         path
         for path, _ in planned
         if path.exists() and not is_ours_unmodified(path, destination, previous)
+    ]
+    # A file blocking a needed directory is at risk too, unless it is our own output.
+    at_risk += [
+        path
+        for path in conflicts
+        if not is_ours_unmodified(path, destination, previous)
     ]
     if at_risk and not force:
         # One clash reads better named directly; several, as the directory they share.
         if not confirm_overwrite(at_risk[0] if len(at_risk) == 1 else destination):
             print_status("Aborted.")
             sys.exit(0)
+
+    # Clear files standing where directories must go; consent for any non-ours file
+    # was just obtained above (or waived by --force), matching the planned overwrites.
+    for path in conflicts:
+        path.unlink(missing_ok=True)
 
     written: list[Path] = []
     for path, source in planned:

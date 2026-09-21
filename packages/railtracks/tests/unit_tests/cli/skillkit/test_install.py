@@ -106,7 +106,7 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
         self.assertEqual(
             self._installed(),
             "---\nname: fixture-skill\ndescription: A fixture.\n"
-            'argument-hint: "[what to do]"\n---\n\n# Heading\n\nBody text.\n',
+            "argument-hint: '[what to do]'\n---\n\n# Heading\n\nBody text.\n",
         )
 
     def test_absent_argument_hint_omits_the_key(self):
@@ -122,6 +122,19 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
         content = self._installed()
         self.assertNotIn("argument-hint", content)
         self.assertNotIn("None", content)
+
+    def test_a_description_with_yaml_metacharacters_stays_valid(self):
+        """A colon in a projected value must not produce unparseable YAML (#1483)."""
+        skill = _write_skill(
+            self.source,
+            "fixture-skill",
+            'name: fixture-skill\ndescription: "Build agents: tools and flows"\n',
+        )
+
+        _add_claude(skill, force=False)
+
+        frontmatter = yaml.safe_load(self._installed().split("---\n")[1])
+        self.assertEqual(frontmatter["description"], "Build agents: tools and flows")
 
     def test_tools_claude_block_is_merged_into_the_frontmatter(self):
         """Including keys this version has never heard of — they are forward support."""
@@ -404,6 +417,29 @@ class TestSkillSync(unittest.TestCase):
             str(c.args[0]) for c in mock_status.call_args_list if c.args
         )
         self.assertIn("0.0.1", reported)
+
+    def test_a_file_upgraded_to_a_directory_reinstalls_cleanly(self):
+        """A release moving `references/api` -> `references/api/index.md` (#1483).
+
+        The stale file blocks the directory `mkdir`; the sync must clear it first
+        rather than raise `FileExistsError` after SKILL.md is already rewritten.
+        """
+        first = self._fixture({"references/api": "# Flat file\n"})
+        _add_claude(first, force=True)
+
+        (first.directory / "references/api").unlink()
+        (first.directory / "references/api").mkdir()
+        (first.directory / "references/api/index.md").write_text(
+            "# Now a directory\n", encoding="utf-8"
+        )
+
+        # The blocking file is our own unmodified output, so no prompt is due.
+        with patch("builtins.input", side_effect=AssertionError("prompted anyway")):
+            _add_claude(load_skill(first.directory), force=False)
+
+        installed = Path(".claude/skills/fixture-skill/references/api/index.md")
+        self.assertEqual(installed.read_text(encoding="utf-8"), "# Now a directory\n")
+        self.assertFalse(Path(".claude/skills/fixture-skill/references/api").is_file())
 
     def test_a_bundled_skill_installs_and_records_itself(self):
         """The whole path, through the CLI entry point rather than the handler."""

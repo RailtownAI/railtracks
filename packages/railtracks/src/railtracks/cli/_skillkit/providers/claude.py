@@ -13,33 +13,18 @@ from ..install import InstallTarget, render_frontmatter
 from ..registry import Skill
 
 
-def _quote(value: str) -> str:
-    """Emit a string as a double-quoted YAML scalar.
-
-    `argument-hint` is the only field that reaches SKILL.md pre-quoted — its value
-    can contain brackets and colons and we want it to survive a round-trip through
-    the reader unchanged. Every other field is either a bare identifier or a nested
-    structure `yaml.safe_dump` renders correctly on its own.
-    """
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
 def _frontmatter(skill: Skill) -> str:
     """Project a skill into the frontmatter Claude Code consumes.
 
     `name` and `description` map across directly; `argument-hint` is emitted when
-    the skill has one; `tools.claude` supplies everything else.
+    the skill has one; `tools.claude` supplies everything else. Every value is
+    escaped by `render_frontmatter`, so brackets and colons survive a round-trip.
     """
     return render_frontmatter(
         (
             ("name", skill.name),
             ("description", skill.description),
-            (
-                "argument-hint",
-                _quote(skill.argument_hint)
-                if skill.argument_hint is not None
-                else None,
-            ),
+            ("argument-hint", skill.argument_hint),
         ),
         skill.tools.get("claude"),
         skill_name=skill.name,
