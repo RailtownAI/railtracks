@@ -6,11 +6,9 @@ pages by MkDocs. Type-checked in CI via scripts/docs_validation.sh.
 
 from __future__ import annotations
 
-
 # --8<-- [start: retry]
 import railtracks as rt
 from railtracks.prebuilt.middleware import Retry
-
 
 # Retry is slot-agnostic: use it as node middleware, model middleware, or both.
 RetryAgent = rt.agent_node(
@@ -46,10 +44,10 @@ TimedAgent = rt.agent_node(
 
 # --8<-- [start: max_calls]
 import railtracks as rt
-from railtracks.prebuilt.middleware import MaxCalls
+from railtracks.prebuilt.middleware import MaxCalls, MaxCallsExceededError
 
 
-def some_api_call():
+def some_api_call() -> str:
     return "API response"
 
 
@@ -58,6 +56,22 @@ LimitedApiCall = rt.function_node(
     some_api_call,
     middleware=[MaxCalls(max_calls=3, custom_message="API call budget exhausted")],
 )
+
+
+@rt.function_node
+async def use_the_budget() -> list[str]:
+    """Four calls against a budget that covers three."""
+    results = []
+    for _ in range(4):
+        try:
+            results.append(await rt.call(LimitedApiCall))
+        except MaxCallsExceededError as exc:
+            results.append(str(exc))
+    return results
+
+
+print(rt.Flow("max-calls-demo", entry_point=use_the_budget).invoke())
+# ['API response', 'API response', 'API response', 'API call budget exhausted']
 # --8<-- [end: max_calls]
 
 
@@ -77,7 +91,6 @@ LockedAgent = rt.agent_node(
 # --8<-- [start: context_injection]
 import railtracks as rt
 from railtracks.prebuilt.middleware import ContextInjection
-
 
 # ContextInjection is model-level only. It fills {placeholders} in the prompt
 # from the active session context before each model call.

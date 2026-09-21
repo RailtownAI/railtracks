@@ -17,6 +17,21 @@ readme = "README.md"
 license = { file = "LICENSE" }
 dynamic = ["version", "description"]
 requires-python = ">=3.10"
+keywords = [
+    "agent",
+    "agent-harness",
+    "agentic",
+    "agentic-harness",
+    "agents",
+    "ai",
+    "harness",
+    "harness-framework",
+    "llm",
+    "llm-harness",
+    "mcp",
+    "multi-agent",
+    "tool-calling",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
