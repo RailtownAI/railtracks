@@ -10,10 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import yaml
-from railtracks.cli import (
-    _add_claude,
-    add_skill,
-)
+from railtracks.cli import add_skill
 from railtracks.cli._skillkit import (
     CLAUDE,
     CODEX,
@@ -27,6 +24,11 @@ from railtracks.cli._skillkit import (
     read_record,
     strip_skill_arguments,
 )
+
+
+def _add_claude(skill, force=False):
+    """Install a skill for Claude Code — the target this suite exercises by name."""
+    return install_skill_directory(skill, CLAUDE, force)
 
 
 def _write_skill(root, name, frontmatter, body="# Heading\n\nBody text.\n", files=None):
@@ -898,3 +900,27 @@ class TestInstallTargetParameters(unittest.TestCase):
             content, "---\nname: fixture-skill\n---\n\nUse the request here."
         )
         self.assertFalse(Path(".claude").exists())
+
+
+class TestStripSkillArguments(unittest.TestCase):
+    """`$ARGUMENTS` handling for the targets that never substitute it."""
+
+    def test_intro_line_leading_the_body_leaves_no_blank_line(self):
+        """An intro line as the first body line must not leave a stray leading blank."""
+        stripped = strip_skill_arguments("Do the thing: $ARGUMENTS\n\nMore body.\n")
+
+        self.assertEqual(stripped, "More body.")
+
+    def test_intro_line_after_a_blank_keeps_one_separator(self):
+        """Removing a mid-body intro must not collapse two paragraphs into a double blank."""
+        stripped = strip_skill_arguments(
+            "Heading\n\nDo the thing: $ARGUMENTS\n\nMore body.\n"
+        )
+
+        self.assertEqual(stripped, "Heading\n\nMore body.")
+
+    def test_intro_line_after_text_still_separates_the_paragraphs(self):
+        """The intro's trailing blank becomes the single separator, not a glued join."""
+        stripped = strip_skill_arguments("Heading\nDo it: $ARGUMENTS\n\nMore body.\n")
+
+        self.assertEqual(stripped, "Heading\n\nMore body.")

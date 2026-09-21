@@ -55,9 +55,11 @@ def strip_skill_arguments(content: str) -> str:
             kept.append(line)
             continue
 
-        # Drop the whole intro line (and its trailing blank); reword inline mentions in place.
+        # Drop the whole intro line and its trailing blank, but keep exactly one blank
+        # between the surrounding paragraphs: skip the following blank only when there
+        # is nothing before the intro (it led the body) or the line before it is blank.
         if line.rstrip().endswith(": $ARGUMENTS"):
-            drop_next_blank = bool(kept) and not kept[-1].strip()
+            drop_next_blank = not kept or not kept[-1].strip()
             continue
 
         kept.append(

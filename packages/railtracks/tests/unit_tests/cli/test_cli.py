@@ -18,7 +18,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from railtracks.cli import (
-    _TOOL_HANDLERS,
     SKILLS,
     SUPPORTED_TOOLS,
     _visual_dependencies_available,
@@ -611,7 +610,7 @@ def test_single_skill_preserves_skip_exit(tool, tmp_path, monkeypatch):
 @pytest.mark.parametrize("code", [1, 2, "installation failed"])
 def test_add_all_propagates_installation_errors(code, monkeypatch, capsys):
     handler = MagicMock(side_effect=SystemExit(code))
-    monkeypatch.setitem(_TOOL_HANDLERS, "claude", handler)
+    monkeypatch.setattr("railtracks.cli.install_skill_directory", handler)
     with pytest.raises(SystemExit) as exc:
         add_skill("claude:all")
     assert exc.value.code == code
@@ -622,7 +621,7 @@ def test_add_all_propagates_installation_errors(code, monkeypatch, capsys):
 def test_add_all_propagates_missing_skill(monkeypatch):
     monkeypatch.setitem(SKILLS, "missing-bundle", {})
     handler = MagicMock()
-    monkeypatch.setitem(_TOOL_HANDLERS, "claude", handler)
+    monkeypatch.setattr("railtracks.cli.install_skill_directory", handler)
     with pytest.raises(SystemExit) as exc:
         add_skill("claude:all")
     assert exc.value.code == 1
