@@ -46,7 +46,7 @@ rt.llm.OpenAICompatibleProvider(
 4. **Define the agent** — call `rt.agent_node()` with (note: it returns a class/type, so use PascalCase for the variable name):
    - A descriptive name
    - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both (passing both raises `NodeCreationError`)
-   - `llm` — default to `rt.llm.AnthropicLLM("claude-sonnet-5")` unless the user specifies otherwise
+   - `llm` — follow the provider the project already uses, or one whose API key is configured (providers and their key variables: https://docs.railtracks.org/documentation/getting_started/llm_setup/); otherwise ask the user which LLM to use
    - `system_message` — a clear, specific system prompt
 5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=agent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(agent, ...)` inside it.
 6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example so the user can run it immediately.
