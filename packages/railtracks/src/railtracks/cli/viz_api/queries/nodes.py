@@ -100,7 +100,7 @@ def list_llm_totals_by_node(
       SELECT node_id,
              SUM(COALESCE(input_tokens, 0))   AS input_tokens,
              SUM(COALESCE(output_tokens, 0))  AS output_tokens,
-             SUM(COALESCE(total_cost, 0.0))   AS total_cost,
+             SUM(total_cost)                  AS total_cost,
              MAX(timestamp)                   AS last_at
       FROM resp
       GROUP BY node_id
@@ -179,7 +179,7 @@ def get_agent_llm_details(
     totals AS (
       SELECT SUM(COALESCE(input_tokens, 0))   AS input_tokens,
              SUM(COALESCE(output_tokens, 0))  AS output_tokens,
-             SUM(COALESCE(total_cost, 0.0))   AS total_cost
+             SUM(total_cost)                  AS total_cost
       FROM resp
     ),
     {_LLM_CREATION_JOIN_CTE.lstrip()}

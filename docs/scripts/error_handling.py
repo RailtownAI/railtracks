@@ -91,7 +91,7 @@ from railtracks.exceptions import (
 try:
     # Setup phase
     node = rt.agent_node(
-        llm=rt.llm.OpenAILLM("gpt-4o"),
+        llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
         system_message="You are a helpful assistant",
     )
 
@@ -197,8 +197,8 @@ except LLMError as err:
 import railtracks as rt
 from railtracks.exceptions import LLMRateLimitError, LLMTimeoutError, LLMError
 
-cheap = rt.agent_node(llm=rt.llm.OpenAILLM("gpt-4o-mini"), name="Cheap")
-strong = rt.agent_node(llm=rt.llm.AnthropicLLM("claude-sonnet-4-5"), name="Strong")
+cheap = rt.agent_node(llm=rt.llm.OpenAILLM("gpt-5.4-mini"), name="Cheap")
+strong = rt.agent_node(llm=rt.llm.AnthropicLLM("claude-sonnet-5"), name="Strong")
 
 
 @rt.function_node
