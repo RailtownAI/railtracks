@@ -39,7 +39,7 @@ llm_agg AS (
   SELECT scope_id,
          SUM(COALESCE(input_tokens, 0)) AS input_tokens,
          SUM(COALESCE(output_tokens, 0)) AS output_tokens,
-         SUM(COALESCE(total_cost, 0.0)) AS total_cost
+         SUM(total_cost) AS total_cost
   FROM llm
   WHERE event_type = 'llm.response'
   GROUP BY scope_id
@@ -92,7 +92,9 @@ SELECT s.scope_id                                    AS session_id,
        c.duration_seconds                            AS duration,
        COALESCE(l.input_tokens, 0)                   AS input_tokens,
        COALESCE(l.output_tokens, 0)                  AS output_tokens,
-       COALESCE(l.total_cost, 0.0)                   AS total_cost,
+       CASE WHEN l.input_tokens IS NULL THEN 0.0
+            ELSE l.total_cost
+       END                                           AS total_cost,
        COALESCE(n.node_count, 0)                     AS node_count,
        -- The rolled-up status, in SQL rather than Python, so the same
        -- definition serves the row, the status filter and the stat tiles. Two
