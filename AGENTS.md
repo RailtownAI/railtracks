@@ -1,7 +1,8 @@
 ## Repository Overview
 
-Railtracks (`rt`) is a Python framework for building agentic systems: agents, tools, and multi-step flows
-defined entirely in standard Python (no YAML/DSLs). This is a `uv` workspace monorepo:
+Railtracks (`rt`) is a Python framework for building agent harnesses: the loop, tools, context, controls,
+and record around a model, defined entirely in standard Python (no YAML/DSLs). This is a `uv` workspace
+monorepo:
 
 ```
 Root
@@ -24,10 +25,16 @@ with `mkdocs serve` (see Common Commands below). Doc URLs mirror the source path
 
 ## Setup
 
+Python 3.10+ (`requires-python = ">=3.10"`, CI runs 3.10) and [`uv`](https://docs.astral.sh/uv/).
+
 ```bash
 uv sync --group dev
 uv pip install -e "packages/railtracks[all]"   # or a specific extra, e.g. [visual], [retrieval]
 ```
+
+`[all]` pulls in the whole RAG stack (connectors, OCR, vector-store backends). For the retrieval pipeline
+without that weight, `[retrieval-core]` is the lighter opt-in (chunking, embedding, in-memory store, local
+loaders).
 
 ## Common Commands
 
@@ -52,6 +59,7 @@ python scripts/check_dependencies_sorted.py
 # Docs
 mkdocs serve            # local preview at localhost:8000
 mkdocs build --strict --verbose
+./scripts/docs_validation.sh   # type-check the snippets under docs/scripts/
 ```
 
 CI (`.github/workflows/pr_tests.yaml`) runs `ruff-lint` and `check-licenses` in parallel, plus a `changes`
@@ -66,15 +74,68 @@ default pytest run via root `pyproject.toml` `addopts`; other `end_to_end` tests
 disk; opt into persistence testing with `RAILTRACKS_ALLOW_PERSISTENCE=1` and the `allow_persistence`
 fixture.
 
+## Smoke test
+
+A fast end-to-end sanity check after a change (needs no API key):
+
+```bash
+python -c "
+import railtracks as rt
+
+def number_of_chars(text: str) -> int:
+    '''Count the characters in some text.
+
+    Args:
+        text: The text to measure.
+    Returns:
+        The character count.
+    '''
+    return len(text)
+
+CharCount = rt.function_node(number_of_chars)
+flow = rt.Flow(name='Char Count', entry_point=CharCount)
+assert flow.invoke('hello') == 5
+print('✓ Basic functionality test passed!')
+"
+```
+
+## CLI
+
+The CLI ships inside the SDK at `packages/railtracks/src/railtracks/cli/`:
+
+```bash
+railtracks init          # create .railtracks/ and download the visualizer UI
+railtracks update        # update the visualizer UI
+railtracks viz           # start the visualizer (requires railtracks[visual])
+railtracks add --list    # list the bundled coding-assistant skills
+railtracks add claude:agent-builder    # install a bundled skill for an assistant
+```
+
+`init`/`update` download UI assets from a CDN and fail offline — expected, not a bug. The bundled skills
+`add` installs (`agent-builder`, `middleware`, `rag-pipeline`) live under `cli/skills/<name>/` as skill
+directories (a `SKILL.md` plus any supporting files); `add <tool>:<skill>` projects each into the
+assistant's native layout (Claude, Codex, Copilot, Cursor) and `<tool>:all` installs every one.
+
+## Common issues
+- **`ModuleNotFoundError` for an optional dependency** — heavy deps are gated behind extras and exposed via
+  lazy module-level `__getattr__` imports. Install the extra that owns it (`railtracks[retrieval]`,
+  `railtracks[visual]`, …) rather than adding a top-level import.
+- **`railtracks init` fails with a hostname error** — it downloads visualizer assets from a CDN; expected
+  in network-restricted environments.
+
 ## Architecture
 
 ### Core building blocks
 
 For usage patterns (how to define tools/agents/flows, structured output, agent-as-tool, MCP tools), see
-`packages/railtracks/src/railtracks/cli/skills/agent-builder.md` (the same content bundled for package
+`packages/railtracks/src/railtracks/cli/skills/agent-builder/SKILL.md` (the same content bundled for package
 users via `railtracks add claude:agent-builder`) or the docs linked below; don't re-teach usage here. Just
 where each concept lives internally, plus a doc link for the how-to:
 
+- **Harness**: not a class, the assembled whole (loop + tool surface + context + controls + record). The
+  page mapping each part to the primitive that covers it is `docs/documentation/harness/overview.md`
+  ([Agent Harness](https://docs.railtracks.org/documentation/harness/overview/)), with runnable versions
+  in `examples/harness/`. Use it as the framing when someone asks "how do I build an agent that does X".
 - **Tool** (`rt.function_node`): `built_nodes/function/node.py`.
   [Function Tools](https://docs.railtracks.org/documentation/agent_design/tools/function_tools/).
 - **Agent** (`rt.agent_node`): `built_nodes/llm/node.py`; always a single dynamically built node, no
@@ -146,7 +207,7 @@ where each concept lives internally, plus a doc link for the how-to:
 ## Code conventions
 
 See `.claude/skills/code-style/SKILL.md` for this repo's code-style conventions. It's a
-project-scoped Claude Code skill: Claude auto-invokes it based on its description whenever it's writing or
+project-scoped coding-assistant skill: the assistant auto-invokes it based on its description whenever it's writing or
 editing code here, which is a model-driven nudge from the skill matching, not a hard-enforced hook, so
 still sanity-check the diff against it yourself.
 

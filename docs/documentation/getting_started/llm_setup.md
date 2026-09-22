@@ -79,7 +79,7 @@ Not sure which to use? A few pointers:
 
 | Situation | Recommendation |
 |---|---|
-| Getting started quickly | OpenAI (`gpt-5`) or Anthropic (`claude-sonnet-4-6`) |
+| Getting started quickly | OpenAI (`gpt-5.4-mini`) or Anthropic (`claude-sonnet-5`) |
 | Privacy-sensitive / offline | Ollama with a local model |
 | Cost-sensitive at scale | Check per-token pricing on each provider's site |
 | Need multimodal (vision) | OpenAI, Anthropic, or Gemini |

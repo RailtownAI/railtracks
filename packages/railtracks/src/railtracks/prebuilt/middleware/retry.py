@@ -20,7 +20,7 @@ class Retry(Middleware[Any, Any, Never]):
 
         rt.agent_node(
             "Agent",
-            llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
+            llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
             middleware=[middleware.Retry(3)],  # retry the whole node
             model_middleware=[middleware.Retry(3)],  # retry each raw model call
         )

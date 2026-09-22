@@ -228,7 +228,7 @@ async def search_knowledge_base(query: str) -> str:
 # 4. Build the agent
 agent = rt.agent_node(
     name="KnowledgeAgent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful assistant. Use the knowledge base to answer questions.",
     tool_nodes=[search_knowledge_base],
 )
