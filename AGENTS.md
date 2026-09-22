@@ -16,7 +16,7 @@ Root
 
 ## Accessing docs
 
-Full documentation lives at https://docs.railtracks.org/ (works even if this file is read standalone, without the repo). Locally, the source is under `docs/documentation/` and `docs/observability/`; preview with `mkdocs serve` (see Common Commands below). Doc URLs mirror the source path, e.g. `docs/documentation/invocation/flows.md` -> `https://docs.railtracks.org/documentation/invocation/flows/`.
+Full documentation is at https://docs.railtracks.org/ and is reachable without a checkout of this repo. The source is under `docs/`, with navigation in `mkdocs.yml`. Doc URLs mirror the source path, e.g. `docs/documentation/invocation/flows.md` -> `https://docs.railtracks.org/documentation/invocation/flows/`. To verify a docs change, run `mkdocs build --strict`, which fails on broken links and nav entries.
 
 ## Setup
 
@@ -50,12 +50,12 @@ pytest packages/railtracks/tests/unit_tests/nodes/test_x.py::test_name -v
 python scripts/check_dependencies_sorted.py
 
 # Docs
-mkdocs serve            # local preview at localhost:8000
+mkdocs serve            # blocking preview server at localhost:8000; not a verification step
 mkdocs build --strict --verbose
 ./scripts/docs_validation.sh   # type-check the snippets under docs/scripts/
 ```
 
-CI (`.github/workflows/pr_tests.yaml`) runs `ruff-lint` and `check-licenses` in parallel, plus a `changes` job that path-filters which areas were touched. `unit_tests` (includes the integration tests and an inline dependency-sort check), `retrieval_tests`, `documentation_validation` (`mkdocs build --strict`), and a standalone `pyproject_dependency_order` job all wait on those three and only run when `changes` says their area is affected. Run the lint/format/test commands above locally before pushing.
+CI (`.github/workflows/pr_tests.yaml`) runs `ruff-lint` and `check-licenses` in parallel, plus a `changes` job that path-filters which areas were touched. `unit_tests` (includes the integration tests and an inline dependency-sort check), `retrieval_tests`, `documentation_validation` (`mkdocs build --strict`), and a standalone `pyproject_dependency_order` job all wait on those three and only run when `changes` says their area is affected. Before reporting a change as done, run `ruff check --fix`, `ruff format`, and the tests for the area you touched.
 
 Note: `llm_live_tests` and `end_to_end/retrieval` require real API keys/network and are excluded from the default pytest run via root `pyproject.toml` `addopts`; other `end_to_end` tests run by default. `RAILTRACKS_TEST_MODE` is auto-enabled during tests (via `conftest.py`) to disable session persistence to disk; opt into persistence testing with `RAILTRACKS_ALLOW_PERSISTENCE=1` and the `allow_persistence` fixture.
 
@@ -91,22 +91,22 @@ The CLI ships inside the SDK at `packages/railtracks/src/railtracks/cli/`:
 ```bash
 railtracks init          # create .railtracks/ and download the visualizer UI
 railtracks update        # update the visualizer UI
-railtracks viz           # start the visualizer (requires railtracks[visual])
+railtracks viz           # start the visualizer server, blocking (requires railtracks[visual])
 railtracks add --list    # list the bundled coding-assistant skills
 railtracks add claude:agent-builder    # install a bundled skill for an assistant
 ```
 
-`init`/`update` download UI assets from a CDN and fail offline — expected, not a bug. The bundled skills `add` installs (`agent-builder`, `middleware`, `rag-pipeline`) live under `cli/skills/<name>/` as skill directories (a `SKILL.md` plus any supporting files); `add <tool>:<skill>` projects each into the assistant's native layout (Claude, Codex, Copilot, Cursor) and `<tool>:all` installs every one.
+The bundled skills `add` installs (`agent-builder`, `middleware`, `rag-pipeline`) live under `cli/skills/<name>/` as skill directories (a `SKILL.md` plus any supporting files); `add <tool>:<skill>` projects each into the assistant's native layout (Claude, Codex, Copilot, Cursor) and `<tool>:all` installs every one.
 
 ## Common issues
 - **`ModuleNotFoundError` for an optional dependency** — heavy deps are gated behind extras and exposed via lazy module-level `__getattr__` imports. Install the extra that owns it (`railtracks[retrieval]`, `railtracks[visual]`, …) rather than adding a top-level import.
-- **`railtracks init` fails with a hostname error** — it downloads visualizer assets from a CDN; expected in network-restricted environments.
+- **`railtracks init` or `railtracks update` fails with a hostname error** — both download visualizer assets from a CDN, so they fail without network access. This is expected, not a bug to fix.
 
 ## Architecture
 
 ### Core building blocks
 
-For usage patterns (how to define tools/agents/flows, structured output, agent-as-tool, MCP tools), see `packages/railtracks/src/railtracks/cli/skills/agent-builder/SKILL.md` (the same content bundled for package users via `railtracks add claude:agent-builder`) or the docs linked below; don't re-teach usage here. Just where each concept lives internally, plus a doc link for the how-to:
+For usage patterns (how to define tools/agents/flows, structured output, agent-as-tool, MCP tools), read `packages/railtracks/src/railtracks/cli/skills/agent-builder/SKILL.md` (the skill `railtracks add <tool>:agent-builder` installs for package users) or the doc linked on each entry. This list maps each concept to its source file:
 
 - **Harness**: not a class, the assembled whole (loop + tool surface + context + controls + record). The page mapping each part to the primitive that covers it is `docs/documentation/harness/overview.md` ([Agent Harness](https://docs.railtracks.org/documentation/harness/overview/)), with runnable versions in `examples/harness/`. Use it as the framing when someone asks "how do I build an agent that does X".
 - **Tool** (`rt.function_node`): `built_nodes/function/node.py`. [Function Tools](https://docs.railtracks.org/documentation/agent_design/tools/function_tools/).
@@ -114,8 +114,8 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - **Flow**: `orchestration/flow.py`. [Flows](https://docs.railtracks.org/documentation/invocation/flows/).
 - **`rt.call(...)`**: `interaction/_call.py`, alongside `call_batch`/`astream`/`broadcast`/`couple`. [Call](https://docs.railtracks.org/documentation/invocation/call/).
 - **Agent-as-tool**: `rt.ToolManifest(...)` in `nodes/manifest.py`. [Agents as Tools](https://docs.railtracks.org/documentation/agent_design/tools/agents_as_tools/).
-- **Middleware**: `middleware/chain.py` (see "Things to avoid" below for the `middleware=`/`model_middleware=` gotcha). The LLM-call hooks were renamed `before_llm`/`after_llm` -> `pre_llm`/`post_llm` and `after_node` -> `post_node`; old names still work as deprecated shims. [Middleware](https://docs.railtracks.org/documentation/agent_design/middleware/overview/).
-- **Human-in-the-loop verifier**: split into `rt.prebuilt.middleware.pre_verifier`/`post_verifier` (`prebuilt/middleware/pre_verifier.py`/`post_verifier.py`); `Verdict`/`VerifierRejectedError` still in `middleware/verdict.py`. There's no top-level `rt.verifier` anymore. [Human in the Loop](https://docs.railtracks.org/observability/human_in_the_loop/hil/).
+- **Middleware**: `middleware/chain.py` (see "Things to avoid" below for the `middleware=`/`model_middleware=` gotcha). Use `pre_llm`/`post_llm`/`post_node` in new code; `before_llm`/`after_llm`/`after_node` are deprecated aliases kept only for compatibility. [Middleware](https://docs.railtracks.org/documentation/agent_design/middleware/overview/).
+- **Human-in-the-loop verifier**: `rt.prebuilt.middleware.pre_verifier`/`post_verifier` (`prebuilt/middleware/pre_verifier.py`/`post_verifier.py`); `Verdict`/`VerifierRejectedError` are in `middleware/verdict.py`. There is no top-level `rt.verifier`; don't generate code that uses one. [Human in the Loop](https://docs.railtracks.org/observability/human_in_the_loop/hil/).
 
 ### Package layout under `src/railtracks/`
 - `nodes/`: base `Node` class, `ToolManifest`, tool-callable protocol.
@@ -123,7 +123,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - `orchestration/`: `Flow`, `FlowConnection`.
 - `execution/`: coordinator/execution-strategy/task running the request graph.
 - `interaction/`: `rt.call`, `call_batch`, `astream`, `broadcast`, `couple` (in-node calls to other nodes/agents).
-- `middleware/`: generic node-level `Middleware`/`wrap_node`/`post_node` (`after_node` deprecated shim), plus `Verdict`/`VerifierRejectedError`. The human-in-the-loop gate itself now lives in `prebuilt/`.
+- `middleware/`: generic node-level `Middleware`/`wrap_node`/`post_node` (`after_node` deprecated shim), plus `Verdict`/`VerifierRejectedError`. The human-in-the-loop gate itself is in `prebuilt/`.
 - `pubsub/`: internal message bus (request creation/success/failure events).
 - `state/`: execution state/forest tracking, session info.
 - `context/`: `rt.context` get/put/update/delete (run-scoped context vars).
@@ -143,7 +143,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - `validation/`: node-creation/invocation-time checks (duplicate tool names/params, etc.).
 - `utils/`: config, logging, serialization, profiling, context-injection helpers.
 - `cli/`: `railtracks` CLI (`init`/`viz`/`add`) plus bundled skill docs distributed to end users via `railtracks add claude:<skill>`, unrelated to this repo's own `.claude/skills/`. `viz_api/` is the DuckDB-backed query/route layer behind the `viz` command.
-- `integrations/`: currently an empty placeholder package, no functionality yet.
+- `integrations/`: empty placeholder package; there is nothing in it to import.
 - `scope_manager.py`: `ScopeManager` protocol for node/middleware scope tracking.
 - `paths.py`: `resolve_railtracks_home()`, resolves the `.railtracks` data directory (env var, then walk-up-from-cwd, then a warned fallback).
 - `_session.py`: `Session`/`session()` decorator.
@@ -155,7 +155,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 
 ## Code conventions
 
-See `.claude/skills/code-style/SKILL.md` for this repo's code-style conventions. It's a project-scoped coding-assistant skill: the assistant auto-invokes it based on its description whenever it's writing or editing code here, which is a model-driven nudge from the skill matching, not a hard-enforced hook, so still sanity-check the diff against it yourself.
+Follow `.claude/skills/code-style/SKILL.md` for every code change. Assistants that load skills from `.claude/skills/` may pull it in automatically based on its description, but that is not guaranteed: if it is not already in your context, read it before editing code, and check your diff against it before finishing.
 
 ## Notes on dependency structure
 - Root `pyproject.toml` = dev tooling only (`docs`/`test`/`lint` groups via `uv`). Never add runtime package dependencies here.
