@@ -20,9 +20,9 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 ### LLM Providers
 
 ```python
-rt.llm.AnthropicLLM("claude-sonnet-4-6")
-rt.llm.OpenAILLM("gpt-5")
-rt.llm.GeminiLLM("gemini-3-flash-preview")
+rt.llm.AnthropicLLM("claude-sonnet-5")
+rt.llm.OpenAILLM("gpt-5.4-mini")
+rt.llm.GeminiLLM("gemini-3.7-flash")
 rt.llm.OpenAICompatibleProvider(
     "my-model", api_base="https://api.example.com/v1", api_key="..."
 )
@@ -40,7 +40,7 @@ rt.llm.OpenAICompatibleProvider(
 4. **Define the agent** — call `rt.agent_node()` with (note: it returns a class/type, so use PascalCase for the variable name):
    - A descriptive name
    - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both (passing both raises `NodeCreationError`)
-   - `llm` — default to `rt.llm.AnthropicLLM("claude-sonnet-4-6")` unless the user specifies otherwise
+   - `llm` — default to `rt.llm.AnthropicLLM("claude-sonnet-5")` unless the user specifies otherwise
    - `system_message` — a clear, specific system prompt
 5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=agent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(agent, ...)` inside it.
 6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example so the user can run it immediately.
@@ -66,7 +66,7 @@ def my_tool(param: str) -> str:
     return f"result for {param}"
 
 
-llm = rt.llm.AnthropicLLM("claude-sonnet-4-6")
+llm = rt.llm.AnthropicLLM("claude-sonnet-5")
 # agent_node returns a class (type), not an instance — use PascalCase
 MyAgent = rt.agent_node(
     "Agent Name",
