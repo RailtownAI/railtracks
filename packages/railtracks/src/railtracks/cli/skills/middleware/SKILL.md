@@ -1,3 +1,9 @@
+---
+name: middleware
+description: Use middleware as part of your railtracks agent. Use when you want build resilient and effective agents
+argument-hint: "[describe the middleware to implement]"
+---
+
 # Add Middleware to a Railtracks Agent or Node
 
 The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
