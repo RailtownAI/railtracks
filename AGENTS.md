@@ -32,7 +32,7 @@ uv pip install -e "packages/railtracks[all]"   # or a specific extra, e.g. [visu
 ## Common Commands
 
 ```bash
-# Lint / format (must pass before commit, CI enforces this)
+# Lint / format (CI enforces both)
 ruff check --fix
 ruff format
 
@@ -55,7 +55,7 @@ mkdocs build --strict --verbose
 ./scripts/docs_validation.sh   # type-check the snippets under docs/scripts/
 ```
 
-CI (`.github/workflows/pr_tests.yaml`) runs `ruff-lint` and `check-licenses` in parallel, plus a `changes` job that path-filters which areas were touched. `unit_tests` (includes the integration tests and an inline dependency-sort check), `retrieval_tests`, `documentation_validation` (`mkdocs build --strict`), and a standalone `pyproject_dependency_order` job all wait on those three and only run when `changes` says their area is affected. Before reporting a change as done, run `ruff check --fix`, `ruff format`, and the tests for the area you touched.
+CI (`.github/workflows/pr_tests.yaml`) runs `ruff-lint` and `check-licenses` in parallel, plus a `changes` job that path-filters which areas were touched. `unit_tests` (includes the integration tests and an inline dependency-sort check), `retrieval_tests`, `documentation_validation` (`mkdocs build --strict`), and a standalone `pyproject_dependency_order` job all wait on those three and only run when `changes` says their area is affected. Changes should pass `ruff check --fix`, `ruff format`, and the tests for the area touched.
 
 Note: `llm_live_tests` and `end_to_end/retrieval` require real API keys/network and are excluded from the default pytest run via root `pyproject.toml` `addopts`; other `end_to_end` tests run by default. `RAILTRACKS_TEST_MODE` is auto-enabled during tests (via `conftest.py`) to disable session persistence to disk; opt into persistence testing with `RAILTRACKS_ALLOW_PERSISTENCE=1` and the `allow_persistence` fixture.
 
@@ -155,7 +155,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 
 ## Code conventions
 
-Follow the code-style conventions for every code change. You should have a skill named `code-style` in your context; if you do not, read `.claude/skills/code-style/SKILL.md` before editing code. Check your diff against it before finishing.
+Follow the code-style conventions for every code change. You should have a skill named `code-style` in your context; if you do not, read `.claude/skills/code-style/SKILL.md` before editing code. Changes should be reviewed against it.
 
 ## Notes on dependency structure
 - Root `pyproject.toml` = dev tooling only (`docs`/`test`/`lint` groups via `uv`). Never add runtime package dependencies here.
