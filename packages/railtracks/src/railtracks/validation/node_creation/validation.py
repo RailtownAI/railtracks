@@ -3,8 +3,10 @@ from typing import (
     Any,
     Callable,
     Dict,
+    FrozenSet,
     Iterable,
     List,
+    Optional,
     Set,
     Tuple,
     Union,
@@ -31,7 +33,7 @@ from railtracks.utils.logging import get_rt_logger
 logger = get_rt_logger(__name__)
 
 
-def _model_field_annotations(annotation: Any) -> Iterable[Tuple[str, Any]]:
+def _model_field_annotations(annotation: Any) -> List[Tuple[str, Any]]:
     """Yield the ``(field name, annotation)`` pairs of a pydantic model.
 
     ``model_fields`` is used rather than ``__annotations__`` because pydantic has
@@ -45,12 +47,12 @@ def _model_field_annotations(annotation: Any) -> Iterable[Tuple[str, Any]]:
         The model's named field annotations, empty for anything else.
     """
     if not (isinstance(annotation, type) and issubclass(annotation, BaseModel)):
-        return ()
+        return []
 
     try:
         fields = annotation.model_fields
     except AttributeError:  # a model that pydantic never finished building
-        return ()
+        return []
 
     return [
         (name, field.annotation)
@@ -59,13 +61,21 @@ def _model_field_annotations(annotation: Any) -> Iterable[Tuple[str, Any]]:
     ]
 
 
-def _check_for_nested_dict(annotation: Any, param_name: str, path: str = "") -> None:
+def _check_for_nested_dict(
+    annotation: Any,
+    param_name: str,
+    path: str = "",
+    _seen: Optional[FrozenSet[type]] = None,
+) -> None:
     """Raise if ``annotation`` is, or contains, a dict type.
 
     Args:
         annotation: The annotation to inspect.
         param_name: The parameter the annotation came from, for the error message.
         path: Dotted path to the annotation within that parameter.
+        _seen: Models already being walked on this path. A model whose fields refer
+            back to it describes a finite type but an infinite annotation tree, so a
+            second visit adds nothing and must not recurse.
 
     Raises:
         NodeCreationError: If a dict is reachable from the annotation.
@@ -82,13 +92,20 @@ def _check_for_nested_dict(annotation: Any, param_name: str, path: str = "") -> 
             notes=notes,
         )
 
-    for field_name, field_annotation in _model_field_annotations(annotation):
+    seen = _seen or frozenset()
+    fields = _model_field_annotations(annotation)
+    if fields:
+        if annotation in seen:
+            return
+        seen = seen | {annotation}
+
+    for field_name, field_annotation in fields:
         _check_for_nested_dict(
-            field_annotation, param_name, f"{path or param_name}.{field_name}"
+            field_annotation, param_name, f"{path or param_name}.{field_name}", seen
         )
 
     for idx, arg in enumerate(getattr(annotation, "__args__", None) or ()):
-        _check_for_nested_dict(arg, param_name, f"{path or param_name}[{idx}]")
+        _check_for_nested_dict(arg, param_name, f"{path or param_name}[{idx}]", seen)
 
 
 def validate_function(func: Callable) -> None:

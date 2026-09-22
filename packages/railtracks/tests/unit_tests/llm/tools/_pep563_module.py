@@ -81,3 +81,33 @@ def unresolvable(value: DefinitelyNotDefined) -> str:  # noqa: F821
         value: Something.
     """
     return ""
+
+
+class Settings(BaseModel):
+    """Model whose dict field is only visible once its annotations are resolved."""
+
+    overrides: Dict[str, int]
+
+
+class NamedSettings(Settings):
+    """Subclass whose own annotations say nothing about the inherited dict field."""
+
+    label: str
+
+
+def takes_a_model_holding_a_dict(settings: Settings) -> str:
+    """The dict is a field of the model rather than the parameter itself.
+
+    Args:
+        settings: Configuration.
+    """
+    return ""
+
+
+def takes_a_model_inheriting_a_dict(settings: NamedSettings) -> str:
+    """The dict is inherited from a base model.
+
+    Args:
+        settings: Configuration.
+    """
+    return ""

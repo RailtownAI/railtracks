@@ -438,6 +438,59 @@ def test_dict_parameter_is_still_rejected_under_pep563():
         rt.function_node(pep563.takes_a_dict)
 
 
+def test_dict_field_of_a_model_is_rejected_under_pep563():
+    """A model's own ``__annotations__`` are strings here; its fields are not."""
+    with pytest.raises(NodeCreationError):
+        rt.function_node(pep563.takes_a_model_holding_a_dict)
+
+
+def test_inherited_dict_field_is_rejected():
+    """``__annotations__`` carries only a class's own fields; ``model_fields`` does not."""
+    with pytest.raises(NodeCreationError):
+        rt.function_node(pep563.takes_a_model_inheriting_a_dict)
+
+
+def test_self_referential_model_terminates():
+    """A model that refers back to itself has an infinite annotation tree."""
+
+    class TreeNode(BaseModel):
+        value: int
+        child: Optional["TreeNode"] = None
+
+    TreeNode.model_rebuild()
+
+    def walk(node: TreeNode) -> str:
+        """Walk a tree.
+
+        Args:
+            node: Where to start.
+        """
+        return ""
+
+    assert rt.function_node(walk) is not None
+
+
+def test_dict_inside_a_self_referential_model_is_still_rejected():
+    """The cycle guard must not stop the walk before it reaches every field."""
+
+    class Branch(BaseModel):
+        overrides: Dict[str, int]
+        child: Optional["Branch"] = None
+
+    Branch.model_rebuild()
+
+    def walk(node: Branch) -> str:
+        """Walk a branch.
+
+        Args:
+            node: Where to start.
+        """
+        return ""
+
+    with pytest.raises(NodeCreationError):
+        rt.function_node(walk)
+
+
 # ================================ manifest validation ================================
 
 
