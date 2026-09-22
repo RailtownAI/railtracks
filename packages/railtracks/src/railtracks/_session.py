@@ -89,7 +89,7 @@ class Session:
 
         if flow_name is None:
             warnings.warn(
-                "Sessions should be tied to a flow for better observability and state management. Please use the Flow object to create and manage your sessions (see __ for more details). This warning will become an error in future versions.",
+                "Sessions should be tied to a flow for better observability and state management. Please use the Flow object to create and manage your sessions (see https://docs.railtracks.org/documentation/invocation/flows/ for more details). This warning will become an error in future versions.",
                 DeprecationWarning,
             )
 
