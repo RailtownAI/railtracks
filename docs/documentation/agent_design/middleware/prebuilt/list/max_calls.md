@@ -1,12 +1,12 @@
-# Max Calls
+# MaxCalls
 
-`Max Calls` is a middleware that limits the number of calls to a node or model. This can be useful if you want tools to be called just once per workflow, or in general if you want to limit the number of calls to a tool.
+`MaxCalls` is a middleware that limits the number of calls to a node or model. This can be useful if you want tools to be called just once per workflow, or in general if you want to limit the number of calls to a tool.
 
 ```python
 --8<-- "docs/scripts/prebuilt_middleware.py:max_calls"
 ```
 
-Because it only controls the wrapped call, `Max Calls` works in both
+Because it only controls the wrapped call, `MaxCalls` works in both
 `middleware=` (capping whole-node invocations) and `model_middleware=` (capping raw model calls inside the agent tool loop). The limit is enforced on the complete call in the selected slot.
 
 ### Workflow Run Scoping
