@@ -33,7 +33,7 @@ pip install 'railtracks[visual]'
 
 === "Claude Code"
 
-    Installs a skill file at `.claude/skills/agent-builder/SKILL.md`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.
+    Installs a skill directory at `.claude/skills/agent-builder/`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.
 
     ```bash
     railtracks add claude:agent-builder
@@ -44,29 +44,41 @@ pip install 'railtracks[visual]'
         .claude/
         └── skills/
             └── agent-builder/
-                └── SKILL.md   ← railtracks agent-building knowledge
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
+
+    !!! note "Supporting files"
+        A skill can ship more than `SKILL.md`; `references/`, `scripts/`, and so on. The whole
+        directory is copied, with its sub-paths intact. Claude Code loads a supporting file only
+        when `SKILL.md` links it, on demand, so nothing extra enters the context until it is needed.
 
 === "GitHub Copilot"
 
-    Appends the skill to `.github/copilot-instructions.md`, which Copilot reads as workspace-level instructions in every chat.
+    Installs a skill directory at `.github/skills/agent-builder/`. Copilot auto-discovers skills in `.github/skills` and loads one on demand when its description matches what you're working on.
 
     ```bash
     railtracks add copilot:agent-builder
     ```
 
-    ??? success "What gets created / updated"
+    ??? success "What gets created"
         ```
         .github/
-        └── copilot-instructions.md   ← skill appended inside marker comments
+        └── skills/
+            └── agent-builder/
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
 
-    !!! note "Idempotent"
-        Running this command twice is safe — it detects the existing section and skips it. Use `--force` to replace it.
+    !!! note "Migrated from copilot-instructions.md"
+        Older railtracks versions appended Copilot skills as a marker block inside
+        `.github/copilot-instructions.md`. That path is no longer written; if you have one from a
+        prior install, railtracks reports it on your next `railtracks add` and leaves it in place for
+        you to remove (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
 
 === "Cursor"
 
-    Installs a `.mdc` rules file at `.cursor/rules/agent-builder.mdc`. Cursor loads these rules when they match the current context.
+    Installs a skill directory at `.cursor/skills/agent-builder/`. Cursor discovers skills in `.cursor/skills` and loads one when its description matches the current context.
 
     ```bash
     railtracks add cursor:agent-builder
@@ -75,9 +87,38 @@ pip install 'railtracks[visual]'
     ??? success "What gets created"
         ```
         .cursor/
-        └── rules/
-            └── agent-builder.mdc   ← railtracks agent-building knowledge
+        └── skills/
+            └── agent-builder/
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
+
+    !!! note "Migrated from .cursor/rules"
+        Older railtracks versions installed Cursor skills as a single `.cursor/rules/<name>.mdc`
+        file. That path is no longer written; a `.mdc` from a prior install is reported on your next
+        `railtracks add` and left in place (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
+
+### Install all skills
+
+Use `all` instead of a skill name to install every bundled skill for an assistant:
+
+```bash
+railtracks add claude:all
+railtracks add codex:all
+railtracks add copilot:all
+railtracks add cursor:all
+```
+
+Each skill uses the same installer and overwrite behavior as an individual install.
+If a Copilot skill is already present, or you decline an overwrite for Claude Code,
+Codex, or Cursor, the bulk command keeps that skill unchanged and continues with
+the remaining skills. It reports installed and skipped totals at the end. Re-running
+the command installs any missing skills without requiring you to replace existing ones.
+To replace existing skills without prompting, append `--force`:
+
+```bash
+railtracks add claude:all --force
+```
 
 ## Options
 
@@ -117,7 +158,28 @@ Skills are bundled **inside the railtracks package**, no internet connection req
     These files are small and stable. Committing them means every developer on your team gets the same assistant behaviour out of the box, no manual setup required.
 
 !!! warning "Existing files"
-    For Claude Code and Cursor, if the target file already exists you'll be prompted to confirm before overwriting. Pass `--force` to skip the prompt.
+    You'll be prompted before anything is overwritten that railtracks can't confirm it wrote itself
+    and that nobody has edited since. Re-running the command over an untouched install doesn't
+    prompt; there's nothing of yours to lose. Pass `--force` to skip the prompt entirely.
+
+## Keeping Skills in Sync
+
+Each installed skill carries a small `.railtracks.json` recording what was written, which railtracks
+version wrote it, and a checksum per file. **Commit it along with the skill** — it's what makes the
+next install a sync rather than a copy:
+
+- A supporting file an older railtracks shipped and the current one dropped is **removed**, so a
+  stale page can't linger and get read by your assistant.
+- A file you've since edited is **never** removed. Railtracks reports it and leaves it alone.
+- Re-installing an unchanged skill rewrites the manifest byte-for-byte, so it won't churn your diff.
+- If the install came from a different railtracks version, you'll be told when you re-install.
+
+!!! note "Skills installed before this feature"
+    Older railtracks versions installed GitHub Copilot skills as a marker block inside
+    `.github/copilot-instructions.md`, and Cursor skills as `.cursor/rules/<name>.mdc`. Those
+    predate the manifest, so railtracks can spot them but won't delete them — a `.mdc` looks
+    identical to a rule you wrote yourself. You'll be told where they are; removing them is your
+    call.
 
 ## Example: Building Your First Agent
 

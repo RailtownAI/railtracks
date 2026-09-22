@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from railtracks.cli import (
     SKILLS,
@@ -422,37 +423,75 @@ class TestSkillInstallers(unittest.TestCase):
         self.assertFalse(Path(".claude").exists())
         self.assertFalse(Path(".cursor").exists())
 
-    def test_copilot_resolves_argument_placeholder(self):
-        """Copilot instructions are always-on context, so $ARGUMENTS never survives."""
-        add_skill("copilot:agent-builder")
+    def test_codex_resolves_argument_placeholder(self):
+        """Codex documents no argument substitution, so $ARGUMENTS never survives."""
+        add_skill("codex:agent-builder")
 
-        content = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+        content = Path(".agents/skills/agent-builder/SKILL.md").read_text(
+            encoding="utf-8"
+        )
         self.assertNotIn("$ARGUMENTS", content)
-        self.assertIn("<!-- railtracks:agent-builder:start -->", content)
-        self.assertIn("<!-- railtracks:agent-builder:end -->", content)
 
-    def test_copilot_reinstall_is_idempotent(self):
-        """Regenerating a skill in place must not duplicate it or add blank lines."""
-        add_skill("copilot:agent-builder")
-        first = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
+    def test_cursor_installs_skill_directory(self):
+        """Cursor skills ship as `.cursor/skills/<name>/SKILL.md`, not the legacy .mdc."""
+        add_skill("cursor:agent-builder")
 
-        add_skill("copilot:agent-builder", force=True)
-        second = Path(".github/copilot-instructions.md").read_text(encoding="utf-8")
-
-        self.assertEqual(first, second)
-
-    def test_copilot_preserves_surrounding_content(self):
-        """Hand-maintained sections around the markers must survive a regeneration."""
-        target = Path(".github/copilot-instructions.md")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("# Hand written preamble\n", encoding="utf-8")
-
-        add_skill("copilot:agent-builder")
-        add_skill("copilot:agent-builder", force=True)
-
+        target = Path(".cursor/skills/agent-builder/SKILL.md")
+        self.assertTrue(target.is_file())
         content = target.read_text(encoding="utf-8")
-        self.assertTrue(content.startswith("# Hand written preamble\n"))
-        self.assertEqual(content.count("<!-- railtracks:agent-builder:start -->"), 1)
+        self.assertTrue(content.startswith("---\nname: agent-builder\n"))
+        self.assertIn("description:", content)
+        self.assertIn("# Build a Railtracks Agent", content)
+
+    def test_cursor_does_not_write_the_legacy_mdc(self):
+        """D10: no legacy writes. The old .mdc path must not be touched."""
+        add_skill("cursor:agent-builder")
+
+        self.assertFalse(Path(".cursor/rules/agent-builder.mdc").exists())
+        self.assertFalse(Path(".cursor/rules").exists())
+
+    def test_cursor_does_not_use_other_tool_directories(self):
+        """Cursor installation must use its own skills discovery path."""
+        add_skill("cursor:agent-builder")
+
+        self.assertFalse(Path(".claude").exists())
+        self.assertFalse(Path(".agents").exists())
+        self.assertFalse(Path(".github").exists())
+
+    def test_cursor_resolves_argument_placeholder(self):
+        """Cursor has no argument-hint field and no substitution, so $ARGUMENTS goes."""
+        add_skill("cursor:agent-builder")
+
+        content = Path(".cursor/skills/agent-builder/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("$ARGUMENTS", content)
+
+    def test_copilot_installs_skill_directory(self):
+        """Copilot skills ship as `.github/skills/<name>/SKILL.md` — no marker block."""
+        add_skill("copilot:agent-builder")
+
+        target = Path(".github/skills/agent-builder/SKILL.md")
+        self.assertTrue(target.is_file())
+        content = target.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith("---\nname: agent-builder\n"))
+        self.assertIn("description:", content)
+        self.assertIn("# Build a Railtracks Agent", content)
+
+    def test_copilot_does_not_write_the_legacy_marker_block(self):
+        """D10: no legacy writes. copilot-instructions.md must not be touched."""
+        add_skill("copilot:agent-builder")
+
+        self.assertFalse(Path(".github/copilot-instructions.md").exists())
+
+    def test_copilot_resolves_argument_placeholder(self):
+        """Copilot's directory install ships no argument-hint field, so $ARGUMENTS goes."""
+        add_skill("copilot:agent-builder")
+
+        content = Path(".github/skills/agent-builder/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("$ARGUMENTS", content)
 
     def test_claude_keeps_argument_placeholder(self):
         """Claude Code substitutes $ARGUMENTS at invocation, so it must be preserved."""
@@ -462,6 +501,148 @@ class TestSkillInstallers(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("$ARGUMENTS", content)
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+@pytest.mark.parametrize("force", [False, True])
+def test_add_all_matches_individual_installs(tool, force, tmp_path, monkeypatch):
+    individual = tmp_path / "individual"
+    individual.mkdir()
+    bulk = tmp_path / "bulk"
+    bulk.mkdir()
+    if force:
+        for directory in (individual, bulk):
+            monkeypatch.chdir(directory)
+            for skill_name in SKILLS:
+                add_skill(f"{tool}:{skill_name}")
+
+    monkeypatch.chdir(individual)
+    for skill_name in SKILLS:
+        add_skill(f"{tool}:{skill_name}", force=force)
+    expected = {
+        path.relative_to(individual): path.read_bytes()
+        for path in individual.rglob("*")
+        if path.is_file()
+    }
+
+    monkeypatch.chdir(bulk)
+    args = ["railtracks", "add", f"{tool}:all"]
+    if force:
+        args.append("--force")
+    monkeypatch.setattr(sys, "argv", args)
+    with patch("builtins.input", side_effect=AssertionError("Unexpected prompt")):
+        main()
+    actual = {
+        path.relative_to(bulk): path.read_bytes()
+        for path in bulk.rglob("*")
+        if path.is_file()
+    }
+    assert actual == expected
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+@pytest.mark.parametrize(
+    "preinstalled", [[next(iter(SKILLS))], ["rag-pipeline"], list(SKILLS)]
+)
+def test_add_all_continues_after_skips(
+    tool, preinstalled, tmp_path, monkeypatch, capsys
+):
+    bulk = tmp_path / "bulk"
+    bulk.mkdir()
+    monkeypatch.chdir(bulk)
+    for name in preinstalled:
+        add_skill(f"{tool}:{name}")
+    for path in bulk.rglob("*"):
+        if path.is_file():
+            path.write_text(
+                path.read_text(encoding="utf-8") + "\n# Keep my edits\n",
+                encoding="utf-8",
+            )
+
+    individual = tmp_path / "individual"
+    shutil.copytree(bulk, individual)
+    monkeypatch.chdir(individual)
+    for name in SKILLS:
+        if name not in preinstalled:
+            add_skill(f"{tool}:{name}")
+    expected = {
+        path.relative_to(individual): path.read_bytes()
+        for path in individual.rglob("*")
+        if path.is_file()
+    }
+
+    monkeypatch.chdir(bulk)
+    capsys.readouterr()
+    with patch("builtins.input", return_value="n") as prompt:
+        add_skill(f"{tool}:all")
+    # Every target (Copilot included, now that it is a directory install) prompts once
+    # per edited pre-install, since the manifest can't prove those files are untouched.
+    assert prompt.call_count == len(preinstalled)
+    actual = {
+        path.relative_to(bulk): path.read_bytes()
+        for path in bulk.rglob("*")
+        if path.is_file()
+    }
+    assert actual == expected
+    installed = len(SKILLS) - len(preinstalled)
+    assert (
+        f"{installed} installed, {len(preinstalled)} skipped" in capsys.readouterr().out
+    )
+
+
+@pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
+def test_single_skill_preserves_skip_exit(tool, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    add_skill(f"{tool}:agent-builder")
+    # Edit the install so the re-run can't prove it's untouched and must prompt; a
+    # re-install over unedited output is silent by design (manifest checksums).
+    for path in tmp_path.rglob("*"):
+        if path.is_file():
+            path.write_text(
+                path.read_text(encoding="utf-8") + "\n# edited\n",
+                encoding="utf-8",
+            )
+    with patch("builtins.input", return_value="n"), pytest.raises(SystemExit) as exc:
+        add_skill(f"{tool}:agent-builder")
+    assert exc.value.code == 0
+
+
+@pytest.mark.parametrize("code", [1, 2, "installation failed"])
+def test_add_all_propagates_installation_errors(code, monkeypatch, capsys):
+    handler = MagicMock(side_effect=SystemExit(code))
+    monkeypatch.setattr("railtracks.cli.install_skill_directory", handler)
+    with pytest.raises(SystemExit) as exc:
+        add_skill("claude:all")
+    assert exc.value.code == code
+    handler.assert_called_once()
+    assert "installed," not in capsys.readouterr().out
+
+
+def test_add_all_propagates_missing_skill(monkeypatch):
+    monkeypatch.setitem(SKILLS, "missing-bundle", {})
+    handler = MagicMock()
+    monkeypatch.setattr("railtracks.cli.install_skill_directory", handler)
+    with pytest.raises(SystemExit) as exc:
+        add_skill("claude:all")
+    assert exc.value.code == 1
+    assert handler.call_count == len(SKILLS) - 1
+
+
+def test_help_mentions_bulk_install(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["railtracks"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 1
+    assert "railtracks add claude:all" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("spec", ["unknown:all", "claude:unknown"])
+def test_add_all_preserves_invalid_spec_errors(spec, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        add_skill(spec)
+    assert exc.value.code == 1
+    assert list(tmp_path.iterdir()) == []
 
 
 class TestListSkills(unittest.TestCase):

@@ -20,14 +20,14 @@ def weather_tool(city: str):
 #As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it
 WeatherToolCallAgent = rt.agent_node(
     name="Weather Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful assistant that answers weather-related questions.",
     tool_nodes=[rt.function_node(weather_tool)],
 )
 
 WeatherStructuredAgent = rt.agent_node(
     name="Weather Formatter Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="Extract the temperature and condition from the assistant's answer.",
     output_schema=WeatherResponse,
 )
@@ -43,7 +43,7 @@ async def weather_agent(prompt: str):
 #Now lets create a hiking planner agent
 HikingAgent = rt.agent_node(
     name="Hiking Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful assistant that answers questions about which cities have the best conditions for hiking. The user should specify multiple cities near them.",
     tool_nodes=[weather_agent],
 )
@@ -90,7 +90,7 @@ CoordinatorMessage = """You are a helpful assistant that will talk to users abou
 CodingAgent = rt.agent_node(
     name="Code Tool",
     system_message=CodingMessage,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     )
 
 #Wrap our Validation and file writing flow in a function
@@ -114,7 +114,7 @@ tool_nodes = {rt.function_node(code_agent, manifest=CodeManifest)}
 CoordinatorAgent = rt.agent_node(
     system_message=CoordinatorMessage,
     tool_nodes=tool_nodes,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     )
 
 flow = rt.Flow("coordinator-flow", entry_point=CoordinatorAgent)
@@ -130,28 +130,28 @@ class StructuredResponse(BaseModel):
 QualityAssuranceAgent = rt.agent_node(
     name="Quality Assurance Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     #adding all other arguments as needed
     )
 
 ProductExpertAgent = rt.agent_node(
     name="Product Expert Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     #adding all other arguments as needed
     )
 
 BillingAgent = rt.agent_node(
     name="Billing Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     #adding all other arguments as needed
     )
     
 TechnicalAgent = rt.agent_node(
     name="Technical Support Agent",
     output_schema=StructuredResponse,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     #adding all other arguments as needed
     )
 
@@ -201,7 +201,7 @@ tools = {rt.function_node(billing_tool), rt.function_node(technical_tool), rt.fu
 Coordinator = rt.agent_node(
     name="Coordinator Agent",
     tool_nodes=tools,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message=CoordinatorMessage,
 )
 

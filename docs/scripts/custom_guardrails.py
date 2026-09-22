@@ -52,7 +52,7 @@ def strip_sign_off(event: LLMGuardrailEvent) -> GuardrailDecision:
 # --8<-- [start: decorator_attach]
 Agent = rt.agent_node(
     name="custom-guard-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a concise assistant.",
     model_middleware=[block_passwords, strip_sign_off],
 )
@@ -72,7 +72,7 @@ class SafetyReport(BaseModel):
 
 Judge = rt.agent_node(
     name="safety-judge",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     output_schema=SafetyReport,
     system_message="You decide whether a user request is safe to answer.",
 )

@@ -1,3 +1,9 @@
+---
+name: rag-pipeline
+description: Build a RAG (retrieval-augmented generation) pipeline using railtracks. Use when the user wants to ingest documents into a vector store and retrieve relevant passages to answer questions.
+argument-hint: "[describe the data source and what you want to retrieve]"
+---
+
 # Build a Railtracks RAG Pipeline
 
 The user wants to build a retrieval-augmented generation (RAG) pipeline using the railtracks framework: $ARGUMENTS
@@ -259,7 +265,7 @@ async def search_knowledge_base(query: str) -> str:
 RagAgent = rt.agent_node(
     "RAG Agent",
     tool_nodes=[search_knowledge_base],
-    llm=rt.llm.AnthropicLLM("claude-sonnet-4-6"),
+    llm=rt.llm.AnthropicLLM("claude-sonnet-5"),
     system_message="You are a helpful assistant. Always search the knowledge base before answering.",
 )
 flow = rt.Flow(name="RAG Flow", entry_point=RagAgent)

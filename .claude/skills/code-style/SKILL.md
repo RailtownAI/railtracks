@@ -36,3 +36,8 @@ recurring, repeated PR review comment on railtracks, not a hypothetical style pr
 - **Consistency with siblings**: when adding a new variant of something that already has 2+ siblings
   (chunkers, loaders, LLM providers, etc.), match their existing shape/behavior rather than introducing an
   ad hoc one-off.
+- **Model references in examples**: use current, provider-documented model IDs in user-facing examples and
+  bundled CLI skills. Verify IDs against the provider's model catalog and deprecation page when adding or
+  refreshing examples. Keep a model-specific reference only when the example demonstrates behavior unique
+  to that model, and explain that choice nearby when it would otherwise look stale. Historical upgrade
+  guides and tests that intentionally exercise model-name passthrough may retain older IDs.
