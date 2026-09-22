@@ -155,7 +155,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 
 ## Code conventions
 
-Follow `.claude/skills/code-style/SKILL.md` for every code change. Assistants that load skills from `.claude/skills/` may pull it in automatically based on its description, but that is not guaranteed: if it is not already in your context, read it before editing code, and check your diff against it before finishing.
+Follow the code-style conventions for every code change. You should have a skill named `code-style` in your context; if you do not, read `.claude/skills/code-style/SKILL.md` before editing code. Check your diff against it before finishing.
 
 ## Notes on dependency structure
 - Root `pyproject.toml` = dev tooling only (`docs`/`test`/`lint` groups via `uv`). Never add runtime package dependencies here.
