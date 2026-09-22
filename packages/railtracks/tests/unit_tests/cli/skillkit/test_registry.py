@@ -144,7 +144,7 @@ class TestSchema:
 
         supporting = load_skill(directory).supporting_files
 
-        assert [str(p) for p in supporting] == ["helper.py", "references/api.md"]
+        assert [p.as_posix() for p in supporting] == ["helper.py", "references/api.md"]
 
     def test_bytecode_cache_is_not_a_supporting_file(self, tmp_path):
         """A skill that ships Python helpers must not list its own __pycache__."""
