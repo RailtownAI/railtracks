@@ -42,7 +42,7 @@ policy_reviewer = rt.agent_node(
         "reason in the order note. Anything else is fine. Given a refund "
         "request, decide whether to accept it and give a one-sentence reason."
     ),
-    llm=rt.llm.OpenAILLM("gpt-4o-mini"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     output_schema=PolicyReview,
 )
 
@@ -82,7 +82,7 @@ reply_drafter = rt.agent_node(
         "ask for money back, agree and confirm the exact dollar amount "
         "they'll be refunded."
     ),
-    llm=rt.llm.OpenAILLM("gpt-4o-mini"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
 )
 
 compliance_reviewer = rt.agent_node(
@@ -94,7 +94,7 @@ compliance_reviewer = rt.agent_node(
         "specialist will follow up instead, with no dollar amount. If the "
         "draft is already fine, leave revised_reply unset."
     ),
-    llm=rt.llm.OpenAILLM("gpt-4o-mini"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     output_schema=ComplianceReview,
 )
 
