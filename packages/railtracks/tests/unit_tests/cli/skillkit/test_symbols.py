@@ -17,7 +17,8 @@ import railtracks
 from railtracks.cli._skillkit.registry import discover_skills
 
 # `rt.` is the aliased import every skill uses; `railtracks.` is the spelled-out form.
-_ATTRIBUTE_PATTERN = re.compile(r"\b(?:rt|railtracks)\.[A-Za-z_][\w.]*")
+# A preceding `.` or `/` means a hostname or URL path, e.g. `docs.railtracks.org`.
+_ATTRIBUTE_PATTERN = re.compile(r"(?<![./])\b(?:rt|railtracks)\.[A-Za-z_][\w.]*")
 
 # Both the one-line and the parenthesised multi-line import forms.
 _IMPORT_PATTERN = re.compile(
@@ -151,6 +152,16 @@ def test_extraction_finds_symbols_in_prose_and_tables():
         "railtracks.retrieval.loaders",
         "railtracks.retrieval.loaders.CSVLoader",
         "railtracks.retrieval.loaders.TextLoader",
+    }
+
+
+def test_extraction_ignores_docs_urls():
+    """A link to the docs site names a host, not a package attribute."""
+    text = "Providers: https://docs.railtracks.org/documentation/getting_started/llm_setup/\n"
+
+    assert _extract_symbols(text) == set()
+    assert _extract_symbols("see https://docs.railtracks.org and rt.call") == {
+        "railtracks.call"
     }
 
 
