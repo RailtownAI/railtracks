@@ -136,11 +136,10 @@ def test_multiple_prebuilt_middleware_in_one_list():
     def add(x: str) -> str:
         return x
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(add, "hello")
-
-    assert asyncio.run(top_level()) == "hello"
+    assert (
+        rt.Flow("test_multiple_prebuilt_middleware_in_one_list", add).invoke("hello")
+        == "hello"
+    )
 
 
 def test_three_different_prebuilt_middleware_in_one_list():
@@ -152,8 +151,7 @@ def test_three_different_prebuilt_middleware_in_one_list():
     def echo(x: int) -> int:
         return x
 
-    async def top_level():
-        with rt.Session():
-            return await rt.call(echo, 42)
-
-    assert asyncio.run(top_level()) == 42
+    assert (
+        rt.Flow("test_three_different_prebuilt_middleware_in_one_list", echo).invoke(42)
+        == 42
+    )
