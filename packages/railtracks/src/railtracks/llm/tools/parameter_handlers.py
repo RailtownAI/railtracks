@@ -1,7 +1,7 @@
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 from pydantic import BaseModel
 
@@ -82,6 +82,55 @@ class UnionParameterHandler(ParameterHandler):
             options=options,
             description=description,
             required=required and not is_optional,
+        )
+
+
+class LiteralParameterHandler(ParameterHandler):
+    """Handler for Literal parameters."""
+
+    def can_handle(self, param_annotation: Any) -> bool:
+        from typing import get_origin
+
+        return get_origin(param_annotation) is Literal
+
+    def create_parameter(
+        self,
+        param_name: str,
+        param_annotation: Any,
+        description: Optional[str],
+        required: bool,
+    ) -> Parameter:
+        args = getattr(param_annotation, "__args__", [])
+
+        # Determine the base type of the literal arguments
+        types_set = set()
+        for x in args:
+            if isinstance(x, bool):
+                types_set.add("boolean")
+            elif isinstance(x, int):
+                types_set.add("integer")
+            elif isinstance(x, float):
+                types_set.add("number")
+            elif x is None:
+                types_set.add("null")
+            elif isinstance(x, str):
+                types_set.add("string")
+            else:
+                types_set.add("string")
+
+        if not types_set:
+            param_type = "string"
+        elif len(types_set) == 1:
+            param_type = types_set.pop()
+        else:
+            param_type = sorted(types_set)
+
+        return Parameter(
+            name=param_name,
+            param_type=param_type,
+            description=description,
+            required=required,
+            enum=list(args) if args else None,
         )
 
 
