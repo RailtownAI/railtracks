@@ -13,7 +13,7 @@ to_dos = rt.prebuilt.tools.ToDoToolSet(
 Agent = rt.agent_node(
     name="Test Agent",
     tool_nodes=[*to_dos.tool_set(), ], # this creates a list of tools your agent can access
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="..."
 )
 # --8<-- [end: todos]
@@ -38,7 +38,7 @@ to_dos = rt.prebuilt.tools.ToDoToolSet(callback=on_todo_added)
 agent = rt.agent_node(
     name="Report Agent",
     tool_nodes=[*to_dos.tool_set()],
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message=rt.prebuilt.tools.ToDoToolSet.prompt() + "\nGenerate a monthly sales report.",
 )
 # --8<-- [end: todo_callback]

@@ -122,10 +122,11 @@ def _llm_calls_cte(*, with_payload: bool) -> str:
 
     ``llm.failure`` carries the message history it was sent, the node and LLM it
     belongs to, and the exception — but none of the response columns, which the
-    view leaves null. That is exactly the shape we want downstream: tokens and
-    cost ``COALESCE`` to zero (nothing was reported, and nothing is billed for a
-    call that never came back), and latency stays null so an error sorts last in
-    both directions rather than reading as the fastest call in the run.
+    view leaves null. For cost: nothing is billed for a call that never returned,
+    so ``total_cost`` is set to ``0.0`` for failure rows rather than left as
+    ``NULL`` (which would read as "pricing unknown" in the UI). Tokens and latency
+    stay null — tokens are genuinely absent, and a null latency sorts errors last
+    in both directions rather than reading as the fastest call in the run.
 
     All three trace queries build on this one CTE so a row can't be listed
     without being counted, or counted without being listed. The payload columns
@@ -149,7 +150,10 @@ def _llm_calls_cte(*, with_payload: bool) -> str:
              reported_model_name,
              input_tokens,
              output_tokens,
-             total_cost,
+             CASE WHEN event_type = 'llm.failure'
+                  THEN 0.0
+                  ELSE total_cost
+             END                                   AS total_cost,
              latency,
              exception_name,
              exception_message,
@@ -272,7 +276,7 @@ def list_llm_trace_rows(
       r.exception_message                            AS error_message,
       COALESCE(r.input_tokens, 0)                    AS input_tokens,
       COALESCE(r.output_tokens, 0)                   AS output_tokens,
-      COALESCE(r.total_cost, 0.0)                    AS total_cost,
+      r.total_cost                                    AS total_cost,
       r.latency                                      AS latency_seconds,
       CAST(r.message_input AS VARCHAR)               AS message_input_json,
       CAST(r.output AS VARCHAR)                      AS output_json
