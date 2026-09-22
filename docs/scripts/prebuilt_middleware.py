@@ -108,3 +108,23 @@ flow = rt.Flow(
 )
 # flow.invoke("Who are you helping?")  ->  the model sees "You are helping Alex."
 # --8<-- [end: context_injection]
+
+
+# --8<-- [start: conversation_memory]
+import railtracks as rt
+from railtracks.prebuilt.middleware import ConversationMemory
+
+# ConversationMemory is node-level: it preserves and appends conversation
+# history across repeated invocations automatically.
+memory = ConversationMemory()
+ChatAgent = rt.agent_node(
+    name="chat-demo",
+    llm=rt.llm.OpenAILLM("gpt-4o"),
+    middleware=[memory],
+)
+
+flow = rt.Flow("ChatFlow", entry_point=ChatAgent)
+# flow.invoke("What is your name?")
+# flow.invoke("What did I just ask?")  -> Agent remembers Turn 1!
+# --8<-- [end: conversation_memory]
+
