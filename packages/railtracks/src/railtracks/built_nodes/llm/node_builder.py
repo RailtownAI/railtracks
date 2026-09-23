@@ -88,12 +88,14 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         casted_instance._node_name = name
         casted_instance._node_class = "Agent"
 
+        # Middleware are shared policy objects, not per-node payload state: a
+        # MaxCalls budget or a Lock handed to two agents must be the same object
+        # in both, and must stay the instance the caller still holds. Only the
+        # list is copied.
         unwrapped_model_middleware: list[ModelMiddleware] = (
-            list(deepcopy(model_middleware)) if model_middleware is not None else []
+            list(model_middleware) if model_middleware is not None else []
         )
-        unwrapped_middleware = (
-            list(deepcopy(middleware)) if middleware is not None else []
-        )
+        unwrapped_middleware = list(middleware) if middleware is not None else []
 
         tool_nodes = list(deepcopy(connected_nodes)) if connected_nodes else None
         _check_duplicate_tool_names(tool_nodes)

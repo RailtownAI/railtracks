@@ -26,3 +26,5 @@ The `call` API is also useful when you want to use agents as tools by having the
 
 !!! tip "Start from a Flow"
     `rt.call` does work as the top level of a script, where Railtracks builds the surrounding machinery for you with default settings. What you give up is everything that is configured on the Flow: context shared across runs, `timeout`, `end_on_error`, broadcast and payload callbacks, and the `flow.connect()` handle for inspecting a [run](flows.md#run) after it finishes. Past a quick experiment, wrap your entry point in a [Flow](flows.md) and keep `rt.call` for the steps inside it.
+
+To continue a conversation across calls, see [Message History](message_history.md).
