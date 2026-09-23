@@ -7,6 +7,10 @@ Railtracks uses a handful of ordinary words in a specific way. Each entry below 
 
 ## Building Blocks
 
+### Harness
+
+The code around a model call: the loop that keeps calling it, the tools it can reach, what lands in its context, the limits on what it may do, and the record of what it did. Railtracks builds each of those parts from ordinary Python objects you assemble yourself. [Agent Harness](documentation/harness/overview.md#what-is-an-agent-harness)
+
 ### Agent
 
 A system that pursues a goal on its own, deciding what to do next rather than following a fixed script. In Railtracks an agent is built as an [agent node](#agent-node). [What is an Agent?](tutorials/concepts/agents.md)
@@ -17,11 +21,15 @@ The unit Railtracks executes: it accepts inputs, runs, and returns an output. Ag
 
 ### Agent Node
 
-A node whose work is a call to an LLM, built with `rt.agent_node()` and holding the model, system message and available tools. Reach for one when the step needs judgement rather than a fixed implementation. [Building Blocks](documentation/agent_design/overview.md#agent-node)
+A node whose work is a call to an LLM, built with `rt.agent_node()` and holding the model, [system message](#system-message) and available tools. Reach for one when the step needs judgement rather than a fixed implementation. [Building Blocks](documentation/agent_design/overview.md#agent-node)
 
 ### Function Node
 
 One of your own Python functions turned into a node by the `@rt.function_node` decorator. It is how deterministic work enters a graph, and how a function becomes a tool an agent can call. [Function Tools](documentation/agent_design/tools/function_tools.md#what-a-function-node-is)
+
+### System Message
+
+The instructions an agent is configured with through `system_message=`, which Railtracks sends first on every call to that agent. A system message placed in a message history instead belongs to the conversation and stays where the caller put it. [System Messages](documentation/agent_design/llms/system_messages.md)
 
 ### Tool
 
@@ -84,6 +92,10 @@ One execution of a Flow, started by `invoke` or `ainvoke`. It is the scope for c
 ### Direct Invocation
 
 Calling a node yourself with `await rt.call(...)` instead of letting an agent decide to call it. It is how the steps inside a Flow are composed. [Direct Invocation](documentation/invocation/call.md)
+
+### Message History
+
+The conversation an agent saw and produced, returned on every agent response as `response.message_history`. Calls are stateless, so passing that history back is how a conversation continues across calls. [Message History](documentation/invocation/message_history.md)
 
 ### Context
 

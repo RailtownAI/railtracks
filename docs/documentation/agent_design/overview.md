@@ -19,7 +19,7 @@ You do not subclass anything to make one. Two builders cover it: `rt.agent_node(
 
 ### Agent Node
 
-An **agent node** is a node whose work is a call to an LLM. It is built with `rt.agent_node()` and holds the model, the system message, and the tools the model is allowed to call; at runtime it drives the tool-calling loop for you until the model produces a final answer.
+An **agent node** is a node whose work is a call to an LLM. It is built with `rt.agent_node()` and holds the model, the [system message](llms/system_messages.md), and the tools the model is allowed to call; at runtime it drives the tool-calling loop for you until the model produces a final answer.
 
 Reach for an agent node when the step needs judgement, such as interpreting a vague request, choosing between tools, or writing prose. If the step has one correct implementation, like a calculation or an API call, write a [function node](tools/function_tools.md#what-a-function-node-is) instead and let an agent call it as a tool. Note that `rt.agent_node()` returns a class rather than an instance, which is why agents are named in PascalCase throughout these docs. [Agent Level Design](#agent-level-design) covers the choices you make when configuring one.
 
@@ -29,7 +29,7 @@ The other kind of node, built from one of your own Python functions, has a page 
 
 ## Agent Level Design
 
-This is where what we'd like to "intra-agent" decisions come into play. Things such as choice of [_LLM_](../../integrations/llms/providers.md), _System Message_, [_Tools_](tools/function_tools.md), and [_Middleware_](middleware/overview.md). Snippet below provides the most fundamental LLM-powered agent in Railtracks with no tool calling capabilities.
+This is where what we'd like to "intra-agent" decisions come into play. Things such as choice of [_LLM_](../../integrations/llms/providers.md), [_System Message_](llms/system_messages.md), [_Tools_](tools/function_tools.md), and [_Middleware_](middleware/overview.md). Snippet below provides the most fundamental LLM-powered agent in Railtracks with no tool calling capabilities.
 
 ```python
 --8<-- "docs/scripts/documentation/agent_design.py"
