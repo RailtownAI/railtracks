@@ -206,10 +206,7 @@ where each concept lives internally, plus a doc link for the how-to:
 
 ## Code conventions
 
-See `.claude/skills/code-style/SKILL.md` for this repo's code-style conventions. It's a
-project-scoped coding-assistant skill: the assistant auto-invokes it based on its description whenever it's writing or
-editing code here, which is a model-driven nudge from the skill matching, not a hard-enforced hook, so
-still sanity-check the diff against it yourself.
+Before writing or editing code, confirm the rule list under the `# railtracks Code Style` heading is in your context; this line alone does not count. If it is not (a new session, or after the context was compacted), read `.claude/skills/code-style/SKILL.md` first. Check the diff against it before committing.
 
 ## Notes on dependency structure
 - Root `pyproject.toml` = dev tooling only (`docs`/`test`/`lint` groups via `uv`). Never add runtime
