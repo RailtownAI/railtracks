@@ -237,11 +237,13 @@ def _middleware_rows_cte() -> str:
       SELECT f.scope_id, f.timestamp, f.exception_message,
              f.parent_middleware_invoke_id AS invoke_id
       FROM middleware f
-      JOIN middleware d
-        ON d.scope_id = f.scope_id
-       AND d.parent_middleware_invoke_id = f.parent_middleware_invoke_id
-       AND d.event_type LIKE 'middleware.verifier.%'
       WHERE f.event_type = 'middleware.failure'
+        AND EXISTS (
+          SELECT 1 FROM middleware d
+          WHERE d.scope_id = f.scope_id
+            AND d.parent_middleware_invoke_id = f.parent_middleware_invoke_id
+            AND d.event_type LIKE 'middleware.verifier.%'
+        )
     ),
     mw_events AS (
       SELECT ev.event_id,
