@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
+from typing_extensions import Never
+
 from railtracks.llm.retries import ExponentialRetry, RetryApproach
 from railtracks.middleware.core import Middleware
 
 
-class Retry(Middleware):
+class Retry(Middleware[Any, Any, Never]):
     """Retry the wrapped call when it raises a transient error.
 
     Slot-agnostic: works both as node middleware (``middleware=``) and as model
@@ -16,7 +20,7 @@ class Retry(Middleware):
 
         rt.agent_node(
             "Agent",
-            llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
+            llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
             middleware=[middleware.Retry(3)],  # retry the whole node
             model_middleware=[middleware.Retry(3)],  # retry each raw model call
         )

@@ -1,3 +1,9 @@
+---
+name: middleware
+description: Add middleware to a railtracks agent or node (retries, logging, timing, guardrails, context injection). Use when the user wants to wrap, retry, guard, or observe node or LLM calls.
+argument-hint: "[describe the middleware to implement]"
+---
+
 # Add Middleware to a Railtracks Agent or Node
 
 The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
@@ -59,7 +65,7 @@ from railtracks.prebuilt import middleware
 Agent = rt.agent_node(
     "Agent",
     tool_nodes=[send_email],  # has a side effect — don't retry the whole node
-    llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
+    llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
     model_middleware=[middleware.Retry(max_tries=3)],  # retries only the raw LLM call
 )
 ```
@@ -115,4 +121,4 @@ Adjusted = rt.couple(
 - Don't hand-roll a content allow/block check as plain middleware — use `input_guard`/`output_guard` so it shows up in `GuardrailTrace` like the rest of your rails.
 - Don't write a plain `def` for `wrap_node`/`wrap_llm` — it must be `async def`.
 - Don't expect `post_llm`/`post_node` to run on failure — they're success-only; use `wrap_llm`/`wrap_node` if you need failure-aware logic.
-- Don't assume `name=` changes what shows up in railtracks' own traces — it doesn't (yet), outside of guardrails.
+- Don't assume `name=` changes what shows up in railtracks' own traces — outside of guardrails, it doesn't.

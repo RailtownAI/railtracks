@@ -7,6 +7,7 @@ decorator form (`@rt.function_node(middleware=[...])`).
 
 import pytest
 import railtracks as rt
+from railtracks.prebuilt.middleware import MaxCalls, Retry, Timeout
 
 
 def test_function_node_middleware_runs():
@@ -126,3 +127,31 @@ def test_after_replaces_return_value_on_success():
         return 5
 
     assert rt.Flow("test_after_replaces_return_value_on_success", five).invoke() == 50
+
+
+def test_multiple_prebuilt_middleware_in_one_list():
+    """Two prebuilt middleware in one list must compose around a function node."""
+
+    @rt.function_node(middleware=[Retry(max_tries=1), Timeout(seconds=5)])
+    def add(x: str) -> str:
+        return x
+
+    assert (
+        rt.Flow("test_multiple_prebuilt_middleware_in_one_list", add).invoke("hello")
+        == "hello"
+    )
+
+
+def test_three_different_prebuilt_middleware_in_one_list():
+    """Three distinct prebuilt middleware must compose in one list."""
+
+    @rt.function_node(
+        middleware=[Retry(max_tries=1), Timeout(seconds=5), MaxCalls(max_calls=3)]
+    )
+    def echo(x: int) -> int:
+        return x
+
+    assert (
+        rt.Flow("test_three_different_prebuilt_middleware_in_one_list", echo).invoke(42)
+        == 42
+    )
