@@ -62,7 +62,7 @@ from ._model_exception_base import (
 )
 
 # Nest under the "RT" logger tree so RT's handlers/config apply, without importing
-# railtracks.utils upward (the llm package is deliberately isolated.
+# railtracks.utils upward (the llm package is deliberately isolated).
 logger = logging.getLogger("RT.litellm_wrapper")
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
