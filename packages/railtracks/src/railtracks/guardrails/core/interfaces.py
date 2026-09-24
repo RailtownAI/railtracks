@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Generic, ParamSpec, Protocol, TypeVar
 
-from railtracks.middleware.core import Middleware
+from railtracks.middleware.core import Middleware, _MiddlewareSignature
 
 from .decision import GuardrailDecision
 
@@ -26,7 +26,10 @@ class Guardrail(Protocol):
     ) -> GuardrailDecision | Awaitable[GuardrailDecision]: ...
 
 
-class BaseGuardrail(ABC, Middleware[_P, _R], Generic[_P, _R]):
+# Explicit signature argument so it binds this module's `_P`/`_R`.
+class BaseGuardrail(
+    ABC, Middleware[_P, _R, _MiddlewareSignature[_P, _R]], Generic[_P, _R]
+):
     """Abstract base class for all guardrails."""
 
     name: str
