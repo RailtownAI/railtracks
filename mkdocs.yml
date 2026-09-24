@@ -44,7 +44,6 @@ theme:
     - content.code.copy
     - content.code.highlight
     - content.code.annotate
-    - content.tooltips
 
 plugins:
   - search

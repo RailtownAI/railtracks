@@ -73,6 +73,8 @@ def _glossary_tooltips(glossary: Path) -> str:
         definition = _first_sentence(_plain_text(body.split("\n\n")[0]))
         if definition:
             lines.append(f"*[{term}]: {definition}")
+            if " " in term or term in {"Middleware", "Guardrail", "Verifier"}:
+                lines.append(f"*[{term.lower()}]: {definition}")
 
     return "\n".join(lines) + "\n"
 
@@ -154,3 +156,8 @@ def on_pre_build(config, **kwargs):
         return
 
     _generate_api_reference(repo_root, output_dir)
+
+
+def on_page_content(html: str, **kwargs) -> str:
+    """Convert <abbr title=...> to <abbr data-title=...> to prevent browser OS double tooltips."""
+    return html.replace("<abbr title=", "<abbr data-title=")
