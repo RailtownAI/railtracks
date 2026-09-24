@@ -377,6 +377,9 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
 
         super().__init__(content=content, role=Role.assistant)
 
+        # Metadata that lives outside `content`. Any attribute added below must also
+        # be copied in `copy_metadata_from`, or rebuild paths will silently drop it.
+        #
         # Optionally stores the raw litellm message object so providers that
         # attach extra metadata (e.g. Gemini thought_signature) can round-trip
         # it back without any manual reconstruction.
@@ -386,6 +389,20 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         # provider returns it (Anthropic, DeepSeek, Gemini, OpenAI in part).
         self.reasoning_content: str | None = None  # human-readable text
         self.thinking_blocks: list[dict[str, Any]] | None = None
+
+    def copy_metadata_from(self, other: Message) -> "AssistantMessage":
+        """Copy the provider metadata that lives outside `content` from `other`.
+
+        Rebuild paths (e.g. the tool loop, which must deep-copy `tool_calls`) construct a
+        fresh message from `content` alone; this carries over everything else so the
+        rebuild stays lossless. New metadata attributes must be added here. Read with
+        `getattr` so a plain `Message` source (which lacks these) is a no-op. Returns self
+        for chaining.
+        """
+        self.raw_litellm_message = getattr(other, "raw_litellm_message", None)
+        self.reasoning_content = getattr(other, "reasoning_content", None)
+        self.thinking_blocks = getattr(other, "thinking_blocks", None)
+        return self
 
     def encode(self):
         encoded = super().encode()
