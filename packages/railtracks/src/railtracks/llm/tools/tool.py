@@ -14,7 +14,11 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 from .._exceptions import _ColoredError
-from .docstring_parser import extract_main_description, parse_docstring_args
+from .docstring_parser import (
+    count_parameter_sections,
+    extract_main_description,
+    parse_docstring_args,
+)
 from .parameter_handlers import (
     DefaultParameterHandler,
     ParameterHandler,
@@ -222,8 +226,7 @@ class Tool:
         else:
             # Check for multiple parameter sections (warning)
             # Only need to do this if we need to.
-            section_markers = ("Args:", "Parameters", ":param")
-            if sum(docstring.count(marker) for marker in section_markers) > 1:
+            if count_parameter_sections(docstring) > 1:
                 warnings.warn("Multiple parameter sections found in the docstring.")
             # Create parameter handlers
             handlers: List[ParameterHandler] = [

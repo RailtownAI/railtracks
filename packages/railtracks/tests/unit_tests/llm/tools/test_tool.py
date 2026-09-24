@@ -4,6 +4,8 @@ Tests for the Tool class.
 This module contains tests for railtracks.llm.tools.tool.Tool.
 """
 
+import warnings
+
 import pytest
 from railtracks.llm.tools import Parameter, Tool
 from railtracks.llm.tools.tool import ToolCreationError
@@ -134,3 +136,62 @@ class TestToolParametersTypeGuard:
                 detail="An int is neither a dict nor an iterable of Parameter objects.",
                 parameters=1,
             )
+
+
+class TestMultipleParameterSectionWarning:
+    """The warning counts sections, not markers or substrings."""
+
+    @staticmethod
+    def _assert_no_section_warning(func):
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            Tool.from_function(func)
+        assert not [
+            w for w in record if "Multiple parameter sections" in str(w.message)
+        ]
+
+    def test_two_args_sections_warn(self):
+        def two_args(a: int, b: int) -> None:
+            """Do a thing.
+
+            Args:
+                a: the a.
+
+            Args:
+                b: the b.
+            """
+
+        with pytest.warns(UserWarning, match="Multiple parameter sections"):
+            Tool.from_function(two_args)
+
+    def test_two_rest_params_do_not_warn(self):
+        def two_rest(a: int, b: int) -> None:
+            """Do a thing.
+
+            :param a: the a.
+            :param b: the b.
+            """
+
+        self._assert_no_section_warning(two_rest)
+
+    def test_numpy_other_parameters_do_not_warn(self):
+        def other_parameters(y: int) -> None:
+            """Do a thing.
+
+            Other Parameters
+            ----------------
+            y : int
+                The y value.
+            """
+
+        self._assert_no_section_warning(other_parameters)
+
+    def test_google_prose_mentioning_parameters_do_not_warn(self):
+        def prose(x: int) -> None:
+            """Set the Parameters of the model.
+
+            Args:
+                x: the x.
+            """
+
+        self._assert_no_section_warning(prose)

@@ -44,6 +44,13 @@ _NUMPY_SECTION_NAMES = frozenset(
     }
 )
 
+# reST field-list fields that open a parameter or returns section, e.g.
+# ":param name:", ":type name:", ":returns:". Inline roles such as ":func:" are
+# ordinary prose that merely happens to start with a colon.
+_REST_FIELD_PATTERN = re.compile(
+    r"^:(?:param|parameter|type|returns?|rtype|raises?|yields?|keyword|kwarg)\b"
+)
+
 
 # HELPER
 def _indent_of(line: str) -> int:
@@ -56,6 +63,28 @@ def _is_section_header(line: str) -> bool:
     """Returns whether a line is a bare section header, e.g. ``Returns:``."""
     stripped = line.strip()
     return stripped.endswith(":") and stripped[:-1].strip() in _SECTION_HEADERS
+
+
+# HELPER
+def _is_rest_field(line: str) -> bool:
+    """Returns whether a line opens a reST field-list entry, e.g. ``:param x:``."""
+    return bool(_REST_FIELD_PATTERN.match(line.strip()))
+
+
+# HELPER
+def _is_numpy_section_header(lines: list[str], index: int) -> bool:
+    """Returns whether ``lines[index]`` is a NumPy section header.
+
+    A NumPy header is the section name followed by an underline of dashes, so
+    a prose line that happens to read ``Notes`` does not qualify.
+    """
+    stripped = lines[index].strip()
+    if stripped.rstrip(":") not in _NUMPY_SECTION_NAMES:
+        return False
+    if index + 1 >= len(lines):
+        return False
+    underline = lines[index + 1].strip()
+    return bool(underline) and set(underline) == {"-"}
 
 
 # HELPER
@@ -101,6 +130,37 @@ def parse_docstring_args(docstring: str) -> Dict[str, str]:
 
     # reST/Sphinx style
     return parse_rest_args_section(docstring)
+
+
+def count_parameter_sections(docstring: str) -> int:
+    """
+    Counts the distinct parameter sections in a docstring.
+
+    Google ``Args:`` headers and NumPy ``Parameters``/``Other Parameters``
+    headers each count once regardless of how many parameters they hold, and
+    any number of reST ``:param`` fields counts as a single reST section.
+
+    Args:
+        docstring: The docstring to inspect.
+
+    Returns:
+        The number of parameter sections found.
+    """
+    if not docstring:
+        return 0
+
+    lines = docstring.splitlines()
+
+    sections = sum(1 for line in lines if line.strip().startswith("Args:"))
+    sections += sum(
+        1
+        for line in lines
+        if line.strip().rstrip(":") in ("Parameters", "Other Parameters")
+    )
+    if any(re.match(r"^:param(?:eter)?\b", line.strip()) for line in lines):
+        sections += 1
+
+    return sections
 
 
 def extract_args_section(docstring: str) -> str:
@@ -302,9 +362,9 @@ def parse_rest_args_section(docstring: str) -> Dict[str, str]:
         r"^\s*:(?:param|parameter)\s+(?:[\w.\[\], ]+?\s+)?(\w+)\s*:\s*(.*)$"
     )
 
-    arg_descriptions = {}
-    current_arg = None
-    current_description = []
+    arg_descriptions: Dict[str, str] = {}
+    current_arg: str | None = None
+    current_description: list[str] = []
 
     for line in docstring.splitlines():
         stripped = line.strip()
@@ -354,22 +414,19 @@ def extract_main_description(docstring: str) -> str:
     # Split the docstring into lines
     lines = docstring.splitlines()
 
-    # reST fields such as ":param:" start a section, but in a Google-style
-    # docstring a line starting with ":" is ordinary prose.
-    is_google = any(line.strip().startswith("Args:") for line in lines)
-
     # Collect lines until we hit a section marker (like "Args:")
     main_description = []
-    for line in lines:
-        if (
-            line.strip()
-            and line.strip().endswith(":")
-            and not line.strip().startswith(" ")
-        ):
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped and stripped.endswith(":"):
             break
-        if line.strip() and line.strip().rstrip(":") in _NUMPY_SECTION_NAMES:
+        # Only a real NumPy header (name plus dashes underline) ends the
+        # description; a prose line that just reads "Notes" does not.
+        if stripped and _is_numpy_section_header(lines, index):
             break
-        if line.strip().startswith(":") and not is_google:
+        # reST field lists start at the actual fields (":param ...:"); inline
+        # roles such as ":func:" are prose and stay in the description.
+        if _is_rest_field(line):
             break
         main_description.append(line)
 

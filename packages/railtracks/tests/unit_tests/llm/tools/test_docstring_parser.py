@@ -682,3 +682,36 @@ class TestParsingRegressions:
             "items": "The items to fetch.",
             "value": "The value to use.",
         }
+
+    def test_rest_role_wrapped_line_kept_without_args_section(self):
+        """A role-leading continuation line is prose unless a real reST field appears."""
+        docstring = (
+            "Chunk a document asynchronously.\n\n"
+            "Offloads the synchronous :meth:`chunk` call to a thread via\n"
+            ":func:`asyncio.to_thread` so the event loop is not blocked."
+        )
+        assert extract_main_description(docstring) == docstring
+
+    def test_rest_fields_still_strip_without_args_section(self):
+        """Real reST fields still end the description when there is no Args section."""
+        docstring = (
+            "Chunks a document.\n\n"
+            "Offloads the call to a thread.\n\n"
+            ":param document: The document to chunk.\n"
+            ":type document: Document\n"
+            ":returns: The chunks.\n"
+        )
+        assert (
+            extract_main_description(docstring)
+            == "Chunks a document.\n\nOffloads the call to a thread."
+        )
+
+    def test_prose_notes_line_kept_in_main_description(self):
+        """A bare NumPy section name in prose does not end the description."""
+        docstring = "Summary line.\n\nNotes\nsome more prose here."
+        assert extract_main_description(docstring) == docstring
+
+    def test_numpy_header_with_underline_ends_description(self):
+        """A real NumPy header (name plus dashes) still ends the description."""
+        docstring = "Summary line.\n\nNotes\n-----\nmore prose"
+        assert extract_main_description(docstring) == "Summary line."
