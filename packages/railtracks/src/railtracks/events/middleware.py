@@ -239,9 +239,6 @@ class MiddlewareModelFailureEvent(MiddlewareModelEventBase, FailureMixin):
         return "middleware.model.failure"
 
 
-# Verifiers (pre_verifier / post_verifier) — node-band, mirroring the guard
-# events above: a dedicated invocation/response/failure trio per phase, with
-# the response carrying a structured decision the same way a guard's does.
 @dataclass(kw_only=True)
 class MiddlewareVerifierPreInvocationEvent(MiddlewareRegularEventBase):
     args: tuple[Any, ...]
