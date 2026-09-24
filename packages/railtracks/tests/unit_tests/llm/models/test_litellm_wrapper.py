@@ -1358,6 +1358,25 @@ class TestReasoningSurfacing:
         assert final.reasoning is None
         assert final.message.thinking_blocks is None
 
+    def test_non_reasoning_stream_skips_thinking_reassembly(self, mock_litellm_wrapper):
+        """A stream with no thinking deltas must not pay for `_assemble_thinking_blocks`.
+
+        Making the reassembly raise proves it is never called when no thinking was seen.
+        """
+        wrapper = mock_litellm_wrapper()
+
+        def _boom(_raw_chunks):
+            raise AssertionError(
+                "reassembly should be skipped for non-reasoning streams"
+            )
+
+        wrapper._assemble_thinking_blocks = _boom
+        chunks = [_delta_chunk(content="4"), _delta_chunk(finish_reason="stop")]
+
+        _text, final = _drain(wrapper, chunks)
+
+        assert final.message.thinking_blocks is None
+
 
 # ================= END #1431 reasoning/thinking surfacing tests =====================
 

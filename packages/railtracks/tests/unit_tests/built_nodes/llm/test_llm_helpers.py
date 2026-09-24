@@ -334,3 +334,36 @@ async def test_raw_provider_exceptions_are_classified_too(
 
     assert type(exc.value) is expected
     assert exc.value.__cause__ is raw_error
+
+
+async def test_run_tools_preserves_reasoning_and_isolates_history(monkeypatch):
+    """The rebuilt tool-call turn must carry the response's reasoning/provider metadata
+    (so signed thinking survives the loop) while staying a distinct object from the
+    Response, which `post_llm` middleware may still mutate."""
+    from railtracks.llm import AssistantMessage, Response
+    from railtracks.llm.content import ToolCall, ToolCalls
+
+    blocks = [{"type": "thinking", "thinking": "use the tool", "signature": "sig"}]
+    message = AssistantMessage(
+        content=ToolCalls(
+            [ToolCall(identifier="c1", name="t", arguments={})], text="calling"
+        )
+    )
+    message.raw_litellm_message = {"raw": "msg"}
+    message.reasoning_content = "use the tool"
+    message.thinking_blocks = blocks
+    response = Response(message=message, message_info=None)
+
+    async def _no_tools(tool_calls, tool_nodes):
+        return []
+
+    monkeypatch.setattr(llm_helpers, "invoke_tools", _no_tools)
+
+    history = MessageHistory()
+    await llm_helpers.run_tools(response, history, [_FakeNode])
+
+    appended = history[0]
+    assert appended is not response.message
+    assert appended.reasoning_content == "use the tool"
+    assert appended.thinking_blocks == blocks
+    assert appended.raw_litellm_message == {"raw": "msg"}

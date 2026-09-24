@@ -4,7 +4,7 @@ from typing import List
 import pytest
 from railtracks.llm import AssistantMessage, SystemMessage, ToolMessage, UserMessage
 from railtracks.llm.content import Stream, ToolCall, ToolCalls, ToolResponse
-from railtracks.llm.message import Attachment
+from railtracks.llm.message import Attachment, Message, Role
 
 
 # =================================== START Message Structure Tests ==================================
@@ -75,6 +75,30 @@ def test_assistant_message_encode_surfaces_reasoning():
 
     assert encoded["reasoning_content"] == "2 + 2 is 4"
     assert encoded["thinking_blocks"] == blocks
+
+
+def test_copy_metadata_from_carries_all_metadata():
+    blocks = [{"type": "thinking", "thinking": "2 + 2", "signature": "sig"}]
+    source = AssistantMessage("4")
+    source.raw_litellm_message = {"raw": "msg"}
+    source.reasoning_content = "2 + 2 is 4"
+    source.thinking_blocks = blocks
+
+    rebuilt = AssistantMessage("4").copy_metadata_from(source)
+
+    assert rebuilt.raw_litellm_message == {"raw": "msg"}
+    assert rebuilt.reasoning_content == "2 + 2 is 4"
+    assert rebuilt.thinking_blocks == blocks
+
+
+def test_copy_metadata_from_plain_message_is_noop():
+    # A plain Message source (no assistant metadata) leaves the defaults untouched.
+    rebuilt = AssistantMessage("4").copy_metadata_from(
+        Message(role=Role.assistant, content="4")
+    )
+    assert rebuilt.raw_litellm_message is None
+    assert rebuilt.reasoning_content is None
+    assert rebuilt.thinking_blocks is None
 
 
 def test_tool_message():
