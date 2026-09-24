@@ -67,6 +67,12 @@ node_agg AS (
 -- says it exists to stay distinguishable — and it does not silently stop
 -- matching when someone rewords the message. Both tests agree on all 14 blocks
 -- in the measured store; only one of them stays true after a copy edit.
+--
+-- `VerifierRejectedError` joins `GuardrailBlockedError` here: a verifier
+-- decline is exactly as "Blocked" as a guard block. It needs the
+-- `middleware.failure` branch below, unlike guards — a verifier's underlying
+-- node never runs before a `pre_verifier` decline, so `VerifierRejectedError`
+-- never appears on `node.failure`/`llm.failure`, only on `middleware.failure`.
 last_failure AS (
   SELECT scope_id,
          ARG_MAX(exception_name, timestamp) AS exception_name
@@ -78,6 +84,10 @@ last_failure AS (
     SELECT scope_id, timestamp, exception_name
     FROM llm
     WHERE event_type = 'llm.failure'
+    UNION ALL
+    SELECT scope_id, timestamp, exception_name
+    FROM middleware
+    WHERE event_type = 'middleware.failure'
   )
   GROUP BY scope_id
 )
@@ -113,7 +123,8 @@ SELECT s.scope_id                                    AS session_id,
          WHEN c.status IS NULL                          THEN 'Completed'
          WHEN LOWER(CAST(c.status AS VARCHAR)) = 'success' THEN 'Completed'
          WHEN LOWER(CAST(c.status AS VARCHAR)) = 'failure'
-              AND f.exception_name = 'GuardrailBlockedError' THEN 'Blocked'
+              AND f.exception_name IN ('GuardrailBlockedError', 'VerifierRejectedError')
+                                                            THEN 'Blocked'
          WHEN LOWER(CAST(c.status AS VARCHAR)) = 'failure' THEN 'Failed'
          ELSE 'Running'
        END                                           AS status
