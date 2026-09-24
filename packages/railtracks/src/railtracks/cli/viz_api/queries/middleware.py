@@ -254,9 +254,6 @@ def _middleware_rows_cte() -> str:
              ev.parent_middleware_invoke_id,
              ev.spatial_parent_node_id,
              ev.spatial_parent_llm_invoke_id,
-             -- Verifier decisions ('accept'/'decline' + `overridden`) are
-             -- normalized onto the guard vocabulary ('allow'/'transform'/'block')
-             -- here, so every downstream aggregate reads one vocabulary.
              CASE ev.decision->>'action'
                WHEN 'accept' THEN
                  CASE WHEN ev.decision->>'overridden' = 'true' THEN 'transform'
