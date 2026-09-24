@@ -126,6 +126,7 @@ nav:
       - Agent Invocation:
           - Direct Invocation: documentation/invocation/call.md
           - Flow Invocation: documentation/invocation/flows.md
+          - Message History: documentation/invocation/message_history.md
       - Advanced:
           - Context: documentation/advanced/context.md
 
