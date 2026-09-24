@@ -159,14 +159,14 @@ def llm_invoke_factory(
             # still mutate; `copy_metadata_from` carries the reasoning/provider metadata
             # the rebuild would otherwise drop. `run_tools` isolates the same way.
             if path == "Content":
-                message_history.append(
+                conversation.append(
                     AssistantMessage(returned_mess.message.content).copy_metadata_from(
                         returned_mess.message
                     )
                 )
-                return prepare_string_response(message_history)
+                return prepare_string_response(conversation)
             elif path == "Structured":
-                message_history.append(
+                conversation.append(
                     AssistantMessage(returned_mess.message.content).copy_metadata_from(
                         returned_mess.message
                     )
