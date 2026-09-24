@@ -16,7 +16,9 @@ The **Slot** column tells you where each middleware can be attached:
 | [Retry](list/retry.md) | Both | Re-run the wrapped call when it raises a transient error, with a configurable backoff. |
 | [Timeout](list/timeout.md) | Both | Cancel the wrapped call and raise `TimeoutError` when it exceeds a deadline. |
 | [MaxCalls](list/max_calls.md) | Both | Raise `MaxCallsExceededError` once the wrapped call has been invoked a set number of times. |
+| [ConversationMemory](list/conversation_memory.md) | Node | Preserve and append multi-turn conversation history across repeated invocations automatically. |
 | [ContextInjection](list/context_injection.md) | Model | Fill `{placeholder}` templates in the prompt from the active session context. |
+
 
 ### Guardrails
 

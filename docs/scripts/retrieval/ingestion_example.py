@@ -412,15 +412,18 @@ HuggingFaceDatasetLoader(
 
 # --8<-- [start:hf_kwargs]
 
+from railtracks.retrieval import ProseExtractor
 from railtracks.retrieval.loaders.huggingface_loader import HuggingFaceDatasetLoader
 
 # dataset_kwargs is forwarded straight to datasets.load_dataset.
-# Use it for subsets, revisions, gated-dataset tokens, or to disable streaming.
+# ms_marco's passages field is nested, so ProseExtractor turns its structure
+# into labelled searchable text while metadata values remain unchanged.
 HuggingFaceDatasetLoader(
     dataset_name="ms_marco",
     split="validation",
     content_columns=["query", "passages"],
     dataset_kwargs={"name": "v2.1"},
+    content_extractor=ProseExtractor(),
 )
 # --8<-- [end:hf_kwargs]
 
@@ -440,6 +443,20 @@ docs = JSONLoader(
 print(docs[0].content)   # "title: Getting started\nbody: ..."
 print(docs[0].metadata)  # {"author": "Alice", "index": 0}
 # --8<-- [end:json_loader]
+
+
+# --8<-- [start:json_structured_content]
+
+from railtracks.retrieval import JsonExtractor
+from railtracks.retrieval.loaders import JSONLoader
+
+# Preserve a nested field as valid JSON instead of Python's dict repr.
+JSONLoader(
+    "questions.json",
+    content_keys=["question"],
+    content_extractor=JsonExtractor(),
+)
+# --8<-- [end:json_structured_content]
 
 
 # --8<-- [start:jsonl_loader]

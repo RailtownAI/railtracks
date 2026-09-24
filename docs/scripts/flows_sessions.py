@@ -4,7 +4,7 @@ import railtracks as rt
 agent = rt.agent_node(
     name="MyAgent",
     system_message="You are a helpful assistant that can answer questions and perform tasks.",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
 )
 
 # Create your flow by supplying an entry point.

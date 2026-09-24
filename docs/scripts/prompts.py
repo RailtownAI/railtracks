@@ -9,7 +9,7 @@ system_message = "You are a {role} assistant specialized in {domain}."
 assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 
@@ -26,7 +26,7 @@ response = assistant_flow.update_context({"role": "technical", "domain": "Python
 literal_assistant = rt.agent_node(
     name="Literal Assistant",
     system_message="Always answer using the {placeholder} syntax verbatim.",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
 )
 # --8<-- [end: disable_injection_node_level]
 
@@ -44,7 +44,7 @@ The user's name is {user_name}."""
 assistant = rt.agent_node(
     name="Dynamic Assistant",
     system_message=template,
-    llm=OpenAILLM("gpt-4o"),
+    llm=OpenAILLM("gpt-5.4-mini"),
     model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 

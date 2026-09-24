@@ -111,12 +111,14 @@ def llm_invoke_factory(
             self._user_model_middleware,
             get_scope_manager=lambda: self._scope_manager,
         )
-        message_history = prepare_message_history(system_message, user_input)
+        conversation = create_message_history(user_input)
+        wire = _wire_history(system_message, conversation)
+        check_message_history(wire)
 
         while True:
             try:
                 returned_mess = await model_invoker.invoke(
-                    message_history, schema=schema, tools=tools
+                    wire, schema=schema, tools=tools
                 )
             # The single translation point between the `llm` package's errors and the
             # node-terminating ones users catch. `ProviderError` and `ToolCreationError`
@@ -138,8 +140,7 @@ def llm_invoke_factory(
                 # escapes inside the new message.
                 raise _node_error_for(e)(
                     reason=getattr(e, "reason", None) or str(e),
-                    message_history=getattr(e, "message_history", None)
-                    or message_history,
+                    message_history=getattr(e, "message_history", None) or wire,
                     notes=getattr(e, "notes", None),
                 ) from e
             except Exception as e:
@@ -148,7 +149,7 @@ def llm_invoke_factory(
                 # `LLMTimeoutError` rather than flattening to a bare `LLMError`.
                 raise _node_error_for(e)(
                     reason=f"Exception during model invoke: {repr(e)}",
-                    message_history=message_history,
+                    message_history=wire,
                 ) from e
 
             path = process_message(returned_mess, schema)
@@ -171,9 +172,10 @@ def llm_invoke_factory(
                     )
                 )
                 assert schema is not None
-                return prepare_structured_response(message_history, schema)
+                return prepare_structured_response(conversation, schema)
             elif path == "Tool":
-                await run_tools(returned_mess, message_history, tool_nodes or [])
+                await run_tools(returned_mess, conversation, tool_nodes or [])
+                wire = _wire_history(system_message, conversation)
                 continue
 
     return llm_invoke
@@ -331,19 +333,27 @@ def process_message(
         )
 
 
-def prepare_message_history(
-    system_message: SystemMessage | None,
-    user_input: MessageHistory | UserMessage | str | list[Message],
+def _wire_history(
+    system_message: SystemMessage | None, conversation: MessageHistory
 ) -> MessageHistory:
-    message_history = create_message_history(user_input)
+    """Build the history to send to the model: the agent's system message, then the conversation.
 
-    check_message_history(
-        message_history, system_message.content if system_message else None
-    )
+    The agent's system message is configuration rather than conversation, so it lives only here
+    and never in the conversation the caller gets back. It is copied on every build because the
+    node-level message is shared across invocations while prompt injection fills templates in
+    place.
 
-    append_system_message(message_history, system_message)
+    Args:
+        system_message: The agent node's configured system message, if it has one.
+        conversation: The messages exchanged so far, owned by the caller.
 
-    return message_history
+    Returns:
+        A new history; neither argument is modified.
+    """
+    if system_message is None:
+        return MessageHistory(conversation)
+
+    return MessageHistory([deepcopy(system_message), *conversation])
 
 
 def create_message_history(
@@ -368,15 +378,6 @@ def create_message_history(
     return deepcopy(message_history)
 
 
-def append_system_message(
-    message_history: MessageHistory, system_message: SystemMessage | None
-):
-    """Modifies the object in place"""
-    if system_message:
-        # Prepend the system message to the message history
-        message_history.insert(0, deepcopy(system_message))
-
-
 def prepare_structured_response(
     message_history: MessageHistory, schema: type[_TStructured]
 ) -> StructuredResponse[_TStructured]:
@@ -388,9 +389,7 @@ def prepare_structured_response(
         "Content of the last message must be a dict to be converted into a structured response"
     )
 
-    return StructuredResponse(
-        content=content, message_history=message_history.removed_system_messages()
-    )
+    return StructuredResponse(content=content, message_history=message_history)
 
 
 def prepare_string_response(
@@ -404,6 +403,4 @@ def prepare_string_response(
         "Content of the last message must be a string to be returned as is"
     )
 
-    return StringResponse(
-        content=content, message_history=message_history.removed_system_messages()
-    )
+    return StringResponse(content=content, message_history=message_history)

@@ -15,7 +15,7 @@ async def retry(call, *args, **kwargs):
     raise RuntimeError(f"All retries exhausted: {last}") from last
 
 # you can add the middleware to a node at creation time.
-RetryAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"), middleware=[retry])
+RetryAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-5.4-mini"), middleware=[retry])
 # --8<-- [end: wrappers]
 
 
@@ -72,7 +72,7 @@ async def periodic_failure(llm_call, message_history, schema, tools):
 # --8<-- [start: attach_creation]
 CreationTimeAgent = rt.agent_node(
     name="Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     middleware=[retry, log_result],  # runs once per agent call
     model_middleware=[print_message, print_response],  # runs once per model call
 )
@@ -80,7 +80,7 @@ CreationTimeAgent = rt.agent_node(
 
 
 # --8<-- [start: attach_after_creation]
-BaseAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"))
+BaseAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-5.4-mini"))
 
 ExtendedAgent = rt.couple(BaseAgent, middleware=[retry, log_result])
 
@@ -121,7 +121,7 @@ async def inner(call, *args, **kwargs):
 
 
 OrderedAgent = rt.agent_node(
-    name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"), middleware=[outer, inner]
+    name="Agent", llm=rt.llm.OpenAILLM("gpt-5.4-mini"), middleware=[outer, inner]
 )
 # calling OrderedAgent prints, in order:
 #   outer: before
@@ -151,7 +151,7 @@ from railtracks.prebuilt.guardrails import PIIRedactInputGuard, PIIRedactOutputG
 
 GuardedAgent = rt.agent_node(
     name="pii-redact-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a concise assistant.",
     model_middleware=[PIIRedactInputGuard(), PIIRedactOutputGuard()],
 )

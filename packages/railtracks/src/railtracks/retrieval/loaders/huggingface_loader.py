@@ -5,6 +5,7 @@ import warnings
 from collections.abc import AsyncGenerator, Iterator
 from typing import Any, Final
 
+from railtracks.retrieval.content_extraction import ContentExtractor, StrExtractor
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import Document, DocumentType
 
@@ -64,11 +65,16 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
             (`{"name": "v2.1"}`), pinning a revision, or passing an
             auth token. `streaming=True` is always set; any `streaming`
             entry here is ignored.
+        content_extractor: Callable used to turn each content-column value
+            into text. Defaults to `StrExtractor`, preserving the existing
+            `str(value)` behavior. Use `JsonExtractor`, `ProseExtractor`, or
+            any custom callable for nested values.
 
     Raises:
         ValueError: If `content_columns` is empty, or if any name in
             `content_columns`, `metadata_columns`, or `id_column` isn't
-            present in the dataset schema.
+            present in the dataset schema, or content extraction fails (with
+            column, row index, and dataset source).
     """
 
     def __init__(
@@ -80,6 +86,7 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
         metadata_columns: list[str] | None = None,
         content_separator: str = "\n",
         dataset_kwargs: dict[str, Any] | None = None,
+        content_extractor: ContentExtractor | None = None,
     ) -> None:
         if not content_columns:
             raise ValueError("content_columns must be a non-empty list of column names")
@@ -89,6 +96,9 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
         self._id_column = id_column
         self._metadata_columns = list(metadata_columns or [])
         self._content_separator = content_separator
+        self._content_extractor = (
+            content_extractor if content_extractor is not None else StrExtractor()
+        )
         self._dataset_kwargs = dict(dataset_kwargs or {})
 
     async def astream(self) -> AsyncGenerator[Document, None]:
@@ -152,7 +162,8 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
                 validated = True
 
             content = self._content_separator.join(
-                str(row[col]) for col in self._content_columns
+                self._extract_content(row[col], col, row_index)
+                for col in self._content_columns
             )
             metadata: dict[str, Any] = {col: row[col] for col in self._metadata_columns}
             metadata["row_index"] = row_index
@@ -170,3 +181,12 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
                 metadata=metadata,
             )
             row_index += 1
+
+    def _extract_content(self, value: Any, column: str, row_index: int) -> str:
+        try:
+            return self._content_extractor(value)
+        except Exception as exc:
+            raise ValueError(
+                f"Content extraction failed for column {column!r} at row index {row_index} "
+                f"in {self._dataset_name}/{self._split}: {exc!r}"
+            ) from exc
