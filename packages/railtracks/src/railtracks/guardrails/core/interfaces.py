@@ -26,10 +26,7 @@ class Guardrail(Protocol):
     ) -> GuardrailDecision | Awaitable[GuardrailDecision]: ...
 
 
-# The third argument is what `Middleware`'s default would supply, spelled out with this
-# module's own `_P`/`_R`. Leaving it to the default binds `middleware.core`'s type
-# variables instead, and `Generic.__init_subclass__` rejects a base carrying type
-# variables absent from `Generic[...]` on Python 3.11+.
+# Explicit signature argument so it binds this module's `_P`/`_R`.
 class BaseGuardrail(
     ABC, Middleware[_P, _R, _MiddlewareSignature[_P, _R]], Generic[_P, _R]
 ):
