@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import mimetypes
 import threading
 import time
@@ -59,6 +60,10 @@ from ._model_exception_base import (
     MutuallyExclusiveHyperparametersError,
     UnsupportedHyperparameterError,
 )
+
+# Nest under the "RT" logger tree so RT's handlers/config apply, without importing
+# railtracks.utils upward (the llm package is deliberately isolated.
+logger = logging.getLogger("RT.litellm_wrapper")
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 
@@ -575,6 +580,9 @@ class LiteLLMWrapper(ModelBase, ABC):
         # Accumulate the human-readable reasoning text here; the signed `thinking_blocks`
         # are reassembled from the raw chunks after the stream drains (see below).
         accumulated_reasoning = ""
+        # Whether any delta carried thinking blocks; gates the post-drain reassembly so a
+        # non-reasoning stream never pays for it.
+        saw_thinking_blocks = False
 
         # Keep every raw chunk so litellm can reassemble the signed thinking blocks
         # for us once the stream drains (see `_assemble_thinking_blocks`).
@@ -610,6 +618,8 @@ class LiteLLMWrapper(ModelBase, ABC):
             reasoning_delta = getattr(choice.delta, "reasoning_content", None)
             if reasoning_delta:
                 accumulated_reasoning += reasoning_delta
+            if getattr(choice.delta, "thinking_blocks", None):
+                saw_thinking_blocks = True
 
             if choice.delta.tool_calls:
                 # Some providers batch several calls into a single delta, so every entry
@@ -632,8 +642,11 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         # Anthropic streams thinking as unsigned per-delta fragments with the signature
         # in a final block, so we let litellm's merge reassemble them from the raw chunks
-        # rather than concatenating ourselves (see `_assemble_thinking_blocks`).
-        thinking_blocks = self._assemble_thinking_blocks(raw_chunks)
+        # rather than concatenating ourselves (see `_assemble_thinking_blocks`). Skipped
+        # entirely when the stream carried no thinking blocks.
+        thinking_blocks = (
+            self._assemble_thinking_blocks(raw_chunks) if saw_thinking_blocks else None
+        )
 
         r = self._prepare_response(
             accumulated_content=accumulated_content,
@@ -653,8 +666,9 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         We hand the raw chunks back to litellm's own `stream_chunk_builder`, which
         merges the per-delta thinking fragments into whole, signed blocks (and drops
-        blocks that unsigned providers never sign). Anything unexpected degrades to
-        `None` rather than breaking the stream.
+        blocks that unsigned providers never sign). A reassembly failure degrades to
+        `None` (dropping only the thinking blocks, never the answer) and is logged
+        rather than breaking the stream.
         """
         if not raw_chunks:
             return None
@@ -664,7 +678,8 @@ class LiteLLMWrapper(ModelBase, ABC):
                 return None
             blocks = getattr(built.choices[0].message, "thinking_blocks", None)
             return blocks or None
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to reassemble streamed thinking blocks: %r", e)
             return None
 
     def _prepare_response(
