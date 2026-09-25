@@ -17,6 +17,7 @@ from .._exceptions import _ColoredError
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter_handlers import (
     DefaultParameterHandler,
+    LiteralParameterHandler,
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
@@ -200,6 +201,10 @@ class Tool:
         try:
             # Get the function signature
             signature = inspect.signature(func)
+
+            from railtracks.utils.typing_utils import resolve_type_hints
+
+            resolved_types = resolve_type_hints(func, signature)
         except ValueError:
             raise ToolCreationError(
                 message="Cannot convert kwargs for builtin functions.",
@@ -229,6 +234,7 @@ class Tool:
                 PydanticModelHandler(),
                 SequenceParameterHandler(),
                 UnionParameterHandler(),
+                LiteralParameterHandler(),
                 DefaultParameterHandler(),
             ]
 
@@ -244,10 +250,15 @@ class Tool:
                 # Check if the parameter is required
                 required = param.default == inspect.Parameter.empty
 
-                handler = next(h for h in handlers if h.can_handle(param.annotation))
+                annotation = (
+                    resolved_types.get(param.name, param.annotation)
+                    if isinstance(param.annotation, str)
+                    else param.annotation
+                )
+                handler = next(h for h in handlers if h.can_handle(annotation))
 
                 param_obj = handler.create_parameter(
-                    param.name, param.annotation, description, required
+                    param.name, annotation, description, required
                 )
 
                 parameters.append(param_obj)

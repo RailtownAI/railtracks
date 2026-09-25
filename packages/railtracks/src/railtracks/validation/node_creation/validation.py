@@ -297,7 +297,7 @@ def validate_tool_metadata(
 
 # ============================================================== START Tool Manifest Verification ===========================================================
 def _check_manifest_params_exist_in_function(
-    func_params: dict, manifest_params: dict
+    func_params: dict, manifest_params: dict, resolved_types: dict
 ) -> None:
     """Check that all manifest parameters exist in function signature."""
     for param_name in manifest_params:
@@ -309,12 +309,20 @@ def _check_manifest_params_exist_in_function(
                     "Remove the extra parameter from the tool manifest or add it to the function signature.",
                 ],
             )
-        if (
-            ParameterType.from_python_type(func_params[param_name].annotation)
-            != manifest_params[param_name]
-        ):
+        base_annotation = func_params[param_name].annotation
+        annotation = (
+            resolved_types.get(param_name, base_annotation)
+            if isinstance(base_annotation, str)
+            else base_annotation
+        )
+        inferred = ParameterType.from_python_type(annotation)
+
+        if inferred == ParameterType.OBJECT and annotation is not dict:
+            continue  # inference is unreliable here, trust the manifest
+
+        if inferred != manifest_params[param_name]:
             raise NodeCreationError(
-                message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
+                message=f"Type mismatch for parameter '{param_name}': function expects '{inferred}', but manifest specifies '{manifest_params[param_name]}'.",
                 notes=[
                     "Ensure the parameter types in the tool manifest match the function signature.",
                     "Refer to the ParameterType enum for valid types.",
@@ -323,7 +331,7 @@ def _check_manifest_params_exist_in_function(
 
 
 def _check_required_params_in_manifest(
-    func_params: dict, manifest_params: dict
+    func_params: dict, manifest_params: dict, resolved_types: dict
 ) -> None:
     """Check that required function parameters are present in manifest."""
     for param_name, func_param in func_params.items():
@@ -336,12 +344,20 @@ def _check_required_params_in_manifest(
                         "All required function parameters must be included in the manifest.",
                     ],
                 )
-            if (
-                ParameterType.from_python_type(func_params[param_name].annotation)
-                != manifest_params[param_name]
-            ):
+            base_annotation = func_params[param_name].annotation
+            annotation = (
+                resolved_types.get(param_name, base_annotation)
+                if isinstance(base_annotation, str)
+                else base_annotation
+            )
+            inferred = ParameterType.from_python_type(annotation)
+
+            if inferred == ParameterType.OBJECT and annotation is not dict:
+                continue  # inference is unreliable here, trust the manifest
+
+            if inferred != manifest_params[param_name]:
                 raise NodeCreationError(
-                    message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
+                    message=f"Type mismatch for parameter '{param_name}': function expects '{inferred}', but manifest specifies '{manifest_params[param_name]}'.",
                     notes=[
                         "Ensure the parameter types in the tool manifest match the function signature.",
                         "Refer to the ParameterType enum for valid types.",
@@ -374,6 +390,10 @@ def validate_tool_manifest_against_function(
         # For builtin functions, we can't validate - trust the user
         return
 
+    from railtracks.utils.typing_utils import resolve_type_hints
+
+    resolved_types = resolve_type_hints(func, sig)
+
     # Get function parameters (excluding 'self' and 'cls' for methods)
     func_params = {}
     for param_name, param in sig.parameters.items():
@@ -403,8 +423,10 @@ def validate_tool_manifest_against_function(
     manifest_param_dict = {p.name: p.param_type for p in manifest_params}
 
     # Perform all validation checks
-    _check_manifest_params_exist_in_function(func_params, manifest_param_dict)
-    _check_required_params_in_manifest(func_params, manifest_param_dict)
+    _check_manifest_params_exist_in_function(
+        func_params, manifest_param_dict, resolved_types
+    )
+    _check_required_params_in_manifest(func_params, manifest_param_dict, resolved_types)
 
 
 # ============================================================== END Tool Manifest Verification ===========================================================
