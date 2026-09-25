@@ -106,4 +106,16 @@ def test_response_message_info_is_same_object_when_passed():
     assert resp.message_info is mi
 
 
+def test_response_reasoning_forwards_from_message():
+    message = AssistantMessage("4")
+    message.reasoning_content = "2 + 2 is 4"
+    resp = Response(message=message)
+    assert resp.reasoning == "2 + 2 is 4"
+
+
+def test_response_reasoning_is_none_when_message_has_none():
+    resp = Response(message=AssistantMessage("4"))
+    assert resp.reasoning is None
+
+
 # ================ END response tests ===============
