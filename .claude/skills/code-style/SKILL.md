@@ -6,7 +6,7 @@ description: >
   automatically as part of any code change, not just when explicitly asked to clean up code.
 ---
 
-# Code style
+# railtracks Code Style
 
 Code changes in this repo should be reviewed against these rules. Each one comes from a
 recurring, repeated PR review comment on railtracks, not a hypothetical style preference.
