@@ -455,6 +455,15 @@
 }
 
 /* ── Headings ────────────────────────────────────────────── */
+:target,
+.md-typeset [id],
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  scroll-margin-top: 9.5rem !important;
+}
+
 .md-typeset h2 {
   font-size: 1.3rem;
   font-weight: 700;
@@ -467,4 +476,72 @@
   font-weight: 600;
   color: var(--md-default-fg-color--light);
   margin-top: 1.5rem;
+}
+
+/* Glossary terms are headings as well as tooltipped keywords, and a tooltip on a
+   heading only repeats the text directly beneath it. Suppress the dotted underline
+   and hover popup on headings. */
+.md-typeset h1 abbr,
+.md-typeset h2 abbr,
+.md-typeset h3 abbr,
+.md-typeset h4 abbr {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  cursor: inherit;
+  pointer-events: none;
+}
+
+.md-typeset h1 abbr::after,
+.md-typeset h2 abbr::after,
+.md-typeset h3 abbr::after,
+.md-typeset h4 abbr::after {
+  display: none !important;
+}
+
+/* ── Tooltips ────────────────────────────────────────────── */
+/* Plain-text glossary keywords get a subtle, elegant dotted underline */
+abbr[data-title],
+abbr[title] {
+  position: relative;
+  text-decoration: underline dotted 1px var(--md-default-fg-color--lighter);
+  text-underline-offset: 3px;
+  border-bottom: none;
+  cursor: help;
+}
+
+/* Links containing an abbreviation look like clean links with no awkward dotted underline */
+a abbr[data-title],
+a abbr[title],
+a:hover abbr {
+  text-decoration: inherit !important;
+  border-bottom: none !important;
+}
+
+/* Floating definition popup card — 30% wider (~370px) */
+abbr[data-title]:hover::after,
+abbr[title]:hover::after {
+  content: attr(data-title);
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--md-code-bg-color, #1e1e1e);
+  color: var(--md-code-fg-color, #e6edf3);
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.73rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.4;
+  width: max-content;
+  max-width: 370px;
+  white-space: normal;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+abbr[title]:not([data-title]):hover::after {
+  content: attr(title);
 }

@@ -16,7 +16,7 @@ Start with minimal ingredients: a model + a system message
 What if your agent needs real-world data? You will need to give it _tools_. This allows your agent to go beyond static responses and actually interact with the real world.
 
 ??? tip "Creating a Tool"
-    All you need is a Python function with docstring and the `rt.function_node` decorator
+    All you need is a Python function with docstring and the `rt.function_node` decorator, which turns it into a [function node](../../documentation/agent_design/tools/function_tools.md#what-a-function-node-is).
     ```python 
     --8<-- "docs/scripts/first_agent.py:general_tool"
     ```

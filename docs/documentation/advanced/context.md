@@ -1,10 +1,10 @@
 # Global Context
 
-Railtracks includes a concept of global context, letting you store and retrieve shared information across the lifecycle of a run. This makes it easy to coordinate data like config settings, environment flags, or shared resources.
+Railtracks includes a concept of global context, letting you store and retrieve shared information across the lifecycle of a [run](../invocation/flows.md#run). This makes it easy to coordinate data like config settings, environment flags, or shared resources.
 
 ## What is Global Context?
 
-The context system gives you a simple and clear API for interacting with shared values. It's scoped to the duration of a run, so everything is neatly contained within that execution lifecycle. One of the key features of the context system is that it can be accessed from within any node in your workflow, making it ideal for sharing data between different parts of your application.
+The context system gives you a simple and clear API for interacting with shared values. It's scoped to the duration of a run, so everything is neatly contained within that execution lifecycle. One of the key features of the context system is that it can be accessed from within any [node](../agent_design/overview.md#node) in your workflow, making it ideal for sharing data between different parts of your application.
 
 ## Core Functions
 

@@ -1,12 +1,30 @@
-# Flows (Session Management)
-In Railtracks, flows are the primary way to organize your agent runs. Think of a Flow as a blueprint that you invoke to start a run. A single Flow can be invoked multiple times to execute the same agentic process. This guide provides concrete examples to help you get started with Flows.
+# Flows
+
+A **Flow** is a named, reusable entry point for an agent graph. It binds one [entry point](#entry-point) node to a fixed set of runtime options, such as context, a timeout, an error policy and callbacks, so the same agentic process can be invoked as many times as you like with each [run](#run) isolated from the others.
+
+A Flow is the intended top level of a Railtracks program, because everything it provides is scoped to the Flow rather than to a single call: context shared across runs, a timeout over the whole graph, and a connection you can inspect once a run has finished. Inside a Flow, nodes reach one another through [direct invocation](call.md). This guide provides concrete examples to help you get started with Flows.
+
+!!! note "Two senses of the word 'flow'"
+    Capital-F **Flow** always means the `rt.Flow` object described on this page. Lowercase "flow" appears elsewhere in these docs for the *shape* of an agent graph, as in "keep your flows linear", which describes an architecture rather than an object.
 
 ## Quickstart
-To get started with Flows, you simply need to provide an entry point and a name.
+To get started with Flows, you simply need to provide an [entry point](#entry-point) and a name.
 
 ```python
 --8<-- "docs/scripts/flows_sessions.py:quickstart"
 ```
+
+### Entry Point
+
+The **entry point** is the node a Flow starts from, given as `entry_point=`. It is the only node the Flow invokes itself; every other node in the graph is reached from it, either because an agent chose it as a tool or because your code called it with [`rt.call`](call.md).
+
+Any node can be an entry point. An [agent node](../agent_design/overview.md#agent-node) makes the Flow a single agent, while a [function node](../agent_design/tools/function_tools.md#what-a-function-node-is) makes it a multi-step process whose order your own Python controls, as in [Sequential Flows](../../tutorials/concepts/architectures/sequential.md).
+
+## Run
+
+A **run** is one execution of a Flow, started by `invoke` or `ainvoke`. It is the scope Railtracks uses for nearly everything that is not part of an agent's own definition: [context](../advanced/context.md) lives for the length of a run, a Flow's `timeout` applies to the whole run, and per-run budgets such as [`MaxCalls`](../agent_design/middleware/prebuilt/list/max_calls.md) start fresh at the beginning of each one.
+
+Runs of the same Flow never share state. Invoking a Flow twice, or invoking it concurrently, gives each run its own context and its own graph of node invocations.
 
 ## Passing Configuration
 If you want to apply configurations scoped to a specific Flow, you can pass them in during the Flow's creation.

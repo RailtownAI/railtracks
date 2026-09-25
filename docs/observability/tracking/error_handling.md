@@ -20,7 +20,7 @@ RTError (base)
 └── FatalError
 ```
 
-`NodeInvocationError` tells you *that* a node terminated; its subclasses tell you *why*. Every level is a plain `except` clause, so you handle only as much detail as you care about:
+`NodeInvocationError` tells you *that* a [node](../../documentation/agent_design/overview.md#node) terminated; its subclasses tell you *why*. Every level is a plain `except` clause, so you handle only as much detail as you care about:
 
 ```python
 --8<-- "docs/scripts/error_handling.py:llm_dispatch"
