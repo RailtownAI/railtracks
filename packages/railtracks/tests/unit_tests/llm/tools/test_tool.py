@@ -186,6 +186,32 @@ class TestMultipleParameterSectionWarning:
 
         self._assert_no_section_warning(other_parameters)
 
+    def test_numpy_parameters_and_other_parameters_do_not_warn(self):
+        def both_sections(a: int, b: int) -> None:
+            """Do a thing.
+
+            Parameters
+            ----------
+            a : int
+                The first value.
+
+            Other Parameters
+            ----------------
+            b : int
+                The second value.
+            """
+
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            tool = Tool.from_function(both_sections)
+        assert not [
+            w for w in record if "Multiple parameter sections" in str(w.message)
+        ]
+        assert {p.name: p.description for p in tool.parameters} == {
+            "a": "The first value.",
+            "b": "The second value.",
+        }
+
     def test_google_prose_mentioning_parameters_do_not_warn(self):
         def prose(x: int) -> None:
             """Set the Parameters of the model.

@@ -50,6 +50,8 @@ _NUMPY_SECTION_NAMES = frozenset(
 _REST_FIELD_PATTERN = re.compile(
     r"^:(?:param|parameter|type|returns?|rtype|raises?|yields?|keyword|kwarg)\b"
 )
+# A wrapped reST parameter description can start with an inline role.
+_REST_ROLE_PATTERN = re.compile(r"^:[\w.+-]+(?::[\w.+-]+)*:`")
 
 
 # HELPER
@@ -75,8 +77,8 @@ def _is_rest_field(line: str) -> bool:
 def _is_numpy_section_header(lines: list[str], index: int) -> bool:
     """Returns whether ``lines[index]`` is a NumPy section header.
 
-    A NumPy header is the section name followed by an underline of dashes, so
-    a prose line that happens to read ``Notes`` does not qualify.
+    A NumPy header is the section name followed by a line of dashes or equals
+    signs, so a prose line that happens to read ``Notes`` does not qualify.
     """
     stripped = lines[index].strip()
     if stripped.rstrip(":") not in _NUMPY_SECTION_NAMES:
@@ -84,7 +86,7 @@ def _is_numpy_section_header(lines: list[str], index: int) -> bool:
     if index + 1 >= len(lines):
         return False
     underline = lines[index + 1].strip()
-    return bool(underline) and set(underline) == {"-"}
+    return set(underline) in ({"-"}, {"="})
 
 
 # HELPER
@@ -136,8 +138,8 @@ def count_parameter_sections(docstring: str) -> int:
     """
     Counts the distinct parameter sections in a docstring.
 
-    Google ``Args:`` headers and NumPy ``Parameters``/``Other Parameters``
-    headers each count once regardless of how many parameters they hold, and
+    Google ``Args:`` headers each count once, NumPy ``Parameters`` and
+    ``Other Parameters`` together count as one section, and
     any number of reST ``:param`` fields counts as a single reST section.
 
     Args:
@@ -152,11 +154,12 @@ def count_parameter_sections(docstring: str) -> int:
     lines = docstring.splitlines()
 
     sections = sum(1 for line in lines if line.strip().startswith("Args:"))
-    sections += sum(
-        1
-        for line in lines
-        if line.strip().rstrip(":") in ("Parameters", "Other Parameters")
-    )
+    if any(
+        line.strip().rstrip(":") in ("Parameters", "Other Parameters")
+        and _is_numpy_section_header(lines, index)
+        for index, line in enumerate(lines)
+    ):
+        sections += 1
     if any(re.match(r"^:param(?:eter)?\b", line.strip()) for line in lines):
         sections += 1
 
@@ -284,15 +287,21 @@ def extract_numpy_args_section(docstring: str) -> str:
     split_lines = docstring.splitlines()
 
     in_params_section = False
-    for line in split_lines:
+    for index, line in enumerate(split_lines):
         stripped = line.strip()
         if not in_params_section:
-            if stripped.rstrip(":") in ("Parameters", "Other Parameters"):
+            if stripped.rstrip(":") in ("Parameters", "Other Parameters") and (
+                _is_numpy_section_header(split_lines, index)
+            ):
                 in_params_section = True
             continue
 
         # Skip the underline right after the "Parameters" header.
         if stripped and set(stripped) == {"-"}:
+            continue
+
+        # Other Parameters extends the same parameter block.
+        if stripped.rstrip(":") == "Other Parameters":
             continue
 
         # Stop at the start of the next section. This covers both underlined
@@ -381,7 +390,7 @@ def parse_rest_args_section(docstring: str) -> Dict[str, str]:
             # Start a new parameter
             current_arg = match.group(1)
             current_description = [match.group(2).strip()]
-        elif stripped.startswith(":"):
+        elif stripped.startswith(":") and not _REST_ROLE_PATTERN.match(stripped):
             # A different reST field (e.g. ':type:' or ':return:') ends the current parameter
             if current_arg and current_description:
                 arg_descriptions[current_arg] = " ".join(current_description).strip()

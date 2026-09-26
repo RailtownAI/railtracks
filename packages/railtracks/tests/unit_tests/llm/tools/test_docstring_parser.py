@@ -658,6 +658,25 @@ class TestParsingRegressions:
         )
         assert parse_docstring_args(docstring) == {"y": "The y value."}
 
+    def test_numpy_parameters_and_other_parameters(self):
+        """Both NumPy parameter sections contribute descriptions."""
+        docstring = (
+            "Do.\n\nParameters\n----------\na : int\n    first\n\n"
+            "Other Parameters\n----------------\nb : int\n    second\n"
+        )
+        assert parse_docstring_args(docstring) == {"a": "first", "b": "second"}
+
+    def test_parameters_without_underline_is_not_numpy(self):
+        """Napoleon-style fields must not be misread as NumPy definitions."""
+        docstring = "Do.\n\nParameters:\n    a: first\n    b (int): second\n"
+        assert parse_docstring_args(docstring) == {}
+
+    def test_equals_underlined_numpy_header(self):
+        """An equals underline also marks a NumPy Parameters section."""
+        docstring = "Do.\n\nParameters\n==========\na : int\n    first\n"
+        assert parse_docstring_args(docstring) == {"a": "first"}
+        assert extract_main_description(docstring) == "Do."
+
     def test_numpy_examples_block_not_parsed_as_parameter(self):
         """A colon-style 'Examples:' header ends the parameters section."""
         docstring = (
@@ -681,6 +700,19 @@ class TestParsingRegressions:
         assert parse_docstring_args(docstring) == {
             "items": "The items to fetch.",
             "value": "The value to use.",
+        }
+
+    def test_rest_role_at_start_of_wrapped_parameter_description(self):
+        """Inline roles continue the parameter, but real fields end it."""
+        docstring = (
+            ":param chunker: The chunker to use, typically a\n"
+            "    :class:`TextChunker` or :py:meth:`make_chunker` instance.\n"
+            ":ivar state: Internal state.\n"
+            ":param mode: The mode.\n"
+        )
+        assert parse_docstring_args(docstring) == {
+            "chunker": "The chunker to use, typically a :class:`TextChunker` or :py:meth:`make_chunker` instance.",
+            "mode": "The mode.",
         }
 
     def test_rest_role_wrapped_line_kept_without_args_section(self):
