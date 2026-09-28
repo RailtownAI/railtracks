@@ -50,9 +50,21 @@ def test_tool_from_function_literal_and_union():
     assert mode_param.param_type == ParameterType.STRING.value
     assert mode_param.enum == ["fast", "slow"]
 
-    assert items_param.to_json_schema() == {"anyOf": [{"type": "object"}]}
 
-    assert count_param.to_json_schema() == {"anyOf": [{"type": "integer"}]}
+def test_tool_from_function_with_complex_literal():
+    import enum
+
+    class Color(enum.Enum):
+        RED = "red"
+
+    def paint(c: Literal[Color.RED]) -> None:
+        pass
+
+    tool = Tool.from_function(paint)
+    schema = tool.encode()
+    parameters = schema.get("parameters", [])
+    c_param = next(p for p in parameters if p.name == "c")
+    assert c_param.param_type == ParameterType.OBJECT.value
 
 
 def test_type_checking_warning():

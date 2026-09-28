@@ -25,6 +25,7 @@ from .parameter_handlers import (
 )
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
+from .typing_utils import resolve_type_hints
 
 
 def _validate_tool_params(parameters: Any, param_type: type) -> Any:
@@ -169,7 +170,7 @@ class Tool:
     @classmethod
     def from_function(
         cls,
-        func: Callable,
+        func: Callable[..., Any],
         /,
         *,
         name: str | None = None,
@@ -201,8 +202,6 @@ class Tool:
         try:
             # Get the function signature
             signature = inspect.signature(func)
-
-            from railtracks.utils.typing_utils import resolve_type_hints
 
             resolved_types = resolve_type_hints(func, signature)
         except ValueError:

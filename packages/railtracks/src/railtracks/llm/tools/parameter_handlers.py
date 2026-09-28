@@ -1,7 +1,7 @@
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Any, List, Literal, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Set, Tuple, Union, get_origin
 
 from pydantic import BaseModel
 
@@ -89,9 +89,11 @@ class LiteralParameterHandler(ParameterHandler):
     """Handler for Literal parameters."""
 
     def can_handle(self, param_annotation: Any) -> bool:
-        from typing import get_origin
-
-        return get_origin(param_annotation) is Literal
+        if get_origin(param_annotation) is not Literal:
+            return False
+            
+        args = getattr(param_annotation, "__args__", [])
+        return all(isinstance(x, (str, int, float, bool)) or x is None for x in args)
 
     def create_parameter(
         self,
@@ -103,7 +105,7 @@ class LiteralParameterHandler(ParameterHandler):
         args = getattr(param_annotation, "__args__", [])
 
         # Determine the base type of the literal arguments
-        types_set = set()
+        types_set: Set[str] = set()
         for x in args:
             if isinstance(x, bool):
                 types_set.add("boolean")
@@ -114,8 +116,6 @@ class LiteralParameterHandler(ParameterHandler):
             elif x is None:
                 types_set.add("null")
             elif isinstance(x, str):
-                types_set.add("string")
-            else:
                 types_set.add("string")
 
         if not types_set:

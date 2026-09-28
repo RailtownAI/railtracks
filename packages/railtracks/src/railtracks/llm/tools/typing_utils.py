@@ -4,7 +4,9 @@ import warnings
 from typing import Any, Callable, Dict
 
 
-def resolve_type_hints(func: Callable, signature: inspect.Signature) -> Dict[str, Any]:
+def resolve_type_hints(
+    func: Callable[..., Any], signature: inspect.Signature, warn_on_error: bool = True
+) -> Dict[str, Any]:
     """
     Resolve type hints for PEP 563 (from __future__ import annotations).
     Only resolves type hints if any of the parameter annotations is a string.
@@ -23,10 +25,11 @@ def resolve_type_hints(func: Callable, signature: inspect.Signature) -> Dict[str
         try:
             resolved_types = typing.get_type_hints(func, include_extras=True)
         except Exception as e:
-            warnings.warn(
-                f"Could not resolve type annotations for {func.__name__!r}: {e}. "
-                "Unresolved parameters fall back to 'object'. Import the name at "
-                "runtime or pass an explicit ToolManifest."
-            )
+            if warn_on_error:
+                warnings.warn(
+                    f"Could not resolve type annotations for {func.__name__!r}: {e}. "
+                    "Unresolved parameters fall back to 'object'. Import the name at "
+                    "runtime or pass an explicit ToolManifest."
+                )
 
     return resolved_types
