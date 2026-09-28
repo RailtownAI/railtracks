@@ -5,8 +5,18 @@ import functools
 import inspect
 from typing import Awaitable, Callable, Concatenate, ParamSpec, TypeVar, overload
 
+from railtracks.events.middleware import (
+    MiddlewareVerifierPostFailureEvent,
+    MiddlewareVerifierPostInvocationEvent,
+    MiddlewareVerifierPostResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.middleware.core import Middleware, wrap_node
-from railtracks.middleware.verdict import Verdict, VerifierRejectedError
+from railtracks.middleware.verdict import (
+    Verdict,
+    VerifierDecision,
+    VerifierRejectedError,
+)
 from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.unpack import unpack_async_sync
 
@@ -99,6 +109,9 @@ def _wrapper(approve_fn: _ApproveFn[_R, _P], timeout: float | None):
     ) -> _R:
         result = await call(*args, **kwargs)
 
+        await emit(MiddlewareVerifierPostInvocationEvent(response=result))
+
+        is_timeout = False
         try:
             review = unpack_async_sync(approve_fn(result, *args, **kwargs))
             if timeout is None:
@@ -107,6 +120,22 @@ def _wrapper(approve_fn: _ApproveFn[_R, _P], timeout: float | None):
                 verdict = await asyncio.wait_for(review, timeout=timeout)
         except asyncio.TimeoutError:
             verdict = Verdict(accepted=False, comment="timeout")
+            is_timeout = True
+        except Exception as e:
+            await emit(MiddlewareVerifierPostFailureEvent.from_exception(e))
+            raise
+
+        new_result = verdict.result if verdict.result is not None else result
+        overridden = verdict.result is not None
+
+        await emit(
+            MiddlewareVerifierPostResponseEvent(
+                decision=VerifierDecision.from_verdict(
+                    verdict, overridden=overridden, timeout=is_timeout
+                ),
+                response=new_result,
+            )
+        )
 
         if not verdict.accepted:
             raise VerifierRejectedError(verdict.comment or "rejected")
@@ -114,6 +143,6 @@ def _wrapper(approve_fn: _ApproveFn[_R, _P], timeout: float | None):
         if verdict.comment:
             logger.info("post_verifier accepted with comment: %s", verdict.comment)
 
-        return verdict.result if verdict.result is not None else result
+        return new_result
 
     return wrapped

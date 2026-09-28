@@ -4,7 +4,12 @@ from railtracks.middleware.core import (
     wrap_node,
 )
 from railtracks.middleware.post import post_node
-from railtracks.middleware.verdict import Verdict, VerifierRejectedError
+from railtracks.middleware.verdict import (
+    Verdict,
+    VerifierAction,
+    VerifierDecision,
+    VerifierRejectedError,
+)
 
 __all__ = [
     "post_node",
@@ -13,4 +18,6 @@ __all__ = [
     "wrap_node",
     "Verdict",
     "VerifierRejectedError",
+    "VerifierAction",
+    "VerifierDecision",
 ]
