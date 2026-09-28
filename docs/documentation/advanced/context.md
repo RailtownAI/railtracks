@@ -46,6 +46,26 @@ One of the most powerful features built on top of the context system is "context
 !!! tip
     For more details on context injection, see the [Prompts and Context Injection Tutorial](../../tutorials/walkthroughs/prompts_and_context.md) documentation.
 
+## Observability
+
+Each `rt.context` call your code makes is recorded in the run's event stream:
+
+| Event | Payload |
+| --- | --- |
+| `context.creation` | the values the run starts with |
+| `context.get` | `key` and the `value` it returned (the default, on a miss) |
+| `context.put` | `key` and `value` |
+| `context.update` | the dict passed in |
+| `context.delete` | `key` |
+| `context.completion` | the values the run ends with |
+
+Values are recorded as they were at the moment of the call. A call that raises `KeyError` records nothing, and `rt.context.keys()` is never recorded. Values over 16 KB of JSON are replaced with a placeholder giving their type and size.
+
+!!! warning "Editing a value in place is not recorded"
+    `rt.context` hands you the stored object, not a copy, so `rt.context.get("cart").append("pear")` changes the context without a `put`. Such an edit only shows up in `context.completion`.
+
+Railtracks' own use of the context, such as `ConversationMemory`'s history and the reads behind [context injection](#context-injection), is not recorded.
+
 ## Benefits of Using Context
 
 !!! info "Why use the context system?"
