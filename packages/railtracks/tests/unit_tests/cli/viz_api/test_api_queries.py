@@ -100,6 +100,222 @@ def _raising_middleware_events(session_id: str, name: str) -> list[dict[str, obj
     ]
 
 
+def _verifier_decision_events(
+    session_id: str, name: str, action: str, *, overridden: bool = False
+) -> list[dict[str, object]]:
+    """Events for one verifier invocation, ending in a given decision.
+
+    Mirrors ``_raising_middleware_events``'s node-and-middleware relationship,
+    but for the decision path rather than a raw exception: a
+    ``middleware.verifier.pre.response`` event carrying a ``decision`` payload
+    (the shape ``pre_verifier``/``post_verifier`` actually emit), which
+    queries/middleware.py normalizes onto the guard vocabulary.
+
+    A ``"decline"`` additionally reports the ``VerifierRejectedError`` the
+    wrapper's own generic ``middleware.failure`` carries — a verifier's node
+    never runs to produce its own ``node.failure``/``llm.failure`` — and a
+    failed ``session.completed``, matching what the Blocked/Failed split in
+    sessions.py reads.
+    """
+    node_id = f"node-{session_id}"
+    type_id = f"type-{session_id}"
+    invoke_id = f"invoke-{session_id}"
+    relationship = {
+        "spatial_parent_type": "node_and_middleware",
+        "spatial_parent_node_id": node_id,
+        "parent_type": "middleware",
+        "parent_middleware_type_id": type_id,
+        "parent_middleware_invoke_id": invoke_id,
+    }
+    events = [
+        _event(
+            f"session-{session_id}",
+            "session.started",
+            session_id,
+            {"session_id": session_id, "flow_name": f"flow-{session_id}"},
+        ),
+        _event(
+            f"node-{session_id}",
+            "node.creation",
+            session_id,
+            {"node_id": node_id, "name": node_id, "node_type": "Agent"},
+        ),
+        _event(
+            f"creation-{session_id}",
+            "middleware.creation",
+            session_id,
+            {"middleware_type_id": type_id, "middleware_name": name},
+        ),
+        _event(
+            f"invocation-{session_id}",
+            "middleware.invocation",
+            session_id,
+            relationship,
+        ),
+        _event(
+            f"decision-{session_id}",
+            "middleware.verifier.pre.response",
+            session_id,
+            {**relationship, "decision": {"action": action, "overridden": overridden}},
+        ),
+    ]
+    if action == "decline":
+        events.append(
+            _event(
+                f"failure-{session_id}",
+                "middleware.failure",
+                session_id,
+                {
+                    **relationship,
+                    "exception_name": "VerifierRejectedError",
+                    "exception_message": f"rejected-{session_id}",
+                },
+            )
+        )
+        status = "failure"
+    else:
+        events.append(
+            _event(
+                f"response-{session_id}",
+                "middleware.response",
+                session_id,
+                {**relationship, "response": None},
+            )
+        )
+        status = "success"
+    events.append(
+        _event(
+            f"completed-{session_id}",
+            "session.completed",
+            session_id,
+            {"session_id": session_id, "status": status},
+        )
+    )
+    return events
+
+
+def _verifier_stack_events(
+    session_id: str,
+    outer_name: str,
+    verifier_name: str,
+    *,
+    crash: bool,
+) -> list[dict[str, object]]:
+    """Events for a plain wrapper stacked *around* a verifier that fails.
+
+    Both middleware share one node, so the exception unwinds through the
+    verifier first and then the outer wrapper -- same exception message, two
+    separate ``middleware.failure`` events, as a real run produces. A
+    ``decline`` reports through ``middleware.verifier.pre.response``, the same
+    as :func:`_verifier_decision_events`; a ``crash`` (``approve_fn`` itself
+    raising) reports through ``middleware.verifier.pre.failure`` instead, since
+    there is no decision to report. Either way, the verifier's own node never
+    ran, so there is no ``node.failure``/``llm.failure`` for either failure to
+    inherit -- exercising exactly the gap ``callee_failures``' verifier branch
+    closes.
+    """
+    node_id = f"node-{session_id}"
+    message = f"stopped-{session_id}"
+    outer = {
+        "spatial_parent_type": "node_and_middleware",
+        "spatial_parent_node_id": node_id,
+        "parent_type": "middleware",
+        "parent_middleware_type_id": f"type-outer-{session_id}",
+        "parent_middleware_invoke_id": f"invoke-outer-{session_id}",
+    }
+    verifier = {
+        "spatial_parent_type": "node_and_middleware",
+        "spatial_parent_node_id": node_id,
+        "parent_type": "middleware",
+        "parent_middleware_type_id": f"type-verifier-{session_id}",
+        "parent_middleware_invoke_id": f"invoke-verifier-{session_id}",
+    }
+    events = [
+        _event(
+            f"session-{session_id}",
+            "session.started",
+            session_id,
+            {"session_id": session_id, "flow_name": f"flow-{session_id}"},
+        ),
+        _event(
+            f"node-{session_id}",
+            "node.creation",
+            session_id,
+            {"node_id": node_id, "name": node_id, "node_type": "Agent"},
+        ),
+        _event(
+            f"creation-outer-{session_id}",
+            "middleware.creation",
+            session_id,
+            {
+                "middleware_type_id": outer["parent_middleware_type_id"],
+                "middleware_name": outer_name,
+            },
+        ),
+        _event(
+            f"creation-verifier-{session_id}",
+            "middleware.creation",
+            session_id,
+            {
+                "middleware_type_id": verifier["parent_middleware_type_id"],
+                "middleware_name": verifier_name,
+            },
+        ),
+        _event(
+            f"invocation-outer-{session_id}", "middleware.invocation", session_id, outer
+        ),
+        _event(
+            f"invocation-verifier-{session_id}",
+            "middleware.invocation",
+            session_id,
+            verifier,
+        ),
+    ]
+    if crash:
+        events.append(
+            _event(
+                f"verifier-failure-{session_id}",
+                "middleware.verifier.pre.failure",
+                session_id,
+                {
+                    **verifier,
+                    "exception_name": "ValueError",
+                    "exception_message": message,
+                },
+            )
+        )
+    else:
+        events.append(
+            _event(
+                f"decision-{session_id}",
+                "middleware.verifier.pre.response",
+                session_id,
+                {**verifier, "decision": {"action": "decline"}},
+            )
+        )
+    events.append(
+        _event(
+            f"failure-verifier-{session_id}",
+            "middleware.failure",
+            session_id,
+            {
+                **verifier,
+                "exception_name": "ValueError" if crash else "VerifierRejectedError",
+                "exception_message": message,
+            },
+        )
+    )
+    events.append(
+        _event(
+            f"failure-outer-{session_id}",
+            "middleware.failure",
+            session_id,
+            {**outer, "exception_name": "ValueError", "exception_message": message},
+        )
+    )
+    return events
+
+
 def test_empty_event_directory_returns_empty_api_payload(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -410,6 +626,116 @@ def test_middleware_stats_count_exact_distinct_sessions(tmp_path: Path) -> None:
     assert stats["total_middleware"] == 2
     assert stats["blocks"] == 2
     assert stats["sessions"] == 2
+
+
+def test_verifier_decisions_classify_as_verifier_kind(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path,
+        "one",
+        *_verifier_decision_events("one", "approve_charge", "accept"),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    rows = queries.list_middleware_rows(
+        query.con,
+        limit=100,
+        offset=0,
+        sort_by=MiddlewareSortField.INVOCATIONS,
+        order=SortOrder.DESC,
+    )
+
+    assert [
+        row["kind"] for row in rows if row["middleware_name"] == "approve_charge"
+    ] == ["verifier"]
+
+
+def test_verifier_actions_normalize_to_guard_vocabulary(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path, "allow", *_verifier_decision_events("allow", "allower", "accept")
+    )
+    _write_events(
+        tmp_path,
+        "transform",
+        *_verifier_decision_events("transform", "overrider", "accept", overridden=True),
+    )
+    _write_events(
+        tmp_path, "block", *_verifier_decision_events("block", "decliner", "decline")
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    rows = {
+        row["middleware_name"]: row
+        for row in queries.list_middleware_rows(
+            query.con,
+            limit=100,
+            offset=0,
+            sort_by=MiddlewareSortField.INVOCATIONS,
+            order=SortOrder.DESC,
+        )
+    }
+
+    assert (rows["allower"]["allows"], rows["allower"]["blocks"]) == (1, 0)
+    assert (rows["overrider"]["transforms"], rows["overrider"]["blocks"]) == (1, 0)
+    assert rows["decliner"]["blocks"] == 1
+
+
+def test_verifier_reject_marks_session_blocked(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path,
+        "rejected",
+        *_verifier_decision_events("rejected", "gatekeeper", "decline"),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    rows = queries.list_session_rows(query.con)
+
+    assert [row["status"] for row in rows if row["session_id"] == "rejected"] == [
+        "Blocked"
+    ]
+
+
+@pytest.mark.parametrize("crash", [False, True], ids=["decline", "crash"])
+def test_wrapper_outside_a_failing_verifier_is_not_marked_blocked(
+    tmp_path: Path, crash: bool
+) -> None:
+    """A verifier's own decline/crash never lets its node run, so there is no
+    node.failure/llm.failure to excuse a plain middleware wrapped around it --
+    the exact gap that let a stacked wrapper misread as having blocked the
+    call it merely sat outside of.
+    """
+    _write_events(
+        tmp_path,
+        "one",
+        *_verifier_stack_events("one", "outer_wrapper", "the_verifier", crash=crash),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    rows = {
+        row["middleware_name"]: row
+        for row in queries.list_middleware_rows(
+            query.con,
+            limit=100,
+            offset=0,
+            sort_by=MiddlewareSortField.INVOCATIONS,
+            order=SortOrder.DESC,
+        )
+    }
+
+    assert (
+        rows["outer_wrapper"]["blocks"],
+        rows["outer_wrapper"]["interruptions"],
+    ) == (
+        0,
+        1,
+    )
+    assert (rows["the_verifier"]["blocks"], rows["the_verifier"]["interruptions"]) == (
+        1,
+        0,
+    )
 
 
 def test_query_failures_emit_structured_error_logs(

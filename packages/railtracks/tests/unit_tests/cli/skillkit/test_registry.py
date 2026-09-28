@@ -119,7 +119,9 @@ class TestLegacySkillsMapping:
         assert SKILLS["middleware"] == {
             "name": "middleware",
             "description": (
-                "Use middleware as part of your railtracks agent. Use when you want build resilient and effective agents"
+                "Add middleware to a railtracks agent or node (retries, logging, timing, "
+                "guardrails, context injection). Use when the user wants to wrap, retry, "
+                "guard, or observe node or LLM calls."
             ),
             "argument_hint": "[describe the middleware to implement]",
         }

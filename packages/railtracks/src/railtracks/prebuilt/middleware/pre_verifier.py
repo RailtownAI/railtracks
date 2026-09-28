@@ -6,8 +6,18 @@ from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, overload
 
 from typing_extensions import Never
 
+from railtracks.events.middleware import (
+    MiddlewareVerifierPreFailureEvent,
+    MiddlewareVerifierPreInvocationEvent,
+    MiddlewareVerifierPreResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.middleware.core import Middleware, _MiddlewareSignature, wrap_node
-from railtracks.middleware.verdict import Verdict, VerifierRejectedError
+from railtracks.middleware.verdict import (
+    Verdict,
+    VerifierDecision,
+    VerifierRejectedError,
+)
 from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.unpack import unpack_async_sync
 
@@ -76,6 +86,9 @@ def _wrapper(approve_fn: _ApproveFn[_P], timeout: float | None):
     async def wrapped(
         call: Callable[_P, Awaitable[_R]], *args: _P.args, **kwargs: _P.kwargs
     ) -> _R:
+        await emit(MiddlewareVerifierPreInvocationEvent(args=args, kwargs=kwargs))
+
+        is_timeout = False
         try:
             review = unpack_async_sync(approve_fn(*args, **kwargs))
             if timeout is None:
@@ -84,6 +97,24 @@ def _wrapper(approve_fn: _ApproveFn[_P], timeout: float | None):
                 verdict = await asyncio.wait_for(review, timeout=timeout)
         except asyncio.TimeoutError:
             verdict = Verdict(accepted=False, comment="timeout")
+            is_timeout = True
+        except Exception as e:
+            await emit(MiddlewareVerifierPreFailureEvent.from_exception(e))
+            raise
+
+        new_args = verdict.args if verdict.args is not None else args
+        new_kwargs = verdict.kwargs if verdict.kwargs is not None else kwargs
+        overridden = verdict.args is not None or verdict.kwargs is not None
+
+        await emit(
+            MiddlewareVerifierPreResponseEvent(
+                decision=VerifierDecision.from_verdict(
+                    verdict, overridden=overridden, timeout=is_timeout
+                ),
+                args=new_args,
+                kwargs=new_kwargs,
+            )
+        )
 
         if not verdict.accepted:
             raise VerifierRejectedError(verdict.comment or "rejected")
@@ -91,8 +122,6 @@ def _wrapper(approve_fn: _ApproveFn[_P], timeout: float | None):
         if verdict.comment:
             logger.info("pre_verifier accepted with comment: %s", verdict.comment)
 
-        new_args = verdict.args if verdict.args is not None else args
-        new_kwargs = verdict.kwargs if verdict.kwargs is not None else kwargs
         return await call(*new_args, **new_kwargs)
 
     return wrapped
