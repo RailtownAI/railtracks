@@ -155,7 +155,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 
 ## Code conventions
 
-Follow the code-style conventions for every code change. You should have a skill named `code-style` in your context; if you do not, read `.claude/skills/code-style/SKILL.md` before editing code. Changes should be reviewed against it.
+Follow the code-style conventions for every code change. Before writing or editing code, confirm the rule list under the `# railtracks Code Style` heading is in your context; this line and a `code-style` entry in a skill listing do not count. If it is not (a new session, or after the context was compacted), read `.claude/skills/code-style/SKILL.md` first. Check the diff against it before committing.
 
 ## Notes on dependency structure
 - Root `pyproject.toml` = dev tooling only (`docs`/`test`/`lint` groups via `uv`). Never add runtime package dependencies here.
