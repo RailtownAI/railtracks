@@ -14,6 +14,7 @@ def resolve_type_hints(
     Args:
         func: The function to resolve type hints for.
         signature: The function's signature.
+        warn_on_error: Whether to emit a warning if type resolution fails. Default is True.
 
     Returns:
         A dictionary mapping parameter names to their resolved type hints.

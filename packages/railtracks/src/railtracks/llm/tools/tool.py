@@ -202,8 +202,6 @@ class Tool:
         try:
             # Get the function signature
             signature = inspect.signature(func)
-
-            resolved_types = resolve_type_hints(func, signature)
         except ValueError:
             raise ToolCreationError(
                 message="Cannot convert kwargs for builtin functions.",
@@ -224,6 +222,8 @@ class Tool:
         if params is not None:
             parameters = params
         else:
+            resolved_types = resolve_type_hints(func, signature)
+
             # Check for multiple Args sections (warning)
             # Only need to do this if we need to.
             if docstring.count("Args:") > 1:

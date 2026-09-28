@@ -1,9 +1,42 @@
 from __future__ import annotations
 
+import enum
+import json
+import warnings
 from typing import List, Literal, Optional
 
-from railtracks.llm.tools.parameters import ParameterType
+import pytest
+import railtracks as rt
+from railtracks.exceptions import NodeCreationError
+from railtracks.llm.tools.parameters import Parameter, ParameterType
 from railtracks.llm.tools.tool import Tool
+from railtracks.validation.node_creation.validation import (
+    validate_tool_manifest_against_function,
+)
+
+
+class Color(enum.Enum):
+    RED = "red"
+
+
+class StrColor(str, enum.Enum):
+    RED = "red"
+
+
+def paint(c: Literal[Color.RED]) -> None:
+    pass
+
+
+def paint_str(c: Literal[StrColor.RED]) -> None:
+    pass
+
+
+def lookup(pattern: str, amount: Undefined) -> str:  # noqa: F821
+    return ""
+
+
+def count(n: int) -> None:
+    pass
 
 
 def search_files(pattern: str, limit: int = 10) -> str:
@@ -44,27 +77,55 @@ def test_tool_from_function_literal_and_union():
     parameters = schema.get("parameters", [])
 
     mode_param = next(p for p in parameters if p.name == "mode")
-    items_param = next(p for p in parameters if p.name == "items")
-    count_param = next(p for p in parameters if p.name == "count")
 
     assert mode_param.param_type == ParameterType.STRING.value
     assert mode_param.enum == ["fast", "slow"]
 
 
-def test_tool_from_function_with_complex_literal():
-    import enum
+def test_non_primitive_literal_falls_back_to_object():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        tool = Tool.from_function(paint)
+        schema = tool.encode()["parameters"][0].to_json_schema()
+        assert schema["type"] == "object"
+        assert "enum" not in schema
+        assert json.loads(json.dumps(schema)) == schema
 
-    class Color(enum.Enum):
-        RED = "red"
 
-    def paint(c: Literal[Color.RED]) -> None:
-        pass
+def test_str_enum_literal_keeps_its_values():
+    tool = Tool.from_function(paint_str)
+    schema = tool.encode()["parameters"][0].to_json_schema()
+    assert json.loads(json.dumps(schema)) == {"type": "string", "enum": ["red"]}
 
-    tool = Tool.from_function(paint)
-    schema = tool.encode()
-    parameters = schema.get("parameters", [])
-    c_param = next(p for p in parameters if p.name == "c")
-    assert c_param.param_type == ParameterType.OBJECT.value
+
+def test_manifest_skips_annotation_resolution_warning():
+    manifest = rt.ToolManifest(
+        "Look something up.",
+        [
+            Parameter(name="pattern", param_type="string", required=True),
+            Parameter(name="amount", param_type="number", required=True),
+        ],
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        node = rt.function_node(lookup, manifest=manifest)
+        params = node.node_type.tool_info().parameters
+        assert {p.name: p.param_type for p in params} == {
+            "pattern": "string",
+            "amount": "number",
+        }
+
+
+def test_unresolvable_annotation_still_warns_without_manifest():
+    with pytest.warns(UserWarning, match="Could not resolve type annotations"):
+        rt.function_node(lookup)
+
+
+def test_manifest_mismatch_against_resolved_type_still_raises():
+    with pytest.raises(NodeCreationError, match="Type mismatch"):
+        validate_tool_manifest_against_function(
+            count, [Parameter(name="n", param_type="string", required=True)]
+        )
 
 
 def test_type_checking_warning():

@@ -91,7 +91,7 @@ class LiteralParameterHandler(ParameterHandler):
     def can_handle(self, param_annotation: Any) -> bool:
         if get_origin(param_annotation) is not Literal:
             return False
-            
+
         args = getattr(param_annotation, "__args__", [])
         return all(isinstance(x, (str, int, float, bool)) or x is None for x in args)
 

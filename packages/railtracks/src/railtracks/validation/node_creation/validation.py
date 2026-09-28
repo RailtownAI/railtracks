@@ -298,7 +298,10 @@ def validate_tool_metadata(
 
 # ============================================================== START Tool Manifest Verification ===========================================================
 def _check_type_compatibility(
-    param_name: str, func_param: inspect.Parameter, manifest_param_type: ParameterType, resolved_types: dict
+    param_name: str,
+    func_param: inspect.Parameter,
+    manifest_param_type: ParameterType,
+    resolved_types: Dict[str, Any],
 ) -> None:
     base_annotation = func_param.annotation
     annotation = (
@@ -334,7 +337,12 @@ def _check_manifest_params_exist_in_function(
                     "Remove the extra parameter from the tool manifest or add it to the function signature.",
                 ],
             )
-        _check_type_compatibility(param_name, func_params[param_name], manifest_params[param_name], resolved_types)
+        _check_type_compatibility(
+            param_name,
+            func_params[param_name],
+            manifest_params[param_name],
+            resolved_types,
+        )
 
 
 def _check_required_params_in_manifest(
@@ -351,7 +359,9 @@ def _check_required_params_in_manifest(
                         "All required function parameters must be included in the manifest.",
                     ],
                 )
-            _check_type_compatibility(param_name, func_param, manifest_params[param_name], resolved_types)
+            _check_type_compatibility(
+                param_name, func_param, manifest_params[param_name], resolved_types
+            )
 
 
 def validate_tool_manifest_against_function(
