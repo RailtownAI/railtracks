@@ -1,10 +1,16 @@
+---
+name: agent-builder
+description: Build an agent using the railtracks Python framework. Use when the user wants to create an AI agent, tool-calling workflow, or multi-agent system with railtracks.
+argument-hint: "[describe what the agent should do]"
+---
+
 # Build a Railtracks Agent
 
 The user wants to build an agent using the railtracks framework: $ARGUMENTS
 
 ## How railtracks works
 - **Tools** are plain Python functions decorated with `@rt.function_node`. Type hints become the parameter schema; the docstring becomes the description.
-- **Agents** are created with `rt.agent_node()`. The type is auto-selected based on whether tools and/or a structured output schema are provided.
+- **Agents** are created with `rt.agent_node()`. Its behaviour depends on whether tools or a structured output schema are passed (see below).
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
 
@@ -40,7 +46,7 @@ rt.llm.OpenAICompatibleProvider(
 4. **Define the agent** — call `rt.agent_node()` with (note: it returns a class/type, so use PascalCase for the variable name):
    - A descriptive name
    - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both (passing both raises `NodeCreationError`)
-   - `llm` — default to `rt.llm.AnthropicLLM("claude-sonnet-5")` unless the user specifies otherwise
+   - `llm` — follow the provider the project already uses, or one whose API key is configured (providers and their key variables: https://docs.railtracks.org/documentation/getting_started/llm_setup/); otherwise ask the user which LLM to use
    - `system_message` — a clear, specific system prompt
 5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=agent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(agent, ...)` inside it.
 6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example so the user can run it immediately.

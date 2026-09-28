@@ -96,6 +96,8 @@ _OUTCOME_PASSED_LITERAL = f"'{MiddlewareOutcome.PASSED.value}'"
 _MIDDLEWARE_KIND_LADDER: list[tuple[str, MiddlewareKind]] = [
     ("event_type LIKE 'middleware.guard.input.%'", MiddlewareKind.INPUT_GUARD),
     ("event_type LIKE 'middleware.guard.output.%'", MiddlewareKind.OUTPUT_GUARD),
+    # Covers both `middleware.verifier.pre.*` and `.post.*`.
+    ("event_type LIKE 'middleware.verifier.%'", MiddlewareKind.VERIFIER),
     ("event_type LIKE 'middleware.model.input.%'", MiddlewareKind.REQUEST_TRANSFORM),
     ("event_type LIKE 'middleware.model.output.%'", MiddlewareKind.RESPONSE_TRANSFORM),
     ("event_type LIKE 'middleware.regular.output.%'", MiddlewareKind.RESULT_HOOK),
@@ -183,11 +185,13 @@ def _middleware_rows_cte() -> str:
       passing through.
 
       ``raised_here`` separates them by asking whether what it wrapped failed
-      first: if a ``node.failure`` or ``llm.failure`` in the same session carries
-      the same exception message at or before this event, the exception came from
-      inside and the middleware only sat in its path. Checked against the guard
-      decisions, which are authoritative: all 14 blocks on the store are also
-      ``raised_here`` or carry ``action = 'block'``, and no wrapper is.
+      first: if a ``node.failure``, an ``llm.failure``, or (see
+      ``callee_failures`` below) a verifier's own ``middleware.failure`` in the
+      same session carries the same exception message at or before this event,
+      the exception came from inside and the middleware only sat in its path.
+      Checked against the guard decisions, which are authoritative: all 14
+      blocks on the store are also ``raised_here`` or carry
+      ``action = 'block'``, and no wrapper is.
     """
     return (
         _MIDDLEWARE_NAME_CTE
@@ -217,14 +221,29 @@ def _middleware_rows_cte() -> str:
     -- What the middleware wrapped, when that failed, and with which exception.
     -- Only the message is compared: the same exception object is re-reported at
     -- each layer, so identity is the message plus the session plus the ordering.
+    --
+    -- A verifier's own failure counts too: its node never ran, so there is no
+    -- node/llm failure to inherit otherwise. `invoke_id` keeps it from also
+    -- excusing itself.
     callee_failures AS (
-      SELECT scope_id, timestamp, exception_message
+      SELECT scope_id, timestamp, exception_message, NULL AS invoke_id
       FROM node
       WHERE event_type = 'node.failure' AND exception_message IS NOT NULL
       UNION ALL
-      SELECT scope_id, timestamp, exception_message
+      SELECT scope_id, timestamp, exception_message, NULL AS invoke_id
       FROM llm
       WHERE event_type = 'llm.failure' AND exception_message IS NOT NULL
+      UNION ALL
+      SELECT f.scope_id, f.timestamp, f.exception_message,
+             f.parent_middleware_invoke_id AS invoke_id
+      FROM middleware f
+      WHERE f.event_type = 'middleware.failure'
+        AND EXISTS (
+          SELECT 1 FROM middleware d
+          WHERE d.scope_id = f.scope_id
+            AND d.parent_middleware_invoke_id = f.parent_middleware_invoke_id
+            AND d.event_type LIKE 'middleware.verifier.%'
+        )
     ),
     mw_events AS (
       SELECT ev.event_id,
@@ -235,7 +254,16 @@ def _middleware_rows_cte() -> str:
              ev.parent_middleware_invoke_id,
              ev.spatial_parent_node_id,
              ev.spatial_parent_llm_invoke_id,
-             ev.decision->>'action'         AS action,
+             -- Verifier decisions ('accept'/'decline' + `overridden`) are
+             -- normalized onto the guard vocabulary ('allow'/'transform'/'block')
+             -- here, so every downstream aggregate reads one vocabulary.
+             CASE ev.decision->>'action'
+               WHEN 'accept' THEN
+                 CASE WHEN ev.decision->>'overridden' = 'true' THEN 'transform'
+                      ELSE 'allow' END
+               WHEN 'decline' THEN 'block'
+               ELSE ev.decision->>'action'
+             END                             AS action,
              ev.decision->>'reason'         AS reason,
              ev.event_type LIKE '%.failure' AS is_failure,
              ev.exception_message,
@@ -287,6 +315,7 @@ def _middleware_rows_cte() -> str:
                WHERE cf.scope_id = ev.scope_id
                  AND cf.exception_message IS NOT DISTINCT FROM ev.exception_message
                  AND cf.timestamp <= ev.timestamp
+                 AND cf.invoke_id IS DISTINCT FROM ev.parent_middleware_invoke_id
              )                                                 AS raised_here
       FROM mw_events ev
       LEFT JOIN mw_llm_nodes ln

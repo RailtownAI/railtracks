@@ -174,7 +174,7 @@ async def test_astream_documents():
 async def test_astream_documents_empty_stream():
     async def _empty() -> AsyncGenerator[Document, None]:
         return
-        yield  # noqa: unreachable — makes this a valid async generator
+        yield  # makes this a valid async generator
 
     chunker = _PassthroughChunker()
     chunks = [c async for c in chunker.astream_documents(_empty())]

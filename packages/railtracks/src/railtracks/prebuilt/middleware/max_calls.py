@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from typing import Any
+
+from typing_extensions import Never
 
 from railtracks.context.central import get_session_identity, is_context_present
 from railtracks.exceptions.errors import ContextError
@@ -11,7 +14,7 @@ from railtracks.middleware.core import Middleware
 _MAX_TRACKED_SESSIONS = 64
 
 
-class MaxCalls(Middleware):
+class MaxCalls(Middleware[Any, Any, Never]):
     """Fail the wrapped call once it has been invoked ``max_calls`` times.
 
     Slot-agnostic: works both as node middleware (``middleware=``) and as model

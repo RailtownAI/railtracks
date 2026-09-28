@@ -154,11 +154,23 @@ def llm_invoke_factory(
 
             path = process_message(returned_mess, schema)
 
+            # Rebuild a fresh assistant message rather than appending the response's own,
+            # so history stays isolated from the Response that `post_llm` middleware may
+            # still mutate; `copy_metadata_from` carries the reasoning/provider metadata
+            # the rebuild would otherwise drop. `run_tools` isolates the same way.
             if path == "Content":
-                conversation.append(AssistantMessage(returned_mess.message.content))
+                conversation.append(
+                    AssistantMessage(returned_mess.message.content).copy_metadata_from(
+                        returned_mess.message
+                    )
+                )
                 return prepare_string_response(conversation)
             elif path == "Structured":
-                conversation.append(AssistantMessage(returned_mess.message.content))
+                conversation.append(
+                    AssistantMessage(returned_mess.message.content).copy_metadata_from(
+                        returned_mess.message
+                    )
+                )
                 assert schema is not None
                 return prepare_structured_response(conversation, schema)
             elif path == "Tool":
@@ -177,17 +189,15 @@ async def run_tools(
     assert len(tool_nodes) > 0, "No tool nodes provided to run_tools"
     tool_calls = response.message.tool_calls
 
-    # `tool_calls` is a copy, so carry the text over from the response's own
-    # content rather than letting it fall off the history message.
+    # `tool_calls` is a copy (so the loop can hand it to `invoke_tools` without history
+    # sharing mutable argument dicts), so carry the text over from the response's own
+    # content and copy the reasoning/provider metadata the rebuild would otherwise drop
+    # -- signed thinking blocks (which Anthropic requires echoed back) included.
     hist_msg = AssistantMessage(
         content=ToolCalls(
             tool_calls, text=getattr(response.message.content, "text", None)
         )
-    )
-
-    raw = getattr(response.message, "raw_content", None)
-    if raw is not None:
-        hist_msg.raw_litellm_message = raw
+    ).copy_metadata_from(response.message)
 
     message_history.append(hist_msg)
 

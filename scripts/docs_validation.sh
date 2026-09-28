@@ -12,8 +12,10 @@ if [ ! -d "docs/scripts" ]; then
     exit 1
 fi
 
-DISABLE_CODES="top-level-await"
-mypy --disable-error-code=top-level-await --disable-error-code=import-untyped --disable-error-code=empty-body --disable-error-code=var-annotated docs/scripts/
-
-
-
+mypy \
+    --warn-unused-ignores \
+    --disable-error-code=top-level-await \
+    --disable-error-code=import-untyped \
+    --disable-error-code=empty-body \
+    --disable-error-code=var-annotated \
+    docs/scripts/

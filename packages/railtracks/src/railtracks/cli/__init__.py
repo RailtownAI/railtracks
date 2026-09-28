@@ -33,6 +33,16 @@ from colorama import Fore, Style
 
 from railtracks.paths import resolve_railtracks_home
 
+from ._skillkit import (
+    CLAUDE,
+    CODEX,
+    COPILOT,
+    CURSOR,
+    InstallTarget,
+    Skill,
+    discover_skills,
+    install_skill_directory,
+)
 from .constants import (
     BETA_PORT,
     BETA_UI_URL_ENV,
@@ -51,42 +61,58 @@ from .io import (
 )
 
 # ---------------------------------------------------------------------------
-# Skill registry — maps skill names to their metadata
+# Skill registry — derived from the bundled skill directories on disk
 # ---------------------------------------------------------------------------
 
-SKILLS = {
-    "agent-builder": {
-        "name": "agent-builder",
-        "description": (
-            "Build an agent using the railtracks Python framework. "
-            "Use when the user wants to create an AI agent, tool-calling workflow, "
-            "or multi-agent system with railtracks."
-        ),
-        "argument_hint": "[describe what the agent should do]",
-    },
-    "rag-pipeline": {
-        "name": "rag-pipeline",
-        "description": (
-            "Build a RAG (retrieval-augmented generation) pipeline using railtracks. "
-            "Use when the user wants to ingest documents into a vector store and retrieve "
-            "relevant passages to answer questions."
-        ),
-        "argument_hint": "[describe the data source and what you want to retrieve]",
-    },
-    "middleware": {
-        "name": "middleware",
-        "description": (
-            "Use middleware as part of your railtracks agent. Use when you want build resilient and effective agents"
-        ),
-        "argument_hint": "[describe the middleware to implement]",
-    },
+# The rich objects are the source of truth for everything about a bundled skill;
+# `SKILLS` is the lighter meta view used for help output and lookups. Both are
+# populated on first use by `_load_skills`.
+SKILL_REGISTRY: dict[str, Skill]
+SKILLS: dict[str, dict]
+
+# Tool name -> where and how its skills install. Also the source of the tool list.
+_TOOL_TARGETS: dict[str, InstallTarget] = {
+    "claude": CLAUDE,
+    "codex": CODEX,
+    "copilot": COPILOT,
+    "cursor": CURSOR,
 }
 
-SUPPORTED_TOOLS = ("claude", "codex", "copilot", "cursor")
+SUPPORTED_TOOLS = tuple(_TOOL_TARGETS)
+
+
+def _load_skills() -> None:
+    """Discover the bundled skills into `SKILL_REGISTRY`/`SKILLS`, once, on first use.
+
+    Deferred rather than run at import: `railtracks.cli.io` is pulled in by unrelated
+    code paths (`rt.connect`, the visualizer), so scanning — and possibly raising on
+    — every bundled `SKILL.md` at import time would take down callers that never
+    touch skill management. This reaches only someone actually running `railtracks add`.
+    """
+    if "SKILL_REGISTRY" in globals():
+        return
+    registry = discover_skills()
+    globals()["SKILL_REGISTRY"] = registry
+    globals()["SKILLS"] = {name: skill.as_meta() for name, skill in registry.items()}
+
+
+def _registry() -> dict[str, Skill]:
+    """The bundled skills as `Skill` objects, discovering them on first use."""
+    _load_skills()
+    return globals()["SKILL_REGISTRY"]
+
+
+def _skills() -> dict[str, dict]:
+    """The bundled skills as the lighter meta view, discovering them on first use."""
+    _load_skills()
+    return globals()["SKILLS"]
 
 
 def __getattr__(name: str):
-    """Lazy exports for tests (app / RailtracksServer require railtracks[visual])."""
+    """Lazy exports: the skill registry (deferred discovery) and visual-only server bits."""
+    if name in ("SKILL_REGISTRY", "SKILLS"):
+        _load_skills()
+        return globals()[name]
     if name == "app":
         from . import viz_server
 
@@ -301,201 +327,64 @@ def update_railtracks(beta: bool = False):
 # ---------------------------------------------------------------------------
 
 
-def _load_skill_content(skill_name: str) -> str:
-    """Load bundled skill content from the skills directory."""
-    skills_dir = Path(__file__).parent / "skills"
-    skill_file = skills_dir / f"{skill_name}.md"
-    if not skill_file.exists():
-        print_error(f"Skill '{skill_name}' not found in bundled skills.")
-        sys.exit(1)
-    return skill_file.read_text(encoding="utf-8")
+def add_skill(spec: str, force: bool = False) -> list[Path] | None:
+    """Parse <tool>:<skill-name|all> and install skills for the given AI coding tool.
 
-
-def _strip_skill_arguments(content: str) -> str:
-    """Resolve the `$ARGUMENTS` placeholder for targets that never substitute it.
-
-    Claude Code and Codex invoke a skill with arguments, so `$ARGUMENTS` is filled in
-    at call time. Copilot reads `copilot-instructions.md` as always-on repository
-    context instead, so the placeholder would ship to the model literally.
+    Returns the files written for a single-skill install; returns None for a bulk
+    `all` install.
     """
-    kept: list[str] = []
-    drop_next_blank = False
-    for line in content.splitlines():
-        if drop_next_blank and not line.strip():
-            drop_next_blank = False
-            continue
-        drop_next_blank = False
+    skills = _skills()
 
-        if "$ARGUMENTS" not in line:
-            kept.append(line)
-            continue
-
-        # A whole line that only exists to introduce the argument is dropped, along
-        # with the blank line it would otherwise leave behind; an inline mention is
-        # reworded in place.
-        if line.rstrip().endswith(": $ARGUMENTS"):
-            drop_next_blank = bool(kept) and not kept[-1].strip()
-            continue
-
-        kept.append(
-            line.replace("`$ARGUMENTS`", "the request").replace(
-                "$ARGUMENTS", "the request"
-            )
-        )
-    return "\n".join(kept)
-
-
-def _confirm_overwrite(file_path: Path) -> bool:
-    """Prompt the user to confirm overwriting an existing file. Returns True to proceed."""
-    try:
-        answer = (
-            input(f"[{cli_name}] '{file_path}' already exists. Overwrite? [y/N] ")
-            .strip()
-            .lower()
-        )
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return False
-    return answer in ("y", "yes")
-
-
-def _add_claude(skill_name: str, meta: dict, content: str, force: bool) -> None:
-    """Install skill for Claude Code as a SKILL.md file."""
-    target = Path(".claude") / "skills" / skill_name / "SKILL.md"
-    if target.exists() and not force:
-        if not _confirm_overwrite(target):
-            print_status("Aborted.")
-            sys.exit(0)
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = (
-        "---\n"
-        f"name: {meta['name']}\n"
-        f"description: {meta['description']}\n"
-        f'argument-hint: "{meta["argument_hint"]}"\n'
-        "---\n\n"
-    )
-    target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Claude Code -> {target}")
-
-
-def _add_codex(skill_name: str, meta: dict, content: str, force: bool) -> None:
-    """Install a skill for Codex as a repository-scoped SKILL.md file."""
-    target = Path(".agents") / "skills" / skill_name / "SKILL.md"
-    if target.exists() and not force:
-        if not _confirm_overwrite(target):
-            print_status("Aborted.")
-            sys.exit(0)
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = (
-        f"---\nname: {meta['name']}\ndescription: {meta['description']}\n---\n\n"
-    )
-    target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Codex -> {target}")
-
-
-def _add_copilot(skill_name: str, meta: dict, content: str, force: bool) -> None:  # noqa: ARG001
-    """Install skill for GitHub Copilot by appending to copilot-instructions.md."""
-    target = Path(".github") / "copilot-instructions.md"
-    start_marker = f"<!-- railtracks:{skill_name}:start -->"
-    end_marker = f"<!-- railtracks:{skill_name}:end -->"
-
-    if target.exists():
-        existing = target.read_text(encoding="utf-8")
-        if start_marker in existing:
-            print_warning(
-                f"Skill '{skill_name}' is already present in {target}. "
-                "Remove the existing section and re-run to update it, or use --force."
-            )
-            if not force:
-                sys.exit(0)
-            start_idx = existing.index(start_marker)
-            end_idx = existing.index(end_marker) + len(end_marker)
-            existing = existing[:start_idx] + existing[end_idx:]
-    else:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        existing = ""
-
-    # Rewrite rather than append, so regenerating a skill in place is byte-identical
-    # to installing it fresh and repeated --force runs don't accumulate blank lines.
-    preamble = existing.rstrip()
-    section = (
-        f"{start_marker}\n{_strip_skill_arguments(content).strip()}\n{end_marker}\n"
-    )
-    target.write_text(
-        f"{preamble}\n\n{section}" if preamble else section, encoding="utf-8"
-    )
-    print_success(f"Installed '{skill_name}' for GitHub Copilot -> {target}")
-
-
-def _add_cursor(skill_name: str, meta: dict, content: str, force: bool) -> None:
-    """Install skill for Cursor as a .mdc rules file."""
-    target = Path(".cursor") / "rules" / f"{skill_name}.mdc"
-    if target.exists() and not force:
-        if not _confirm_overwrite(target):
-            print_status("Aborted.")
-            sys.exit(0)
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    frontmatter = (
-        f"---\ndescription: {meta['description']}\nalwaysApply: false\n---\n\n"
-    )
-    target.write_text(frontmatter + content, encoding="utf-8")
-    print_success(f"Installed '{skill_name}' for Cursor -> {target}")
-
-
-_TOOL_HANDLERS = {
-    "claude": _add_claude,
-    "codex": _add_codex,
-    "copilot": _add_copilot,
-    "cursor": _add_cursor,
-}
-
-
-def add_skill(spec: str, force: bool = False) -> None:
-    """Parse <tool>:<skill-name|all> and install skills for the given AI coding tool."""
     if ":" not in spec:
         print_error(
             f"Invalid format '{spec}'. Expected '<tool>:<skill>', e.g. 'claude:agent-builder'."
         )
         print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
-        print_status(f"Available skills: {', '.join(SKILLS)}")
+        print_status(f"Available skills: {', '.join(skills)}")
         sys.exit(1)
 
     tool, skill_name = spec.split(":", 1)
     tool = tool.lower()
 
-    if tool not in _TOOL_HANDLERS:
+    if tool not in _TOOL_TARGETS:
         print_error(
             f"Unknown tool '{tool}'. Supported tools: {', '.join(SUPPORTED_TOOLS)}"
         )
         sys.exit(1)
+    target = _TOOL_TARGETS[tool]
 
-    if skill_name != "all" and skill_name not in SKILLS:
+    if skill_name != "all" and skill_name not in skills:
         print_error(
-            f"Unknown skill '{skill_name}'. Available skills: {', '.join(SKILLS)}"
+            f"Unknown skill '{skill_name}'. Available skills: {', '.join(skills)}"
         )
         sys.exit(1)
 
-    skill_names = SKILLS if skill_name == "all" else [skill_name]
+    registry = _registry()
+    if skill_name != "all":
+        return install_skill_directory(registry[skill_name], target, force)
+
+    # Bulk install: every bundled skill for this tool. An installer exits 0 when the
+    # user declines an overwrite; treat that as a skip and continue. Any other exit is
+    # a real failure and propagates, stopping the run.
     installed = skipped = 0
-    for name in skill_names:
-        meta = SKILLS[name]
-        content = _load_skill_content(name)
+    for name in skills:
+        if name not in registry:
+            print_error(
+                f"Unknown skill '{name}'. Available skills: {', '.join(skills)}"
+            )
+            sys.exit(1)
         try:
-            _TOOL_HANDLERS[tool](name, meta, content, force)
+            install_skill_directory(registry[name], target, force)
         except SystemExit as exc:
-            # Existing installers exit successfully when skipped or declined.
-            if skill_name != "all" or exc.code != 0:
+            if exc.code != 0:
                 raise
             skipped += 1
             print_status(f"Skipped '{name}'; continuing with remaining skills.")
         else:
             installed += 1
 
-    if skill_name == "all":
-        print_status(f"Finished: {installed} installed, {skipped} skipped.")
+    print_status(f"Finished: {installed} installed, {skipped} skipped.")
+    return None
 
 
 def list_skills() -> None:
@@ -509,7 +398,7 @@ def list_skills() -> None:
     print()
     print(f"  {bold}Available skills:{rst}")
     print()
-    for skill_name, meta in SKILLS.items():
+    for skill_name, meta in _skills().items():
         print(f"  {cyan}{bold}{skill_name}{rst}  {dim}{meta['argument_hint']}{rst}")
         print(f"    {meta['description']}")
         print()
@@ -625,7 +514,7 @@ def _run_add(args: list[str]) -> None:
             "Usage: railtracks add [--force] <tool>:<skill> | railtracks add --list"
         )
         print_status(f"Supported tools: {', '.join(SUPPORTED_TOOLS)}")
-        print_status(f"Available skills: {', '.join(SKILLS)}")
+        print_status(f"Available skills: {', '.join(_skills())}")
         sys.exit(1)
 
     force = "--force" in args
