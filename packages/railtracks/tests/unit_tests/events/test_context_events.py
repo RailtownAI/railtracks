@@ -4,6 +4,7 @@ import threading
 
 import pytest
 import railtracks as rt
+import railtracks.events.context as context_events
 from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.events.context import MAX_VALUE_BYTES
 from railtracks.llm import MessageHistory, SystemMessage
@@ -307,3 +308,37 @@ async def test_prompt_injection_records_no_context_ops():
 
     assert result == "Hi Alice and {absent}."
     assert _context_types(writer.events) == ["context.creation", "context.completion"]
+
+
+async def test_update_accepts_any_iterable_of_pairs():
+    @rt.function_node
+    def node(_: str) -> int:
+        """Update from a zip rather than a dict."""
+        rt.context.update(zip(["a", "b"], [1, 2]))
+        return rt.context.get("b")
+
+    result, events = _run(node, "x")
+
+    assert result == 2
+    (update,) = _of_type(events, "context.update")
+    assert update.payload["values"] == {"a": 1, "b": 2}
+
+
+async def test_a_failed_snapshot_does_not_break_the_run(monkeypatch):
+    def boom(_):
+        raise RuntimeError("snapshot failed")
+
+    monkeypatch.setattr(context_events, "snapshot_mapping", boom)
+
+    @rt.function_node
+    def node(_: str) -> str:
+        """Do nothing with context."""
+        return "done"
+
+    result, events = _run(node, "x")
+
+    assert result == "done"
+    assert _of_type(events, "context.creation") == []
+    assert _of_type(events, "context.completion") == []
+    (completed,) = _of_type(events, "session.completed")
+    assert completed.payload["status"] == "success"

@@ -14,7 +14,6 @@ from uuid import uuid4
 
 from railtracks.context.central import (
     activate_publisher,
-    external_context,
     get_current_scope,
     get_local_config,
     get_parent_id,
@@ -27,7 +26,7 @@ from railtracks.context.central import (
 from railtracks.events.context import (
     ContextCompletion,
     ContextCreation,
-    snapshot_mapping,
+    emit_snapshot,
 )
 from railtracks.events.send import emit
 from railtracks.events.session import SessionCompleted, SessionStarted, format_error
@@ -173,9 +172,7 @@ async def _start(
             save_state=config.save_state,
         )
     )
-    await emit(
-        ContextCreation(values=snapshot_mapping(dict(external_context().items())))
-    )
+    await emit_snapshot(ContextCreation)
     start_time = time.perf_counter()
 
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
@@ -211,9 +208,7 @@ async def _start(
         error = e
         raise
     finally:
-        await emit(
-            ContextCompletion(values=snapshot_mapping(dict(external_context().items())))
-        )
+        await emit_snapshot(ContextCompletion)
         await emit(
             SessionCompleted(
                 session_id=identity.session_id,

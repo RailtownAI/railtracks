@@ -58,6 +58,7 @@ def update(data: dict[str, Any]) -> None:
     Args:
         data (dict[str, Any]): The data to update the context with.
     """
+    data = dict(data)
     context = safe_get_runner_context()
     context.external_context.update(data)
     record_update(data)

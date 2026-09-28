@@ -4,10 +4,12 @@ import json
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from railtracks.context.central import external_context
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
 from railtracks.observability import configure
 from railtracks.observability.writers.jsonl._serialize import RTObserverEncoder
+from railtracks.utils.logging.create import get_rt_logger
 
 from ._base import (
     LLMAndMiddlewareSpatialParent,
@@ -17,7 +19,9 @@ from ._base import (
     SessionEventBase,
 )
 from ._resolve import context_spatial_parent
-from .send import emit_nowait
+from .send import emit, emit_nowait
+
+logger = get_rt_logger(__name__)
 
 MAX_VALUE_BYTES = 16 * 1024
 
@@ -115,6 +119,17 @@ def snapshot_mapping(values: Mapping[str, Any]) -> dict[str, Any]:
 
 def _observing() -> bool:
     return configure.observer.loop is not None
+
+
+async def emit_snapshot(event_cls: type[ContextSnapshotBase]) -> None:
+    """Emit a whole-context snapshot, swallowing any failure to take it."""
+    try:
+        values = snapshot_mapping(dict(external_context().items()))
+    except Exception:  # noqa: BLE001 - observability must not crash a run
+        logger.exception("observability: failed to snapshot for %s", event_cls.__name__)
+        return
+
+    await emit(event_cls(values=values))
 
 
 def record_get(key: str, value: Any) -> None:

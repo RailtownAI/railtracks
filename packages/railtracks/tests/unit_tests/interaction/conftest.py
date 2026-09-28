@@ -35,7 +35,7 @@ def mock_context_functions():
         patch("railtracks.interaction._call.get_current_scope") as get_scope,
         patch("railtracks.interaction._call.get_session_identity") as get_identity,
         patch("railtracks.interaction._call.get_local_config") as get_config,
-        patch("railtracks.interaction._call.external_context") as get_external,
+        patch("railtracks.events.context.external_context") as get_external,
     ):
         # Set default return values
         get_parent.return_value = "parent_123"
