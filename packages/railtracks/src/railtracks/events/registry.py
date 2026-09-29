@@ -85,8 +85,8 @@ _FAILURE = {"exception_name": STRING, "exception_message": STRING}
 NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
     "context": {
         **_CREATION,
-        "key": STRING,
-        "value": JSON,
+        "level": INTEGER,
+        "keys": JSON,
         "values": JSON,
     },
     "llm": {

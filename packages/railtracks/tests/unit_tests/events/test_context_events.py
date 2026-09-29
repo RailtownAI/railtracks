@@ -1,4 +1,5 @@
-"""Hot-path integration: run real Flows and assert the emitted context events."""
+"""Context events: the RAILTRACKS_CONTEXT_EVENTS level, and real Flows asserting what
+gets emitted."""
 
 import threading
 
@@ -6,7 +7,7 @@ import pytest
 import railtracks as rt
 import railtracks.events.context as context_events
 from railtracks.built_nodes.llm.response import StringResponse
-from railtracks.events.context import MAX_VALUE_BYTES
+from railtracks.events.context import ContextEventsLevel as Level
 from railtracks.llm import MessageHistory, SystemMessage
 from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.observability import Event, configure_writers
@@ -25,6 +26,11 @@ class _Collecting:
 
     async def shutdown(self):
         pass
+
+
+@pytest.fixture(autouse=True)
+def _default_level(monkeypatch):
+    monkeypatch.delenv("RAILTRACKS_CONTEXT_EVENTS", raising=False)
 
 
 def _of_type(events, event_type):
@@ -93,10 +99,16 @@ async def test_payloads():
     (update,) = _of_type(events, "context.update")
     (get,) = _of_type(events, "context.get")
     (delete,) = _of_type(events, "context.delete")
-    assert (put.payload["key"], put.payload["value"]) == ("colour", "green")
-    assert update.payload["values"] == {"size": 3}
-    assert (get.payload["key"], get.payload["value"]) == ("colour", "green")
-    assert delete.payload["key"] == "size"
+    assert (put.payload["keys"], put.payload["values"]) == (
+        ["colour"],
+        {"colour": "green"},
+    )
+    assert (update.payload["keys"], update.payload["values"]) == (["size"], {"size": 3})
+    assert (get.payload["keys"], get.payload["values"]) == (
+        ["colour"],
+        {"colour": "green"},
+    )
+    assert (delete.payload["keys"], delete.payload["values"]) == (["size"], None)
 
 
 async def test_get_records_the_default_it_returned():
@@ -109,7 +121,7 @@ async def test_get_records_the_default_it_returned():
 
     assert result == "fallback"
     (get,) = _of_type(events, "context.get")
-    assert get.payload["value"] == "fallback"
+    assert get.payload["values"] == {"absent": "fallback"}
 
 
 async def test_failed_get_and_delete_record_nothing():
@@ -195,7 +207,7 @@ async def test_put_records_the_value_at_the_time_of_the_call():
 
     (put,) = _of_type(events, "context.put")
     (completion,) = _of_type(events, "context.completion")
-    assert put.payload["value"] == ["apple"]
+    assert put.payload["values"] == {"cart": ["apple"]}
     assert completion.payload["values"]["cart"] == ["apple", "pear"]
 
 
@@ -212,7 +224,7 @@ async def test_a_node_that_raises_after_a_put_still_records_it():
         rt.Flow("ctx-boom", node).invoke("x")
 
     (put,) = _of_type(writer.events, "context.put")
-    assert put.payload["key"] == "before_boom"
+    assert put.payload["keys"] == ["before_boom"]
 
 
 async def test_unserializable_values_do_not_break_the_node():
@@ -229,26 +241,113 @@ async def test_unserializable_values_do_not_break_the_node():
 
     assert result == "survived"
     cyclic, lock = _of_type(events, "context.put")
-    assert cyclic.payload["value"] == "<unserializable dict>"
-    assert isinstance(lock.payload["value"], str)
+    assert cyclic.payload["values"] == {"cyclic": "<unserializable dict>"}
+    assert isinstance(lock.payload["values"]["lock"], str)
 
 
-async def test_oversized_values_are_truncated_per_key():
+async def test_large_values_are_recorded_in_full():
+    big = "x" * 1_000_000
+
     @rt.function_node
     def node(_: str) -> int:
-        """Put and update with a value far past the cap."""
-        big = "x" * (MAX_VALUE_BYTES * 2)
+        """Put a large value."""
         rt.context.put("big", big)
-        rt.context.update({"small": [1, 2], "big": big})
         return 1
 
     _, events = _run(node, "x")
 
     (put,) = _of_type(events, "context.put")
+    assert put.payload["values"] == {"big": big}
+
+
+async def test_level_0_records_no_context_events(monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_CONTEXT_EVENTS", "0")
+    snapshotted = []
+    monkeypatch.setattr(context_events, "_snapshot", snapshotted.append)
+
+    @rt.function_node
+    def node(_: str) -> str:
+        """Exercise the context API."""
+        return _exercise()
+
+    result, events = _run(node, "x", context={"start": 1})
+
+    assert result == "green"
+    assert _context_types(events) == []
+    assert snapshotted == []
+    assert _of_type(events, "node.creation") != []
+
+
+async def test_level_1_records_keys_but_no_values(monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_CONTEXT_EVENTS", "1")
+    snapshotted = []
+    monkeypatch.setattr(context_events, "_snapshot", snapshotted.append)
+
+    @rt.function_node
+    def node(_: str) -> str:
+        """Exercise the context API."""
+        return _exercise()
+
+    _, events = _run(node, "x", context={"start": 1})
+
+    assert _context_types(events) == _EVERY_OP
+    assert snapshotted == []
+
+    (put,) = _of_type(events, "context.put")
+    (get,) = _of_type(events, "context.get")
     (update,) = _of_type(events, "context.update")
-    assert put.payload["value"].startswith("<truncated str, ")
-    assert update.payload["values"]["small"] == [1, 2]
-    assert update.payload["values"]["big"].startswith("<truncated str, ")
+    (creation,) = _of_type(events, "context.creation")
+    (completion,) = _of_type(events, "context.completion")
+    assert (put.payload["keys"], put.payload["values"]) == (["colour"], None)
+    assert (get.payload["keys"], get.payload["values"]) == (["colour"], None)
+    assert (update.payload["keys"], update.payload["values"]) == (["size"], None)
+    assert (creation.payload["keys"], creation.payload["values"]) == (["start"], None)
+    assert completion.payload["keys"] == ["start", "colour"]
+    assert completion.payload["values"] is None
+    assert creation.payload["level"] == 1
+
+
+async def test_an_unrecognized_level_records_keys_and_values(monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_CONTEXT_EVENTS", "true")
+
+    @rt.function_node
+    def node(_: str) -> str:
+        """Put one key."""
+        rt.context.put("k", "v")
+        return "done"
+
+    with pytest.warns(UserWarning, match="RAILTRACKS_CONTEXT_EVENTS='true'"):
+        _, events = _run(node, "x")
+
+    (put,) = _of_type(events, "context.put")
+    (creation,) = _of_type(events, "context.creation")
+    assert put.payload["values"] == {"k": "v"}
+    assert creation.payload["level"] == 2
+
+
+def test_level_defaults_to_keys_and_values():
+    assert context_events._context_events_level() is Level.KEYS_AND_VALUES
+
+
+@pytest.mark.parametrize(
+    "raw, level",
+    [
+        ("0", Level.OFF),
+        ("1", Level.KEYS),
+        ("2", Level.KEYS_AND_VALUES),
+        (" 1 ", Level.KEYS),
+    ],
+)
+def test_level_parses_each_value(monkeypatch, raw, level):
+    monkeypatch.setenv("RAILTRACKS_CONTEXT_EVENTS", raw)
+    assert context_events._context_events_level() is level
+
+
+@pytest.mark.parametrize("raw", ["true", "3", "-1", "01"])
+def test_level_warns_and_defaults_on_anything_else(monkeypatch, raw):
+    monkeypatch.setenv("RAILTRACKS_CONTEXT_EVENTS", raw)
+    with pytest.warns(UserWarning, match="RAILTRACKS_CONTEXT_EVENTS"):
+        assert context_events._context_events_level() is Level.KEYS_AND_VALUES
 
 
 async def test_creation_and_completion_bracket_the_run():
@@ -266,7 +365,10 @@ async def test_creation_and_completion_bracket_the_run():
 
     (creation,) = _of_type(events, "context.creation")
     (completion,) = _of_type(events, "context.completion")
+    assert creation.payload["level"] == 2
+    assert creation.payload["keys"] == ["initial"]
     assert creation.payload["values"] == {"initial": "value"}
+    assert completion.payload["keys"] == ["initial", "added"]
     assert completion.payload["values"] == {"initial": "value", "added": "later"}
 
 
@@ -325,10 +427,10 @@ async def test_update_accepts_any_iterable_of_pairs():
 
 
 async def test_a_failed_snapshot_does_not_break_the_run(monkeypatch):
-    def boom(_):
+    def boom():
         raise RuntimeError("snapshot failed")
 
-    monkeypatch.setattr(context_events, "snapshot_mapping", boom)
+    monkeypatch.setattr(context_events, "external_context", boom)
 
     @rt.function_node
     def node(_: str) -> str:

@@ -46,13 +46,15 @@ class TestNamespaces:
 
 
 class TestPayloadColumnsContext:
-    def test_key_is_a_string(self):
-        assert _kind(payload_columns("context"), "key") == ColumnKind.STRING
+    def test_level_is_an_integer(self):
+        assert _kind(payload_columns("context"), "level") == ColumnKind.INTEGER
 
-    def test_values_are_json(self):
+    def test_keys_and_values_are_json(self):
         cols = payload_columns("context")
-        assert _kind(cols, "value") == ColumnKind.JSON
+        assert _kind(cols, "keys") == ColumnKind.JSON
         assert _kind(cols, "values") == ColumnKind.JSON
+        assert "key" not in cols
+        assert "value" not in cols
 
     def test_spatial_parent_is_flattened(self):
         cols = payload_columns("context")
