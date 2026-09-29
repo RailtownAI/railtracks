@@ -6,6 +6,7 @@ parameters and descriptions.
 """
 
 import inspect
+import re
 import warnings
 from collections.abc import Iterable as ABCIterable
 from typing import Any, Callable, Dict, Iterable, List, Type
@@ -24,6 +25,26 @@ from .parameter_handlers import (
 )
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
+
+# OpenAI and Anthropic both require tool names to match ^[a-zA-Z0-9_-]{1,64}$.
+_TOOL_NAME_INVALID_CHARS = re.compile(r"[^a-zA-Z0-9_-]")
+_TOOL_NAME_MAX_LENGTH = 64
+
+
+def to_tool_name(name: str) -> str:
+    """
+    Convert a display name into a name providers accept for a tool.
+
+    Every character other than an ASCII letter, a digit, `_` or `-` becomes `_`, and the
+    result is cut to 64 characters, so `"Weather Bot 2.0"` becomes `"Weather_Bot_2_0"`.
+
+    Args:
+        name: The name to convert, such as an agent's name or a function's name.
+
+    Returns:
+        The provider-safe tool name.
+    """
+    return _TOOL_NAME_INVALID_CHARS.sub("_", name)[:_TOOL_NAME_MAX_LENGTH]
 
 
 def _validate_tool_params(parameters: Any, param_type: type) -> Any:
@@ -183,7 +204,8 @@ class Tool:
 
         Args:
             func: The function to create a tool from.
-            name: Optional name for the tool. If not provided, uses the function's name.
+            name: Optional name for the tool. If not provided, uses the function's name. Either
+                is passed through `to_tool_name` so providers accept it.
             details: Optional detailed description for the tool. If not provided, extracts from the function's docstring.
             params: Optional parameters for the tool. If not provided, infers from the function's signature and docstring.
 
@@ -209,11 +231,7 @@ class Tool:
                 ],
             )
 
-        if name is not None:
-            # TODO: add some checking here to ensure that the name is valid snake case.
-            function_name = name
-        else:
-            function_name = func.__name__
+        function_name = to_tool_name(name if name is not None else func.__name__)
 
         docstring = func.__doc__.strip() if func.__doc__ else ""
 

@@ -47,6 +47,8 @@ Allowing your agents to use your `python` functions as tools for your agents is 
     cube = rt.function_node(functools.partial(power, exp=3), name="cube")
     ```
 
+    Tool names keep only ASCII letters, digits, `_` and `-`, up to 64 characters, because that is what model providers accept. Any other character becomes `_`, so `name="Get Weather"` reaches the model as `Get_Weather`, and two names that differ only in such characters collide.
+
 ## Inspecting an agent's tools
 
 `tool_nodes()` returns the tools avaliable to the agent, and `tool_info()` returns the tool schema that the LLM sees. 
