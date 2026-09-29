@@ -269,6 +269,26 @@ def _check_tool_params_and_details(tool_params: Any, tool_details: Any) -> None:
         )
 
 
+def _check_manifest_description(tool_details: str, agent_name: str) -> None:
+    """
+    Ensure an agent's ToolManifest has a description that is not blank.
+
+    Args:
+        tool_details: The description from the agent's ToolManifest.
+        agent_name: The name of the agent the manifest belongs to.
+
+    Raises:
+        NodeCreationError: If the description is empty or only whitespace.
+    """
+    if not tool_details.strip():
+        raise NodeCreationError(
+            get_message(ExceptionMessageKey.BLANK_MANIFEST_DESCRIPTION_MSG).format(
+                agent_name=agent_name
+            ),
+            notes=get_notes(ExceptionMessageKey.BLANK_MANIFEST_DESCRIPTION_NOTES),
+        )
+
+
 def validate_tool_metadata(
     tool_params: Any,
     tool_details: Any,
