@@ -29,6 +29,7 @@ from .state.info import (
 from .state.state import RTState
 from .utils.config import ExecutorConfig
 from .utils.json.encoder import RTJSONEncoder
+from .utils.json.files import to_json, write_json_text
 from .utils.logging.create import get_rt_logger
 
 logger = get_rt_logger(__name__)
@@ -210,8 +211,7 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                content = json.dumps(self.payload())
-                file_path.write_text(content)
+                write_json_text(file_path, to_json(self.payload()))
 
             except OSError as exc:
                 logger.warning(

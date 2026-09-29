@@ -37,7 +37,8 @@ class GCSLoader(BaseDocumentLoader):
             ignored.
         project: Google Cloud project ID. Inferred from ADC when ``None``.
         credentials: Explicit Google credential object. Defaults to ADC.
-        encoding: Text encoding used to decode object bytes. Defaults to ``"utf-8"``.
+        encoding: Text encoding used to decode object bytes. Defaults to ``"utf-8-sig"``,
+            which drops a leading byte order mark like the local loaders.
 
     Raises:
         ImportError: If ``google-cloud-storage`` is not installed.
@@ -51,7 +52,7 @@ class GCSLoader(BaseDocumentLoader):
         keys: Optional[list[str]] = None,
         project: Optional[str] = None,
         credentials: Optional[Any] = None,
-        encoding: str = "utf-8",
+        encoding: str = "utf-8-sig",
     ) -> None:
         try:
             from google.cloud import storage  # type: ignore[import]

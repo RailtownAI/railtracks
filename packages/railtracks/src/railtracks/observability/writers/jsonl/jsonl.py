@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TextIO
+
+from railtracks.utils.json.files import JSON_ENCODING, JSON_ENCODING_ERRORS, to_json
 
 from ...models import Event
 from ...storage import resolve_events_dir
@@ -23,7 +24,7 @@ class JsonlWriter:
         if handle is None:
             _check_safe_scope_id(event.scope_id)
             handle = (self._directory / f"{event.scope_id}.jsonl").open(
-                "a", encoding="utf-8"
+                "a", encoding=JSON_ENCODING, errors=JSON_ENCODING_ERRORS
             )
             self._files[event.scope_id] = handle
         handle.write(_serialize(event) + "\n")
@@ -37,7 +38,7 @@ class JsonlWriter:
 
 
 def _serialize(event: Event) -> str:
-    return json.dumps(event, cls=RTObserverEncoder)
+    return to_json(event, cls=RTObserverEncoder)
 
 
 _UNSAFE_SCOPE_ID_CHARS = frozenset("/\\\0")

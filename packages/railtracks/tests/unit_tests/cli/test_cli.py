@@ -4,6 +4,7 @@
 Basic unit tests for railtracks CLI functionality
 """
 
+import io
 import json
 import os
 import shutil
@@ -68,6 +69,19 @@ class TestUtilityFunctions(unittest.TestCase):
 
         print_error(test_message)
         mock_print.assert_called_with("[railtracks] test message")
+
+    def test_print_functions_escape_what_the_console_cannot_encode(self):
+        """Test print helpers escape emoji instead of raising on a code page console"""
+        console = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+
+        with patch.object(sys, "stdout", console):
+            print_success("\U0001f680 server running — ok")
+            console.flush()
+
+        written = console.buffer.getvalue().decode("cp1252")
+        self.assertEqual(
+            written.strip(), "[railtracks] \\U0001f680 server running — ok"
+        )
 
 
 class TestCreateRailtracksDir(unittest.TestCase):
@@ -166,6 +180,22 @@ class TestCreateRailtracksDir(unittest.TestCase):
         # Content should be unchanged
         new_content = gitignore_path.read_text()
         self.assertEqual(original_content, new_content)
+
+    @patch("railtracks.cli.print_status")
+    @patch("railtracks.cli.print_success")
+    def test_create_railtracks_dir_gitignore_with_non_ascii(
+        self, mock_success, mock_status
+    ):
+        """Test adding .railtracks to a .gitignore that holds non-ASCII text"""
+        gitignore_path = Path(".gitignore")
+        original = "# Ábaco / 生成ファイル\n*.pyc\n"
+        gitignore_path.write_bytes(original.encode("utf-8"))
+
+        create_railtracks_dir()
+
+        content = gitignore_path.read_bytes().decode("utf-8")
+        self.assertTrue(content.startswith(original))
+        self.assertIn(".railtracks", content)
 
 
 class TestFastAPIEndpoints(unittest.TestCase):
@@ -319,6 +349,43 @@ class TestFastAPIEndpoints(unittest.TestCase):
         logged_error = mock_print_error.call_args.args[0]
         self.assertIn(invalid_file.name, logged_error)
         self.assertIn("line 1 column", logged_error)
+
+    def test_get_sessions_serves_utf8_session_files(self):
+        """Test /api/sessions endpoints return non-ASCII text stored as UTF-8"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        session_data = {"session_id": "utf8-guid", "flow_name": "你好 😀 café"}
+        (sessions_dir / "utf8-guid.json").write_bytes(
+            json.dumps(session_data, ensure_ascii=False).encode("utf-8")
+        )
+
+        self.assertEqual(self.client.get("/api/sessions").json(), [session_data])
+        self.assertEqual(
+            self.client.get("/api/sessions/utf8-guid").json(), session_data
+        )
+
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_sessions_skips_file_cut_mid_character(self, mock_print_error):
+        """Test /api/sessions skips a file read while its UTF-8 is half written"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        complete = {"session_id": "complete", "flow_name": "done"}
+        with open(sessions_dir / "complete.json", "w") as f:
+            json.dump(complete, f)
+        raw = json.dumps({"flow_name": "你好"}, ensure_ascii=False).encode("utf-8")
+        partial = sessions_dir / "partial-guid.json"
+        partial.write_bytes(raw[: raw.index("你".encode("utf-8")) + 1])
+
+        listing = self.client.get("/api/sessions")
+        single = self.client.get("/api/sessions/partial-guid")
+
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json(), [complete])
+        self.assertEqual(single.status_code, 400)
+        self.assertEqual(single.json(), {"error": "Invalid JSON"})
+        self.assertIn(partial.name, mock_print_error.call_args.args[0])
 
     def test_get_session_rejects_glob_metacharacters(self):
         sessions_dir = Path(".railtracks/data/sessions")

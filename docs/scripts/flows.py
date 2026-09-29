@@ -105,7 +105,7 @@ async def code_agent(prompt : str):
 
         valid, problem = static_check(response.text)
 
-    with open("new_script.py", "w") as file:
+    with open("new_script.py", "w", encoding="utf-8") as file:
         file.write(response.text)
     
     return "Success"
