@@ -155,7 +155,9 @@ nav:
       - Preface: evaluations/preface.md
       - Quickstart: evaluations/quickstart.md
       - Visualization: evaluations/visualization.md
-      - Conductr Agent Observability: evaluations/conductr.md
+      - Conductr:
+          - Evaluating Agent Runs: evaluations/conductr.md
+          - Hosted Evaluations: evaluations/conductr_hosted.md
       - Metrics:
           - Metrics Overview: evaluations/metrics/metrics.md
           - Categorical Metrics: evaluations/metrics/categorical.md
