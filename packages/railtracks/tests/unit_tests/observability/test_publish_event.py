@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -12,6 +13,7 @@ from railtracks.observability import (
     publish_event,
     shutdown,
 )
+from railtracks.observability.publish import _deliver_from_thread, publish_event_nowait
 from railtracks.observability.writers.jsonl import JsonlWriter
 
 
@@ -167,3 +169,85 @@ async def test_explicit_configure_writers_wins_over_auto_default(monkeypatch):
         assert entries[0].writer is user_writer
     finally:
         await shutdown()
+
+
+# ---------------------------------------------------------------- sync publish
+
+
+async def test_publish_nowait_on_the_loop_delivers():
+    w = _CollectingWriter()
+    configure_writers([w])
+    await ensure_started()
+
+    publish_event_nowait(_make_session_event("sync.on_loop"))
+
+    await shutdown()
+    assert [e.event_type for e in w.events] == ["sync.on_loop"]
+
+
+async def test_publish_nowait_from_a_worker_thread_delivers_in_order():
+    w = _CollectingWriter()
+    configure_writers([w])
+    await ensure_started()
+
+    def record_off_loop():
+        for i in range(5):
+            publish_event_nowait(_make_session_event(f"sync.{i}"))
+
+    await asyncio.to_thread(record_off_loop)
+
+    await shutdown()
+    assert [e.event_type for e in w.events] == [f"sync.{i}" for i in range(5)]
+
+
+async def test_publish_nowait_before_start_raises():
+    with pytest.raises(RuntimeError, match="Observer is not running"):
+        publish_event_nowait(_make_session_event())
+
+
+async def test_publish_nowait_after_shutdown_raises():
+    configure_writers([_CollectingWriter()])
+    await ensure_started()
+    await shutdown()
+
+    with pytest.raises(RuntimeError, match="Observer is not running"):
+        publish_event_nowait(_make_session_event())
+
+
+async def test_delivery_landing_after_shutdown_does_not_reach_the_loop_handler():
+    w = _CollectingWriter()
+    configure_writers([w])
+    await ensure_started()
+    observer = configure.observer
+    await shutdown()
+
+    caught: list[object] = []
+    asyncio.get_running_loop().set_exception_handler(
+        lambda _loop, ctx: caught.append(ctx.get("exception"))
+    )
+
+    _deliver_from_thread(observer, _make_session_event("too.late"))
+    await asyncio.sleep(0)
+
+    assert caught == []
+    assert w.events == []
+
+
+async def test_scheduled_delivery_does_not_land_in_a_replacement_observer():
+    old_writer = _CollectingWriter()
+    configure_writers([old_writer])
+    await ensure_started()
+    old_observer = configure.observer
+
+    configure.reset_for_tests()
+    new_writer = _CollectingWriter()
+    configure_writers([new_writer])
+    await ensure_started()
+
+    _deliver_from_thread(old_observer, _make_session_event("belongs.to_old"))
+
+    assert [e.event_type for e in old_writer.events] == []  # still queued on old
+    await old_observer.shutdown()
+    assert [e.event_type for e in old_writer.events] == ["belongs.to_old"]
+    assert new_writer.events == []
+    await shutdown()

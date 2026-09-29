@@ -131,3 +131,23 @@ def test_get_raises_keyerror_when_default_is_none():
 
 
 # ============ END Error Handling Tests ===============
+
+
+# ============ START Items Tests ===============
+def test_items_returns_every_pair():
+    context = MutableExternalContext({"a": 1, "b": 2})
+    assert dict(context.items()) == {"a": 1, "b": 2}
+
+
+def test_items_is_empty_for_an_empty_context():
+    assert dict(MutableExternalContext().items()) == {}
+
+
+def test_items_is_a_copy_not_a_live_view():
+    context = MutableExternalContext({"a": 1})
+    items = context.items()
+    context.put("b", 2)
+    assert dict(items) == {"a": 1}
+
+
+# ============ END Items Tests ===============

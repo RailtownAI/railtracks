@@ -128,6 +128,18 @@ class TestNamespaceViewMatchesRegistry:
                 },
             },
             {
+                "event_id": "ctx-0",
+                "event_type": "context.creation",
+                "scope_type": "session",
+                "scope_id": "sess-0",
+                "parent_scope_id": None,
+                "stamp": "2026-01-01T00:00:00+00:00",
+                "payload": {
+                    "timestamp": "2026-01-01T00:00:00+00:00",
+                    "values": {"seed": "value"},
+                },
+            },
+            {
                 "event_id": "llm-0",
                 "event_type": "llm.creation",
                 "scope_type": "session",
