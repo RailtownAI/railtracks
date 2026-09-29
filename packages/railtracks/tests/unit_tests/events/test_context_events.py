@@ -430,7 +430,7 @@ async def test_a_failed_snapshot_does_not_break_the_run(monkeypatch):
     def boom():
         raise RuntimeError("snapshot failed")
 
-    monkeypatch.setattr(context_events, "external_context", boom)
+    monkeypatch.setattr(context_events, "safe_get_runner_context", boom)
 
     @rt.function_node
     def node(_: str) -> str:

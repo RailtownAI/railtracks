@@ -61,12 +61,12 @@ Each `rt.context` call your code makes is recorded in the run's event stream. Ev
 
 To find every event that touched a key, filter on `keys` alone: it covers every event type.
 
-Values are recorded as they were at the moment of the call. A call that raises `KeyError` records nothing, and `rt.context.keys()` is never recorded. Values are recorded in full, so a large value is written to the event file on every `get` and `put` that touches it.
+Values are recorded as they were at the moment of the call. A call that raises `KeyError` records nothing, and `rt.context.keys()` is never recorded. Values are recorded in full, so a large value is written to the event file on every event that carries it.
 
 !!! warning "Editing a value in place is not recorded"
-    `rt.context` hands you the stored object, not a copy, so `rt.context.get("cart").append("pear")` changes the context without a `put`. Such an edit only shows up in `context.completion`.
+    `rt.context` hands you the stored object, not a copy, so `rt.context.get("cart").append("pear")` changes the context without a `put`. At level `2`, such an edit only shows up in `context.completion`; at level `1` it doesn't show up at all.
 
-Railtracks' own use of the context, such as `ConversationMemory`'s history and the reads behind [context injection](#context-injection), is not recorded.
+Railtracks' own use of the context isn't recorded, to keep the log to your code's calls. For example, `ConversationMemory`'s history and the reads behind [context injection](#context-injection) don't appear.
 
 ### Choosing what's recorded
 

@@ -1,11 +1,12 @@
-from railtracks.context.central import external_context
+from railtracks.context.central import safe_get_runner_context
 from railtracks.llm import MessageHistory
 from railtracks.utils.context_injection import ValueDict, inject_values
 
 
 class _ContextDict(ValueDict):
     def __getitem__(self, key):
-        return external_context().get(key)
+        context = safe_get_runner_context()
+        return context.external_context.get(key)
 
 
 def inject_context(message_history: MessageHistory):

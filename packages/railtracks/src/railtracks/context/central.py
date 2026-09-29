@@ -495,19 +495,6 @@ def delete_globals() -> None:
     runner_context.set(None)
 
 
-def external_context() -> ExternalContext:
-    """
-    Get the context store directly, without recording a context event.
-
-    Returns:
-        ExternalContext: The store backing the current run.
-
-    Raises:
-        ContextError: If the global variables have not been registered.
-    """
-    return safe_get_runner_context().external_context
-
-
 def set_config(
     *,
     timeout: float | None = None,

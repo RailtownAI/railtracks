@@ -5,7 +5,7 @@ from copy import deepcopy
 from typing import Sequence
 
 from railtracks.built_nodes.llm.response import LLMResponse
-from railtracks.context.central import external_context, is_context_present
+from railtracks.context.central import is_context_present, safe_get_runner_context
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
 from railtracks.middleware.core import Middleware
@@ -87,8 +87,9 @@ class ConversationMemory(Middleware):
         """
         self._state["history"] = None
         if is_context_present():
+            context = safe_get_runner_context()
             try:
-                external_context().delete(self._context_key)
+                context.external_context.delete(self._context_key)
             except KeyError:
                 pass
 
@@ -146,8 +147,9 @@ class ConversationMemory(Middleware):
 
     def _get_existing_history(self) -> MessageHistory | None:
         if is_context_present():
+            context = safe_get_runner_context()
             try:
-                hist = external_context().get(self._context_key)
+                hist = context.external_context.get(self._context_key)
                 if hist is not None:
                     return hist
             except KeyError:
@@ -162,7 +164,8 @@ class ConversationMemory(Middleware):
             saved_copy = deepcopy(history)
             self._state["history"] = saved_copy
             if is_context_present():
-                external_context().put(self._context_key, saved_copy)
+                context = safe_get_runner_context()
+                context.external_context.put(self._context_key, saved_copy)
 
     async def _middleware_fn(self, call, *args, **kwargs):
         existing = self._get_existing_history()

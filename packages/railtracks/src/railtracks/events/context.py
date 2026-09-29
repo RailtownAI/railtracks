@@ -9,7 +9,7 @@ from typing import Any, Mapping
 
 from typing_extensions import Self
 
-from railtracks.context.central import external_context
+from railtracks.context.central import safe_get_runner_context
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
 from railtracks.observability import configure
@@ -156,7 +156,8 @@ async def emit_snapshot(event_cls: type[ContextSnapshotBase]) -> None:
         return
 
     try:
-        store = dict(external_context().items())
+        context = safe_get_runner_context()
+        store = dict(context.external_context.items())
         event = event_cls.from_mapping(store, at=level, level=int(level))
     except Exception:  # noqa: BLE001 - observability must not crash a run
         logger.exception("observability: failed to snapshot for %s", event_cls.__name__)
