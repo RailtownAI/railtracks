@@ -117,7 +117,23 @@ flow = rt.Flow(name="Pipeline", entry_point=pipeline)
 
 ### Agent Used as a Tool by Another Agent (Multi-Agent Orchestration)
 
-To expose an agent as a callable tool for another agent, pass a `rt.ToolManifest` to `agent_node`. The manifest defines how the agent appears in the tool list of its caller — its description and parameters. Without a manifest, railtracks won't know how to present the agent as a tool.
+An agent with a `system_message` can be passed straight into another agent's `tool_nodes`. Without a `manifest=`, railtracks names the tool after the agent (characters outside `[a-zA-Z0-9_-]` become `_`), builds the description from the agent's name and full system message, and gives it one required string parameter, `request`, which the sub-agent receives as its user message. An agent with neither `system_message` nor `manifest=` raises `NodeCreationError` when used as a tool.
+```python
+SubAgent = rt.agent_node(
+    "Sub Agent",
+    tool_nodes=[tool_a],
+    llm=llm,
+    system_message="You do X for a given topic.",
+)
+Orchestrator = rt.agent_node(
+    "Orchestrator",
+    tool_nodes=[SubAgent],  # the orchestrator calls Sub_Agent(request=...)
+    llm=llm,
+    system_message="You are an orchestrator. Delegate to sub-agents as needed.",
+)
+```
+
+Pass `rt.ToolManifest` to `agent_node` when the caller needs a shorter description than the system message, named parameters, or a description that does not reveal the prompt. A manifest without `parameters` keeps its description and takes `request`. A manifest with a blank description raises `NodeCreationError`.
 ```python
 from railtracks.llm import Parameter
 

@@ -65,7 +65,7 @@ CalculatorAgent = rt.agent_node(
     llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
     system_message="You are a helpful calculator. Solve math problems step by step using the available math operations.",
     tool_nodes=[add, multiply, divide],
-    manifest=calculator_manifest,  # This makes the agent usable as a tool
+    manifest=calculator_manifest,  # Controls how the agent appears as a tool
 )
 # --8<-- [end: calculation_agent]
 
