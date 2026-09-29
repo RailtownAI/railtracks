@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, KeysView
+from typing import Any, Dict, ItemsView, KeysView
 
 
 class ExternalContext(ABC):
@@ -25,6 +25,10 @@ class ExternalContext(ABC):
 
     @abstractmethod
     def keys(self) -> KeysView[str]:
+        pass
+
+    @abstractmethod
+    def items(self) -> ItemsView[str, Any]:
         pass
 
     def __setitem__(self, key, value):
@@ -97,3 +101,12 @@ class MutableExternalContext(ExternalContext):
             KeysView[str]: The keys in the context.
         """
         return self._context_var_store.keys()
+
+    def items(self):
+        """
+        Returns a copy of the keys and values of the context.
+
+        Returns:
+            ItemsView[str, Any]: The key/value pairs in the context.
+        """
+        return dict(self._context_var_store).items()

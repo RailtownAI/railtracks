@@ -21,6 +21,7 @@ from railtracks.events._base import (
     NodeSpatialParent,
 )
 from railtracks.events._resolve import (
+    context_spatial_parent,
     llm_parent,
     llm_spatial_parent,
     middleware_parent,
@@ -329,3 +330,41 @@ def test_model_middleware_spatial_parent_raises_on_node_anchored_result():
     scope = chain((N, "A"), (MW, "m1", "mw-type"))
     with pytest.raises(AssertionError):
         model_middleware_spatial_parent(scope)
+
+
+# ── Context events: spatial parent (wherever the rt.context call happened) ────
+
+
+class TestContextSpatialParent:
+    def test_node_body(self):
+        scope = chain((N, "n1"), (NB, "n1"))
+        assert context_spatial_parent(scope) == NodeAndMiddlewareSpatialParent(
+            node_id="n1", middleware_invoke_id=None
+        )
+
+    def test_middleware_over_a_node(self):
+        scope = chain((N, "n1"), (MW, "mw1", "Tracing"))
+        assert context_spatial_parent(scope) == NodeAndMiddlewareSpatialParent(
+            node_id="n1", middleware_invoke_id="mw1"
+        )
+
+    def test_only_the_nearest_middleware_is_recorded(self):
+        scope = chain((N, "n1"), (MW, "outer", "Outer"), (MW, "inner", "Inner"))
+        assert context_spatial_parent(scope) == NodeAndMiddlewareSpatialParent(
+            node_id="n1", middleware_invoke_id="inner"
+        )
+
+    def test_model_middleware_anchors_on_the_llm_call(self):
+        scope = chain((N, "n1"), (NB, "n1"), (LLM, "llm1", "gpt"), (MW, "mw1", "G"))
+        assert context_spatial_parent(scope) == LLMAndMiddlewareSpatialParent(
+            llm_invoke_id="llm1", middleware_invoke_id="mw1"
+        )
+
+    def test_nested_node_stops_at_the_inner_one(self):
+        scope = chain((N, "n1"), (NB, "n1"), (MW, "mw1", "T"), (N, "n2"), (NB, "n2"))
+        assert context_spatial_parent(scope) == NodeAndMiddlewareSpatialParent(
+            node_id="n2", middleware_invoke_id=None
+        )
+
+    def test_no_scope(self):
+        assert context_spatial_parent(None) == NodeSpatialParent(node_id=None)

@@ -41,6 +41,7 @@ class Observer:
         self._running = False
         self._pending_writers: list[Writer] = []
         self._start_lock: asyncio.Lock = asyncio.Lock()
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     # async context manager support added for now, this will become more clear
     # once we move to integrating with the other modules
@@ -73,6 +74,7 @@ class Observer:
         async with self._start_lock:
             if self._running:
                 return
+            self._loop = asyncio.get_running_loop()
             for i, writer in enumerate(self._pending_writers):
                 name = f"writer-{i}"
                 try:
@@ -91,6 +93,7 @@ class Observer:
         if not self._running:
             return
         self._running = False
+        self._loop = None
         for name in list(self._writers.keys()):
             await self._teardown(name)
 
@@ -144,11 +147,30 @@ class Observer:
             raise KeyError(f"No writer registered as {name!r}.")
         await self._teardown(name)
 
+    @property
+    def is_observing(self) -> bool:
+        """Whether a published event would reach at least one writer."""
+        return self._running and bool(self._writers)
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop | None:
+        """The loop the writer tasks run on, or None while stopped."""
+        return self._loop
+
     async def publish(self, event: Event) -> None:
         """Fan the event out to every registered writer's queue.
 
         `async` on this method is contract-enforcement, the body doesn't `await` anything.
         requiring callers to be inside a coroutine means they're on the same running loop
+
+        Args:
+            event: The event to publish.
+        """
+        self.publish_nowait(event)
+
+    def publish_nowait(self, event: Event) -> None:
+        """Sync body of `publish`. Call it on `loop`; other threads go through
+        `publish_event_nowait`.
 
         Args:
             event: The event to publish.
