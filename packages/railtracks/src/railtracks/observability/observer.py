@@ -148,6 +148,11 @@ class Observer:
         await self._teardown(name)
 
     @property
+    def is_observing(self) -> bool:
+        """Whether a published event would reach at least one writer."""
+        return self._running and bool(self._writers)
+
+    @property
     def loop(self) -> asyncio.AbstractEventLoop | None:
         """The loop the writer tasks run on, or None while stopped."""
         return self._loop

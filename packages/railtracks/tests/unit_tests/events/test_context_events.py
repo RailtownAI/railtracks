@@ -342,3 +342,21 @@ async def test_a_failed_snapshot_does_not_break_the_run(monkeypatch):
     assert _of_type(events, "context.completion") == []
     (completed,) = _of_type(events, "session.completed")
     assert completed.payload["status"] == "success"
+
+
+async def test_nothing_is_snapshotted_without_a_writer(monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_DISABLE_EVENTS", "true")
+    snapshotted = []
+    monkeypatch.setattr(context_events, "_snapshot", snapshotted.append)
+
+    @rt.function_node
+    def node(_: str) -> str:
+        """Use every op that records a value."""
+        rt.context.put("k", "v")
+        rt.context.update({"k": "w"})
+        return rt.context.get("k")
+
+    result = rt.Flow("ctx-no-writer", node, context={"start": 1}).invoke("x")
+
+    assert result == "w"
+    assert snapshotted == []

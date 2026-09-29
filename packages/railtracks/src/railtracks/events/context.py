@@ -117,12 +117,15 @@ def snapshot_mapping(values: Mapping[str, Any]) -> dict[str, Any]:
     return {key: _snapshot(value) for key, value in values.items()}
 
 
-def _observing() -> bool:
-    return configure.observer.loop is not None
+def _is_observing() -> bool:
+    return configure.observer.is_observing
 
 
 async def emit_snapshot(event_cls: type[ContextSnapshotBase]) -> None:
     """Emit a whole-context snapshot, swallowing any failure to take it."""
+    if not _is_observing():
+        return
+
     try:
         values = snapshot_mapping(dict(external_context().items()))
     except Exception:  # noqa: BLE001 - observability must not crash a run
@@ -133,20 +136,20 @@ async def emit_snapshot(event_cls: type[ContextSnapshotBase]) -> None:
 
 
 def record_get(key: str, value: Any) -> None:
-    if _observing():
+    if _is_observing():
         emit_nowait(ContextGet(key=key, value=_snapshot(value)))
 
 
 def record_put(key: str, value: Any) -> None:
-    if _observing():
+    if _is_observing():
         emit_nowait(ContextPut(key=key, value=_snapshot(value)))
 
 
 def record_update(values: Mapping[str, Any]) -> None:
-    if _observing():
+    if _is_observing():
         emit_nowait(ContextUpdate(values=snapshot_mapping(values)))
 
 
 def record_delete(key: str) -> None:
-    if _observing():
+    if _is_observing():
         emit_nowait(ContextDelete(key=key))
