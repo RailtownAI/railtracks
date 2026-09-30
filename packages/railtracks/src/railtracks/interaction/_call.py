@@ -23,6 +23,11 @@ from railtracks.context.central import (
     is_context_active,
     is_context_present,
 )
+from railtracks.events.context import (
+    ContextCompletion,
+    ContextCreation,
+    emit_snapshot,
+)
 from railtracks.events.send import emit
 from railtracks.events.session import SessionCompleted, SessionStarted, format_error
 from railtracks.exceptions import GlobalTimeOutError
@@ -167,6 +172,7 @@ async def _start(
             save_state=config.save_state,
         )
     )
+    await emit_snapshot(ContextCreation)
     start_time = time.perf_counter()
 
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
@@ -202,6 +208,7 @@ async def _start(
         error = e
         raise
     finally:
+        await emit_snapshot(ContextCompletion)
         await emit(
             SessionCompleted(
                 session_id=identity.session_id,
