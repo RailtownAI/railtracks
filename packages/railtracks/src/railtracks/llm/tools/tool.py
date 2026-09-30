@@ -17,6 +17,7 @@ from .._exceptions import _ColoredError
 from .docstring_parser import extract_main_description, parse_docstring_args
 from .parameter_handlers import (
     DefaultParameterHandler,
+    LiteralParameterHandler,
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
@@ -24,6 +25,7 @@ from .parameter_handlers import (
 )
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
+from .typing_utils import resolve_type_hints
 
 
 def _validate_tool_params(parameters: Any, param_type: type) -> Any:
@@ -168,7 +170,7 @@ class Tool:
     @classmethod
     def from_function(
         cls,
-        func: Callable,
+        func: Callable[..., Any],
         /,
         *,
         name: str | None = None,
@@ -220,6 +222,8 @@ class Tool:
         if params is not None:
             parameters = params
         else:
+            resolved_types = resolve_type_hints(func, signature)
+
             # Check for multiple Args sections (warning)
             # Only need to do this if we need to.
             if docstring.count("Args:") > 1:
@@ -229,6 +233,7 @@ class Tool:
                 PydanticModelHandler(),
                 SequenceParameterHandler(),
                 UnionParameterHandler(),
+                LiteralParameterHandler(),
                 DefaultParameterHandler(),
             ]
 
@@ -244,10 +249,15 @@ class Tool:
                 # Check if the parameter is required
                 required = param.default == inspect.Parameter.empty
 
-                handler = next(h for h in handlers if h.can_handle(param.annotation))
+                annotation = (
+                    resolved_types.get(param.name, param.annotation)
+                    if isinstance(param.annotation, str)
+                    else param.annotation
+                )
+                handler = next(h for h in handlers if h.can_handle(annotation))
 
                 param_obj = handler.create_parameter(
-                    param.name, param.annotation, description, required
+                    param.name, annotation, description, required
                 )
 
                 parameters.append(param_obj)
