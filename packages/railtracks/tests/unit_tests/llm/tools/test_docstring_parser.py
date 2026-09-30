@@ -690,6 +690,29 @@ class TestParsingRegressions:
         )
         assert parse_docstring_args(docstring) == {"x": "The x value."}
 
+    def test_numpy_prose_notes_or_examples_does_not_end_parameters(self):
+        """A bare 'Notes'/'Examples' description line must not truncate params."""
+        docstring = (
+            "Does things.\n\n"
+            "Parameters\n"
+            "----------\n"
+            "x : int\n"
+            "    The x value.\n"
+            "    Notes\n"
+            "    More detail about x.\n"
+            "y : int\n"
+            "    Examples\n"
+            "    of y usage.\n\n"
+            "Returns\n"
+            "-------\n"
+            "int\n"
+            "    The result.\n"
+        )
+        assert parse_docstring_args(docstring) == {
+            "x": "The x value. Notes More detail about x.",
+            "y": "Examples of y usage.",
+        }
+
     def test_rest_subscripted_and_dotted_types(self):
         """reST type annotations with brackets or dots are not skipped."""
         docstring = (

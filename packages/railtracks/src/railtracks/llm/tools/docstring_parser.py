@@ -22,9 +22,10 @@ _SECTION_HEADERS = frozenset(
     }
 )
 
-# Section names that can follow a NumPy-style "Parameters" block. Unlike
-# _SECTION_HEADERS, these are matched with or without an underline and with or
-# without a trailing colon, so both "Examples" and "Examples:" end the block.
+# Section names that can follow a NumPy-style "Parameters" block. A match only
+# ends the block when it is a colon-style heading (e.g. "Examples:") or a real
+# NumPy header (name plus dashes/equals underline), so a prose line that just
+# reads "Notes" does not truncate parameter descriptions.
 _NUMPY_SECTION_NAMES = frozenset(
     {
         "Parameters",
@@ -304,9 +305,13 @@ def extract_numpy_args_section(docstring: str) -> str:
         if stripped.rstrip(":") == "Other Parameters":
             continue
 
-        # Stop at the start of the next section. This covers both underlined
-        # NumPy headers and non-underlined ones such as "Examples:".
-        if stripped and stripped.rstrip(":") in _NUMPY_SECTION_NAMES:
+        # Stop at the start of the next section. Require a colon-style heading
+        # (e.g. "Examples:") or a real NumPy underline so a prose line that
+        # happens to say "Notes" or "Examples" does not truncate the block.
+        if stripped and (
+            (stripped.endswith(":") and stripped.rstrip(":") in _NUMPY_SECTION_NAMES)
+            or _is_numpy_section_header(split_lines, index)
+        ):
             break
 
         params_section += line + "\n"
