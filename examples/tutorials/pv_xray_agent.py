@@ -47,14 +47,14 @@ class Link(BaseModel):
 XRAY_agent = rt.agent_node(
     name="Prime Video Agent",
     system_message="You recognize actors and actresses in a given photo",
-    llm=rt.llm.GeminiLLM("gemini-3.7-flash"),
+    llm=rt.llm.GeminiLLM("gemini-3.8-flash"),
     output_schema=Cast,
 )
 
 IMDB_agent = rt.agent_node(
     name="IMDB Agent",
     system_message="You find IMDB profiles given actors or actresses names",
-    llm=rt.llm.GeminiLLM("gemini-3.7-flash"),
+    llm=rt.llm.GeminiLLM("gemini-3.8-flash"),
     tool_nodes=[web_search],
     output_schema=Link,
 )
@@ -81,9 +81,9 @@ async def main(path: str) -> list[str]:
     links = []
 
     # For each person identified by the XRAY agent, call the IMDB agent to find their IMDB profile link
-    for person in resp.structured.cast:
+    for person in resp.content.cast:
         imdb_resp = await rt.call(IMDB_agent, f"Find the IMDB Profile of {person}")
-        links.append(imdb_resp.structured.imdb_link)
+        links.append(imdb_resp.content.imdb_link)
 
     return links
 
