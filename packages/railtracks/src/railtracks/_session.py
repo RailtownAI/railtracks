@@ -29,7 +29,6 @@ from .state.info import (
 from .state.state import RTState
 from .utils.config import ExecutorConfig
 from .utils.json.encoder import RTJSONEncoder
-from .utils.json.files import to_json, write_json_text
 from .utils.logging.create import get_rt_logger
 
 logger = get_rt_logger(__name__)
@@ -211,7 +210,11 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                write_json_text(file_path, to_json(self.payload()))
+                content = json.dumps(self.payload(), ensure_ascii=False)
+                # Unpaired surrogates cannot be encoded; keep them as \u escapes
+                file_path.write_text(
+                    content, encoding="utf-8", errors="backslashreplace"
+                )
 
             except OSError as exc:
                 logger.warning(

@@ -14,7 +14,7 @@ def _load_attachment_formats() -> dict[str, Any]:
     if not formats_file.exists():
         raise FileNotFoundError(f"Attachment formats file not found: {formats_file}")
 
-    with open(formats_file, encoding="utf-8") as f:
+    with open(formats_file) as f:
         return yaml.safe_load(f)
 
 

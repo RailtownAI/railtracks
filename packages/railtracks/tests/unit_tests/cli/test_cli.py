@@ -4,7 +4,6 @@
 Basic unit tests for railtracks CLI functionality
 """
 
-import io
 import json
 import os
 import shutil
@@ -69,19 +68,6 @@ class TestUtilityFunctions(unittest.TestCase):
 
         print_error(test_message)
         mock_print.assert_called_with("[railtracks] test message")
-
-    def test_print_functions_escape_what_the_console_cannot_encode(self):
-        """Test print helpers escape emoji instead of raising on a code page console"""
-        console = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
-
-        with patch.object(sys, "stdout", console):
-            print_success("\U0001f680 server running — ok")
-            console.flush()
-
-        written = console.buffer.getvalue().decode("cp1252")
-        self.assertEqual(
-            written.strip(), "[railtracks] \\U0001f680 server running — ok"
-        )
 
 
 class TestCreateRailtracksDir(unittest.TestCase):
@@ -180,22 +166,6 @@ class TestCreateRailtracksDir(unittest.TestCase):
         # Content should be unchanged
         new_content = gitignore_path.read_text()
         self.assertEqual(original_content, new_content)
-
-    @patch("railtracks.cli.print_status")
-    @patch("railtracks.cli.print_success")
-    def test_create_railtracks_dir_gitignore_with_non_ascii(
-        self, mock_success, mock_status
-    ):
-        """Test adding .railtracks to a .gitignore that holds non-ASCII text"""
-        gitignore_path = Path(".gitignore")
-        original = "# Ábaco / 生成ファイル\n*.pyc\n"
-        gitignore_path.write_bytes(original.encode("utf-8"))
-
-        create_railtracks_dir()
-
-        content = gitignore_path.read_bytes().decode("utf-8")
-        self.assertTrue(content.startswith(original))
-        self.assertIn(".railtracks", content)
 
 
 class TestFastAPIEndpoints(unittest.TestCase):

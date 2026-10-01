@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
-
-from railtracks.utils.json.files import read_json, to_json, write_json_text
 
 
 class InMemoryKeyValueStore:
@@ -25,7 +24,7 @@ class InMemoryKeyValueStore:
         self._snapshot_path = Path(snapshot_path) if snapshot_path is not None else None
 
         if self._snapshot_path is not None and self._snapshot_path.exists():
-            self._data = read_json(self._snapshot_path)
+            self._data = json.loads(self._snapshot_path.read_text(encoding="utf-8"))
 
     async def set(self, key: str, value: str) -> None:
         async with self._lock:
@@ -63,5 +62,10 @@ class InMemoryKeyValueStore:
         """
         if self._snapshot_path is None:
             return
-        payload = to_json(self._data)
-        await asyncio.to_thread(write_json_text, self._snapshot_path, payload)
+        payload = json.dumps(self._data, ensure_ascii=False)
+        await asyncio.to_thread(
+            self._snapshot_path.write_text,
+            payload,
+            encoding="utf-8",
+            errors="backslashreplace",
+        )

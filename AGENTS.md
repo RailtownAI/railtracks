@@ -157,8 +157,6 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 
 Follow the code-style conventions for every code change. Before writing or editing code, confirm the rule list under the `# railtracks Code Style` heading is in your context; this line and a `code-style` entry in a skill listing do not count. If it is not (a new session, or after the context was compacted), read `.claude/skills/code-style/SKILL.md` first. Check the diff against it before committing.
 
-Write and read every JSON file railtracks keeps on disk (sessions, events, evaluations, store snapshots) through `railtracks.utils.json.files` (`to_json`, `write_json_text`, `read_json`, or `JSON_ENCODING`/`JSON_ENCODING_ERRORS` for an open handle). Do not use bare `json.dumps` with `write_text()` or `open()` without an encoding: the files are UTF-8 with non-ASCII text unescaped, and the platform default encoding garbles them on Windows. JSON that is hashed into an identifier (`Flow`, evaluator and metric configs) keeps plain `json.dumps` so existing ids do not change.
-
 ## Notes on dependency structure
 - Root `pyproject.toml` = dev tooling only (`docs`/`test`/`lint` groups via `uv`). Never add runtime package dependencies here.
 - `packages/railtracks/pyproject.toml` = actual package dependencies. New optional integrations go under `[project.optional-dependencies]` there, and must stay alphabetically sorted (enforced by `scripts/check_dependencies_sorted.py`).

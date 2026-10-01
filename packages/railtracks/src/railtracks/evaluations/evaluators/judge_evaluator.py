@@ -259,7 +259,7 @@ class JudgeEvaluator(Evaluator):
 
     def _load_yaml(self):
         yaml_path = Path(__file__).parent / "judge_evaluator.yaml"
-        with open(yaml_path, encoding="utf-8") as f:
+        with open(yaml_path, "r") as f:
             template = yaml.safe_load(f)
 
         return template

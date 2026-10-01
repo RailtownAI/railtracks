@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import numpy as np
 
-from railtracks.utils.json.files import read_json, to_json, write_json_text
 from railtracks.utils.logging.create import get_rt_logger
 
 from ..metric import DistanceMetric
@@ -35,7 +35,7 @@ class InMemoryBackend:
         self._snapshot_path = Path(snapshot_path) if snapshot_path is not None else None
 
         if self._snapshot_path is not None and self._snapshot_path.exists():
-            data = read_json(self._snapshot_path)
+            data = json.loads(self._snapshot_path.read_text(encoding="utf-8"))
             self._vectors = data.get("vectors", {})
             self._payloads = data.get("payloads", {})
 
@@ -152,8 +152,15 @@ class InMemoryBackend:
         """
         if self._snapshot_path is None:
             return
-        payload = to_json({"vectors": self._vectors, "payloads": self._payloads})
-        await asyncio.to_thread(write_json_text, self._snapshot_path, payload)
+        payload = json.dumps(
+            {"vectors": self._vectors, "payloads": self._payloads}, ensure_ascii=False
+        )
+        await asyncio.to_thread(
+            self._snapshot_path.write_text,
+            payload,
+            encoding="utf-8",
+            errors="backslashreplace",
+        )
 
 
 def _matches_filters(payload: dict, filters: dict) -> bool:

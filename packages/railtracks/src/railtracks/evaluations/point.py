@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
@@ -6,7 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from railtracks.utils.json.files import read_json
 from railtracks.utils.logging import get_rt_logger
 
 logger = get_rt_logger(__name__)
@@ -161,7 +161,8 @@ def load_session(path: str | Path) -> dict:
         raise FileNotFoundError(f"Session file not found: {path}")
 
     try:
-        session_data = read_json(path)
+        with open(path, encoding="utf-8") as f:
+            session_data = json.load(f)
     except (ValueError, OSError) as e:
         raise ValueError(f"Error loading session file: {path}. Details: {e}")
     return session_data

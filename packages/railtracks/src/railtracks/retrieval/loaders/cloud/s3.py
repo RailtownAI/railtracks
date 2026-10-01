@@ -34,8 +34,7 @@ class S3Loader(BaseDocumentLoader):
         aws_secret_access_key: Explicit secret access key (optional).
         aws_session_token: Explicit session token for temporary credentials (optional).
         endpoint_url: Custom endpoint URL for S3-compatible services such as MinIO (optional).
-        encoding: Text encoding used to decode object bytes. Defaults to ``"utf-8-sig"``,
-            which drops a leading byte order mark like the local loaders.
+        encoding: Text encoding used to decode object bytes. Defaults to ``"utf-8"``.
 
     Raises:
         ImportError: If ``boto3`` is not installed.
@@ -66,7 +65,7 @@ class S3Loader(BaseDocumentLoader):
         aws_secret_access_key: Optional[str] = None,
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
-        encoding: str = "utf-8-sig",
+        encoding: str = "utf-8",
     ) -> None:
         try:
             import boto3

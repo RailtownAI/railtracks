@@ -1,5 +1,6 @@
 """FastAPI + uvicorn visualizer server (requires railtracks[visual])."""
 
+import json
 import os
 import threading
 import time
@@ -13,7 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from railtracks.paths import resolve_railtracks_home
-from railtracks.utils.json.files import read_json
 
 from .constants import DEFAULT_PORT
 from .io import print_error, print_status, print_success, print_warning
@@ -138,7 +138,9 @@ async def get_evaluations():
     if evaluations_dir.exists():
         for file_path in evaluations_dir.glob("*.json"):
             try:
-                evaluations.append(read_json(file_path))
+                with open(file_path, encoding="utf-8") as f:
+                    content = json.load(f)
+                    evaluations.append(content)
             except (ValueError, OSError) as e:
                 print_error(f"Error reading evaluation file {file_path.name}: {e}")
 
@@ -169,7 +171,9 @@ async def get_sessions():
     if sessions_dir.exists():
         for file_path in sessions_dir.glob("*.json"):
             try:
-                sessions.append(read_json(file_path))
+                with open(file_path, encoding="utf-8") as f:
+                    content = json.load(f)
+                    sessions.append(content)
             except (ValueError, OSError) as e:
                 print_error(f"Error reading session file {file_path.name}: {e}")
 
@@ -230,7 +234,8 @@ async def get_session(
         return JSONResponse(content={"error": "Session not found"}, status_code=404)
 
     try:
-        content = read_json(file_path)
+        with open(file_path, encoding="utf-8") as f:
+            content = json.load(f)
         return JSONResponse(content=content)
     except ValueError as e:
         print_error(f"Invalid JSON in {file_path.name}: {e}")

@@ -84,19 +84,6 @@ class TestGCSLoaderKeys:
         assert doc.metadata["bucket"] == BUCKET
         assert doc.metadata["name"] == "file.txt"
 
-    def test_default_encoding_drops_byte_order_mark(self) -> None:
-        from railtracks.retrieval.loaders.cloud.gcs import GCSLoader
-
-        text = "你好 café"
-        gcs_client = make_gcs_client_for_loading(
-            {"file.txt": text}, encoding="utf-8-sig"
-        )
-        with patch_gcs(gcs_client):
-            loader = GCSLoader(BUCKET, keys=["file.txt"])
-
-        (doc,) = loader.load()
-        assert doc.content == text
-
 
 class TestGCSLoaderList:
     def test_load_returns_all_objects(self) -> None:

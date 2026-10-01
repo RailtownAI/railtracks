@@ -17,7 +17,6 @@ from railtracks.cli.viz_api.models import MiddlewareSortField, SortOrder
 from railtracks.cli.viz_api.routes._common import get_query_or_404, get_query_or_none
 from railtracks.cli.viz_server import app
 from railtracks.observability.storage import EVENTS_DIR_ENV
-from railtracks.utils.json.files import to_json, write_json_text
 
 
 @pytest.fixture(autouse=True)
@@ -344,7 +343,9 @@ def test_escaped_and_utf8_event_files_list_size_and_search_alike(
         )
 
     _write_events(tmp_path, "old-1", started("old-1"))
-    write_json_text(tmp_path / "new-1.jsonl", to_json(started("new-1")) + "\n")
+    (tmp_path / "new-1.jsonl").write_text(
+        json.dumps(started("new-1"), ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     client = TestClient(app)
 
     events = client.get("/api/v2/events", params={"search": "你好"})

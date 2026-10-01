@@ -54,8 +54,6 @@ This will create a `.railtracks` directory at your project root and open the web
     --8<-- "docs/scripts/visualization.py:saving_state"
     ```
 
-    Saved files are UTF-8 JSON with non-English text and emoji stored as written. See [Read the files yourself](local_v2.md#read-the-files-yourself) before loading them in your own code.
-
 ## Updating the UI
 As we continue to support the local visualizer and add more features, you may choose to integrate these updated UI components into your local installation by running:
 ```bash title="Update UI elements"

@@ -54,7 +54,6 @@ from .constants import (
 )
 from .io import (
     _print_update_available,
-    echo,
     print_error,
     print_status,
     print_success,
@@ -166,18 +165,17 @@ def create_railtracks_dir():
 
         gitignore_path = railtracks_dir.parent / ".gitignore"
         if gitignore_path.exists():
-            # Only an ASCII entry is searched for, so any encoding the file uses will do
-            with open(gitignore_path, encoding="utf-8", errors="replace") as f:
+            with open(gitignore_path) as f:
                 gitignore_content = f.read()
 
             if cli_directory not in gitignore_content:
                 print_status(f"Adding {cli_directory} to .gitignore...")
-                with open(gitignore_path, "a", encoding="utf-8") as f:
+                with open(gitignore_path, "a") as f:
                     f.write(f"\n{cli_directory}\n")
                 print_success(f"Added {cli_directory} to .gitignore")
         else:
             print_status("Creating .gitignore file...")
-            with open(gitignore_path, "w", encoding="utf-8") as f:
+            with open(gitignore_path, "w") as f:
                 f.write(f"{cli_directory}\n")
             print_success(f"Created .gitignore with {cli_directory}")
     else:
@@ -207,7 +205,7 @@ def get_stored_ui_version(beta: bool = False):
     version_file = resolve_railtracks_home() / _ui_version_filename(beta)
     try:
         if version_file.exists():
-            return version_file.read_text(encoding="utf-8").strip()
+            return version_file.read_text().strip()
     except Exception:
         pass
     return None
@@ -217,7 +215,7 @@ def save_ui_version(version: str, beta: bool = False):
     """Save the UI version (ETag) to disk"""
     version_file = resolve_railtracks_home() / _ui_version_filename(beta)
     try:
-        version_file.write_text(version, encoding="utf-8")
+        version_file.write_text(version)
     except Exception:
         pass
 
@@ -427,7 +425,7 @@ def _print_help():
         return f"  {green}{invocation}{rst}  {dim}# {comment}{rst}"
 
     print()
-    echo(f"  {cyan}{bold}{cli_name}{rst}  {dim}— AI agent framework{rst}")
+    print(f"  {cyan}{bold}{cli_name}{rst}  {dim}— AI agent framework{rst}")
     print()
     print(f"  {bold}Usage:{rst}  {cli_name} {yellow}<command>{rst}")
     print()

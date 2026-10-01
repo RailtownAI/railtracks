@@ -92,17 +92,6 @@ class TestAzureBlobLoaderKeys:
         (doc,) = loader.load()
         assert doc.content == text
 
-    def test_default_encoding_drops_byte_order_mark(self) -> None:
-        from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
-
-        text = "你好 café"
-        cc = make_container_client_for_loading({"file.txt": text}, encoding="utf-8-sig")
-        with patch_azure(cc):
-            loader = AzureBlobLoader(ACCOUNT_URL, CONTAINER, keys=["file.txt"])
-
-        (doc,) = loader.load()
-        assert doc.content == text
-
 
 class TestAzureBlobLoaderList:
     def test_load_returns_all_blobs(self) -> None:

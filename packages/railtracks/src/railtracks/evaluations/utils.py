@@ -1,7 +1,7 @@
+import json
 from typing import Any
 
 from railtracks.paths import resolve_railtracks_home
-from railtracks.utils.json.files import to_json, write_json_text
 
 from .result import EvaluationResult
 
@@ -21,4 +21,8 @@ def save(results: list[EvaluationResult]):
             raise Exception(
                 f"Evaluation result with id {result.evaluation_id} already exists."
             )
-        write_json_text(fp, to_json(payload(result)))
+        fp.write_text(
+            json.dumps(payload(result), ensure_ascii=False),
+            encoding="utf-8",
+            errors="backslashreplace",
+        )

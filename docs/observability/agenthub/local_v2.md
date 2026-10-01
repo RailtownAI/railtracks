@@ -41,20 +41,6 @@ routes, and interactive API documentation is available at
 Events are recorded automatically to `.railtracks/data/events` with no setup required. The beta visualizer reads from the
 same directory.
 
-### Read the files yourself
-
-Event files (`.jsonl`), session files and evaluation results are UTF-8 JSON. Non-English text and emoji are stored as written rather than as `\uXXXX` escapes, so you, an editor or a coding agent can read them directly. Files from older Railtracks versions use escapes, and the visualizer shows both the same way.
-
-When you load them in your own code, pass the encoding explicitly. Without it, Python on Windows uses the system code page and garbles the text:
-
-```python
-import json
-from pathlib import Path
-
-for line in Path(".railtracks/data/events/<session-id>.jsonl").read_text(encoding="utf-8").splitlines():
-    event = json.loads(line)
-```
-
 ### Customize event writers
 
 To use your own writer set (or add more alongside the default), call

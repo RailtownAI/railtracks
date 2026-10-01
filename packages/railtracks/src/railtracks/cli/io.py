@@ -9,25 +9,12 @@ from colorama import Fore, Style
 from .constants import cli_name
 
 
-def echo(message: str) -> None:
-    """Print ``message``, escaping characters the console's encoding cannot show.
-
-    A redirected stdout on Windows uses the locale code page, which has no emoji
-    and often no CJK, so a plain ``print`` would raise instead.
-    """
-    try:
-        print(message)
-    except UnicodeEncodeError:
-        encoding = sys.stdout.encoding or "ascii"
-        print(message.encode(encoding, "backslashreplace").decode(encoding))
-
-
 def print_status(message: str) -> None:
-    echo(f"[{cli_name}] {message}")
+    print(f"[{cli_name}] {message}")
 
 
 def print_success(message: str) -> None:
-    echo(f"[{cli_name}] {message}")
+    print(f"[{cli_name}] {message}")
 
 
 def _colorize(message: str, color: str) -> str:
@@ -37,11 +24,11 @@ def _colorize(message: str, color: str) -> str:
 
 
 def print_warning(message: str) -> None:
-    echo(_colorize(f"[{cli_name}] {message}", Fore.YELLOW))
+    print(_colorize(f"[{cli_name}] {message}", Fore.YELLOW))
 
 
 def print_error(message: str) -> None:
-    echo(_colorize(f"[{cli_name}] {message}", Fore.RED))
+    print(_colorize(f"[{cli_name}] {message}", Fore.RED))
 
 
 def _print_update_available() -> None:

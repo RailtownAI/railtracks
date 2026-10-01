@@ -100,17 +100,6 @@ class TestS3LoaderKeys:
         (doc,) = loader.load()
         assert doc.content == text
 
-    def test_default_encoding_drops_byte_order_mark(self) -> None:
-        from railtracks.retrieval.loaders.cloud.s3 import S3Loader
-
-        text = "你好 café"
-        mock_client = make_s3_client({"file.txt": text}, encoding="utf-8-sig")
-        with patch("boto3.client", return_value=mock_client):
-            loader = S3Loader("my-bucket", keys=["file.txt"])
-
-        (doc,) = loader.load()
-        assert doc.content == text
-
 
 class TestS3LoaderList:
     def test_load_without_prefix_returns_all_objects(self) -> None:

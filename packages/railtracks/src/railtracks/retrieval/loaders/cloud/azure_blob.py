@@ -47,8 +47,7 @@ class AzureBlobLoader(BaseDocumentLoader):
             ignored.
         credential: Azure credential used for authentication. Defaults to
             ``DefaultAzureCredential()`` when ``None``.
-        encoding: Text encoding used to decode blob bytes. Defaults to ``"utf-8-sig"``,
-            which drops a leading byte order mark like the local loaders.
+        encoding: Text encoding used to decode blob bytes. Defaults to ``"utf-8"``.
 
     Raises:
         ImportError: If ``azure-storage-blob`` or ``azure-identity`` are not installed.
@@ -62,7 +61,7 @@ class AzureBlobLoader(BaseDocumentLoader):
         prefix: Optional[str] = None,
         keys: Optional[list[str]] = None,
         credential: Optional[Any] = None,
-        encoding: str = "utf-8-sig",
+        encoding: str = "utf-8",
     ) -> None:
         try:
             from azure.storage.blob import ContainerClient
