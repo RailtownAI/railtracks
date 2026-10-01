@@ -173,6 +173,21 @@ echo "OPENAI_API_KEY=sk-..." >> .env
 
 
 <details open>
+<summary><b>Building with Claude Code?</b></summary>
+
+Install the Railtracks plugin so Claude Code writes Railtracks code correctly, using instructions that match your installed version:
+
+```bash
+claude plugin marketplace add RailtownAI/railtracks
+claude plugin install railtracks@railtracks
+```
+
+Using Codex, Copilot, or Cursor? Run `railtracks add <assistant>:all` (see [AI Coding Assistants](https://docs.railtracks.org/documentation/getting_started/ai_setup/)).
+
+</details>
+
+
+<details open>
 <summary><b>Your First Agent</b></summary>
 
 

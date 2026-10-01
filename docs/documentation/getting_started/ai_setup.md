@@ -4,9 +4,20 @@ Railtracks ships with built-in support for the most popular AI coding assistants
 
 Without a skill, your assistant has to guess at the API. With one, it knows exactly what `rt.agent_node()`, `rt.function_node()`, and `rt.Flow` expect; and it won't make things up.
 
+!!! tip "Using Claude Code?"
+    The [Claude Code plugin](claude_code_plugin.md) is the quickest way in: two commands, and it works before Railtracks is installed.
+
+## Let your assistant set it up
+
+Paste this into any coding assistant to have it install Railtracks and its skills for you. Replace `claude` with `codex`, `copilot`, or `cursor` to match your assistant:
+
+```text
+Set up this project for Railtracks: install railtracks into the project's Python environment, then run `railtracks add claude:all` to install the Railtracks skills. When that's done, run `railtracks skill show agent-builder` and give me a short summary of what it covers.
+```
+
 ## Installation
 
-Make sure the CLI is installed first:
+To install skills yourself with the CLI, make sure it's installed first:
 
 ```bash
 pip install 'railtracks[visual]'
