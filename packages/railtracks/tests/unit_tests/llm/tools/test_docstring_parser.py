@@ -506,7 +506,7 @@ class TestRestArgsSection:
         assert parse_docstring_args(docstring) == {}
 
     def test_rest_main_description_strips_fields(self):
-        """Pure reST docstrings must not ship raw :param lines as the tool description."""
+        """reST fields are left out of the main description."""
         docstring = """Fetches a URL.
 
     :param url: The endpoint to hit.
@@ -518,10 +518,10 @@ class TestRestArgsSection:
 
 
 class TestFirstMatchStyleSelection:
-    """Regression tests for non-destructive first-match parsing (Google → NumPy → reST)."""
+    """Styles are tried in order (Google, NumPy, reST) and the first match wins."""
 
     def test_google_wins_over_numpy_without_merging(self):
-        """Mixed Google+NumPy docstrings return only Google args (no blind-merge)."""
+        """Mixed Google and NumPy docstrings return only the Google args."""
         docstring = """
         Do something.
 
@@ -536,7 +536,7 @@ class TestFirstMatchStyleSelection:
         assert parse_docstring_args(docstring) == {"a": "google arg"}
 
     def test_google_args_section_stops_at_numpy_header(self):
-        """Google Args: extraction must not swallow a following NumPy Parameters block."""
+        """Google Args extraction stops at a following NumPy Parameters block."""
         docstring = """
         Args:
             a: google
@@ -574,8 +574,8 @@ class TestFirstMatchStyleSelection:
         assert parse_docstring_args(docstring) == {"y": "The y value."}
 
 
-class TestParsingRegressions:
-    """Regression tests for non-destructive parsing of mixed-style content."""
+class TestMixedContent:
+    """Parsing of docstrings whose content resembles another style."""
 
     def test_google_indented_field_does_not_truncate_args(self):
         """An indented ``:field:`` line inside Args is continuation text."""
@@ -666,10 +666,11 @@ class TestParsingRegressions:
         )
         assert parse_docstring_args(docstring) == {"a": "first", "b": "second"}
 
-    def test_parameters_without_underline_is_not_numpy(self):
-        """Napoleon-style fields must not be misread as NumPy definitions."""
+    def test_parameters_without_underline_is_google_alias(self):
+        """'Parameters:' without an underline is a Google header, not NumPy."""
         docstring = "Do.\n\nParameters:\n    a: first\n    b (int): second\n"
-        assert parse_docstring_args(docstring) == {}
+        assert extract_numpy_args_section(docstring) == ""
+        assert parse_docstring_args(docstring) == {"a": "first", "b": "second"}
 
     def test_equals_underlined_numpy_header(self):
         """An equals underline also marks a NumPy Parameters section."""
@@ -691,7 +692,7 @@ class TestParsingRegressions:
         assert parse_docstring_args(docstring) == {"x": "The x value."}
 
     def test_numpy_prose_notes_or_examples_does_not_end_parameters(self):
-        """A bare 'Notes'/'Examples' description line must not truncate params."""
+        """A bare 'Notes'/'Examples' description line does not truncate params."""
         docstring = (
             "Does things.\n\n"
             "Parameters\n"
@@ -770,3 +771,104 @@ class TestParsingRegressions:
         """A real NumPy header (name plus dashes) still ends the description."""
         docstring = "Summary line.\n\nNotes\n-----\nmore prose"
         assert extract_main_description(docstring) == "Summary line."
+
+
+class TestGoogleAliases:
+    """'Arguments:' and 'Parameters:' open a Google parameter block like 'Args:'."""
+
+    def test_arguments_header(self):
+        docstring = "Do.\n\nArguments:\n    x: The x.\n\nReturns:\n    Nothing.\n"
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
+    def test_parameters_label_over_rest_fields_is_rest(self):
+        docstring = (
+            "Do.\n\nParameters:\n\n:param x: The x.\n:param y: The y.\n\n"
+            "Example:\n    foo(1)\n"
+        )
+        assert extract_args_section(docstring) == ""
+        assert parse_docstring_args(docstring) == {"x": "The x.", "y": "The y."}
+
+    def test_underlined_parameters_header_is_numpy(self):
+        docstring = "Do.\n\nParameters:\n-----------\nx : int\n    The x.\n"
+        assert extract_args_section(docstring) == ""
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
+
+class TestNumpySectionBoundaries:
+    """The NumPy parameter block ends at any underlined heading at its indent."""
+
+    def test_unlisted_underlined_heading_ends_parameters(self):
+        docstring = (
+            "Do.\n\nParameters\n----------\nx : int\n    The x.\n\n"
+            "Example\n-------\n>>> foo(1)\n"
+        )
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
+    def test_custom_heading_ends_parameters(self):
+        docstring = (
+            "Do.\n\nParameters\n----------\nx : int\n    The x.\n\n"
+            "Usage Tips\n----------\nCall it often.\n"
+        )
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
+    def test_underlined_line_inside_description_does_not_end_parameters(self):
+        docstring = (
+            "Do.\n\nParameters\n----------\nx : int\n    The x.\n    Details\n"
+            "    -------\n    More on x.\ny : int\n    The y.\n"
+        )
+        assert parse_docstring_args(docstring) == {
+            "x": "The x. Details More on x.",
+            "y": "The y.",
+        }
+
+    def test_equals_underline_on_other_parameters_is_skipped(self):
+        docstring = (
+            "Do.\n\nParameters\n==========\na : int\n    first\n\n"
+            "Other Parameters\n================\nb : int\n    second\n"
+        )
+        assert parse_docstring_args(docstring) == {"a": "first", "b": "second"}
+
+
+class TestRestFieldNames:
+    """Every Sphinx parameter field name is parsed and kept out of the description."""
+
+    def test_arg_and_argument_fields(self):
+        docstring = "Do.\n\n:arg x: The x.\n:argument y: The y.\n"
+        assert parse_docstring_args(docstring) == {"x": "The x.", "y": "The y."}
+        assert extract_main_description(docstring) == "Do."
+
+    def test_key_and_keyword_fields(self):
+        docstring = "Do.\n\n:keyword x: The x.\n:key y: The y.\n"
+        assert parse_docstring_args(docstring) == {"x": "The x.", "y": "The y."}
+        assert extract_main_description(docstring) == "Do."
+
+    def test_union_type_in_param_field(self):
+        docstring = "Do.\n\n:param str | None x: The x.\n:param int y: The y.\n"
+        assert parse_docstring_args(docstring) == {"x": "The x.", "y": "The y."}
+
+    def test_tilde_shortened_type_in_param_field(self):
+        docstring = "Do.\n\n:param ~pkg.mod.Request request: The request.\n"
+        assert parse_docstring_args(docstring) == {"request": "The request."}
+
+    def test_unindented_paragraph_after_field_is_not_description(self):
+        docstring = (
+            "Do.\n\n:param x: The x.\n    Still about x.\n\n.. versionadded:: 2.0\n"
+        )
+        assert parse_docstring_args(docstring) == {"x": "The x. Still about x."}
+
+    def test_unindented_wrapped_line_is_description(self):
+        docstring = "Do.\n\n:param x: The x value,\nwrapped without indent.\n"
+        assert parse_docstring_args(docstring) == {
+            "x": "The x value, wrapped without indent."
+        }
+
+    def test_other_info_fields_end_main_description(self):
+        docstring = "Do.\n\n:raise ValueError: When bad.\n:ivar state: The state.\n"
+        assert extract_main_description(docstring) == "Do."
+
+    def test_keyword_role_kept_in_main_description(self):
+        docstring = "Do.\n\n:keyword:`return` ends the call.\n\nArgs:\n    x: The x."
+        assert (
+            extract_main_description(docstring)
+            == "Do.\n\n:keyword:`return` ends the call."
+        )

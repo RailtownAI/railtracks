@@ -15,17 +15,19 @@ from .parameters import Parameter, ParameterType
 _SECTION_HEADERS = frozenset(
     {
         "Args",
+        "Arguments",
         "Attributes",
+        "Parameters",
         "Raises",
         "Returns",
         "Yields",
     }
 )
 
-# Section names that can follow a NumPy-style "Parameters" block. A match only
-# ends the block when it is a colon-style heading (e.g. "Examples:") or a real
-# NumPy header (name plus dashes/equals underline), so a prose line that just
-# reads "Notes" does not truncate parameter descriptions.
+# Google-style headers that open a parameter block.
+_GOOGLE_ARGS_HEADERS = ("Args:", "Arguments:", "Parameters:")
+
+# NumPy section names, recognised as headers when underlined or colon-terminated.
 _NUMPY_SECTION_NAMES = frozenset(
     {
         "Parameters",
@@ -45,13 +47,20 @@ _NUMPY_SECTION_NAMES = frozenset(
     }
 )
 
-# reST field-list fields that open a parameter or returns section, e.g.
-# ":param name:", ":type name:", ":returns:". Inline roles such as ":func:" are
-# ordinary prose that merely happens to start with a colon.
-_REST_FIELD_PATTERN = re.compile(
-    r"^:(?:param|parameter|type|returns?|rtype|raises?|yields?|keyword|kwarg)\b"
+_NUMPY_PARAM_HEADERS = ("Parameters", "Other Parameters")
+
+# Sphinx info-field names that describe a parameter.
+_REST_PARAM_FIELDS = "param|parameter|arg|argument|key|keyword"
+# ":param name: desc" or ":param type name: desc", matched against a stripped line.
+_REST_PARAM_PATTERN = re.compile(
+    rf"^:(?:{_REST_PARAM_FIELDS})\s+(?:[\w.~\[\],| ]+?\s+)?(\w+)\s*:\s*(.*)$"
 )
-# A wrapped reST parameter description can start with an inline role.
+# Any Sphinx info field, e.g. ":param x:", ":type x:", ":returns:".
+_REST_FIELD_PATTERN = re.compile(
+    rf"^:(?:{_REST_PARAM_FIELDS}|type|returns?|rtype|raises?|except|exception"
+    r"|yields?|var|ivar|cvar|vartype|meta|kwarg)\b"
+)
+# An inline role such as ":class:`Foo`", which is prose rather than a field.
 _REST_ROLE_PATTERN = re.compile(r"^:[\w.+-]+(?::[\w.+-]+)*:`")
 
 
@@ -71,23 +80,54 @@ def _is_section_header(line: str) -> bool:
 # HELPER
 def _is_rest_field(line: str) -> bool:
     """Returns whether a line opens a reST field-list entry, e.g. ``:param x:``."""
-    return bool(_REST_FIELD_PATTERN.match(line.strip()))
+    stripped = line.strip()
+    return bool(_REST_FIELD_PATTERN.match(stripped)) and not (
+        _REST_ROLE_PATTERN.match(stripped)
+    )
+
+
+# HELPER
+def _is_underline(line: str) -> bool:
+    """Returns whether a line is a run of dashes or equals signs."""
+    return set(line.strip()) in ({"-"}, {"="})
+
+
+# HELPER
+def _is_underlined_heading(lines: list[str], index: int) -> bool:
+    """Returns whether ``lines[index]`` is text followed by an underline."""
+    stripped = lines[index].strip()
+    return (
+        bool(stripped)
+        and not _is_underline(stripped)
+        and index + 1 < len(lines)
+        and _is_underline(lines[index + 1])
+    )
 
 
 # HELPER
 def _is_numpy_section_header(lines: list[str], index: int) -> bool:
-    """Returns whether ``lines[index]`` is a NumPy section header.
+    """Returns whether ``lines[index]`` is an underlined NumPy section name.
 
-    A NumPy header is the section name followed by a line of dashes or equals
-    signs, so a prose line that happens to read ``Notes`` does not qualify.
+    A prose line that happens to read ``Notes`` does not qualify.
     """
-    stripped = lines[index].strip()
-    if stripped.rstrip(":") not in _NUMPY_SECTION_NAMES:
+    return lines[index].strip().rstrip(":") in _NUMPY_SECTION_NAMES and (
+        _is_underlined_heading(lines, index)
+    )
+
+
+# HELPER
+def _is_google_args_header(lines: list[str], index: int) -> bool:
+    """Returns whether ``lines[index]`` opens a Google-style parameter block.
+
+    A header that only labels reST fields (``Parameters:`` then ``:param x:``)
+    does not qualify.
+    """
+    if not lines[index].strip().startswith(_GOOGLE_ARGS_HEADERS):
         return False
-    if index + 1 >= len(lines):
+    if _is_numpy_section_header(lines, index):
         return False
-    underline = lines[index + 1].strip()
-    return set(underline) in ({"-"}, {"="})
+    first_body_line = next((line for line in lines[index + 1 :] if line.strip()), "")
+    return not _is_rest_field(first_body_line)
 
 
 # HELPER
@@ -102,11 +142,9 @@ def param_from_python_type(
 
 def parse_docstring_args(docstring: str) -> Dict[str, str]:
     """
-    Parses parameter descriptions from a docstring, supporting Google, NumPy,
-    and reST/Sphinx style docstrings. Styles are tried in order and the first
-    non-empty result wins, so existing Google docstrings keep parsing exactly
-    as before.
-    Returns a dictionary mapping parameter names to their descriptions.
+    Parses parameter descriptions from a Google, NumPy, or reST/Sphinx style
+    docstring. Styles are tried in that order and the first non-empty result
+    wins.
 
     Args:
         docstring: The docstring to parse.
@@ -117,7 +155,7 @@ def parse_docstring_args(docstring: str) -> Dict[str, str]:
     if not docstring:
         return {}
 
-    # Google style — keep priority for existing users; first match wins.
+    # Google style
     args_section = extract_args_section(docstring)
     if args_section:
         parsed = parse_args_section(args_section)
@@ -140,8 +178,8 @@ def count_parameter_sections(docstring: str) -> int:
     Counts the distinct parameter sections in a docstring.
 
     Google ``Args:`` headers each count once, NumPy ``Parameters`` and
-    ``Other Parameters`` together count as one section, and
-    any number of reST ``:param`` fields counts as a single reST section.
+    ``Other Parameters`` together count as one section, and any number of reST
+    parameter fields counts as a single reST section.
 
     Args:
         docstring: The docstring to inspect.
@@ -154,14 +192,16 @@ def count_parameter_sections(docstring: str) -> int:
 
     lines = docstring.splitlines()
 
-    sections = sum(1 for line in lines if line.strip().startswith("Args:"))
+    sections = sum(
+        1 for index in range(len(lines)) if _is_google_args_header(lines, index)
+    )
     if any(
-        line.strip().rstrip(":") in ("Parameters", "Other Parameters")
+        line.strip().rstrip(":") in _NUMPY_PARAM_HEADERS
         and _is_numpy_section_header(lines, index)
         for index, line in enumerate(lines)
     ):
         sections += 1
-    if any(re.match(r"^:param(?:eter)?\b", line.strip()) for line in lines):
+    if any(_REST_PARAM_PATTERN.match(line.strip()) for line in lines):
         sections += 1
 
     return sections
@@ -169,7 +209,8 @@ def count_parameter_sections(docstring: str) -> int:
 
 def extract_args_section(docstring: str) -> str:
     """
-    Extracts the 'Args:' section from a docstring.
+    Extracts the Google-style 'Args:' section from a docstring. 'Arguments:'
+    and 'Parameters:' are accepted as aliases.
 
     Args:
         docstring: The docstring to extract from.
@@ -180,11 +221,12 @@ def extract_args_section(docstring: str) -> str:
     args_lines = []
     in_args_section = False
     body_indent = None
+    lines = docstring.splitlines()
 
     # Find the Args: section
-    for line in docstring.splitlines():
+    for index, line in enumerate(lines):
         if not in_args_section:
-            if line.strip().startswith("Args:"):
+            if _is_google_args_header(lines, index):
                 in_args_section = True
             # Skip everything up to and including the "Args:" line itself
             continue
@@ -287,32 +329,30 @@ def extract_numpy_args_section(docstring: str) -> str:
     params_section = ""
     split_lines = docstring.splitlines()
 
-    in_params_section = False
+    header_indent: int | None = None
     for index, line in enumerate(split_lines):
         stripped = line.strip()
-        if not in_params_section:
-            if stripped.rstrip(":") in ("Parameters", "Other Parameters") and (
+        if header_indent is None:
+            if stripped.rstrip(":") in _NUMPY_PARAM_HEADERS and (
                 _is_numpy_section_header(split_lines, index)
             ):
-                in_params_section = True
+                header_indent = _indent_of(line)
             continue
 
-        # Skip the underline right after the "Parameters" header.
-        if stripped and set(stripped) == {"-"}:
+        if stripped and _is_underline(stripped):
             continue
 
         # Other Parameters extends the same parameter block.
         if stripped.rstrip(":") == "Other Parameters":
             continue
 
-        # Stop at the start of the next section. Require a colon-style heading
-        # (e.g. "Examples:") or a real NumPy underline so a prose line that
-        # happens to say "Notes" or "Examples" does not truncate the block.
-        if stripped and (
-            (stripped.endswith(":") and stripped.rstrip(":") in _NUMPY_SECTION_NAMES)
-            or _is_numpy_section_header(split_lines, index)
-        ):
-            break
+        # A heading at the header's indent starts the next section; deeper
+        # lines are parameter descriptions.
+        if stripped and _indent_of(line) <= header_indent:
+            if _is_underlined_heading(split_lines, index) or (
+                stripped.endswith(":") and stripped.rstrip(":") in _NUMPY_SECTION_NAMES
+            ):
+                break
 
         params_section += line + "\n"
 
@@ -342,9 +382,7 @@ def parse_numpy_args_section(args_section: str) -> Dict[str, str]:
     if not definitions:
         return {}
 
-    # Only lines at the indentation of the first definitions are parameters;
-    # deeper-indented lines (e.g. "Note: keep this in mind.") are continuation
-    # text of the parameter above them.
+    # Deeper-indented matches (e.g. "Note: keep this in mind.") are description text.
     base_indent = min(len(match.group(1)) for _, match in definitions)
     blocks = [
         (i, match) for i, match in definitions if len(match.group(1)) == base_indent
@@ -364,7 +402,9 @@ def parse_numpy_args_section(args_section: str) -> Dict[str, str]:
 
 def parse_rest_args_section(docstring: str) -> Dict[str, str]:
     """
-    Parses reST/Sphinx style ':param name:' fields from a docstring.
+    Parses reST/Sphinx style parameter fields from a docstring. Accepts every
+    Sphinx parameter field name: ':param', ':parameter', ':arg', ':argument',
+    ':key', and ':keyword'.
 
     Args:
         docstring: The docstring to parse.
@@ -372,21 +412,21 @@ def parse_rest_args_section(docstring: str) -> Dict[str, str]:
     Returns:
         A dictionary mapping parameter names to their descriptions.
     """
-    pattern = re.compile(
-        r"^\s*:(?:param|parameter)\s+(?:[\w.\[\], ]+?\s+)?(\w+)\s*:\s*(.*)$"
-    )
-
     arg_descriptions: Dict[str, str] = {}
     current_arg: str | None = None
     current_description: list[str] = []
+    field_indent = 0
+    after_blank = False
 
     for line in docstring.splitlines():
         stripped = line.strip()
         if not stripped:
+            after_blank = True
             continue
+        new_paragraph, after_blank = after_blank, False
 
-        # Check if this is a new ':param' definition
-        match = pattern.match(line)
+        # Check if this is a new parameter field
+        match = _REST_PARAM_PATTERN.match(stripped)
         if match:
             # If we were processing a previous parameter, save it
             if current_arg and current_description:
@@ -395,8 +435,11 @@ def parse_rest_args_section(docstring: str) -> Dict[str, str]:
             # Start a new parameter
             current_arg = match.group(1)
             current_description = [match.group(2).strip()]
-        elif stripped.startswith(":") and not _REST_ROLE_PATTERN.match(stripped):
-            # A different reST field (e.g. ':type:' or ':return:') ends the current parameter
+            field_indent = _indent_of(line)
+        elif (stripped.startswith(":") and not _REST_ROLE_PATTERN.match(stripped)) or (
+            new_paragraph and _indent_of(line) <= field_indent
+        ):
+            # Another field (e.g. ':type:'), or a paragraph not indented under the field, ends it
             if current_arg and current_description:
                 arg_descriptions[current_arg] = " ".join(current_description).strip()
             current_arg = None
@@ -434,12 +477,8 @@ def extract_main_description(docstring: str) -> str:
         stripped = line.strip()
         if stripped and stripped.endswith(":"):
             break
-        # Only a real NumPy header (name plus dashes underline) ends the
-        # description; a prose line that just reads "Notes" does not.
         if stripped and _is_numpy_section_header(lines, index):
             break
-        # reST field lists start at the actual fields (":param ...:"); inline
-        # roles such as ":func:" are prose and stay in the description.
         if _is_rest_field(line):
             break
         main_description.append(line)

@@ -221,3 +221,39 @@ class TestMultipleParameterSectionWarning:
             """
 
         self._assert_no_section_warning(prose)
+
+    def test_google_and_rest_arg_fields_warn(self):
+        def mixed(a: int, b: int) -> None:
+            """Do a thing.
+
+            Args:
+                a: the a.
+
+            :arg b: the b.
+            """
+
+        with pytest.warns(UserWarning, match="priority order: Google, NumPy, reST"):
+            Tool.from_function(mixed)
+
+    def test_keyword_role_does_not_warn(self):
+        def role(x: int) -> None:
+            """Do a thing.
+
+            :keyword:`return` is not a parameter field.
+
+            Args:
+                x: the x.
+            """
+
+        self._assert_no_section_warning(role)
+
+    def test_header_labelling_rest_fields_does_not_warn(self):
+        def labelled(x: int) -> None:
+            """Do a thing.
+
+            Parameters:
+
+            :param x: the x.
+            """
+
+        self._assert_no_section_warning(labelled)

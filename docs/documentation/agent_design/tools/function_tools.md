@@ -1,6 +1,6 @@
 Allowing your agents to use your `python` functions as tools for your agents is quite straight forward. You can choose one of the following ways:
 !!! warning "Docstrings"
-    Your Python functions need to contain **_typehints_** for parameters and **_docstrings_** as that is what Railtracks automatically parses to inform your LLM about the capability of the tool. Parameter descriptions can be written as [Google-style](https://google.github.io/styleguide/pyguide.html#:~:text=one%2Dline%20docstring.-,Args%3A,-List%20each%20parameter), [NumPy-style](https://numpydoc.readthedocs.io/en/latest/format.html), or [reST/Sphinx-style](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#field-lists) docstrings. Typehints always belong on the function signature itself, whatever style you pick
+    Your Python functions need to contain **_typehints_** for parameters and **_docstrings_** as that is what Railtracks automatically parses to inform your LLM about the capability of the tool. Parameter descriptions can be written as [Google-style](https://google.github.io/styleguide/pyguide.html#:~:text=one%2Dline%20docstring.-,Args%3A,-List%20each%20parameter), [NumPy-style](https://numpydoc.readthedocs.io/en/latest/format.html), or [reST/Sphinx-style](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#field-lists) docstrings. Typehints always belong on the function signature itself, whatever style you pick.
 === "Globally"
     ```python
     import railtracks as rt
@@ -106,6 +106,8 @@ The same tool written in each of the three supported styles. All three produce i
         """
         return base**exp
     ```
+
+The Google `Args:` header can also be written as `Arguments:` or `Parameters:`, and reST accepts every Sphinx parameter field name (`:param`, `:parameter`, `:arg`, `:argument`, `:key`, `:keyword`). Use one style per docstring: if a docstring mixes them, Railtracks warns and reads only one, in the order Google, NumPy, reST.
 
 ## Inspecting an agent's tools
 
