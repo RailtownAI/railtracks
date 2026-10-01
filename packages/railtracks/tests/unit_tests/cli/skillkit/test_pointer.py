@@ -11,6 +11,7 @@ from railtracks.cli._skillkit import (
     install_skill_directory,
     load_skill,
     package_version,
+    pointer_body,
 )
 
 SKILL_DIR = Path(".claude/skills/agent-builder")
@@ -98,3 +99,11 @@ def test_generated_file_cannot_shadow_a_shipped_file(tmp_path):
 
     with pytest.raises(ValueError, match="reference.md"):
         install_skill_directory(skill, CLAUDE, generated={"reference.md": "x"})
+
+
+def test_plugin_pointer_installs_railtracks_instead_of_a_reference():
+    body = pointer_body(SKILL_REGISTRY["agent-builder"], None)
+
+    assert "railtracks skill show agent-builder" in body
+    assert "pip install railtracks" in body
+    assert "reference.md" not in body

@@ -11,7 +11,8 @@ Root
 ├── pyproject.toml                # Root workspace: dev-tooling deps only (docs/test/lint groups), NOT package deps
 ├── docs/                         # mkdocs documentation source
 ├── examples/                     # Example scripts
-└── scripts/                      # CI helper scripts (dependency sorting, license checks, docs validation)
+├── plugins/railtracks/           # Claude Code plugin (listed in .claude-plugin/marketplace.json); skills/ is generated
+└── scripts/                      # CI helper scripts (dependency sorting, license checks, docs validation, plugin sync)
 ```
 
 ## Accessing docs
@@ -48,6 +49,9 @@ pytest packages/railtracks/tests/unit_tests/nodes/test_x.py::test_name -v
 
 # Dependency sort check (CI enforced)
 python scripts/check_dependencies_sorted.py
+
+# Regenerate the Claude Code plugin's skills after changing a bundled skill (CI runs it with --check)
+python scripts/sync_plugin_skills.py
 
 # Docs
 mkdocs serve            # blocking preview server at localhost:8000; not a verification step
