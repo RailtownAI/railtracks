@@ -150,9 +150,23 @@ def render_frontmatter(
     return "---\n" + "".join(lines) + rendered_extra + "---\n\n"
 
 
-def _planned_files(skill: Skill, destination: Path) -> list[tuple[Path, Path | None]]:
-    """Every file this install writes, as (destination, source or None for SKILL.md)."""
+def _planned_files(
+    skill: Skill, destination: Path, generated: Mapping[str, str]
+) -> list[tuple[Path, Path | None]]:
+    """Every file this install writes, as (destination, source or None if rendered).
+
+    SKILL.md and every entry of `generated` are rendered rather than copied.
+    """
+    clashes = sorted(
+        set(map(Path, generated)) & {Path(SKILL_FILE), *skill.supporting_files}
+    )
+    if clashes:
+        raise ValueError(
+            f"skill '{skill.name}': generated file(s) "
+            f"{', '.join(map(str, clashes))} collide with files the skill ships."
+        )
     planned: list[tuple[Path, Path | None]] = [(destination / SKILL_FILE, None)]
+    planned += [(destination / relative, None) for relative in generated]
     planned += [
         (destination / relative, skill.directory / relative)
         for relative in skill.supporting_files
@@ -181,7 +195,10 @@ def _directory_conflicts(
 
 
 def install_skill_directory(
-    skill: Skill, target: InstallTarget, force: bool = False
+    skill: Skill,
+    target: InstallTarget,
+    force: bool = False,
+    generated: Mapping[str, str] | None = None,
 ) -> list[Path]:
     """Sync `skill` into `target` and return the files written, in write order.
 
@@ -190,9 +207,23 @@ def install_skill_directory(
 
     Prompts before touching any file it cannot prove was written by a previous
     install and left untouched, unless `force` is set; exits if the user declines.
+
+    Args:
+        skill: The skill to install.
+        target: The assistant to install it for.
+        force: Overwrite files without prompting.
+        generated: Extra files to write into the skill directory, as a mapping of
+            relative path to content. Must not collide with files the skill ships.
     """
+    generated = dict(generated or {})
     destination = target.root / skill.name
-    planned = _planned_files(skill, destination)
+    rendered = {
+        destination / SKILL_FILE: target.frontmatter(skill) + target.body(skill)
+    }
+    rendered.update(
+        {destination / relative: text for relative, text in generated.items()}
+    )
+    planned = _planned_files(skill, destination, generated)
     previous = read_record(destination)
 
     # Report legacy Copilot/Cursor installs the new handler will not touch.
@@ -230,9 +261,7 @@ def install_skill_directory(
     for path, source in planned:
         path.parent.mkdir(parents=True, exist_ok=True)
         if source is None:
-            path.write_text(
-                target.frontmatter(skill) + target.body(skill), encoding="utf-8"
-            )
+            path.write_text(rendered[path], encoding="utf-8")
         else:
             shutil.copy2(source, path)
         written.append(path)

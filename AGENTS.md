@@ -94,9 +94,10 @@ railtracks update        # update the visualizer UI
 railtracks viz           # start the visualizer server, blocking (requires railtracks[visual])
 railtracks add --list    # list the bundled coding-assistant skills
 railtracks add claude:agent-builder    # install a bundled skill for an assistant
+railtracks skill show agent-builder    # print a bundled skill's full instructions
 ```
 
-The bundled skills `add` installs (`agent-builder`, `middleware`, `rag`) live under `cli/skills/<name>/` as skill directories (a `SKILL.md` plus any supporting files); `add <tool>:<skill>` projects each into the assistant's native layout (Claude, Codex, Copilot, Cursor) and `<tool>:all` installs every one.
+The bundled skills `add` installs (`agent-builder`, `middleware`, `rag`) live under `cli/skills/<name>/` as skill directories (a `SKILL.md` plus any supporting files); `add <tool>:<skill>` projects each into the assistant's native layout (Claude, Codex, Copilot, Cursor) and `<tool>:all` installs every one. The installed `SKILL.md` is a short pointer (`_skillkit/pointer.py`) telling the assistant to run `railtracks skill show <name>`, so it always reads the instructions of the installed version; the full skill ships beside it as a version-stamped `reference.md` fallback.
 
 ## Common issues
 - **`ModuleNotFoundError` for an optional dependency** — heavy deps are gated behind extras and exposed via lazy module-level `__getattr__` imports. Install the extra that owns it (`railtracks[retrieval]`, `railtracks[visual]`, …) rather than adding a top-level import.

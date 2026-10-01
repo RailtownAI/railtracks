@@ -253,7 +253,13 @@ class TestClaudeDirectoryInstall(unittest.TestCase):
         """The list has to survive the CLI entry point, not just the handler."""
         written = add_skill("claude:agent-builder")
 
-        self.assertEqual(written, [Path(".claude/skills/agent-builder/SKILL.md")])
+        self.assertEqual(
+            written,
+            [
+                Path(".claude/skills/agent-builder/SKILL.md"),
+                Path(".claude/skills/agent-builder/reference.md"),
+            ],
+        )
 
     def test_a_dropped_supporting_file_is_removed(self):
         """The hazard #1522 exists to close: a slimmed-down skill leaves no leftovers.
@@ -449,8 +455,16 @@ class TestSkillSync(unittest.TestCase):
 
         record = read_record(Path(".claude/skills/agent-builder"))
         self.assertEqual(record.skill, "agent-builder")
-        self.assertEqual([f.path for f in record.files], ["SKILL.md"])
-        self.assertEqual(written, [Path(".claude/skills/agent-builder/SKILL.md")])
+        self.assertEqual(
+            sorted(f.path for f in record.files), ["SKILL.md", "reference.md"]
+        )
+        self.assertEqual(
+            written,
+            [
+                Path(".claude/skills/agent-builder/SKILL.md"),
+                Path(".claude/skills/agent-builder/reference.md"),
+            ],
+        )
 
 
 class TestCodexDirectoryInstall(unittest.TestCase):

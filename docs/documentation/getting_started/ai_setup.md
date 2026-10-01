@@ -28,7 +28,8 @@ pip install 'railtracks[visual]'
         .agents/
         └── skills/
             └── agent-builder/
-                └── SKILL.md   ← railtracks agent-building knowledge
+                ├── SKILL.md       ← tells your assistant to run `railtracks skill show`
+                └── reference.md   ← full instructions, used if railtracks isn't installed
         ```
 
 === "Claude Code"
@@ -44,8 +45,9 @@ pip install 'railtracks[visual]'
         .claude/
         └── skills/
             └── agent-builder/
-                ├── SKILL.md   ← railtracks agent-building knowledge
-                └── ...        ← any supporting files the skill ships
+                ├── SKILL.md       ← tells your assistant to run `railtracks skill show`
+                ├── reference.md   ← full instructions, used if railtracks isn't installed
+                └── ...            ← any supporting files the skill ships
         ```
 
     !!! note "Supporting files"
@@ -66,8 +68,9 @@ pip install 'railtracks[visual]'
         .github/
         └── skills/
             └── agent-builder/
-                ├── SKILL.md   ← railtracks agent-building knowledge
-                └── ...        ← any supporting files the skill ships
+                ├── SKILL.md       ← tells your assistant to run `railtracks skill show`
+                ├── reference.md   ← full instructions, used if railtracks isn't installed
+                └── ...            ← any supporting files the skill ships
         ```
 
     !!! note "Migrated from copilot-instructions.md"
@@ -89,8 +92,9 @@ pip install 'railtracks[visual]'
         .cursor/
         └── skills/
             └── agent-builder/
-                ├── SKILL.md   ← railtracks agent-building knowledge
-                └── ...        ← any supporting files the skill ships
+                ├── SKILL.md       ← tells your assistant to run `railtracks skill show`
+                ├── reference.md   ← full instructions, used if railtracks isn't installed
+                └── ...            ← any supporting files the skill ships
         ```
 
     !!! note "Migrated from .cursor/rules"
@@ -148,11 +152,16 @@ railtracks add --list
 
 ## How It Works
 
-Skills are bundled **inside the railtracks package**, no internet connection required. When you run `railtracks add`, the CLI:
+Skills are bundled **inside the railtracks package**, no internet connection required. When you run `railtracks add`, the CLI writes two files to the location your assistant reads from:
 
-1. Reads the bundled skill content for the requested skill
-2. Formats it with the frontmatter and structure that your specific assistant expects
-3. Writes it to the correct location in your project
+1. A short `SKILL.md`, with the frontmatter your assistant expects, that tells it to run `railtracks skill show <name>` before writing code
+2. A `reference.md` with the full instructions, which your assistant uses only if railtracks isn't installed or is too old to have that command
+
+`railtracks skill show` prints the instructions bundled with the railtracks version installed in your environment. So when you upgrade railtracks, your assistant picks up the new instructions right away, without re-running `railtracks add`. You can run it yourself to see what your assistant reads:
+
+```bash
+railtracks skill show agent-builder
+```
 
 !!! tip "Commit the files"
     These files are small and stable. Committing them means every developer on your team gets the same assistant behaviour out of the box, no manual setup required.

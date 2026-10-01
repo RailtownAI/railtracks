@@ -18,6 +18,7 @@ For testing purposes, you can add `alias railtracks="python railtracks.py"` to y
 
 from __future__ import annotations
 
+import dataclasses
 import importlib.util
 import os
 import socket
@@ -38,10 +39,15 @@ from ._skillkit import (
     CODEX,
     COPILOT,
     CURSOR,
+    REFERENCE_FILE,
     InstallTarget,
     Skill,
     discover_skills,
     install_skill_directory,
+    package_version,
+    pointer_body,
+    reference_text,
+    show_text,
 )
 from .constants import (
     BETA_PORT,
@@ -327,6 +333,18 @@ def update_railtracks(beta: bool = False):
 # ---------------------------------------------------------------------------
 
 
+def _install_pointer(skill: Skill, target: InstallTarget, force: bool) -> list[Path]:
+    """Install the pointer `SKILL.md` for `skill`, with the full skill as `reference.md`."""
+    version = package_version()
+    pointer = dataclasses.replace(skill, body=pointer_body(skill, version))
+    return install_skill_directory(
+        pointer,
+        target,
+        force,
+        generated={REFERENCE_FILE: reference_text(skill, version)},
+    )
+
+
 def add_skill(spec: str, force: bool = False) -> list[Path] | None:
     """Parse <tool>:<skill-name|all> and install skills for the given AI coding tool.
 
@@ -361,7 +379,7 @@ def add_skill(spec: str, force: bool = False) -> list[Path] | None:
 
     registry = _registry()
     if skill_name != "all":
-        return install_skill_directory(registry[skill_name], target, force)
+        return _install_pointer(registry[skill_name], target, force)
 
     # Bulk install: every bundled skill for this tool. An installer exits 0 when the
     # user declines an overwrite; treat that as a skip and continue. Any other exit is
@@ -374,7 +392,7 @@ def add_skill(spec: str, force: bool = False) -> list[Path] | None:
             )
             sys.exit(1)
         try:
-            install_skill_directory(registry[name], target, force)
+            _install_pointer(registry[name], target, force)
         except SystemExit as exc:
             if exc.code != 0:
                 raise
@@ -385,6 +403,15 @@ def add_skill(spec: str, force: bool = False) -> list[Path] | None:
 
     print_status(f"Finished: {installed} installed, {skipped} skipped.")
     return None
+
+
+def show_skill(name: str) -> None:
+    """Print the full instructions for a bundled skill, as the installed version ships them."""
+    registry = _registry()
+    if name not in registry:
+        print_error(f"Unknown skill '{name}'. Available skills: {', '.join(registry)}")
+        sys.exit(1)
+    print(show_text(registry[name], package_version()), end="")
 
 
 def list_skills() -> None:
@@ -454,6 +481,12 @@ def _print_help():
             f"Install AI coding assistant skills  {dim}(<tool>:all for all skills; --list to see them){rst}",
         )
     )
+    print(
+        cmd(
+            "skill",
+            f"Print a bundled skill's instructions  {dim}(skill show <name>){rst}",
+        )
+    )
     print()
     print(f"  {bold}Examples:{rst}")
     print(example(f"{cli_name} init", "Initialize visualizer environment"))
@@ -494,6 +527,12 @@ def _print_help():
             "List every bundled skill and supported tool",
         )
     )
+    print(
+        example(
+            f"{cli_name} skill show agent-builder",
+            "Print the agent-builder instructions for this version",
+        )
+    )
     print()
 
 
@@ -520,6 +559,15 @@ def _run_add(args: list[str]) -> None:
     force = "--force" in args
     spec = next((a for a in args if not a.startswith("-")), None)
     add_skill(spec, force=force)
+
+
+def _run_skill(args: list[str]) -> None:
+    """Handle `railtracks skill show <name>`."""
+    if len(args) != 2 or args[0] != "show":
+        print_error("Usage: railtracks skill show <name>")
+        print_status(f"Available skills: {', '.join(_skills())}")
+        sys.exit(1)
+    show_skill(args[1])
 
 
 def main():
@@ -570,9 +618,13 @@ def main():
         server.start()
     elif command == "add":
         _run_add(sys.argv[2:])
+    elif command == "skill":
+        _run_skill(sys.argv[2:])
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
-        print(f"{Style.DIM}Available commands: init, update, viz, add{Style.RESET_ALL}")
+        print(
+            f"{Style.DIM}Available commands: init, update, viz, add, skill{Style.RESET_ALL}"
+        )
         sys.exit(1)
 
 
