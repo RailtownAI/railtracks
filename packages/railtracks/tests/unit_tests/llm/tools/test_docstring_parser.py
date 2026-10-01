@@ -5,10 +5,12 @@ This module contains tests for the docstring parsing utilities in the
 railtracks.llm.tools.docstring_parser module.
 """
 
+import pytest
 from railtracks.llm.tools.docstring_parser import (
     extract_args_section,
     extract_main_description,
     extract_numpy_args_section,
+    find_unparsed_rest_param_fields,
     parse_args_section,
     parse_docstring_args,
     parse_rest_args_section,
@@ -788,6 +790,27 @@ class TestGoogleAliases:
         assert extract_args_section(docstring) == ""
         assert parse_docstring_args(docstring) == {"x": "The x.", "y": "The y."}
 
+    @pytest.mark.parametrize(
+        "prose",
+        [
+            "Parameters: must be positive.",
+            "Arguments: are validated before use.",
+            "Parameters:must be positive.",
+        ],
+    )
+    def test_prose_starting_with_alias_is_not_a_header(self, prose):
+        docstring = f"Summary.\n\n    {prose}\n\n    Args:\n        x: The x.\n"
+        assert extract_args_section(docstring).strip() == "x: The x."
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
+    def test_alias_with_surrounding_whitespace_is_a_header(self):
+        docstring = "Summary.\n\n    Parameters:   \n        x: The x.\n"
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
+    def test_args_prefix_still_opens_section(self):
+        docstring = "Summary.\n\nArgs: (all required)\n    x: The x.\n"
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
     def test_underlined_parameters_header_is_numpy(self):
         docstring = "Do.\n\nParameters:\n-----------\nx : int\n    The x.\n"
         assert extract_args_section(docstring) == ""
@@ -872,3 +895,67 @@ class TestRestFieldNames:
             extract_main_description(docstring)
             == "Do.\n\n:keyword:`return` ends the call."
         )
+
+
+class TestRestFieldForms:
+    """Variadic names and types with quotes, parentheses or brackets parse."""
+
+    @pytest.mark.parametrize(
+        ("field", "name"),
+        [
+            (r":param \*args: The values.", "args"),
+            (":param *args: The values.", "args"),
+            (":param **kwargs: The values.", "kwargs"),
+            (r":param \*\*kwargs: The values.", "kwargs"),
+            (r":keyword \*\*options: The values.", "options"),
+            (":param Literal['a', 'b'] mode: The values.", "mode"),
+            (':param Literal["a", "b"] mode: The values.', "mode"),
+            (":param dict(str, int) mapping: The values.", "mapping"),
+            (":param Callable[[int], str] callback: The values.", "callback"),
+            (":param Optional[dict[str, list[int]]] nested: The values.", "nested"),
+            (":param int | None count: The values.", "count"),
+            (":param ~pkg.mod.Request request: The values.", "request"),
+            (":param plain: The values.", "plain"),
+        ],
+    )
+    def test_field_is_parsed(self, field, name):
+        docstring = f"Do.\n\n{field}\n"
+        assert parse_docstring_args(docstring) == {name: "The values."}
+        assert extract_main_description(docstring) == "Do."
+        assert find_unparsed_rest_param_fields(docstring) == []
+
+    def test_variadic_fields_alongside_regular_ones(self):
+        docstring = (
+            "Do.\n\n"
+            ":param str mode: The mode.\n"
+            "    Wrapped onto a second line.\n"
+            ":param \\*args: Positional values.\n"
+            ":param \\*\\*kwargs: Keyword values.\n"
+            ":returns: Nothing.\n"
+        )
+        assert parse_docstring_args(docstring) == {
+            "mode": "The mode. Wrapped onto a second line.",
+            "args": "Positional values.",
+            "kwargs": "Keyword values.",
+        }
+
+    @pytest.mark.parametrize(
+        "field",
+        [":param: missing_name", ":param:", ":arg  : blank name"],
+    )
+    def test_unparsable_field_is_reported(self, field):
+        docstring = f"Do.\n\n{field}\n:param x: The x.\n"
+        assert find_unparsed_rest_param_fields(docstring) == [field]
+        assert parse_docstring_args(docstring) == {"x": "The x."}
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            ":param:`x` is a role, not a field.",
+            ":parameters are listed below.",
+            ":type x: int",
+            ":returns: Nothing.",
+        ],
+    )
+    def test_non_param_lines_are_not_reported(self, line):
+        assert find_unparsed_rest_param_fields(f"Do.\n\n{line}\n") == []

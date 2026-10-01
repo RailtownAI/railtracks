@@ -24,8 +24,8 @@ _SECTION_HEADERS = frozenset(
     }
 )
 
-# Google-style headers that open a parameter block.
-_GOOGLE_ARGS_HEADERS = ("Args:", "Arguments:", "Parameters:")
+# Google-style aliases for "Args:"; unlike "Args:", they must be the whole line.
+_GOOGLE_ARGS_ALIASES = ("Arguments:", "Parameters:")
 
 # NumPy section names, recognised as headers when underlined or colon-terminated.
 _NUMPY_SECTION_NAMES = frozenset(
@@ -52,9 +52,12 @@ _NUMPY_PARAM_HEADERS = ("Parameters", "Other Parameters")
 # Sphinx info-field names that describe a parameter.
 _REST_PARAM_FIELDS = "param|parameter|arg|argument|key|keyword"
 # ":param name: desc" or ":param type name: desc", matched against a stripped line.
+# The name may be variadic, with the stars escaped or not ("\*\*kwargs", "**kwargs").
 _REST_PARAM_PATTERN = re.compile(
-    rf"^:(?:{_REST_PARAM_FIELDS})\s+(?:[\w.~\[\],| ]+?\s+)?(\w+)\s*:\s*(.*)$"
+    rf"^:(?:{_REST_PARAM_FIELDS})\s+(?:[^:]+?\s+)?(?:\\?\*){{0,2}}(\w+)\s*:\s*(.*)$"
 )
+# The start of a parameter field, whether or not the rest of it parses.
+_REST_PARAM_START = re.compile(rf"^:(?:{_REST_PARAM_FIELDS})\b")
 # Any Sphinx info field, e.g. ":param x:", ":type x:", ":returns:".
 _REST_FIELD_PATTERN = re.compile(
     rf"^:(?:{_REST_PARAM_FIELDS}|type|returns?|rtype|raises?|except|exception"
@@ -122,7 +125,8 @@ def _is_google_args_header(lines: list[str], index: int) -> bool:
     A header that only labels reST fields (``Parameters:`` then ``:param x:``)
     does not qualify.
     """
-    if not lines[index].strip().startswith(_GOOGLE_ARGS_HEADERS):
+    stripped = lines[index].strip()
+    if not (stripped.startswith("Args:") or stripped in _GOOGLE_ARGS_ALIASES):
         return False
     if _is_numpy_section_header(lines, index):
         return False
@@ -452,6 +456,30 @@ def parse_rest_args_section(docstring: str) -> Dict[str, str]:
         arg_descriptions[current_arg] = " ".join(current_description).strip()
 
     return arg_descriptions
+
+
+def find_unparsed_rest_param_fields(docstring: str) -> list[str]:
+    """
+    Finds reST parameter fields that the parser cannot read, such as
+    ':param: x' with no name. Their text is left out of both the parameter
+    descriptions and the main description.
+
+    Args:
+        docstring: The docstring to inspect.
+
+    Returns:
+        The stripped field lines that could not be parsed, in order.
+    """
+    unparsed: list[str] = []
+    for line in docstring.splitlines():
+        stripped = line.strip()
+        if (
+            _REST_PARAM_START.match(stripped)
+            and not _REST_ROLE_PATTERN.match(stripped)
+            and not _REST_PARAM_PATTERN.match(stripped)
+        ):
+            unparsed.append(stripped)
+    return unparsed
 
 
 def extract_main_description(docstring: str) -> str:

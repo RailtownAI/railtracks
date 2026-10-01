@@ -257,3 +257,65 @@ class TestMultipleParameterSectionWarning:
             """
 
         self._assert_no_section_warning(labelled)
+
+    def test_prose_starting_with_parameters_does_not_warn(self):
+        def prose(x: int) -> None:
+            """Summary.
+
+            Parameters: must be positive.
+
+            Args:
+                x: The x.
+            """
+
+        self._assert_no_section_warning(prose)
+        tool = Tool.from_function(prose)
+        assert {p.name: p.description for p in tool.parameters} == {"x": "The x."}
+
+
+class TestRestFieldsInTools:
+    """reST fields reach the tool schema, and unreadable ones are reported."""
+
+    def test_variadic_and_complex_fields_get_descriptions(self):
+        def variadic(mode: str, mapping: dict, *args: int, **kwargs: str) -> None:
+            r"""Do a thing.
+
+            :param Literal['a', 'b'] mode: The mode.
+            :param dict(str, int) mapping: The mapping.
+            :param \*args: Positional values.
+            :param \*\*kwargs: Keyword values.
+            """
+
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            tool = Tool.from_function(variadic)
+        assert not [w for w in record if "Could not parse" in str(w.message)]
+        assert {p.name: p.description for p in tool.parameters} == {
+            "mode": "The mode.",
+            "mapping": "The mapping.",
+            "args": "Positional values.",
+            "kwargs": "Keyword values.",
+        }
+
+    def test_unparsable_field_warns(self):
+        def broken(x: int) -> None:
+            """Do a thing.
+
+            :param: x
+            """
+
+        with pytest.warns(UserWarning, match=r"Could not parse reST .*':param: x'"):
+            tool = Tool.from_function(broken)
+        assert tool.detail == "Do a thing."
+
+    def test_explicit_params_skip_docstring_warnings(self):
+        def broken(x: int) -> None:
+            """Do a thing.
+
+            :param: x
+            """
+
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            Tool.from_function(broken, params=[])
+        assert not [w for w in record if "Could not parse" in str(w.message)]

@@ -17,6 +17,7 @@ from .._exceptions import _ColoredError
 from .docstring_parser import (
     count_parameter_sections,
     extract_main_description,
+    find_unparsed_rest_param_fields,
     parse_docstring_args,
 )
 from .parameter_handlers import (
@@ -234,6 +235,12 @@ class Tool:
                 warnings.warn(
                     "Multiple parameter sections found in the docstring. Only one "
                     "is used, in priority order: Google, NumPy, reST."
+                )
+            unparsed_fields = find_unparsed_rest_param_fields(docstring)
+            if unparsed_fields:
+                warnings.warn(
+                    f"Could not parse reST parameter fields {unparsed_fields!r} in the "
+                    f"docstring of '{function_name}'; their descriptions are ignored."
                 )
             # Create parameter handlers
             handlers: List[ParameterHandler] = [
