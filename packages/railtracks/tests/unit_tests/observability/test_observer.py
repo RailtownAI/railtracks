@@ -116,6 +116,20 @@ async def test_publish_after_shutdown_raises():
         await obs.publish(_event())
 
 
+async def test_is_observing_needs_a_running_observer_with_a_writer():
+    obs = Observer()
+    assert obs.is_observing is False
+
+    await obs.start()
+    assert obs.is_observing is False
+
+    await obs.register(MemoryWriter(), "w")
+    assert obs.is_observing is True
+
+    await obs.shutdown()
+    assert obs.is_observing is False
+
+
 async def test_register_when_not_running_raises():
     """Public register still requires start() first. Pre-start batch
     registration goes through configure_writers()."""

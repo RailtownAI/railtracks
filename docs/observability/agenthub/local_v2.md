@@ -67,6 +67,14 @@ python my_agent.py
 railtracks viz --beta
 ```
 
+### Choose what context events record
+
+`rt.context` calls are recorded as `context.*` events. Set `RAILTRACKS_CONTEXT_EVENTS` to `0` for no context events, `1` for keys without values, or `2` (the default) for keys and values. Every other event is recorded either way. See [Global Context](../../documentation/advanced/context.md#choosing-whats-recorded) for details.
+
+```bash title="Record context keys but not their values"
+export RAILTRACKS_CONTEXT_EVENTS=1
+```
+
 ### Deployed environments with no writable disk
 
 Set `RAILTRACKS_DISABLE_EVENTS=True` on hosts where Railtracks can't (or
