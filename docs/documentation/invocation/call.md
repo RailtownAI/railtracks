@@ -1,6 +1,6 @@
 # Direct Invocation
 
-**Direct invocation** is calling a node yourself with `await rt.call(...)` instead of letting an agent decide to call it. It is how the steps inside a [Flow](flows.md) are composed: the Flow's [entry point](flows.md#entry-point) is your own `async` function, and each step in it is an `rt.call` whose result you use like any other awaited value.
+**Direct invocation** is calling a node yourself with `await rt.call(...)` instead of letting an agent decide to call it. It is how the steps inside a [Flow](flows.md) are composed: when a Flow's [entry point](flows.md#entry-point) is a function node, each step inside it is an `rt.call` whose result you use like any other awaited value.
 
 ```python
 import railtracks as rt
@@ -25,6 +25,6 @@ Because these are ordinary `await` expressions, the control flow stays yours. Aw
 The `call` API is also useful when you want to use agents as tools by having them wrapped within another a function (see [Agents as Tools](../agent_design/tools/agents_as_tools.md)).
 
 !!! tip "Start from a Flow"
-    `rt.call` does work as the top level of a script, where Railtracks builds the surrounding machinery for you with default settings. What you give up is everything that is configured on the Flow: context shared across runs, `timeout`, `end_on_error`, broadcast and payload callbacks, and the `flow.connect()` handle for inspecting a [run](flows.md#run) after it finishes. Past a quick experiment, wrap your entry point in a [Flow](flows.md) and keep `rt.call` for the steps inside it.
+    `rt.call` does work as the top level of a script, where Railtracks builds the surrounding machinery for you with default settings. What you give up is everything that is configured on the Flow: a starting context copied into every run, `timeout`, `end_on_error`, broadcast and payload callbacks, and the `flow.connect()` handle for inspecting a [run](flows.md#run) after it finishes. Past a quick experiment, wrap your entry point in a [Flow](flows.md) and keep `rt.call` for the steps inside it.
 
 To continue a conversation across calls, see [Message History](message_history.md).

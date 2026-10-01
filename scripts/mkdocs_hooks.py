@@ -7,26 +7,27 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+from xml.etree.ElementTree import Element
 
-# Terms whose capitalized form still shows up in unrelated senses across the docs
-# ("a Run", "the Store", "this Document"). `abbr` rewrites every whole-word match on
-# every page, so tooltipping these would litter ordinary prose with dotted
-# underlines. They stay in the glossary; they just do not become tooltips.
-_TOOLTIP_DENYLIST = frozenset(
-    {
-        "Agent",
-        "Context",
-        "Document",
-        "LLM",
-        "Metric",
-        "Run",
-        "Session",
-        "Store",
-        "Tool",
-    }
-)
+from markdown import Markdown
+from markdown.extensions import Extension
+from markdown.treeprocessors import Treeprocessor
+
+if TYPE_CHECKING:
+    from mkdocs.config.defaults import MkDocsConfig
 
 _GLOSSARY_TERM = re.compile(r"^### (?P<term>.+?)\s*$", re.MULTILINE)
+
+# Under a glossary heading, `<!-- tooltip: agent node, agent nodes -->` lists extra
+# spellings that carry the term's tooltip, and `<!-- tooltip: none -->` gives the
+# term no tooltip at all.
+_TOOLTIP_DIRECTIVE = re.compile(
+    r"^<!--\s*tooltip:\s*(?P<forms>.*?)\s*-->\s*$", re.MULTILINE
+)
+
+# Elements that label the content beneath them, where a tooltip only repeats it.
+_LABEL_TAGS = frozenset({"h1", "h2", "h3", "h4", "h5", "h6", "summary", "label"})
 
 
 def _plain_text(markdown: str) -> str:
@@ -47,8 +48,25 @@ def _first_sentence(paragraph: str) -> str:
     return (match.group(0) if match else paragraph).strip()
 
 
+def _tooltip_forms(term: str, body: str) -> list[str]:
+    """Return the spellings that carry a glossary term's tooltip.
+
+    The heading text always does, unless the entry opts out with
+    `<!-- tooltip: none -->`. Any other spelling, such as a lowercase or plural
+    form, is listed in the entry's `<!-- tooltip: ... -->` directive.
+    """
+    directive = _TOOLTIP_DIRECTIVE.search(body)
+    if directive is None:
+        return [term]
+    forms = [form.strip() for form in directive.group("forms").split(",")]
+    forms = [form for form in forms if form]
+    if forms == ["none"]:
+        return []
+    return [term, *forms]
+
+
 def _glossary_tooltips(glossary: Path) -> str:
-    """Build the `abbr` definition list that gives every glossary term a tooltip.
+    """Build the `abbr` definition list that gives glossary terms their tooltips.
 
     Generated rather than hand-written so the tooltip a reader hovers and the entry
     on the glossary page cannot drift apart.
@@ -62,21 +80,72 @@ def _glossary_tooltips(glossary: Path) -> str:
     ]
     for current, following in zip(matches, matches[1:] + [None]):
         term = current.group("term")
-        if term in _TOOLTIP_DENYLIST:
-            continue
-
         end = following.start() if following is not None else len(text)
         body = text[current.end() : end].strip()
-        if not body:
+
+        forms = _tooltip_forms(term, body)
+        prose = _TOOLTIP_DIRECTIVE.sub("", body).strip()
+        if not forms or not prose:
             continue
 
-        definition = _first_sentence(_plain_text(body.split("\n\n")[0]))
+        definition = _first_sentence(_plain_text(prose.split("\n\n")[0]))
         if definition:
-            lines.append(f"*[{term}]: {definition}")
-            if " " in term or term in {"Middleware", "Guardrail", "Verifier"}:
-                lines.append(f"*[{term.lower()}]: {definition}")
+            lines.extend(f"*[{form}]: {definition}" for form in forms)
 
     return "\n".join(lines) + "\n"
+
+
+def _is_label(element: Element) -> bool:
+    """Return True if the element is a heading, summary, tab label or admonition title."""
+    if element.tag in _LABEL_TAGS:
+        return True
+    classes = (element.get("class") or "").split()
+    return element.tag == "p" and "admonition-title" in classes
+
+
+def _unwrap(parent: Element, child: Element) -> None:
+    """Replace `child` with its text, keeping the surrounding text in order."""
+    text = (child.text or "") + (child.tail or "")
+    index = list(parent).index(child)
+    if index == 0:
+        parent.text = (parent.text or "") + text
+    else:
+        previous = parent[index - 1]
+        previous.tail = (previous.tail or "") + text
+    parent.remove(child)
+
+
+class _FirstMentionTooltips(Treeprocessor):
+    """Keep only the first tooltip for each glossary term on a page.
+
+    Tooltips inside a heading, summary, tab label or admonition title are removed
+    outright and do not count as the first mention. See the "Keywords and the
+    glossary" section of `docs/documentation/getting_started/contributing_docs.md`.
+    """
+
+    def run(self, root: Element) -> None:
+        self._prune(root, seen=set(), in_label=False)
+
+    def _prune(self, parent: Element, seen: set[str], in_label: bool) -> None:
+        for child in list(parent):
+            if child.tag != "abbr":
+                self._prune(child, seen, in_label or _is_label(child))
+                continue
+            definition = child.get("title", "")
+            if in_label or definition in seen:
+                _unwrap(parent, child)
+            else:
+                seen.add(definition)
+
+
+class _GlossaryTooltipExtension(Extension):
+    """Markdown extension that limits glossary tooltips to one per term per page."""
+
+    def extendMarkdown(self, md: Markdown) -> None:  # noqa: N802
+        # After `abbr` (7) has created the tooltips, before `toc` (5) reads headings.
+        md.treeprocessors.register(
+            _FirstMentionTooltips(md), "first_mention_tooltips", 6
+        )
 
 
 def _write_if_changed(path: Path, content: str) -> None:
@@ -134,6 +203,12 @@ def _generate_api_reference(repo_root: Path, output_dir: Path) -> None:
     )
 
 
+def on_config(config: MkDocsConfig) -> MkDocsConfig:
+    """Register the Markdown extension that limits glossary tooltips per page."""
+    config.markdown_extensions.append(_GlossaryTooltipExtension())  # type: ignore[arg-type]
+    return config
+
+
 def on_pre_build(config, **kwargs):
     """Regenerate the derived documentation files before each build.
 
@@ -156,8 +231,3 @@ def on_pre_build(config, **kwargs):
         return
 
     _generate_api_reference(repo_root, output_dir)
-
-
-def on_page_content(html: str, **kwargs) -> str:
-    """Convert <abbr title=...> to <abbr data-title=...> to prevent browser OS double tooltips."""
-    return html.replace("<abbr title=", "<abbr data-title=")

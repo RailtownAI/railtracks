@@ -2,7 +2,7 @@
 
 A **Flow** is a named, reusable entry point for an agent graph. It binds one [entry point](#entry-point) node to a fixed set of runtime options, such as context, a timeout, an error policy and callbacks, so the same agentic process can be invoked as many times as you like with each [run](#run) isolated from the others.
 
-A Flow is the intended top level of a Railtracks program, because everything it provides is scoped to the Flow rather than to a single call: context shared across runs, a timeout over the whole graph, and a connection you can inspect once a run has finished. Inside a Flow, nodes reach one another through [direct invocation](call.md). This guide provides concrete examples to help you get started with Flows.
+A Flow is the intended top level of a Railtracks program, because everything it provides is scoped to the Flow rather than to a single call: a starting context copied into every run, a timeout over the whole graph, and a connection you can inspect once a run has finished. Inside a Flow, nodes reach one another through [direct invocation](call.md). This guide provides concrete examples to help you get started with Flows.
 
 !!! note "Two senses of the word 'flow'"
     Capital-F **Flow** always means the `rt.Flow` object described on this page. Lowercase "flow" appears elsewhere in these docs for the *shape* of an agent graph, as in "keep your flows linear", which describes an architecture rather than an object.

@@ -1,7 +1,7 @@
 # --8<-- [start: sequential]
 import railtracks as rt
 
-llm = rt.llm.OpenAILLM("gpt-4o")
+llm = rt.llm.OpenAILLM("gpt-5.4-mini")
 
 Researcher = rt.agent_node(
     name="Researcher",
