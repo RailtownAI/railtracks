@@ -509,6 +509,9 @@ def _run_add(args: list[str]) -> None:
         list_skills()
         return
 
+    force = "--force" in args
+    args = [a for a in args if a != "--force"]
+
     if not args or args[0].startswith("-"):
         print_error(
             "Usage: railtracks add [--force] <tool>:<skill> | railtracks add --list"
@@ -517,9 +520,7 @@ def _run_add(args: list[str]) -> None:
         print_status(f"Available skills: {', '.join(_skills())}")
         sys.exit(1)
 
-    force = "--force" in args
-    spec = next((a for a in args if not a.startswith("-")), None)
-    add_skill(spec, force=force)
+    add_skill(args[0], force=force)
 
 
 def main():
