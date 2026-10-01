@@ -141,7 +141,7 @@ async def get_evaluations():
                 with open(file_path, encoding="utf-8") as f:
                     content = json.load(f)
                     evaluations.append(content)
-            except (json.JSONDecodeError, OSError) as e:
+            except (ValueError, OSError) as e:
                 print_error(f"Error reading evaluation file {file_path.name}: {e}")
 
     return JSONResponse(content=evaluations)
@@ -174,7 +174,7 @@ async def get_sessions():
                 with open(file_path, encoding="utf-8") as f:
                     content = json.load(f)
                     sessions.append(content)
-            except (json.JSONDecodeError, OSError) as e:
+            except (ValueError, OSError) as e:
                 print_error(f"Error reading session file {file_path.name}: {e}")
 
     return JSONResponse(content=sessions)
@@ -237,7 +237,7 @@ async def get_session(
         with open(file_path, encoding="utf-8") as f:
             content = json.load(f)
         return JSONResponse(content=content)
-    except json.JSONDecodeError as e:
+    except ValueError as e:
         print_error(f"Invalid JSON in {file_path.name}: {e}")
         return JSONResponse(content={"error": "Invalid JSON"}, status_code=400)
     except Exception as e:

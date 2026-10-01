@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 import railtracks as rt
+from railtracks.evaluations.point import load_session
 
 
 def example_1():
@@ -209,6 +210,21 @@ def test_session_save_file_falls_back_to_name(tmp_path, monkeypatch, allow_persi
     assert len(saved_files) == 1
     assert saved_files[0].name.startswith("session-only_")
     assert session_obj._identifier in saved_files[0].name
+
+
+def test_session_save_file_keeps_non_ascii_text_readable(
+    tmp_path, monkeypatch, allow_persistence
+):
+    monkeypatch.chdir(tmp_path)
+    with rt.Session(flow_name="utf8-flow", name="会话 😀", save_state=True):
+        pass
+
+    sessions_dir = tmp_path / ".railtracks" / "data" / "sessions"
+    (saved_file,) = sessions_dir.glob("*.json")
+    text = saved_file.read_bytes().decode("utf-8")
+
+    assert '"session_name": "会话 😀"' in text
+    assert load_session(saved_file)["session_name"] == "会话 😀"
 
 
 def test_session_payload_callback_called_once(tmp_path, monkeypatch):
