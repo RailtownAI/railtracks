@@ -53,10 +53,10 @@ All agents return a response object which you can use to get the last message or
 
 !!! info "Reponse of a Run"
     === "Unstructured Response"
-        In the __unstructured response__ example, the last message from the agent and the entire message history can be accessed using the `text` and `message_history` attributes of the response object, respectively.
+        In the __unstructured response__ example, the last message from the agent and the entire message history can be accessed using the `content` and `message_history` attributes of the response object, respectively.
         
         ```python
-        print(f"Last Message: {response.text}")
+        print(f"Last Message: {response.content}")
         print(f"Message History: {response.message_history}")
         ```
 
@@ -67,9 +67,9 @@ All agents return a response object which you can use to get the last message or
             ```python
             --8<-- "docs/scripts/first_agent.py:weather_response"
             ```
-        In the structured response example, the `output_schema` parameter is used to define the expected output structure. The response can then be accessed using the `structured` attribute.
+        In the structured response example, the `output_schema` parameter is used to define the expected output structure. The response can then be accessed using the `content` attribute, which holds an instance of your schema.
         
         ```python
-        print(f"Condition: {response.structured.condition}")
-        print(f"Temperature: {response.structured.temperature}")
+        print(f"Condition: {response.content.condition}")
+        print(f"Temperature: {response.content.temperature}")
         ```

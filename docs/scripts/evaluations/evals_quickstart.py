@@ -11,7 +11,7 @@ llm_evaluator = evals.LLMInferenceEvaluator()
 
 # Configurable Evaluators
 judge_evaluator = evals.JudgeEvaluator(
-    llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM(model_name="gpt-6-luna"),
     metrics=[
         evals.metrics.Categorical(
             name="Helpfulness",

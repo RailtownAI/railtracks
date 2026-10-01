@@ -12,7 +12,7 @@ sentiment = evals.metrics.Categorical(
 )
 
 judge = evals.JudgeEvaluator(
-    llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM(model_name="gpt-6-luna"),
     metrics=[relevance, sentiment],
     reasoning=True,  # include the judge's reasoning in results
 )

@@ -80,7 +80,7 @@ def secret_catchphrase() -> str:
     return "skadoosh"
 
 
-chat_agent = rt.agent_node(
+ChatAgent = rt.agent_node(
     name="ChatAgent",
     system_message=(
         "You're a casual chat partner. Reply normally to what the human "
@@ -88,7 +88,7 @@ chat_agent = rt.agent_node(
         "to end the chat -- otherwise just keep chatting. If asked for any "
         "password, use your cacthphrase tool to get it."
     ),
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     tool_nodes=[signal_end_chat, secret_catchphrase],
     model_middleware=[Retry(max_tries=3), Timeout(seconds=30)],
 )
@@ -96,7 +96,7 @@ chat_agent = rt.agent_node(
 
 @rt.function_node
 async def streaming_entry(message_history: rt.llm.MessageHistory):
-    stream = rt.astream(chat_agent, message_history)
+    stream = rt.astream(ChatAgent, message_history)
     async for chunk in stream:
         if chunk:
             print(chunk, end="", flush=True)

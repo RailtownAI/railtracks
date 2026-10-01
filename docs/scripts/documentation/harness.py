@@ -16,14 +16,14 @@ def read_file(path: str) -> str:
 
 RepoReader = rt.agent_node(
     name="Repo Reader",
-    llm=rt.llm.AnthropicLLM("claude-sonnet-5"),
+    llm=rt.llm.AnthropicLLM("claude-sonnet-5-5"),
     system_message="You answer questions about a repository. Read files before you answer.",
     tool_nodes=[read_file],
 )
 
 reader_flow = rt.Flow("repo-reader", entry_point=RepoReader)
 answer = reader_flow.invoke("What package name does pyproject.toml declare?")
-print(answer.text)
+print(answer.content)
 # --8<-- [end: loop]
 
 
@@ -108,7 +108,7 @@ gated_shell = rt.function_node(
 # --8<-- [start: record]
 RepoHarness = rt.agent_node(
     name="Repo Harness",
-    llm=rt.llm.AnthropicLLM("claude-sonnet-5"),
+    llm=rt.llm.AnthropicLLM("claude-sonnet-5-5"),
     system_message=HARNESS_SYSTEM_MESSAGE,
     tool_nodes=[
         read_file,
@@ -132,7 +132,7 @@ async def run_harness() -> None:
     outcome = await harness_flow.ainvoke(
         "Find the slowest unit test and explain why it is slow."
     )
-    print(outcome.text)
+    print(outcome.content)
     # every ToDoToolSet read is async, pretty_dashboard included
     print(await todos.pretty_dashboard())
 

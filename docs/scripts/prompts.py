@@ -6,15 +6,15 @@ system_message = "You are a {role} assistant specialized in {domain}."
 
 # Create an LLM node with this prompt. ContextInjection() enables placeholder
 # substitution from rt.context; without it the {placeholders} are left as-is.
-assistant = rt.agent_node(
+Assistant = rt.agent_node(
     name="Assistant",
     system_message=system_message,
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 
 # Run with context values
-assistant_flow = rt.Flow("assistant-flow", entry_point=assistant)
+assistant_flow = rt.Flow("assistant-flow", entry_point=Assistant)
 response = assistant_flow.update_context({"role": "technical", "domain": "Python programming"}).invoke("Help me understand decorators.")
 
 
@@ -23,10 +23,10 @@ response = assistant_flow.update_context({"role": "technical", "domain": "Python
 # --8<-- [start: disable_injection_node_level]
 # Injection is opt-in: an agent that omits rt.prebuilt.middleware.ContextInjection()
 # from its model_middleware leaves {placeholders} untouched.
-literal_assistant = rt.agent_node(
+LiteralAssistant = rt.agent_node(
     name="Literal Assistant",
     system_message="Always answer using the {placeholder} syntax verbatim.",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 # --8<-- [end: disable_injection_node_level]
 
@@ -41,10 +41,10 @@ Use a {tone} tone in your responses.
 The user's name is {user_name}."""
 
 # Create an LLM node with this template
-assistant = rt.agent_node(
+DynamicAssistant = rt.agent_node(
     name="Dynamic Assistant",
     system_message=template,
-    llm=OpenAILLM("gpt-5.4-mini"),
+    llm=OpenAILLM("gpt-6-luna"),
     model_middleware=[rt.prebuilt.middleware.ContextInjection()],
 )
 
@@ -64,7 +64,7 @@ technical_expert_context = {
 }
 
 # Run with different contexts for different scenarios
-assistant_flow = rt.Flow("assistant-flow", entry_point=assistant)
+assistant_flow = rt.Flow("assistant-flow", entry_point=DynamicAssistant)
 customer_support_flow = assistant_flow.update_context(customer_support_context)
 response1 = customer_support_flow.invoke("My internet is not working. Can you help?")
 
