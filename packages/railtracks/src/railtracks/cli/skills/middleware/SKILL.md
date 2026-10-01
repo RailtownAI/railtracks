@@ -88,6 +88,25 @@ def log_prompt(message_history, schema, tools):
     return message_history, schema, tools
 ```
 
+### Running a guarded agent
+Run it through a `Flow` like any agent. A block raises `GuardrailBlockedError`, so catch it where you want to show the user a refusal.
+```python
+import railtracks as rt
+
+SupportAgent = rt.agent_node(
+    "Support Agent",
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+    model_middleware=[block_secrets],
+)
+flow = rt.Flow(name="Support", entry_point=SupportAgent)
+
+try:
+    result = flow.invoke("user message here")
+    print(result.content)
+except rt.guardrails.GuardrailBlockedError as e:
+    print(f"Blocked: {e}")
+```
+
 ### Ordering a retry against a logger to control per-attempt vs. per-call visibility
 ```python
 import railtracks as rt
@@ -116,11 +135,13 @@ Adjusted = rt.couple(
 
 ---
 
-## APIs that no longer exist — never generate these
+## Removed or unsupported APIs — never generate these
 - `agent_node(...)` without `llm=` → always pass an LLM; omitting it raises `TypeError`
 - `agent_node(guardrails=...)` / `Guard(...)` → use `model_middleware=[...]` with `@rt.input_guard` / `@rt.output_guard`
 - Prebuilt guards from `railtracks.guardrails.llm` (`BlockTextInputGuard`, `PIIRedactConfig`, …) → import them from `railtracks.prebuilt.guardrails`
 - `before_llm` / `after_llm` / `after_node` → deprecated aliases; use `pre_llm` / `post_llm` / `post_node`
+- `rt.Session()` / `@rt.session` → not part of the public API; run agents through `rt.Flow(...)`
+- `result.text` / `result.structured` → read agent results with `result.content`
 
 ---
 

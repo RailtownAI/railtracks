@@ -198,12 +198,14 @@ railtracks viz --beta
 
 ---
 
-## APIs that no longer exist — never generate these
+## Removed or unsupported APIs — never generate these
 - `agent_node(...)` without `llm=` → always pass an LLM; omitting it raises `TypeError`
 - `agent_node(guardrails=...)` / `Guard(...)` → use `model_middleware=[...]` with `@rt.input_guard` / `@rt.output_guard`
 - Prebuilt guards from `railtracks.guardrails.llm` (`BlockTextInputGuard`, `PIIRedactConfig`, …) → import them from `railtracks.prebuilt.guardrails`
 - `stream=True` on a model (`rt.llm.OpenAILLM(..., stream=True)`) → use `rt.astream(...)`
 - `rt.interactive`, `local_chat` → deprecated and being removed, no replacement
+- `rt.Session()` / `@rt.session` → not part of the public API; run agents through `rt.Flow(...)`
+- `result.text` / `result.structured` → read agent results with `result.content`
 
 ---
 
