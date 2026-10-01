@@ -4,6 +4,8 @@
 * `manifest` — the record an install leaves in a skill directory.
 * `install` — the workflow that copies a skill directory, prunes stale files, and
   writes a manifest. Provider-agnostic; the specifics come from `providers`.
+* `pointer` — the short `SKILL.md` an install writes, pointing at the full skill
+  the installed package prints with `railtracks skill show`.
 * `providers/` — one `InstallTarget` per supported assistant.
 
 Private to the CLI; the names re-exported below are the surface it uses.
@@ -21,6 +23,7 @@ from .manifest import (
     package_version,
     read_record,
 )
+from .pointer import REFERENCE_FILE, pointer_body, reference_text, show_text
 from .providers import CLAUDE, CODEX, COPILOT, CURSOR
 from .registry import (
     Skill,
@@ -38,6 +41,7 @@ __all__ = [
     "InstallRecord",
     "InstallTarget",
     "MANIFEST_FILE",
+    "REFERENCE_FILE",
     "Skill",
     "SkillFormatError",
     "default_skills_directory",
@@ -46,6 +50,9 @@ __all__ = [
     "install_skill_directory",
     "load_skill",
     "package_version",
+    "pointer_body",
     "read_record",
+    "reference_text",
+    "show_text",
     "strip_skill_arguments",
 ]
