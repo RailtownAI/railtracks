@@ -135,16 +135,6 @@ Adjusted = rt.couple(
 
 ---
 
-## Removed or unsupported APIs — never generate these
-- `agent_node(...)` without `llm=` → always pass an LLM; omitting it raises `TypeError`
-- `agent_node(guardrails=...)` / `Guard(...)` → use `model_middleware=[...]` with `@rt.input_guard` / `@rt.output_guard`
-- Prebuilt guards from `railtracks.guardrails.llm` (`BlockTextInputGuard`, `PIIRedactConfig`, …) → import them from `railtracks.prebuilt.guardrails`
-- `before_llm` / `after_llm` / `after_node` → deprecated aliases; use `pre_llm` / `post_llm` / `post_node`
-- `rt.Session()` / `@rt.session` → not part of the public API; run agents through `rt.Flow(...)`
-- `result.text` / `result.structured` → read agent results with `result.content`
-
----
-
 ## Things to Avoid
 - Don't retry at `middleware=` on an agent with non-idempotent tools — it re-runs every tool call in that attempt, not just the failed step.
 - Don't hand-roll a content allow/block check as plain middleware — use `input_guard`/`output_guard` so it shows up in `GuardrailTrace` like the rest of your rails.
