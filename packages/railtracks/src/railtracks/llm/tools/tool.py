@@ -14,7 +14,12 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 from .._exceptions import _ColoredError
-from .docstring_parser import extract_main_description, parse_docstring_args
+from .docstring_parser import (
+    count_parameter_sections,
+    extract_main_description,
+    find_unparsed_rest_param_fields,
+    parse_docstring_args,
+)
 from .parameter_handlers import (
     DefaultParameterHandler,
     LiteralParameterHandler,
@@ -224,10 +229,19 @@ class Tool:
         else:
             resolved_types = resolve_type_hints(func, signature)
 
-            # Check for multiple Args sections (warning)
+            # Check for multiple parameter sections (warning)
             # Only need to do this if we need to.
-            if docstring.count("Args:") > 1:
-                warnings.warn("Multiple 'Args:' sections found in the docstring.")
+            if count_parameter_sections(docstring) > 1:
+                warnings.warn(
+                    "Multiple parameter sections found in the docstring. Only one "
+                    "is used, in priority order: Google, NumPy, reST."
+                )
+            unparsed_fields = find_unparsed_rest_param_fields(docstring)
+            if unparsed_fields:
+                warnings.warn(
+                    f"Could not parse reST parameter fields {unparsed_fields!r} in the "
+                    f"docstring of '{function_name}'; their descriptions are ignored."
+                )
             # Create parameter handlers
             handlers: List[ParameterHandler] = [
                 PydanticModelHandler(),
