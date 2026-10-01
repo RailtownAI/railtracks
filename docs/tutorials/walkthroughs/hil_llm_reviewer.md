@@ -20,24 +20,24 @@ class PolicyReview(BaseModel):
     comment: str
 
 
-policy_reviewer = rt.agent_node(
+PolicyReviewer = rt.agent_node(
     name="RefundPolicyReviewer",
     system_message=(
         "You enforce refund policy: refunds over $200 require a documented "
         "reason in the order note. Anything else is fine. Given a refund "
         "request, decide whether to accept it and give a one-sentence reason."
     ),
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     output_schema=PolicyReview,
 )
 
 
 async def llm_policy_check(order_id: str, amount: float, note: str) -> Verdict:
     resp = await rt.call(
-        policy_reviewer,
+        PolicyReviewer,
         f"Refund request: order_id={order_id!r}, amount={amount}, note={note!r}",
     )
-    review = resp.structured
+    review = resp.content
     return Verdict(accepted=review.accepted, comment=review.comment)
 
 
@@ -59,7 +59,7 @@ class ComplianceReview(BaseModel):
     revised_reply: str | None = None
 
 
-compliance_reviewer = rt.agent_node(
+ComplianceReviewer = rt.agent_node(
     name="ComplianceReviewer",
     system_message=(
         "You review draft customer-support replies before they're sent. "
@@ -68,14 +68,14 @@ compliance_reviewer = rt.agent_node(
         "specialist will follow up instead, with no dollar amount. If the "
         "draft is already fine, leave revised_reply unset."
     ),
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     output_schema=ComplianceReview,
 )
 
 
 async def llm_compliance_check(result: str, customer_message: str) -> Verdict[str]:
-    resp = await rt.call(compliance_reviewer, f"Draft reply: {result!r}")
-    review = resp.structured
+    resp = await rt.call(ComplianceReviewer, f"Draft reply: {result!r}")
+    review = resp.content
     return Verdict(
         accepted=review.accepted,
         comment=review.comment,
@@ -87,7 +87,7 @@ async def llm_compliance_check(result: str, customer_message: str) -> Verdict[st
     middleware=[post_verifier(llm_compliance_check, name="llm_compliance_post")]
 )
 async def draft_reply(customer_message: str) -> str:
-    resp = await rt.call(reply_drafter, customer_message)
+    resp = await rt.call(ReplyDrafter, customer_message)
     return resp.content
 ```
 

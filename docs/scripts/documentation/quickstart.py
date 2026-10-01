@@ -3,7 +3,7 @@ import railtracks as rt
 
 # To create your agent, you just need a model and a system message. 
 Agent = rt.agent_node(
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You are a helpful AI assistant."
 )
 
@@ -15,4 +15,4 @@ flow = rt.Flow("Quickstart Example", entry_point=Agent)
 result = flow.invoke("Hello, what can you do?")
 
 # --8<-- [end: setup]
-print(result)
+print(result.content)
