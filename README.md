@@ -44,19 +44,20 @@ def get_weather(location: str) -> str:
 
 
 # Create an agent with tools
-agent = rt.agent_node(
+# agent_node returns a class, so use PascalCase
+WeatherAgent = rt.agent_node(
     "Weather Assistant",
     # Alternatively, use @rt.function_node at def time
     tool_nodes=[rt.function_node(get_weather)],
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You help users with weather information.",
 )
 
 # Run it
-flow = rt.Flow(name="Weather Flow", entry_point=agent)
+flow = rt.Flow(name="Weather Flow", entry_point=WeatherAgent)
 result = flow.invoke("What's the weather in Paris?")
 # or `await flow.ainvoke("What's the weather in Paris?")` in an async context
-print(result.text)  # "Based on the current data, it's sunny in Paris!"
+print(result.content)  # "Based on the current data, it's sunny in Paris!"
 ```
 
 Execution order, branching, and looping are expressed using standard Python control flow.
@@ -108,7 +109,11 @@ def my_tool(text: str) -> str:
 #### Tool-First Architecture
 ```python
 # Any function becomes a tool
-agent = rt.agent_node("Assistant", tool_nodes=[my_tool, api_call])
+Assistant = rt.agent_node(
+    "Assistant",
+    tool_nodes=[my_tool, api_call],
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+)
 ```
 - Automatic function-to-tool conversion
 - Seamless API and database integration
@@ -122,7 +127,7 @@ agent = rt.agent_node("Assistant", tool_nodes=[my_tool, api_call])
 #### Familiar Interface
 ```python
 # Native Async support
-result = await rt.call(agent, query)
+result = await rt.call(Assistant, query)
 ```
 - Standardized `call` interface, consistent with asyncio patterns
 - Built-in validation, error handling, and retries
@@ -189,18 +194,18 @@ def word_count(text: str) -> int:
 
 
 # 2. Build an agent with tools
-text_analyzer = rt.agent_node(
+TextAnalyzer = rt.agent_node(
     "Text Analyzer",
     tool_nodes=[count_characters, word_count],
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You analyze text using the available tools.",
 )
 
 # 3. Use it to solve the classic "How many r's in strawberry?" problem
-text_flow = rt.Flow(name="Text Analysis Flow", entry_point=text_analyzer)
+text_flow = rt.Flow(name="Text Analysis Flow", entry_point=TextAnalyzer)
 
 result = text_flow.invoke("How many 'r's are in 'strawberry'?")
-print(result.text)
+print(result.content)
 ```
 
 </details>
@@ -212,10 +217,10 @@ Railtracks integrates with major model providers through a unified interface:
 
 ```python
 # OpenAI
-rt.llm.OpenAILLM("gpt-5.4-mini")
+rt.llm.OpenAILLM("gpt-6-luna")
 
 # Anthropic
-rt.llm.AnthropicLLM("claude-sonnet-5")
+rt.llm.AnthropicLLM("claude-sonnet-5-5")
 
 # Local models
 rt.llm.OllamaLLM("llama3")

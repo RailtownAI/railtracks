@@ -4,10 +4,10 @@ import railtracks as rt
 # create your key-value memory toolset (defaults to an in-process store)
 memory = rt.prebuilt.tools.KeyValueMemoryToolSet()
 
-agent = rt.agent_node(
+MemoryAgent = rt.agent_node(
     name="Memory Agent",
     tool_nodes=[*memory.tool_set()],  # the tools your agent can call
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="...",
 )
 # --8<-- [end: kv_memory]
@@ -26,10 +26,10 @@ memory = rt.prebuilt.tools.KeyValueMemoryToolSet(
     store=InMemoryKeyValueStore(snapshot_path="memory.json"),
 )
 
-agent = rt.agent_node(
+MemoryAgent = rt.agent_node(
     name="Memory Agent",
     tool_nodes=[*memory.tool_set()],
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message=rt.prebuilt.tools.KeyValueMemoryToolSet.prompt(),
 )
 # --8<-- [end: kv_memory_persistent]
