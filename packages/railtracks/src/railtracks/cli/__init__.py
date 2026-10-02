@@ -33,6 +33,7 @@ from colorama import Fore, Style
 
 from railtracks.paths import resolve_railtracks_home
 
+from ._agents_md import MalformedBlockError, write_agents_md
 from ._skillkit import (
     CLAUDE,
     CODEX,
@@ -409,6 +410,23 @@ def list_skills() -> None:
     print()
 
 
+# ---------------------------------------------------------------------------
+# `railtracks agents-md` command
+# ---------------------------------------------------------------------------
+
+
+def run_agents_md() -> None:
+    """Write the managed Railtracks block into `AGENTS.md` and import it from `CLAUDE.md`."""
+    try:
+        changes = write_agents_md(Path.cwd())
+    except MalformedBlockError as e:
+        print_error(repr(e))
+        print_status("Fix or remove the markers in AGENTS.md, then rerun.")
+        sys.exit(1)
+    for path, change in changes:
+        print_success(f"{change.value} {path.name}")
+
+
 def _print_help():
     """Print styled help output."""
     rst = Style.RESET_ALL
@@ -454,6 +472,12 @@ def _print_help():
             f"Install AI coding assistant skills  {dim}(<tool>:all for all skills; --list to see them){rst}",
         )
     )
+    print(
+        cmd(
+            "agents-md",
+            f"Write Railtracks rules into AGENTS.md  {dim}(and import it from CLAUDE.md){rst}",
+        )
+    )
     print()
     print(f"  {bold}Examples:{rst}")
     print(example(f"{cli_name} init", "Initialize visualizer environment"))
@@ -492,6 +516,12 @@ def _print_help():
         example(
             f"{cli_name} add --list",
             "List every bundled skill and supported tool",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} agents-md",
+            "Add always-on Railtracks rules for coding agents",
         )
     )
     print()
@@ -571,9 +601,13 @@ def main():
         server.start()
     elif command == "add":
         _run_add(sys.argv[2:])
+    elif command == "agents-md":
+        run_agents_md()
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
-        print(f"{Style.DIM}Available commands: init, update, viz, add{Style.RESET_ALL}")
+        print(
+            f"{Style.DIM}Available commands: init, update, viz, add, agents-md{Style.RESET_ALL}"
+        )
         sys.exit(1)
 
 

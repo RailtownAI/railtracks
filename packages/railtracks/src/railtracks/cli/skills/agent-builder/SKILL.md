@@ -13,7 +13,7 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 - **Agents** are created with `rt.agent_node()`. Its behaviour depends on whether tools or a structured output schema are passed (see below).
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
-- **Results**: `flow.invoke()`, `await flow.ainvoke()` and `await rt.call()` on an agent return a response object. Read it with `.content`: a `str` for a text agent, an instance of your schema for an `output_schema` agent. The full conversation is on `.message_history`.
+- **Results**: `flow.invoke()`, `await flow.ainvoke()` and `await rt.call()` on an agent return a response object. Read it with `.content`: a `str` for a text agent, an instance of your schema for an `output_schema` agent. The full conversation is on `.message_history`. `.structured` (structured agents) and `.text` (text agents) also work as typed shortcuts for `.content`.
 
 ### What `agent_node` builds
 `rt.agent_node()` builds one node behind the scenes — there is no separate named type to pick. What you pass changes what the agent does at runtime:
@@ -205,7 +205,6 @@ railtracks viz --beta
 - `stream=True` on a model (`rt.llm.OpenAILLM(..., stream=True)`) → use `rt.astream(...)`
 - `rt.interactive`, `local_chat` → deprecated and being removed, no replacement
 - `rt.Session()` / `@rt.session` → not part of the public API; run agents through `rt.Flow(...)`
-- `result.text` / `result.structured` → read agent results with `result.content`
 
 ---
 
