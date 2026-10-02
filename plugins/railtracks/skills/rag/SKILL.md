@@ -300,11 +300,11 @@ await runtime.delete_document(document_id=UUID("1f0c9b6e-0000-4000-8000-00000000
 
 ---
 
-## Things to avoid
-- Don't call `ChromaBackend(...)` without `await backend.initialize()` — use `await ChromaBackend.create(...)` as the factory instead, it handles initialization.
-- Don't mix embedding models across ingest and retrieve calls on the same collection — railtracks raises `EmbeddingModelMismatchError` to prevent silent vector corruption.
-- Don't buffer the entire corpus in memory before ingesting — use `ingest_all()` with a loader that streams (`astream()`); never call `loader.aload()` manually and pass the list directly.
-- Don't skip `documents_failed` in ingestion stats — always check and surface failures to the user.
-- Don't use `InMemoryVectorBackend` in production — vectors are lost on process restart; use `ChromaBackend` with a `path` or `PgvectorBackend`.
-- Don't construct `RetrievalRuntime` inside a request handler on every call — build it once at startup and reuse it.
-- Don't pass raw document text directly to `retrieve()` as a query — `retrieve()` takes the user's natural language question, not a chunk.
+## Rules
+- Create Chroma backends with `await ChromaBackend.create(...)`, which handles initialization.
+- Use the same embedding model for ingest and retrieve on a collection; railtracks raises `EmbeddingModelMismatchError` on a mismatch.
+- Ingest with `ingest_all()` and a loader that streams (`astream()`), so documents are processed as they load.
+- Check `documents_failed` in the ingestion stats and surface any failures to the user.
+- In production, store vectors in `ChromaBackend` with a `path`, or in `PgvectorBackend`; `InMemoryVectorBackend` keeps them only until the process restarts.
+- Build `RetrievalRuntime` once at startup and reuse it across requests.
+- Pass `retrieve()` the user's natural-language question as the query.
