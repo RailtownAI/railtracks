@@ -48,6 +48,24 @@ theme:
 
 plugins:
   - search
+  - llmstxt:
+      markdown_description: Each link below is a clean Markdown copy of one docs page. llms-full.txt holds every page in a single file.
+      full_output: llms-full.txt
+      sections:
+        Home:
+          - index.md
+        Agent Development:
+          - documentation/*.md
+        Retrieval:
+          - retrieval/*.md
+        Evaluations:
+          - evaluations/*.md
+        Observability:
+          - observability/*.md
+        Integrations:
+          - integrations/*.md
+        Tutorials:
+          - tutorials/*.md
 
 markdown_extensions:
   - pymdownx.emoji:

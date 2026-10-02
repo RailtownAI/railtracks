@@ -49,7 +49,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 - When `rt.couple`-ing middleware onto a node that already has some, the new list is innermost — it can't run "before" existing outer middleware like auth checks.
 
 ### 4. Naming & observability
-- `name=` sets `Middleware.name`, which is tracked as part of observability — the same way guardrails write their `name` into every `GuardrailTrace.rail_name`. Give your middleware a real `name=` so it's identifiable in traces/logs instead of falling back to the wrapper function's `__name__`.
+- `name=` sets `Middleware.name`, which is recorded with the middleware's events and shown in the beta visualizer (`railtracks viz --beta`) — the same way guardrails write their `name` into every `GuardrailTrace.rail_name`. Give your middleware a real `name=` so it's identifiable in traces/logs instead of falling back to the wrapper function's `__name__`.
 - Set `name=` when the same wrapper function is reused in more than one slot (e.g. one generic `retry_node` attached to several agents) and you need to tell instances apart.
 - Keep one concern per middleware function. A function that both logs and mutates the prompt makes the ordering question in §3 ambiguous — split it into two so each one has one clear rule for where it belongs in the list.
 
@@ -65,7 +65,7 @@ from railtracks.prebuilt import middleware
 Agent = rt.agent_node(
     "Agent",
     tool_nodes=[send_email],  # has a side effect — don't retry the whole node
-    llm=rt.llm.OpenAILLM(model_name="gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM(model_name="gpt-6-luna"),
     model_middleware=[middleware.Retry(max_tries=3)],  # retries only the raw LLM call
 )
 ```
@@ -86,6 +86,25 @@ def block_secrets(event: rt.guardrails.LLMGuardrailEvent) -> rt.guardrails.Guard
 def log_prompt(message_history, schema, tools):
     print(message_history)
     return message_history, schema, tools
+```
+
+### Running a guarded agent
+Run it through a `Flow` like any agent. A block raises `GuardrailBlockedError`, so catch it where you want to show the user a refusal.
+```python
+import railtracks as rt
+
+SupportAgent = rt.agent_node(
+    "Support Agent",
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+    model_middleware=[block_secrets],
+)
+flow = rt.Flow(name="Support", entry_point=SupportAgent)
+
+try:
+    result = flow.invoke("user message here")
+    print(result.content)
+except rt.guardrails.GuardrailBlockedError as e:
+    print(f"Blocked: {e}")
 ```
 
 ### Ordering a retry against a logger to control per-attempt vs. per-call visibility
@@ -121,4 +140,3 @@ Adjusted = rt.couple(
 - Don't hand-roll a content allow/block check as plain middleware — use `input_guard`/`output_guard` so it shows up in `GuardrailTrace` like the rest of your rails.
 - Don't write a plain `def` for `wrap_node`/`wrap_llm` — it must be `async def`.
 - Don't expect `post_llm`/`post_node` to run on failure — they're success-only; use `wrap_llm`/`wrap_node` if you need failure-aware logic.
-- Don't assume `name=` changes what shows up in railtracks' own traces — outside of guardrails, it doesn't.

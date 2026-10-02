@@ -13,6 +13,7 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 - **Agents** are created with `rt.agent_node()`. Its behaviour depends on whether tools or a structured output schema are passed (see below).
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
+- **Results**: `flow.invoke()`, `await flow.ainvoke()` and `await rt.call()` on an agent return a response object. Read it with `.content`: a `str` for a text agent, an instance of your schema for an `output_schema` agent. The full conversation is on `.message_history`.
 
 ### What `agent_node` builds
 `rt.agent_node()` builds one node behind the scenes — there is no separate named type to pick. What you pass changes what the agent does at runtime:
@@ -26,9 +27,10 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 ### LLM Providers
 
 ```python
-rt.llm.AnthropicLLM("claude-sonnet-5")
-rt.llm.OpenAILLM("gpt-5.4-mini")
-rt.llm.GeminiLLM("gemini-3.7-flash")
+# Example model IDs; use the provider and model the project already uses
+rt.llm.AnthropicLLM("claude-sonnet-5-5")
+rt.llm.OpenAILLM("gpt-6-luna")
+rt.llm.GeminiLLM("gemini-3.8-flash")
 rt.llm.OpenAICompatibleProvider(
     "my-model", api_base="https://api.example.com/v1", api_key="..."
 )
@@ -48,8 +50,8 @@ rt.llm.OpenAICompatibleProvider(
    - `tool_nodes` listing the tools (if any), **or** `output_schema` as a Pydantic `BaseModel` for structured output — one or the other, never both (passing both raises `NodeCreationError`)
    - `llm` — follow the provider the project already uses, or one whose API key is configured (providers and their key variables: https://docs.railtracks.org/documentation/getting_started/llm_setup/); otherwise ask the user which LLM to use
    - `system_message` — a clear, specific system prompt
-5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=agent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(agent, ...)` inside it.
-6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example so the user can run it immediately.
+5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=MyAgent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(MyAgent, ...)` inside it.
+6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example and prints `result.content`, so the user can run it immediately. Use `await flow.ainvoke(...)` instead if the code is already async.
 7. **Check imports** — make sure `import railtracks as rt` is at the top and any Pydantic models import `from pydantic import BaseModel`.
 
 ---
@@ -72,7 +74,7 @@ def my_tool(param: str) -> str:
     return f"result for {param}"
 
 
-llm = rt.llm.AnthropicLLM("claude-sonnet-5")
+llm = rt.llm.AnthropicLLM("claude-sonnet-5-5")
 # agent_node returns a class (type), not an instance — use PascalCase
 MyAgent = rt.agent_node(
     "Agent Name",
@@ -83,7 +85,7 @@ MyAgent = rt.agent_node(
 flow = rt.Flow(name="My Flow", entry_point=MyAgent)
 if __name__ == "__main__":
     result = flow.invoke("user query here")
-    print(result)
+    print(result.content)
 ```
 
 ### Structured Output
@@ -101,19 +103,48 @@ StructuredAgent = rt.agent_node(
     output_schema=Output,
     llm=llm,
 )
+flow = rt.Flow(name="Structured Flow", entry_point=StructuredAgent)
+result = flow.invoke("user query here")
+print(result.content.field1)  # .content is an Output instance
 ```
 
 ### Multi-Agent Workflow
 ```python
 @rt.function_node
-async def pipeline(query: str):
+async def pipeline(query: str) -> str:
     step1 = await rt.call(AgentA, query)
-    step2 = await rt.call(AgentB, step1)
-    return step2
+    step2 = await rt.call(AgentB, step1.content)
+    return step2.content
 
 
 flow = rt.Flow(name="Pipeline", entry_point=pipeline)
 ```
+
+### Async Invocation
+```python
+import asyncio
+
+
+async def main():
+    result = await flow.ainvoke("user query here")
+    print(result.content)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+Use `flow.invoke()` from sync code and `await flow.ainvoke()` from async code.
+
+### Streaming
+`rt.astream` streams an agent's text as it's generated. It's async only; there is no `stream=True` on models.
+```python
+async def main():
+    stream = rt.astream(MyAgent, user_input="user query here")
+    async for chunk in stream:
+        print(chunk, end="", flush=True)  # str chunks
+    final = stream.result  # the complete response; read final.content
+```
+`await rt.astream(...)` without the loop returns just the final response.
 
 ### Agent Used as a Tool by Another Agent (Multi-Agent Orchestration)
 
@@ -153,8 +184,28 @@ Orchestrator = rt.agent_node(
 server = rt.connect_mcp(
     rt.MCPStdioParams(command="python", args=["-m", "my_mcp_server"])
 )
-agent = rt.agent_node("MCP Agent", tool_nodes=server.tools, llm=llm)
+MCPAgent = rt.agent_node("MCP Agent", tool_nodes=server.tools, llm=llm)
 ```
+
+### Visualizing Runs
+Every run is recorded to `.railtracks/` automatically, no code needed. To inspect runs in the local visualizer, have the user run these from the project root:
+```bash
+pip install 'railtracks[visual]'
+railtracks init
+railtracks viz --beta
+```
+`railtracks viz --beta` downloads the beta UI on first use and serves it at http://localhost:3031. It blocks, so don't start it from inside the agent script.
+
+---
+
+## Removed or unsupported APIs — never generate these
+- `agent_node(...)` without `llm=` → always pass an LLM; omitting it raises `TypeError`
+- `agent_node(guardrails=...)` / `Guard(...)` → use `model_middleware=[...]` with `@rt.input_guard` / `@rt.output_guard`
+- Prebuilt guards from `railtracks.guardrails.llm` (`BlockTextInputGuard`, `PIIRedactConfig`, …) → import them from `railtracks.prebuilt.guardrails`
+- `stream=True` on a model (`rt.llm.OpenAILLM(..., stream=True)`) → use `rt.astream(...)`
+- `rt.interactive`, `local_chat` → deprecated and being removed, no replacement
+- `rt.Session()` / `@rt.session` → not part of the public API; run agents through `rt.Flow(...)`
+- `result.text` / `result.structured` → read agent results with `result.content`
 
 ---
 

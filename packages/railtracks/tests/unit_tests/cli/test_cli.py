@@ -541,9 +541,7 @@ def test_add_all_matches_individual_installs(tool, force, tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
-@pytest.mark.parametrize(
-    "preinstalled", [[next(iter(SKILLS))], ["rag-pipeline"], list(SKILLS)]
-)
+@pytest.mark.parametrize("preinstalled", [[next(iter(SKILLS))], ["rag"], list(SKILLS)])
 def test_add_all_continues_after_skips(
     tool, preinstalled, tmp_path, monkeypatch, capsys
 ):

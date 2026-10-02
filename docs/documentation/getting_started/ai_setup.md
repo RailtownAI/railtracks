@@ -142,7 +142,7 @@ railtracks add --list
 | Skill | Description |
 |---|---|
 | `agent-builder` | Build agents, tools, flows, and multi-agent workflows with railtracks |
-| `rag-pipeline` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
+| `rag` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
 | `middleware` | Add middleware to railtracks nodes and agents, including retries, logging, and guardrails |
 
 
@@ -153,6 +153,9 @@ Skills are bundled **inside the railtracks package**, no internet connection req
 1. Reads the bundled skill content for the requested skill
 2. Formats it with the frontmatter and structure that your specific assistant expects
 3. Writes it to the correct location in your project
+
+!!! tip "Point your assistant at the docs"
+    For anything a skill doesn't cover, point your assistant at [`https://docs.railtracks.org/llms.txt`](https://docs.railtracks.org/llms.txt), which links a plain Markdown copy of every docs page.
 
 !!! tip "Commit the files"
     These files are small and stable. Committing them means every developer on your team gets the same assistant behaviour out of the box, no manual setup required.
@@ -196,7 +199,7 @@ Your assistant will use the skill to generate correct `rt.function_node` tools, 
 Install the RAG skill and ask your assistant to wire up a pipeline over your data:
 
 ```bash
-railtracks add claude:rag-pipeline
+railtracks add claude:rag
 ```
 
 ```
