@@ -47,21 +47,12 @@ if __name__ == "__main__":
 ```
 
 - **Tools** are functions decorated with `@rt.function_node`. Type hints become the parameter schema and the docstring becomes the description the LLM sees, so write both.
-- **Agents** come from `rt.agent_node(name, llm=..., tool_nodes=[...] or output_schema=Model, system_message=...)`. Pass at most one of `tool_nodes` and `output_schema`.
+- **Agents** come from `rt.agent_node(name, llm=..., tool_nodes=[...] or output_schema=Model, system_message=...)`. Pass `llm=` every time; it's required. Pass at most one of `tool_nodes` and `output_schema`.
 - **Run** an agent through `rt.Flow(name=..., entry_point=Agent)` with `flow.invoke(...)` or `await flow.ainvoke(...)`. For multi-step work, make the entry point an `async` `@rt.function_node` that calls agents with `await rt.call(Agent, ...)`. Give each agent one entry point: a `Flow`, or `rt.call` inside another node.
 - **Results** are read with `result.content` (a `str`, or your `output_schema` instance) and `result.message_history` (the full conversation). `result.structured` (structured agents) and `result.text` (text agents) also work as typed shortcuts for `.content`.
 - **Streaming** is `rt.astream(Agent, user_input=...)`, async only: `async for chunk in stream`, then `stream.result`.
 - **Agent as a tool**: pass `manifest=rt.ToolManifest(description=..., parameters=[...])` to `agent_node`, then list that agent in another agent's `tool_nodes`.
-- **Middleware**: `middleware=[...]` wraps the whole node; `model_middleware=[...]` wraps each LLM call. The first entry is outermost. Use `@rt.wrap_node`, `@rt.wrap_llm`, `@rt.pre_llm`, `@rt.post_llm`, `@rt.post_node`, and `@rt.input_guard` / `@rt.output_guard` for guardrails.
-
-## Rules
-
-- Pass `llm=` to every `rt.agent_node(...)`.
-- Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`.
-- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, ...) from `railtracks.prebuilt.guardrails`.
-- Stream with `rt.astream(...)`.
-- Run agents through `rt.Flow(...)`.
-- Write middleware with `pre_llm`, `post_llm` and `post_node`.
+- **Middleware**: `middleware=[...]` wraps the whole node; `model_middleware=[...]` wraps each LLM call. The first entry is outermost. Use `@rt.wrap_node`, `@rt.wrap_llm`, `@rt.pre_llm`, `@rt.post_llm`, `@rt.post_node`, and `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]` for guardrails. Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, ...) from `railtracks.prebuilt.guardrails`.
 
 ## More help
 
