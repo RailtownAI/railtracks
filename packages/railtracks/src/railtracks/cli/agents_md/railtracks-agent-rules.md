@@ -52,7 +52,7 @@ if __name__ == "__main__":
 - **Results** are read with `result.content` (a `str`, or your `output_schema` instance) and `result.message_history` (the full conversation). `result.structured` (structured agents) and `result.text` (text agents) also work as typed shortcuts for `.content`.
 - **Streaming** is `rt.astream(Agent, user_input=...)`, async only: `async for chunk in stream`, then `stream.result`.
 - **Agent as a tool**: pass `manifest=rt.ToolManifest(description=..., parameters=[...])` to `agent_node`, then list that agent in another agent's `tool_nodes`.
-- **Middleware**: `middleware=[...]` wraps the whole node; `model_middleware=[...]` wraps each LLM call. The first entry is outermost. Use `@rt.wrap_node`, `@rt.wrap_llm`, `@rt.pre_llm`, `@rt.post_llm`, `@rt.post_node`, and `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]` for guardrails. Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, ...) from `railtracks.prebuilt.guardrails`.
+- **Middleware**: `middleware=[...]` wraps the whole node; `model_middleware=[...]` wraps each LLM call. The first entry is outermost. Use `@rt.wrap_node`, `@rt.wrap_llm`, `@rt.pre_llm`, `@rt.post_llm`, `@rt.post_node`, and `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]` for guardrails. Prebuilt guards come from `railtracks.prebuilt.guardrails`; for example, `model_middleware=[BlockTextInputGuard(pattern=r"(?i)password")]` blocks input that matches a regex.
 
 ## More help
 
