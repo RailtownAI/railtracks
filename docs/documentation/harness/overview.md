@@ -12,7 +12,7 @@ Railtracks is an agent harness framework. Every part of that list is an ordinary
 |---|---|---|
 | **Loop** | When does the agent keep going, and when is it done? | [`rt.agent_node`](../agent_design/overview.md) runs the tool-calling loop; [`rt.Flow`](../invocation/flows.md) and [`rt.call`](../invocation/call.md) drive multi-step work |
 | **Tool surface** | What can the agent actually do? | [`rt.function_node`](../agent_design/tools/function_tools.md), [`rt.ToolManifest`](../agent_design/tools/agents_as_tools.md), [`rt.connect_mcp`](../agent_design/tools/mcp.md) |
-| **Context** | What does the model see on this turn? | `system_message`, [`rt.context`](../advanced/context.md), [`ToDoToolSet`](../agent_design/tools/prebuilt/todos.md), [`KeyValueMemoryToolSet`](../agent_design/tools/prebuilt/key_value_memory.md), [retrieval](../../retrieval/runtime/quickstart.md) |
+| **Context** | What does the model see on this turn? | [`system_message`](../agent_design/llms/system_messages.md), [`rt.context`](../advanced/context.md), [`ToDoToolSet`](../agent_design/tools/prebuilt/todos.md), [`KeyValueMemoryToolSet`](../agent_design/tools/prebuilt/key_value_memory.md), [retrieval](../../retrieval/runtime/quickstart.md) |
 | **Controls** | What is it allowed to do, and how much of it? | [`middleware=` / `model_middleware=`](../agent_design/middleware/overview.md): `MaxCalls`, `Timeout`, `Retry`, `Lock`, [verifiers](../agent_design/middleware/verifiers/overview.md), [guardrails](../agent_design/middleware/guardrails/overview.md) |
 | **Record** | What happened, and can I replay it? | session state, [`railtracks viz`](../../observability/agenthub/local.md), [`rt.evaluations.evaluate`](../../evaluations/quickstart.md) |
 
@@ -26,7 +26,7 @@ An agent with tools is already a loop: the model proposes a tool call, the tool 
 --8<-- "docs/scripts/documentation/harness.py:loop"
 ```
 
-`rt.Flow` is the entry point that runs it: it opens a session, tracks state, and applies run-wide settings like `timeout` and `context`. Inside a node, `rt.call` invokes another node directly, which is how you nest loops (an agent that delegates to sub-agents) or write the outer loop yourself in plain Python when a tool-calling loop is the wrong shape.
+`rt.Flow` is the entry point that runs it: it starts a [run](../invocation/flows.md#run), tracks state, and applies run-wide settings like `timeout` and `context`. Inside a node, `rt.call` invokes another node directly, which is how you nest loops (an agent that delegates to sub-agents) or write the outer loop yourself in plain Python when a tool-calling loop is the wrong shape.
 
 ## 2. The tool surface
 
