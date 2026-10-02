@@ -154,6 +154,9 @@ Skills are bundled **inside the railtracks package**, no internet connection req
 2. Formats it with the frontmatter and structure that your specific assistant expects
 3. Writes it to the correct location in your project
 
+!!! tip "Point your assistant at the docs"
+    For anything a skill doesn't cover, point your assistant at [`https://docs.railtracks.org/llms.txt`](https://docs.railtracks.org/llms.txt), which links a plain Markdown copy of every docs page.
+
 !!! tip "Commit the files"
     These files are small and stable. Committing them means every developer on your team gets the same assistant behaviour out of the box, no manual setup required.
 
