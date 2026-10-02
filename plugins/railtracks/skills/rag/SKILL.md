@@ -1,7 +1,7 @@
 ---
 name: rag
 description: Build a RAG (retrieval-augmented generation) pipeline using railtracks. Use when the user wants to ingest documents into a vector store and retrieve relevant passages to answer questions.
-argument-hint: "[describe the data source and what you want to retrieve]"
+argument-hint: '[describe the data source and what you want to retrieve]'
 ---
 
 # Build a Railtracks RAG Pipeline
