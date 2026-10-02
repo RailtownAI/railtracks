@@ -4,6 +4,9 @@ Railtracks ships with built-in support for the most popular AI coding assistants
 
 Without a skill, your assistant has to guess at the API. With one, it knows exactly what `rt.agent_node()`, `rt.function_node()`, and `rt.Flow` expect; and it won't make things up.
 
+!!! tip "Using Claude Code?"
+    The [Claude Code plugin](claude_code_plugin.md) is the quickest way in: two commands, and it works before Railtracks is installed.
+
 ## Installation
 
 Make sure the CLI is installed first:

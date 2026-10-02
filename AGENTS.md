@@ -11,7 +11,8 @@ Root
 ├── pyproject.toml                # Root workspace: dev-tooling deps only (docs/test/lint groups), NOT package deps
 ├── docs/                         # mkdocs documentation source
 ├── examples/                     # Example scripts
-└── scripts/                      # CI helper scripts (dependency sorting, license checks, docs validation)
+├── plugins/railtracks/           # Claude Code plugin (listed in .claude-plugin/marketplace.json); skills/ is generated
+└── scripts/                      # CI helper scripts (dependency sorting, license checks, docs validation, plugin sync)
 ```
 
 ## Accessing docs
@@ -48,6 +49,9 @@ pytest packages/railtracks/tests/unit_tests/nodes/test_x.py::test_name -v
 
 # Dependency sort check (CI enforced)
 python scripts/check_dependencies_sorted.py
+
+# Regenerate the Claude Code plugin's skills after changing a bundled skill (CI runs it with --check)
+python scripts/sync_plugin_skills.py
 
 # Docs
 mkdocs serve            # blocking preview server at localhost:8000; not a verification step
@@ -96,7 +100,7 @@ railtracks add --list    # list the bundled coding-assistant skills
 railtracks add claude:agent-builder    # install a bundled skill for an assistant
 ```
 
-The bundled skills `add` installs (`agent-builder`, `middleware`, `rag`) live under `cli/skills/<name>/` as skill directories (a `SKILL.md` plus any supporting files); `add <tool>:<skill>` projects each into the assistant's native layout (Claude, Codex, Copilot, Cursor) and `<tool>:all` installs every one.
+The bundled skills `add` installs (`agent-builder`, `middleware`, `rag`) live under `cli/skills/<name>/` as skill directories (a `SKILL.md` plus any supporting files); `add <tool>:<skill>` projects each into the assistant's native layout (Claude, Codex, Copilot, Cursor) and `<tool>:all` installs every one. The Claude Code plugin ships the same skills from `plugins/railtracks/skills/`, which `scripts/sync_plugin_skills.py` generates from `cli/skills/`, so rerun it after editing a bundled skill.
 
 ## Common issues
 - **`ModuleNotFoundError` for an optional dependency** — heavy deps are gated behind extras and exposed via lazy module-level `__getattr__` imports. Install the extra that owns it (`railtracks[retrieval]`, `railtracks[visual]`, …) rather than adding a top-level import.
