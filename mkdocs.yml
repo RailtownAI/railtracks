@@ -106,7 +106,6 @@ nav:
           - Quickstart: documentation/getting_started/quickstart.md
           - Installation: documentation/getting_started/installation.md
           - LLM Setup: documentation/getting_started/llm_setup.md
-          - AI Coding Assistants: documentation/getting_started/ai_setup.md
           - Contributing to the Docs: documentation/getting_started/contributing_docs.md
           - Upgrading to 1.5.0: documentation/upgrading/1_5_0.md
       - Harness:
@@ -147,6 +146,10 @@ nav:
           - Message History: documentation/invocation/message_history.md
       - Advanced:
           - Context: documentation/advanced/context.md
+
+  - AI Coding:
+      - Claude Code Plugin: documentation/getting_started/claude_code_plugin.md
+      - AI Coding Assistants: documentation/getting_started/ai_setup.md
 
   - Retrieval:
     - Retrieval Runtime:
