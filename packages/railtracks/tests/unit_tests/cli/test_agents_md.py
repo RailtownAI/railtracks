@@ -167,15 +167,24 @@ class TestBlockContent:
         assert "Written by railtracks 9.9.9;" in render_block("9.9.9")
         assert "{railtracks_version}" not in render_block()
 
-    def test_code_example_runs(self):
-        """The example must build real agents, so it can't drift from the API."""
+    def test_code_example_runs(self, mock_llm):
+        """The example's three flows must run and return the types the block claims."""
         text = TEMPLATE_PATH.read_text(encoding="utf-8")
         code = re.search(r"```python\n(.*?)```", text, re.DOTALL).group(1)
         namespace = {"__name__": "agents_md_example"}
+        llm = mock_llm(custom_response='{"city": "Paris", "summary": "Sunny"}')
 
-        exec(compile(code, str(TEMPLATE_PATH), "exec"), namespace)
+        with patch.object(rt.llm, "AnthropicLLM", return_value=llm):
+            exec(compile(code, str(TEMPLATE_PATH), "exec"), namespace)
 
-        assert isinstance(namespace["flow"], rt.Flow)
+        report_cls = namespace["Report"]
+        answer = namespace["weather_flow"].invoke("What's the weather in Paris?")
+        report = namespace["report_flow"].invoke("Paris is sunny and 22C.")
+        final = namespace["pipeline_flow"].invoke("Paris")
+
+        assert isinstance(answer.content, str)
+        assert isinstance(report.structured, report_cls)
+        assert isinstance(final, report_cls)
 
     @pytest.mark.parametrize(
         ("target", "keywords"),

@@ -39,16 +39,40 @@ class Report(BaseModel):
 
 ReportAgent = rt.agent_node("Report Agent", llm=llm, output_schema=Report)
 
-flow = rt.Flow(name="Weather", entry_point=WeatherAgent)
+
+@rt.function_node
+async def weather_report(city: str) -> Report:
+    """Look up the weather for a city and turn it into a report.
+
+    Args:
+        city: The city to report on.
+    Returns:
+        A structured weather report.
+    """
+    answer = await rt.call(WeatherAgent, f"What's the weather in {city}?")
+    report = await rt.call(ReportAgent, answer.content)
+    return report.structured
+
+
+weather_flow = rt.Flow(name="Weather", entry_point=WeatherAgent)
+report_flow = rt.Flow(name="Report", entry_point=ReportAgent)
+pipeline_flow = rt.Flow(name="Weather Report", entry_point=weather_report)
 
 if __name__ == "__main__":
-    result = flow.invoke("What's the weather in Paris?")  # await flow.ainvoke(...) in async code
-    print(result.content)  # a str here; a Report instance for ReportAgent
+    # Use await flow.ainvoke(...) instead of flow.invoke(...) in async code.
+    answer = weather_flow.invoke("What's the weather in Paris?")
+    print(answer.content)  # a str
+
+    report = report_flow.invoke("Paris is sunny and 22C.")
+    print(report.structured.summary)  # a Report instance
+
+    final = pipeline_flow.invoke("Paris")
+    print(final.summary)  # the flow returns what weather_report returns: a Report
 ```
 
 - **Tools** are functions decorated with `@rt.function_node`. Type hints become the parameter schema and the docstring becomes the description the LLM sees, so write both.
 - **Agents** come from `rt.agent_node(name, llm=..., tool_nodes=[...] or output_schema=Model, system_message=...)`. Pass `llm=` every time; it's required. Pass at most one of `tool_nodes` and `output_schema`.
-- **Run** an agent through `rt.Flow(name=..., entry_point=Agent)` with `flow.invoke(...)` or `await flow.ainvoke(...)`. For multi-step work, make the entry point an `async` `@rt.function_node` that calls agents with `await rt.call(Agent, ...)`. Give each agent one entry point: a `Flow`, or `rt.call` inside another node.
+- **Run** an agent through `rt.Flow(name=..., entry_point=Agent)` with `flow.invoke(...)` or `await flow.ainvoke(...)`. For multi-step work, make the entry point an `async` `@rt.function_node` that calls agents with `await rt.call(Agent, ...)`; the flow then returns whatever that function returns. Give each agent one entry point: a `Flow`, or `rt.call` inside another node.
 - **Results** are read with `result.content` (a `str`, or your `output_schema` instance) and `result.message_history` (the full conversation). When the agent was given an `output_schema`, `result.structured` also returns that instance; otherwise `result.text` also returns the `str`.
 - **Streaming** is `rt.astream(Agent, user_input=...)`, async only: `async for chunk in stream`, then `stream.result`.
 - **Agent as a tool**: pass `manifest=rt.ToolManifest(description=..., parameters=[...])` to `agent_node`, then list that agent in another agent's `tool_nodes`.
