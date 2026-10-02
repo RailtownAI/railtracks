@@ -198,13 +198,13 @@ railtracks viz --beta
 
 ---
 
-## Removed or unsupported APIs — never generate these
-- `agent_node(...)` without `llm=` → always pass an LLM; omitting it raises `TypeError`
-- `agent_node(guardrails=...)` / `Guard(...)` → use `model_middleware=[...]` with `@rt.input_guard` / `@rt.output_guard`
-- Prebuilt guards from `railtracks.guardrails.llm` (`BlockTextInputGuard`, `PIIRedactConfig`, …) → import them from `railtracks.prebuilt.guardrails`
-- `stream=True` on a model (`rt.llm.OpenAILLM(..., stream=True)`) → use `rt.astream(...)`
-- `rt.interactive`, `local_chat` → deprecated and being removed, no replacement
-- `rt.Session()` / `@rt.session` → not part of the public API; run agents through `rt.Flow(...)`
+## Do this, not that
+- Pass `llm=` to every `rt.agent_node(...)`; leaving it out raises `TypeError`.
+- Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`, not an `agent_node(guardrails=...)` argument or a `Guard(...)` object.
+- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, …) from `railtracks.prebuilt.guardrails`, not `railtracks.guardrails.llm`.
+- Stream with `rt.astream(...)`, not `stream=True` on a model (`rt.llm.OpenAILLM(..., stream=True)`).
+- Run agents through `rt.Flow(...)`, not `rt.Session()` or `@rt.session`.
+- Don't use `rt.interactive` or `local_chat`.
 
 ---
 

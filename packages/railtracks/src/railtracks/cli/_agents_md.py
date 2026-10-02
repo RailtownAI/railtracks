@@ -7,6 +7,7 @@ is between them and leaves the rest of the file byte for byte. `CLAUDE.md` gets 
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
@@ -19,6 +20,15 @@ CLAUDE_IMPORT = "@AGENTS.md"
 
 TEMPLATE_PATH = Path(__file__).parent / "agents_md" / "railtracks-agent-rules.md"
 _VERSION_PLACEHOLDER = "{railtracks_version}"
+
+
+def _marker_line(marker: str) -> re.Pattern[str]:
+    """Match `marker` only on a line of its own, so prose that names it is ignored."""
+    return re.compile(rf"^[ \t]*{re.escape(marker)}[ \t]*\r?$", re.MULTILINE)
+
+
+_BEGIN_LINE = _marker_line(BEGIN_MARKER)
+_END_LINE = _marker_line(END_MARKER)
 
 
 class FileChange(Enum):
@@ -55,20 +65,20 @@ def upsert_block(existing: str, block: str) -> str:
     Returns:
         The new file contents.
     Raises:
-        MalformedBlockError: If only one marker is present, or END comes first.
+        MalformedBlockError: If only one marker line is present, or END comes first.
     """
-    start = existing.find(BEGIN_MARKER)
-    end = existing.find(END_MARKER)
-    if start == -1 and end == -1:
+    begin = _BEGIN_LINE.search(existing)
+    finish = _END_LINE.search(existing)
+    if begin is None and finish is None:
         if not existing:
             return block
         separator = "\n" if existing.endswith("\n") else "\n\n"
         return f"{existing}{separator}{block}"
-    if start == -1 or end == -1 or end < start:
+    if begin is None or finish is None or finish.start() < begin.start():
         raise MalformedBlockError(
             f"Found an unmatched {BEGIN_MARKER} / {END_MARKER} pair."
         )
-    end += len(END_MARKER)
+    start, end = begin.start(), finish.end()
     # The rendered block carries its own trailing newline; absorb the old one.
     if existing.startswith("\n", end):
         end += 1

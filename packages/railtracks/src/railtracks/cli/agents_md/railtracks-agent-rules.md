@@ -54,15 +54,15 @@ if __name__ == "__main__":
 - **Agent as a tool**: pass `manifest=rt.ToolManifest(description=..., parameters=[...])` to `agent_node`, then list that agent in another agent's `tool_nodes`.
 - **Middleware**: `middleware=[...]` wraps the whole node; `model_middleware=[...]` wraps each LLM call. The first entry is outermost. Use `@rt.wrap_node`, `@rt.wrap_llm`, `@rt.pre_llm`, `@rt.post_llm`, `@rt.post_node`, and `@rt.input_guard` / `@rt.output_guard` for guardrails.
 
-## Never generate these
+## Do this, not that
 
-- `agent_node(...)` without `llm=`: always pass an LLM.
-- `agent_node(guardrails=...)` or `Guard(...)`: use `model_middleware=[...]` with `@rt.input_guard` / `@rt.output_guard`.
-- Prebuilt guards from `railtracks.guardrails.llm` (`BlockTextInputGuard`, `PIIRedactConfig`, ...): import them from `railtracks.prebuilt.guardrails`.
-- `stream=True` on a model: use `rt.astream(...)`.
-- `rt.interactive` or `local_chat`: removed, no replacement.
-- `rt.Session()` or `@rt.session`: not public API; run agents through `rt.Flow(...)`.
-- `before_llm`, `after_llm`, `after_node`: use `pre_llm`, `post_llm`, `post_node`.
+- Pass `llm=` to every `rt.agent_node(...)`.
+- Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`, not an `agent_node(guardrails=...)` argument or a `Guard(...)` object.
+- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, ...) from `railtracks.prebuilt.guardrails`, not `railtracks.guardrails.llm`.
+- Stream with `rt.astream(...)`, not `stream=True` on a model.
+- Run agents through `rt.Flow(...)`, not `rt.Session()` or `@rt.session`.
+- Write middleware with `pre_llm`, `post_llm` and `post_node`, not `before_llm`, `after_llm` or `after_node`.
+- Don't use `rt.interactive` or `local_chat`.
 
 ## More help
 
