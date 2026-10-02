@@ -18,6 +18,7 @@ from railtracks.cli._agents_md import (
     upsert_block,
     write_agents_md,
 )
+from railtracks.prebuilt.guardrails import BlockTextInputGuard
 
 # Claude Code advises < 200 lines per memory file; Vercel's winning index was ~8KB.
 MAX_BLOCK_LINES = 120
@@ -193,6 +194,7 @@ class TestBlockContent:
             ),
             (rt.Flow, ["name", "entry_point"]),
             (rt.ToolManifest, ["description", "parameters"]),
+            (BlockTextInputGuard, ["pattern"]),
         ],
     )
     def test_keyword_arguments_exist(self, target, keywords):
