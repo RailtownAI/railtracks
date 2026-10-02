@@ -21,7 +21,7 @@ Skills load only when the assistant decides they're relevant, and it often doesn
 railtracks agents-md
 ```
 
-It writes a short Railtracks block (the core patterns, the APIs that no longer exist, and links to these docs) into `AGENTS.md`, creating the file if needed. The block sits between `<!-- BEGIN:railtracks-agent-rules -->` and `<!-- END:railtracks-agent-rules -->`, and re-running the command replaces only what's between the markers, so anything else you keep in `AGENTS.md` is left alone. Because Claude Code skips `AGENTS.md` when a `CLAUDE.md` exists, the command also creates `CLAUDE.md` with an `@AGENTS.md` import, or adds that line to your existing `CLAUDE.md` if it's missing.
+It writes a short Railtracks block (the core patterns, the right call where coding agents often guess wrong, and links to these docs) into `AGENTS.md`, creating the file if needed. The block sits between `<!-- BEGIN:railtracks-agent-rules -->` and `<!-- END:railtracks-agent-rules -->`, and re-running the command replaces only what's between the markers, so anything else you keep in `AGENTS.md` is left alone. Because Claude Code skips `AGENTS.md` when a `CLAUDE.md` exists, the command also creates `CLAUDE.md` with an `@AGENTS.md` import, or adds that line to your existing `CLAUDE.md` if it's missing.
 
 The block records the railtracks version that wrote it; rerun `railtracks agents-md` after upgrading so it matches. To opt out, delete the block (markers included) from `AGENTS.md`, and the `@AGENTS.md` line from `CLAUDE.md` if nothing else needs it.
 

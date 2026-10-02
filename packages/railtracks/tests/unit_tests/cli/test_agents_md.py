@@ -82,6 +82,16 @@ class TestWriteAgentsMd:
         assert content == "# Mine\n\n" + render_block("2.0.0")
         assert "railtracks 1.0.0" not in content
 
+    def test_ignores_markers_mentioned_in_prose(self, tmp_path):
+        prose = f"The block sits between `{BEGIN_MARKER}` and `{END_MARKER}`.\n"
+        (tmp_path / "AGENTS.md").write_text(prose)
+
+        write_agents_md(tmp_path, version="9.9.9")
+
+        assert (tmp_path / "AGENTS.md").read_text() == (
+            prose + "\n" + render_block("9.9.9")
+        )
+
     def test_adds_import_to_existing_claude_md(self, tmp_path):
         (tmp_path / "CLAUDE.md").write_text("# Notes\nUse tabs.")
 
