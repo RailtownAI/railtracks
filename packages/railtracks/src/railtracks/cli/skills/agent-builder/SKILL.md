@@ -198,13 +198,12 @@ railtracks viz --beta
 
 ---
 
-## Do this, not that
-- Pass `llm=` to every `rt.agent_node(...)`; leaving it out raises `TypeError`.
-- Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`, not an `agent_node(guardrails=...)` argument or a `Guard(...)` object.
-- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, …) from `railtracks.prebuilt.guardrails`, not `railtracks.guardrails.llm`.
-- Stream with `rt.astream(...)`, not `stream=True` on a model (`rt.llm.OpenAILLM(..., stream=True)`).
-- Run agents through `rt.Flow(...)`, not `rt.Session()` or `@rt.session`.
-- Don't use `rt.interactive` or `local_chat`.
+## Rules
+- Pass `llm=` to every `rt.agent_node(...)`; it's required.
+- Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`.
+- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, …) from `railtracks.prebuilt.guardrails`.
+- Stream with `rt.astream(...)`.
+- Run agents through `rt.Flow(...)`.
 
 ---
 
