@@ -27,7 +27,7 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 
 ```python
 rt.llm.AnthropicLLM("claude-sonnet-5")
-rt.llm.OpenAILLM("gpt-5.4-mini")
+rt.llm.OpenAILLM("gpt-6-luna")
 rt.llm.GeminiLLM("gemini-3.7-flash")
 rt.llm.OpenAICompatibleProvider(
     "my-model", api_base="https://api.example.com/v1", api_key="..."
