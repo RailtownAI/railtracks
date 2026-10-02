@@ -204,11 +204,7 @@ railtracks viz --beta
 - Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, …) from `railtracks.prebuilt.guardrails`.
 - Stream with `rt.astream(...)`.
 - Run agents through `rt.Flow(...)`.
-
----
-
-## Things to Avoid
-- Don't use vague docstrings — the docstring is the tool description the LLM sees.
-- Don't skip type hints — they define the tool's parameter schema.
-- Don't create a `Flow` and a manual `await rt.call()` for the same agent at the top level — pick one entry point.
-- Don't add unnecessary tools. Only give the agent what it needs.
+- Give each agent one entry point: a `Flow`, or `await rt.call()` inside another node.
+- Write each tool's docstring as a clear, specific description; it's the tool description the LLM sees.
+- Type-hint every tool parameter and return value; the hints define the tool's parameter schema.
+- Give each agent only the tools it needs.
