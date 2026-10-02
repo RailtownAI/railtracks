@@ -135,8 +135,8 @@ Adjusted = rt.couple(
 
 ---
 
-## Things to Avoid
-- Don't retry at `middleware=` on an agent with non-idempotent tools — it re-runs every tool call in that attempt, not just the failed step.
-- Don't hand-roll a content allow/block check as plain middleware — use `input_guard`/`output_guard` so it shows up in `GuardrailTrace` like the rest of your rails.
-- Don't write a plain `def` for `wrap_node`/`wrap_llm` — it must be `async def`.
-- Don't expect `post_llm`/`post_node` to run on failure — they're success-only; use `wrap_llm`/`wrap_node` if you need failure-aware logic.
+## Rules
+- Retry at `model_middleware=` by default. Retry at `middleware=` only when every tool the agent calls is safe to run twice, since a retry there re-runs every tool call in the attempt.
+- Write content allow/block checks as `input_guard`/`output_guard`, so they show up in `GuardrailTrace` with the rest of your rails.
+- Write `wrap_node`/`wrap_llm` functions as `async def`.
+- Put failure-aware logic in `wrap_llm`/`wrap_node`; `post_llm`/`post_node` run only on success.
