@@ -177,20 +177,6 @@ placeholder. To browse evaluation results, use the
 [legacy visualizer](local.md) as described in
 [Evaluation Visualization](../../evaluations/visualization.md).
 
-## Share a view
-
-These URLs open a specific view, so you can bookmark them or send them to
-someone looking at the same event store:
-
-| URL | Opens |
-|---|---|
-| `#/agent-traces/<session_id>` | A session |
-| `#/agent-traces/<session_id>?nodeId=<node_id>` | A session with one node selected |
-| `#/events?session_id=<session_id>` | One run's events |
-| `#/middleware?session_id=<session_id>` | The middleware used in one run |
-
-Other filters, sorting, and paging aren't kept in the URL.
-
 ## Record event-stream data
 
 Events are recorded automatically to `.railtracks/data/events` with no setup required. The current visualizer reads from the
