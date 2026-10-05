@@ -33,3 +33,24 @@ class DecisionResponse(Generic[_TSchema]):
     latency: float
     cost: float | None
     raw: dict[str, Any]
+
+    def __str__(self) -> str:
+        """One ``name: answer`` segment per question, in definition order.
+
+        This is what an agent reads when the decision node is one of its tools.
+        """
+        return " | ".join(
+            f"{name}: {answer}" for name, answer in self.structured._answers.items()
+        )
+
+    def encode(self) -> dict[str, Any]:
+        """Plain JSON for the session record; ``raw`` is left out as it repeats the answers."""
+        return {
+            "structured": self.structured.encode(),
+            "model_name": self.model_name,
+            "provider": self.provider,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "latency": self.latency,
+            "cost": self.cost,
+        }

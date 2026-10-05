@@ -6,9 +6,11 @@
 
 __all__ = [
     "agent_node",
+    "decision_node",
     "function_node",
 ]
 
 
+from .decisions import decision_node
 from .function import function_node
 from .llm import agent_node

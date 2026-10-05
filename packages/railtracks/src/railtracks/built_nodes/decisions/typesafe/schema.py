@@ -96,13 +96,9 @@ def _require_text(value: object, what: str) -> str:
 
 
 class TypeSafeQuestion(DecisionQuestion[_TAnswer]):
-    """Base for TypeSafe questions: a ``kind`` (the wire ``type``) and instructions."""
+    """Base for TypeSafe questions; ``kind`` is the wire ``type``."""
 
     kind: ClassVar[QuestionKind]
-
-    def __init__(self, instructions: str) -> None:
-        super().__init__()
-        self.instructions = _require_text(instructions, "Question instructions")
 
 
 class NoulQuestion(TypeSafeQuestion[NoulAnswer]):

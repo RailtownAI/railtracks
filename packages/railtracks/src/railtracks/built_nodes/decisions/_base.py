@@ -58,7 +58,12 @@ class DecisionQuestion(Generic[_TAnswer]):
 
     answer_type: ClassVar[type[DecisionAnswer]]
 
-    def __init__(self) -> None:
+    def __init__(self, instructions: str) -> None:
+        if not isinstance(instructions, str) or not instructions.strip():
+            raise NodeCreationError(
+                message=f"Question instructions must be a non-empty string, got {instructions!r}."
+            )
+        self.instructions = instructions
         self._name: str | None = None
         self._bound_names: list[str] = []
 
@@ -193,6 +198,8 @@ class DecisionReply(Generic[_TSchema]):
 
 class DecisionModel(ABC, Generic[_TVendorSchema]):
     """Base for a System One model client, generic in the vendor's schema base."""
+
+    schema_base: ClassVar[type[DecisionSchema]]
 
     def __init__(
         self,
