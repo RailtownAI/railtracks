@@ -32,9 +32,11 @@ railtracks update --beta
 railtracks viz --beta
 ```
 
-`railtracks init` creates the `.railtracks` directory and installs the legacy
-UI. `railtracks update --beta` installs the beta build alongside it in
-`.railtracks/beta-ui`. If the beta UI is missing, `railtracks viz --beta`
+- `railtracks init` creates the `.railtracks` directory and installs the legacy
+UI. 
+- `railtracks update --beta` installs the beta build alongside it in
+`.railtracks/beta-ui`. 
+- If the beta UI is missing, `railtracks viz --beta`
 downloads it automatically before starting the server.
 
 The server opens at `http://localhost:3031`. Its API uses `/api/v2/...`
@@ -174,23 +176,6 @@ Evaluations aren't in the current visualizer yet. Its **Evaluations** page is a
 placeholder. To browse evaluation results, use the
 [legacy visualizer](local.md) as described in
 [Evaluation Visualization](../../evaluations/visualization.md).
-
-## Keyboard shortcuts
-
-Press `Shift`+`?` anywhere to list the shortcuts.
-
-| Keys | Action |
-|---|---|
-| `Shift`+`D` | Switch between light and dark |
-| `Shift`+`` ` `` | Show or hide the sidebar |
-| `G` then `A` | Agent Traces |
-| `G` then `T` | LLM Traces |
-| `G` then `M` | Middleware |
-| `G` then `L` | Event Logs |
-| `G` then `R` | Middleware, guardrails only |
-
-![The keyboard shortcuts dialog](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/keyboard-shortcuts-light.png#only-light)
-![The keyboard shortcuts dialog](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/keyboard-shortcuts-dark.png#only-dark)
 
 ## Share a view
 
