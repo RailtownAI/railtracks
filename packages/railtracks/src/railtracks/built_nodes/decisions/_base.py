@@ -1,21 +1,47 @@
 """Vendor-neutral bases for System One (S1) decision models.
 
 A vendor subclasses ``DecisionSchema`` (with ``abstract=True``) to provide its question
-types, ``DecisionQuestion`` for each question and ``DecisionAnswer`` for each answer.
+types, ``DecisionQuestion`` for each question and ``DecisionAnswer`` for each answer,
+and ``DecisionModel`` for the client. ``DecisionModel._ask`` holds what every vendor
+shares: retries, timing and pricing.
 """
 
 from __future__ import annotations
 
+import time
+from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, ClassVar, Generic, TypeVar, cast, overload
+from typing import Any, ClassVar, Generic, TypeVar, Union, cast, overload
 
 from pydantic import BaseModel, ConfigDict
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
-from railtracks.exceptions import NodeCreationError
+from railtracks.exceptions import (
+    DecisionRateLimitError,
+    DecisionServerError,
+    DecisionTimeoutError,
+    NodeCreationError,
+)
+from railtracks.llm._exceptions import RetryError
+from railtracks.llm.retries import RetryApproach
+
+from .pricing import decision_cost
+from .response import DecisionResponse
 
 _TAnswer = TypeVar("_TAnswer", bound="DecisionAnswer")
+_TSchema = TypeVar("_TSchema", bound="DecisionSchema")
+_TVendorSchema = TypeVar("_TVendorSchema", bound="DecisionSchema")
+
+DecisionState: TypeAlias = Union[str, dict[str, Any], list[Any]]
+"""What a decision is about: text, or a JSON object or array."""
+
+RETRYABLE_ERRORS: tuple[type[Exception], ...] = (
+    DecisionRateLimitError,
+    DecisionServerError,
+    DecisionTimeoutError,
+)
 
 
 class DecisionAnswer(BaseModel):
@@ -151,3 +177,78 @@ class DecisionSchema:
     def __repr__(self) -> str:
         fields = ", ".join(f"{k}={v!r}" for k, v in self._answers.items())
         return f"{type(self).__name__}({fields})"
+
+
+@dataclass(frozen=True)
+class DecisionReply(Generic[_TSchema]):
+    """What a vendor's transport returns for one successful request."""
+
+    structured: _TSchema
+    reported_model_name: str | None
+    provider: str | None
+    input_tokens: int | None
+    output_tokens: int | None
+    raw: dict[str, Any]
+
+
+class DecisionModel(ABC, Generic[_TVendorSchema]):
+    """Base for a System One model client, generic in the vendor's schema base."""
+
+    def __init__(
+        self,
+        model_name: str,
+        *,
+        api_base: str,
+        retry_approach: RetryApproach | None = None,
+    ) -> None:
+        self.model_name = model_name
+        self.api_base = api_base
+        self.retry_approach = retry_approach
+
+    @abstractmethod
+    async def aask(
+        self, state: DecisionState, schema: type[_TVendorSchema]
+    ) -> DecisionResponse[_TVendorSchema]:
+        """Answer every question in ``schema`` about ``state`` in one request."""
+
+    @abstractmethod
+    async def _send(
+        self, state: DecisionState, schema: type[_TSchema]
+    ) -> DecisionReply[_TSchema]:
+        """Make one request, raising a ``DecisionModelError`` on failure."""
+
+    @abstractmethod
+    def _pricing_keys(self) -> list[str]:
+        """The ``litellm.model_cost`` keys to try for this model, in order."""
+
+    async def _ask(
+        self, state: DecisionState, schema: type[_TSchema]
+    ) -> DecisionResponse[_TSchema]:
+        start = time.perf_counter()
+        reply = await self._send_with_retries(state, schema)
+        latency = time.perf_counter() - start
+        return DecisionResponse(
+            structured=reply.structured,
+            model_name=reply.reported_model_name or self.model_name,
+            provider=reply.provider,
+            input_tokens=reply.input_tokens,
+            output_tokens=reply.output_tokens,
+            latency=latency,
+            cost=decision_cost(
+                self._pricing_keys(), reply.input_tokens, reply.output_tokens
+            ),
+            raw=reply.raw,
+        )
+
+    async def _send_with_retries(
+        self, state: DecisionState, schema: type[_TSchema]
+    ) -> DecisionReply[_TSchema]:
+        if self.retry_approach is None:
+            return await self._send(state, schema)
+        try:
+            return await self.retry_approach.acall_with_retry(
+                lambda: self._send(state, schema), retry_on=RETRYABLE_ERRORS
+            )
+        except RetryError as e:
+            # surface the decision error itself, not the LLM-flavoured RetryError
+            raise e.exception_list[-1] from e

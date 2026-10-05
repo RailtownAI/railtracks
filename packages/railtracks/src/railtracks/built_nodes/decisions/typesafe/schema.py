@@ -7,7 +7,7 @@ https://docs.typesafe.ai/primitives/.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, Literal, TypeVar
+from typing import Any, ClassVar, Literal, TypeVar
 
 from typing_extensions import TypedDict
 
@@ -216,6 +216,7 @@ class TypeSafeSchema(DecisionSchema, abstract=True):
     On an answered instance, each attribute is that question's answer.
     """
 
+    __questions__: ClassVar[Mapping[str, TypeSafeQuestion[Any]]]
     _question_type = TypeSafeQuestion
 
     Noul = NoulQuestion
