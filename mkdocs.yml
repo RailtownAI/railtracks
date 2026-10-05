@@ -189,8 +189,8 @@ nav:
   - Observability:
       - AgentHub:
           - Local:
-            - V1 (Stable): observability/agenthub/local.md
-            - V2 (Beta): observability/agenthub/local_v2.md
+            - Current Visualizer: observability/agenthub/local_v2.md
+            - Legacy Visualizer: observability/agenthub/local.md
           - Cloud: observability/agenthub/cloud.md
       - Tracking:
           - Logging: observability/tracking/logging.md
