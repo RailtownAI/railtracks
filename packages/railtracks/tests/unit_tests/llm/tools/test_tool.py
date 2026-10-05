@@ -4,6 +4,8 @@ Tests for the Tool class.
 This module contains tests for railtracks.llm.tools.tool.Tool.
 """
 
+import warnings
+
 import pytest
 from railtracks.llm.tools import Parameter, Tool
 from railtracks.llm.tools.tool import ToolCreationError
@@ -134,3 +136,186 @@ class TestToolParametersTypeGuard:
                 detail="An int is neither a dict nor an iterable of Parameter objects.",
                 parameters=1,
             )
+
+
+class TestMultipleParameterSectionWarning:
+    """The warning counts sections, not markers or substrings."""
+
+    @staticmethod
+    def _assert_no_section_warning(func):
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            Tool.from_function(func)
+        assert not [
+            w for w in record if "Multiple parameter sections" in str(w.message)
+        ]
+
+    def test_two_args_sections_warn(self):
+        def two_args(a: int, b: int) -> None:
+            """Do a thing.
+
+            Args:
+                a: the a.
+
+            Args:
+                b: the b.
+            """
+
+        with pytest.warns(UserWarning, match="Multiple parameter sections"):
+            Tool.from_function(two_args)
+
+    def test_two_rest_params_do_not_warn(self):
+        def two_rest(a: int, b: int) -> None:
+            """Do a thing.
+
+            :param a: the a.
+            :param b: the b.
+            """
+
+        self._assert_no_section_warning(two_rest)
+
+    def test_numpy_other_parameters_do_not_warn(self):
+        def other_parameters(y: int) -> None:
+            """Do a thing.
+
+            Other Parameters
+            ----------------
+            y : int
+                The y value.
+            """
+
+        self._assert_no_section_warning(other_parameters)
+
+    def test_numpy_parameters_and_other_parameters_do_not_warn(self):
+        def both_sections(a: int, b: int) -> None:
+            """Do a thing.
+
+            Parameters
+            ----------
+            a : int
+                The first value.
+
+            Other Parameters
+            ----------------
+            b : int
+                The second value.
+            """
+
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            tool = Tool.from_function(both_sections)
+        assert not [
+            w for w in record if "Multiple parameter sections" in str(w.message)
+        ]
+        assert {p.name: p.description for p in tool.parameters} == {
+            "a": "The first value.",
+            "b": "The second value.",
+        }
+
+    def test_google_prose_mentioning_parameters_do_not_warn(self):
+        def prose(x: int) -> None:
+            """Set the Parameters of the model.
+
+            Args:
+                x: the x.
+            """
+
+        self._assert_no_section_warning(prose)
+
+    def test_google_and_rest_arg_fields_warn(self):
+        def mixed(a: int, b: int) -> None:
+            """Do a thing.
+
+            Args:
+                a: the a.
+
+            :arg b: the b.
+            """
+
+        with pytest.warns(UserWarning, match="priority order: Google, NumPy, reST"):
+            Tool.from_function(mixed)
+
+    def test_keyword_role_does_not_warn(self):
+        def role(x: int) -> None:
+            """Do a thing.
+
+            :keyword:`return` is not a parameter field.
+
+            Args:
+                x: the x.
+            """
+
+        self._assert_no_section_warning(role)
+
+    def test_header_labelling_rest_fields_does_not_warn(self):
+        def labelled(x: int) -> None:
+            """Do a thing.
+
+            Parameters:
+
+            :param x: the x.
+            """
+
+        self._assert_no_section_warning(labelled)
+
+    def test_prose_starting_with_parameters_does_not_warn(self):
+        def prose(x: int) -> None:
+            """Summary.
+
+            Parameters: must be positive.
+
+            Args:
+                x: The x.
+            """
+
+        self._assert_no_section_warning(prose)
+        tool = Tool.from_function(prose)
+        assert {p.name: p.description for p in tool.parameters} == {"x": "The x."}
+
+
+class TestRestFieldsInTools:
+    """reST fields reach the tool schema, and unreadable ones are reported."""
+
+    def test_variadic_and_complex_fields_get_descriptions(self):
+        def variadic(mode: str, mapping: dict, *args: int, **kwargs: str) -> None:
+            r"""Do a thing.
+
+            :param Literal['a', 'b'] mode: The mode.
+            :param dict(str, int) mapping: The mapping.
+            :param \*args: Positional values.
+            :param \*\*kwargs: Keyword values.
+            """
+
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            tool = Tool.from_function(variadic)
+        assert not [w for w in record if "Could not parse" in str(w.message)]
+        assert {p.name: p.description for p in tool.parameters} == {
+            "mode": "The mode.",
+            "mapping": "The mapping.",
+            "args": "Positional values.",
+            "kwargs": "Keyword values.",
+        }
+
+    def test_unparsable_field_warns(self):
+        def broken(x: int) -> None:
+            """Do a thing.
+
+            :param: x
+            """
+
+        with pytest.warns(UserWarning, match=r"Could not parse reST .*':param: x'"):
+            tool = Tool.from_function(broken)
+        assert tool.detail == "Do a thing."
+
+    def test_explicit_params_skip_docstring_warnings(self):
+        def broken(x: int) -> None:
+            """Do a thing.
+
+            :param: x
+            """
+
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            Tool.from_function(broken, params=[])
+        assert not [w for w in record if "Could not parse" in str(w.message)]

@@ -29,7 +29,7 @@ import railtracks as rt
 from railtracks.middleware import Verdict
 from railtracks.prebuilt.middleware import MaxCalls, Timeout, pre_verifier
 
-MODEL_NAME = os.environ.get("HARNESS_MODEL", "claude-sonnet-5")
+MODEL_NAME = os.environ.get("HARNESS_MODEL", "claude-sonnet-5-5")
 WORKSPACE = Path(
     os.environ.get(
         "HARNESS_WORKSPACE", Path(tempfile.gettempdir()) / "harness_workspace"
@@ -204,7 +204,7 @@ async def main() -> None:
         "test_fizzbuzz.py, then run the tests and report the outcome."
     )
 
-    print(f"\n{result.text}")
+    print(f"\n{result.content}")
     print(f"\n{await todos.pretty_dashboard()}")
     print("\nRun `railtracks viz` to replay this run.")
 

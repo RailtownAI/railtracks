@@ -541,9 +541,7 @@ def test_add_all_matches_individual_installs(tool, force, tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
-@pytest.mark.parametrize(
-    "preinstalled", [[next(iter(SKILLS))], ["rag-pipeline"], list(SKILLS)]
-)
+@pytest.mark.parametrize("preinstalled", [[next(iter(SKILLS))], ["rag"], list(SKILLS)])
 def test_add_all_continues_after_skips(
     tool, preinstalled, tmp_path, monkeypatch, capsys
 ):
@@ -691,6 +689,26 @@ class TestListSkills(unittest.TestCase):
                 main()
 
         mock_error.assert_called_once()
+
+    @patch("railtracks.cli.add_skill")
+    def test_add_force_before_spec(self, mock_add):
+        """`--force` is accepted before the spec, as the usage text shows"""
+        with patch.object(
+            sys, "argv", ["railtracks", "add", "--force", "claude:agent-builder"]
+        ):
+            main()
+
+        mock_add.assert_called_once_with("claude:agent-builder", force=True)
+
+    @patch("railtracks.cli.add_skill")
+    def test_add_force_after_spec(self, mock_add):
+        """`--force` is also accepted after the spec"""
+        with patch.object(
+            sys, "argv", ["railtracks", "add", "claude:agent-builder", "--force"]
+        ):
+            main()
+
+        mock_add.assert_called_once_with("claude:agent-builder", force=True)
 
 
 class TestPortChecking(unittest.TestCase):
