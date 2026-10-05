@@ -86,6 +86,7 @@ def make_model() -> Callable[..., tuple[TypeSafeAI, Recorder]]:
         recorder = Recorder(*(responses or (ok(),)))
         client = httpx.AsyncClient(transport=httpx.MockTransport(recorder))
         kwargs.setdefault("api_key", "test-key")
-        return TypeSafeAI("jev-latest", http_client=client, **kwargs), recorder
+        model_name = kwargs.pop("model_name", "jev-latest")
+        return TypeSafeAI(model_name, http_client=client, **kwargs), recorder
 
     return _make
