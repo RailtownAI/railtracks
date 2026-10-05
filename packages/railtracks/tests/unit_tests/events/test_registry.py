@@ -12,7 +12,14 @@ from dataclasses import fields
 
 # Importing the event modules populates ``SessionEventBase.__subclasses__()``
 # for the concrete-subclass walk used in ``TestRegistryCompleteness``.
-from railtracks.events import context, decision, llm, middleware, node, session  # noqa: F401
+from railtracks.events import (  # noqa: F401
+    context,
+    decision,
+    llm,
+    middleware,
+    node,
+    session,
+)
 from railtracks.events._base import SessionEventBase
 from railtracks.events.registry import (
     ColumnKind,
@@ -42,7 +49,15 @@ def _concrete_event_classes() -> list[type[SessionEventBase]]:
 
 class TestNamespaces:
     def test_returns_the_known_namespaces(self):
-        assert namespaces() == ["context", "decision", "llm", "middleware", "node", "session"]
+        assert namespaces() == [
+            "context",
+            "decision",
+            "llm",
+            "middleware",
+            "node",
+            "session",
+        ]
+
 
 class TestPayloadColumnsContext:
     def test_level_is_an_integer(self):

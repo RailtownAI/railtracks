@@ -56,6 +56,52 @@ class TestRequest:
             await model.aask("Help!", Triage)
         assert recorder.requests == []
 
+    async def test_provider_picks_the_api_key_env(self, make_model, monkeypatch):
+        monkeypatch.setenv("TYPESAFE_API_KEY", "typesafe-key")
+        monkeypatch.setenv("LAYA_API_KEY", "laya-key")
+        model, recorder = make_model(
+            model_name="english",
+            provider="laya",
+            api_base="http://laya-server:8000",
+            api_key=None,
+        )
+        await model.aask("Help!", Triage)
+        assert recorder.requests[0].headers["Authorization"] == "Bearer laya-key"
+
+    async def test_provider_env_name_is_normalised(self, make_model, monkeypatch):
+        monkeypatch.setenv("MY_HOST_API_KEY", "host-key")
+        model, recorder = make_model(
+            provider="my-host", api_base="http://localhost:8008", api_key=None
+        )
+        await model.aask("Help!", Triage)
+        assert recorder.requests[0].headers["Authorization"] == "Bearer host-key"
+
+    async def test_self_hosted_server_without_a_key_gets_no_auth_header(
+        self, make_model, monkeypatch
+    ):
+        monkeypatch.delenv("LAYA_API_KEY", raising=False)
+        model, recorder = make_model(
+            model_name="english",
+            provider="laya",
+            api_base="http://laya-server:8000",
+            api_key=None,
+        )
+        await model.aask("Help!", Triage)
+        assert "Authorization" not in recorder.requests[0].headers
+
+    async def test_self_hosted_server_that_needs_a_key_reports_auth_error(
+        self, make_model, monkeypatch
+    ):
+        monkeypatch.delenv("LAYA_API_KEY", raising=False)
+        model, _ = make_model(
+            httpx.Response(401, text="unauthorized"),
+            provider="laya",
+            api_base="http://laya-server:8000",
+            api_key=None,
+        )
+        with pytest.raises(DecisionAuthenticationError, match="LAYA_API_KEY"):
+            await model.aask("Help!", Triage)
+
     def test_construction_without_key_or_network(self, monkeypatch):
         monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
         model = TypeSafeAI(model_name="jev-latest")
@@ -85,6 +131,26 @@ class TestResponse:
         resp = await model.aask("Help!", Triage)
         assert resp.model_name == "jev-latest"
         assert resp.cost is None
+
+    async def test_provider_prefix_prices_free_self_hosted_models(self, make_model):
+        # litellm lists laya/<checkpoint> at zero; known-free, not unknown
+        model, _ = make_model(
+            model_name="english", provider="laya", api_base="http://laya-server:8000"
+        )
+        resp = await model.aask("Help!", Triage)
+        assert resp.cost == 0.0
+
+    def test_pricing_keys_try_the_provider_prefix_first(self):
+        model = TypeSafeAI("upstage/solar-decide", provider="openrouter")
+        assert model._pricing_keys() == [
+            "openrouter/upstage/solar-decide",
+            "upstage/solar-decide",
+        ]
+        assert TypeSafeAI("jev-latest")._pricing_keys() == [
+            "typesafe/jev-latest",
+            "jev-latest",
+            "openrouter/jev-latest",
+        ]
 
     async def test_unpriced_model_has_no_cost(self, make_model):
         model, _ = make_model()
