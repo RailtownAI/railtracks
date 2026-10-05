@@ -6,10 +6,15 @@ Laya serves the same `/v1/systemone` format as TypeSafe, so the same
 is listed at $0, since you pay for your own hardware) and reads LAYA_API_KEY, which
 is optional; without it the request is sent unauthenticated.
 
-This asks a single Choice question: LiteLLM's Laya docs only show Choice, and support
-for Noul and Score on Laya checkpoints is unconfirmed.
+Laya answers all three question types; this asks a single Choice question. Laya caps
+a Choice at 100 options (TypeSafe allows 255), so a larger one fails at call time.
 
-Needs a running Laya server (LAYA_API_BASE, default http://localhost:8000).
+Needs a running Laya server (LAYA_API_BASE, default http://localhost:8000):
+
+    pip install "laya[serve]"
+    laya-serve
+
+See https://github.com/NandhaKishorM/laya/blob/main/docs/http-api.md.
 
 Run: uv run python examples/s1/laya_example.py
 """
