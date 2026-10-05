@@ -152,6 +152,20 @@ class TestResponse:
             "openrouter/jev-latest",
         ]
 
+    async def test_reported_cost_preferred_over_catalog(self, make_model):
+        body = ok().json()
+        body["usage"]["cost"] = 0.002
+        model, _ = make_model(ok(body))
+        resp = await model.aask("Help!", Triage)
+        assert resp.cost == 0.002
+
+    async def test_reported_cost_prices_models_missing_from_catalog(self, make_model):
+        body = ok().json()
+        body["usage"]["cost"] = 3e-05
+        model, _ = make_model(ok(body), model_name="upstage/solar-decide")
+        resp = await model.aask("Help!", Triage)
+        assert resp.cost == 3e-05
+
     async def test_unpriced_model_has_no_cost(self, make_model):
         model, _ = make_model()
         model.model_name = "jaredpalmer/kev-4b"

@@ -21,7 +21,8 @@ class DecisionResponse(Generic[_TSchema]):
         input_tokens: Input tokens, when reported.
         output_tokens: Output tokens, when reported.
         latency: Seconds the call took, including retries.
-        cost: Cost in USD, or None when the model is not in the pricing table.
+        cost: Cost in USD: what the host reported billing (OpenRouter's
+            ``usage.cost``), else the LiteLLM pricing table's price, else None.
         raw: The parsed JSON body, for debugging.
     """
 

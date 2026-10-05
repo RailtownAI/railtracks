@@ -56,6 +56,12 @@ def _optional_int(value: object) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
+def _optional_cost(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        return None
+    return float(value)
+
+
 def parse_response(body: object, schema: type[_TSchema]) -> DecisionReply[_TSchema]:
     """Parse a ``/v1/systemone`` JSON body into a ``schema`` instance and metadata.
 
@@ -94,5 +100,6 @@ def parse_response(body: object, schema: type[_TSchema]) -> DecisionReply[_TSche
         provider=provider if isinstance(provider, str) else None,
         input_tokens=_optional_int(usage.get("input_tokens")),
         output_tokens=_optional_int(usage.get("output_tokens")),
+        reported_cost=_optional_cost(usage.get("cost")),
         raw=body,
     )

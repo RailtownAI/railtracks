@@ -202,6 +202,7 @@ class DecisionReply(Generic[_TSchema]):
     provider: str | None
     input_tokens: int | None
     output_tokens: int | None
+    reported_cost: float | None
     raw: dict[str, Any]
 
 
@@ -279,7 +280,10 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
             input_tokens=reply.input_tokens,
             output_tokens=reply.output_tokens,
             latency=latency,
-            cost=decision_cost(
+            # what the host billed, when it says; else the LiteLLM catalog price
+            cost=reply.reported_cost
+            if reply.reported_cost is not None
+            else decision_cost(
                 self._pricing_keys(), reply.input_tokens, reply.output_tokens
             ),
             raw=reply.raw,

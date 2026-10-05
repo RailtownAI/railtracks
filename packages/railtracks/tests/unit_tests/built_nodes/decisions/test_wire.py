@@ -143,6 +143,23 @@ class TestParseResponse:
         assert parsed.reported_model_name is None
         assert parsed.input_tokens is None
 
+    def test_reported_cost_parsed(self):
+        # OpenRouter reports what it billed in usage.cost
+        body = copy.deepcopy(TRIAGE_RESPONSE)
+        body["usage"]["cost"] = 1.7556e-05
+        assert parse_response(body, Triage).reported_cost == 1.7556e-05
+        body["usage"]["cost"] = 0
+        assert parse_response(body, Triage).reported_cost == 0.0
+
+    @pytest.mark.parametrize("cost", [None, "0.01", True, -1.0])
+    def test_unusable_reported_cost_ignored(self, cost):
+        body = copy.deepcopy(TRIAGE_RESPONSE)
+        body["usage"]["cost"] = cost
+        assert parse_response(body, Triage).reported_cost is None
+
+    def test_no_reported_cost(self):
+        assert parse_response(TRIAGE_RESPONSE, Triage).reported_cost is None
+
     def test_unrequested_answers_ignored(self):
         body = copy.deepcopy(TRIAGE_RESPONSE)
         body["answers"]["extra"] = {"type": "noul", "noul": 0.1}
