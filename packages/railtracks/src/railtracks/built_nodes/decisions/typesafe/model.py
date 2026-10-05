@@ -36,6 +36,8 @@ class TypeSafeAI(DecisionModel[TypeSafeSchema]):
     Kev server, a LiteLLM proxy's TypeSafe route) through ``api_base``.
     """
 
+    schema_base = TypeSafeSchema
+
     def __init__(
         self,
         model_name: str,

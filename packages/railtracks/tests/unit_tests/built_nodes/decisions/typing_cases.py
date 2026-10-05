@@ -6,13 +6,18 @@ Never executed. ``# type: ignore[...]`` lines are negative cases: mypy runs with
 
 from __future__ import annotations
 
+import railtracks as rt
+from railtracks.built_nodes.decisions import DecisionResponse
+from railtracks.built_nodes.decisions._base import DecisionQuestion, DecisionSchema
 from railtracks.built_nodes.decisions.typesafe.schema import (
-    ChoiceAnswer,
     ChoiceQuestion,
-    NoulAnswer,
     NoulQuestion,
-    ScoreAnswer,
     ScoreQuestion,
+)
+from railtracks.classifiers import (
+    ChoiceAnswer,
+    NoulAnswer,
+    ScoreAnswer,
     TypeSafeSchema,
 )
 from typing_extensions import assert_type
@@ -26,6 +31,21 @@ class Triage(TypeSafeSchema):
     frustration = TypeSafeSchema.Score(
         instructions="How frustrated", criteria=["Calm", "Angry"]
     )
+
+
+class OtherQuestion(DecisionQuestion[NoulAnswer]):
+    answer_type = NoulAnswer
+
+
+class OtherVendorSchema(DecisionSchema, abstract=True):
+    _question_type = OtherQuestion
+
+
+class Other(OtherVendorSchema):
+    q = OtherQuestion(instructions="x")
+
+
+jev = rt.classifiers.TypeSafeAI(model_name="jev-latest")
 
 
 def schema_access(triage: Triage) -> None:
@@ -42,3 +62,35 @@ def schema_access(triage: Triage) -> None:
     assert_type(triage.frustration.probabilities, dict[int, float])
 
     triage.is_urgent.choice  # type: ignore[attr-defined]
+
+
+async def direct_call() -> None:
+    resp = await jev.aask("I was charged twice", Triage)
+    assert_type(resp, DecisionResponse[Triage])
+    assert_type(resp.structured.department, ChoiceAnswer)
+    assert_type(resp.structured.is_urgent.noul, float)
+    assert_type(resp.cost, float | None)
+
+    await jev.aask({"subject": "Duplicate charge"}, Triage)
+    await jev.aask("x", Other)  # type: ignore[type-var]
+
+
+async def node_calls() -> None:
+    triage_ticket = rt.decision_node("Triage Ticket", model=jev, schema=Triage)
+    result = await rt.call(triage_ticket, "I was charged twice")
+    assert_type(result, DecisionResponse[Triage])
+    assert_type(result.structured.frustration, ScoreAnswer)
+
+    await rt.call(triage_ticket, state="I was charged twice")
+    await rt.call(triage_ticket, {"subject": "Duplicate charge"})
+
+    flow = rt.Flow(name="Ticket Triage", entry_point=triage_ticket)
+    assert_type(flow.invoke("x").structured.is_urgent, NoulAnswer)
+
+    rt.agent_node(
+        "Support", llm=rt.llm.OpenAILLM("gpt-5.4-mini"), tool_nodes=[triage_ticket]
+    )
+
+
+def vendor_mismatch() -> None:
+    rt.decision_node("Mismatch", model=jev, schema=Other)  # type: ignore[type-var]

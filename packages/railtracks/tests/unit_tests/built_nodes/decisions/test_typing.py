@@ -25,7 +25,11 @@ def test_typing_cases_pass_mypy():
             str(CASES),
             "--warn-unused-ignores",
             "--no-error-summary",
+            # same codes scripts/docs_validation.sh disables; var-annotated because
+            # mypy can't solve the `_shape` ParamSpec that agent_node also relies on
             "--disable-error-code=import-untyped",
+            "--disable-error-code=empty-body",
+            "--disable-error-code=var-annotated",
         ]
     )
     assert status == 0, stdout + stderr
