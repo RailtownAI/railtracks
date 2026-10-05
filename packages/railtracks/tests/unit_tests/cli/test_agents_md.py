@@ -143,6 +143,24 @@ class TestCommand:
         assert "Unchanged AGENTS.md" in out
         assert "Unchanged CLAUDE.md" in out
 
+    def test_says_when_it_adds_the_claude_import(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "CLAUDE.md").write_text("# Notes\n")
+
+        _run_cli("agents-md")
+
+        assert "Added an @AGENTS.md import to CLAUDE.md" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("args", [["--force"], ["extra"], ["claude:all", "-x"]])
+    def test_rejects_arguments_without_writing(self, tmp_path, monkeypatch, args):
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(SystemExit) as exc:
+            _run_cli("agents-md", *args)
+
+        assert exc.value.code == 1
+        assert list(tmp_path.iterdir()) == []
+
     def test_malformed_agents_md_exits_without_writing(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         broken = f"{BEGIN_MARKER}\nhalf a block\n"

@@ -33,7 +33,7 @@ from colorama import Fore, Style
 
 from railtracks.paths import resolve_railtracks_home
 
-from ._agents_md import MalformedBlockError, write_agents_md
+from ._agents_md import CLAUDE_IMPORT, FileChange, MalformedBlockError, write_agents_md
 from ._skillkit import (
     CLAUDE,
     CODEX,
@@ -415,8 +415,12 @@ def list_skills() -> None:
 # ---------------------------------------------------------------------------
 
 
-def run_agents_md() -> None:
+def run_agents_md(args: list[str]) -> None:
     """Write the managed Railtracks block into `AGENTS.md` and import it from `CLAUDE.md`."""
+    if args:
+        print_error(f"Unexpected argument(s): {' '.join(args)}")
+        print_status(f"Usage: {cli_name} agents-md")
+        sys.exit(1)
     try:
         changes = write_agents_md(Path.cwd())
     except MalformedBlockError as e:
@@ -424,7 +428,12 @@ def run_agents_md() -> None:
         print_status("Fix or remove the markers in AGENTS.md, then rerun.")
         sys.exit(1)
     for path, change in changes:
-        print_success(f"{change.value} {path.name}")
+        message = f"{change.value} {path.name}"
+        if path.name == "CLAUDE.md" and change is FileChange.CREATED:
+            message = f"Created CLAUDE.md with an {CLAUDE_IMPORT} import"
+        elif path.name == "CLAUDE.md" and change is FileChange.UPDATED:
+            message = f"Added an {CLAUDE_IMPORT} import to CLAUDE.md"
+        print_success(message)
 
 
 def _print_help():
@@ -602,7 +611,7 @@ def main():
     elif command == "add":
         _run_add(sys.argv[2:])
     elif command == "agents-md":
-        run_agents_md()
+        run_agents_md(sys.argv[2:])
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
         print(
