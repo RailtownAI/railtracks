@@ -47,6 +47,24 @@ theme:
 
 plugins:
   - search
+  - llmstxt:
+      markdown_description: Each link below is a clean Markdown copy of one docs page. llms-full.txt holds every page in a single file.
+      full_output: llms-full.txt
+      sections:
+        Home:
+          - index.md
+        Agent Development:
+          - documentation/*.md
+        Retrieval:
+          - retrieval/*.md
+        Evaluations:
+          - evaluations/*.md
+        Observability:
+          - observability/*.md
+        Integrations:
+          - integrations/*.md
+        Tutorials:
+          - tutorials/*.md
 
 markdown_extensions:
   - pymdownx.emoji:
@@ -155,7 +173,9 @@ nav:
       - Preface: evaluations/preface.md
       - Quickstart: evaluations/quickstart.md
       - Visualization: evaluations/visualization.md
-      - Conductr Agent Observability: evaluations/conductr.md
+      - Conductr:
+          - Evaluating Agent Runs: evaluations/conductr.md
+          - Hosted Evaluations: evaluations/conductr_hosted.md
       - Metrics:
           - Metrics Overview: evaluations/metrics/metrics.md
           - Categorical Metrics: evaluations/metrics/categorical.md

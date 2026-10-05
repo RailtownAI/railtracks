@@ -1,15 +1,15 @@
 # --8<-- [start: astream_basic]
 import railtracks as rt
 
-agent = rt.agent_node(
+Poet = rt.agent_node(
     name="Poet",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You are a concise poet.",
 )
 
 
 async def main():
-    stream = rt.astream(agent, user_input="Write a short poem about rain.")
+    stream = rt.astream(Poet, user_input="Write a short poem about rain.")
 
     async for chunk in stream:
         print(chunk, end="", flush=True)  # str token chunks
@@ -21,7 +21,7 @@ async def main():
 # --8<-- [start: astream_await]
 async def main_await():
     # when you only care about the final result of the streamed run
-    final = await rt.astream(agent, user_input="Write a short poem about rain.")
+    final = await rt.astream(Poet, user_input="Write a short poem about rain.")
 # --8<-- [end: astream_await]
 
 
@@ -31,10 +31,10 @@ async def main_await():
 # have their own handles.
 @rt.function_node
 async def head(prompt: str) -> str:
-    stream = rt.astream(agent, user_input=prompt)
+    stream = rt.astream(Poet, user_input=prompt)
     async for chunk in stream:
         print(chunk, end="", flush=True)
-    return stream.result.text
+    return stream.result.content
 
 
 async def main_nested():

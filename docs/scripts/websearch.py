@@ -5,10 +5,10 @@ from railtracks.prebuilt.tools.websearch import WebSearchToolSet
 # create your web search toolset (defaults to Tavily for search, httpx + trafilatura for fetch)
 web_search = WebSearchToolSet()
 
-agent = rt.agent_node(
+ResearchAgent = rt.agent_node(
     name="Research Agent",
     tool_nodes=[*web_search.tool_set()],  # the tools your agent can call
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message=WebSearchToolSet.prompt(),
 )
 # --8<-- [end: websearch]

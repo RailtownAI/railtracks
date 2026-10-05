@@ -35,7 +35,7 @@ WebResearchAgent = rt.agent_node(
     tool_nodes=fetch_server.tools, # collect the tools from the MCP server
     name="Web Research Agent",
     system_message="Use the tools to research information online.",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 # --8<-- [end: agent_connection]
 
@@ -78,11 +78,11 @@ notion_server = rt.connect_mcp(
 all_tools = notion_server.tools + github_server.tools + fetch_server.tools
 
 # Create an agent that can use all tools
-super_agent = rt.agent_node(
+MultiToolAgent = rt.agent_node(
     tool_nodes=all_tools,
     name="Multi-Tool Agent",
     system_message="Use the appropriate tools to complete tasks.",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 # --8<-- [end: multiple_mcps]
 

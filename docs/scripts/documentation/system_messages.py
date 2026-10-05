@@ -2,9 +2,9 @@
 import railtracks as rt
 
 # Configuration: sent on every call to this agent.
-agent = rt.agent_node(
+Assistant = rt.agent_node(
     "Assistant",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You are terse.",
 )
 
@@ -18,10 +18,10 @@ history = rt.llm.MessageHistory(
 # --8<-- [end: two_sources]
 
 # --8<-- [start: next_turn]
-response = await rt.call(agent, history)
+response = await rt.call(Assistant, history)
 
 next_turn = response.message_history
 next_turn.append(rt.llm.UserMessage("And Var B?"))
 
-response = await rt.call(agent, next_turn)
+response = await rt.call(Assistant, next_turn)
 # --8<-- [end: next_turn]

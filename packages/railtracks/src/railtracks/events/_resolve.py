@@ -44,6 +44,32 @@ def node_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
         return MiddlewareSpatialParent(middleware_invoke_id=parent.value.id)
 
 
+def context_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
+    """Parent of a context event — the enclosing node or LLM call (+ nearest middleware)."""
+    middleware_invoke_id: str | None = None
+    link = scope
+
+    while link is not None:
+        if link.value.kind is ScopeKind.MIDDLEWARE and middleware_invoke_id is None:
+            middleware_invoke_id = link.value.id
+
+        if link.value.kind in _NODE_KINDS:
+            return NodeAndMiddlewareSpatialParent(
+                node_id=link.value.id,
+                middleware_invoke_id=middleware_invoke_id,
+            )
+
+        if link.value.kind is ScopeKind.LLM:
+            return LLMAndMiddlewareSpatialParent(
+                llm_invoke_id=link.value.id,
+                middleware_invoke_id=middleware_invoke_id,
+            )
+
+        link = link.parent
+
+    return NodeSpatialParent(node_id=None)
+
+
 def node_parent(scope: ScopeLink[ScopeEntry] | None):
     assert scope is not None, "Expected a scope chain for node parent resolution"
 

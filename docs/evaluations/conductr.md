@@ -12,6 +12,8 @@ Similar to sending your agent runs to **Conductr**, you can upload your agent ev
 --8<-- "docs/scripts/evaluations/conductr.py:send_evals"
 ```
 
+To let Conductr trigger these evaluations for you, see [Hosted Evaluations](conductr_hosted.md).
+
 ## Categorical Metrics with Status
 
 When your evaluations include a [`Categorical`](metrics/categorical.md) metric, you can signal to Conductr each label as a **pass**, **fail**, or **partial** outcome. Attach a `status` to each `Category`.

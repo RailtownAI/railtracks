@@ -12,7 +12,7 @@ from dataclasses import fields
 
 # Importing the event modules populates ``SessionEventBase.__subclasses__()``
 # for the concrete-subclass walk used in ``TestRegistryCompleteness``.
-from railtracks.events import decision, llm, middleware, node, session  # noqa: F401
+from railtracks.events import context, decision, llm, middleware, node, session  # noqa: F401
 from railtracks.events._base import SessionEventBase
 from railtracks.events.registry import (
     ColumnKind,
@@ -42,7 +42,27 @@ def _concrete_event_classes() -> list[type[SessionEventBase]]:
 
 class TestNamespaces:
     def test_returns_the_known_namespaces(self):
-        assert namespaces() == ["decision", "llm", "middleware", "node", "session"]
+        assert namespaces() == ["context", "decision", "llm", "middleware", "node", "session"]
+
+class TestPayloadColumnsContext:
+    def test_level_is_an_integer(self):
+        assert _kind(payload_columns("context"), "level") == ColumnKind.INTEGER
+
+    def test_keys_and_values_are_json(self):
+        cols = payload_columns("context")
+        assert _kind(cols, "keys") == ColumnKind.JSON
+        assert _kind(cols, "values") == ColumnKind.JSON
+        assert "key" not in cols
+        assert "value" not in cols
+
+    def test_spatial_parent_is_flattened(self):
+        cols = payload_columns("context")
+        assert _kind(cols, "spatial_parent_type") == ColumnKind.ENUM
+        assert _kind(cols, "spatial_parent_node_id") == ColumnKind.STRING
+        assert "spatial_parent" not in cols
+
+    def test_carries_no_parent(self):
+        assert "parent_type" not in payload_columns("context")
 
 
 class TestPayloadColumnsLLM:
@@ -189,7 +209,7 @@ class TestRegistryCompleteness:
 
     def test_taxonomy_has_expected_size(self):
         classes = _concrete_event_classes()
-        assert len(classes) >= 32
+        assert len(classes) >= 38
 
     def test_every_dataclass_field_appears_as_a_column(self):
         for cls in _concrete_event_classes():
