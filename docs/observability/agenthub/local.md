@@ -1,12 +1,15 @@
 # Local Visualization (Legacy)
 
-!!! info "Use the beta visualizer for new projects"
-    This page covers the legacy visualizer, which reads the session files
+!!! info "Use the current visualizer for new projects"
+    This page covers the legacy (v1) visualizer, which reads the session files
     written by `save_state`. Those files are being replaced by the event
     stream, and so is this UI. For new projects, use the
-    [beta visualizer](local_v2.md) (`railtracks viz --beta`). The legacy
+    [current visualizer](local_v2.md) (`railtracks viz --beta`). The legacy
     visualizer is still the place to browse [evaluation results](../../evaluations/visualization.md)
-    until the beta supports them.
+    until the current visualizer supports them.
+
+    The legacy visualizer is in maintenance: it still gets security updates,
+    but new features go into the current visualizer.
 
 One of the number one complaints when working with LLMs is that they can be a black box. Agentic applications exacerbate this problem by adding even more complexity. Railtracks aims to make it easier than ever to visualize your runs. 
 
@@ -64,7 +67,7 @@ To install the latest build of the legacy UI, run:
 railtracks update
 ```
 
-This updates the legacy build in `.railtracks/ui`. The beta UI is installed and
+This updates the legacy build in `.railtracks/ui`. The current visualizer's UI is installed and
 updated separately.
 
 ## Remote Visualization 

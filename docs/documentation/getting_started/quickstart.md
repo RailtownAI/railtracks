@@ -56,7 +56,7 @@ With Railtracks CLI you can dive deep on your runs. Our observability runs local
     railtracks update --beta
     ```
 
-![A run opened in the beta visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/session-details-light.png#only-light)
-![A run opened in the beta visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/session-details-dark.png#only-dark)
+![A run opened in the current visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/session-details-light.png#only-light)
+![A run opened in the current visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/session-details-dark.png#only-dark)
 
-This opens a web interface at `http://localhost:3031` with all of your agent runs. Open a run to step through every node it called, with the messages each agent sent, token usage, and cost. See [Local Visualization (Beta)](../../observability/agenthub/local_v2.md) for a full tour, or the [legacy visualizer](../../observability/agenthub/local.md) (`railtracks viz`) to browse evaluation results.
+This opens a web interface at `http://localhost:3031` with all of your agent runs. Open a run to step through every node it called, with the messages each agent sent, token usage, and cost. See [Local Visualization (Current)](../../observability/agenthub/local_v2.md) for a full tour, or the [legacy visualizer](../../observability/agenthub/local.md) (`railtracks viz`) to browse evaluation results.

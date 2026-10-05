@@ -1,6 +1,6 @@
 # Visualization
 
-After running evaluations, results are automatically saved to `.railtracks/data/evaluations`. Railtracks locates this directory by walking up from your current working directory, so results are always written to the same place regardless of where you run your scripts from. The [legacy visualizer](../observability/agenthub/local.md) lets you explore these results locally with no sign up required. The [beta visualizer](../observability/agenthub/local_v2.md) doesn't show evaluations yet.
+After running evaluations, results are automatically saved to `.railtracks/data/evaluations`. Railtracks locates this directory by walking up from your current working directory, so results are always written to the same place regardless of where you run your scripts from. The [legacy visualizer](../observability/agenthub/local.md) lets you explore these results locally with no sign up required. The [current visualizer](../observability/agenthub/local_v2.md) doesn't show evaluations yet.
 
 !!! tip "Setting up the visualizer"
     Start the legacy visualizer with `railtracks viz` (without `--beta`). See

@@ -1,17 +1,17 @@
-# Local Visualization (Beta)
+# Local Visualization (Current)
 
-The beta visualizer, Conductr Local, is the current local visualizer for
-Railtracks. It reads the JSONL event stream that every run records, and lets
+Conductr Local is the current local visualizer for Railtracks. It reads the JSONL event stream that every run records, and lets
 you browse runs, LLM calls, middleware decisions, and raw events, with
 filtering, sorting, and pagination on every table. It is installed separately
 from the [legacy visualizer](local.md), so both can be used in the same
 project.
 
-![The Agent Traces page of the beta visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/agent-traces-light.png#only-light)
-![The Agent Traces page of the beta visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/agent-traces-dark.png#only-dark)
+![The Agent Traces page of the current visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/agent-traces-light.png#only-light)
+![The Agent Traces page of the current visualizer](https://railtracksstorage.blob.core.windows.net/railtrackswebsite/images/v2-visualizer/agent-traces-dark.png#only-dark)
 
-!!! warning "Beta software"
-    The beta UI and `/api/v2` contract are under active development. Response
+!!! warning "Still in beta"
+    The current visualizer is still in beta, which is why it's started with
+    `--beta`. Its UI and `/api/v2` contract are under active development. Response
     fields, filters, and other behavior can change between releases without
     notice.
 
@@ -26,7 +26,7 @@ pip install 'railtracks[visual]'
 Initialize Railtracks from your project root, install the beta UI, and start
 the server:
 
-```bash title="Initialize and start the beta visualizer"
+```bash title="Initialize and start the current visualizer"
 railtracks init
 railtracks update --beta
 railtracks viz --beta
@@ -37,7 +37,7 @@ UI. `railtracks update --beta` installs the beta build alongside it in
 `.railtracks/beta-ui`. If the beta UI is missing, `railtracks viz --beta`
 downloads it automatically before starting the server.
 
-The beta server opens at `http://localhost:3031`. Its API uses `/api/v2/...`
+The server opens at `http://localhost:3031`. Its API uses `/api/v2/...`
 routes, and interactive API documentation is available at
 `http://localhost:3031/docs`.
 
@@ -170,7 +170,7 @@ and recorded why, along with the arguments it was asked to approve:
 
 ## Evaluations
 
-Evaluations aren't in the beta visualizer yet. Its **Evaluations** page is a
+Evaluations aren't in the current visualizer yet. Its **Evaluations** page is a
 placeholder. To browse evaluation results, use the
 [legacy visualizer](local.md) as described in
 [Evaluation Visualization](../../evaluations/visualization.md).
@@ -208,7 +208,7 @@ Other filters, sorting, and paging aren't kept in the URL.
 
 ## Record event-stream data
 
-Events are recorded automatically to `.railtracks/data/events` with no setup required. The beta visualizer reads from the
+Events are recorded automatically to `.railtracks/data/events` with no setup required. The current visualizer reads from the
 same directory.
 
 ### Customize event writers
@@ -279,7 +279,7 @@ For hosted observability in these environments, use Conductr.
 
 Add `--debug` to emit structured diagnostics:
 
-```bash title="Start beta mode with API diagnostics"
+```bash title="Start with API diagnostics"
 railtracks viz --beta --debug
 ```
 
@@ -291,11 +291,11 @@ DuckDB queries, and event-store connection changes.
     Review or redact debug output before sharing it or sending it to a log
     collector.
 
-## Update the beta UI
+## Update the UI
 
-The legacy and beta builds are updated independently. Refresh only the beta build
-with:
+The legacy and current builds are updated independently. Refresh only the
+current build, in `.railtracks/beta-ui`, with:
 
-```bash title="Update the beta UI"
+```bash title="Update the current visualizer"
 railtracks update --beta
 ```
