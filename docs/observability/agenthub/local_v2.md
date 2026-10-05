@@ -60,8 +60,9 @@ output), duration, and start time.
 - Show, hide, and resize columns with **Columns**. Your layout is remembered in
   the browser.
 
-A run is **Completed** or **Failed**, or **Blocked** when a guardrail or verifier
-stopped it. Click a middleware icon in a row to open that middleware's
+A run is **Running** while it's still in progress. Once it ends, it's
+**Completed** or **Failed**, or **Blocked** when a guardrail or verifier stopped
+it. Click a middleware icon in a row to open that middleware's
 decisions for the run.
 
 ## Session details
@@ -124,13 +125,13 @@ sessions it appeared in.
 
 | Kind | Created with |
 |---|---|
-| Input guard | `@input_guard` |
-| Output guard | `@output_guard` |
-| Request transform | `@before_llm` |
-| Response transform | `@after_llm` |
-| Result hook | `@after_node` |
-| LLM wrapper | `@wrap_llm` |
-| Node wrapper | `@wrap_node` |
+| Input guard | `@rt.input_guard` |
+| Output guard | `@rt.output_guard` |
+| Request transform | `@rt.pre_llm` |
+| Response transform | `@rt.post_llm` |
+| Result hook | `@rt.post_node` |
+| LLM wrapper | `@rt.wrap_llm` |
+| Node wrapper | `@rt.wrap_node` |
 | Verifier | `pre_verifier`, `post_verifier` |
 
 **Band** is where it was attached: **Node** for `middleware=` and **LLM** for
