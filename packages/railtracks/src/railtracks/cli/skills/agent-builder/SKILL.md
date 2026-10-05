@@ -13,7 +13,7 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 - **Agents** are created with `rt.agent_node()`. Its behaviour depends on whether tools or a structured output schema are passed (see below).
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
-- **Results**: `flow.invoke()`, `await flow.ainvoke()` and `await rt.call()` on an agent return a response object. Read it with `.content`: a `str` for a text agent, an instance of your schema for an `output_schema` agent. The full conversation is on `.message_history`.
+- **Results**: `flow.invoke()`, `await flow.ainvoke()` and `await rt.call()` on an agent return a response object. Read it with `.content`: a `str` for a text agent, an instance of your schema for an `output_schema` agent. The full conversation is on `.message_history`. When the agent was given an `output_schema`, `.structured` also returns that instance; otherwise `.text` also returns the `str`.
 
 ### What `agent_node` builds
 `rt.agent_node()` builds one node behind the scenes — there is no separate named type to pick. What you pass changes what the agent does at runtime:
@@ -198,19 +198,13 @@ railtracks viz --beta
 
 ---
 
-## Removed or unsupported APIs — never generate these
-- `agent_node(...)` without `llm=` → always pass an LLM; omitting it raises `TypeError`
-- `agent_node(guardrails=...)` / `Guard(...)` → use `model_middleware=[...]` with `@rt.input_guard` / `@rt.output_guard`
-- Prebuilt guards from `railtracks.guardrails.llm` (`BlockTextInputGuard`, `PIIRedactConfig`, …) → import them from `railtracks.prebuilt.guardrails`
-- `stream=True` on a model (`rt.llm.OpenAILLM(..., stream=True)`) → use `rt.astream(...)`
-- `rt.interactive`, `local_chat` → deprecated and being removed, no replacement
-- `rt.Session()` / `@rt.session` → not part of the public API; run agents through `rt.Flow(...)`
-- `result.text` / `result.structured` → read agent results with `result.content`
-
----
-
-## Things to Avoid
-- Don't use vague docstrings — the docstring is the tool description the LLM sees.
-- Don't skip type hints — they define the tool's parameter schema.
-- Don't create a `Flow` and a manual `await rt.call()` for the same agent at the top level — pick one entry point.
-- Don't add unnecessary tools. Only give the agent what it needs.
+## Rules
+- Pass `llm=` to every `rt.agent_node(...)`; it's required.
+- Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`.
+- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, …) from `railtracks.prebuilt.guardrails`.
+- Stream with `rt.astream(...)`.
+- Run agents through `rt.Flow(...)`.
+- Give each agent one entry point: a `Flow`, or `await rt.call()` inside another node.
+- Write each tool's docstring as a clear, specific description; it's the tool description the LLM sees.
+- Type-hint every tool parameter and return value; the hints define the tool's parameter schema.
+- Give each agent only the tools it needs.
