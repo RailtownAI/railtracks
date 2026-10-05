@@ -33,6 +33,7 @@ from colorama import Fore, Style
 
 from railtracks.paths import resolve_railtracks_home
 
+from ._agents_md import CLAUDE_IMPORT, FileChange, MalformedBlockError, write_agents_md
 from ._skillkit import (
     CLAUDE,
     CODEX,
@@ -409,6 +410,32 @@ def list_skills() -> None:
     print()
 
 
+# ---------------------------------------------------------------------------
+# `railtracks agents-md` command
+# ---------------------------------------------------------------------------
+
+
+def run_agents_md(args: list[str]) -> None:
+    """Write the managed Railtracks block into `AGENTS.md` and import it from `CLAUDE.md`."""
+    if args:
+        print_error(f"Unexpected argument(s): {' '.join(args)}")
+        print_status(f"Usage: {cli_name} agents-md")
+        sys.exit(1)
+    try:
+        changes = write_agents_md(Path.cwd())
+    except MalformedBlockError as e:
+        print_error(repr(e))
+        print_status("Fix or remove the markers in AGENTS.md, then rerun.")
+        sys.exit(1)
+    for path, change in changes:
+        message = f"{change.value} {path.name}"
+        if path.name == "CLAUDE.md" and change is FileChange.CREATED:
+            message = f"Created CLAUDE.md with an {CLAUDE_IMPORT} import"
+        elif path.name == "CLAUDE.md" and change is FileChange.UPDATED:
+            message = f"Added an {CLAUDE_IMPORT} import to CLAUDE.md"
+        print_success(message)
+
+
 def _print_help():
     """Print styled help output."""
     rst = Style.RESET_ALL
@@ -454,6 +481,12 @@ def _print_help():
             f"Install AI coding assistant skills  {dim}(<tool>:all for all skills; --list to see them){rst}",
         )
     )
+    print(
+        cmd(
+            "agents-md",
+            f"Write Railtracks rules into AGENTS.md  {dim}(and import it from CLAUDE.md){rst}",
+        )
+    )
     print()
     print(f"  {bold}Examples:{rst}")
     print(example(f"{cli_name} init", "Initialize visualizer environment"))
@@ -492,6 +525,12 @@ def _print_help():
         example(
             f"{cli_name} add --list",
             "List every bundled skill and supported tool",
+        )
+    )
+    print(
+        example(
+            f"{cli_name} agents-md",
+            "Add always-on Railtracks rules for coding agents",
         )
     )
     print()
@@ -571,9 +610,13 @@ def main():
         server.start()
     elif command == "add":
         _run_add(sys.argv[2:])
+    elif command == "agents-md":
+        run_agents_md(sys.argv[2:])
     else:
         print(f"{Fore.RED}Unknown command: {command}{Style.RESET_ALL}")
-        print(f"{Style.DIM}Available commands: init, update, viz, add{Style.RESET_ALL}")
+        print(
+            f"{Style.DIM}Available commands: init, update, viz, add, agents-md{Style.RESET_ALL}"
+        )
         sys.exit(1)
 
 
