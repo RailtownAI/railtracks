@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import httpx
 
@@ -18,7 +18,7 @@ from railtracks.llm.retries import RetryApproach
 
 from .._base import DecisionModel, DecisionReply, DecisionState
 from ..response import DecisionResponse
-from ._wire import build_request, parse_response
+from ._wire import build_request, parse_response, questions_to_wire
 from .schema import TypeSafeSchema
 
 API_KEY_ENV = "TYPESAFE_API_KEY"
@@ -91,6 +91,9 @@ class TypeSafeAI(DecisionModel[TypeSafeSchema]):
             self.model_name,
             f"openrouter/{self.model_name}",
         ]
+
+    def _describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
+        return questions_to_wire(schema)
 
     def _resolve_api_key(self) -> str:
         api_key = self._api_key or os.environ.get(API_KEY_ENV)

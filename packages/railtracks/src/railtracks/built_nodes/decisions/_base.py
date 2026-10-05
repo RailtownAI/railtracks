@@ -3,12 +3,13 @@
 A vendor subclasses ``DecisionSchema`` (with ``abstract=True``) to provide its question
 types, ``DecisionQuestion`` for each question and ``DecisionAnswer`` for each answer,
 and ``DecisionModel`` for the client. ``DecisionModel._ask`` holds what every vendor
-shares: retries, timing and pricing.
+shares: ``decision.*`` events, retries, timing and pricing.
 """
 
 from __future__ import annotations
 
 import time
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -18,6 +19,14 @@ from typing import Any, ClassVar, Generic, TypeVar, Union, cast, overload
 from pydantic import BaseModel, ConfigDict
 from typing_extensions import Self, TypeAlias
 
+from railtracks.context.central import get_current_scope, is_context_active
+from railtracks.events._resolve import has_enclosing_node
+from railtracks.events.decision import (
+    DecisionFailureEvent,
+    DecisionInvocationEvent,
+    DecisionResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.exceptions import (
     DecisionRateLimitError,
     DecisionServerError,
@@ -228,13 +237,42 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
     def _pricing_keys(self) -> list[str]:
         """The ``litellm.model_cost`` keys to try for this model, in order."""
 
+    @abstractmethod
+    def _describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
+        """``schema``'s questions as plain JSON, for the invocation event."""
+
     async def _ask(
         self, state: DecisionState, schema: type[_TSchema]
     ) -> DecisionResponse[_TSchema]:
+        # outside a node (a plain script, or a Session body) there is no parent to
+        # resolve, and emitting would only log an error
+        observed = is_context_active() and has_enclosing_node(get_current_scope())
+        decision_id = str(uuid.uuid4())
+        if observed:
+            await emit(
+                DecisionInvocationEvent(
+                    decision_id=decision_id,
+                    model_name=self.model_name,
+                    api_base=self.api_base,
+                    state=state,
+                    questions=self._describe_questions(schema),
+                )
+            )
+
         start = time.perf_counter()
-        reply = await self._send_with_retries(state, schema)
+        try:
+            reply = await self._send_with_retries(state, schema)
+        except Exception as e:
+            if observed:
+                await emit(
+                    DecisionFailureEvent.from_exception(
+                        e, decision_id=decision_id, model_name=self.model_name
+                    )
+                )
+            raise
         latency = time.perf_counter() - start
-        return DecisionResponse(
+
+        response = DecisionResponse(
             structured=reply.structured,
             model_name=reply.reported_model_name or self.model_name,
             provider=reply.provider,
@@ -246,6 +284,21 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
             ),
             raw=reply.raw,
         )
+        if observed:
+            await emit(
+                DecisionResponseEvent(
+                    decision_id=decision_id,
+                    model_name=self.model_name,
+                    reported_model_name=reply.reported_model_name,
+                    provider=reply.provider,
+                    answers=response.structured.encode(),
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                    total_cost=response.cost,
+                    latency=latency,
+                )
+            )
+        return response
 
     async def _send_with_retries(
         self, state: DecisionState, schema: type[_TSchema]
