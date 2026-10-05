@@ -152,7 +152,7 @@ def llm_invoke_factory(
                     message_history=wire,
                 ) from e
 
-            path = process_message(returned_mess, schema)
+            path = process_message(returned_mess, schema, message_history=wire)
 
             # Rebuild a fresh assistant message rather than appending the response's own,
             # so history stays isolated from the Response that `post_llm` middleware may
@@ -317,7 +317,20 @@ def llm_prepare_called_as_tool_factory(
 def process_message(
     response: Response,
     schema: type[_TStructured] | None,
+    *,
+    message_history: MessageHistory | None = None,
 ) -> Literal["Tool", "Content", "Structured"]:
+    """Classify a model response as a tool-call turn, plain text, or structured output.
+
+    Args:
+        response: The response returned by the model.
+        schema: The expected structured-output model, or `None` for plain text.
+        message_history: The history sent to the model, attached to any `LLMError`.
+
+    Raises:
+        LLMError: If the model returned neither text nor tool calls.
+        TypeError: If the content is of a type the node cannot handle.
+    """
     tool_calls = response.message.tool_calls
     content = response.message.content
 
@@ -327,9 +340,19 @@ def process_message(
         return "Content"
     elif schema is not None and isinstance(content, schema):
         return "Structured"
+    elif content is None:
+        raise LLMError(
+            reason=(
+                "The model returned no text content. This can happen when the output "
+                "token limit is used up by reasoning, when the response is filtered, or "
+                "when the model answers with only audio or images, which are not supported."
+            ),
+            message_history=message_history,
+        )
     else:
+        expected = "str" if schema is None else f"str or {schema.__name__}"
         raise TypeError(
-            f"Response content is of an unexpected type: {type(content)}. Expected str or {schema}."
+            f"Response content is of an unexpected type: {type(content)}. Expected {expected}."
         )
 
 

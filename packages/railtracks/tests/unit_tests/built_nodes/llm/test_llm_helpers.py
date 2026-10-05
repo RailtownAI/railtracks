@@ -5,9 +5,12 @@ formatting branches (previously only exercised indirectly, with string params).
 
 from __future__ import annotations
 
+import re
+
 import litellm
 import pytest
 import railtracks.built_nodes.llm.llm_helpers as llm_helpers
+from pydantic import BaseModel
 from railtracks.built_nodes.llm.llm_helpers import (
     get_node_from_name,
     llm_prepare_called_as_tool_factory,
@@ -26,9 +29,11 @@ from railtracks.llm._exceptions import (
     ProviderTimeoutError,
     RetryError,
 )
+from railtracks.llm.content import ToolResponse
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import UserMessage
+from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.llm.models._model_exception_base import ModelError, ModelNotFoundError
+from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool, ToolCreationError
 
 
@@ -199,6 +204,54 @@ async def test_existing_llmerror_is_not_wrapped_twice(monkeypatch):
     assert exc.value is inner
     assert exc.value.message_history is history
     assert exc.value.reason == "stream ended early"
+
+
+def _invoker_returning(response: Response):
+    """A stand-in ModelInvoker whose `invoke` always returns `response`."""
+
+    class _FixedInvoker:
+        @classmethod
+        def create_with_llm_observe(cls, *args, **kwargs):
+            return cls()
+
+        async def invoke(self, *args, **kwargs):
+            return response
+
+    return _FixedInvoker
+
+
+class _Answer(BaseModel):
+    text: str
+
+
+@pytest.mark.parametrize("schema", [None, _Answer], ids=["text", "structured"])
+async def test_response_without_text_content_raises_llmerror(monkeypatch, schema):
+    """An audio-only or token-exhausted reply has `content=None`; it must surface as
+    a node-terminating `LLMError` carrying the history, not a raw `TypeError`."""
+    response = Response(message=AssistantMessage(content=None))
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_returning(response))
+    invoke = llm_helpers.llm_invoke_factory(object(), None, schema=schema)
+
+    with pytest.raises(LLMError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert "no text content" in exc.value.reason
+    assert exc.value.message_history is not None
+    assert exc.value.message_history[-1].content == "hello"
+
+
+@pytest.mark.parametrize(
+    "schema,expected", [(None, "Expected str."), (_Answer, "Expected str or _Answer.")]
+)
+def test_process_message_unexpected_type_names_the_expected_types(schema, expected):
+    response = Response(
+        message=AssistantMessage(
+            content=ToolResponse(identifier="1", name="t", result="r")
+        )
+    )
+
+    with pytest.raises(TypeError, match=re.escape(expected)):
+        llm_helpers.process_message(response, schema)
 
 
 # ---------------------------------------------------------------------------
