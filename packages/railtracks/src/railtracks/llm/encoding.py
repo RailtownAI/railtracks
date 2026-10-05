@@ -68,8 +68,11 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
     try:
         decoded = base64.b64decode(s, validate=True)
     except Exception as e:
+        # Normalize what the tolerant decode accepts, so the returned URI is valid too.
+        s = "".join(s.split())
+        s += "=" * ((4 - len(s) % 4) % 4)
         try:
-            decoded = base64.b64decode(s + ("=" * ((4 - len(s) % 4) % 4)))
+            decoded = base64.b64decode(s)
         except Exception:
             raise ValueError("Provided string is not valid base64 or a data URI") from e
 

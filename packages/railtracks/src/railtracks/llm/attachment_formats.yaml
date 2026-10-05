@@ -16,10 +16,13 @@ prefix_formats:
   - magic_bytes: "%PDF"
     mime_type: "application/pdf"
 
+# fixed_bytes must appear at fixed_offset (default 0); one of variable_bytes must
+# fill [offset_start, offset_end).
 offset_formats:
   - name: "AVIF"
-    offset_start: 4
-    offset_end: 8
+    fixed_offset: 4  # ISO-BMFF: 4-byte box size, then "ftyp", then the brand
+    offset_start: 8
+    offset_end: 12
     fixed_bytes: "ftyp"
     variable_bytes: ["avif", "avis"]
     mime_type: "image/avif"

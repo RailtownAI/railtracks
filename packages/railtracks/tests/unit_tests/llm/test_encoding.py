@@ -3,7 +3,10 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 import pytest
-from railtracks.llm.attachment_formats import detect_image_mime_from_bytes
+from railtracks.llm.attachment_formats import (
+    detect_attachment_mime_from_bytes,
+    detect_image_mime_from_bytes,
+)
 from railtracks.llm.encoding import (
     _is_base64_attachment,
     detect_source,
@@ -171,3 +174,46 @@ class TestAdditionalEncodingCases:
     def test_detect_image_mime_from_bytes_unsupported(self):
         # Should return None for random bytes
         assert detect_image_mime_from_bytes(b"abcdefg") is None
+
+    def test_ensure_data_uri_restores_missing_padding(self):
+        png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 9
+        unpadded = base64.b64encode(png_bytes).decode("utf-8").rstrip("=")
+
+        result = ensure_data_uri(unpadded)
+
+        payload = result.split(",", 1)[1]
+        assert len(payload) % 4 == 0
+        assert base64.b64decode(payload, validate=True) == png_bytes
+
+    def test_ensure_data_uri_strips_line_wrapping(self):
+        png_bytes = b"\x89PNG\r\n\x1a\n" + bytes(range(64))
+        b64 = base64.b64encode(png_bytes).decode("utf-8")
+        wrapped = "\n".join(b64[i : i + 20] for i in range(0, len(b64), 20))
+
+        result = ensure_data_uri(wrapped)
+
+        payload = result.split(",", 1)[1]
+        assert base64.b64decode(payload, validate=True) == png_bytes
+
+
+class TestDetectAttachmentMime:
+    @pytest.mark.parametrize("brand", [b"avif", b"avis"])
+    def test_avif_detected_from_real_header(self, brand):
+        header = b"\x00\x00\x00\x1cftyp" + brand + b"\x00\x00\x00\x00mif1miaf"
+        assert detect_attachment_mime_from_bytes(header) == "image/avif"
+
+    def test_webp_still_detected(self):
+        header = b"RIFF\x24\x00\x00\x00WEBPVP8 "
+        assert detect_attachment_mime_from_bytes(header) == "image/webp"
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            b"ftypavif\x00\x00\x00\x00",
+            b"\x00\x00\x00\x1cftypav",
+            b"RIFF\x24\x00\x00\x00WEB",
+        ],
+        ids=["ftyp_at_start", "truncated_avif", "truncated_webp"],
+    )
+    def test_misplaced_or_truncated_headers_are_not_detected(self, data):
+        assert detect_attachment_mime_from_bytes(data) is None
