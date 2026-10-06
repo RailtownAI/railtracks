@@ -26,10 +26,11 @@ TypeSafeSchema = rt.classifiers.TypeSafeSchema
 jev = rt.classifiers.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
 
 # Same format, other hosts: swap `model=jev` below for either of these.
-solar = rt.classifiers.TypeSafeAI(
-    model_name="upstage/solar-decide", api_base="https://openrouter.ai/api"
+solar = rt.classifiers.OpenRouterClassifier(  # reads OPENROUTER_API_KEY
+    model_name="upstage/solar-decide"
 )
-kev = rt.classifiers.TypeSafeAI(
+# Any other /v1/systemone server (here a self-hosted Kev) works through the base class.
+kev = rt.classifiers.SystemOneProvider(
     model_name="jaredpalmer/kev-4b", api_base="http://localhost:8008"
 )
 
@@ -81,7 +82,12 @@ async def urgent_tickets(tickets: list[str]) -> list[str]:
         tickets (list[str]): The raw ticket texts.
     """
     results = await rt.call_batch(TriageTicket, tickets)
-    return [t for t, r in zip(tickets, results) if r.structured.is_urgent.noul >= 0.8]
+    # call_batch returns a failed call's exception in its slot instead of raising
+    return [
+        ticket
+        for ticket, result in zip(tickets, results)
+        if not isinstance(result, Exception) and result.structured.is_urgent.noul >= 0.8
+    ]
 
 
 SupportAgent = rt.agent_node(
