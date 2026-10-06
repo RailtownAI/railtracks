@@ -146,10 +146,12 @@ class TestRejectedKeyNotes:
         model, _ = make_model(httpx.Response(403, text="forbidden"), api_key=None)
         with pytest.raises(DecisionProviderAuthenticationError) as info:
             await model.aask("Help!", Triage)
-        notes = " ".join(info.value.notes)
-        assert "rejected" in notes
-        assert "TYPESAFE_API_KEY" in notes
-        assert "https://api.typesafe.ai" in notes  # which host rejected it
+        # names the host that refused it and where the key came from
+        assert info.value.notes == [
+            "The host at https://api.typesafe.ai rejected the key from the "
+            "TYPESAFE_API_KEY environment variable; check that it is a valid key "
+            "for this host."
+        ]
 
     async def test_no_key_sent(self, make_model):
         model, recorder = make_model(
