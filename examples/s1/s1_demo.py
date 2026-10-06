@@ -11,8 +11,9 @@ calibrated probabilities instead of text. `rt.decision_node` is the S1 counterpa
 S1 models live in `rt.decisions`, the way chat models live in `rt.llm`. The question
 types (Noul, Choice, Score) are TypeSafe's, so they sit in the `TypeSafeSchema`
 namespace for now; if other vendors adopt the same format, the namespace goes generic.
-`TypeSafeAI` speaks TypeSafe's `/v1/systemone` format, so it also reaches compatible
-hosts such as OpenRouter or a self-hosted Kev server.
+Every host that speaks TypeSafe's `/v1/systemone` format takes the same schema:
+`TypeSafeAI`, `UpstageAI`, `OpenRouterAI`, `LayaAI` and `LiteLLMProxyAI` each know their
+own URL and key variable, and `TypeSafeCompatibleAI` reaches any other such server.
 """
 
 import asyncio
@@ -25,10 +26,10 @@ TypeSafeSchema = rt.decisions.TypeSafeSchema
 
 jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
 
-# Same format, other hosts: swap `model=jev` below for either of these.
-solar = rt.decisions.OpenRouterAI(  # reads OPENROUTER_API_KEY
-    model_name="upstage/solar-decide"
-)
+# Same format, other hosts: swap `model=jev` below for any of these.
+solar = rt.decisions.UpstageAI(model_name="solar-decide")  # reads UPSTAGE_API_KEY
+# ...or the same model through OpenRouter, with the key you already use there:
+solar_via_openrouter = rt.decisions.OpenRouterAI(model_name="upstage/solar-decide")
 # Any other /v1/systemone server (here a self-hosted Kev) works through the base class.
 kev = rt.decisions.TypeSafeCompatibleAI(
     model_name="jaredpalmer/kev-4b", api_base="http://localhost:8008"
