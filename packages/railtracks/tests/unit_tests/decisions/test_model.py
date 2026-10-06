@@ -2,7 +2,7 @@
 
 import httpx
 import pytest
-from railtracks.classifiers import (
+from railtracks.decisions import (
     ClassifierAuthenticationError,
     ClassifierConnectionError,
     ClassifierError,

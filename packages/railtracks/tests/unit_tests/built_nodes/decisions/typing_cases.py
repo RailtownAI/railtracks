@@ -8,18 +8,18 @@ from __future__ import annotations
 
 import railtracks as rt
 from railtracks.built_nodes.decisions import DecisionResponse
-from railtracks.classifiers import (
+from railtracks.decisions import (
     ChoiceAnswer,
     NoulAnswer,
     ScoreAnswer,
     TypeSafeSchema,
 )
-from railtracks.classifiers.models.system_one.schema import (
+from railtracks.decisions.models.system_one.schema import (
     ChoiceQuestion,
     NoulQuestion,
     ScoreQuestion,
 )
-from railtracks.classifiers.schema import DecisionQuestion, DecisionSchema
+from railtracks.decisions.schema import DecisionQuestion, DecisionSchema
 from typing_extensions import assert_type
 
 
@@ -45,7 +45,7 @@ class Other(OtherVendorSchema):
     q = OtherQuestion(instructions="x")
 
 
-jev = rt.classifiers.TypeSafeAI(model_name="jev-latest")
+jev = rt.decisions.TypeSafeAI(model_name="jev-latest")
 
 
 def schema_access(triage: Triage) -> None:
@@ -93,8 +93,8 @@ async def node_calls() -> None:
 
 
 async def other_hosts() -> None:
-    openrouter = rt.classifiers.OpenRouterClassifier("typesafe/jev-1.13")
-    laya = rt.classifiers.LayaClassifier("english", api_base="http://localhost:8000")
+    openrouter = rt.decisions.OpenRouterClassifier("typesafe/jev-1.13")
+    laya = rt.decisions.LayaClassifier("english", api_base="http://localhost:8000")
     assert_type(await openrouter.aask("x", Triage), DecisionResponse[Triage])
 
     via_laya = rt.decision_node("Triage via Laya", model=laya, schema=Triage)

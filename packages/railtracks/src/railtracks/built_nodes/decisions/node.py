@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Any, Callable, Iterable, ParamSpec, TypeVar, cast, overload
 
-from railtracks.classifiers import (
+from railtracks.decisions import (
     DecisionModel,
     DecisionResponse,
     DecisionSchema,
     SystemOneProvider,
     TypeSafeSchema,
 )
-from railtracks.classifiers.schema import DecisionState
+from railtracks.decisions.schema import DecisionState
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Parameter, Tool
 from railtracks.middleware.core import Middleware
@@ -74,8 +74,8 @@ def decision_node(
 
     Args:
         name (str | None): The node and tool name. Defaults to the schema's class name.
-        model (DecisionModel): The decision model, e.g. `rt.classifiers.TypeSafeAI` or
-            another `/v1/systemone` host such as `rt.classifiers.LayaClassifier`.
+        model (DecisionModel): The decision model, e.g. `rt.decisions.TypeSafeAI` or
+            another `/v1/systemone` host such as `rt.decisions.LayaClassifier`.
         schema (type[DecisionSchema]): The schema class declaring the questions; must
             match the model's format (a `TypeSafeSchema` subclass for every
             `SystemOneProvider` host).
@@ -128,7 +128,7 @@ def _validate(
         )
     if not isinstance(model, DecisionModel):
         raise NodeCreationError(
-            message=f"decision_node model must be a decision model such as rt.classifiers.TypeSafeAI, got {type(model).__name__}.",
+            message=f"decision_node model must be a decision model such as rt.decisions.TypeSafeAI, got {type(model).__name__}.",
         )
     base = model.schema_base
     if not (isinstance(schema, type) and issubclass(schema, base)):
