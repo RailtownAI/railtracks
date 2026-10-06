@@ -92,5 +92,14 @@ async def node_calls() -> None:
     )
 
 
+async def other_hosts() -> None:
+    openrouter = rt.classifiers.OpenRouterClassifier("typesafe/jev-1.13")
+    laya = rt.classifiers.LayaClassifier("english", api_base="http://localhost:8000")
+    assert_type(await openrouter.aask("x", Triage), DecisionResponse[Triage])
+
+    via_laya = rt.decision_node("Triage via Laya", model=laya, schema=Triage)
+    assert_type(await rt.call(via_laya, "x"), DecisionResponse[Triage])
+
+
 def vendor_mismatch() -> None:
     rt.decision_node("Mismatch", model=jev, schema=Other)  # type: ignore[type-var]
