@@ -13,6 +13,7 @@ def _response(**overrides) -> DecisionResponse[Triage]:
     fields = {
         "structured": parse_response(TRIAGE_RESPONSE, Triage).structured,
         "model_name": "jev-1.13.0",
+        "requested_model_name": "jev-latest",
         "provider": None,
         "input_tokens": 296,
         "output_tokens": 20,
@@ -56,6 +57,7 @@ def test_encodes_to_a_structured_dict():
             },
         },
         "model_name": "jev-1.13.0",
+        "requested_model_name": "jev-latest",
         "provider": None,
         "input_tokens": 296,
         "output_tokens": 20,

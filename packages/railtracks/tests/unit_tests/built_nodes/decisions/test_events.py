@@ -100,7 +100,10 @@ async def test_failure_paired_with_invocation(make_model, writer):
     assert failure.payload["parent_node_id"] == _node_id(writer, "Triage Ticket")
 
 
-async def test_aask_inside_a_function_node_is_parented_to_it(make_model, writer):
+async def test_direct_aask_inside_a_function_node_is_not_recorded(
+    make_model, writer, caplog
+):
+    # S2 parity: a direct model call isn't recorded; only decision_node calls are
     model, _ = make_model()
 
     @rt.function_node
@@ -112,15 +115,38 @@ async def test_aask_inside_a_function_node_is_parented_to_it(make_model, writer)
         """
         return str(await model.aask(text, Triage))
 
+    with caplog.at_level(logging.DEBUG):
+        with rt.Session(flow_name="decisions"):
+            await rt.call(triage, "Help!")
+
+    assert _decision_events(writer) == []
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+async def test_decision_node_called_from_a_function_node_is_recorded(
+    make_model, writer
+):
+    model, _ = make_model()
+    node = rt.decision_node("Triage Ticket", model=model, schema=Triage)
+
+    @rt.function_node
+    async def triage(text: str) -> str:
+        """Triage a ticket.
+
+        Args:
+            text: The ticket.
+        """
+        return str(await rt.call(node, text))
+
     with rt.Session(flow_name="decisions"):
         await rt.call(triage, "Help!")
 
-    events = _decision_events(writer)
-    assert [e.event_type for e in events] == [
-        "decision.invocation",
-        "decision.response",
-    ]
-    assert {e.payload["parent_node_id"] for e in events} == {_node_id(writer, "triage")}
+    invocation, response = _decision_events(writer)
+    assert invocation.payload["decision_id"] == response.payload["decision_id"]
+    assert {
+        invocation.payload["parent_node_id"],
+        response.payload["parent_node_id"],
+    } == {_node_id(writer, "Triage Ticket")}
 
 
 async def test_no_events_or_errors_outside_a_run(make_model, writer, caplog):

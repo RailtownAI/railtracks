@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 import httpx
 
-from railtracks.classifiers.model import DecisionReply
+from railtracks.classifiers.model import DecisionModel, DecisionReply
 from railtracks.classifiers.models.system_one._wire import (
     build_request,
     parse_response,
@@ -25,8 +25,6 @@ from railtracks.exceptions import (
     DecisionTimeoutError,
 )
 from railtracks.llm.retries import RetryApproach
-
-from .._base import DecisionModel
 
 DEFAULT_PROVIDER = "typesafe"
 DEFAULT_API_BASE = "https://api.typesafe.ai"
@@ -110,7 +108,7 @@ class TypeSafeAI(DecisionModel[TypeSafeSchema]):
         ]
         return list(dict.fromkeys(keys))
 
-    def _describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
+    def describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
         return questions_to_wire(schema)
 
     def _resolve_api_key(self) -> str | None:

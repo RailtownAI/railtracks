@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Callable, Iterable, ParamSpec, TypeVar, cast, overload
 
-from railtracks.classifiers import DecisionResponse, DecisionSchema, TypeSafeSchema
+from railtracks.classifiers import (
+    DecisionModel,
+    DecisionResponse,
+    DecisionSchema,
+    TypeSafeAI,
+    TypeSafeSchema,
+)
 from railtracks.classifiers.schema import DecisionState
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Parameter, Tool
@@ -10,8 +16,7 @@ from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 
 from ..function.node_builder import FunctionNodeBuilder
-from ._base import DecisionModel
-from .typesafe.model import TypeSafeAI
+from .invoker import invoke_decision
 
 _P = ParamSpec("_P")
 _TTypeSafe = TypeVar("_TTypeSafe", bound=TypeSafeSchema)
@@ -87,7 +92,7 @@ def decision_node(
 
     # `str` so TypeMapper coerces an agent's tool argument; Python callers may pass JSON
     async def invoke(state: str) -> DecisionResponse[_TVendor]:
-        return await model.aask(state, schema)
+        return await invoke_decision(model, state, schema)
 
     tool = Tool(
         name=node_name.replace(" ", "_"),

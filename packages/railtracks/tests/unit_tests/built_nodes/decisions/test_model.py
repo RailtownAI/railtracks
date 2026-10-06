@@ -118,6 +118,7 @@ class TestResponse:
         assert isinstance(resp.structured, Triage)
         assert resp.structured.department.choice == "technical"
         assert resp.model_name == "jev-1.13.0"
+        assert resp.requested_model_name == "jev-latest"
         assert resp.provider is None
         assert resp.input_tokens == 296
         assert resp.output_tokens == 20
@@ -130,6 +131,7 @@ class TestResponse:
         model, _ = make_model(ok(body))
         resp = await model.aask("Help!", Triage)
         assert resp.model_name == "jev-latest"
+        assert resp.requested_model_name == "jev-latest"
         assert resp.cost is None
 
     async def test_provider_prefix_prices_free_self_hosted_models(self, make_model):
