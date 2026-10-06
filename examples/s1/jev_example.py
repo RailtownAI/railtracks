@@ -16,7 +16,8 @@ TypeSafeSchema = rt.decisions.TypeSafeSchema
 
 jev = rt.decisions.TypeSafeAI(
     model_name="jev-latest",
-    retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3),  # 429s, timeouts, 5xx
+    # retries rate limits, timeouts, dropped connections and 5xx; not 4xx
+    retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3),
 )
 
 
@@ -43,7 +44,11 @@ if __name__ == "__main__":
     ticket = "Your API has returned 502s for an hour and our checkout is down."
     result = triage_flow.invoke(ticket)
 
-    print(result)  # is_urgent: yes 0.97 | department: technical 0.95 | ...
+    # is_urgent: yes 0.98 | department: technical 1.00 | frustration: 1.1/2
+    print(result)
+    # {'sales': 0.0, 'technical': 1.0, 'billing': 0.0}
     print("department probabilities:", result.structured.department.probabilities)
+    # {0: 0.0, 1: 0.9, 2: 0.1}: frustrated but civil, without the all-caps
     print("frustration levels:", result.structured.frustration.probabilities)
+    # jev-1.13.0: 416 tokens, $1.7472e-05
     print(f"{result.model_name}: {result.input_tokens} tokens, ${result.cost}")
