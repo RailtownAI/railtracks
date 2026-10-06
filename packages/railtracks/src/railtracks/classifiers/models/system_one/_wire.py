@@ -6,16 +6,33 @@ question name, and every answer carries its question's ``type``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, TypeVar
 
 from pydantic import ValidationError
 
-from ..._exceptions import ClassifierResponseError
+from ..._exceptions import ClassifierRequestError, ClassifierResponseError
 from ...model import DecisionReply
-from ...schema import DecisionAnswer, DecisionState
+from ...schema import DecisionAnswer, DecisionSchema, DecisionState
 from .schema import TypeSafeQuestion, TypeSafeSchema
 
-_TSchema = TypeVar("_TSchema", bound=TypeSafeSchema)
+_TSchema = TypeVar("_TSchema", bound=DecisionSchema)
+
+
+def typesafe_questions(
+    schema: type[DecisionSchema],
+) -> Mapping[str, TypeSafeQuestion[Any]]:
+    """``schema``'s questions, once it is confirmed to be in this format.
+
+    Raises:
+        ClassifierRequestError: If ``schema`` is not a ``TypeSafeSchema`` subclass.
+    """
+    if not issubclass(schema, TypeSafeSchema):
+        raise ClassifierRequestError(
+            f"{schema.__name__} is not a TypeSafeSchema; /v1/systemone hosts only "
+            "answer TypeSafeSchema questions."
+        )
+    return schema.__questions__
 
 
 def question_to_wire(question: TypeSafeQuestion[Any]) -> dict[str, Any]:
@@ -30,16 +47,16 @@ def question_to_wire(question: TypeSafeQuestion[Any]) -> dict[str, Any]:
     return wire
 
 
-def questions_to_wire(schema: type[TypeSafeSchema]) -> dict[str, dict[str, Any]]:
+def questions_to_wire(schema: type[DecisionSchema]) -> dict[str, dict[str, Any]]:
     """Every question of ``schema`` in wire form, keyed by name in definition order."""
     return {
         name: question_to_wire(question)
-        for name, question in schema.__questions__.items()
+        for name, question in typesafe_questions(schema).items()
     }
 
 
 def build_request(
-    model_name: str, state: DecisionState, schema: type[TypeSafeSchema]
+    model_name: str, state: DecisionState, schema: type[DecisionSchema]
 ) -> dict[str, Any]:
     """The JSON body for ``POST /v1/systemone``."""
     return {"state": state, "model": model_name, "questions": questions_to_wire(schema)}
@@ -76,7 +93,7 @@ def parse_response(body: object, schema: type[_TSchema]) -> DecisionReply[_TSche
         raise _malformed("answers")
 
     parsed: dict[str, DecisionAnswer] = {}
-    for name, question in schema.__questions__.items():
+    for name, question in typesafe_questions(schema).items():
         raw = answers.get(name)
         if not isinstance(raw, dict):
             raise _malformed(f"answers.{name}")
