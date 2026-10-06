@@ -4,11 +4,11 @@ import copy
 
 import pytest
 from railtracks.decisions import DecisionProviderResponseError, TypeSafeSchema
-from railtracks.decisions.models.system_one._wire import (
+from railtracks.decisions.models.typesafe_compatible._wire import (
     build_request,
     parse_response,
 )
-from railtracks.decisions.models.system_one.schema import (
+from railtracks.decisions.models.typesafe_compatible.schema import (
     ChoiceAnswer,
     NoulAnswer,
     ScoreAnswer,

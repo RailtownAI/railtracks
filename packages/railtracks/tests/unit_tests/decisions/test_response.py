@@ -3,7 +3,7 @@
 import json
 
 from railtracks.decisions import DecisionResponse
-from railtracks.decisions.models.system_one._wire import parse_response
+from railtracks.decisions.models.typesafe_compatible._wire import parse_response
 from railtracks.utils.json.encoder import RTJSONEncoder
 
 from .conftest import TRIAGE_RESPONSE, Triage

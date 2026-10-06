@@ -7,7 +7,7 @@ import httpx
 from railtracks.llm.retries import RetryApproach
 
 from .laya import LayaAI
-from .system_one.provider import SYSTEM_ONE_PATH, TypeSafeCompatibleAI
+from .typesafe_compatible.provider import SYSTEM_ONE_PATH, TypeSafeCompatibleAI
 
 Upstream = Literal["typesafe", "laya", "bespoke"]
 _UPSTREAMS: tuple[Upstream, ...] = ("typesafe", "laya", "bespoke")

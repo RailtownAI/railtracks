@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .system_one.provider import TypeSafeCompatibleAI
+from .typesafe_compatible.provider import TypeSafeCompatibleAI
 
 
 class UpstageAI(TypeSafeCompatibleAI):

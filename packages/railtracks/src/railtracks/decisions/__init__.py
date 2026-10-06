@@ -44,6 +44,11 @@ from .models import (
     TypeSafeCompatibleAI,
     UpstageAI,
 )
-from .models.system_one import ChoiceAnswer, NoulAnswer, ScoreAnswer, TypeSafeSchema
+from .models.typesafe_compatible import (
+    ChoiceAnswer,
+    NoulAnswer,
+    ScoreAnswer,
+    TypeSafeSchema,
+)
 from .response import DecisionResponse
 from .schema import DecisionSchema

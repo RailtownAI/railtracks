@@ -14,7 +14,7 @@ from railtracks.decisions import (
     ScoreAnswer,
     TypeSafeSchema,
 )
-from railtracks.decisions.models.system_one.schema import (
+from railtracks.decisions.models.typesafe_compatible.schema import (
     ChoiceQuestion,
     NoulQuestion,
     ScoreQuestion,
