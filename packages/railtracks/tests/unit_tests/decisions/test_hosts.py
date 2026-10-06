@@ -128,6 +128,44 @@ class TestTypeSafeCompatibleAI:
         assert model._pricing_keys() == ["jev-latest"]
 
 
+# ================= Key notes on a 401/403 =================
+
+
+class TestRejectedKeyNotes:
+    async def test_key_passed_as_argument(self, make_model):
+        model, _ = make_model(httpx.Response(401, text="bad key"), api_key="wrong")
+        with pytest.raises(DecisionProviderAuthenticationError) as info:
+            await model.aask("Help!", Triage)
+        notes = " ".join(info.value.notes)
+        assert "rejected" in notes
+        assert "api_key=" in notes
+        assert "Pass api_key=" not in notes  # a key was sent; don't ask for one
+
+    async def test_key_from_the_environment(self, make_model, monkeypatch):
+        monkeypatch.setenv("TYPESAFE_API_KEY", "wrong")
+        model, _ = make_model(httpx.Response(403, text="forbidden"), api_key=None)
+        with pytest.raises(DecisionProviderAuthenticationError) as info:
+            await model.aask("Help!", Triage)
+        notes = " ".join(info.value.notes)
+        assert "rejected" in notes
+        assert "TYPESAFE_API_KEY" in notes
+        assert "https://api.typesafe.ai" in notes  # which host rejected it
+
+    async def test_no_key_sent(self, make_model):
+        model, recorder = make_model(
+            httpx.Response(401, text="auth required"),
+            cls=TypeSafeCompatibleAI,
+            api_base="http://localhost:8008",
+            api_key=None,
+        )
+        with pytest.raises(DecisionProviderAuthenticationError) as info:
+            await model.aask("Help!", Triage)
+        assert "Authorization" not in recorder.requests[0].headers
+        notes = " ".join(info.value.notes)
+        assert "rejected" not in notes
+        assert "Pass api_key=" in notes
+
+
 # ================= TypeSafe =================
 
 
@@ -356,17 +394,22 @@ class TestLiteLLMProxyAI:
         assert recorder.requests == []
 
     @pytest.mark.parametrize("status", [401, 403])
-    async def test_rejected_key_names_the_virtual_key(self, make_model, status):
+    async def test_rejected_key_names_the_virtual_key(
+        self, make_model, monkeypatch, status
+    ):
+        monkeypatch.setenv("LITELLM_PROXY_API_KEY", "sk-virtual")
         model, _ = make_model(
             httpx.Response(status, text="key not allowed for model"),
             cls=LiteLLMProxyAI,
             upstream="laya",
             model_name="english",
             api_base="http://proxy:4000",
+            api_key=None,
         )
         with pytest.raises(DecisionProviderAuthenticationError) as info:
             await model.aask("Help!", Department)
         notes = " ".join(info.value.notes)
+        assert "rejected" in notes
         assert "LITELLM_PROXY_API_KEY" in notes
         assert "laya/english" in notes
 

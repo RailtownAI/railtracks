@@ -174,8 +174,22 @@ class TypeSafeCompatibleAI(DecisionModel[TypeSafeSchema]):
                     f"characters; this one has {len(text)}."
                 )
 
-    def _key_notes(self) -> list[str]:
-        """Debugging notes for a missing or rejected key."""
+    def _key_notes(self, *, rejected: bool = False) -> list[str]:
+        """Debugging notes for a missing key, or for a key the host rejected.
+
+        Args:
+            rejected: Whether a key was sent and the host refused it (401/403).
+        """
+        if rejected:
+            source = (
+                "the api_key= argument"
+                if self._api_key
+                else f"the {self.api_key_env} environment variable"
+            )
+            return [
+                f"The host at {self.api_base} rejected the key from {source}; "
+                "check that it is a valid key for this host."
+            ]
         if self.api_key_env is None:
             return ["Pass api_key=."]
         return [f"Pass api_key= or set the {self.api_key_env} environment variable."]
@@ -248,7 +262,10 @@ class TypeSafeCompatibleAI(DecisionModel[TypeSafeSchema]):
         reason = f"HTTP {status} from {response.request.url}: {body}"
         error: DecisionProviderError
         if status in (401, 403):
-            error = DecisionProviderAuthenticationError(reason, notes=self._key_notes())
+            key_sent = "Authorization" in response.request.headers
+            error = DecisionProviderAuthenticationError(
+                reason, notes=self._key_notes(rejected=key_sent)
+            )
         elif status == 429:
             error = DecisionProviderRateLimitError(reason)
         elif status >= 500:

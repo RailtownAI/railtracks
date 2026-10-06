@@ -76,8 +76,8 @@ class LiteLLMProxyAI(TypeSafeCompatibleAI):
             self.max_questions = LayaAI.max_questions
             self.max_state_chars = LayaAI.max_state_chars
 
-    def _key_notes(self) -> list[str]:
+    def _key_notes(self, *, rejected: bool = False) -> list[str]:
         return [
-            *super()._key_notes(),
+            *super()._key_notes(rejected=rejected),
             f"The virtual key needs access to the model {self.upstream}/{self.model_name}.",
         ]
