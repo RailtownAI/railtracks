@@ -7,7 +7,7 @@ import pytest
 import railtracks as rt
 import railtracks.context.central as central
 from railtracks.built_nodes.decisions import DecisionResponse
-from railtracks.classifiers import (
+from railtracks.decisions import (
     ClassifierAuthenticationError,
     ClassifierConnectionError,
     ClassifierError,
@@ -18,7 +18,7 @@ from railtracks.classifiers import (
     ClassifierTimeoutError,
     NoulAnswer,
 )
-from railtracks.classifiers.schema import DecisionQuestion, DecisionSchema
+from railtracks.decisions.schema import DecisionQuestion, DecisionSchema
 from railtracks.exceptions import (
     DecisionAuthenticationError,
     DecisionModelError,
@@ -70,9 +70,9 @@ def _failing_on(state: str):
     return handler
 
 
-def _model_with(handler) -> rt.classifiers.TypeSafeAI:
+def _model_with(handler) -> rt.decisions.TypeSafeAI:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return rt.classifiers.TypeSafeAI("jev-latest", api_key="k", http_client=client)
+    return rt.decisions.TypeSafeAI("jev-latest", api_key="k", http_client=client)
 
 
 # ================= Construction =================
@@ -133,7 +133,7 @@ class TestConstruction:
     def test_abstract_schema_rejected(self, make_model):
         model, _ = make_model()
         with pytest.raises(NodeCreationError, match="subclass"):
-            rt.decision_node(model=model, schema=rt.classifiers.TypeSafeSchema)
+            rt.decision_node(model=model, schema=rt.decisions.TypeSafeSchema)
 
 
 # ================= Invocation =================

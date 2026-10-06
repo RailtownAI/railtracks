@@ -8,7 +8,7 @@ S1 models take a `state` (text or JSON) plus a schema of typed questions and ret
 calibrated probabilities instead of text. `rt.decision_node` is the S1 counterpart of
 `rt.agent_node`: a model plus a schema in, a node out.
 
-S1 models live in `rt.classifiers`, the way chat models live in `rt.llm`. The question
+S1 models live in `rt.decisions`, the way chat models live in `rt.llm`. The question
 types (Noul, Choice, Score) are TypeSafe's, so they sit in the `TypeSafeSchema`
 namespace for now; if other vendors adopt the same format, the namespace goes generic.
 `TypeSafeAI` speaks TypeSafe's `/v1/systemone` format, so it also reaches compatible
@@ -19,18 +19,18 @@ import asyncio
 
 import railtracks as rt
 
-TypeSafeSchema = rt.classifiers.TypeSafeSchema
+TypeSafeSchema = rt.decisions.TypeSafeSchema
 
 ##### 1. The model #####
 
-jev = rt.classifiers.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
+jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
 
 # Same format, other hosts: swap `model=jev` below for either of these.
-solar = rt.classifiers.OpenRouterClassifier(  # reads OPENROUTER_API_KEY
+solar = rt.decisions.OpenRouterClassifier(  # reads OPENROUTER_API_KEY
     model_name="upstage/solar-decide"
 )
 # Any other /v1/systemone server (here a self-hosted Kev) works through the base class.
-kev = rt.classifiers.SystemOneProvider(
+kev = rt.decisions.SystemOneProvider(
     model_name="jaredpalmer/kev-4b", api_base="http://localhost:8008"
 )
 

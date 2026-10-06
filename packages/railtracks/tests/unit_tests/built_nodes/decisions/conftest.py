@@ -1,4 +1,4 @@
-from ...classifiers.conftest import (  # noqa: F401
+from ...decisions.conftest import (  # noqa: F401
     TRIAGE_RESPONSE,
     Recorder,
     Triage,

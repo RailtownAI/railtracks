@@ -4,6 +4,6 @@ __all__ = [
 ]
 
 
-from railtracks.classifiers import DecisionResponse
+from railtracks.decisions import DecisionResponse
 
 from .node import decision_node

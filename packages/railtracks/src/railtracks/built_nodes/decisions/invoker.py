@@ -1,6 +1,6 @@
 """Runs a decision model for ``decision_node``, records the call and classifies errors.
 
-The node-side counterpart of ``ModelInvoker`` and ``llm_helpers``: ``railtracks.classifiers``
+The node-side counterpart of ``ModelInvoker`` and ``llm_helpers``: ``railtracks.decisions``
 models emit nothing and raise ``ClassifierError``; here a node's request gets its
 ``decision.*`` events, and a failure becomes the ``DecisionModelError`` users catch.
 """
@@ -10,7 +10,8 @@ from __future__ import annotations
 import uuid
 from typing import Any, TypeVar
 
-from railtracks.classifiers import (
+from railtracks.context.central import get_current_scope, is_context_active
+from railtracks.decisions import (
     ClassifierAuthenticationError,
     ClassifierConnectionError,
     ClassifierError,
@@ -23,8 +24,7 @@ from railtracks.classifiers import (
     DecisionResponse,
     DecisionSchema,
 )
-from railtracks.classifiers.schema import DecisionState
-from railtracks.context.central import get_current_scope, is_context_active
+from railtracks.decisions.schema import DecisionState
 from railtracks.events._resolve import has_enclosing_node
 from railtracks.events.decision import (
     DecisionFailureEvent,

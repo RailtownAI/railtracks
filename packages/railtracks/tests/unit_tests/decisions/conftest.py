@@ -9,7 +9,7 @@ from typing import Callable
 
 import httpx
 import pytest
-from railtracks.classifiers import SystemOneProvider, TypeSafeAI, TypeSafeSchema
+from railtracks.decisions import SystemOneProvider, TypeSafeAI, TypeSafeSchema
 
 
 class Triage(TypeSafeSchema):

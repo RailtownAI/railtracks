@@ -1,8 +1,8 @@
 """TypeSafeSchema: question validation, collection, inheritance and typed answers."""
 
 import pytest
-from railtracks.classifiers import SchemaDefinitionError
-from railtracks.classifiers.models.system_one.schema import (
+from railtracks.decisions import SchemaDefinitionError
+from railtracks.decisions.models.system_one.schema import (
     ChoiceAnswer,
     ChoiceQuestion,
     NoulAnswer,

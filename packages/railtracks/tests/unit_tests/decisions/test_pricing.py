@@ -2,7 +2,7 @@
 
 import litellm
 import pytest
-from railtracks.classifiers.pricing import decision_cost
+from railtracks.decisions.pricing import decision_cost
 
 
 def test_first_matching_key_wins():

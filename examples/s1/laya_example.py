@@ -1,7 +1,7 @@
 """Route support tickets with a self-hosted Laya decision model.
 
 Laya serves the same `/v1/systemone` format as TypeSafe, so it takes the same
-`TypeSafeSchema` questions. `rt.classifiers.LayaClassifier` reads the server's URL from
+`TypeSafeSchema` questions. `rt.decisions.LayaClassifier` reads the server's URL from
 LAYA_API_BASE (or `api_base=`) and the optional LAYA_API_KEY; without a key the request
 is sent unauthenticated. Calls are priced from LiteLLM's catalog, where `laya/english`
 is listed at $0 (you pay for your own hardware).
@@ -24,9 +24,9 @@ import os
 
 import railtracks as rt
 
-TypeSafeSchema = rt.classifiers.TypeSafeSchema
+TypeSafeSchema = rt.decisions.TypeSafeSchema
 
-laya = rt.classifiers.LayaClassifier(
+laya = rt.decisions.LayaClassifier(
     model_name="english",  # Laya checkpoints: english, multilingual, typed-decisions
     api_base=os.environ.get("LAYA_API_BASE", "http://localhost:8000"),
 )

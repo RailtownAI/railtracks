@@ -2,8 +2,8 @@
 
 import json
 
-from railtracks.classifiers import DecisionResponse
-from railtracks.classifiers.models.system_one._wire import parse_response
+from railtracks.decisions import DecisionResponse
+from railtracks.decisions.models.system_one._wire import parse_response
 from railtracks.utils.json.encoder import RTJSONEncoder
 
 from .conftest import TRIAGE_RESPONSE, Triage

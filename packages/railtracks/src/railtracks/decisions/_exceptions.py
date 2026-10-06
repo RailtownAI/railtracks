@@ -1,4 +1,4 @@
-"""Errors raised by ``railtracks.classifiers``.
+"""Errors raised by ``railtracks.decisions``.
 
 Two independent roots, mirroring the ``llm`` package: ``ClassifierError`` for a failed
 call to a decision model (the counterpart of ``ProviderError``), and

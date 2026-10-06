@@ -12,9 +12,9 @@ Run: uv run python examples/s1/jev_example.py
 
 import railtracks as rt
 
-TypeSafeSchema = rt.classifiers.TypeSafeSchema
+TypeSafeSchema = rt.decisions.TypeSafeSchema
 
-jev = rt.classifiers.TypeSafeAI(
+jev = rt.decisions.TypeSafeAI(
     model_name="jev-latest",
     retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3),  # 429s, timeouts, 5xx
 )

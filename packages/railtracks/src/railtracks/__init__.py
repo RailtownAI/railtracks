@@ -32,7 +32,7 @@ __all__ = [
     "function_node",
     "agent_node",
     "decision_node",
-    "classifiers",
+    "decisions",
     "integrations",
     "prebuilt",
     "MCPStdioParams",
@@ -70,8 +70,8 @@ from railtracks.built_nodes.function import (
 from railtracks.built_nodes.llm import agent_node
 
 from . import (
-    classifiers,
     context,
+    decisions,
     evaluations,
     guardrails,
     integrations,

@@ -1,16 +1,18 @@
-"""Layering tests for the boundary between ``classifiers`` and the rest of railtracks.
+"""Layering tests for the boundary between the ``decisions`` layer and the rest of
+railtracks.
 
-Like ``llm`` (see ``tests/unit_tests/llm/test_exceptions.py``), the ``classifiers``
-package is self-contained: it imports nothing from the surrounding ``railtracks``
-package except ``railtracks.llm.retries``, and it raises only its own error roots.
+Like ``llm`` (see ``tests/unit_tests/llm/test_exceptions.py``), ``railtracks.decisions``
+(the model layer, not the ``built_nodes.decisions`` node) is self-contained: it imports
+nothing from the surrounding ``railtracks`` package except ``railtracks.llm.retries``,
+and it raises only its own error roots.
 """
 
 import ast
 import pathlib
 
 import pytest
-import railtracks.classifiers
-from railtracks.classifiers import (
+import railtracks.decisions
+from railtracks.decisions import (
     ClassifierAuthenticationError,
     ClassifierConnectionError,
     ClassifierError,
@@ -23,27 +25,27 @@ from railtracks.classifiers import (
 )
 from railtracks.exceptions._base import RTError
 
-CLASSIFIERS_ROOT = pathlib.Path(railtracks.classifiers.__file__).parent
+DECISIONS_ROOT = pathlib.Path(railtracks.decisions.__file__).parent
 
 # The one sideways dependency: retry strategies are shared with chat models.
-ALLOWED_PREFIXES = ("railtracks.classifiers", "railtracks.llm.retries")
+ALLOWED_PREFIXES = ("railtracks.decisions", "railtracks.llm.retries")
 
-MODULES = sorted(CLASSIFIERS_ROOT.rglob("*.py"))
+MODULES = sorted(DECISIONS_ROOT.rglob("*.py"))
 
 
 def _module_id(path: pathlib.Path) -> str:
-    return str(path.relative_to(CLASSIFIERS_ROOT)).replace("\\", "/")
+    return str(path.relative_to(DECISIONS_ROOT)).replace("\\", "/")
 
 
 def _escaping_imports(path: pathlib.Path) -> list[str]:
     """Every module outside the allowed set that ``path`` imports."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
-    depth_to_root = len(path.relative_to(CLASSIFIERS_ROOT).parts)
+    depth_to_root = len(path.relative_to(DECISIONS_ROOT).parts)
     found = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
-            # a relative import that climbs above the classifiers package escapes it
+            # a relative import that climbs above the decisions package escapes it
             if node.level > depth_to_root:
                 found.append("." * node.level + module)
             elif node.level == 0 and module.startswith("railtracks"):
@@ -59,10 +61,10 @@ def _escaping_imports(path: pathlib.Path) -> list[str]:
 
 
 @pytest.mark.parametrize("module_path", MODULES, ids=_module_id)
-def test_classifiers_package_does_not_import_upward(module_path: pathlib.Path):
+def test_decisions_package_does_not_import_upward(module_path: pathlib.Path):
     offenders = _escaping_imports(module_path)
     assert offenders == [], (
-        f"{_module_id(module_path)} imports {offenders}; classifiers may only import "
+        f"{_module_id(module_path)} imports {offenders}; the decisions layer may only import "
         f"{list(ALLOWED_PREFIXES)} from railtracks. Errors it raises must be "
         "ClassifierError or SchemaDefinitionError, translated at the decision node."
     )
@@ -93,10 +95,10 @@ def _raised_names(path: pathlib.Path) -> set[str]:
 
 
 @pytest.mark.parametrize("module_path", MODULES, ids=_module_id)
-def test_classifiers_package_never_raises_rterror(module_path: pathlib.Path):
+def test_decisions_package_never_raises_rterror(module_path: pathlib.Path):
     offenders = _raised_names(module_path) & _rterror_names()
     assert offenders == set(), (
-        f"{_module_id(module_path)} raises {sorted(offenders)}; classifiers raise "
+        f"{_module_id(module_path)} raises {sorted(offenders)}; the decisions layer raises "
         "ClassifierError/SchemaDefinitionError and the invoker translates them"
     )
 
