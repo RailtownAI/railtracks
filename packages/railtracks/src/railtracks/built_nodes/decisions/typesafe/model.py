@@ -6,6 +6,15 @@ from typing import Any, TypeVar
 
 import httpx
 
+from railtracks.classifiers.model import DecisionReply
+from railtracks.classifiers.models.system_one._wire import (
+    build_request,
+    parse_response,
+    questions_to_wire,
+)
+from railtracks.classifiers.models.system_one.schema import TypeSafeSchema
+from railtracks.classifiers.response import DecisionResponse
+from railtracks.classifiers.schema import DecisionState
 from railtracks.exceptions import (
     DecisionAuthenticationError,
     DecisionModelError,
@@ -17,10 +26,7 @@ from railtracks.exceptions import (
 )
 from railtracks.llm.retries import RetryApproach
 
-from .._base import DecisionModel, DecisionReply, DecisionState
-from ..response import DecisionResponse
-from ._wire import build_request, parse_response, questions_to_wire
-from .schema import TypeSafeSchema
+from .._base import DecisionModel
 
 DEFAULT_PROVIDER = "typesafe"
 DEFAULT_API_BASE = "https://api.typesafe.ai"

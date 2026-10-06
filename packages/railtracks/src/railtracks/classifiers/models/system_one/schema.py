@@ -13,7 +13,7 @@ from typing_extensions import TypedDict
 
 from railtracks.exceptions import NodeCreationError
 
-from .._base import DecisionAnswer, DecisionQuestion, DecisionSchema
+from ...schema import DecisionAnswer, DecisionQuestion, DecisionSchema
 
 MAX_CHOICE_LABELS = 255
 MIN_SCORE_LEVELS = 2

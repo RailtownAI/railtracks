@@ -12,7 +12,8 @@ from pydantic import ValidationError
 
 from railtracks.exceptions import DecisionResponseError
 
-from .._base import DecisionAnswer, DecisionReply, DecisionState
+from ...model import DecisionReply
+from ...schema import DecisionAnswer, DecisionState
 from .schema import TypeSafeQuestion, TypeSafeSchema
 
 _TSchema = TypeVar("_TSchema", bound=TypeSafeSchema)
