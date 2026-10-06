@@ -239,7 +239,7 @@ def _validate_and_normalize_callable(
         return _function_preserving_metadata(func)
 
     if not (
-        asyncio.iscoroutinefunction(func)
+        inspect.iscoroutinefunction(func)
         or inspect.isfunction(func)
         or inspect.ismethod(func)  # bound (and class) methods
         or isinstance(func, functools.partial)
@@ -291,7 +291,7 @@ def _single_function_node(
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
     is_sync = False
-    if not asyncio.iscoroutinefunction(func):
+    if not inspect.iscoroutinefunction(func):
         is_sync = True
         # narrowed: the guard above means `func` returns _TOutput, not a coroutine
         sync_func = cast(Callable[_P, _TOutput], func)

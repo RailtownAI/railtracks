@@ -1,3 +1,4 @@
+import inspect
 import time
 from typing import Any, Dict, List, Tuple
 
@@ -91,6 +92,19 @@ def test_convert_value_dict_error():
 def test_builtin_function_raises_runtime_error():
     with pytest.raises(RuntimeError):
         TypeMapper(time.sleep)  # time.sleep is a builtin
+
+
+def test_builtin_function_raises_even_when_it_has_an_introspectable_signature(
+    monkeypatch,
+):
+    # Python 3.13+ gives many builtins a signature, so `inspect.signature` no
+    # longer raises for them; the guard must not depend on it doing so.
+    monkeypatch.setattr(
+        "railtracks.llm.type_mapping.inspect.signature",
+        lambda function: inspect.Signature(),
+    )
+    with pytest.raises(RuntimeError, match="builtin"):
+        TypeMapper(time.sleep)
 
 
 def test_invalid_conversion_returns_error_message():
