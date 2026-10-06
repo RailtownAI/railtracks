@@ -74,9 +74,11 @@ def decision_node(
 
     Args:
         name (str | None): The node and tool name. Defaults to the schema's class name.
-        model (DecisionModel): The decision model, e.g. `rt.classifiers.TypeSafeAI`.
+        model (DecisionModel): The decision model, e.g. `rt.classifiers.TypeSafeAI` or
+            another `/v1/systemone` host such as `rt.classifiers.LayaClassifier`.
         schema (type[DecisionSchema]): The schema class declaring the questions; must
-            match the model's vendor (a `TypeSafeSchema` subclass for `TypeSafeAI`).
+            match the model's format (a `TypeSafeSchema` subclass for every
+            `SystemOneProvider` host).
         description (str | None): The tool description an agent sees. Defaults to a
             sentence listing each question's instructions.
         middleware (Iterable[Middleware] | None): Middleware applied around the node

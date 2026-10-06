@@ -1,15 +1,16 @@
 """Route support tickets with a self-hosted Laya decision model.
 
-Laya serves the same `/v1/systemone` format as TypeSafe, so the same
-`rt.classifiers.TypeSafeAI` client reaches it: point `api_base` at the server and set
-`provider="laya"`. The provider prices calls from LiteLLM's catalog (`laya/english`
-is listed at $0, since you pay for your own hardware) and reads LAYA_API_KEY, which
-is optional; without it the request is sent unauthenticated.
+Laya serves the same `/v1/systemone` format as TypeSafe, so it takes the same
+`TypeSafeSchema` questions. `rt.classifiers.LayaClassifier` reads the server's URL from
+LAYA_API_BASE (or `api_base=`) and the optional LAYA_API_KEY; without a key the request
+is sent unauthenticated. Calls are priced from LiteLLM's catalog, where `laya/english`
+is listed at $0 (you pay for your own hardware).
 
-Laya answers all three question types; this asks a single Choice question. Laya caps
-a Choice at 100 options (TypeSafe allows 255), so a larger one fails at call time.
+Laya answers all three question types; this asks a single Choice question. Laya caps a
+Choice at 100 options, 64 questions per request and 50,000 characters of state (TypeSafe
+allows 255 options); a request over a limit fails before it is sent.
 
-Needs a running Laya server (LAYA_API_BASE, default http://localhost:8000):
+Needs a running Laya server (LAYA_API_BASE, default here http://localhost:8000):
 
     pip install "laya[serve]"
     laya-serve
@@ -25,9 +26,8 @@ import railtracks as rt
 
 TypeSafeSchema = rt.classifiers.TypeSafeSchema
 
-laya = rt.classifiers.TypeSafeAI(
+laya = rt.classifiers.LayaClassifier(
     model_name="english",  # Laya checkpoints: english, multilingual, typed-decisions
-    provider="laya",
     api_base=os.environ.get("LAYA_API_BASE", "http://localhost:8000"),
 )
 
@@ -50,4 +50,4 @@ if __name__ == "__main__":
 
     print(result)  # department: billing 0.97
     print("department probabilities:", result.structured.department.probabilities)
-    print(f"{result.model_name} via {laya.provider}: cost ${result.cost}")
+    print(f"{result.model_name} via {result.provider}: cost ${result.cost}")
