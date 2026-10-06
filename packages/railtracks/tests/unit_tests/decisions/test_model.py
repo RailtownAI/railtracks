@@ -3,14 +3,14 @@
 import httpx
 import pytest
 from railtracks.decisions import (
-    ClassifierAuthenticationError,
-    ClassifierConnectionError,
-    ClassifierError,
-    ClassifierRateLimitError,
-    ClassifierRequestError,
-    ClassifierResponseError,
-    ClassifierServerError,
-    ClassifierTimeoutError,
+    DecisionProviderAuthenticationError,
+    DecisionProviderConnectionError,
+    DecisionProviderError,
+    DecisionProviderRateLimitError,
+    DecisionProviderRequestError,
+    DecisionProviderResponseError,
+    DecisionProviderServerError,
+    DecisionProviderTimeoutError,
     DecisionResponse,
     SchemaDefinitionError,
     TypeSafeAI,
@@ -54,7 +54,9 @@ class TestRequest:
     async def test_missing_api_key_raises_at_call_time(self, make_model, monkeypatch):
         monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
         model, recorder = make_model(api_key=None)  # construction does not raise
-        with pytest.raises(ClassifierAuthenticationError, match="TYPESAFE_API_KEY"):
+        with pytest.raises(
+            DecisionProviderAuthenticationError, match="TYPESAFE_API_KEY"
+        ):
             await model.aask("Help!", Triage)
         assert recorder.requests == []
 
@@ -117,15 +119,15 @@ class TestErrorMapping:
     @pytest.mark.parametrize(
         "status, error",
         [
-            (401, ClassifierAuthenticationError),
-            (403, ClassifierAuthenticationError),
-            (429, ClassifierRateLimitError),
-            (500, ClassifierServerError),
-            (503, ClassifierServerError),
-            (529, ClassifierServerError),
-            (400, ClassifierRequestError),
-            (404, ClassifierRequestError),
-            (422, ClassifierRequestError),
+            (401, DecisionProviderAuthenticationError),
+            (403, DecisionProviderAuthenticationError),
+            (429, DecisionProviderRateLimitError),
+            (500, DecisionProviderServerError),
+            (503, DecisionProviderServerError),
+            (529, DecisionProviderServerError),
+            (400, DecisionProviderRequestError),
+            (404, DecisionProviderRequestError),
+            (422, DecisionProviderRequestError),
         ],
     )
     async def test_status_maps_to_error(self, make_model, status, error):
@@ -136,7 +138,7 @@ class TestErrorMapping:
     async def test_request_error_carries_truncated_body(self, make_model):
         detail = '{"detail": [{"loc": ["body", "state"], "msg": "Field required"}]}'
         model, _ = make_model(httpx.Response(422, text=detail + "x" * 5000))
-        with pytest.raises(ClassifierRequestError) as info:
+        with pytest.raises(DecisionProviderRequestError) as info:
             await model.aask("Help!", Triage)
         assert "Field required" in info.value.reason
         assert len(info.value.body) < 1000
@@ -144,11 +146,11 @@ class TestErrorMapping:
     @pytest.mark.parametrize(
         "exc, error",
         [
-            (httpx.ReadTimeout("slow"), ClassifierTimeoutError),
-            (httpx.ConnectTimeout("slow"), ClassifierTimeoutError),
-            (httpx.PoolTimeout("slow"), ClassifierTimeoutError),
-            (httpx.ConnectError("refused"), ClassifierConnectionError),
-            (httpx.RemoteProtocolError("dropped"), ClassifierConnectionError),
+            (httpx.ReadTimeout("slow"), DecisionProviderTimeoutError),
+            (httpx.ConnectTimeout("slow"), DecisionProviderTimeoutError),
+            (httpx.PoolTimeout("slow"), DecisionProviderTimeoutError),
+            (httpx.ConnectError("refused"), DecisionProviderConnectionError),
+            (httpx.RemoteProtocolError("dropped"), DecisionProviderConnectionError),
         ],
     )
     async def test_transport_errors_split_by_kind(self, make_model, exc, error):
@@ -163,28 +165,28 @@ class TestErrorMapping:
     )
     async def test_config_mistakes_are_request_errors(self, make_model, exc):
         model, _ = make_model(exc)
-        with pytest.raises(ClassifierRequestError, match="api_base"):
+        with pytest.raises(DecisionProviderRequestError, match="api_base"):
             await model.aask("Help!", Triage)
 
     async def test_non_json_body(self, make_model):
         model, _ = make_model(httpx.Response(200, text="<html>"))
-        with pytest.raises(ClassifierResponseError, match="JSON"):
+        with pytest.raises(DecisionProviderResponseError, match="JSON"):
             await model.aask("Help!", Triage)
 
     def test_family(self):
         for error in (
-            ClassifierAuthenticationError,
-            ClassifierConnectionError,
-            ClassifierRateLimitError,
-            ClassifierRequestError,
-            ClassifierResponseError,
-            ClassifierServerError,
-            ClassifierTimeoutError,
+            DecisionProviderAuthenticationError,
+            DecisionProviderConnectionError,
+            DecisionProviderRateLimitError,
+            DecisionProviderRequestError,
+            DecisionProviderResponseError,
+            DecisionProviderServerError,
+            DecisionProviderTimeoutError,
         ):
-            assert issubclass(error, ClassifierError)
-        for root in (ClassifierError, SchemaDefinitionError):
+            assert issubclass(error, DecisionProviderError)
+        for root in (DecisionProviderError, SchemaDefinitionError):
             assert not issubclass(root, RTError)
-        assert not issubclass(SchemaDefinitionError, ClassifierError)
+        assert not issubclass(SchemaDefinitionError, DecisionProviderError)
 
 
 class TestRetries:
@@ -210,7 +212,7 @@ class TestRetries:
             httpx.Response(500, text="boom"),
             retry_approach=FixedRetry(max_tries=3, delay=0.0),
         )
-        with pytest.raises(ClassifierServerError) as info:
+        with pytest.raises(DecisionProviderServerError) as info:
             await model.aask("Help!", Triage)
         assert len(recorder.requests) == 3
         assert any("3 attempts" in note for note in info.value.notes)
@@ -218,7 +220,7 @@ class TestRetries:
     async def test_exhausted_retries_keep_the_httpx_root_cause(self, make_model):
         root = httpx.ReadTimeout("slow")
         model, _ = make_model(root, retry_approach=FixedRetry(max_tries=2, delay=0.0))
-        with pytest.raises(ClassifierTimeoutError) as info:
+        with pytest.raises(DecisionProviderTimeoutError) as info:
             await model.aask("Help!", Triage)
 
         chain, seen = [], set()
@@ -229,14 +231,17 @@ class TestRetries:
             chain.append(error)
             error = error.__cause__
         assert chain[-1] is root
-        assert [type(e) for e in chain] == [ClassifierTimeoutError, httpx.ReadTimeout]
+        assert [type(e) for e in chain] == [
+            DecisionProviderTimeoutError,
+            httpx.ReadTimeout,
+        ]
 
     async def test_config_mistakes_not_retried(self, make_model):
         model, recorder = make_model(
             httpx.UnsupportedProtocol("ftp://x"),
             retry_approach=FixedRetry(max_tries=3, delay=0.0),
         )
-        with pytest.raises(ClassifierRequestError):
+        with pytest.raises(DecisionProviderRequestError):
             await model.aask("Help!", Triage)
         assert len(recorder.requests) == 1
 
@@ -247,12 +252,12 @@ class TestRetries:
             ok(),
             retry_approach=FixedRetry(max_tries=3, delay=0.0),
         )
-        with pytest.raises(ClassifierError):
+        with pytest.raises(DecisionProviderError):
             await model.aask("Help!", Triage)
         assert len(recorder.requests) == 1
 
     async def test_no_retries_by_default(self, make_model):
         model, recorder = make_model(httpx.Response(429, text="slow down"), ok())
-        with pytest.raises(ClassifierRateLimitError):
+        with pytest.raises(DecisionProviderRateLimitError):
             await model.aask("Help!", Triage)
         assert len(recorder.requests) == 1

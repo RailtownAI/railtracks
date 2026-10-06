@@ -3,9 +3,9 @@
 import httpx
 import pytest
 from railtracks.decisions import (
-    ClassifierAuthenticationError,
-    ClassifierRequestError,
-    ClassifierResponseError,
+    DecisionProviderAuthenticationError,
+    DecisionProviderRequestError,
+    DecisionProviderResponseError,
     LayaClassifier,
     LiteLLMProxyClassifier,
     OpenRouterClassifier,
@@ -106,7 +106,9 @@ class TestTypeSafeAI:
 
     async def test_requires_a_key(self, make_model):
         model, recorder = make_model(api_key=None)
-        with pytest.raises(ClassifierAuthenticationError, match="TYPESAFE_API_KEY"):
+        with pytest.raises(
+            DecisionProviderAuthenticationError, match="TYPESAFE_API_KEY"
+        ):
             await model.aask("Help!", Triage)
         assert recorder.requests == []
 
@@ -133,7 +135,9 @@ class TestOpenRouterClassifier:
 
     async def test_requires_a_key_from_env(self, make_model, monkeypatch):
         model, recorder = make_model(cls=OpenRouterClassifier, api_key=None)
-        with pytest.raises(ClassifierAuthenticationError, match="OPENROUTER_API_KEY"):
+        with pytest.raises(
+            DecisionProviderAuthenticationError, match="OPENROUTER_API_KEY"
+        ):
             await model.aask("Help!", Triage)
         assert recorder.requests == []
 
@@ -159,7 +163,7 @@ class TestOpenRouterClassifier:
 class TestLayaClassifier:
     async def test_needs_a_base_url(self, make_model):
         model, recorder = make_model(cls=LayaClassifier, model_name="english")
-        with pytest.raises(ClassifierRequestError, match="LAYA_API_BASE"):
+        with pytest.raises(DecisionProviderRequestError, match="LAYA_API_BASE"):
             await model.aask("Help!", Department)
         assert recorder.requests == []
 
@@ -206,7 +210,7 @@ class TestLayaClassifier:
         model, recorder = make_model(
             cls=LayaClassifier, model_name="english", api_base="http://localhost:8000"
         )
-        with pytest.raises(ClassifierRequestError, match=limit):
+        with pytest.raises(DecisionProviderRequestError, match=limit):
             await model.aask(state, schema)
         assert recorder.requests == []
 
@@ -215,7 +219,7 @@ class TestLayaClassifier:
             cls=LayaClassifier, model_name="english", api_base="http://localhost:8000"
         )
         # sent, then the canned Triage reply doesn't fit this schema
-        with pytest.raises(ClassifierResponseError):
+        with pytest.raises(DecisionProviderResponseError):
             await model.aask("x" * 50_000, _labels(100))
         assert len(recorder.requests) == 1
 
@@ -256,7 +260,9 @@ class TestLiteLLMProxyClassifier:
 
     async def test_needs_a_base_url(self, make_model):
         model, recorder = make_model(cls=LiteLLMProxyClassifier, upstream="typesafe")
-        with pytest.raises(ClassifierRequestError, match="LITELLM_PROXY_API_BASE"):
+        with pytest.raises(
+            DecisionProviderRequestError, match="LITELLM_PROXY_API_BASE"
+        ):
             await model.aask("Help!", Triage)
         assert recorder.requests == []
 
@@ -269,7 +275,7 @@ class TestLiteLLMProxyClassifier:
             model_name="english",
             api_base="http://proxy:4000",
         )
-        with pytest.raises(ClassifierAuthenticationError) as info:
+        with pytest.raises(DecisionProviderAuthenticationError) as info:
             await model.aask("Help!", Department)
         notes = " ".join(info.value.notes)
         assert "LITELLM_PROXY_API_KEY" in notes
@@ -294,7 +300,7 @@ class TestLiteLLMProxyClassifier:
             model_name="english",
             api_base="http://proxy:4000",
         )
-        with pytest.raises(ClassifierRequestError, match="100 options"):
+        with pytest.raises(DecisionProviderRequestError, match="100 options"):
             await model.aask("Help!", _labels(101))
         assert recorder.requests == []
 
