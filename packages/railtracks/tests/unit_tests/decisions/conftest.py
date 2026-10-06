@@ -9,7 +9,7 @@ from typing import Callable
 
 import httpx
 import pytest
-from railtracks.decisions import SystemOneProvider, TypeSafeAI, TypeSafeSchema
+from railtracks.decisions import TypeSafeAI, TypeSafeCompatibleAI, TypeSafeSchema
 
 
 class Triage(TypeSafeSchema):
@@ -77,16 +77,16 @@ def ok(body: dict | None = None) -> httpx.Response:
 
 
 @pytest.fixture
-def make_model() -> Callable[..., tuple[SystemOneProvider, Recorder]]:
+def make_model() -> Callable[..., tuple[TypeSafeCompatibleAI, Recorder]]:
     """Build a host client (``TypeSafeAI`` unless ``cls=`` says otherwise) whose HTTP
     goes to a ``Recorder`` instead of the network."""
 
     def _make(
         *responses: httpx.Response | Exception,
-        cls: type[SystemOneProvider] = TypeSafeAI,
+        cls: type[TypeSafeCompatibleAI] = TypeSafeAI,
         model_name: str = "jev-latest",
         **kwargs,
-    ) -> tuple[SystemOneProvider, Recorder]:
+    ) -> tuple[TypeSafeCompatibleAI, Recorder]:
         recorder = Recorder(*(responses or (ok(),)))
         client = httpx.AsyncClient(transport=httpx.MockTransport(recorder))
         kwargs.setdefault("api_key", "test-key")

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .system_one.provider import SystemOneProvider
+from .system_one.provider import TypeSafeCompatibleAI
 
 
-class TypeSafeAI(SystemOneProvider):
+class TypeSafeAI(TypeSafeCompatibleAI):
     """TypeSafe's hosted System One models, e.g. ``jev-latest``.
 
     Reads ``TYPESAFE_API_KEY`` (required) and, optionally, ``TYPESAFE_API_BASE``.

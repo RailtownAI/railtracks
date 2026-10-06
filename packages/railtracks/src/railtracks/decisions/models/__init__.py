@@ -1,14 +1,14 @@
 __all__ = [
-    "LayaClassifier",
-    "LiteLLMProxyClassifier",
-    "OpenRouterClassifier",
-    "SystemOneProvider",
+    "LayaAI",
+    "LiteLLMProxyAI",
+    "OpenRouterAI",
+    "TypeSafeCompatibleAI",
     "TypeSafeAI",
 ]
 
 
-from .laya import LayaClassifier
-from .litellm_proxy import LiteLLMProxyClassifier
-from .openrouter import OpenRouterClassifier
-from .system_one import SystemOneProvider
+from .laya import LayaAI
+from .litellm_proxy import LiteLLMProxyAI
+from .openrouter import OpenRouterAI
+from .system_one import TypeSafeCompatibleAI
 from .typesafe import TypeSafeAI

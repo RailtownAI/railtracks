@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .system_one.provider import SystemOneProvider
+from .system_one.provider import TypeSafeCompatibleAI
 
 
-class OpenRouterClassifier(SystemOneProvider):
+class OpenRouterAI(TypeSafeCompatibleAI):
     """System One models through OpenRouter's ``/api/v1/systemone`` mirror.
 
     Model ids carry the vendor, e.g. ``typesafe/jev-1.13``. Reads ``OPENROUTER_API_KEY``

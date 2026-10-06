@@ -93,8 +93,8 @@ async def node_calls() -> None:
 
 
 async def other_hosts() -> None:
-    openrouter = rt.decisions.OpenRouterClassifier("typesafe/jev-1.13")
-    laya = rt.decisions.LayaClassifier("english", api_base="http://localhost:8000")
+    openrouter = rt.decisions.OpenRouterAI("typesafe/jev-1.13")
+    laya = rt.decisions.LayaAI("english", api_base="http://localhost:8000")
     assert_type(await openrouter.aask("x", Triage), DecisionResponse[Triage])
 
     via_laya = rt.decision_node("Triage via Laya", model=laya, schema=Triage)

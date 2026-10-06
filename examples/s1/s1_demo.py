@@ -26,11 +26,11 @@ TypeSafeSchema = rt.decisions.TypeSafeSchema
 jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
 
 # Same format, other hosts: swap `model=jev` below for either of these.
-solar = rt.decisions.OpenRouterClassifier(  # reads OPENROUTER_API_KEY
+solar = rt.decisions.OpenRouterAI(  # reads OPENROUTER_API_KEY
     model_name="upstage/solar-decide"
 )
 # Any other /v1/systemone server (here a self-hosted Kev) works through the base class.
-kev = rt.decisions.SystemOneProvider(
+kev = rt.decisions.TypeSafeCompatibleAI(
     model_name="jaredpalmer/kev-4b", api_base="http://localhost:8008"
 )
 
