@@ -17,14 +17,14 @@ import httpx
 from railtracks.llm.retries import RetryApproach
 
 from ..._exceptions import (
-    ClassifierAuthenticationError,
-    ClassifierConnectionError,
-    ClassifierError,
-    ClassifierRateLimitError,
-    ClassifierRequestError,
-    ClassifierResponseError,
-    ClassifierServerError,
-    ClassifierTimeoutError,
+    DecisionProviderAuthenticationError,
+    DecisionProviderConnectionError,
+    DecisionProviderError,
+    DecisionProviderRateLimitError,
+    DecisionProviderRequestError,
+    DecisionProviderResponseError,
+    DecisionProviderServerError,
+    DecisionProviderTimeoutError,
 )
 from ...model import DecisionModel, DecisionReply
 from ...response import DecisionResponse
@@ -129,7 +129,7 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
             metadata.
 
         Raises:
-            ClassifierError: If the call fails; the subclass says why.
+            DecisionProviderError: If the call fails; the subclass says why.
         """
         return await self._ask(state, schema)
 
@@ -144,7 +144,7 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
         host = type(self).__name__
         questions = typesafe_questions(schema)
         if self.max_questions is not None and len(questions) > self.max_questions:
-            raise ClassifierRequestError(
+            raise DecisionProviderRequestError(
                 f"{host} accepts at most {self.max_questions} questions per request; "
                 f"{schema.__name__} has {len(questions)}."
             )
@@ -154,14 +154,14 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
                     isinstance(question, ChoiceQuestion)
                     and len(question.criteria) > self.max_choice_labels
                 ):
-                    raise ClassifierRequestError(
+                    raise DecisionProviderRequestError(
                         f"{host} accepts at most {self.max_choice_labels} options per "
                         f"Choice; {schema.__name__}.{name} has {len(question.criteria)}."
                     )
         if self.max_state_chars is not None:
             text = state if isinstance(state, str) else json.dumps(state)
             if len(text) > self.max_state_chars:
-                raise ClassifierRequestError(
+                raise DecisionProviderRequestError(
                     f"{host} accepts a state of at most {self.max_state_chars} "
                     f"characters; this one has {len(text)}."
                 )
@@ -176,7 +176,7 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
         from_env = os.environ.get(self.api_key_env) if self.api_key_env else None
         api_key = self._api_key or from_env
         if not api_key and self.requires_api_key:
-            raise ClassifierAuthenticationError(
+            raise DecisionProviderAuthenticationError(
                 f"No API key was provided for {type(self).__name__}.",
                 notes=self._key_notes(),
             )
@@ -186,7 +186,7 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
         api_base = self.api_base
         if not api_base:
             where = f"set {self.api_base_env} or " if self.api_base_env else ""
-            raise ClassifierRequestError(
+            raise DecisionProviderRequestError(
                 f"No base URL is configured for {type(self).__name__}.",
                 notes=[f"Pass api_base=, or {where}point it at your server."],
             )
@@ -209,21 +209,25 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
                 async with httpx.AsyncClient(timeout=self._timeout) as client:
                     response = await client.post(url, json=body, headers=headers)
         except httpx.TimeoutException as e:
-            raise ClassifierTimeoutError(f"No answer from {url} in time: {e!r}") from e
+            raise DecisionProviderTimeoutError(
+                f"No answer from {url} in time: {e!r}"
+            ) from e
         except (httpx.InvalidURL, httpx.UnsupportedProtocol) as e:
             # a config mistake, not a transient failure: never retried
-            raise ClassifierRequestError(
+            raise DecisionProviderRequestError(
                 f"Could not send to {url}: {e!r}",
                 notes=["Check api_base: it must be an http(s) URL."],
             ) from e
         except httpx.TransportError as e:
-            raise ClassifierConnectionError(f"Could not reach {url}: {e!r}") from e
+            raise DecisionProviderConnectionError(
+                f"Could not reach {url}: {e!r}"
+            ) from e
 
         self._raise_for_status(response)
         try:
             payload = response.json()
         except ValueError as e:
-            raise ClassifierResponseError(
+            raise DecisionProviderResponseError(
                 f"Decision response from {url} is not JSON: {e!r}"
             ) from e
         return parse_response(payload, schema)
@@ -234,13 +238,13 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
             return
         body = response.text[:_MAX_ERROR_BODY]
         reason = f"HTTP {status} from {response.request.url}: {body}"
-        error: ClassifierError
+        error: DecisionProviderError
         if status in (401, 403):
-            error = ClassifierAuthenticationError(reason, notes=self._key_notes())
+            error = DecisionProviderAuthenticationError(reason, notes=self._key_notes())
         elif status == 429:
-            error = ClassifierRateLimitError(reason)
+            error = DecisionProviderRateLimitError(reason)
         elif status >= 500:
-            error = ClassifierServerError(reason)
+            error = DecisionProviderServerError(reason)
         else:
-            error = ClassifierRequestError(reason, body=body)
+            error = DecisionProviderRequestError(reason, body=body)
         raise error

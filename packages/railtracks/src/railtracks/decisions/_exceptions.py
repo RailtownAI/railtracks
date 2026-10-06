@@ -1,10 +1,10 @@
 """Errors raised by ``railtracks.decisions``.
 
-Two independent roots, mirroring the ``llm`` package: ``ClassifierError`` for a failed
+Two independent roots, mirroring the ``llm`` package: ``DecisionProviderError`` for a failed
 call to a decision model (the counterpart of ``ProviderError``), and
 ``SchemaDefinitionError`` for a schema or question defined wrongly (the counterpart of
 ``ToolCreationError``). Neither is an ``RTError``: inside a ``decision_node`` the
-invoker turns a ``ClassifierError`` into the matching ``DecisionModelError``.
+invoker turns a ``DecisionProviderError`` into the matching ``DecisionModelError``.
 """
 
 from __future__ import annotations
@@ -25,31 +25,31 @@ class _NotedError(Exception):
         return f"{self.reason}\nTips to debug:\n{tips}"
 
 
-class ClassifierError(_NotedError):
+class DecisionProviderError(_NotedError):
     """A call to a decision model failed. Raised only by direct model calls."""
 
 
-class ClassifierTimeoutError(ClassifierError):
+class DecisionProviderTimeoutError(DecisionProviderError):
     """The model did not answer in time. Usually transient."""
 
 
-class ClassifierConnectionError(ClassifierError):
+class DecisionProviderConnectionError(DecisionProviderError):
     """The server could not be reached, or dropped the connection. Usually transient."""
 
 
-class ClassifierRateLimitError(ClassifierError):
+class DecisionProviderRateLimitError(DecisionProviderError):
     """The host rejected the call for rate or quota reasons. Worth backing off."""
 
 
-class ClassifierServerError(ClassifierError):
+class DecisionProviderServerError(DecisionProviderError):
     """The host failed with a 5xx status. Usually transient."""
 
 
-class ClassifierAuthenticationError(ClassifierError):
+class DecisionProviderAuthenticationError(DecisionProviderError):
     """The API key is missing or was rejected. Retrying will not help."""
 
 
-class ClassifierRequestError(ClassifierError):
+class DecisionProviderRequestError(DecisionProviderError):
     """The request was rejected or could not be sent: a 4xx other than auth or rate
     limits, a host limit exceeded, or a malformed ``api_base``. Retrying will not help.
     """
@@ -59,7 +59,7 @@ class ClassifierRequestError(ClassifierError):
         self.body = body
 
 
-class ClassifierResponseError(ClassifierError):
+class DecisionProviderResponseError(DecisionProviderError):
     """The host's response could not be parsed into answers."""
 
 

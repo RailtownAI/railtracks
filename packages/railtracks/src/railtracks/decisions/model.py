@@ -15,11 +15,11 @@ from typing import Any, ClassVar, Generic, TypeVar, cast
 from railtracks.llm.retries import RetryApproach, RetryError
 
 from ._exceptions import (
-    ClassifierConnectionError,
-    ClassifierError,
-    ClassifierRateLimitError,
-    ClassifierServerError,
-    ClassifierTimeoutError,
+    DecisionProviderConnectionError,
+    DecisionProviderError,
+    DecisionProviderRateLimitError,
+    DecisionProviderServerError,
+    DecisionProviderTimeoutError,
 )
 from .pricing import decision_cost
 from .response import DecisionResponse
@@ -28,11 +28,11 @@ from .schema import DecisionSchema, DecisionState
 _TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 _TVendorSchema = TypeVar("_TVendorSchema", bound=DecisionSchema)
 
-RETRYABLE_ERRORS: tuple[type[ClassifierError], ...] = (
-    ClassifierRateLimitError,
-    ClassifierTimeoutError,
-    ClassifierConnectionError,
-    ClassifierServerError,
+RETRYABLE_ERRORS: tuple[type[DecisionProviderError], ...] = (
+    DecisionProviderRateLimitError,
+    DecisionProviderTimeoutError,
+    DecisionProviderConnectionError,
+    DecisionProviderServerError,
 )
 
 
@@ -77,7 +77,7 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
     async def _send(
         self, state: DecisionState, schema: type[_TSchema]
     ) -> DecisionReply[_TSchema]:
-        """Make one request, raising a ``ClassifierError`` on failure."""
+        """Make one request, raising a ``DecisionProviderError`` on failure."""
 
     @abstractmethod
     def _pricing_keys(self) -> list[str]:
@@ -126,8 +126,8 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
         except RetryError as e:
             attempts = len(e.exception_list)
             # retry_on admits only RETRYABLE_ERRORS, so every entry is one of ours
-            last = cast(ClassifierError, e.exception_list[-1])
-        # Raise the last classifier error itself, outside the except block: chaining it
+            last = cast(DecisionProviderError, e.exception_list[-1])
+        # Raise the last provider error itself, outside the except block: chaining it
         # to the RetryError (whose own cause is this error) would make a cycle and hide
         # the httpx root cause, which `last.__cause__` still holds.
         last.notes.append(f"Gave up after {attempts} attempts.")

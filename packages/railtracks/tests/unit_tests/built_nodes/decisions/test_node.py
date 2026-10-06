@@ -8,14 +8,14 @@ import railtracks as rt
 import railtracks.context.central as central
 from railtracks.built_nodes.decisions import DecisionResponse
 from railtracks.decisions import (
-    ClassifierAuthenticationError,
-    ClassifierConnectionError,
-    ClassifierError,
-    ClassifierRateLimitError,
-    ClassifierRequestError,
-    ClassifierResponseError,
-    ClassifierServerError,
-    ClassifierTimeoutError,
+    DecisionProviderAuthenticationError,
+    DecisionProviderConnectionError,
+    DecisionProviderError,
+    DecisionProviderRateLimitError,
+    DecisionProviderRequestError,
+    DecisionProviderResponseError,
+    DecisionProviderServerError,
+    DecisionProviderTimeoutError,
     NoulAnswer,
 )
 from railtracks.decisions.schema import DecisionQuestion, DecisionSchema
@@ -173,34 +173,38 @@ async def test_call_batch_preserves_order_and_returns_exceptions():
 
 
 @pytest.mark.parametrize(
-    "failure, node_error, classifier_error",
+    "failure, node_error, provider_error",
     [
         (
             httpx.Response(401, text="no"),
             DecisionAuthenticationError,
-            ClassifierAuthenticationError,
+            DecisionProviderAuthenticationError,
         ),
         (
             httpx.Response(429, text="slow"),
             DecisionRateLimitError,
-            ClassifierRateLimitError,
+            DecisionProviderRateLimitError,
         ),
-        (httpx.ReadTimeout("slow"), DecisionTimeoutError, ClassifierTimeoutError),
+        (httpx.ReadTimeout("slow"), DecisionTimeoutError, DecisionProviderTimeoutError),
         (
             httpx.ConnectError("refused"),
             DecisionTimeoutError,
-            ClassifierConnectionError,
+            DecisionProviderConnectionError,
         ),
-        (httpx.Response(503, text="down"), DecisionServerError, ClassifierServerError),
+        (
+            httpx.Response(503, text="down"),
+            DecisionServerError,
+            DecisionProviderServerError,
+        ),
         (
             httpx.Response(200, text="<html>"),
             DecisionResponseError,
-            ClassifierResponseError,
+            DecisionProviderResponseError,
         ),
     ],
 )
-def test_classifier_errors_become_decision_errors_at_the_node(
-    make_model, failure, node_error, classifier_error
+def test_provider_errors_become_decision_errors_at_the_node(
+    make_model, failure, node_error, provider_error
 ):
     model, _ = make_model(failure)
     node = rt.decision_node(model=model, schema=Triage)
@@ -209,8 +213,8 @@ def test_classifier_errors_become_decision_errors_at_the_node(
         rt.Flow(name="decisions", entry_point=node).invoke("Help!")
 
     assert isinstance(info.value, DecisionModelError)
-    assert type(info.value.__cause__) is classifier_error
-    assert isinstance(info.value.__cause__, ClassifierError)
+    assert type(info.value.__cause__) is provider_error
+    assert isinstance(info.value.__cause__, DecisionProviderError)
     assert info.value.reason == info.value.__cause__.reason
 
 
@@ -222,7 +226,7 @@ def test_request_error_keeps_body_and_notes(make_model):
         rt.Flow(name="decisions", entry_point=node).invoke("Help!")
 
     assert info.value.body == '{"detail": "bad state"}'
-    assert isinstance(info.value.__cause__, ClassifierRequestError)
+    assert isinstance(info.value.__cause__, DecisionProviderRequestError)
     assert info.value.notes == info.value.__cause__.notes
 
 

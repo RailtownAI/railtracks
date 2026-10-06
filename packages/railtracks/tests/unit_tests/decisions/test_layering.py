@@ -13,14 +13,14 @@ import pathlib
 import pytest
 import railtracks.decisions
 from railtracks.decisions import (
-    ClassifierAuthenticationError,
-    ClassifierConnectionError,
-    ClassifierError,
-    ClassifierRateLimitError,
-    ClassifierRequestError,
-    ClassifierResponseError,
-    ClassifierServerError,
-    ClassifierTimeoutError,
+    DecisionProviderAuthenticationError,
+    DecisionProviderConnectionError,
+    DecisionProviderError,
+    DecisionProviderRateLimitError,
+    DecisionProviderRequestError,
+    DecisionProviderResponseError,
+    DecisionProviderServerError,
+    DecisionProviderTimeoutError,
     SchemaDefinitionError,
 )
 from railtracks.exceptions._base import RTError
@@ -66,7 +66,7 @@ def test_decisions_package_does_not_import_upward(module_path: pathlib.Path):
     assert offenders == [], (
         f"{_module_id(module_path)} imports {offenders}; the decisions layer may only import "
         f"{list(ALLOWED_PREFIXES)} from railtracks. Errors it raises must be "
-        "ClassifierError or SchemaDefinitionError, translated at the decision node."
+        "DecisionProviderError or SchemaDefinitionError, translated at the decision node."
     )
 
 
@@ -99,29 +99,29 @@ def test_decisions_package_never_raises_rterror(module_path: pathlib.Path):
     offenders = _raised_names(module_path) & _rterror_names()
     assert offenders == set(), (
         f"{_module_id(module_path)} raises {sorted(offenders)}; the decisions layer raises "
-        "ClassifierError/SchemaDefinitionError and the invoker translates them"
+        "DecisionProviderError/SchemaDefinitionError and the invoker translates them"
     )
 
 
 @pytest.mark.parametrize(
     "error_cls",
     [
-        ClassifierError,
-        ClassifierTimeoutError,
-        ClassifierConnectionError,
-        ClassifierRateLimitError,
-        ClassifierServerError,
-        ClassifierAuthenticationError,
-        ClassifierRequestError,
-        ClassifierResponseError,
+        DecisionProviderError,
+        DecisionProviderTimeoutError,
+        DecisionProviderConnectionError,
+        DecisionProviderRateLimitError,
+        DecisionProviderServerError,
+        DecisionProviderAuthenticationError,
+        DecisionProviderRequestError,
+        DecisionProviderResponseError,
         SchemaDefinitionError,
     ],
 )
-def test_classifier_errors_are_independent_of_rterror(error_cls):
+def test_provider_errors_are_independent_of_rterror(error_cls):
     assert not issubclass(error_cls, RTError)
 
 
 def test_error_roots_are_disjoint():
-    """`except ClassifierError` must not swallow a schema definition bug."""
-    assert not issubclass(SchemaDefinitionError, ClassifierError)
-    assert not issubclass(ClassifierError, SchemaDefinitionError)
+    """`except DecisionProviderError` must not swallow a schema definition bug."""
+    assert not issubclass(SchemaDefinitionError, DecisionProviderError)
+    assert not issubclass(DecisionProviderError, SchemaDefinitionError)

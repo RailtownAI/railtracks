@@ -11,7 +11,7 @@ from typing import Any, TypeVar
 
 from pydantic import ValidationError
 
-from ..._exceptions import ClassifierRequestError, ClassifierResponseError
+from ..._exceptions import DecisionProviderRequestError, DecisionProviderResponseError
 from ...model import DecisionReply
 from ...schema import DecisionAnswer, DecisionSchema, DecisionState
 from .schema import TypeSafeQuestion, TypeSafeSchema
@@ -25,10 +25,10 @@ def typesafe_questions(
     """``schema``'s questions, once it is confirmed to be in this format.
 
     Raises:
-        ClassifierRequestError: If ``schema`` is not a ``TypeSafeSchema`` subclass.
+        DecisionProviderRequestError: If ``schema`` is not a ``TypeSafeSchema`` subclass.
     """
     if not issubclass(schema, TypeSafeSchema):
-        raise ClassifierRequestError(
+        raise DecisionProviderRequestError(
             f"{schema.__name__} is not a TypeSafeSchema; /v1/systemone hosts only "
             "answer TypeSafeSchema questions."
         )
@@ -62,8 +62,8 @@ def build_request(
     return {"state": state, "model": model_name, "questions": questions_to_wire(schema)}
 
 
-def _malformed(field: str, problem: str = "missing") -> ClassifierResponseError:
-    return ClassifierResponseError(
+def _malformed(field: str, problem: str = "missing") -> DecisionProviderResponseError:
+    return DecisionProviderResponseError(
         f"Malformed decision response: {problem} field {field!r}",
         notes=["Check that api_base points at a /v1/systemone-compatible server."],
     )
@@ -83,7 +83,7 @@ def parse_response(body: object, schema: type[_TSchema]) -> DecisionReply[_TSche
     """Parse a ``/v1/systemone`` JSON body into a ``schema`` instance and metadata.
 
     Raises:
-        ClassifierResponseError: If the body is not an object, or an answer for one of
+        DecisionProviderResponseError: If the body is not an object, or an answer for one of
             ``schema``'s questions is missing or malformed. The message names the field.
     """
     if not isinstance(body, dict):
