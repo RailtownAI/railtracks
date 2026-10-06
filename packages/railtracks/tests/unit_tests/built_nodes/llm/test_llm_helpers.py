@@ -220,17 +220,12 @@ def _invoker_returning(response: Response):
     return _FixedInvoker
 
 
-class _Answer(BaseModel):
-    text: str
-
-
-@pytest.mark.parametrize("schema", [None, _Answer], ids=["text", "structured"])
-async def test_response_without_text_content_raises_llmerror(monkeypatch, schema):
-    """An audio-only or token-exhausted reply has `content=None`; it must surface as
-    a node-terminating `LLMError` carrying the history, not a raw `TypeError`."""
+async def test_response_without_text_content_raises_llmerror(monkeypatch):
+    """A reply with `content=None` (audio-only, or cut off or filtered before any text)
+    must surface as a node-terminating `LLMError` carrying the history."""
     response = Response(message=AssistantMessage(content=None))
     monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_returning(response))
-    invoke = llm_helpers.llm_invoke_factory(object(), None, schema=schema)
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
 
     with pytest.raises(LLMError) as exc:
         await invoke(_FakeNode(), "hello")
@@ -240,18 +235,27 @@ async def test_response_without_text_content_raises_llmerror(monkeypatch, schema
     assert exc.value.message_history[-1].content == "hello"
 
 
+class _Answer(BaseModel):
+    text: str
+
+
 @pytest.mark.parametrize(
-    "schema,expected", [(None, "Expected str."), (_Answer, "Expected str or _Answer.")]
+    "schema,expected", [(None, "expected str."), (_Answer, "expected str or _Answer.")]
 )
-def test_process_message_unexpected_type_names_the_expected_types(schema, expected):
+def test_unusable_content_type_raises_llmerror_naming_the_expected_types(
+    schema, expected
+):
     response = Response(
         message=AssistantMessage(
             content=ToolResponse(identifier="1", name="t", result="r")
         )
     )
+    history = MessageHistory([UserMessage("hello")])
 
-    with pytest.raises(TypeError, match=re.escape(expected)):
-        llm_helpers.process_message(response, schema)
+    with pytest.raises(LLMError, match=re.escape(expected)) as exc:
+        llm_helpers.process_message(response, schema, message_history=history)
+
+    assert exc.value.message_history is history
 
 
 # ---------------------------------------------------------------------------

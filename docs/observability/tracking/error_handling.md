@@ -58,6 +58,8 @@ You only see these when calling a model **directly**. Inside a node they are tra
 | `ProviderError` (anything else) | `LLMError` |
 | `ToolCreationError` | `NodeInvocationError` with `fatal=True` |
 
+A reply the node cannot use, such as one with no text and no tool calls (cut off or filtered before any text, or audio or images only), also surfaces as `LLMError`, with `message_history` attached.
+
 You never have to unwrap anything to find out *what* went wrong: an exhausted retry of timeouts arrives as an `LLMTimeoutError`, whether or not a retry approach was configured.
 
 Because wrapping produces a *new* exception object, `e` is the `LLMError` and `e.__cause__` is the original. The two hierarchies share no ancestor, so `isinstance(e, RetryError)` is always `False`.

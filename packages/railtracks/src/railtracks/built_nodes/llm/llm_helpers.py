@@ -318,7 +318,7 @@ def process_message(
     response: Response,
     schema: type[_TStructured] | None,
     *,
-    message_history: MessageHistory | None = None,
+    message_history: MessageHistory,
 ) -> Literal["Tool", "Content", "Structured"]:
     """Classify a model response as a tool-call turn, plain text, or structured output.
 
@@ -328,8 +328,7 @@ def process_message(
         message_history: The history sent to the model, attached to any `LLMError`.
 
     Raises:
-        LLMError: If the model returned neither text nor tool calls.
-        TypeError: If the content is of a type the node cannot handle.
+        LLMError: If the response is none of the three, e.g. it has no content.
     """
     tool_calls = response.message.tool_calls
     content = response.message.content
@@ -341,19 +340,17 @@ def process_message(
     elif schema is not None and isinstance(content, schema):
         return "Structured"
     elif content is None:
-        raise LLMError(
-            reason=(
-                "The model returned no text content. This can happen when the output "
-                "token limit is used up by reasoning, when the response is filtered, or "
-                "when the model answers with only audio or images, which are not supported."
-            ),
-            message_history=message_history,
+        reason = (
+            "The model returned no text content. This can happen when the reply is cut "
+            "off or blocked by the provider's content filter, or when the model answers "
+            "with only audio or images, which are not supported."
         )
     else:
         expected = "str" if schema is None else f"str or {schema.__name__}"
-        raise TypeError(
-            f"Response content is of an unexpected type: {type(content)}. Expected {expected}."
+        reason = (
+            f"The model returned {type(content).__name__} content; expected {expected}."
         )
+    raise LLMError(reason=reason, message_history=message_history)
 
 
 def _wire_history(
