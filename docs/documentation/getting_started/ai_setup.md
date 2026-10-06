@@ -13,6 +13,20 @@ pip install 'railtracks[visual]'
 ```
 
 
+## Always-On Rules (`AGENTS.md`)
+
+Skills load only when the assistant decides they're relevant, and it often doesn't. For the core API, always-on context works better: in [Vercel's agent evals](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), a short `AGENTS.md` index beat on-demand skills by a wide margin. Run this from your project root:
+
+```bash
+railtracks agents-md
+```
+
+It writes a short Railtracks block (the core patterns, the right call where coding agents often guess wrong, and links to these docs) into `AGENTS.md`, creating the file if needed. The block sits between `<!-- BEGIN:railtracks-agent-rules -->` and `<!-- END:railtracks-agent-rules -->`, and re-running the command replaces only what's between the markers, so anything else you keep in `AGENTS.md` is left alone. Because Claude Code skips `AGENTS.md` when a `CLAUDE.md` exists, the command also creates `CLAUDE.md` with an `@AGENTS.md` import, or adds that line to your existing `CLAUDE.md` if it's missing.
+
+The block records the railtracks version that wrote it; rerun `railtracks agents-md` after upgrading so it matches. To opt out, delete the block (markers included) from `AGENTS.md`, and the `@AGENTS.md` line from `CLAUDE.md` if nothing else needs it.
+
+Skills and the block work well together: the block keeps the basics right in every session, and skills cover multi-step work like RAG pipelines and middleware.
+
 ## Supported Assistants
 
 === "Codex"
