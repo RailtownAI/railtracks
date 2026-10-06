@@ -12,6 +12,7 @@ from railtracks.decisions import (
     TypeSafeAI,
     TypeSafeCompatibleAI,
     TypeSafeSchema,
+    UpstageAI,
 )
 
 from .conftest import TRIAGE_RESPONSE, Triage, ok
@@ -24,6 +25,7 @@ _HOST_ENV = (
     "LAYA_API_BASE",
     "LITELLM_PROXY_API_KEY",
     "LITELLM_PROXY_API_BASE",
+    "UPSTAGE_API_KEY",
 )
 
 
@@ -78,6 +80,7 @@ def test_hosts_share_the_systemone_base():
         OpenRouterAI,
         LayaAI,
         LiteLLMProxyAI,
+        UpstageAI,
     ):
         assert issubclass(host, TypeSafeCompatibleAI)
         assert host.schema_base is TypeSafeSchema
@@ -197,6 +200,50 @@ class TestOpenRouterAI:
         model, _ = make_model(cls=OpenRouterAI, model_name="typesafe/jev-1.13")
         resp = await model.aask("Help!", Triage)
         assert resp.cost == pytest.approx(296 * 4.2e-08)
+
+
+# ================= Upstage =================
+
+
+class TestUpstageAI:
+    async def test_defaults(self, make_model, monkeypatch):
+        monkeypatch.setenv("UPSTAGE_API_KEY", "up-key")
+        model, recorder = make_model(
+            cls=UpstageAI, model_name="solar-decide", api_key=None
+        )
+        resp = await model.aask("Help!", Triage)
+        request = recorder.requests[0]
+        assert str(request.url) == "https://api.upstage.ai/v1/systemone"
+        assert request.headers["Authorization"] == "Bearer up-key"
+        assert recorder.body()["model"] == "solar-decide"
+        assert resp.provider == "upstage"
+
+    async def test_requires_a_key(self, make_model):
+        model, recorder = make_model(
+            cls=UpstageAI, model_name="solar-decide", api_key=None
+        )
+        with pytest.raises(
+            DecisionProviderAuthenticationError, match="UPSTAGE_API_KEY"
+        ):
+            await model.aask("Help!", Triage)
+        assert recorder.requests == []
+
+    async def test_choice_capped_at_26_options(self, make_model):
+        model, recorder = make_model(cls=UpstageAI, model_name="solar-decide")
+        with pytest.raises(DecisionProviderRequestError, match="26 options"):
+            await model.aask("Help!", _labels(27))
+        assert recorder.requests == []
+
+    def test_pricing_keys(self):
+        assert UpstageAI("solar-decide")._pricing_keys() == [
+            "upstage/solar-decide",
+            "solar-decide",
+        ]
+
+    async def test_unpriced_until_the_catalog_lists_it(self, make_model):
+        model, _ = make_model(cls=UpstageAI, model_name="solar-decide")
+        resp = await model.aask("Help!", Triage)
+        assert resp.cost is None
 
 
 # ================= Laya =================

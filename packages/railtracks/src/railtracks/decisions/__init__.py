@@ -20,6 +20,7 @@ __all__ = [
     "TypeSafeCompatibleAI",
     "TypeSafeAI",
     "TypeSafeSchema",
+    "UpstageAI",
 ]
 
 
@@ -41,6 +42,7 @@ from .models import (
     OpenRouterAI,
     TypeSafeAI,
     TypeSafeCompatibleAI,
+    UpstageAI,
 )
 from .models.system_one import ChoiceAnswer, NoulAnswer, ScoreAnswer, TypeSafeSchema
 from .response import DecisionResponse
