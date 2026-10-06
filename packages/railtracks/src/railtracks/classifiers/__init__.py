@@ -1,5 +1,6 @@
 __all__ = [
     "ChoiceAnswer",
+    "DecisionModel",
     "DecisionResponse",
     "DecisionSchema",
     "NoulAnswer",
@@ -11,6 +12,7 @@ __all__ = [
 
 from railtracks.built_nodes.decisions.typesafe import TypeSafeAI
 
+from .model import DecisionModel
 from .models.system_one.schema import (
     ChoiceAnswer,
     NoulAnswer,

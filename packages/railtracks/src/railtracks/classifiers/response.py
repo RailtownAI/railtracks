@@ -17,6 +17,7 @@ class DecisionResponse(Generic[_TSchema]):
         structured: The schema instance holding one answer per question.
         model_name: The model that answered, as reported by the provider (falls back
             to the requested name).
+        requested_model_name: The model name the client asked for.
         provider: The provider that served the request, when reported.
         input_tokens: Input tokens, when reported.
         output_tokens: Output tokens, when reported.
@@ -28,6 +29,7 @@ class DecisionResponse(Generic[_TSchema]):
 
     structured: _TSchema
     model_name: str
+    requested_model_name: str
     provider: str | None
     input_tokens: int | None
     output_tokens: int | None
@@ -49,6 +51,7 @@ class DecisionResponse(Generic[_TSchema]):
         return {
             "structured": self.structured.encode(),
             "model_name": self.model_name,
+            "requested_model_name": self.requested_model_name,
             "provider": self.provider,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
