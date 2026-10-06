@@ -2,7 +2,7 @@
 
 import pytest
 from railtracks.decisions import SchemaDefinitionError
-from railtracks.decisions.models.system_one.schema import (
+from railtracks.decisions.models.typesafe_compatible.schema import (
     ChoiceAnswer,
     ChoiceQuestion,
     NoulAnswer,
