@@ -6,6 +6,16 @@ from typing import Any, TypeVar
 
 import httpx
 
+from railtracks.classifiers._exceptions import (
+    ClassifierAuthenticationError,
+    ClassifierConnectionError,
+    ClassifierError,
+    ClassifierRateLimitError,
+    ClassifierRequestError,
+    ClassifierResponseError,
+    ClassifierServerError,
+    ClassifierTimeoutError,
+)
 from railtracks.classifiers.model import DecisionModel, DecisionReply
 from railtracks.classifiers.models.system_one._wire import (
     build_request,
@@ -15,15 +25,6 @@ from railtracks.classifiers.models.system_one._wire import (
 from railtracks.classifiers.models.system_one.schema import TypeSafeSchema
 from railtracks.classifiers.response import DecisionResponse
 from railtracks.classifiers.schema import DecisionState
-from railtracks.exceptions import (
-    DecisionAuthenticationError,
-    DecisionModelError,
-    DecisionRateLimitError,
-    DecisionRequestError,
-    DecisionResponseError,
-    DecisionServerError,
-    DecisionTimeoutError,
-)
 from railtracks.llm.retries import RetryApproach
 
 DEFAULT_PROVIDER = "typesafe"
@@ -96,7 +97,7 @@ class TypeSafeAI(DecisionModel[TypeSafeSchema]):
             metadata.
 
         Raises:
-            DecisionModelError: If the call fails; the subclass says why.
+            ClassifierError: If the call fails; the subclass says why.
         """
         return await self._ask(state, schema)
 
@@ -114,7 +115,7 @@ class TypeSafeAI(DecisionModel[TypeSafeSchema]):
     def _resolve_api_key(self) -> str | None:
         api_key = self._api_key or os.environ.get(self.api_key_env)
         if not api_key and self.api_base.rstrip("/") == DEFAULT_API_BASE:
-            raise DecisionAuthenticationError(
+            raise ClassifierAuthenticationError(
                 "No TypeSafe API key was provided.",
                 notes=[self._key_note()],
             )
@@ -139,16 +140,22 @@ class TypeSafeAI(DecisionModel[TypeSafeSchema]):
             else:
                 async with httpx.AsyncClient(timeout=self._timeout) as client:
                     response = await client.post(url, json=body, headers=headers)
-        except httpx.TransportError as e:
-            raise DecisionTimeoutError(
-                f"Could not get an answer from {url}: {e!r}"
+        except httpx.TimeoutException as e:
+            raise ClassifierTimeoutError(f"No answer from {url} in time: {e!r}") from e
+        except (httpx.InvalidURL, httpx.UnsupportedProtocol) as e:
+            # a config mistake, not a transient failure: never retried
+            raise ClassifierRequestError(
+                f"Could not send to {url}: {e!r}",
+                notes=["Check api_base: it must be an http(s) URL."],
             ) from e
+        except httpx.TransportError as e:
+            raise ClassifierConnectionError(f"Could not reach {url}: {e!r}") from e
 
         _raise_for_status(response, key_note=self._key_note())
         try:
             payload = response.json()
         except ValueError as e:
-            raise DecisionResponseError(
+            raise ClassifierResponseError(
                 f"Decision response from {url} is not JSON: {e!r}"
             ) from e
         return parse_response(payload, schema)
@@ -160,13 +167,13 @@ def _raise_for_status(response: httpx.Response, *, key_note: str) -> None:
         return
     body = response.text[:_MAX_ERROR_BODY]
     reason = f"HTTP {status} from {response.request.url}: {body}"
-    error: DecisionModelError
+    error: ClassifierError
     if status in (401, 403):
-        error = DecisionAuthenticationError(reason, notes=[key_note])
+        error = ClassifierAuthenticationError(reason, notes=[key_note])
     elif status == 429:
-        error = DecisionRateLimitError(reason)
+        error = ClassifierRateLimitError(reason)
     elif status >= 500:
-        error = DecisionServerError(reason)
+        error = ClassifierServerError(reason)
     else:
-        error = DecisionRequestError(reason, body=body)
+        error = ClassifierRequestError(reason, body=body)
     raise error

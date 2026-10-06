@@ -7,9 +7,28 @@ import pytest
 import railtracks as rt
 import railtracks.context.central as central
 from railtracks.built_nodes.decisions import DecisionResponse
-from railtracks.classifiers import NoulAnswer
+from railtracks.classifiers import (
+    ClassifierAuthenticationError,
+    ClassifierConnectionError,
+    ClassifierError,
+    ClassifierRateLimitError,
+    ClassifierRequestError,
+    ClassifierResponseError,
+    ClassifierServerError,
+    ClassifierTimeoutError,
+    NoulAnswer,
+)
 from railtracks.classifiers.schema import DecisionQuestion, DecisionSchema
-from railtracks.exceptions import DecisionServerError, NodeCreationError
+from railtracks.exceptions import (
+    DecisionAuthenticationError,
+    DecisionModelError,
+    DecisionRateLimitError,
+    DecisionRequestError,
+    DecisionResponseError,
+    DecisionServerError,
+    DecisionTimeoutError,
+    NodeCreationError,
+)
 from railtracks.llm import ToolCall
 from railtracks.observability import Event, configure, configure_writers
 from railtracks.utils.json.encoder import RTJSONEncoder
@@ -151,6 +170,60 @@ async def test_call_batch_preserves_order_and_returns_exceptions():
     assert isinstance(results[0], DecisionResponse)
     assert isinstance(results[1], DecisionServerError)
     assert isinstance(results[2], DecisionResponse)
+
+
+@pytest.mark.parametrize(
+    "failure, node_error, classifier_error",
+    [
+        (
+            httpx.Response(401, text="no"),
+            DecisionAuthenticationError,
+            ClassifierAuthenticationError,
+        ),
+        (
+            httpx.Response(429, text="slow"),
+            DecisionRateLimitError,
+            ClassifierRateLimitError,
+        ),
+        (httpx.ReadTimeout("slow"), DecisionTimeoutError, ClassifierTimeoutError),
+        (
+            httpx.ConnectError("refused"),
+            DecisionTimeoutError,
+            ClassifierConnectionError,
+        ),
+        (httpx.Response(503, text="down"), DecisionServerError, ClassifierServerError),
+        (
+            httpx.Response(200, text="<html>"),
+            DecisionResponseError,
+            ClassifierResponseError,
+        ),
+    ],
+)
+def test_classifier_errors_become_decision_errors_at_the_node(
+    make_model, failure, node_error, classifier_error
+):
+    model, _ = make_model(failure)
+    node = rt.decision_node(model=model, schema=Triage)
+
+    with pytest.raises(node_error) as info:
+        rt.Flow(name="decisions", entry_point=node).invoke("Help!")
+
+    assert isinstance(info.value, DecisionModelError)
+    assert type(info.value.__cause__) is classifier_error
+    assert isinstance(info.value.__cause__, ClassifierError)
+    assert info.value.reason == info.value.__cause__.reason
+
+
+def test_request_error_keeps_body_and_notes(make_model):
+    model, _ = make_model(httpx.Response(422, text='{"detail": "bad state"}'))
+    node = rt.decision_node(model=model, schema=Triage)
+
+    with pytest.raises(DecisionRequestError) as info:
+        rt.Flow(name="decisions", entry_point=node).invoke("Help!")
+
+    assert info.value.body == '{"detail": "bad state"}'
+    assert isinstance(info.value.__cause__, ClassifierRequestError)
+    assert info.value.notes == info.value.__cause__.notes
 
 
 def test_agent_reads_the_compact_str(make_model, mock_llm):

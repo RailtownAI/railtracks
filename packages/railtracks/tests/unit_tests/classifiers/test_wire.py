@@ -3,7 +3,7 @@
 import copy
 
 import pytest
-from railtracks.classifiers import TypeSafeSchema
+from railtracks.classifiers import ClassifierResponseError, TypeSafeSchema
 from railtracks.classifiers.models.system_one._wire import (
     build_request,
     parse_response,
@@ -13,7 +13,6 @@ from railtracks.classifiers.models.system_one.schema import (
     NoulAnswer,
     ScoreAnswer,
 )
-from railtracks.exceptions import DecisionResponseError
 
 from .conftest import TRIAGE_RESPONSE, Triage
 
@@ -184,9 +183,9 @@ class TestParseResponse:
     def test_malformed_response_names_the_field(self, mutate, field):
         body = copy.deepcopy(TRIAGE_RESPONSE)
         mutate(body)
-        with pytest.raises(DecisionResponseError, match=field.replace(".", r"\.")):
+        with pytest.raises(ClassifierResponseError, match=field.replace(".", r"\.")):
             parse_response(body, Triage)
 
     def test_non_object_body_rejected(self):
-        with pytest.raises(DecisionResponseError):
+        with pytest.raises(ClassifierResponseError):
             parse_response(["not", "an", "object"], Triage)

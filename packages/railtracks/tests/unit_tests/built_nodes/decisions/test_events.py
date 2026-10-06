@@ -96,7 +96,8 @@ async def test_failure_paired_with_invocation(make_model, writer):
     invocation, failure = _decision_events(writer)
     assert failure.event_type == "decision.failure"
     assert failure.payload["decision_id"] == invocation.payload["decision_id"]
-    assert failure.payload["exception_name"] == "DecisionServerError"
+    # the event records the model's own error, before the node translates it
+    assert failure.payload["exception_name"] == "ClassifierServerError"
     assert failure.payload["parent_node_id"] == _node_id(writer, "Triage Ticket")
 
 
