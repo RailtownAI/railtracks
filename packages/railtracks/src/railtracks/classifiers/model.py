@@ -54,17 +54,19 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
     """Base for a System One model client, generic in the vendor's schema base."""
 
     schema_base: ClassVar[type[DecisionSchema]]
+    provider_name: str
+    """Who serves the model; the response's ``provider`` when the host reports none."""
 
     def __init__(
-        self,
-        model_name: str,
-        *,
-        api_base: str,
-        retry_approach: RetryApproach | None = None,
+        self, model_name: str, *, retry_approach: RetryApproach | None = None
     ) -> None:
         self.model_name = model_name
-        self.api_base = api_base
         self.retry_approach = retry_approach
+
+    @property
+    @abstractmethod
+    def api_base(self) -> str | None:
+        """The base URL the next call goes to, or None if none is configured."""
 
     @abstractmethod
     async def aask(
@@ -86,9 +88,13 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
     def describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
         """``schema``'s questions as plain JSON, as the request would carry them."""
 
+    def _check_request(self, state: DecisionState, schema: type[_TSchema]) -> None:
+        """Reject a request the host can't take, before any attempt. No-op by default."""
+
     async def _ask(
         self, state: DecisionState, schema: type[_TSchema]
     ) -> DecisionResponse[_TSchema]:
+        self._check_request(state, schema)
         start = time.perf_counter()
         reply = await self._send_with_retries(state, schema)
         latency = time.perf_counter() - start
@@ -96,7 +102,7 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
             structured=reply.structured,
             model_name=reply.reported_model_name or self.model_name,
             requested_model_name=self.model_name,
-            provider=reply.provider,
+            provider=reply.provider or self.provider_name,
             input_tokens=reply.input_tokens,
             output_tokens=reply.output_tokens,
             latency=latency,

@@ -6,7 +6,7 @@ from railtracks.classifiers import (
     DecisionModel,
     DecisionResponse,
     DecisionSchema,
-    TypeSafeAI,
+    SystemOneProvider,
     TypeSafeSchema,
 )
 from railtracks.classifiers.schema import DecisionState
@@ -35,7 +35,7 @@ def _state_shape(state: DecisionState) -> object:
 def decision_node(
     name: str | None = None,
     *,
-    model: TypeSafeAI,
+    model: SystemOneProvider,
     schema: type[_TTypeSafe],
     description: str | None = None,
     middleware: Iterable[Middleware[_P, DecisionResponse[_TTypeSafe]]] | None = None,
