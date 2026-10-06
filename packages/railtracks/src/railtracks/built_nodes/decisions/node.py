@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Iterable, ParamSpec, TypeVar, cast, overload
+from typing import Any, Callable, Iterable, ParamSpec, TypeVar, cast, overload
 
 from railtracks.classifiers import (
     DecisionModel,
@@ -55,15 +55,17 @@ def decision_node(
 ) -> type[Node[_P, DecisionResponse[_TVendor]]]: ...
 
 
+# The implementation is typed loosely enough to cover both overloads: DecisionModel is
+# invariant in its schema type, so only DecisionModel[Any] admits a SystemOneProvider.
 def decision_node(
     name: str | None = None,
     *,
-    model: DecisionModel[_TVendor],
-    schema: type[_TVendor],
+    model: DecisionModel[Any],
+    schema: type[DecisionSchema],
     description: str | None = None,
-    middleware: Iterable[Middleware[_P, DecisionResponse[_TVendor]]] | None = None,
+    middleware: Iterable[Middleware[_P, DecisionResponse[Any]]] | None = None,
     _shape: Callable[_P, object] = _state_shape,
-) -> type[Node[_P, DecisionResponse[_TVendor]]]:
+) -> type[Node[_P, DecisionResponse[Any]]]:
     """Create a node that answers ``schema``'s questions about a state with ``model``.
 
     The System One counterpart of `agent_node`. The node is a Tool: use it as a Flow's
@@ -91,7 +93,7 @@ def decision_node(
     detail = description if description is not None else _default_detail(schema)
 
     # `str` so TypeMapper coerces an agent's tool argument; Python callers may pass JSON
-    async def invoke(state: str) -> DecisionResponse[_TVendor]:
+    async def invoke(state: str) -> DecisionResponse[DecisionSchema]:
         return await invoke_decision(model, state, schema)
 
     tool = Tool(
@@ -107,14 +109,15 @@ def decision_node(
         name=node_name,
         tool_info=tool,
         middleware=cast(
-            Iterable[Middleware[[str], DecisionResponse[_TVendor]]] | None, middleware
+            Iterable[Middleware[[str], DecisionResponse[DecisionSchema]]] | None,
+            middleware,
         ),
     )
-    return cast(type[Node[_P, DecisionResponse[_TVendor]]], builder.build())
+    return cast(type[Node[_P, DecisionResponse[Any]]], builder.build())
 
 
 def _validate(
-    name: str | None, model: DecisionModel[_TVendor], schema: type[_TVendor]
+    name: str | None, model: DecisionModel[Any], schema: type[DecisionSchema]
 ) -> None:
     if name is not None and (not isinstance(name, str) or not name.strip()):
         raise NodeCreationError(

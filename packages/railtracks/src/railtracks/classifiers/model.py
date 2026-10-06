@@ -12,8 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, cast
 
-from railtracks.llm._exceptions import RetryError
-from railtracks.llm.retries import RetryApproach
+from railtracks.llm.retries import RetryApproach, RetryError
 
 from ._exceptions import (
     ClassifierConnectionError,

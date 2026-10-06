@@ -28,14 +28,16 @@ from ..._exceptions import (
 )
 from ...model import DecisionModel, DecisionReply
 from ...response import DecisionResponse
-from ...schema import DecisionState
-from ._wire import build_request, parse_response, questions_to_wire
+from ...schema import DecisionSchema, DecisionState
+from ._wire import build_request, parse_response, questions_to_wire, typesafe_questions
 from .schema import ChoiceQuestion, TypeSafeSchema
 
 SYSTEM_ONE_PATH = "/v1/systemone"
 _MAX_ERROR_BODY = 500
 
-_TSchema = TypeVar("_TSchema", bound=TypeSafeSchema)
+_TTypeSafe = TypeVar("_TTypeSafe", bound=TypeSafeSchema)
+# the base class's internal hooks take any DecisionSchema; _wire checks the format
+_TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 
 
 class SystemOneProvider(DecisionModel[TypeSafeSchema]):
@@ -114,8 +116,8 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
         return self._api_base or from_env or self.default_api_base
 
     async def aask(
-        self, state: DecisionState, schema: type[_TSchema]
-    ) -> DecisionResponse[_TSchema]:
+        self, state: DecisionState, schema: type[_TTypeSafe]
+    ) -> DecisionResponse[_TTypeSafe]:
         """Answer every question in ``schema`` about ``state`` in one request.
 
         Args:
@@ -140,7 +142,7 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
 
     def _check_request(self, state: DecisionState, schema: type[_TSchema]) -> None:
         host = type(self).__name__
-        questions = schema.__questions__
+        questions = typesafe_questions(schema)
         if self.max_questions is not None and len(questions) > self.max_questions:
             raise ClassifierRequestError(
                 f"{host} accepts at most {self.max_questions} questions per request; "
