@@ -152,7 +152,12 @@ def llm_invoke_factory(
                     message_history=wire,
                 ) from e
 
-            path = process_message(returned_mess, schema)
+            # Decoding the response sits outside the invoke translation on purpose: an
+            # `LLMError` there is already classified with its own history, and re-raising
+            # it through `_node_error_for` would flatten its subclass. On its own it still
+            # has to classify, so an unusable content type cannot escape as a bare
+            # `TypeError` (#1620).
+            path = _classify_response(returned_mess, schema, wire)
 
             # Rebuild a fresh assistant message rather than appending the response's own,
             # so history stays isolated from the Response that `post_llm` middleware may
@@ -318,6 +323,17 @@ def process_message(
     response: Response,
     schema: type[_TStructured] | None,
 ) -> Literal["Tool", "Content", "Structured"]:
+    """Decide how the caller should consume a model response.
+
+    Returns:
+        "Tool" when the message carries tool calls, "Content" for plain text,
+        "Structured" when the content already is a `schema` instance.
+
+    Raises:
+        LLMError: The model returned no content at all, which happens with
+            response modalities railtracks does not consume yet (audio, images).
+        TypeError: The content is neither text nor the requested `schema`.
+    """
     tool_calls = response.message.tool_calls
     content = response.message.content
 
@@ -327,10 +343,47 @@ def process_message(
         return "Content"
     elif schema is not None and isinstance(content, schema):
         return "Structured"
-    else:
-        raise TypeError(
-            f"Response content is of an unexpected type: {type(content)}. Expected str or {schema}."
+    elif content is None:
+        # Classified here rather than at the call site: a `None` content is a
+        # provider behaviour the caller has to branch on, not a programming error.
+        raise LLMError(
+            reason=(
+                "The model returned no text content. It may have returned audio or "
+                "images, which railtracks does not support yet (see #1347)."
+            ),
         )
+    else:
+        expected = f"str or {schema.__name__}" if schema is not None else "str"
+        raise TypeError(
+            f"Response content is of an unexpected type: {type(content)}. Expected {expected}."
+        )
+
+
+def _classify_response(
+    response: Response,
+    schema: type[_TStructured] | None,
+    wire: MessageHistory,
+) -> Literal["Tool", "Content", "Structured"]:
+    """`process_message`, with the conversation attached to its failures.
+
+    The response arrives after the invoke translation above, so a response the runtime
+    cannot consume -- no content at all, or a type neither text nor `schema` -- would
+    otherwise reach the caller as a bare `TypeError` (#1620). `wire` is the history the
+    model was called with, which `process_message` has no access to.
+    """
+    try:
+        return process_message(response, schema)
+    except LLMError as e:
+        raise type(e)(
+            reason=getattr(e, "reason", None) or str(e),
+            message_history=wire,
+            notes=getattr(e, "notes", None),
+        ) from e
+    except Exception as e:
+        raise LLMError(
+            reason=f"Unexpected model response: {e!r}",
+            message_history=wire,
+        ) from e
 
 
 def _wire_history(

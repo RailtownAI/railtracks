@@ -367,3 +367,55 @@ async def test_run_tools_preserves_reasoning_and_isolates_history(monkeypatch):
     assert appended.reasoning_content == "use the tool"
     assert appended.thinking_blocks == blocks
     assert appended.raw_litellm_message == {"raw": "msg"}
+
+
+# ---------------------------------------------------------------------------
+# process_message content handling (#1620)
+# ---------------------------------------------------------------------------
+
+
+def test_process_message_without_content_raises_a_named_llm_error():
+    """An empty `content` is a provider behaviour (#1347), not a programming error,
+    so it must surface as a classified `LLMError` rather than a raw `TypeError`."""
+    from railtracks.built_nodes.llm.llm_helpers import process_message
+    from railtracks.llm import AssistantMessage, Response
+
+    response = Response(message=AssistantMessage(content=None))
+
+    with pytest.raises(LLMError, match="returned no text content"):
+        process_message(response, None)
+
+
+def test_process_message_rejects_an_unexpected_content_type_naming_it():
+    """With no `schema`, the expected type is `str` -- `None` has its own error above."""
+    from railtracks.built_nodes.llm.llm_helpers import process_message
+    from railtracks.llm import AssistantMessage, Response
+
+    response = Response(message=AssistantMessage(content=3.14))
+
+    with pytest.raises(TypeError, match=r"Expected str\."):
+        process_message(response, None)
+
+
+async def test_response_without_content_is_translated_into_llmerror(monkeypatch):
+    """Reproduces #1620 end to end: a provider answering with audio/images only used
+    to reach the caller as a bare `TypeError`."""
+    from railtracks.llm import AssistantMessage, Response
+
+    class _EmptyContentInvoker:
+        @classmethod
+        def create_with_llm_observe(cls, *args, **kwargs):
+            return cls()
+
+        async def invoke(self, *args, **kwargs):
+            return Response(message=AssistantMessage(content=None))
+
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _EmptyContentInvoker)
+
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(LLMError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert "returned no text content" in str(exc.value)
+    assert exc.value.message_history is not None
