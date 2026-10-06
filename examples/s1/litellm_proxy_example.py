@@ -38,6 +38,10 @@ class Triage(TypeSafeSchema):
             "sales": "Pricing questions, upgrades, or new purchases",
         },
     )
+    frustration = TypeSafeSchema.Score(
+        instructions="How frustrated the customer is",
+        criteria=["Calm", "Frustrated but civil", "Very angry"],
+    )
 
 
 TriageTicket = rt.decision_node("Triage Ticket", model=jev_via_proxy, schema=Triage)
@@ -46,5 +50,7 @@ triage_flow = rt.Flow(name="Proxy Ticket Triage", entry_point=TriageTicket)
 if __name__ == "__main__":
     result = triage_flow.invoke("I was charged twice for my March invoice.")
 
-    print(result)  # is_urgent: no 0.21 | department: billing 0.96
-    print(f"{result.model_name} via {result.provider}: cost ${result.cost}")
+    # one segment per question: "is_urgent: … | department: billing … | …"
+    print(result)
+    # the proxy forwards TypeSafe's reported model (jev-1.13.0) and its token usage
+    print(f"{result.model_name} via {result.provider}: ${result.cost}")
