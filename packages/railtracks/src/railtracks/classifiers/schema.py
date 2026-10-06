@@ -13,7 +13,7 @@ from typing import Any, ClassVar, Generic, TypeVar, Union, cast, overload
 from pydantic import BaseModel, ConfigDict
 from typing_extensions import Self, TypeAlias
 
-from railtracks.exceptions import NodeCreationError
+from ._exceptions import SchemaDefinitionError
 
 _TAnswer = TypeVar("_TAnswer", bound="DecisionAnswer")
 
@@ -37,8 +37,8 @@ class DecisionQuestion(Generic[_TAnswer]):
 
     def __init__(self, instructions: str) -> None:
         if not isinstance(instructions, str) or not instructions.strip():
-            raise NodeCreationError(
-                message=f"Question instructions must be a non-empty string, got {instructions!r}."
+            raise SchemaDefinitionError(
+                f"Question instructions must be a non-empty string, got {instructions!r}."
             )
         self.instructions = instructions
         self._name: str | None = None
@@ -100,24 +100,24 @@ class DecisionSchema:
             if not isinstance(value, DecisionQuestion):
                 continue
             if attr in reserved:
-                raise NodeCreationError(
-                    message=f"Question name {attr!r} on {cls.__name__} clashes with an attribute of {cls.__mro__[1].__name__}.",
+                raise SchemaDefinitionError(
+                    f"Question name {attr!r} on {cls.__name__} clashes with an attribute of {cls.__mro__[1].__name__}.",
                     notes=["Rename the question; its attribute name is its name."],
                 )
             if len(value._bound_names) > 1:
-                raise NodeCreationError(
-                    message=f"The same question object is used for more than one attribute of {cls.__name__}: {value._bound_names}.",
+                raise SchemaDefinitionError(
+                    f"The same question object is used for more than one attribute of {cls.__name__}: {value._bound_names}.",
                     notes=["Create a separate question for each attribute."],
                 )
             if not isinstance(value, cls._question_type):
-                raise NodeCreationError(
-                    message=f"Question {attr!r} on {cls.__name__} is a {type(value).__name__}, not a {cls._question_type.__name__}.",
+                raise SchemaDefinitionError(
+                    f"Question {attr!r} on {cls.__name__} is a {type(value).__name__}, not a {cls._question_type.__name__}.",
                 )
             questions[attr] = value
 
         if not questions:
-            raise NodeCreationError(
-                message=f"Schema {cls.__name__} has no questions.",
+            raise SchemaDefinitionError(
+                f"Schema {cls.__name__} has no questions.",
                 notes=["Declare at least one question as a class attribute."],
             )
         cls.__questions__ = MappingProxyType(questions)

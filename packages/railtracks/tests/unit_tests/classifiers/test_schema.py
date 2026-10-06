@@ -1,6 +1,7 @@
 """TypeSafeSchema: question validation, collection, inheritance and typed answers."""
 
 import pytest
+from railtracks.classifiers import SchemaDefinitionError
 from railtracks.classifiers.models.system_one.schema import (
     ChoiceAnswer,
     ChoiceQuestion,
@@ -10,7 +11,6 @@ from railtracks.classifiers.models.system_one.schema import (
     ScoreQuestion,
     TypeSafeSchema,
 )
-from railtracks.exceptions import NodeCreationError
 
 DEPARTMENTS = {
     "billing": "Charges, refunds, invoices, or plan changes",
@@ -67,11 +67,11 @@ class TestNoul:
         }
 
     def test_unknown_criteria_key_rejected(self):
-        with pytest.raises(NodeCreationError, match="maybe"):
+        with pytest.raises(SchemaDefinitionError, match="maybe"):
             TypeSafeSchema.Noul(instructions="x", criteria={"maybe": "?"})  # type: ignore[typeddict-unknown-key]
 
     def test_blank_instructions_rejected(self):
-        with pytest.raises(NodeCreationError, match="instructions"):
+        with pytest.raises(SchemaDefinitionError, match="instructions"):
             TypeSafeSchema.Noul(instructions="  ")
 
 
@@ -83,7 +83,7 @@ class TestChoice:
         assert list(q.criteria) == ["billing", "technical", "sales"]
 
     def test_fewer_than_two_labels_rejected(self):
-        with pytest.raises(NodeCreationError, match="at least 2"):
+        with pytest.raises(SchemaDefinitionError, match="at least 2"):
             TypeSafeSchema.Choice(instructions="x", criteria={"only": "one"})
 
     def test_255_labels_allowed(self):
@@ -95,11 +95,11 @@ class TestChoice:
 
     def test_more_than_255_labels_rejected(self):
         criteria = {f"label_{i}": f"option {i}" for i in range(256)}
-        with pytest.raises(NodeCreationError, match="at most 255"):
+        with pytest.raises(SchemaDefinitionError, match="at most 255"):
             TypeSafeSchema.Choice(instructions="x", criteria=criteria)
 
     def test_blank_label_rejected(self):
-        with pytest.raises(NodeCreationError, match="label"):
+        with pytest.raises(SchemaDefinitionError, match="label"):
             TypeSafeSchema.Choice(instructions="x", criteria={"": "a", "b": "b"})
 
 
@@ -119,22 +119,22 @@ class TestScore:
 
     @pytest.mark.parametrize("count", [0, 1, 11])
     def test_level_bounds_rejected(self, count):
-        with pytest.raises(NodeCreationError, match="between 2 and 10"):
+        with pytest.raises(SchemaDefinitionError, match="between 2 and 10"):
             TypeSafeSchema.Score(
                 instructions="x", criteria=[f"level {i}" for i in range(count)]
             )
 
     def test_bare_string_rejected(self):
-        with pytest.raises(NodeCreationError, match="list"):
+        with pytest.raises(SchemaDefinitionError, match="list"):
             TypeSafeSchema.Score(instructions="x", criteria="Calm")
 
     def test_blank_level_rejected(self):
-        with pytest.raises(NodeCreationError, match="level"):
+        with pytest.raises(SchemaDefinitionError, match="level"):
             TypeSafeSchema.Score(instructions="x", criteria=["Calm", ""])
 
 
 def test_invalid_question_fails_at_class_definition():
-    with pytest.raises(NodeCreationError):
+    with pytest.raises(SchemaDefinitionError):
 
         class Broken(TypeSafeSchema):
             only = TypeSafeSchema.Choice(instructions="x", criteria={"a": "a"})
@@ -179,14 +179,14 @@ class TestCollection:
         assert Overridden.is_urgent.instructions == "Needs a reply today"
 
     def test_empty_schema_rejected(self):
-        with pytest.raises(NodeCreationError, match="no questions"):
+        with pytest.raises(SchemaDefinitionError, match="no questions"):
 
             class Empty(TypeSafeSchema):
                 pass
 
     @pytest.mark.parametrize("name", ["encode", "Noul", "Choice", "Score"])
     def test_name_clash_with_schema_attribute_rejected(self, name):
-        with pytest.raises(NodeCreationError, match=name):
+        with pytest.raises(SchemaDefinitionError, match=name):
             type(
                 "Clashing",
                 (TypeSafeSchema,),
@@ -195,7 +195,7 @@ class TestCollection:
 
     def test_question_reused_under_two_names_rejected(self):
         shared = TypeSafeSchema.Noul(instructions="x")
-        with pytest.raises(NodeCreationError, match="more than one"):
+        with pytest.raises(SchemaDefinitionError, match="more than one"):
 
             class Reused(TypeSafeSchema):
                 first = shared

@@ -11,8 +11,7 @@ from typing import Any, ClassVar, Literal, TypeVar
 
 from typing_extensions import TypedDict
 
-from railtracks.exceptions import NodeCreationError
-
+from ..._exceptions import SchemaDefinitionError
 from ...schema import DecisionAnswer, DecisionQuestion, DecisionSchema
 
 MAX_CHOICE_LABELS = 255
@@ -89,8 +88,8 @@ class NoulCriteria(TypedDict, total=False):
 
 def _require_text(value: object, what: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise NodeCreationError(
-            message=f"{what} must be a non-empty string, got {value!r}."
+        raise SchemaDefinitionError(
+            f"{what} must be a non-empty string, got {value!r}."
         )
     return value
 
@@ -118,14 +117,14 @@ class NoulQuestion(TypeSafeQuestion[NoulAnswer]):
                 (``false``).
 
         Raises:
-            NodeCreationError: If the instructions or criteria are invalid.
+            SchemaDefinitionError: If the instructions or criteria are invalid.
         """
         super().__init__(instructions)
         if criteria is not None:
             unknown = set(criteria) - {"true", "false"}
             if unknown:
-                raise NodeCreationError(
-                    message=f"Noul criteria accepts only 'true' and 'false', got {sorted(unknown)}."
+                raise SchemaDefinitionError(
+                    f"Noul criteria accepts only 'true' and 'false', got {sorted(unknown)}."
                 )
             for key, description in criteria.items():
                 _require_text(description, f"Noul criteria {key!r}")
@@ -149,16 +148,16 @@ class ChoiceQuestion(TypeSafeQuestion[ChoiceAnswer]):
                 (2 to 255 labels).
 
         Raises:
-            NodeCreationError: If the instructions or criteria are invalid.
+            SchemaDefinitionError: If the instructions or criteria are invalid.
         """
         super().__init__(instructions)
         if not isinstance(criteria, Mapping):
-            raise NodeCreationError(
-                message=f"Choice criteria must be a mapping of label to description, got {type(criteria).__name__}."
+            raise SchemaDefinitionError(
+                f"Choice criteria must be a mapping of label to description, got {type(criteria).__name__}."
             )
         if not 2 <= len(criteria) <= MAX_CHOICE_LABELS:
-            raise NodeCreationError(
-                message=f"Choice criteria must have at least 2 and at most {MAX_CHOICE_LABELS} labels, got {len(criteria)}."
+            raise SchemaDefinitionError(
+                f"Choice criteria must have at least 2 and at most {MAX_CHOICE_LABELS} labels, got {len(criteria)}."
             )
         for label, description in criteria.items():
             _require_text(label, "Choice label")
@@ -181,16 +180,16 @@ class ScoreQuestion(TypeSafeQuestion[ScoreAnswer]):
                 (2 to 10 levels).
 
         Raises:
-            NodeCreationError: If the instructions or criteria are invalid.
+            SchemaDefinitionError: If the instructions or criteria are invalid.
         """
         super().__init__(instructions)
         if isinstance(criteria, str) or not isinstance(criteria, Sequence):
-            raise NodeCreationError(
-                message=f"Score criteria must be a list of level descriptions, got {type(criteria).__name__}."
+            raise SchemaDefinitionError(
+                f"Score criteria must be a list of level descriptions, got {type(criteria).__name__}."
             )
         if not MIN_SCORE_LEVELS <= len(criteria) <= MAX_SCORE_LEVELS:
-            raise NodeCreationError(
-                message=f"Score criteria must have between {MIN_SCORE_LEVELS} and {MAX_SCORE_LEVELS} levels, got {len(criteria)}."
+            raise SchemaDefinitionError(
+                f"Score criteria must have between {MIN_SCORE_LEVELS} and {MAX_SCORE_LEVELS} levels, got {len(criteria)}."
             )
         for index, description in enumerate(criteria):
             _require_text(description, f"Score level {index}")
