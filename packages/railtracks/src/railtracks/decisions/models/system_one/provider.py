@@ -40,11 +40,19 @@ _TTypeSafe = TypeVar("_TTypeSafe", bound=TypeSafeSchema)
 _TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 
 
-class SystemOneProvider(DecisionModel[TypeSafeSchema]):
-    """A System One model reached over the ``/v1/systemone`` format.
+class TypeSafeCompatibleAI(DecisionModel[TypeSafeSchema]):
+    """Any server that speaks TypeSafe's ``/v1/systemone`` format.
 
-    Subclass it for a new host by setting the class attributes below; most hosts need
-    nothing else.
+    Use it directly for a server with no class of its own, such as self-hosted Kev or
+    CLM: ``api_base`` is required, ``api_key`` is optional, no environment variable is
+    read, and pricing looks up the bare model name::
+
+        kev = TypeSafeCompatibleAI(
+            model_name="jaredpalmer/kev-4b", api_base="http://localhost:8008"
+        )
+
+    The named hosts (``TypeSafeAI``, ``OpenRouterAI``, ``LayaAI``, ``LiteLLMProxyAI``)
+    subclass it and only set the class attributes below.
 
     Attributes:
         provider_name: Who serves the model: the response's ``provider`` when the
@@ -66,7 +74,7 @@ class SystemOneProvider(DecisionModel[TypeSafeSchema]):
     """
 
     schema_base = TypeSafeSchema
-    provider_name: str = "systemone"
+    provider_name: str = "typesafe_compatible"
     default_api_base: str | None = None
     api_base_env: str | None = None
     api_key_env: str | None = None

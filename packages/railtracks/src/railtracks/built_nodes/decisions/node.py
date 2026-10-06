@@ -6,7 +6,7 @@ from railtracks.decisions import (
     DecisionModel,
     DecisionResponse,
     DecisionSchema,
-    SystemOneProvider,
+    TypeSafeCompatibleAI,
     TypeSafeSchema,
 )
 from railtracks.decisions.schema import DecisionState
@@ -35,7 +35,7 @@ def _state_shape(state: DecisionState) -> object:
 def decision_node(
     name: str | None = None,
     *,
-    model: SystemOneProvider,
+    model: TypeSafeCompatibleAI,
     schema: type[_TTypeSafe],
     description: str | None = None,
     middleware: Iterable[Middleware[_P, DecisionResponse[_TTypeSafe]]] | None = None,
@@ -56,7 +56,7 @@ def decision_node(
 
 
 # The implementation is typed loosely enough to cover both overloads: DecisionModel is
-# invariant in its schema type, so only DecisionModel[Any] admits a SystemOneProvider.
+# invariant in its schema type, so only DecisionModel[Any] admits a TypeSafeCompatibleAI.
 def decision_node(
     name: str | None = None,
     *,
@@ -75,10 +75,10 @@ def decision_node(
     Args:
         name (str | None): The node and tool name. Defaults to the schema's class name.
         model (DecisionModel): The decision model, e.g. `rt.decisions.TypeSafeAI` or
-            another `/v1/systemone` host such as `rt.decisions.LayaClassifier`.
+            another `/v1/systemone` host such as `rt.decisions.LayaAI`.
         schema (type[DecisionSchema]): The schema class declaring the questions; must
             match the model's format (a `TypeSafeSchema` subclass for every
-            `SystemOneProvider` host).
+            `TypeSafeCompatibleAI` host).
         description (str | None): The tool description an agent sees. Defaults to a
             sentence listing each question's instructions.
         middleware (Iterable[Middleware] | None): Middleware applied around the node

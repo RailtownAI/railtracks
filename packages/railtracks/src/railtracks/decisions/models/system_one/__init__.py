@@ -2,10 +2,10 @@ __all__ = [
     "ChoiceAnswer",
     "NoulAnswer",
     "ScoreAnswer",
-    "SystemOneProvider",
+    "TypeSafeCompatibleAI",
     "TypeSafeSchema",
 ]
 
 
-from .provider import SystemOneProvider
+from .provider import TypeSafeCompatibleAI
 from .schema import ChoiceAnswer, NoulAnswer, ScoreAnswer, TypeSafeSchema

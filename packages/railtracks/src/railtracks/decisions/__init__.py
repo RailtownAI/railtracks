@@ -11,13 +11,13 @@ __all__ = [
     "DecisionModel",
     "DecisionResponse",
     "DecisionSchema",
-    "LayaClassifier",
-    "LiteLLMProxyClassifier",
+    "LayaAI",
+    "LiteLLMProxyAI",
     "NoulAnswer",
-    "OpenRouterClassifier",
+    "OpenRouterAI",
     "SchemaDefinitionError",
     "ScoreAnswer",
-    "SystemOneProvider",
+    "TypeSafeCompatibleAI",
     "TypeSafeAI",
     "TypeSafeSchema",
 ]
@@ -36,11 +36,11 @@ from ._exceptions import (
 )
 from .model import DecisionModel
 from .models import (
-    LayaClassifier,
-    LiteLLMProxyClassifier,
-    OpenRouterClassifier,
-    SystemOneProvider,
+    LayaAI,
+    LiteLLMProxyAI,
+    OpenRouterAI,
     TypeSafeAI,
+    TypeSafeCompatibleAI,
 )
 from .models.system_one import ChoiceAnswer, NoulAnswer, ScoreAnswer, TypeSafeSchema
 from .response import DecisionResponse

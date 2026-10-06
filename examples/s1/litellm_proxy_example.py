@@ -3,7 +3,7 @@
 A LiteLLM proxy (https://docs.litellm.ai/docs/pass_through/typesafe) forwards
 `/v1/systemone` calls to TypeSafe, Laya or Bespoke Nimble. The client holds only a
 LiteLLM virtual key; the proxy adds the upstream's own key and tracks spend per key.
-`rt.decisions.LiteLLMProxyClassifier` sends to `{api_base}/{upstream}/v1/systemone`.
+`rt.decisions.LiteLLMProxyAI` sends to `{api_base}/{upstream}/v1/systemone`.
 
 Needs a running proxy and a virtual key with access to the model (`typesafe/jev-latest`
 here), set the way LiteLLM's own client reads them:
@@ -22,7 +22,7 @@ import railtracks as rt
 
 TypeSafeSchema = rt.decisions.TypeSafeSchema
 
-jev_via_proxy = rt.decisions.LiteLLMProxyClassifier(
+jev_via_proxy = rt.decisions.LiteLLMProxyAI(
     model_name="jev-latest",
     upstream="typesafe",
 )

@@ -6,14 +6,14 @@ import httpx
 
 from railtracks.llm.retries import RetryApproach
 
-from .laya import LayaClassifier
-from .system_one.provider import SYSTEM_ONE_PATH, SystemOneProvider
+from .laya import LayaAI
+from .system_one.provider import SYSTEM_ONE_PATH, TypeSafeCompatibleAI
 
 Upstream = Literal["typesafe", "laya", "bespoke"]
 _UPSTREAMS: tuple[Upstream, ...] = ("typesafe", "laya", "bespoke")
 
 
-class LiteLLMProxyClassifier(SystemOneProvider):
+class LiteLLMProxyAI(TypeSafeCompatibleAI):
     """System One models through a LiteLLM proxy's native pass-through routes.
 
     Sends to ``{api_base}/{upstream}/v1/systemone`` with a LiteLLM virtual key; the
@@ -72,9 +72,9 @@ class LiteLLMProxyClassifier(SystemOneProvider):
         self.pricing_prefixes = (upstream,)
         if upstream == "laya":
             # the proxy forwards as is, so Laya's own limits still apply
-            self.max_choice_labels = LayaClassifier.max_choice_labels
-            self.max_questions = LayaClassifier.max_questions
-            self.max_state_chars = LayaClassifier.max_state_chars
+            self.max_choice_labels = LayaAI.max_choice_labels
+            self.max_questions = LayaAI.max_questions
+            self.max_state_chars = LayaAI.max_state_chars
 
     def _key_notes(self) -> list[str]:
         return [

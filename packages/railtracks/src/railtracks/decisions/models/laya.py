@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .system_one.provider import SystemOneProvider
+from .system_one.provider import TypeSafeCompatibleAI
 
 
-class LayaClassifier(SystemOneProvider):
+class LayaAI(TypeSafeCompatibleAI):
     """A self-hosted Laya server (``laya-serve``), e.g. the ``english`` checkpoint.
 
     There is no public endpoint: pass ``api_base=`` or set ``LAYA_API_BASE``.
