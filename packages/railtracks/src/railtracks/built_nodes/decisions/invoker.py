@@ -1,7 +1,8 @@
-"""Runs a decision model for ``decision_node`` and records the call.
+"""Runs a decision model for ``decision_node``, records the call and classifies errors.
 
-The node-side counterpart of ``ModelInvoker``: ``railtracks.classifiers`` models emit
-nothing, so the ``decision.*`` events for a node's request are emitted here.
+The node-side counterpart of ``ModelInvoker`` and ``llm_helpers``: ``railtracks.classifiers``
+models emit nothing and raise ``ClassifierError``; here a node's request gets its
+``decision.*`` events, and a failure becomes the ``DecisionModelError`` users catch.
 """
 
 from __future__ import annotations
@@ -9,7 +10,19 @@ from __future__ import annotations
 import uuid
 from typing import Any, TypeVar
 
-from railtracks.classifiers import DecisionModel, DecisionResponse, DecisionSchema
+from railtracks.classifiers import (
+    ClassifierAuthenticationError,
+    ClassifierConnectionError,
+    ClassifierError,
+    ClassifierRateLimitError,
+    ClassifierRequestError,
+    ClassifierResponseError,
+    ClassifierServerError,
+    ClassifierTimeoutError,
+    DecisionModel,
+    DecisionResponse,
+    DecisionSchema,
+)
 from railtracks.classifiers.schema import DecisionState
 from railtracks.context.central import get_current_scope, is_context_active
 from railtracks.events._resolve import has_enclosing_node
@@ -19,8 +32,41 @@ from railtracks.events.decision import (
     DecisionResponseEvent,
 )
 from railtracks.events.send import emit
+from railtracks.exceptions import (
+    DecisionAuthenticationError,
+    DecisionModelError,
+    DecisionRateLimitError,
+    DecisionRequestError,
+    DecisionResponseError,
+    DecisionServerError,
+    DecisionTimeoutError,
+)
 
 _TSchema = TypeVar("_TSchema", bound=DecisionSchema)
+
+# Ordered most-specific first. ClassifierRequestError is handled apart (it carries a body).
+_CLASSIFIER_TO_NODE_ERROR: tuple[
+    tuple[type[ClassifierError], type[DecisionModelError]], ...
+] = (
+    (ClassifierAuthenticationError, DecisionAuthenticationError),
+    (ClassifierRateLimitError, DecisionRateLimitError),
+    (ClassifierTimeoutError, DecisionTimeoutError),
+    (ClassifierConnectionError, DecisionTimeoutError),
+    (ClassifierServerError, DecisionServerError),
+    (ClassifierResponseError, DecisionResponseError),
+)
+
+
+def _node_error_for(error: ClassifierError) -> DecisionModelError:
+    """The node-terminating error a failed decision call surfaces as."""
+    if isinstance(error, ClassifierRequestError):
+        return DecisionRequestError(
+            error.reason, body=error.body, notes=list(error.notes)
+        )
+    for classifier_type, node_type in _CLASSIFIER_TO_NODE_ERROR:
+        if isinstance(error, classifier_type):
+            return node_type(error.reason, notes=list(error.notes))
+    return DecisionModelError(error.reason, notes=list(error.notes))
 
 
 async def invoke_decision(
@@ -35,6 +81,10 @@ async def invoke_decision(
 
     Returns:
         The model's response, unchanged.
+
+    Raises:
+        DecisionModelError: If the call fails; the subclass mirrors the model's
+            ``ClassifierError``, which is kept as ``__cause__``.
     """
     # outside a node (a plain script, or a Session body) there is no parent to
     # resolve, and emitting would only log an error
@@ -55,11 +105,14 @@ async def invoke_decision(
         response = await model.aask(state, schema)
     except Exception as e:
         if observed:
+            # the model's own error, before translation, is what the record keeps
             await emit(
                 DecisionFailureEvent.from_exception(
                     e, decision_id=decision_id, model_name=model.model_name
                 )
             )
+        if isinstance(e, ClassifierError):
+            raise _node_error_for(e) from e
         raise
 
     if observed:

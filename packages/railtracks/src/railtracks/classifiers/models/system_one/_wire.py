@@ -10,8 +10,7 @@ from typing import Any, TypeVar
 
 from pydantic import ValidationError
 
-from railtracks.exceptions import DecisionResponseError
-
+from ..._exceptions import ClassifierResponseError
 from ...model import DecisionReply
 from ...schema import DecisionAnswer, DecisionState
 from .schema import TypeSafeQuestion, TypeSafeSchema
@@ -46,8 +45,8 @@ def build_request(
     return {"state": state, "model": model_name, "questions": questions_to_wire(schema)}
 
 
-def _malformed(field: str, problem: str = "missing") -> DecisionResponseError:
-    return DecisionResponseError(
+def _malformed(field: str, problem: str = "missing") -> ClassifierResponseError:
+    return ClassifierResponseError(
         f"Malformed decision response: {problem} field {field!r}",
         notes=["Check that api_base points at a /v1/systemone-compatible server."],
     )
@@ -67,7 +66,7 @@ def parse_response(body: object, schema: type[_TSchema]) -> DecisionReply[_TSche
     """Parse a ``/v1/systemone`` JSON body into a ``schema`` instance and metadata.
 
     Raises:
-        DecisionResponseError: If the body is not an object, or an answer for one of
+        ClassifierResponseError: If the body is not an object, or an answer for one of
             ``schema``'s questions is missing or malformed. The message names the field.
     """
     if not isinstance(body, dict):
