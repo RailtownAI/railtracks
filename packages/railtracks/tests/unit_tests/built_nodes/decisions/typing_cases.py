@@ -8,18 +8,18 @@ from __future__ import annotations
 
 import railtracks as rt
 from railtracks.built_nodes.decisions import DecisionResponse
-from railtracks.built_nodes.decisions._base import DecisionQuestion, DecisionSchema
-from railtracks.built_nodes.decisions.typesafe.schema import (
-    ChoiceQuestion,
-    NoulQuestion,
-    ScoreQuestion,
-)
 from railtracks.classifiers import (
     ChoiceAnswer,
     NoulAnswer,
     ScoreAnswer,
     TypeSafeSchema,
 )
+from railtracks.classifiers.models.system_one.schema import (
+    ChoiceQuestion,
+    NoulQuestion,
+    ScoreQuestion,
+)
+from railtracks.classifiers.schema import DecisionQuestion, DecisionSchema
 from typing_extensions import assert_type
 
 

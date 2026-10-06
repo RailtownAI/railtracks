@@ -7,8 +7,8 @@ import pytest
 import railtracks as rt
 import railtracks.context.central as central
 from railtracks.built_nodes.decisions import DecisionResponse
-from railtracks.built_nodes.decisions._base import DecisionQuestion, DecisionSchema
-from railtracks.built_nodes.decisions.typesafe.schema import NoulAnswer
+from railtracks.classifiers import NoulAnswer
+from railtracks.classifiers.schema import DecisionQuestion, DecisionSchema
 from railtracks.exceptions import DecisionServerError, NodeCreationError
 from railtracks.llm import ToolCall
 from railtracks.observability import Event, configure, configure_writers

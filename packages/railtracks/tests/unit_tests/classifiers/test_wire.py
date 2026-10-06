@@ -3,12 +3,12 @@
 import copy
 
 import pytest
-from railtracks.built_nodes.decisions.typesafe import TypeSafeSchema
-from railtracks.built_nodes.decisions.typesafe._wire import (
+from railtracks.classifiers import TypeSafeSchema
+from railtracks.classifiers.models.system_one._wire import (
     build_request,
     parse_response,
 )
-from railtracks.built_nodes.decisions.typesafe.schema import (
+from railtracks.classifiers.models.system_one.schema import (
     ChoiceAnswer,
     NoulAnswer,
     ScoreAnswer,

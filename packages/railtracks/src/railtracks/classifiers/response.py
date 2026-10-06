@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from ._base import DecisionSchema
+    from .schema import DecisionSchema
 
 _TSchema = TypeVar("_TSchema", bound="DecisionSchema")
 
