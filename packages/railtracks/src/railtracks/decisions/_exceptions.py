@@ -9,6 +9,12 @@ invoker turns a ``DecisionProviderError`` into the matching ``DecisionModelError
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .schema import DecisionAnswer
+
 
 class _NotedError(Exception):
     """An error with a ``reason`` and optional debugging ``notes``."""
@@ -61,6 +67,26 @@ class DecisionProviderRequestError(DecisionProviderError):
 
 class DecisionProviderResponseError(DecisionProviderError):
     """The host's response could not be parsed into answers."""
+
+
+class DecisionProviderRefusalError(DecisionProviderError):
+    """The model declined to answer one or more questions. Retrying will not help.
+
+    Attributes:
+        refused: The names of the questions the model declined.
+        answers: The answers it did give, keyed by question name.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        refused: list[str],
+        answers: Mapping[str, DecisionAnswer],
+        notes: list[str] | None = None,
+    ):
+        super().__init__(reason, notes=notes)
+        self.refused = list(refused)
+        self.answers = dict(answers)
 
 
 class SchemaDefinitionError(_NotedError):

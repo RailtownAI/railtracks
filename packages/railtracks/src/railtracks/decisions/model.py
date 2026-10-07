@@ -55,6 +55,9 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
     schema_base: ClassVar[type[DecisionSchema]]
     provider_name: str
     """Who serves the model; the response's ``provider`` when the host reports none."""
+    bills_output_tokens: ClassVar[bool] = True
+    """Whether catalog pricing should charge output tokens; False when the API bills
+    input only (OpenAI's Decisions API) but the catalog lists chat prices."""
 
     def __init__(
         self, model_name: str, *, retry_approach: RetryApproach | None = None
@@ -109,7 +112,9 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
             cost=reply.reported_cost
             if reply.reported_cost is not None
             else decision_cost(
-                self._pricing_keys(), reply.input_tokens, reply.output_tokens
+                self._pricing_keys(),
+                reply.input_tokens,
+                reply.output_tokens if self.bills_output_tokens else None,
             ),
             raw=reply.raw,
         )

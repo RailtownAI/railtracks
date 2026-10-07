@@ -6,6 +6,8 @@ from railtracks.decisions import (
     DecisionModel,
     DecisionResponse,
     DecisionSchema,
+    OpenAIDecisions,
+    OpenAISchema,
     TypeSafeCompatibleAI,
     TypeSafeSchema,
 )
@@ -20,6 +22,7 @@ from .invoker import invoke_decision
 
 _P = ParamSpec("_P")
 _TTypeSafe = TypeVar("_TTypeSafe", bound=TypeSafeSchema)
+_TOpenAI = TypeVar("_TOpenAI", bound=OpenAISchema)
 _TVendor = TypeVar("_TVendor", bound=DecisionSchema)
 
 STATE_DESCRIPTION = "The text to judge."
@@ -41,6 +44,18 @@ def decision_node(
     middleware: Iterable[Middleware[_P, DecisionResponse[_TTypeSafe]]] | None = None,
     _shape: Callable[_P, object] = _state_shape,
 ) -> type[Node[_P, DecisionResponse[_TTypeSafe]]]: ...
+
+
+@overload
+def decision_node(
+    name: str | None = None,
+    *,
+    model: OpenAIDecisions,
+    schema: type[_TOpenAI],
+    description: str | None = None,
+    middleware: Iterable[Middleware[_P, DecisionResponse[_TOpenAI]]] | None = None,
+    _shape: Callable[_P, object] = _state_shape,
+) -> type[Node[_P, DecisionResponse[_TOpenAI]]]: ...
 
 
 @overload

@@ -4,6 +4,7 @@ __all__ = [
     "DecisionProviderConnectionError",
     "DecisionProviderError",
     "DecisionProviderRateLimitError",
+    "DecisionProviderRefusalError",
     "DecisionProviderRequestError",
     "DecisionProviderResponseError",
     "DecisionProviderServerError",
@@ -14,7 +15,10 @@ __all__ = [
     "LayaAI",
     "LiteLLMProxyAI",
     "NoulAnswer",
+    "OpenAIDecisions",
+    "OpenAISchema",
     "OpenRouterAI",
+    "PredicateAnswer",
     "SchemaDefinitionError",
     "ScoreAnswer",
     "TypeSafeCompatibleAI",
@@ -29,6 +33,7 @@ from ._exceptions import (
     DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
+    DecisionProviderRefusalError,
     DecisionProviderRequestError,
     DecisionProviderResponseError,
     DecisionProviderServerError,
@@ -39,11 +44,13 @@ from .model import DecisionModel
 from .models import (
     LayaAI,
     LiteLLMProxyAI,
+    OpenAIDecisions,
     OpenRouterAI,
     TypeSafeAI,
     TypeSafeCompatibleAI,
     UpstageAI,
 )
+from .models.openai_decisions import OpenAISchema, PredicateAnswer
 from .models.typesafe_compatible import (
     ChoiceAnswer,
     NoulAnswer,

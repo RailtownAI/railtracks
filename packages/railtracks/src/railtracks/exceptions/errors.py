@@ -20,6 +20,7 @@ __all__ = [
     "DecisionAuthenticationError",
     "DecisionRequestError",
     "DecisionResponseError",
+    "DecisionRefusalError",
     "GlobalTimeOutError",
     "ContextError",
     "FatalError",
@@ -201,6 +202,20 @@ class DecisionRequestError(DecisionModelError):
 
 class DecisionResponseError(DecisionModelError):
     """The provider's response could not be parsed into answers."""
+
+
+class DecisionRefusalError(DecisionModelError):
+    """The model declined to answer one or more questions; ``refused`` names them."""
+
+    def __init__(
+        self,
+        reason: str,
+        refused: list[str],
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.refused = list(refused)
+        super().__init__(reason, notes=notes, fatal=fatal)
 
 
 class NodeCreationError(RTError):
