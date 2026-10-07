@@ -3,6 +3,7 @@ from .errors import (
     DecisionAuthenticationError,
     DecisionModelError,
     DecisionRateLimitError,
+    DecisionRefusalError,
     DecisionRequestError,
     DecisionResponseError,
     DecisionServerError,
@@ -34,6 +35,7 @@ __all__ = [
     "DecisionAuthenticationError",
     "DecisionRequestError",
     "DecisionResponseError",
+    "DecisionRefusalError",
     "ContextError",
     "VisualExtraRequiredError",
 ]

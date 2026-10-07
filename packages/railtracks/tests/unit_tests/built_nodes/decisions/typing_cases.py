@@ -101,5 +101,28 @@ async def other_hosts() -> None:
     assert_type(await rt.call(via_laya, "x"), DecisionResponse[Triage])
 
 
+class OpenAITriage(rt.decisions.OpenAISchema):
+    is_urgent = rt.decisions.OpenAISchema.Predicate(instructions="Urgent?")
+    department = rt.decisions.OpenAISchema.Choice(
+        instructions="Which team", choices=["billing", "technical"]
+    )
+
+
+async def openai_decisions() -> None:
+    luna = rt.decisions.OpenAIDecisions("gpt-6-luna")
+    resp = await luna.aask("x", OpenAITriage)
+    assert_type(resp, DecisionResponse[OpenAITriage])
+    assert_type(resp.structured.is_urgent, rt.decisions.PredicateAnswer)
+    assert_type(resp.structured.is_urgent.probability, float)
+    assert_type(resp.structured.department, ChoiceAnswer)
+
+    node = rt.decision_node("OpenAI Triage", model=luna, schema=OpenAITriage)
+    assert_type(await rt.call(node, "x"), DecisionResponse[OpenAITriage])
+
+    await luna.aask("x", Triage)  # type: ignore[type-var]
+
+
 def vendor_mismatch() -> None:
     rt.decision_node("Mismatch", model=jev, schema=Other)  # type: ignore[type-var]
+    luna = rt.decisions.OpenAIDecisions("gpt-6-luna")
+    rt.decision_node("Mismatch", model=luna, schema=Triage)  # type: ignore[type-var]

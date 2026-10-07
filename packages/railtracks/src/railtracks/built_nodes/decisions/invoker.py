@@ -17,6 +17,7 @@ from railtracks.decisions import (
     DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
+    DecisionProviderRefusalError,
     DecisionProviderRequestError,
     DecisionProviderResponseError,
     DecisionProviderServerError,
@@ -36,6 +37,7 @@ from railtracks.exceptions import (
     DecisionAuthenticationError,
     DecisionModelError,
     DecisionRateLimitError,
+    DecisionRefusalError,
     DecisionRequestError,
     DecisionResponseError,
     DecisionServerError,
@@ -44,7 +46,8 @@ from railtracks.exceptions import (
 
 _TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 
-# Ordered most-specific first. DecisionProviderRequestError is handled apart (it carries a body).
+# Ordered most-specific first. Request and refusal errors are handled apart: they carry
+# a body and the refused question names.
 _PROVIDER_TO_NODE_ERROR: tuple[
     tuple[type[DecisionProviderError], type[DecisionModelError]], ...
 ] = (
@@ -62,6 +65,10 @@ def _node_error_for(error: DecisionProviderError) -> DecisionModelError:
     if isinstance(error, DecisionProviderRequestError):
         return DecisionRequestError(
             error.reason, body=error.body, notes=list(error.notes)
+        )
+    if isinstance(error, DecisionProviderRefusalError):
+        return DecisionRefusalError(
+            error.reason, refused=error.refused, notes=list(error.notes)
         )
     for provider_type, node_type in _PROVIDER_TO_NODE_ERROR:
         if isinstance(error, provider_type):
