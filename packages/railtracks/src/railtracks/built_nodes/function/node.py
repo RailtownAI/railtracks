@@ -234,6 +234,19 @@ def _validate_and_normalize_callable(
     if manifest is not None:
         validate_tool_manifest_against_function(func, manifest.parameters)
 
+    # tool arguments are always passed by keyword, so positional-only params can never be filled
+    try:
+        params = list(inspect.signature(func).parameters.values())
+    except (TypeError, ValueError):
+        params = []
+    if any(p.kind is inspect.Parameter.POSITIONAL_ONLY for p in params):
+        raise NodeCreationError(
+            message=f"{getattr(func, '__name__', repr(func))} has positional-only parameters, which can't be called as a tool.",
+            notes=[
+                "Wrap it in a regular function that takes keyword arguments, e.g. `def ceil(x: float) -> int: return math.ceil(x)`.",
+            ],
+        )
+
     if inspect.isbuiltin(func):
         # builtins are C-level and can't hold our node-type attribute; wrap them
         return _function_preserving_metadata(func)

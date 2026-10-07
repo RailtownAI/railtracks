@@ -13,13 +13,6 @@ class TypeMapper:
     """
 
     def __init__(self, function: Callable):
-        # Python 3.13+ gives many builtins an introspectable signature, so
-        # `inspect.signature` no longer raises for them; check explicitly.
-        if inspect.isbuiltin(function):
-            raise RuntimeError(
-                "Cannot convert kwargs for builtin functions. "
-                "Please use a custom function."
-            )
         try:
             self.sig = inspect.signature(function)
         except ValueError:
