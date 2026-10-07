@@ -148,7 +148,7 @@ async def main():
 
 ### Agent Used as a Tool by Another Agent (Multi-Agent Orchestration)
 
-An agent with a `system_message` can be passed straight into another agent's `tool_nodes`. Without a `manifest=`, railtracks names the tool after the agent (characters outside `[a-zA-Z0-9_-]` become `_`), builds the description from the agent's name and full system message, and gives it one required string parameter, `request`, which the sub-agent receives as its user message. An agent with neither `system_message` nor `manifest=` raises `NodeCreationError` when used as a tool.
+An agent with a `system_message` can be passed straight into another agent's `tool_nodes`. Without a `manifest=`, railtracks names the tool after the agent (characters outside `[a-zA-Z0-9_-]` become `_`), builds the description from the agent's name and full system message, and gives it one required string parameter, `request`, which the sub-agent receives as its user message. An agent with neither `system_message` nor `manifest=` raises `NodeCreationError` when used as a tool. `{placeholders}` in the system message are never filled in the description, because `ContextInjection` fills messages only; pass a manifest when the sub-agent's system message is templated.
 ```python
 SubAgent = rt.agent_node(
     "Sub Agent",

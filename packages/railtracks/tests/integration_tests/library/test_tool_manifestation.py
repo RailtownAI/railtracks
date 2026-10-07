@@ -278,4 +278,61 @@ async def test_agent_without_manifest_is_called_with_request(mock_llm):
     assert "Tool Echo_Agent returned: 'echoed'" in response.content
 
 
+@pytest.mark.timeout(30)
+@pytest.mark.asyncio
+async def test_context_placeholders_fill_the_child_prompt_but_not_the_tool_description(
+    mock_llm,
+):
+    # ContextInjection fills messages only, so the caller's tool list keeps the placeholder.
+    tools_seen_by_parent: list[rt.llm.Tool] = []
+    seen_by_child: list[rt.llm.MessageHistory] = []
+
+    @pre_llm
+    async def record_parent_tools(message_history, schema, tools):
+        tools_seen_by_parent.extend(tools or [])
+        return message_history, schema, tools
+
+    @pre_llm
+    async def record_child_input(message_history, schema, tools):
+        seen_by_child.append(message_history)
+        return message_history, schema, tools
+
+    child = rt.agent_node(
+        name="Support Agent",
+        llm=mock_llm("helped"),
+        system_message="You help {customer_name} with their order.",
+        model_middleware=[
+            rt.prebuilt.middleware.ContextInjection(),
+            record_child_input,
+        ],
+    )
+    parent = rt.agent_node(
+        name="Parent",
+        llm=mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="Support_Agent",
+                    identifier="id_42424242",
+                    arguments={"request": "Where is my order?"},
+                )
+            ]
+        ),
+        system_message="Delegate to the support agent.",
+        tool_nodes=[child],
+        model_middleware=[
+            rt.prebuilt.middleware.ContextInjection(),
+            record_parent_tools,
+        ],
+    )
+
+    await rt.Flow(
+        "test_context_placeholders", parent, context={"customer_name": "Ada"}
+    ).ainvoke("Where is my order?")
+
+    assert (
+        "You help {customer_name} with their order." in tools_seen_by_parent[0].detail
+    )
+    assert seen_by_child[0][0].content == "You help Ada with their order."
+
+
 # ====================================================== END terminal_llm as tool ========================================================

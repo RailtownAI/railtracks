@@ -64,7 +64,7 @@ def agent_tool_info(
     if tool_details is None:
         tool_details = _describe_from_system_message(agent_name, system_message)
         if tool_details is None:
-            return _missing_description(agent_name)
+            return lambda: _raise_missing_description(agent_name)
     else:
         _check_manifest_description(tool_details, agent_name)
 
@@ -151,24 +151,19 @@ def _describe_from_system_message(
     )
 
 
-def _missing_description(agent_name: str) -> Callable[[], Tool]:
+def _raise_missing_description(agent_name: str) -> Tool:
     """
-    Build a `tool_info` for an agent that has nothing to describe it with.
+    Fail the `tool_info` of an agent that has nothing to describe it with.
 
     Args:
         agent_name: The name of the agent.
 
-    Returns:
-        A callable that raises NodeCreationError, explaining how to make the agent usable as
-        a tool.
+    Raises:
+        NodeCreationError: Always, explaining how to make the agent usable as a tool.
     """
-
-    def raise_missing_description() -> Tool:
-        raise NodeCreationError(
-            get_message(ExceptionMessageKey.AGENT_TOOL_DESCRIPTION_MISSING_MSG).format(
-                agent_name=agent_name
-            ),
-            notes=get_notes(ExceptionMessageKey.AGENT_TOOL_DESCRIPTION_MISSING_NOTES),
-        )
-
-    return raise_missing_description
+    raise NodeCreationError(
+        get_message(ExceptionMessageKey.AGENT_TOOL_DESCRIPTION_MISSING_MSG).format(
+            agent_name=agent_name
+        ),
+        notes=get_notes(ExceptionMessageKey.AGENT_TOOL_DESCRIPTION_MISSING_NOTES),
+    )
