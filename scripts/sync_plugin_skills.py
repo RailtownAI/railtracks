@@ -46,6 +46,11 @@ def actual_files() -> dict[Path, bytes]:
     }
 
 
+def normalized(content: bytes | None) -> bytes | None:
+    """`content` with CRLF line endings turned into LF, as a Windows checkout may have them."""
+    return None if content is None else content.replace(b"\r\n", b"\n")
+
+
 def main() -> None:
     expected = expected_files()
 
@@ -54,7 +59,7 @@ def main() -> None:
         differing = sorted(
             path
             for path in expected.keys() | actual.keys()
-            if expected.get(path) != actual.get(path)
+            if normalized(expected.get(path)) != normalized(actual.get(path))
         )
         if differing:
             print("plugins/railtracks/skills/ is out of date with the bundled skills:")
