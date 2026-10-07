@@ -1,10 +1,11 @@
 import logging
 import os
-from typing import Literal
+from typing import Any, Dict, List, Literal
 
 import requests
 from litellm.utils import supports_function_calling
 
+from ...message import Attachment
 from ...providers import ModelProvider
 from ...retries.base import RetryApproach
 from .._litellm_wrapper import LiteLLMWrapper
@@ -144,6 +145,20 @@ class OllamaLLM(LiteLLMWrapper):
         except requests.exceptions.RequestException as e:
             logger.error(e)
             raise
+
+    def _to_litellm_attachment_content(
+        self, text: str, attachments: List[Attachment]
+    ) -> List[Dict[str, Any]]:
+        """Reject PDF attachments: litellm's Ollama transform drops them (#1628)."""
+        for msg_attachment in attachments:
+            if msg_attachment.modality == "document":
+                raise ValueError(
+                    f"Model {self._model_name!r} (Ollama) drops PDF attachments: "
+                    "litellm's Ollama transform keeps only text and image parts. "
+                    "Render the PDF pages to images first, or use a model that "
+                    "supports documents."
+                )
+        return super()._to_litellm_attachment_content(text, attachments)
 
     def chat_with_tools(self, messages, tools):
         # litellm's capability catalog is keyed on `ollama/`, not `ollama_chat/`.

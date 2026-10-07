@@ -32,6 +32,38 @@ def mock_failed_response():
     return mock
 
 
+def test_pdf_attachment_rejected(mock_response):
+    """PDF attachments raise: litellm's Ollama transform drops them (#1628)."""
+    import base64 as _b64
+
+    with patch("requests.get", return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
+    b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
+    message = UserMessage(
+        content="Summarize this.",
+        attachment=[f"data:application/pdf;base64,{b64}"],
+    )
+
+    with pytest.raises(ValueError, match="drops PDF attachments"):
+        ollama._to_litellm_message(message)
+
+
+def test_image_attachment_kept(mock_response):
+    """Image attachments still serialize as image_url on Ollama."""
+    with patch("requests.get", return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    attachment_data_uri = "data:image/png;base64,iVBORw0KGgo="
+    message = UserMessage(content="View this image.", attachment=[attachment_data_uri])
+
+    litellm_message = ollama._to_litellm_message(message)
+
+    assert litellm_message["content"][1] == {
+        "type": "image_url",
+        "image_url": {"url": attachment_data_uri},
+    }
+
+
 def test_model_type():
     """Test the model_type class method"""
     assert OllamaLLM.model_gateway() == "Ollama"
