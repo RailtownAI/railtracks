@@ -1,0 +1,143 @@
+# Railtracks Docs
+
+> Railtracks is a Python framework for building agents and harnesses: the loop, tools, context, and controls around an LLM.
+
+Each link below is a clean Markdown copy of one docs page. llms-full.txt holds every page in a single file.
+
+## Home
+
+- [Home](https://docs.railtracks.org/index.md)
+
+## Agent Development
+
+- [Context](https://docs.railtracks.org/documentation/advanced/context/index.md)
+- [Overview](https://docs.railtracks.org/documentation/agent_design/overview/index.md)
+- [Structured Output](https://docs.railtracks.org/documentation/agent_design/structured_extraction/index.md)
+- [Common Hyperparameters](https://docs.railtracks.org/documentation/agent_design/llms/common_hyperparams/index.md)
+- [Failures](https://docs.railtracks.org/documentation/agent_design/llms/handling_failures/index.md)
+- [Modalities](https://docs.railtracks.org/documentation/agent_design/llms/modalities/index.md)
+- [System Messages](https://docs.railtracks.org/documentation/agent_design/llms/system_messages/index.md)
+- [Custom](https://docs.railtracks.org/documentation/agent_design/middleware/custom/index.md)
+- [Overview](https://docs.railtracks.org/documentation/agent_design/middleware/overview/index.md)
+- [Contributing](https://docs.railtracks.org/documentation/agent_design/middleware/guardrails/contributions/index.md)
+- [Overview](https://docs.railtracks.org/documentation/agent_design/middleware/guardrails/overview/index.md)
+- [Quickstart](https://docs.railtracks.org/documentation/agent_design/middleware/guardrails/quickstart/index.md)
+- [Contributing](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/contributions/index.md)
+- [Overview](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/overview/index.md)
+- [Block Text](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/block_text/index.md)
+- [ContextInjection](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/context_injection/index.md)
+- [ConversationMemory](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/conversation_memory/index.md)
+- [Length Limits](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/length/index.md)
+- [Lock](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/lock/index.md)
+- [MaxCalls](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/max_calls/index.md)
+- [PII Redaction](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/pii_redaction/index.md)
+- [Retry](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/retry/index.md)
+- [Text Detect PII detection](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/text_detect/index.md)
+- [Timeout](https://docs.railtracks.org/documentation/agent_design/middleware/prebuilt/list/timeout/index.md)
+- [Verifiers](https://docs.railtracks.org/documentation/agent_design/middleware/verifiers/overview/index.md)
+- [Agents as Tools](https://docs.railtracks.org/documentation/agent_design/tools/agents_as_tools/index.md)
+- [Function Tools](https://docs.railtracks.org/documentation/agent_design/tools/function_tools/index.md)
+- [MCP](https://docs.railtracks.org/documentation/agent_design/tools/mcp/index.md)
+- [Key-Value Memory Tool](https://docs.railtracks.org/documentation/agent_design/tools/prebuilt/key_value_memory/index.md)
+- [Overview](https://docs.railtracks.org/documentation/agent_design/tools/prebuilt/overview/index.md)
+- [To Do Tool](https://docs.railtracks.org/documentation/agent_design/tools/prebuilt/todos/index.md)
+- [Web Search Tool](https://docs.railtracks.org/documentation/agent_design/tools/prebuilt/websearch/index.md)
+- [AI Coding Assistants](https://docs.railtracks.org/documentation/getting_started/ai_setup/index.md)
+- [Claude Code Plugin](https://docs.railtracks.org/documentation/getting_started/claude_code_plugin/index.md)
+- [Contributing to the Docs](https://docs.railtracks.org/documentation/getting_started/contributing_docs/index.md)
+- [Installation](https://docs.railtracks.org/documentation/getting_started/installation/index.md)
+- [LLM Setup](https://docs.railtracks.org/documentation/getting_started/llm_setup/index.md)
+- [Quickstart](https://docs.railtracks.org/documentation/getting_started/quickstart/index.md)
+- [Agent Harness](https://docs.railtracks.org/documentation/harness/overview/index.md)
+- [Direct Invocation](https://docs.railtracks.org/documentation/invocation/call/index.md)
+- [Flow Invocation](https://docs.railtracks.org/documentation/invocation/flows/index.md)
+- [Message History](https://docs.railtracks.org/documentation/invocation/message_history/index.md)
+- [Upgrading to 1.5.0](https://docs.railtracks.org/documentation/upgrading/1_5_0/index.md)
+
+## Retrieval
+
+- [Design](https://docs.railtracks.org/retrieval/components/design/index.md)
+- [Base Class](https://docs.railtracks.org/retrieval/components/chunking/base/index.md)
+- [Built-in Methods](https://docs.railtracks.org/retrieval/components/chunking/methods/index.md)
+- [Built-in Methods](https://docs.railtracks.org/retrieval/components/embeddings/methods/index.md)
+- [Overview](https://docs.railtracks.org/retrieval/components/embeddings/overview/index.md)
+- [Base Class](https://docs.railtracks.org/retrieval/components/ingestion/base/index.md)
+- [Built-in Loaders](https://docs.railtracks.org/retrieval/components/ingestion/methods/index.md)
+- [Backends](https://docs.railtracks.org/retrieval/components/stores/backends/index.md)
+- [Base Class](https://docs.railtracks.org/retrieval/components/stores/base/index.md)
+- [Ingestion](https://docs.railtracks.org/retrieval/runtime/ingestion/index.md)
+- [Module Packages](https://docs.railtracks.org/retrieval/runtime/module_packages/index.md)
+- [Quickstart](https://docs.railtracks.org/retrieval/runtime/quickstart/index.md)
+- [Retrieval](https://docs.railtracks.org/retrieval/runtime/retrieval/index.md)
+
+## Evaluations
+
+- [Evaluating Agent Runs](https://docs.railtracks.org/evaluations/conductr/index.md)
+- [Hosted Evaluations](https://docs.railtracks.org/evaluations/conductr_hosted/index.md)
+- [Preface](https://docs.railtracks.org/evaluations/preface/index.md)
+- [Quickstart](https://docs.railtracks.org/evaluations/quickstart/index.md)
+- [Visualization](https://docs.railtracks.org/evaluations/visualization/index.md)
+- [Evaluator Abstraction](https://docs.railtracks.org/evaluations/evaluators/evaluators/index.md)
+- [JudgeEvaluator](https://docs.railtracks.org/evaluations/evaluators/judge_evaluator/index.md)
+- [LLMInferenceEvaluator](https://docs.railtracks.org/evaluations/evaluators/llm_inference_evaluator/index.md)
+- [ToolUseEvaluator](https://docs.railtracks.org/evaluations/evaluators/tool_use_evaluator/index.md)
+- [Categorical Metrics](https://docs.railtracks.org/evaluations/metrics/categorical/index.md)
+- [Metrics Overview](https://docs.railtracks.org/evaluations/metrics/metrics/index.md)
+- [Numerical Metrics](https://docs.railtracks.org/evaluations/metrics/numerical/index.md)
+
+## Observability
+
+- [Cloud](https://docs.railtracks.org/observability/agenthub/cloud/index.md)
+- [Legacy Visualizer](https://docs.railtracks.org/observability/agenthub/local/index.md)
+- [Current Visualizer](https://docs.railtracks.org/observability/agenthub/local_v2/index.md)
+- [Broadcasting](https://docs.railtracks.org/observability/tracking/broadcasting/index.md)
+- [Error Handling](https://docs.railtracks.org/observability/tracking/error_handling/index.md)
+- [Logging](https://docs.railtracks.org/observability/tracking/logging/index.md)
+
+## Integrations
+
+- [Overview](https://docs.railtracks.org/integrations/overview/index.md)
+- [Platforms](https://docs.railtracks.org/integrations/llms/platforms/index.md)
+- [Providers](https://docs.railtracks.org/integrations/llms/providers/index.md)
+- [Streaming](https://docs.railtracks.org/integrations/llms/streaming/index.md)
+- [Github](https://docs.railtracks.org/integrations/mcps/github/index.md)
+- [Email](https://docs.railtracks.org/integrations/mcps/notion/index.md)
+- [Slack](https://docs.railtracks.org/integrations/mcps/slack/index.md)
+- [Python Sandbox](https://docs.railtracks.org/integrations/other/python_sandbox/index.md)
+- [Shell](https://docs.railtracks.org/integrations/other/shell_bash/index.md)
+- [Websearch](https://docs.railtracks.org/integrations/other/websearch_integration/index.md)
+- [Azure Blob Storage](https://docs.railtracks.org/integrations/storage/azure_blob/index.md)
+- [Google Cloud Storage](https://docs.railtracks.org/integrations/storage/gcs/index.md)
+- [Overview](https://docs.railtracks.org/integrations/storage/overview/index.md)
+- [AWS S3](https://docs.railtracks.org/integrations/storage/s3/index.md)
+- [SQL Databases](https://docs.railtracks.org/integrations/storage/sql/index.md)
+
+## Tutorials
+
+- [RAG](https://docs.railtracks.org/tutorials/concepts/RAG/index.md)
+- [Agents](https://docs.railtracks.org/tutorials/concepts/agents/index.md)
+- [Async/Await](https://docs.railtracks.org/tutorials/concepts/async_await/index.md)
+- [MCP](https://docs.railtracks.org/tutorials/concepts/mcp/index.md)
+- [Prompts and Context](https://docs.railtracks.org/tutorials/concepts/prompts_and_context/index.md)
+- [Tools](https://docs.railtracks.org/tutorials/concepts/tools/index.md)
+- [Vector Stores](https://docs.railtracks.org/tutorials/concepts/vector_store/index.md)
+- [Overview](https://docs.railtracks.org/tutorials/concepts/architectures/overview/index.md)
+- [Sequential Flows](https://docs.railtracks.org/tutorials/concepts/architectures/sequential/index.md)
+- [Validation Loops](https://docs.railtracks.org/tutorials/concepts/architectures/validation_loop/index.md)
+- [Agent Architectures](https://docs.railtracks.org/tutorials/notebooks/architectures/index.md)
+- [FastAPI Integration](https://docs.railtracks.org/tutorials/notebooks/fastapi/index.md)
+- [File Embedding](https://docs.railtracks.org/tutorials/notebooks/file_embedding/index.md)
+- [Retrieval Benchmark](https://docs.railtracks.org/tutorials/notebooks/retrieval-benchmark/index.md)
+- [AgentHub](https://docs.railtracks.org/tutorials/videos/agenthub/index.md)
+- [Evaluation](https://docs.railtracks.org/tutorials/videos/evaluation/index.md)
+- [Multiagent Systems](https://docs.railtracks.org/tutorials/videos/multiagent/index.md)
+- [Multimodal Agent](https://docs.railtracks.org/tutorials/videos/multimodal_agent/index.md)
+- [Agents as Tools](https://docs.railtracks.org/tutorials/walkthroughs/agents_as_tools/index.md)
+- [Building your first agent](https://docs.railtracks.org/tutorials/walkthroughs/byfa/index.md)
+- [FastAPI Integration](https://docs.railtracks.org/tutorials/walkthroughs/fastapi/index.md)
+- [Flows](https://docs.railtracks.org/tutorials/walkthroughs/flows/index.md)
+- [Human-in-the-Loop: LLM Reviewers](https://docs.railtracks.org/tutorials/walkthroughs/hil_llm_reviewer/index.md)
+- [Human-in-the-Loop: Webhook Approvals](https://docs.railtracks.org/tutorials/walkthroughs/hil_webhook_approval/index.md)
+- [Prompts and Context](https://docs.railtracks.org/tutorials/walkthroughs/prompts_and_context/index.md)
+- [Running your first agent](https://docs.railtracks.org/tutorials/walkthroughs/ryfa/index.md)
+
