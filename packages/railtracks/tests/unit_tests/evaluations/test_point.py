@@ -40,6 +40,23 @@ def test_load_session_invalid_json(tmp_path):
         load_session(path)
 
 
+def test_load_session_reads_utf8(tmp_path, session_json):
+    session_json["session_name"] = "会话 😀"
+    path = tmp_path / "session.json"
+    path.write_bytes(json.dumps(session_json, ensure_ascii=False).encode("utf-8"))
+
+    assert load_session(path)["session_name"] == "会话 😀"
+
+
+def test_load_session_file_cut_mid_character(tmp_path):
+    raw = json.dumps({"session_name": "会话"}, ensure_ascii=False).encode("utf-8")
+    path = tmp_path / "partial.json"
+    path.write_bytes(raw[: raw.index("会".encode("utf-8")) + 1])
+
+    with pytest.raises(ValueError, match="Error loading session file"):
+        load_session(path)
+
+
 # ── construct_graph ───────────────────────────────────────────────────────────
 
 

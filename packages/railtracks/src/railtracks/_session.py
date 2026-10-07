@@ -210,8 +210,11 @@ class Session:
 
                 logger.info("Saving execution info to %s" % file_path)
 
-                content = json.dumps(self.payload())
-                file_path.write_text(content)
+                content = json.dumps(self.payload(), ensure_ascii=False)
+                # Unpaired surrogates cannot be encoded; keep them as \u escapes
+                file_path.write_text(
+                    content, encoding="utf-8", errors="backslashreplace"
+                )
 
             except OSError as exc:
                 logger.warning(

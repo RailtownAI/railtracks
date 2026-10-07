@@ -21,4 +21,8 @@ def save(results: list[EvaluationResult]):
             raise Exception(
                 f"Evaluation result with id {result.evaluation_id} already exists."
             )
-        fp.write_text(json.dumps(payload(result)))
+        fp.write_text(
+            json.dumps(payload(result), ensure_ascii=False),
+            encoding="utf-8",
+            errors="backslashreplace",
+        )
