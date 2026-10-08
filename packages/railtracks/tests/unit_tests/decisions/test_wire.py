@@ -1,118 +1,130 @@
-"""TypeSafe wire mapping: request bodies and response parsing."""
+"""The OpenAI-shape wire mapping litellm.adecisions takes and returns."""
 
 import copy
+import json
 
 import pytest
 from railtracks.decisions import (
     ChoiceAnswer,
+    DecisionProviderRefusalError,
     DecisionProviderResponseError,
-    NoulAnswer,
+    DecisionSchema,
+    PredicateAnswer,
     ScoreAnswer,
-    TypeSafeSchema,
 )
-from railtracks.decisions.models.typesafe_compatible._wire import (
-    build_request,
+from railtracks.decisions.transport._wire import (
+    describe_questions,
     parse_response,
+    questions_to_wire,
+    to_input,
 )
 
-from .conftest import TRIAGE_RESPONSE, Triage
+from .conftest import TRIAGE_BODY, Triage, respond
 
-
-class TestBuildRequest:
-    def test_choice_matches_documented_request(self):
-        # https://docs.typesafe.ai/primitives/choice
-        class Routing(TypeSafeSchema):
-            department = TypeSafeSchema.Choice(
-                instructions="Which team should handle this?",
-                criteria={
-                    "returns": "Exchanges, wrong or damaged items",
-                    "shipping": "Delivery status, delays, lost packages",
-                    "billing": "Charges, invoices, payment problems",
-                },
-            )
-
-        state = (
-            "My running shoes arrived in the wrong size. Can I swap them for a size 10?"
-        )
-        assert build_request("jev-latest", state, Routing) == {
-            "state": state,
-            "model": "jev-latest",
-            "questions": {
-                "department": {
-                    "type": "choice",
-                    "instructions": "Which team should handle this?",
-                    "criteria": {
-                        "returns": "Exchanges, wrong or damaged items",
-                        "shipping": "Delivery status, delays, lost packages",
-                        "billing": "Charges, invoices, payment problems",
-                    },
-                }
+TRIAGE_QUESTIONS = [
+    {
+        "type": "predicate",
+        "name": "is_urgent",
+        "instructions": "The message conveys urgency",
+    },
+    {
+        "type": "choice",
+        "name": "department",
+        "instructions": "Which team should handle this",
+        "choices": [
+            {
+                "value": "billing",
+                "description": "Charges, refunds, invoices, or plan changes",
             },
-        }
-
-    def test_noul_and_score_match_documented_requests(self):
-        # https://docs.typesafe.ai/primitives/noul, /primitives/score
-        class Support(TypeSafeSchema):
-            is_human_escalation = TypeSafeSchema.Noul(
-                instructions="Is the customer asking for a human agent?"
-            )
-            is_repeat_contact = TypeSafeSchema.Noul(
-                instructions="Has the customer contacted support about this before?",
-                criteria={
-                    "true": "Mentions a prior attempt, ticket, or that they have asked before",
-                    "false": "No sign of any previous contact",
-                },
-            )
-            bug_severity = TypeSafeSchema.Score(
-                instructions="How severe is the reported issue?",
-                criteria=[
-                    "Cosmetic; no impact to functionality",
-                    "Broken or degraded feature, but workaround exists",
-                    "Blocking issue; no workaround exists",
-                ],
-            )
-
-        questions = build_request("jev-latest", "state", Support)["questions"]
-        assert questions == {
-            "is_human_escalation": {
-                "type": "noul",
-                "instructions": "Is the customer asking for a human agent?",
+            {
+                "value": "technical",
+                "description": "Bugs, outages, errors, or integration problems",
             },
-            "is_repeat_contact": {
-                "type": "noul",
-                "instructions": "Has the customer contacted support about this before?",
-                "criteria": {
-                    "true": "Mentions a prior attempt, ticket, or that they have asked before",
-                    "false": "No sign of any previous contact",
-                },
+            {
+                "value": "sales",
+                "description": "Pricing questions, upgrades, or new purchases",
             },
-            "bug_severity": {
+        ],
+    },
+    {
+        "type": "score",
+        "name": "frustration",
+        "instructions": "How frustrated the customer is",
+        "levels": [
+            {"label": "Calm"},
+            {"label": "Frustrated but civil"},
+            {"label": "Very angry"},
+        ],
+    },
+]
+
+
+class TestRequest:
+    def test_questions_in_the_openai_shape_with_names(self):
+        assert questions_to_wire(Triage) == TRIAGE_QUESTIONS
+
+    def test_list_choices_and_mapping_levels(self):
+        class Routing(DecisionSchema):
+            team = DecisionSchema.Choice(instructions="Team", choices=["a", "b"])
+            severity = DecisionSchema.Score(
+                instructions="Severity", levels={"Low": "Cosmetic", "High": "Outage"}
+            )
+
+        assert questions_to_wire(Routing) == [
+            {
+                "type": "choice",
+                "name": "team",
+                "instructions": "Team",
+                "choices": [{"value": "a"}, {"value": "b"}],
+            },
+            {
                 "type": "score",
-                "instructions": "How severe is the reported issue?",
-                "criteria": [
-                    "Cosmetic; no impact to functionality",
-                    "Broken or degraded feature, but workaround exists",
-                    "Blocking issue; no workaround exists",
+                "name": "severity",
+                "instructions": "Severity",
+                "levels": [
+                    {"label": "Low", "description": "Cosmetic"},
+                    {"label": "High", "description": "Outage"},
                 ],
             },
-        }
-        assert list(questions) == [
-            "is_human_escalation",
-            "is_repeat_contact",
-            "bug_severity",
         ]
 
-    def test_json_state_passes_through(self):
-        state = {"message": "Please help.", "subject": "Duplicate charge"}
-        assert build_request("jev-latest", state, Triage)["state"] == state
+    def test_describe_questions_keys_the_wire_questions_by_name(self):
+        described = describe_questions(Triage)
+        assert list(described) == ["is_urgent", "department", "frustration"]
+        assert list(described.values()) == TRIAGE_QUESTIONS
+
+    def test_text_input_as_is(self):
+        assert to_input("My checkout is down.") == "My checkout is down."
+
+    def test_json_object_becomes_text(self):
+        state = {"subject": "Duplicate charge", "body": "Charged twice"}
+        assert to_input(state) == json.dumps(state)
+
+    def test_user_messages_pass_through(self):
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": "Inspect this photo."},
+                    {"type": "input_image", "image_url": "data:image/png;base64,AAAA"},
+                ],
+            }
+        ]
+        assert to_input(messages) is messages
+
+    @pytest.mark.parametrize(
+        "state",
+        [[{"sku": 1}, {"sku": 2}], [], [{"role": "assistant", "content": "hi"}]],
+        ids=["records", "empty", "assistant-message"],
+    )
+    def test_json_array_that_is_not_user_messages_becomes_text(self, state):
+        assert to_input(state) == json.dumps(state)
 
 
 class TestParseResponse:
     def test_parses_all_three_answer_types(self):
-        parsed = parse_response(TRIAGE_RESPONSE, Triage)
-        triage = parsed.structured
-        assert isinstance(triage, Triage)
-        assert triage.is_urgent == NoulAnswer(noul=0.93)
+        triage = parse_response(respond(), Triage).structured
+        assert triage.is_urgent == PredicateAnswer(probability=0.93)
         assert triage.department == ChoiceAnswer(
             choice="technical",
             confidence=0.81,
@@ -126,63 +138,78 @@ class TestParseResponse:
         )
 
     def test_metadata(self):
-        parsed = parse_response(TRIAGE_RESPONSE, Triage)
-        assert parsed.reported_model_name == "jev-1.13.0"
-        assert parsed.provider is None
-        assert parsed.input_tokens == 296
-        assert parsed.output_tokens == 20
-        assert parsed.raw == TRIAGE_RESPONSE
+        reply = parse_response(respond(), Triage)
+        assert reply.reported_model_name == "jev-1.13.0"
+        assert reply.input_tokens == 296
+        assert reply.output_tokens == 20
+        assert reply.provider is None
+        assert reply.reported_cost is None  # the transport reads the cost
+        assert reply.raw["usage"]["total_tokens"] == 316
+        assert reply.raw["answers"][0]["name"] == "is_urgent"
 
-    def test_provider_and_missing_usage_tolerated(self):
-        body = copy.deepcopy(TRIAGE_RESPONSE)
-        del body["usage"]
-        del body["model"]
-        body["provider"] = "TypeSafe"
-        parsed = parse_response(body, Triage)
-        assert parsed.provider == "TypeSafe"
-        assert parsed.reported_model_name is None
-        assert parsed.input_tokens is None
+    def test_answers_matched_by_name_not_position(self):
+        body = copy.deepcopy(TRIAGE_BODY)
+        body["answers"].reverse()
+        assert parse_response(respond(body), Triage).structured.is_urgent == (
+            PredicateAnswer(probability=0.93)
+        )
 
-    def test_reported_cost_parsed(self):
-        # OpenRouter reports what it billed in usage.cost
-        body = copy.deepcopy(TRIAGE_RESPONSE)
-        body["usage"]["cost"] = 1.7556e-05
-        assert parse_response(body, Triage).reported_cost == 1.7556e-05
-        body["usage"]["cost"] = 0
-        assert parse_response(body, Triage).reported_cost == 0.0
+    def test_answers_without_names_matched_by_position(self):
+        body = copy.deepcopy(TRIAGE_BODY)
+        for answer in body["answers"]:
+            answer["name"] = None
+        reply = parse_response(respond(body), Triage)
+        assert reply.structured.department.choice == "technical"
 
-    @pytest.mark.parametrize("cost", [None, "0.01", True, -1.0])
-    def test_unusable_reported_cost_ignored(self, cost):
-        body = copy.deepcopy(TRIAGE_RESPONSE)
-        body["usage"]["cost"] = cost
-        assert parse_response(body, Triage).reported_cost is None
+    def test_refusal_raises_with_the_other_answers(self):
+        body = copy.deepcopy(TRIAGE_BODY)
+        body["answers"][1] = {"type": "refusal", "name": "department"}
+        with pytest.raises(DecisionProviderRefusalError) as info:
+            parse_response(respond(body), Triage)
+        assert info.value.refused == ["department"]
+        assert set(info.value.answers) == {"is_urgent", "frustration"}
+        assert "department" in info.value.reason
 
-    def test_no_reported_cost(self):
-        assert parse_response(TRIAGE_RESPONSE, Triage).reported_cost is None
+    def test_every_question_refused(self):
+        body = copy.deepcopy(TRIAGE_BODY)
+        body["answers"] = [
+            {"type": "refusal", "name": name}
+            for name in ("is_urgent", "department", "frustration")
+        ]
+        with pytest.raises(DecisionProviderRefusalError) as info:
+            parse_response(respond(body), Triage)
+        assert info.value.refused == ["is_urgent", "department", "frustration"]
+        assert info.value.answers == {}
 
-    def test_unrequested_answers_ignored(self):
-        body = copy.deepcopy(TRIAGE_RESPONSE)
-        body["answers"]["extra"] = {"type": "noul", "noul": 0.1}
-        assert parse_response(body, Triage).structured.is_urgent.noul == 0.93
+    def test_dict_body_accepted(self):
+        reply = parse_response(copy.deepcopy(TRIAGE_BODY), Triage)
+        assert reply.structured.is_urgent.probability == 0.93
 
     @pytest.mark.parametrize(
         "mutate, field",
         [
             (lambda b: b.pop("answers"), "answers"),
-            (lambda b: b["answers"].pop("department"), "answers.department"),
+            (lambda b: b["answers"].pop(0), "answers.is_urgent"),
             (
-                lambda b: b["answers"]["department"].pop("probabilities"),
+                lambda b: b["answers"][0].pop("probability"),
+                "answers.is_urgent.probability",
+            ),
+            (lambda b: b["answers"][0].update(type="score"), "answers.is_urgent.type"),
+            (
+                lambda b: b["answers"][1]["probabilities"][0].pop("value"),
                 "answers.department.probabilities",
             ),
-            (lambda b: b["answers"]["is_urgent"].pop("noul"), "answers.is_urgent.noul"),
-            (
-                lambda b: b["answers"]["is_urgent"].update(type="score"),
-                "answers.is_urgent.type",
-            ),
+        ],
+        ids=[
+            "no-answers",
+            "missing-answer",
+            "missing-field",
+            "wrong-type",
+            "bad-probabilities",
         ],
     )
     def test_malformed_response_names_the_field(self, mutate, field):
-        body = copy.deepcopy(TRIAGE_RESPONSE)
+        body = copy.deepcopy(TRIAGE_BODY)
         mutate(body)
         with pytest.raises(
             DecisionProviderResponseError, match=field.replace(".", r"\.")
@@ -190,5 +217,5 @@ class TestParseResponse:
             parse_response(body, Triage)
 
     def test_non_object_body_rejected(self):
-        with pytest.raises(DecisionProviderResponseError):
+        with pytest.raises(DecisionProviderResponseError, match="<body>"):
             parse_response(["not", "an", "object"], Triage)

@@ -1,16 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, ParamSpec, TypeVar, cast, overload
+from typing import Callable, Iterable, ParamSpec, TypeVar, cast
 
-from railtracks.decisions import (
-    DecisionModel,
-    DecisionResponse,
-    DecisionSchema,
-    OpenAIDecisions,
-    OpenAISchema,
-    TypeSafeCompatibleAI,
-    TypeSafeSchema,
-)
+from railtracks.decisions import DecisionModel, DecisionResponse, DecisionSchema
 from railtracks.decisions.schema import DecisionState
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Parameter, Tool
@@ -21,9 +13,7 @@ from ..function.node_builder import FunctionNodeBuilder
 from .invoker import invoke_decision
 
 _P = ParamSpec("_P")
-_TTypeSafe = TypeVar("_TTypeSafe", bound=TypeSafeSchema)
-_TOpenAI = TypeVar("_TOpenAI", bound=OpenAISchema)
-_TVendor = TypeVar("_TVendor", bound=DecisionSchema)
+_TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 
 STATE_DESCRIPTION = "The text to judge."
 
@@ -34,53 +24,15 @@ def _state_shape(state: DecisionState) -> object:
     raise NotImplementedError
 
 
-@overload
 def decision_node(
     name: str | None = None,
     *,
-    model: TypeSafeCompatibleAI,
-    schema: type[_TTypeSafe],
+    model: DecisionModel,
+    schema: type[_TSchema],
     description: str | None = None,
-    middleware: Iterable[Middleware[_P, DecisionResponse[_TTypeSafe]]] | None = None,
+    middleware: Iterable[Middleware[_P, DecisionResponse[_TSchema]]] | None = None,
     _shape: Callable[_P, object] = _state_shape,
-) -> type[Node[_P, DecisionResponse[_TTypeSafe]]]: ...
-
-
-@overload
-def decision_node(
-    name: str | None = None,
-    *,
-    model: OpenAIDecisions,
-    schema: type[_TOpenAI],
-    description: str | None = None,
-    middleware: Iterable[Middleware[_P, DecisionResponse[_TOpenAI]]] | None = None,
-    _shape: Callable[_P, object] = _state_shape,
-) -> type[Node[_P, DecisionResponse[_TOpenAI]]]: ...
-
-
-@overload
-def decision_node(
-    name: str | None = None,
-    *,
-    model: DecisionModel[_TVendor],
-    schema: type[_TVendor],
-    description: str | None = None,
-    middleware: Iterable[Middleware[_P, DecisionResponse[_TVendor]]] | None = None,
-    _shape: Callable[_P, object] = _state_shape,
-) -> type[Node[_P, DecisionResponse[_TVendor]]]: ...
-
-
-# The implementation is typed loosely enough to cover both overloads: DecisionModel is
-# invariant in its schema type, so only DecisionModel[Any] admits a TypeSafeCompatibleAI.
-def decision_node(
-    name: str | None = None,
-    *,
-    model: DecisionModel[Any],
-    schema: type[DecisionSchema],
-    description: str | None = None,
-    middleware: Iterable[Middleware[_P, DecisionResponse[Any]]] | None = None,
-    _shape: Callable[_P, object] = _state_shape,
-) -> type[Node[_P, DecisionResponse[Any]]]:
+) -> type[Node[_P, DecisionResponse[_TSchema]]]:
     """Create a node that answers ``schema``'s questions about a state with ``model``.
 
     The System One counterpart of `agent_node`. The node is a Tool: use it as a Flow's
@@ -89,11 +41,10 @@ def decision_node(
 
     Args:
         name (str | None): The node and tool name. Defaults to the schema's class name.
-        model (DecisionModel): The decision model, e.g. `rt.decisions.TypeSafeAI` or
-            another `/v1/systemone` host such as `rt.decisions.LayaAI`.
-        schema (type[DecisionSchema]): The schema class declaring the questions; must
-            match the model's format (a `TypeSafeSchema` subclass for every
-            `TypeSafeCompatibleAI` host).
+        model (DecisionModel): The decision model, e.g. `rt.decisions.TypeSafeAI`,
+            `rt.decisions.OpenRouterAI` or `rt.decisions.OpenAIDecisions`.
+        schema (type[DecisionSchema]): The `DecisionSchema` subclass declaring the
+            questions; every model answers any schema.
         description (str | None): The tool description an agent sees. Defaults to a
             sentence listing each question's instructions.
         middleware (Iterable[Middleware] | None): Middleware applied around the node
@@ -102,15 +53,15 @@ def decision_node(
             the node's input shape.
 
     Raises:
-        NodeCreationError: If the name is blank, or the schema is not a concrete
-            subclass of the model's schema base.
+        NodeCreationError: If the name is blank, the model is not a `DecisionModel`, or
+            the schema is not a `DecisionSchema` subclass that declares questions.
     """
     _validate(name, model, schema)
     node_name = name if name is not None else schema.__name__
     detail = description if description is not None else _default_detail(schema)
 
     # `str` so TypeMapper coerces an agent's tool argument; Python callers may pass JSON
-    async def invoke(state: str) -> DecisionResponse[DecisionSchema]:
+    async def invoke(state: str) -> DecisionResponse[_TSchema]:
         return await invoke_decision(model, state, schema)
 
     tool = Tool(
@@ -126,15 +77,15 @@ def decision_node(
         name=node_name,
         tool_info=tool,
         middleware=cast(
-            Iterable[Middleware[[str], DecisionResponse[DecisionSchema]]] | None,
+            Iterable[Middleware[[str], DecisionResponse[_TSchema]]] | None,
             middleware,
         ),
     )
-    return cast(type[Node[_P, DecisionResponse[Any]]], builder.build())
+    return cast(type[Node[_P, DecisionResponse[_TSchema]]], builder.build())
 
 
 def _validate(
-    name: str | None, model: DecisionModel[Any], schema: type[DecisionSchema]
+    name: str | None, model: DecisionModel, schema: type[DecisionSchema]
 ) -> None:
     if name is not None and (not isinstance(name, str) or not name.strip()):
         raise NodeCreationError(
@@ -145,10 +96,9 @@ def _validate(
         raise NodeCreationError(
             message=f"decision_node model must be a decision model such as rt.decisions.TypeSafeAI, got {type(model).__name__}.",
         )
-    base = model.schema_base
-    if not (isinstance(schema, type) and issubclass(schema, base)):
+    if not (isinstance(schema, type) and issubclass(schema, DecisionSchema)):
         raise NodeCreationError(
-            message=f"{type(model).__name__} needs a {base.__name__} subclass as its schema, got {schema!r}.",
+            message=f"decision_node needs a DecisionSchema subclass as its schema, got {schema!r}.",
         )
     if schema._is_abstract_schema:
         raise NodeCreationError(

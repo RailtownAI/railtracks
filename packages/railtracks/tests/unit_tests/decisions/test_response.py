@@ -3,15 +3,15 @@
 import json
 
 from railtracks.decisions import DecisionResponse
-from railtracks.decisions.models.typesafe_compatible._wire import parse_response
+from railtracks.decisions.transport._wire import parse_response
 from railtracks.utils.json.encoder import RTJSONEncoder
 
-from .conftest import TRIAGE_RESPONSE, Triage
+from .conftest import TRIAGE_BODY, Triage, respond
 
 
 def _response(**overrides) -> DecisionResponse[Triage]:
     fields = {
-        "structured": parse_response(TRIAGE_RESPONSE, Triage).structured,
+        "structured": parse_response(respond(), Triage).structured,
         "model_name": "jev-1.13.0",
         "requested_model_name": "jev-latest",
         "provider": None,
@@ -19,7 +19,7 @@ def _response(**overrides) -> DecisionResponse[Triage]:
         "output_tokens": 20,
         "latency": 0.21,
         "cost": 1.2432e-05,
-        "raw": TRIAGE_RESPONSE,
+        "raw": TRIAGE_BODY,
         **overrides,
     }
     return DecisionResponse(**fields)
@@ -32,9 +32,9 @@ def test_str_one_segment_per_question_in_definition_order():
     )
 
 
-def test_str_noul_below_half_is_no():
-    body = json.loads(json.dumps(TRIAGE_RESPONSE))
-    body["answers"]["is_urgent"]["noul"] = 0.12
+def test_str_predicate_below_half_is_no():
+    body = json.loads(json.dumps(TRIAGE_BODY))
+    body["answers"][0]["probability"] = 0.12
     resp = _response(structured=parse_response(body, Triage).structured)
     assert str(resp).startswith("is_urgent: no 0.12 | ")
 
@@ -43,7 +43,7 @@ def test_encodes_to_a_structured_dict():
     encoded = json.loads(json.dumps(_response(), cls=RTJSONEncoder))
     assert encoded == {
         "structured": {
-            "is_urgent": {"noul": 0.93},
+            "is_urgent": {"probability": 0.93},
             "department": {
                 "choice": "technical",
                 "confidence": 0.81,

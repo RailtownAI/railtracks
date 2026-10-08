@@ -2,7 +2,7 @@
 
 import logging
 
-import httpx
+import litellm
 import pytest
 import railtracks as rt
 import railtracks.context.central as central
@@ -77,16 +77,24 @@ async def test_invocation_and_response_paired_under_the_decision_node(
     assert invocation.payload["api_base"] == "https://api.typesafe.ai"
     assert invocation.payload["state"] == "Help!"
     assert invocation.payload["questions"]["department"]["type"] == "choice"
+    assert invocation.payload["questions"]["department"]["name"] == "department"
+    assert invocation.payload["questions"]["frustration"]["levels"][0] == {
+        "label": "Calm"
+    }
 
     assert response.payload["reported_model_name"] == "jev-1.13.0"
-    assert response.payload["answers"]["is_urgent"] == {"noul": 0.93}
+    assert response.payload["answers"]["is_urgent"] == {"probability": 0.93}
     assert response.payload["input_tokens"] == 296
     assert response.payload["total_cost"] == pytest.approx(296 * 4.2e-08)
     assert response.payload["latency"] > 0
 
 
 async def test_failure_paired_with_invocation(make_model, writer):
-    model, _ = make_model(httpx.Response(500, text="boom"))
+    model, _ = make_model(
+        litellm.InternalServerError(
+            message="boom", llm_provider="typesafe", model="typesafe/jev-latest"
+        )
+    )
     node = rt.decision_node("Triage Ticket", model=model, schema=Triage)
 
     with rt.Session(flow_name="decisions", end_on_error=False):
@@ -155,7 +163,7 @@ async def test_no_events_or_errors_outside_a_run(make_model, writer, caplog):
     with caplog.at_level(logging.DEBUG):
         resp = await model.aask("Help!", Triage)
 
-    assert resp.structured.is_urgent.noul == 0.93
+    assert resp.structured.is_urgent.probability == 0.93
     assert _decision_events(writer) == []
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
