@@ -81,9 +81,6 @@ The `attachment` parameter can be a single `str` or a `list[str]`. We currently 
 ## PDF documents
 PDF input works through the same `attachment` parameter. The provider must natively support PDF input (currently OpenAI's `gpt-5.x` family and Anthropic's Claude models via the `file` content block); other providers will reject the request.
 
-!!! note "Ollama does not accept PDFs"
-    litellm's Ollama transform keeps only text and image parts, so a PDF would be dropped without the model ever seeing it. `OllamaLLM` raises `AttachmentNotSupportedError` before the call instead. To use a PDF with a local Ollama model, render its pages to images and attach those.
-
 ```python
 --8<-- "docs/scripts/multimodal.py:pdf_local"
 ```
