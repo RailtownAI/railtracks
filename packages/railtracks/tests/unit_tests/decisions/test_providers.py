@@ -132,6 +132,25 @@ class TestOpenAIDecisions:
         monkeypatch.setenv("OPENAI_BASE_URL", "https://eu.api.openai.com/v1")
         assert model.api_base == "https://eu.api.openai.com/v1"
 
+    def test_api_base_from_openai_api_base(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_BASE", "https://proxy.example.com/v1")
+        assert OpenAIDecisions("gpt-6-luna").api_base == "https://proxy.example.com/v1"
+
+    def test_api_base_precedence_matches_litellm(self, monkeypatch):
+        model = OpenAIDecisions("gpt-6-luna")
+        monkeypatch.setenv("OPENAI_API_BASE", "https://api-base.example.com/v1")
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://base-url.example.com/v1")
+        assert model.api_base == "https://base-url.example.com/v1"
+        monkeypatch.setattr(litellm, "api_base", "https://global.example.com/v1")
+        assert model.api_base == "https://global.example.com/v1"
+        explicit = OpenAIDecisions("gpt-6-luna", api_base="https://own.example.com")
+        assert explicit.api_base == "https://own.example.com"
+
+    @pytest.mark.parametrize("provider", [TypeSafeAI, OpenRouterAI])
+    def test_litellm_api_base_is_openai_only(self, monkeypatch, provider):
+        monkeypatch.setattr(litellm, "api_base", "https://global.example.com/v1")
+        assert provider("m").api_base == provider.default_api_base
+
     async def test_missing_key_names_openai_env(self, make_model):
         missing = litellm.AuthenticationError(
             message="Missing API key for Decisions provider 'openai'",

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, ClassVar, TypeVar
+from urllib.parse import urlsplit
 
 import litellm
 
@@ -130,6 +131,25 @@ class LiteLLMDecisionModel(DecisionModel):
             self._api_base or os.environ.get(self.api_base_env) or self.default_api_base
         )
 
+    def _check_api_base(self) -> None:
+        """Raise ``DecisionProviderRequestError`` unless ``api_base`` is an http(s) URL.
+
+        litellm reports a malformed base as a connection error, which would be retried.
+        """
+        api_base = self.api_base
+        parts = urlsplit(api_base)
+        if parts.scheme in ("http", "https") and parts.netloc:
+            return
+        source = (
+            "the api_base= argument"
+            if self._api_base
+            else f"the {self.api_base_env} environment variable"
+        )
+        raise DecisionProviderRequestError(
+            f"Malformed api_base {api_base!r} for {self.litellm_model}.",
+            notes=[f"Set {source} to an http:// or https:// URL."],
+        )
+
     @property
     def litellm_model(self) -> str:
         """The model name litellm routes on: ``"<provider_prefix>/<model_name>"``."""
@@ -145,6 +165,7 @@ class LiteLLMDecisionModel(DecisionModel):
     async def _send(
         self, state: DecisionState, schema: type[_TSchema]
     ) -> DecisionReply[_TSchema]:
+        self._check_api_base()
         try:
             response = await litellm.adecisions(
                 model=self.litellm_model,
