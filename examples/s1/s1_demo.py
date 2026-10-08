@@ -8,8 +8,8 @@ single forward pass, typically in well under a second.
 This example triages support tickets with TypeSafe's Jev:
 
 1. the model   -> `rt.decisions.TypeSafeAI`; swapping vendors is one line
-2. the schema  -> a `DecisionSchema` subclass whose attributes are the questions;
-                  every vendor answers the same schema
+2. the schema  -> named question objects grouped in a `DecisionSchema`; every
+                  vendor answers the same schema
 3. the node    -> `rt.decision_node`, the S1 counterpart of `rt.agent_node`
 4. using it    -> as a Flow, routing an inbox on the probabilities, as an agent's
                   tool, and as a direct call
@@ -26,8 +26,6 @@ import asyncio
 
 import railtracks as rt
 
-DecisionSchema = rt.decisions.DecisionSchema
-
 ##### 1. The model #####
 
 jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
@@ -35,30 +33,35 @@ jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
 # jev = rt.decisions.OpenRouterAI(model_name="typesafe/jev-1.13")  # OPENROUTER_API_KEY
 # jev = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")  # OPENAI_API_KEY
 
-##### 2. The schema: each attribute is one question #####
+##### 2. The schema: named questions, grouped by kind #####
 
-
-class Triage(DecisionSchema):
-    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
-    department = DecisionSchema.Choice(
-        instructions="Which team should handle this",
-        choices={
-            "billing": "Charges, refunds, invoices, or plan changes",
-            "technical": "Bugs, outages, errors, or integration problems",
-            "sales": "Pricing questions, upgrades, or new purchases",
-        },
-    )
-    frustration = DecisionSchema.Score(
-        instructions="How frustrated the customer is",
-        levels=["Calm", "Frustrated but civil", "Very angry"],
-    )
+is_urgent = rt.decisions.Predicate(
+    name="is_urgent", instructions="The message conveys urgency"
+)
+department = rt.decisions.Choice(
+    name="department",
+    instructions="Which team should handle this",
+    choices={
+        "billing": "Charges, refunds, invoices, or plan changes",
+        "technical": "Bugs, outages, errors, or integration problems",
+        "sales": "Pricing questions, upgrades, or new purchases",
+    },
+)
+frustration = rt.decisions.Score(
+    name="frustration",
+    instructions="How frustrated the customer is",
+    levels=["Calm", "Frustrated but civil", "Very angry"],
+)
+triage = rt.decisions.DecisionSchema(
+    predicate=[is_urgent], choice=[department], score=[frustration]
+)
 
 
 ##### 3. The node #####
 
-# Typed as a node returning DecisionResponse[Triage]. As a tool, it takes the ticket
+# Typed as a node returning DecisionResponse. As a tool, it takes the ticket
 # text as `state`, and its description lists the questions.
-TriageTicket = rt.decision_node("Triage Ticket", model=jev, schema=Triage)
+TriageTicket = rt.decision_node("Triage Ticket", model=jev, schema=triage)
 
 ##### 4. Using it #####
 
@@ -86,12 +89,12 @@ async def route_inbox(tickets: list[str]) -> dict[str, list[str]]:
         if isinstance(result, Exception):
             queues["needs_a_person"].append(ticket)
             continue
-        department = result.structured.department
-        if department.probabilities[department.choice] < CONFIDENT:
+        team = result.structured[department]  # typed as a ChoiceAnswer
+        if team.probabilities[team.choice] < CONFIDENT:
             queues["needs_a_person"].append(ticket)
             continue
-        queue = queues.setdefault(department.choice, [])
-        if result.structured.is_urgent.probability >= CONFIDENT:
+        queue = queues.setdefault(team.choice, [])
+        if result.structured[is_urgent].probability >= CONFIDENT:
             queue.insert(0, ticket)
         else:
             queue.append(ticket)
@@ -114,15 +117,15 @@ inbox_flow = rt.Flow(name="Inbox Routing", entry_point=route_inbox)
 support_flow = rt.Flow(name="Support Agent", entry_point=SupportAgent)
 
 if __name__ == "__main__":
-    # One ticket in, a DecisionResponse[Triage] out. str() is the one-line summary:
+    # One ticket in, a DecisionResponse out. str() is the one-line summary:
     # is_urgent: yes 0.99 | department: technical 1.00 | frustration: 2.0/2
     result = triage_flow.invoke(TICKETS[1])
     print(result)
 
-    # Each attribute is typed as its answer (PredicateAnswer, ChoiceAnswer, ScoreAnswer):
+    # Indexed with a question, each answer is typed (ChoiceAnswer, ScoreAnswer, ...):
     # {'billing': 0.0, 'technical': 1.0, 'sales': 0.0} and {0: 0.0, 1: 0.02, 2: 0.98}
-    print(result.structured.department.probabilities)
-    print(result.structured.frustration.probabilities)
+    print(result.structured[department].probabilities)
+    print(result.structured[frustration].probabilities)
     # jev-1.13.0: 0.39s, $1.764e-05
     print(f"{result.model_name}: {result.latency:.2f}s, ${result.cost}")
 
@@ -139,4 +142,4 @@ if __name__ == "__main__":
     # be JSON too. Direct calls aren't recorded; decision nodes are.
     # is_urgent: no 0.23 | department: billing 1.00 | frustration: 0.2/2
     ticket = {"subject": "Duplicate charge", "body": TICKETS[0]}
-    print(asyncio.run(jev.aask(ticket, Triage)))
+    print(asyncio.run(jev.aask(ticket, triage)))

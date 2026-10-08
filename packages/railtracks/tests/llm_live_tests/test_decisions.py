@@ -15,7 +15,14 @@ import litellm
 import pytest
 import railtracks as rt
 import railtracks.context.central as central
-from railtracks.decisions import DecisionModel, DecisionSchema
+from railtracks.decisions import (
+    Choice,
+    DecisionModel,
+    DecisionSchema,
+    DecisionState,
+    Predicate,
+    Score,
+)
 from railtracks.decisions.transport._litellm import LiteLLMDecisionModel
 from railtracks.observability import Event, configure, configure_writers
 
@@ -54,20 +61,22 @@ def _param(vendor: Vendor):
 ALL_VENDORS = [_param(TYPESAFE), _param(OPENROUTER), _param(OPENAI)]
 
 
-class Triage(DecisionSchema):
-    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
-    department = DecisionSchema.Choice(
-        instructions="Which team should handle this",
-        choices={
-            "billing": "Charges, refunds, invoices, or plan changes",
-            "technical": "Bugs, outages, errors, or integration problems",
-            "sales": "Pricing questions, upgrades, or new purchases",
-        },
-    )
-    frustration = DecisionSchema.Score(
-        instructions="How frustrated the customer is",
-        levels=["Calm", "Frustrated but civil", "Very angry"],
-    )
+is_urgent = Predicate(name="is_urgent", instructions="The message conveys urgency")
+department = Choice(
+    name="department",
+    instructions="Which team should handle this",
+    choices={
+        "billing": "Charges, refunds, invoices, or plan changes",
+        "technical": "Bugs, outages, errors, or integration problems",
+        "sales": "Pricing questions, upgrades, or new purchases",
+    },
+)
+frustration = Score(
+    name="frustration",
+    instructions="How frustrated the customer is",
+    levels=["Calm", "Frustrated but civil", "Very angry"],
+)
+Triage = DecisionSchema(predicate=[is_urgent], choice=[department], score=[frustration])
 
 
 BILLING = "I was charged twice for my March invoice. Please refund the duplicate."
@@ -107,19 +116,19 @@ def _model(vendor: Vendor, **kwargs) -> DecisionModel:
 async def test_aask_parses_every_answer_type_and_the_metadata(vendor):
     resp = await _model(vendor).aask(OUTAGE, Triage)
 
-    assert resp.structured.department.choice == "technical"
-    assert set(resp.structured.department.probabilities) == {
+    assert resp.structured[department].choice == "technical"
+    assert set(resp.structured[department].probabilities) == {
         "billing",
         "technical",
         "sales",
     }
-    assert resp.structured.is_urgent.probability > 0.5
-    assert resp.structured.frustration.legend == {
+    assert resp.structured[is_urgent].probability > 0.5
+    assert resp.structured[frustration].legend == {
         0: "Calm",
         1: "Frustrated but civil",
         2: "Very angry",
     }
-    assert 0.0 <= resp.structured.frustration.score <= 2.0
+    assert 0.0 <= resp.structured[frustration].score <= 2.0
     assert resp.model_name.startswith(vendor.reported_prefix)
     assert resp.requested_model_name == vendor.model_name
     assert resp.provider == vendor.model_class.provider_name
@@ -132,7 +141,7 @@ async def test_aask_parses_every_answer_type_and_the_metadata(vendor):
 async def test_json_state(vendor):
     state = {"subject": "Duplicate charge", "body": BILLING}
     resp = await _model(vendor).aask(state, Triage)
-    assert resp.structured.department.choice == "billing"
+    assert resp.structured[department].choice == "billing"
 
 
 @pytest.mark.parametrize("vendor", ALL_VENDORS)
@@ -143,7 +152,7 @@ def test_decision_node_in_a_flow_records_paired_events(vendor):
 
     result = rt.Flow(name="Live Triage", entry_point=node).invoke(OUTAGE)
 
-    assert result.structured.department.choice == "technical"
+    assert result.structured[department].choice == "technical"
     invocation, response = [
         e for e in writer.events if e.event_type.startswith("decision.")
     ]
@@ -160,7 +169,7 @@ async def test_call_batch_preserves_order(vendor):
     with rt.Session(flow_name="Live Batch"):
         results = await rt.call_batch(node, [BILLING, OUTAGE])
 
-    assert [r.structured.department.choice for r in results] == [
+    assert [r.structured[department].choice for r in results] == [
         "billing",
         "technical",
     ]
@@ -205,25 +214,19 @@ def _solid_png(rgb: tuple[int, int, int], size: int = 16) -> bytes:
     )
 
 
-class Colour(DecisionSchema):
-    is_red = DecisionSchema.Predicate(instructions="The image is a solid red square")
-    colour = DecisionSchema.Choice(
-        instructions="The main colour of the image", choices=["red", "green", "blue"]
-    )
+is_red = Predicate(name="is_red", instructions="The image is a solid red square")
+colour = Choice(
+    name="colour",
+    instructions="The main colour of the image",
+    choices=["red", "green", "blue"],
+)
+Colour = DecisionSchema(predicate=[is_red], choice=[colour])
 
 
 @pytest.mark.parametrize("vendor", [_param(OPENAI)])
 async def test_image_input(vendor):
     image = base64.b64encode(_solid_png((0, 0, 255))).decode("ascii")
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "input_text", "text": "Look at this image."},
-                {"type": "input_image", "image_url": f"data:image/png;base64,{image}"},
-            ],
-        }
-    ]
-    resp = await _model(vendor).aask(messages, Colour)
-    assert resp.structured.colour.choice == "blue"
-    assert resp.structured.is_red.probability < 0.5
+    state = DecisionState(text="Look at this image.", attachments=image)
+    resp = await _model(vendor).aask(state, Colour)
+    assert resp.structured[colour].choice == "blue"
+    assert resp.structured[is_red].probability < 0.5
