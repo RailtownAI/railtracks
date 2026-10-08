@@ -23,7 +23,7 @@ def test_flow_returns_the_typed_response(monkeypatch):
     result = rt.Flow(name="OpenAI Triage", entry_point=_node(monkeypatch, body)).invoke(
         "My checkout is down."
     )
-    assert result.structured.department.choice == "technical"
+    assert result.structured["department"].choice == "technical"
     assert result.model_name == "gpt-6-luna"
     assert result.provider == "openai"
     assert (

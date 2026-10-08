@@ -8,7 +8,6 @@ models emit nothing and raise ``DecisionProviderError``; here a node's request g
 from __future__ import annotations
 
 import uuid
-from typing import TypeVar
 
 from railtracks.context.central import get_current_scope, is_context_active
 from railtracks.decisions import (
@@ -25,7 +24,7 @@ from railtracks.decisions import (
     DecisionResponse,
     DecisionSchema,
 )
-from railtracks.decisions.schema import DecisionState
+from railtracks.decisions.state import DecisionInput, DecisionState
 from railtracks.events._resolve import has_enclosing_node
 from railtracks.events.decision import (
     DecisionFailureEvent,
@@ -43,8 +42,6 @@ from railtracks.exceptions import (
     DecisionServerError,
     DecisionTimeoutError,
 )
-
-_TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 
 # Ordered most-specific first. Request and refusal errors are handled apart: they carry
 # a body and the refused question names.
@@ -80,14 +77,15 @@ def _node_error_for(error: DecisionProviderError) -> DecisionModelError:
 
 
 async def invoke_decision(
-    model: DecisionModel, state: DecisionState, schema: type[_TSchema]
-) -> DecisionResponse[_TSchema]:
+    model: DecisionModel, state: DecisionInput, schema: DecisionSchema
+) -> DecisionResponse:
     """Ask ``model`` about ``state`` and emit the ``decision.*`` events for the call.
 
     Args:
         model: The decision model to ask.
-        state: What to judge: text, a JSON object or array, or user messages.
-        schema: The schema class declaring the questions.
+        state: What to judge: text, a JSON object or array, a ``DecisionState``, or
+            user messages.
+        schema: The schema holding the questions.
 
     Returns:
         The model's response, unchanged.
@@ -106,7 +104,8 @@ async def invoke_decision(
                 decision_id=decision_id,
                 model_name=model.model_name,
                 api_base=model.api_base,
-                state=state,
+                # attachments are recorded as given, never as base64
+                state=state.encode() if isinstance(state, DecisionState) else state,
                 questions=model.describe_questions(schema),
             )
         )

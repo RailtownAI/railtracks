@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, TypeGuard, TypeVar
+from typing import Any, TypeGuard
 
 from pydantic import BaseModel, ValidationError
 
@@ -20,14 +20,12 @@ from ..model import DecisionReply
 from ..schema import (
     ChoiceQuestion,
     DecisionAnswer,
+    DecisionAnswers,
     DecisionQuestion,
     DecisionSchema,
-    DecisionState,
     ScoreQuestion,
 )
-
-_TSchema = TypeVar("_TSchema", bound=DecisionSchema)
-
+from ..state import DecisionInput, DecisionState
 
 # ================= Request =================
 
@@ -58,15 +56,15 @@ def question_to_wire(name: str, question: DecisionQuestion[Any]) -> dict[str, An
     return wire
 
 
-def describe_questions(schema: type[DecisionSchema]) -> dict[str, dict[str, Any]]:
+def describe_questions(schema: DecisionSchema) -> dict[str, dict[str, Any]]:
     """Every question of ``schema`` in wire form, keyed by name in definition order."""
     return {
         name: question_to_wire(name, question)
-        for name, question in schema.__questions__.items()
+        for name, question in schema.questions.items()
     }
 
 
-def questions_to_wire(schema: type[DecisionSchema]) -> list[dict[str, Any]]:
+def questions_to_wire(schema: DecisionSchema) -> list[dict[str, Any]]:
     """The ``questions`` argument: every question in wire form, in definition order.
 
     Names are always sent and are unique (they are attribute names), so System One
@@ -75,7 +73,7 @@ def questions_to_wire(schema: type[DecisionSchema]) -> list[dict[str, Any]]:
     return list(describe_questions(schema).values())
 
 
-def is_user_messages(state: DecisionState) -> TypeGuard[list[Any]]:
+def is_user_messages(state: DecisionInput) -> TypeGuard[list[Any]]:
     """Whether ``state`` is already OpenAI ``input`` messages (for text and images)."""
     return (
         isinstance(state, list)
@@ -84,10 +82,12 @@ def is_user_messages(state: DecisionState) -> TypeGuard[list[Any]]:
     )
 
 
-def to_input(state: DecisionState) -> str | list[Any]:
+def to_input(state: DecisionInput) -> str | list[Any]:
     """The ``input`` argument: text as is, user messages as is, other JSON as JSON text."""
     if isinstance(state, str):
         return state
+    if isinstance(state, DecisionState):
+        return state.to_input()
     if is_user_messages(state):
         return state
     return json.dumps(state)
@@ -160,7 +160,7 @@ def _parse_answer(
         raise _malformed(f"answers.{name}.{e}", "invalid") from e
 
 
-def parse_response(response: object, schema: type[_TSchema]) -> DecisionReply[_TSchema]:
+def parse_response(response: object, schema: DecisionSchema) -> DecisionReply:
     """Parse an ``OpenAIDecisionResponse`` (or its JSON dict) into a ``schema`` instance.
 
     Answers are matched to questions by ``name``, or by position when the provider
@@ -185,7 +185,7 @@ def parse_response(response: object, schema: type[_TSchema]) -> DecisionReply[_T
     if not isinstance(answers, list):
         raise _malformed("answers")
 
-    questions = schema.__questions__
+    questions = schema.questions
     matched = _match_answers(answers, list(questions))
     parsed: dict[str, DecisionAnswer] = {}
     refused: list[str] = []
@@ -212,7 +212,7 @@ def parse_response(response: object, schema: type[_TSchema]) -> DecisionReply[_T
     usage = usage if isinstance(usage, dict) else {}
     model = body.get("model")
     return DecisionReply(
-        structured=schema(parsed),
+        structured=DecisionAnswers(schema, parsed),
         reported_model_name=model if isinstance(model, str) else None,
         provider=None,
         input_tokens=_optional_int(usage.get("input_tokens")),

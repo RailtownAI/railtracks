@@ -1,12 +1,17 @@
-"""DecisionSchema: question validation, collection, inheritance and typed answers."""
+"""DecisionSchema: question validation, schema assembly and answers indexed by question."""
 
 import pytest
 import railtracks as rt
 from railtracks.decisions import (
+    Choice,
     ChoiceAnswer,
+    DecisionAnswers,
     DecisionSchema,
+    Noul,
+    Predicate,
     PredicateAnswer,
     SchemaDefinitionError,
+    Score,
     ScoreAnswer,
 )
 from railtracks.decisions.schema import (
@@ -22,15 +27,16 @@ DEPARTMENTS = {
 }
 FRUSTRATION = ["Calm", "Frustrated but civil", "Very angry"]
 
-
-class Triage(DecisionSchema):
-    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
-    department = DecisionSchema.Choice(
-        instructions="Which team should handle this", choices=DEPARTMENTS
-    )
-    frustration = DecisionSchema.Score(
-        instructions="How frustrated the customer is", levels=FRUSTRATION
-    )
+is_urgent = Predicate(name="is_urgent", instructions="The message conveys urgency")
+department = Choice(
+    name="department", instructions="Which team should handle this", choices=DEPARTMENTS
+)
+frustration = Score(
+    name="frustration",
+    instructions="How frustrated the customer is",
+    levels=FRUSTRATION,
+)
+triage = DecisionSchema(predicate=[is_urgent], choice=[department], score=[frustration])
 
 
 def _answers() -> dict:
@@ -52,6 +58,10 @@ def _answers() -> dict:
 
 def test_exported_from_rt_decisions():
     assert rt.decisions.DecisionSchema is DecisionSchema
+    assert rt.decisions.DecisionAnswers is DecisionAnswers
+    assert rt.decisions.Predicate is PredicateQuestion
+    assert rt.decisions.Choice is ChoiceQuestion
+    assert rt.decisions.Score is ScoreQuestion
     assert rt.decisions.PredicateAnswer is PredicateAnswer
     assert rt.decisions.ChoiceAnswer is ChoiceAnswer
     assert rt.decisions.ScoreAnswer is ScoreAnswer
@@ -60,49 +70,60 @@ def test_exported_from_rt_decisions():
 # ================= Question validation =================
 
 
+class TestQuestionName:
+    @pytest.mark.parametrize("name", ["", "  ", None, 3])
+    def test_blank_or_non_string_name_rejected(self, name):
+        with pytest.raises(SchemaDefinitionError, match="name"):
+            Predicate(name=name, instructions="x")
+
+    def test_name_is_kept(self):
+        assert department.name == "department"
+
+    def test_name_is_read_only(self):
+        with pytest.raises(AttributeError):
+            is_urgent.name = "other"  # type: ignore[misc]
+
+
 class TestPredicate:
     def test_minimal(self):
-        q = DecisionSchema.Predicate(instructions="Is it urgent?")
+        q = Predicate(name="urgent", instructions="Is it urgent?")
         assert q.instructions == "Is it urgent?"
         assert q.kind == "predicate"
         assert q.answer_type is PredicateAnswer
 
     def test_noul_is_an_alias_of_predicate(self):
-        assert DecisionSchema.Noul is DecisionSchema.Predicate
-        assert isinstance(DecisionSchema.Noul(instructions="x"), PredicateQuestion)
+        assert Noul is Predicate
+        assert isinstance(Noul(name="x", instructions="x"), PredicateQuestion)
 
     @pytest.mark.parametrize("instructions", ["", "  ", None])
     def test_blank_instructions_rejected(self, instructions):
         with pytest.raises(SchemaDefinitionError, match="instructions"):
-            DecisionSchema.Predicate(instructions=instructions)
+            Predicate(name="x", instructions=instructions)
 
     def test_true_false_criteria_not_accepted(self):
         with pytest.raises(TypeError):
-            DecisionSchema.Noul(instructions="x", criteria={"true": "y"})  # type: ignore[call-arg]
+            Noul(name="x", instructions="x", criteria={"true": "y"})  # type: ignore[call-arg]
 
 
 class TestChoice:
     def test_mapping_keeps_descriptions_in_order(self):
-        q = DecisionSchema.Choice(instructions="Which team", choices=DEPARTMENTS)
-        assert q.choices == DEPARTMENTS
-        assert list(q.choices) == ["billing", "technical", "sales"]
-        assert q.kind == "choice"
+        assert department.choices == DEPARTMENTS
+        assert list(department.choices) == ["billing", "technical", "sales"]
+        assert department.kind == "choice"
 
     def test_list_has_no_descriptions(self):
-        q = DecisionSchema.Choice(instructions="x", choices=["a", "b"])
+        q = Choice(name="x", instructions="x", choices=["a", "b"])
         assert q.choices == {"a": None, "b": None}
 
     def test_choices_copied(self):
         choices = dict(DEPARTMENTS)
-        q = DecisionSchema.Choice(instructions="Which team", choices=choices)
+        q = Choice(name="team", instructions="Which team", choices=choices)
         choices["legal"] = "Contracts"
         assert list(q.choices) == ["billing", "technical", "sales"]
 
     def test_255_choices_allowed(self):
         choices = [f"label_{i}" for i in range(255)]
-        assert (
-            len(DecisionSchema.Choice(instructions="x", choices=choices).choices) == 255
-        )
+        assert len(Choice(name="x", instructions="x", choices=choices).choices) == 255
 
     @pytest.mark.parametrize(
         "choices, match",
@@ -127,31 +148,28 @@ class TestChoice:
     )
     def test_invalid_choices_rejected(self, choices, match):
         with pytest.raises(SchemaDefinitionError, match=match):
-            DecisionSchema.Choice(instructions="x", choices=choices)
+            Choice(name="x", instructions="x", choices=choices)
 
 
 class TestScore:
     def test_list_levels_in_order(self):
-        q = DecisionSchema.Score(instructions="How frustrated", levels=FRUSTRATION)
-        assert list(q.levels) == FRUSTRATION
-        assert q.kind == "score"
+        assert list(frustration.levels) == FRUSTRATION
+        assert frustration.kind == "score"
 
     def test_mapping_keeps_criteria(self):
-        q = DecisionSchema.Score(
-            instructions="x", levels={"Low": "Fine", "High": "Bad"}
-        )
+        q = Score(name="x", instructions="x", levels={"Low": "Fine", "High": "Bad"})
         assert q.levels == {"Low": "Fine", "High": "Bad"}
 
     def test_levels_copied(self):
         levels = list(FRUSTRATION)
-        q = DecisionSchema.Score(instructions="How frustrated", levels=levels)
+        q = Score(name="x", instructions="How frustrated", levels=levels)
         levels.append("Furious")
         assert list(q.levels) == FRUSTRATION
 
     @pytest.mark.parametrize("count", [2, 10])
     def test_level_bounds_allowed(self, count):
-        q = DecisionSchema.Score(
-            instructions="x", levels=[f"level {i}" for i in range(count)]
+        q = Score(
+            name="x", instructions="x", levels=[f"level {i}" for i in range(count)]
         )
         assert len(q.levels) == count
 
@@ -160,8 +178,8 @@ class TestScore:
     )
     def test_level_bounds_rejected(self, count, match):
         with pytest.raises(SchemaDefinitionError, match=match):
-            DecisionSchema.Score(
-                instructions="x", levels=[f"level {i}" for i in range(count)]
+            Score(
+                name="x", instructions="x", levels=[f"level {i}" for i in range(count)]
             )
 
     @pytest.mark.parametrize(
@@ -171,133 +189,138 @@ class TestScore:
     )
     def test_invalid_levels_rejected(self, levels, match):
         with pytest.raises(SchemaDefinitionError, match=match):
-            DecisionSchema.Score(instructions="x", levels=levels)
+            Score(name="x", instructions="x", levels=levels)
 
 
-def test_invalid_question_fails_at_class_definition():
-    with pytest.raises(SchemaDefinitionError):
-
-        class Broken(DecisionSchema):
-            only = DecisionSchema.Choice(instructions="x", choices=["a"])
+# ================= Schema assembly =================
 
 
-# ================= Schema collection =================
-
-
-class TestCollection:
-    def test_questions_in_definition_order(self):
-        assert list(Triage.__questions__) == ["is_urgent", "department", "frustration"]
-
-    def test_question_records_attribute_name(self):
-        assert Triage.__questions__["department"].name == "department"
-
-    def test_class_access_returns_the_question(self):
-        assert isinstance(Triage.is_urgent, PredicateQuestion)
-        assert isinstance(Triage.department, ChoiceQuestion)
-        assert isinstance(Triage.frustration, ScoreQuestion)
-
-    def test_noul_declares_a_predicate(self):
-        class Spam(DecisionSchema):
-            is_spam = DecisionSchema.Noul(instructions="The message is spam")
-
-        assert isinstance(Spam.is_spam, PredicateQuestion)
-        assert (
-            Spam({"is_spam": PredicateAnswer(probability=0.2)}).is_spam.probability
-            == 0.2
+class TestSchema:
+    def test_questions_ordered_predicate_choice_score(self):
+        schema = DecisionSchema(
+            score=[frustration], choice=[department], predicate=[is_urgent]
         )
+        assert list(schema.questions) == ["is_urgent", "department", "frustration"]
 
-    def test_subclass_inherits_parent_questions_first(self):
-        class Extended(Triage):
-            is_spam = DecisionSchema.Predicate(instructions="The message is spam")
+    def test_list_order_kept_within_a_kind(self):
+        spam = Predicate(name="is_spam", instructions="The message is spam")
+        schema = DecisionSchema(predicate=[spam, is_urgent])
+        assert list(schema.questions) == ["is_spam", "is_urgent"]
 
-        assert list(Extended.__questions__) == [
-            "is_urgent",
-            "department",
-            "frustration",
-            "is_spam",
-        ]
-        assert list(Triage.__questions__) == ["is_urgent", "department", "frustration"]
+    def test_questions_keyed_by_name(self):
+        assert triage.questions["department"] is department
 
-    def test_subclass_override_keeps_position(self):
-        class Overridden(Triage):
-            is_urgent = DecisionSchema.Predicate(instructions="Needs a reply today")
+    def test_questions_are_read_only(self):
+        with pytest.raises(TypeError):
+            triage.questions["other"] = is_urgent  # type: ignore[index]
 
-        assert list(Overridden.__questions__) == [
-            "is_urgent",
-            "department",
-            "frustration",
-        ]
-        assert Overridden.is_urgent.instructions == "Needs a reply today"
+    def test_lists_are_copied(self):
+        predicates = [is_urgent]
+        schema = DecisionSchema(predicate=predicates)
+        predicates.append(Predicate(name="later", instructions="x"))
+        assert list(schema.questions) == ["is_urgent"]
+
+    def test_noul_goes_in_the_predicate_list(self):
+        spam = Noul(name="is_spam", instructions="The message is spam")
+        schema = DecisionSchema(predicate=[spam])
+        assert isinstance(schema.questions["is_spam"], PredicateQuestion)
+
+    def test_question_reused_across_schemas(self):
+        first = DecisionSchema(predicate=[is_urgent])
+        second = DecisionSchema(predicate=[is_urgent], choice=[department])
+        assert first.questions["is_urgent"] is second.questions["is_urgent"]
+        assert is_urgent.name == "is_urgent"
 
     def test_empty_schema_rejected(self):
         with pytest.raises(SchemaDefinitionError, match="no questions"):
+            DecisionSchema()
 
-            class Empty(DecisionSchema):
-                pass
+    def test_duplicate_names_rejected(self):
+        other = Choice(name="is_urgent", instructions="x", choices=["a", "b"])
+        with pytest.raises(SchemaDefinitionError, match="is_urgent"):
+            DecisionSchema(predicate=[is_urgent], choice=[other])
 
-    @pytest.mark.parametrize("name", ["encode", "Predicate", "Noul", "Choice", "Score"])
-    def test_name_clash_with_schema_attribute_rejected(self, name):
-        with pytest.raises(SchemaDefinitionError, match=name):
-            type(
-                "Clashing",
-                (DecisionSchema,),
-                {name: DecisionSchema.Predicate(instructions="x")},
-            )
+    def test_same_question_twice_rejected(self):
+        with pytest.raises(SchemaDefinitionError, match="is_urgent"):
+            DecisionSchema(predicate=[is_urgent, is_urgent])
 
-    def test_question_reused_under_two_names_rejected(self):
-        shared = DecisionSchema.Predicate(instructions="x")
-        with pytest.raises(SchemaDefinitionError, match="more than one"):
+    @pytest.mark.parametrize(
+        "kwargs, wrong",
+        [
+            ({"predicate": [department]}, "ChoiceQuestion"),
+            ({"choice": [is_urgent]}, "PredicateQuestion"),
+            ({"score": [department]}, "ChoiceQuestion"),
+            ({"predicate": ["is_urgent"]}, "str"),
+        ],
+        ids=["choice-as-predicate", "predicate-as-choice", "choice-as-score", "str"],
+    )
+    def test_question_of_the_wrong_kind_rejected(self, kwargs, wrong):
+        with pytest.raises(SchemaDefinitionError, match=wrong):
+            DecisionSchema(**kwargs)
 
-            class Reused(DecisionSchema):
-                first = shared
-                second = shared
+    @pytest.mark.parametrize("value", [is_urgent, "is_urgent", None])
+    def test_list_argument_must_be_a_list(self, value):
+        with pytest.raises(SchemaDefinitionError, match="list"):
+            DecisionSchema(predicate=value)
 
-    def test_question_reused_in_another_schema_leaves_the_first_intact(self):
-        shared = DecisionSchema.Predicate(instructions="x")
+    def test_arguments_are_keyword_only(self):
+        with pytest.raises(TypeError):
+            DecisionSchema([is_urgent])  # type: ignore[misc]
 
-        class First(DecisionSchema):
-            is_urgent = shared
-
-        with pytest.raises(SchemaDefinitionError, match="First.is_urgent"):
-
-            class Second(DecisionSchema):
-                urgent = shared
-
-        assert First.is_urgent.name == "is_urgent"
-        first = First({"is_urgent": PredicateAnswer(probability=0.9)})
-        assert first.is_urgent.probability == 0.9
-
-
-# ================= Instances hold the answers =================
+    def test_repr_names_the_questions(self):
+        assert repr(triage) == (
+            "DecisionSchema(predicate=['is_urgent'], choice=['department'], "
+            "score=['frustration'])"
+        )
 
 
-class TestInstance:
-    def test_instance_access_returns_the_answer(self):
-        triage = Triage(_answers())
-        assert triage.is_urgent.probability == 0.93
-        assert triage.department.probabilities["technical"] == 0.88
-        assert triage.frustration.legend[2] == "Very angry"
+# ================= Answers =================
+
+
+class TestAnswers:
+    def test_index_by_question_or_name(self):
+        answers = DecisionAnswers(triage, _answers())
+        assert answers[is_urgent].probability == 0.93
+        assert answers[department].probabilities["technical"] == 0.88
+        assert answers[frustration].legend[2] == "Very angry"
+        assert answers["department"] is answers[department]
+
+    def test_question_outside_the_schema_raises_key_error(self):
+        answers = DecisionAnswers(triage, _answers())
+        lookalike = Predicate(name="is_urgent", instructions="x")
+        with pytest.raises(KeyError):
+            answers[lookalike]
+        with pytest.raises(KeyError):
+            answers["nope"]
+
+    def test_mapping_protocol_in_schema_order(self):
+        answers = DecisionAnswers(triage, _answers())
+        assert list(answers) == ["is_urgent", "department", "frustration"]
+        assert len(answers) == 3
+        assert "is_urgent" in answers and is_urgent in answers
+        assert dict(answers.items())["is_urgent"].probability == 0.93
+        assert answers.schema is triage
 
     def test_missing_answer_rejected(self):
         answers = _answers()
         del answers["frustration"]
         with pytest.raises(ValueError, match="frustration"):
-            Triage(answers)
+            DecisionAnswers(triage, answers)
 
     def test_unexpected_answer_rejected(self):
         answers = _answers()
         answers["extra"] = PredicateAnswer(probability=0.1)
         with pytest.raises(ValueError, match="extra"):
-            Triage(answers)
+            DecisionAnswers(triage, answers)
 
     def test_wrong_answer_type_rejected(self):
         answers = _answers()
         answers["is_urgent"] = answers["department"]
         with pytest.raises(ValueError, match="is_urgent"):
-            Triage(answers)
+            DecisionAnswers(triage, answers)
 
-    def test_encode_is_plain_json_in_definition_order(self):
-        encoded = Triage(_answers()).encode()
+    def test_encode_is_plain_json_in_schema_order(self):
+        encoded = DecisionAnswers(triage, _answers()).encode()
         assert list(encoded) == ["is_urgent", "department", "frustration"]
         assert encoded["is_urgent"] == {"probability": 0.93}
         assert encoded["frustration"]["legend"] == {
@@ -307,7 +330,9 @@ class TestInstance:
         }
 
     def test_equality(self):
-        assert Triage(_answers()) == Triage(_answers())
+        assert DecisionAnswers(triage, _answers()) == DecisionAnswers(
+            triage, _answers()
+        )
 
 
 # ================= Answer summaries =================

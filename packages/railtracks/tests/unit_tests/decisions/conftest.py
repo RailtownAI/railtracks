@@ -10,7 +10,14 @@ from typing import Any, Callable
 import litellm
 import pytest
 from litellm.types.decisions import OpenAIDecisionResponse
-from railtracks.decisions import DecisionModel, DecisionSchema, TypeSafeAI
+from railtracks.decisions import (
+    Choice,
+    DecisionModel,
+    DecisionSchema,
+    Predicate,
+    Score,
+    TypeSafeAI,
+)
 
 _PROVIDER_ENV = (
     "TYPESAFE_API_KEY",
@@ -23,20 +30,22 @@ _PROVIDER_ENV = (
 )
 
 
-class Triage(DecisionSchema):
-    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
-    department = DecisionSchema.Choice(
-        instructions="Which team should handle this",
-        choices={
-            "billing": "Charges, refunds, invoices, or plan changes",
-            "technical": "Bugs, outages, errors, or integration problems",
-            "sales": "Pricing questions, upgrades, or new purchases",
-        },
-    )
-    frustration = DecisionSchema.Score(
-        instructions="How frustrated the customer is",
-        levels=["Calm", "Frustrated but civil", "Very angry"],
-    )
+IS_URGENT = Predicate(name="is_urgent", instructions="The message conveys urgency")
+DEPARTMENT = Choice(
+    name="department",
+    instructions="Which team should handle this",
+    choices={
+        "billing": "Charges, refunds, invoices, or plan changes",
+        "technical": "Bugs, outages, errors, or integration problems",
+        "sales": "Pricing questions, upgrades, or new purchases",
+    },
+)
+FRUSTRATION = Score(
+    name="frustration",
+    instructions="How frustrated the customer is",
+    levels=["Calm", "Frustrated but civil", "Very angry"],
+)
+Triage = DecisionSchema(predicate=[IS_URGENT], choice=[DEPARTMENT], score=[FRUSTRATION])
 
 
 TRIAGE_COST = 296 * 4.2e-08

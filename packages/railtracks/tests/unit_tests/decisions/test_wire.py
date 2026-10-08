@@ -5,11 +5,13 @@ import json
 
 import pytest
 from railtracks.decisions import (
+    Choice,
     ChoiceAnswer,
     DecisionProviderRefusalError,
     DecisionProviderResponseError,
     DecisionSchema,
     PredicateAnswer,
+    Score,
     ScoreAnswer,
 )
 from railtracks.decisions.transport._wire import (
@@ -64,13 +66,18 @@ class TestRequest:
         assert questions_to_wire(Triage) == TRIAGE_QUESTIONS
 
     def test_list_choices_and_mapping_levels(self):
-        class Routing(DecisionSchema):
-            team = DecisionSchema.Choice(instructions="Team", choices=["a", "b"])
-            severity = DecisionSchema.Score(
-                instructions="Severity", levels={"Low": "Cosmetic", "High": "Outage"}
-            )
+        routing = DecisionSchema(
+            choice=[Choice(name="team", instructions="Team", choices=["a", "b"])],
+            score=[
+                Score(
+                    name="severity",
+                    instructions="Severity",
+                    levels={"Low": "Cosmetic", "High": "Outage"},
+                )
+            ],
+        )
 
-        assert questions_to_wire(Routing) == [
+        assert questions_to_wire(routing) == [
             {
                 "type": "choice",
                 "name": "team",
@@ -124,13 +131,13 @@ class TestRequest:
 class TestParseResponse:
     def test_parses_all_three_answer_types(self):
         triage = parse_response(respond(), Triage).structured
-        assert triage.is_urgent == PredicateAnswer(probability=0.93)
-        assert triage.department == ChoiceAnswer(
+        assert triage["is_urgent"] == PredicateAnswer(probability=0.93)
+        assert triage["department"] == ChoiceAnswer(
             choice="technical",
             confidence=0.81,
             probabilities={"billing": 0.02, "technical": 0.88, "sales": 0.1},
         )
-        assert triage.frustration == ScoreAnswer(
+        assert triage["frustration"] == ScoreAnswer(
             score=1.7,
             confidence=0.6,
             probabilities={0: 0.05, 1: 0.2, 2: 0.75},
@@ -150,7 +157,7 @@ class TestParseResponse:
     def test_answers_matched_by_name_not_position(self):
         body = copy.deepcopy(TRIAGE_BODY)
         body["answers"].reverse()
-        assert parse_response(respond(body), Triage).structured.is_urgent == (
+        assert parse_response(respond(body), Triage).structured["is_urgent"] == (
             PredicateAnswer(probability=0.93)
         )
 
@@ -159,7 +166,7 @@ class TestParseResponse:
         for answer in body["answers"]:
             answer["name"] = None
         reply = parse_response(respond(body), Triage)
-        assert reply.structured.department.choice == "technical"
+        assert reply.structured["department"].choice == "technical"
 
     def test_refusal_raises_with_the_other_answers(self):
         body = copy.deepcopy(TRIAGE_BODY)
@@ -183,7 +190,7 @@ class TestParseResponse:
 
     def test_dict_body_accepted(self):
         reply = parse_response(copy.deepcopy(TRIAGE_BODY), Triage)
-        assert reply.structured.is_urgent.probability == 0.93
+        assert reply.structured["is_urgent"].probability == 0.93
 
     @pytest.mark.parametrize(
         "mutate, field",
