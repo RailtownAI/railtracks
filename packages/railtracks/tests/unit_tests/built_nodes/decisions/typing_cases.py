@@ -32,6 +32,10 @@ class Triage(DecisionSchema):
     )
 
 
+class Escalation(DecisionSchema):
+    needs_manager = DecisionSchema.Noul(instructions="A manager must step in")
+
+
 class NotASchema:
     pass
 
@@ -53,6 +57,11 @@ def schema_access(triage: Triage) -> None:
     assert_type(triage.frustration.probabilities, dict[int, float])
 
     triage.is_urgent.choice  # type: ignore[attr-defined]
+
+
+def noul_is_a_predicate(escalation: Escalation) -> None:
+    assert_type(Escalation.needs_manager, PredicateQuestion)
+    assert_type(escalation.needs_manager, PredicateAnswer)
 
 
 async def direct_call() -> None:
@@ -95,3 +104,8 @@ async def other_providers() -> None:
 
 def not_a_schema() -> None:
     rt.decision_node("Mismatch", model=jev, schema=NotASchema)  # type: ignore[type-var]
+
+
+def not_a_decision_model() -> None:
+    chat = rt.llm.OpenAILLM("gpt-5.4-mini")
+    rt.decision_node("Chat", model=chat, schema=Triage)  # type: ignore[arg-type]
