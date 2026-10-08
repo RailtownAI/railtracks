@@ -51,6 +51,6 @@ Decision nodes are recorded: each request emits `decision.*` events with its ans
 | Defining a schema wrongly (an empty schema, 300 Choice values, 1 Score level) | at class definition | `rt.decisions.SchemaDefinitionError` |
 | A direct `model.aask(...)` call fails | at call time | `rt.decisions.DecisionProviderError` and its subclasses (`...TimeoutError`, `...RateLimitError`, `...AuthenticationError`, `...ConnectionError`, `...ServerError`, `...RequestError`, ...) |
 | A `decision_node` call fails | at call time | `rt.exceptions.DecisionModelError` and its subclasses, with the provider error as `__cause__` |
-| The model declines a question (OpenAI can) | at call time | `rt.decisions.DecisionProviderRefusalError` (direct) / `rt.exceptions.DecisionRefusalError` (node); `.refused` names the questions |
+| The model declines a question (OpenAI can) | at call time | `rt.decisions.DecisionProviderRefusalError` (direct) / `rt.exceptions.DecisionRefusalError` (node); `.refused` names the questions, `.answers` holds the ones it did answer |
 
 litellm's exceptions are mapped to these classes, so you never need to catch a litellm type. Rate limits, timeouts, dropped connections and 5xx responses are retried when the model has a `retry_approach` (see `jev_example.py`); a rejected key, a refusal and other 4xx responses are not.
