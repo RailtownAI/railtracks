@@ -109,8 +109,11 @@ class DecisionQuestion(Generic[_TAnswer]):
         self._bound_names: list[str] = []
 
     def __set_name__(self, owner: type, name: str) -> None:
-        self._name = name
-        self._bound_names.append(name)
+        # the first binding keeps the name, so a schema that already uses this
+        # question still works after a second one is rejected for reusing it
+        if self._name is None:
+            self._name = name
+        self._bound_names.append(f"{owner.__name__}.{name}")
 
     @property
     def name(self) -> str:
@@ -293,7 +296,7 @@ class DecisionSchema:
                 )
             if len(value._bound_names) > 1:
                 raise SchemaDefinitionError(
-                    f"The same question object is used for more than one attribute of {cls.__name__}: {value._bound_names}.",
+                    f"The same question object is used for more than one attribute: {value._bound_names}.",
                     notes=["Create a separate question for each attribute."],
                 )
             if not isinstance(value, cls._question_type):
