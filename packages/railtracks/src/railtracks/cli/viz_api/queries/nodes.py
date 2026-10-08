@@ -84,8 +84,8 @@ def list_llm_totals_by_node(
     """LLM and decision cost/token roll-up per node, plus the model info of the
     final response for that node.
 
-    Decision responses carry no ``llm.creation`` link, so their model name comes
-    from the event itself; their output tokens are not billed and are left out.
+    Decision responses carry no ``llm.creation`` link, so their model name and
+    provider come from the event itself.
     """
     sql = f"""
     WITH resp AS (
@@ -96,7 +96,8 @@ def list_llm_totals_by_node(
              l.input_tokens,
              l.output_tokens,
              l.total_cost,
-             l.reported_model_name
+             l.reported_model_name,
+             NULL AS provider
       FROM llm l
       WHERE l.event_type = 'llm.response' AND l.scope_id = ?
       UNION ALL
@@ -105,9 +106,10 @@ def list_llm_totals_by_node(
              d.timestamp,
              NULL AS parent_llm_type_id,
              d.input_tokens,
-             NULL AS output_tokens,
+             d.output_tokens,
              d.total_cost,
-             COALESCE(d.reported_model_name, d.model_name) AS reported_model_name
+             COALESCE(d.reported_model_name, d.model_name) AS reported_model_name,
+             d.provider
       FROM decision d
       WHERE d.event_type = 'decision.response' AND d.scope_id = ?
     ),
@@ -125,7 +127,8 @@ def list_llm_totals_by_node(
       SELECT r.scope_id,
              r.node_id,
              r.parent_llm_type_id,
-             r.reported_model_name
+             r.reported_model_name,
+             r.provider
       FROM resp r
       JOIN agg USING (node_id)
       WHERE r.timestamp = agg.last_at
@@ -135,7 +138,8 @@ def list_llm_totals_by_node(
            a.output_tokens,
            a.total_cost,
            COALESCE(lr.reported_model_name, cr.model_name) AS model_name,
-           CAST(cr.model_provider AS VARCHAR)              AS model_provider
+           COALESCE(lr.provider, CAST(cr.model_provider AS VARCHAR))
+                                                           AS model_provider
     FROM agg a
     LEFT JOIN last_resp lr USING (node_id)
     LEFT JOIN creations cr
@@ -164,6 +168,7 @@ def get_decision_details(
              COALESCE(d.reported_model_name, d.model_name) AS model_name,
              d.provider,
              d.input_tokens,
+             d.output_tokens,
              d.total_cost
       FROM decision d
       WHERE d.event_type = 'decision.response'
@@ -173,6 +178,7 @@ def get_decision_details(
     SELECT ARG_MAX(model_name, timestamp)    AS model_name,
            ARG_MAX(provider, timestamp)      AS provider,
            SUM(COALESCE(input_tokens, 0))    AS input_tokens,
+           SUM(COALESCE(output_tokens, 0))   AS output_tokens,
            SUM(total_cost)                   AS total_cost,
            COUNT(*)                          AS decisions
     FROM resp
@@ -190,6 +196,7 @@ def get_decision_details(
         "model_name": row["model_name"],
         "provider": row["provider"],
         "input_tokens": row["input_tokens"],
+        "output_tokens": row["output_tokens"],
         "total_cost": row["total_cost"],
     }
 

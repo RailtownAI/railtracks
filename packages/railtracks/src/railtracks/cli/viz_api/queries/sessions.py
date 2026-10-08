@@ -44,11 +44,12 @@ llm_agg AS (
   WHERE event_type = 'llm.response'
   GROUP BY scope_id
 ),
--- System One decisions. Input tokens and cost only: decision output tokens
--- are not billed, and their latency is nested inside a node's duration.
+-- System One decisions. Tokens and cost only: their latency is nested
+-- inside a node's duration.
 decision_agg AS (
   SELECT d.scope_id,
          SUM(COALESCE(d.input_tokens, 0)) AS input_tokens,
+         SUM(COALESCE(d.output_tokens, 0)) AS output_tokens,
          SUM(d.total_cost) AS total_cost
   FROM decision d
   WHERE d.event_type = 'decision.response'
@@ -112,7 +113,8 @@ SELECT s.scope_id                                    AS session_id,
        c.duration_seconds                            AS duration,
        COALESCE(l.input_tokens, 0)
          + COALESCE(d.input_tokens, 0)               AS input_tokens,
-       COALESCE(l.output_tokens, 0)                  AS output_tokens,
+       COALESCE(l.output_tokens, 0)
+         + COALESCE(d.output_tokens, 0)              AS output_tokens,
        -- 0.0 when nothing was billed; NULL when calls ran but none was priced
        -- (SUM skips NULL costs, so a partly priced session under-reports).
        CASE WHEN l.input_tokens IS NULL AND d.input_tokens IS NULL THEN 0.0
