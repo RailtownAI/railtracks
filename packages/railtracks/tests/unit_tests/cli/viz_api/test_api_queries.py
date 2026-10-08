@@ -1080,7 +1080,7 @@ def test_session_totals_include_a_decision_only_session(tmp_path: Path) -> None:
     assert row is not None
     assert row["total_cost"] == pytest.approx(0.5)
     assert row["input_tokens"] == 296
-    assert row["output_tokens"] == 0  # decision output tokens are not billed
+    assert row["output_tokens"] == 20
 
 
 def test_session_totals_add_decisions_to_llm_calls(tmp_path: Path) -> None:
@@ -1098,7 +1098,7 @@ def test_session_totals_add_decisions_to_llm_calls(tmp_path: Path) -> None:
     assert row is not None
     assert row["total_cost"] == pytest.approx(0.75)
     assert row["input_tokens"] == 396
-    assert row["output_tokens"] == 10
+    assert row["output_tokens"] == 30
     assert stats["total_cost"] == pytest.approx(0.75)
 
 
@@ -1134,7 +1134,9 @@ def test_node_totals_include_decisions_keyed_by_their_node(tmp_path: Path) -> No
 
     assert totals[_DECISION_NODE]["total_cost"] == pytest.approx(0.5)
     assert totals[_DECISION_NODE]["input_tokens"] == 296
+    assert totals[_DECISION_NODE]["output_tokens"] == 20
     assert totals[_DECISION_NODE]["model_name"] == "jev-1.13.0"
+    assert totals[_DECISION_NODE]["model_provider"] == "TypeSafe"
     assert totals[_AGENT_NODE]["total_cost"] == pytest.approx(0.25)
 
 
@@ -1152,6 +1154,7 @@ def test_get_decision_details(tmp_path: Path) -> None:
         "model_name": "jev-1.13.0",
         "provider": "TypeSafe",
         "input_tokens": 296,
+        "output_tokens": 20,
         "total_cost": pytest.approx(0.5),
     }
     assert missing is None
@@ -1176,7 +1179,8 @@ def test_tool_node_detail_and_graph_show_decision_cost(
     for node in (detail, graph_node):
         assert node["total_cost"] == pytest.approx(0.5)
         assert node["input_tokens"] == 296
+        assert node["output_tokens"] == 20
         assert node["model_name"] == "jev-1.13.0"
+        assert node["model_provider"] == "TypeSafe"
         # decision latency (9.0) is nested inside the node, never added to it
         assert node["latency_seconds"] != pytest.approx(9.0)
-    assert detail["model_provider"] == "TypeSafe"

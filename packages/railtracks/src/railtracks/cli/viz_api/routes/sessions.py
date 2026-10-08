@@ -209,7 +209,7 @@ async def get_node_detail(
         model_provider = decision["provider"] if decision else None
         totals = {
             "input_tokens": decision["input_tokens"] if decision else 0,
-            "output_tokens": 0,
+            "output_tokens": decision["output_tokens"] if decision else 0,
             "total_cost": decision["total_cost"] if decision else 0.0,
         }
     else:
