@@ -10,6 +10,7 @@ from railtracks.events.node import (
     NodeFailure,
     NodeInvocation,
     NodeResponse,
+    failure_details,
 )
 from railtracks.exceptions import FatalError, NodeInvocationError
 
@@ -53,6 +54,26 @@ def test_node_failure_marks_exceptions_that_stop_the_run(error, fatal):
 
     assert event.fatal is fatal
     assert event.exception_name == type(error).__name__
+    assert event.traceback.rstrip().endswith(f"{type(error).__name__}: {error}")
+
+
+def test_failure_details_include_the_raising_frame():
+    try:
+        raise ValueError("bad")
+    except ValueError as error:
+        details = failure_details(error)
+
+    assert details["exception_name"] == "ValueError"
+    assert "test_failure_details_include_the_raising_frame" in details["traceback"]
+    assert details["fatal"] is False
+
+
+def test_node_destruction_has_no_failure_by_default():
+    event = NodeDestruction(response="r", duration_seconds=0.0)
+
+    assert event.exception_name is None
+    assert event.traceback is None
+    assert event.fatal is False
 
 
 def test_runtime_node_event_resolves_self_and_enclosing_node():

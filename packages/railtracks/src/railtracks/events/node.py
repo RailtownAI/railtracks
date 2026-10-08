@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from traceback import format_exception
 from typing import Any
 
 from typing_extensions import Self
@@ -17,6 +18,27 @@ from railtracks.events._base import (
 )
 from railtracks.events._resolve import node_parent, node_spatial_parent
 from railtracks.exceptions import FatalError, NodeInvocationError
+
+
+def failure_details(exc: BaseException) -> dict[str, Any]:
+    """The failure fields node events carry for an exception.
+
+    `fatal` marks an exception that stops the whole run on its own; a run started with
+    `end_on_error` stops on any failure.
+
+    Args:
+        exc: The exception the node raised.
+
+    Returns:
+        ``exception_name``, ``exception_message``, ``traceback``, and ``fatal``.
+    """
+    return {
+        "exception_name": type(exc).__name__,
+        "exception_message": str(exc),
+        "traceback": "".join(format_exception(type(exc), exc, exc.__traceback__)),
+        "fatal": isinstance(exc, FatalError)
+        or (isinstance(exc, NodeInvocationError) and exc.fatal),
+    }
 
 
 @dataclass(kw_only=True)
@@ -57,17 +79,15 @@ class NodeInvocation(NodeEventBase):
 
 @dataclass(kw_only=True)
 class NodeFailure(NodeEventBase, FailureMixin):
-    """The node raised. `fatal` marks an exception that stops the whole run on its own;
-    a run started with `end_on_error` stops on any failure."""
+    """One run of the node's body raised. This is inside the node's middleware, which
+    may still retry or recover; `node.destruction` carries the final outcome."""
 
+    traceback: str = ""
     fatal: bool = False
 
     @classmethod
     def from_exception(cls, exc: Exception, **kwargs) -> Self:
-        fatal = isinstance(exc, FatalError) or (
-            isinstance(exc, NodeInvocationError) and exc.fatal
-        )
-        return super().from_exception(exc, fatal=fatal, **kwargs)
+        return cls(**failure_details(exc), **kwargs)
 
     def event_type(self) -> str:
         return "node.failure"
@@ -85,10 +105,15 @@ class NodeResponse(NodeEventBase):
 
 @dataclass(kw_only=True)
 class NodeDestruction(NodeEventBase):
-    """The final response, outside the node's middleware."""
+    """The node's final outcome, outside its middleware. The failure fields are set when
+    the call raised and left None when it returned."""
 
     response: Any
     duration_seconds: float
+    exception_name: str | None = None
+    exception_message: str | None = None
+    traceback: str | None = None
+    fatal: bool = False
 
     def event_type(self) -> str:
         return "node.destruction"

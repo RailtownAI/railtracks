@@ -49,7 +49,9 @@ def test_node_failure_is_an_error_record_with_traceback_and_ids(caplog):
     # populated yet; the keys are still part of every record
     assert hasattr(failure, "node_id")
     assert hasattr(failure, "run_id")
-    assert not getattr(failure, "rt_lifecycle", False)
+    # the run view prints failures, so railtracks' console skips this record; handlers
+    # like a log shipper's still receive it
+    assert failure.rt_lifecycle is True
 
 
 def test_created_and_done_records_are_marked_as_lifecycle(caplog):

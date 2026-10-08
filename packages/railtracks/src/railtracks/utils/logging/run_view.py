@@ -8,7 +8,11 @@ the thread that started it (see ``enable_logging``).
 from __future__ import annotations
 
 import logging
+import os
+import re
+import sysconfig
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 
 from rich.text import Text
@@ -18,6 +22,19 @@ from railtracks.observability import Event
 from .config import console, elapsed_text, run_view_level
 
 _MAX_VALUE_CHARS = 120
+
+# Frames from these are framework plumbing; a short traceback leaves them out
+_RAILTRACKS_DIR = os.path.realpath(Path(__file__).parents[2])
+_STDLIB_DIR = os.path.realpath(sysconfig.get_paths()["stdlib"])
+_SITE_DIRS = tuple(
+    os.path.realpath(sysconfig.get_paths()[key]) for key in ("purelib", "platlib")
+)
+
+_FRAME = re.compile(r'^  File "(?P<path>[^"]+)", line (?P<line>\d+), in (?P<name>.+)$')
+_CHAIN_BREAK = re.compile(
+    r"\n(?:The above exception was the direct cause|During handling of the above"
+    r" exception)[^\n]*\n"
+)
 
 
 @dataclass
@@ -34,7 +51,10 @@ class _Run:
     depths: dict[str, int] = field(default_factory=dict)
     # LLM and middleware invoke ids -> the node they ran in
     owners: dict[str, str] = field(default_factory=dict)
-    failed: set[str] = field(default_factory=set)
+    # node id -> the failure of its latest attempt, until the node runs again or ends
+    attempt_failures: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # node id -> the failed attempt that the current attempt is retrying
+    retrying: dict[str, dict[str, Any]] = field(default_factory=dict)
     # node id -> the node that called it (None for the entry point)
     parents: dict[str, str | None] = field(default_factory=dict)
     running: set[str] = field(default_factory=set)
@@ -49,6 +69,8 @@ class _Line:
     text: Text
     # the node to start from when looking for a concurrent branch to name
     within: str | None = None
+    # continuation lines printed under the text, such as a traceback
+    detail: list[Text] = field(default_factory=list)
 
 
 class RunView:
@@ -95,6 +117,9 @@ class RunView:
             if branch is not None:
                 prefix.append(f"{_node_name(run, branch)} › ", "dim")
             console.print(prefix + line.text, soft_wrap=True)
+            pad = " " * (len(prefix.plain) + 2)
+            for detail in line.detail:
+                console.print(Text(pad) + detail, soft_wrap=True)
 
         if event.event_type == "session.completed":
             self._runs.pop(event.scope_id, None)
@@ -107,26 +132,44 @@ def _track(run: _Run, event: Event) -> None:
 
     if event_type == "node.creation":
         run.node_names[payload["node_id"]] = payload["name"]
-    elif event_type == "node.invocation":
-        node_id = payload["parent_node_id"]
-        caller = _caller(run, payload)
-        run.depths[node_id] = run.depths.get(caller, 0) + 1 if caller else 1
-        siblings = {n for n in run.running if run.parents.get(n) == caller}
-        if siblings:
-            run.concurrent.update(siblings)
-            run.concurrent.add(node_id)
-        run.parents[node_id] = caller
-        run.running.add(node_id)
-    elif event_type == "node.destruction":
-        run.running.discard(payload["parent_node_id"])
-    elif event_type == "node.failure":
-        run.failed.add(payload["parent_node_id"])
+    elif event_type.startswith("node."):
+        _track_node(run, event_type, payload)
     elif event_type.startswith("llm.") and event_type != "llm.creation":
         run.owners[payload["parent_llm_invoke_id"]] = payload["spatial_parent_node_id"]
     elif event_type.startswith("middleware.") and event_type != "middleware.creation":
         owner = _owner(run, payload)
         if owner is not None:
             run.owners[payload["parent_middleware_invoke_id"]] = owner
+
+
+def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
+    node_id = payload["parent_node_id"]
+    if node_id not in run.parents:
+        # first sighting; usually the invocation, but a node whose middleware raises
+        # before running it only shows up in its destruction
+        caller = _caller(run, payload)
+        run.depths[node_id] = run.depths.get(caller, 0) + 1 if caller else 1
+        run.parents[node_id] = caller
+
+    if event_type == "node.invocation":
+        failure = run.attempt_failures.pop(node_id, None)
+        if failure is not None:
+            run.retrying[node_id] = failure
+        elif node_id not in run.running:
+            caller = run.parents[node_id]
+            siblings = {n for n in run.running if run.parents.get(n) == caller}
+            if siblings:
+                run.concurrent.update(siblings)
+                run.concurrent.add(node_id)
+        run.running.add(node_id)
+    elif event_type == "node.failure":
+        run.attempt_failures[node_id] = payload
+    elif event_type == "node.response":
+        run.attempt_failures.pop(node_id, None)
+    elif event_type == "node.destruction":
+        run.running.discard(node_id)
+        run.attempt_failures.pop(node_id, None)
+        run.retrying.pop(node_id, None)
 
 
 def _render(run: _Run, event: Event) -> _Line | None:
@@ -165,7 +208,14 @@ def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
 
 def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
     node_id = payload["parent_node_id"]
-    text = Text(f"▶ {_node_name(run, node_id)}")
+    retrying = run.retrying.get(node_id)
+    if retrying is not None:
+        text = Text(
+            f"↻ {_node_name(run, node_id)} retrying after {_exception(retrying)}",
+            "yellow",
+        )
+    else:
+        text = Text(f"▶ {_node_name(run, node_id)}")
     if run.level <= logging.DEBUG:
         text.append(f" {_call_args(payload['args'], payload['kwargs'])}", "dim")
     return _Line(
@@ -173,22 +223,24 @@ def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
     )
 
 
-def _node_failure(run: _Run, payload: dict[str, Any]) -> _Line:
+def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
+    """The node's final outcome, after its middleware had its say."""
     node_id = payload["parent_node_id"]
-    fatal = " (fatal)" if payload.get("fatal") or run.end_on_error else ""
-    text = Text(
-        f"✗ {_node_name(run, node_id)} failed: {_exception(payload)}{fatal}", "red"
-    )
-    return _Line(
-        logging.ERROR, run.depths.get(node_id, 1), text, run.parents.get(node_id)
-    )
-
-
-def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line | None:
-    """Fires whether the node succeeded or not; a failure already has its own line."""
-    node_id = payload["parent_node_id"]
-    if node_id in run.failed:
-        return None
+    if payload.get("exception_name") is not None:
+        fatal = " (fatal)" if payload.get("fatal") or run.end_on_error else ""
+        text = Text(
+            f"✗ {_node_name(run, node_id)} failed: {_exception(payload)}{fatal}", "red"
+        )
+        detail = _traceback_lines(
+            payload.get("traceback") or "", full=run.level <= logging.DEBUG
+        )
+        return _Line(
+            logging.ERROR,
+            run.depths.get(node_id, 1),
+            text,
+            run.parents.get(node_id),
+            detail,
+        )
     text = Text.assemble(
         (f"✓ {_node_name(run, node_id)}", "green"),
         (f" {payload['duration_seconds']:.3f}s", "dim"),
@@ -216,7 +268,6 @@ _RENDERERS: dict[str, Callable[[_Run, dict[str, Any]], _Line | None]] = {
     "session.started": _session_started,
     "session.completed": _session_completed,
     "node.invocation": _node_invocation,
-    "node.failure": _node_failure,
     "node.destruction": _node_destruction,
     "llm.response": _llm_response,
     "llm.failure": _llm_failure,
@@ -313,6 +364,59 @@ def _llm_stats(payload: dict[str, Any]) -> str:
 
 def _exception(payload: dict[str, Any]) -> str:
     return f"{payload['exception_name']}: {_truncate(payload['exception_message'])}"
+
+
+def _traceback_lines(traceback_text: str, *, full: bool) -> list[Text]:
+    """Where the final exception was raised: each frame and its source line.
+
+    Leaves out railtracks and standard-library frames unless ``full`` is set or nothing
+    else is left.
+    """
+    frames = _frames(_CHAIN_BREAK.split(traceback_text)[-1])
+    if not full:
+        frames = [frame for frame in frames if not _is_internal(frame[0])] or frames
+    lines = []
+    for path, line, name, source in frames:
+        lines.append(Text(f"{_display_path(path)}:{line} in {name}", "dim"))
+        if source:
+            lines.append(Text(f"  {source}"))
+    return lines
+
+
+def _frames(traceback_text: str) -> list[tuple[str, str, str, str]]:
+    """``(path, line, function, source)`` for each frame of a formatted traceback."""
+    lines = traceback_text.splitlines()
+    frames = []
+    for index, line in enumerate(lines):
+        match = _FRAME.match(line)
+        if match is None:
+            continue
+        following = lines[index + 1] if index + 1 < len(lines) else ""
+        source = following.strip() if following.startswith("    ") else ""
+        if source.startswith(("^", "~")):
+            source = ""
+        frames.append((match["path"], match["line"], match["name"], source))
+    return frames
+
+
+def _is_internal(path: str) -> bool:
+    path = os.path.realpath(path)
+    if _is_under(path, (_RAILTRACKS_DIR,)):
+        return True
+    return _is_under(path, (_STDLIB_DIR,)) and not _is_under(path, _SITE_DIRS)
+
+
+def _is_under(path: str, directories: tuple[str, ...]) -> bool:
+    return path.startswith(tuple(os.path.join(d, "") for d in directories))
+
+
+def _display_path(path: str) -> str:
+    """The path relative to the working directory when it is inside it."""
+    try:
+        relative = os.path.relpath(path)
+    except ValueError:
+        return path
+    return path if relative.startswith("..") else relative
 
 
 def _call_args(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:

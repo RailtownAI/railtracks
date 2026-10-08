@@ -2,12 +2,16 @@
 
 import io
 import logging
+import os
 import re
 
 import pytest
 import railtracks as rt
 from railtracks.guardrails.core.decision import GuardrailDecision
+from railtracks.llm.retries import FixedRetry
+from railtracks.middleware import wrap_node
 from railtracks.observability import Event
+from railtracks.prebuilt.middleware import Retry
 from railtracks.utils.logging import config, run_view
 from railtracks.utils.logging.run_view import RunView
 from rich.console import Console
@@ -83,6 +87,50 @@ def _node_done(node_id: str, response="ok") -> Event:
     )
 
 
+def _node_failed(
+    node_id: str,
+    *,
+    caller: str | None = None,
+    fatal: bool = False,
+    traceback: str = "",
+    exception_name: str = "ValueError",
+) -> Event:
+    """A destruction that carries the node's final failure."""
+    return _event(
+        "node.destruction",
+        parent_node_id=node_id,
+        spatial_parent_type="node",
+        spatial_parent_node_id=caller,
+        response=None,
+        duration_seconds=0.25,
+        exception_name=exception_name,
+        exception_message="bad",
+        traceback=traceback,
+        fatal=fatal,
+    )
+
+
+def _attempt_failed(node_id: str) -> Event:
+    return _event(
+        "node.failure",
+        parent_node_id=node_id,
+        exception_name="ValueError",
+        exception_message="flaky",
+        traceback="",
+        fatal=False,
+    )
+
+
+def _traceback(*frames: tuple[str, str]) -> str:
+    """A formatted traceback through ``(path, source)`` frames, ending in a ValueError."""
+    lines = ["Traceback (most recent call last):"]
+    for number, (path, source) in enumerate(frames, start=1):
+        lines.append(f'  File "{path}", line {number}, in fn{number}')
+        lines.append(f"    {source}")
+    lines.append("ValueError: bad")
+    return "\n".join(lines) + "\n"
+
+
 def _feed(view: RunView, *events: Event | list[Event]) -> None:
     for item in events:
         for event in item if isinstance(item, list) else [item]:
@@ -124,14 +172,8 @@ def test_warning_shows_only_the_run_and_failures(output, level):
         RunView(),
         _started(),
         _node_started(ENTRY, "Entry", caller=None),
-        _event(
-            "node.failure",
-            parent_node_id=ENTRY,
-            exception_name="ValueError",
-            exception_message="bad",
-            fatal=False,
-        ),
-        _node_done(ENTRY, response=None),
+        _attempt_failed(ENTRY),
+        _node_failed(ENTRY),
         _completed(status="failure", error="bad"),
     )
 
@@ -182,16 +224,103 @@ def test_failure_is_marked_fatal_when_it_stops_the_run(
         RunView(),
         _started(end_on_error=end_on_error),
         _node_started(ENTRY, "Entry", caller=None),
-        _event(
-            "node.failure",
-            parent_node_id=ENTRY,
-            exception_name="FatalError",
-            exception_message="stop",
-            fatal=fatal,
-        ),
+        _node_failed(ENTRY, fatal=fatal, exception_name="FatalError"),
     )
 
     assert _lines(output)[-1].endswith("(fatal)") is marked
+
+
+def test_a_retried_node_shows_the_retry_and_its_final_success(output, level):
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _attempt_failed(ENTRY),
+        _event(
+            "node.invocation",
+            parent_node_id=ENTRY,
+            spatial_parent_type="node",
+            spatial_parent_node_id=None,
+            args=(),
+            kwargs={},
+        ),
+        _event("node.response", parent_node_id=ENTRY, response="ok"),
+        _node_done(ENTRY),
+    )
+
+    assert _lines(output)[1:] == [
+        "  ▶ Entry",
+        "  ↻ Entry retrying after ValueError: flaky",
+        "  ✓ Entry 0.250s",
+    ]
+
+
+def test_a_node_whose_middleware_raises_before_it_runs_shows_as_failed(output, level):
+    """No invocation or failure event fires; only the destruction says what happened."""
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _event("node.creation", node_id=CHILD, name="Guarded", node_type="Tool"),
+        _node_failed(CHILD, caller=ENTRY, exception_name="VerifierRejectedError"),
+    )
+
+    assert _lines(output)[-1] == "    ✗ Guarded failed: VerifierRejectedError: bad"
+
+
+def test_failure_shows_only_the_frames_outside_railtracks_and_the_stdlib(output, level):
+    traceback = _traceback(
+        (os.path.join(run_view._RAILTRACKS_DIR, "nodes", "nodes.py"), "await body()"),
+        (os.path.join(run_view._STDLIB_DIR, "asyncio", "threads.py"), "await loop()"),
+        ("/elsewhere/agent.py", "raise ValueError('bad')"),
+    )
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_failed(ENTRY, traceback=traceback),
+    )
+
+    assert _lines(output)[-3:] == [
+        "  ✗ Entry failed: ValueError: bad",
+        "                /elsewhere/agent.py:3 in fn3",
+        "                  raise ValueError('bad')",
+    ]
+
+
+def test_debug_shows_every_frame(output, level):
+    level(logging.DEBUG)
+    traceback = _traceback(
+        (os.path.join(run_view._RAILTRACKS_DIR, "nodes", "nodes.py"), "await body()"),
+        ("/elsewhere/agent.py", "raise ValueError('bad')"),
+    )
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_failed(ENTRY, traceback=traceback),
+    )
+
+    assert sum("in fn" in line for line in _lines(output)) == 2
+
+
+def test_only_the_final_exception_of_a_chain_is_shown(output, level):
+    cause = _traceback(("/elsewhere/cause.py", "open(path)"))
+    final = _traceback(("/elsewhere/agent.py", "raise ValueError('bad')"))
+    chained = (
+        f"{cause}\nThe above exception was the direct cause of the following"
+        f" exception:\n\n{final}"
+    )
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_failed(ENTRY, traceback=chained),
+    )
+
+    text = output.getvalue()
+    assert "agent.py:1 in fn1" in text
+    assert "cause.py" not in text
 
 
 def test_llm_call_nests_under_its_node_with_its_stats(output, level):
@@ -386,12 +515,17 @@ def test_run_state_is_dropped_when_the_run_completes(output, level):
     assert view._runs == {}
 
 
-def test_a_flow_prints_through_the_session_listener(monkeypatch, output):
-    """End to end: a real run reaches the view through the session's inline listener."""
+@pytest.fixture
+def console_enabled(monkeypatch, output) -> io.StringIO:
+    """End to end: real runs reach the view through the session's inline listener."""
     monkeypatch.setattr(config, "_console_level", logging.INFO)
-    # other tests leave a thread level behind; this run should use the console's
+    # other tests leave a thread level behind; these runs should use the console's
     token = config._module_logging_level.set(None)
+    yield output
+    config._module_logging_level.reset(token)
 
+
+def test_a_flow_prints_through_the_session_listener(console_enabled):
     def shout(text: str) -> str:
         """Shout.
 
@@ -401,13 +535,79 @@ def test_a_flow_prints_through_the_session_listener(monkeypatch, output):
         return text.upper()
 
     flow = rt.Flow(name="Shout Flow", entry_point=rt.function_node(shout))
-    try:
-        assert flow.invoke("hi") == "HI"
-    finally:
-        config._module_logging_level.reset(token)
+    assert flow.invoke("hi") == "HI"
 
-    lines = _lines(output)
+    lines = _lines(console_enabled)
     assert lines[0] == "▶ Shout Flow  entry: shout"
     assert lines[1] == "  ▶ shout"
     assert lines[2].startswith("  ✓ shout ")
     assert lines[3].startswith("✓ Shout Flow in ")
+
+
+def test_a_failing_flow_points_at_the_line_that_raised(console_enabled):
+    def explode(text: str) -> str:
+        """Explode.
+
+        Args:
+            text: The text.
+        """
+        raise ValueError(f"cannot handle {text!r}")
+
+    flow = rt.Flow(name="Explode Flow", entry_point=rt.function_node(explode))
+    with pytest.raises(ValueError):
+        flow.invoke("x")
+
+    lines = _lines(console_enabled)
+    failed = lines.index("  ✗ explode failed: ValueError: cannot handle 'x'")
+    assert re.fullmatch(r"\s+\S*test_run_view\.py:\d+ in explode", lines[failed + 1])
+    assert lines[failed + 2].strip() == 'raise ValueError(f"cannot handle {text!r}")'
+    assert lines[failed + 3].startswith("✗ Explode Flow failed in ")
+
+
+def test_a_flow_retried_by_middleware_ends_in_success(console_enabled):
+    attempts = []
+
+    def flaky(text: str) -> str:
+        """Fail once, then succeed.
+
+        Args:
+            text: The text.
+        """
+        attempts.append(text)
+        if len(attempts) == 1:
+            raise ValueError("flaky")
+        return text
+
+    retry = Retry(approach=FixedRetry(max_tries=2, delay=0), retry_on=(ValueError,))
+    flaky_node = rt.function_node(flaky, middleware=[retry])
+    assert rt.Flow(name="Retry Flow", entry_point=flaky_node).invoke("x") == "x"
+
+    lines = _lines(console_enabled)
+    assert lines[1:4] == [
+        "  ▶ flaky",
+        "  ↻ flaky retrying after ValueError: flaky",
+        lines[3],
+    ]
+    assert lines[3].startswith("  ✓ flaky ")
+
+
+def test_a_node_rejected_by_its_middleware_shows_as_failed(console_enabled):
+    @wrap_node
+    async def reject(call, *args, **kwargs):
+        raise PermissionError("not allowed")
+
+    def guarded(text: str) -> str:
+        """Never runs.
+
+        Args:
+            text: The text.
+        """
+        return text
+
+    guarded_node = rt.function_node(guarded, middleware=[reject])
+    with pytest.raises(PermissionError):
+        rt.Flow(name="Guarded Flow", entry_point=guarded_node).invoke("x")
+
+    lines = _lines(console_enabled)
+    assert "  ✗ guarded failed: PermissionError: not allowed" in lines
+    assert not any(line.lstrip().startswith("✓ guarded") for line in lines)

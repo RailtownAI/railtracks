@@ -114,6 +114,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "response": JSON,
         "duration_seconds": FLOAT,
         "fatal": BOOLEAN,
+        "traceback": STRING,
         **_FAILURE,
     },
     "middleware": {

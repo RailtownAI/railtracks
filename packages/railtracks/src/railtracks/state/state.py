@@ -375,7 +375,11 @@ class RTState:
         )
 
         if self.executor_config.end_on_error:
-            logger.critical(node_exception_action.to_logging_msg(), exc_info=exception)
+            logger.critical(
+                node_exception_action.to_logging_msg(),
+                exc_info=exception,
+                extra=LIFECYCLE_EXTRA,
+            )
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
@@ -383,12 +387,20 @@ class RTState:
         if (
             isinstance(exception, NodeInvocationError) and exception.fatal
         ) or isinstance(exception, FatalError):
-            logger.critical(node_exception_action.to_logging_msg(), exc_info=exception)
+            logger.critical(
+                node_exception_action.to_logging_msg(),
+                exc_info=exception,
+                extra=LIFECYCLE_EXTRA,
+            )
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
         # for any other error we want it to bubble up so the user can handle.
-        logger.error(node_exception_action.to_logging_msg(), exc_info=exception)
+        logger.error(
+            node_exception_action.to_logging_msg(),
+            exc_info=exception,
+            extra=LIFECYCLE_EXTRA,
+        )
         return Failure(exception)
 
     @property
