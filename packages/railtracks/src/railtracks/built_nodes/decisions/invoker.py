@@ -68,7 +68,10 @@ def _node_error_for(error: DecisionProviderError) -> DecisionModelError:
         )
     if isinstance(error, DecisionProviderRefusalError):
         return DecisionRefusalError(
-            error.reason, refused=error.refused, notes=list(error.notes)
+            error.reason,
+            refused=error.refused,
+            answers=error.answers,
+            notes=list(error.notes),
         )
     for provider_type, node_type in _PROVIDER_TO_NODE_ERROR:
         if isinstance(error, provider_type):

@@ -7,7 +7,8 @@ call goes through `litellm.adecisions` as `openai/gpt-6-luna`. Unlike the System
 vendors, the input can also include images, sent as user messages with base64 data URLs.
 
 The model may decline a question; that raises `DecisionRefusalError` from a node
-(`DecisionProviderRefusalError` from a direct `aask`), naming the refused questions.
+(`DecisionProviderRefusalError` from a direct `aask`). `.refused` names the declined
+questions and `.answers` holds the answers it did give.
 
 Needs OPENAI_API_KEY. Decisions bill input tokens only ($0.10 per 1M on gpt-6-luna).
 

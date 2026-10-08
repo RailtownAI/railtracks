@@ -41,4 +41,7 @@ def test_refusal_becomes_a_decision_refusal_error(monkeypatch):
 
     assert isinstance(info.value, DecisionModelError)
     assert info.value.refused == ["department"]
+    # the answers it did give survive the translation
+    assert set(info.value.answers) == {"is_urgent", "frustration"}
+    assert info.value.answers["is_urgent"].probability == pytest.approx(0.93)
     assert isinstance(info.value.__cause__, DecisionProviderRefusalError)

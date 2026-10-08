@@ -1,8 +1,10 @@
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from ._base import RTError
 
 if TYPE_CHECKING:
+    from railtracks.decisions.schema import DecisionAnswer
     from railtracks.llm.history import MessageHistory
 
 __all__ = [
@@ -205,16 +207,23 @@ class DecisionResponseError(DecisionModelError):
 
 
 class DecisionRefusalError(DecisionModelError):
-    """The model declined to answer one or more questions; ``refused`` names them."""
+    """The model declined to answer one or more questions.
+
+    Attributes:
+        refused: The names of the questions the model declined.
+        answers: The answers it did give, keyed by question name.
+    """
 
     def __init__(
         self,
         reason: str,
         refused: list[str],
+        answers: "Mapping[str, DecisionAnswer] | None" = None,
         notes: list[str] | None = None,
         fatal: bool = False,
     ):
         self.refused = list(refused)
+        self.answers = dict(answers or {})
         super().__init__(reason, notes=notes, fatal=fatal)
 
 
