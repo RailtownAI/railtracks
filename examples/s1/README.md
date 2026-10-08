@@ -19,15 +19,32 @@ Each class also takes `api_key=`, `api_base=`, `timeout=` (seconds, default 30) 
 
 ## The schema
 
-Subclass `DecisionSchema` and declare each question as a class attribute; the attribute name is the question's name.
+Create each question as an object with a `name`, then group them in a `DecisionSchema` by kind:
 
-| Question | Declared as | Answer | Read |
+```python
+is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message conveys urgency")
+department = rt.decisions.Choice(name="department", instructions="Which team", choices=["billing", "technical"])
+triage = rt.decisions.DecisionSchema(predicate=[is_urgent], choice=[department])
+```
+
+| Question | Created as | Answer | Read |
 |---|---|---|---|
-| Yes/no | `Predicate(instructions=)` (alias `Noul`) | `PredicateAnswer` | `.probability` |
-| One of several values | `Choice(instructions=, choices={value: description} or [values])`, 2 to 255 values | `ChoiceAnswer` | `.choice`, `.confidence`, `.probabilities[value]` |
-| A level on an ordered rubric | `Score(instructions=, levels={label: criteria} or [labels])`, 2 to 10 levels | `ScoreAnswer` | `.score` (expected level index), `.confidence`, `.probabilities[index]`, `.legend[index]` |
+| Yes/no | `rt.decisions.Predicate(name=, instructions=)` (alias `Noul`) | `PredicateAnswer` | `.probability` |
+| One of several values | `rt.decisions.Choice(name=, instructions=, choices={value: description} or [values])`, 2 to 255 values | `ChoiceAnswer` | `.choice`, `.confidence`, `.probabilities[value]` |
+| A level on an ordered rubric | `rt.decisions.Score(name=, instructions=, levels={label: criteria} or [labels])`, 2 to 10 levels | `ScoreAnswer` | `.score` (expected level index), `.confidence`, `.probabilities[index]`, `.legend[index]` |
 
-On a response, `result.structured.<name>` is typed as that question's answer, and `str(result)` is the one-line summary an agent reads (`is_urgent: yes 0.99 | department: technical 1.00 | frustration: 2.0/2`).
+Names must be unique within a schema; a question object can be shared by several schemas. On a response, `result.structured[is_urgent]` is typed as that question's answer (`PredicateAnswer` here); `result.structured["is_urgent"]` also works, untyped. `str(result)` is the one-line summary an agent reads (`is_urgent: yes 0.99 | department: technical 1.00 | frustration: 2.0/2`).
+
+## Images
+
+OpenAI's `gpt-6-luna` also judges images. Pass a `rt.decisions.DecisionState` instead of a string:
+
+```python
+state = rt.decisions.DecisionState(text="Which animal is this?", attachments=["images/cat.jpg"])
+result = flow.invoke(state)
+```
+
+Attachments are local paths (sent as base64 data URLs), http(s) URLs (fetched by the provider) or data URIs; PNG, JPEG, GIF and WebP. Session records keep the paths and URLs, never the base64. TypeSafe and OpenRouter accept text only and reject a state with attachments before sending anything (`DecisionProviderRequestError`).
 
 ## How routing works
 
@@ -48,7 +65,7 @@ Decision nodes are recorded: each request emits `decision.*` events with its ans
 
 | Where | Raised | Catch |
 |---|---|---|
-| Defining a schema wrongly (an empty schema, 300 Choice values, 1 Score level) | at class definition | `rt.decisions.SchemaDefinitionError` |
+| Defining a schema wrongly (an empty schema, 300 Choice values, 1 Score level, two questions with one name) | when the question or schema is created | `rt.decisions.SchemaDefinitionError` |
 | A direct `model.aask(...)` call fails | at call time | `rt.decisions.DecisionProviderError` and its subclasses (`...TimeoutError`, `...RateLimitError`, `...AuthenticationError`, `...ConnectionError`, `...ServerError`, `...RequestError`, ...) |
 | A `decision_node` call fails | at call time | `rt.exceptions.DecisionModelError` and its subclasses, with the provider error as `__cause__` |
 | The model declines a question (OpenAI can) | at call time | `rt.decisions.DecisionProviderRefusalError` (direct) / `rt.exceptions.DecisionRefusalError` (node); `.refused` names the questions, `.answers` holds the ones it did answer |

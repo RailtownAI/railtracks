@@ -17,28 +17,33 @@ Run: uv run python examples/s1/openai_example.py
 
 import railtracks as rt
 
-DecisionSchema = rt.decisions.DecisionSchema
-
 luna = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")  # reads OPENAI_API_KEY
 
 
-class Triage(DecisionSchema):
-    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
-    department = DecisionSchema.Choice(
-        instructions="Which team should handle this",
-        choices={
-            "billing": "Charges, refunds, invoices, or plan changes",
-            "technical": "Bugs, outages, errors, or integration problems",
-            "sales": "Pricing questions, upgrades, or new purchases",
-        },
-    )
-    frustration = DecisionSchema.Score(
-        instructions="How frustrated the customer is",
-        levels=["Calm", "Frustrated but civil", "Very angry"],
-    )
+# Each question is an object with a name; the schema groups them by kind.
+is_urgent = rt.decisions.Predicate(
+    name="is_urgent", instructions="The message conveys urgency"
+)
+department = rt.decisions.Choice(
+    name="department",
+    instructions="Which team should handle this",
+    choices={
+        "billing": "Charges, refunds, invoices, or plan changes",
+        "technical": "Bugs, outages, errors, or integration problems",
+        "sales": "Pricing questions, upgrades, or new purchases",
+    },
+)
+frustration = rt.decisions.Score(
+    name="frustration",
+    instructions="How frustrated the customer is",
+    levels=["Calm", "Frustrated but civil", "Very angry"],
+)
+triage = rt.decisions.DecisionSchema(
+    predicate=[is_urgent], choice=[department], score=[frustration]
+)
 
 
-TriageTicket = rt.decision_node("Triage Ticket", model=luna, schema=Triage)
+TriageTicket = rt.decision_node("Triage Ticket", model=luna, schema=triage)
 triage_flow = rt.Flow(name="OpenAI Ticket Triage", entry_point=TriageTicket)
 
 if __name__ == "__main__":
@@ -49,6 +54,6 @@ if __name__ == "__main__":
     # is_urgent: yes 1.00 | department: technical 1.00 | frustration: 1.5/2
     print(result)
     # {'billing': 0.0, 'technical': 1.0, 'sales': 0.0}
-    print(result.structured.department.probabilities)
+    print(result.structured[department].probabilities)
     # gpt-6-luna via openai: $4.21e-05
     print(f"{result.model_name} via {result.provider}: ${result.cost}")
