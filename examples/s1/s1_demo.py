@@ -1,14 +1,15 @@
 """Triage a support inbox with a System One decision model.
 
 System One (S1) models read a piece of text and answer typed questions about it with
-calibrated probabilities instead of prose: a yes/no (Noul), a pick from named labels
-(Choice), or a level on a rubric (Score). One request answers every question in a
+calibrated probabilities instead of prose: a yes/no (Predicate), a pick from named
+labels (Choice), or a level on a rubric (Score). One request answers every question in a
 single forward pass, typically in well under a second.
 
 This example triages support tickets with TypeSafe's Jev:
 
-1. the model   -> `rt.decisions.TypeSafeAI`; swapping hosts is one line
-2. the schema  -> a `TypeSafeSchema` subclass whose attributes are the questions
+1. the model   -> `rt.decisions.TypeSafeAI`; swapping vendors is one line
+2. the schema  -> a `DecisionSchema` subclass whose attributes are the questions;
+                  every vendor answers the same schema
 3. the node    -> `rt.decision_node`, the S1 counterpart of `rt.agent_node`
 4. using it    -> as a Flow, routing an inbox on the probabilities, as an agent's
                   tool, and as a direct call
@@ -25,35 +26,31 @@ import asyncio
 
 import railtracks as rt
 
-TypeSafeSchema = rt.decisions.TypeSafeSchema
+DecisionSchema = rt.decisions.DecisionSchema
 
 ##### 1. The model #####
 
 jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
-
-# Every /v1/systemone host takes the same schema; pass any of these as `model=` below.
-jev_via_openrouter = rt.decisions.OpenRouterAI(model_name="typesafe/jev-1.13")
-solar = rt.decisions.UpstageAI(model_name="solar-decide")  # reads UPSTAGE_API_KEY
-kev = rt.decisions.TypeSafeCompatibleAI(  # any other compatible server
-    model_name="jaredpalmer/kev-4b", api_base="http://localhost:8008"
-)
+# The same schema works on every vendor; swap the line above for one of these:
+# jev = rt.decisions.OpenRouterAI(model_name="typesafe/jev-1.13")  # OPENROUTER_API_KEY
+# jev = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")  # OPENAI_API_KEY
 
 ##### 2. The schema: each attribute is one question #####
 
 
-class Triage(TypeSafeSchema):
-    is_urgent = TypeSafeSchema.Noul(instructions="The message conveys urgency")
-    department = TypeSafeSchema.Choice(
+class Triage(DecisionSchema):
+    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
+    department = DecisionSchema.Choice(
         instructions="Which team should handle this",
-        criteria={
+        choices={
             "billing": "Charges, refunds, invoices, or plan changes",
             "technical": "Bugs, outages, errors, or integration problems",
             "sales": "Pricing questions, upgrades, or new purchases",
         },
     )
-    frustration = TypeSafeSchema.Score(
+    frustration = DecisionSchema.Score(
         instructions="How frustrated the customer is",
-        criteria=["Calm", "Frustrated but civil", "Very angry"],
+        levels=["Calm", "Frustrated but civil", "Very angry"],
     )
 
 
@@ -94,7 +91,7 @@ async def route_inbox(tickets: list[str]) -> dict[str, list[str]]:
             queues["needs_a_person"].append(ticket)
             continue
         queue = queues.setdefault(department.choice, [])
-        if result.structured.is_urgent.noul >= CONFIDENT:
+        if result.structured.is_urgent.probability >= CONFIDENT:
             queue.insert(0, ticket)
         else:
             queue.append(ticket)
@@ -122,7 +119,7 @@ if __name__ == "__main__":
     result = triage_flow.invoke(TICKETS[1])
     print(result)
 
-    # Each attribute is typed as its answer (NoulAnswer, ChoiceAnswer, ScoreAnswer):
+    # Each attribute is typed as its answer (PredicateAnswer, ChoiceAnswer, ScoreAnswer):
     # {'billing': 0.0, 'technical': 1.0, 'sales': 0.0} and {0: 0.0, 1: 0.02, 2: 0.98}
     print(result.structured.department.probabilities)
     print(result.structured.frustration.probabilities)
