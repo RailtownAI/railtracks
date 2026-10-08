@@ -87,12 +87,6 @@ Skills and the block work well together: the block keeps the basics right in eve
                 └── ...        ← any supporting files the skill ships
         ```
 
-    !!! note "Migrated from copilot-instructions.md"
-        Older railtracks versions appended Copilot skills as a marker block inside
-        `.github/copilot-instructions.md`. That path is no longer written; if you have one from a
-        prior install, railtracks reports it on your next `railtracks add` and leaves it in place for
-        you to remove (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
-
 === "Cursor"
 
     Installs a skill directory at `.cursor/skills/agent-builder/`. Cursor discovers skills in `.cursor/skills` and loads one when its description matches the current context.
@@ -109,11 +103,6 @@ Skills and the block work well together: the block keeps the basics right in eve
                 ├── SKILL.md   ← railtracks agent-building knowledge
                 └── ...        ← any supporting files the skill ships
         ```
-
-    !!! note "Migrated from .cursor/rules"
-        Older railtracks versions installed Cursor skills as a single `.cursor/rules/<name>.mdc`
-        file. That path is no longer written; a `.mdc` from a prior install is reported on your next
-        `railtracks add` and left in place (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
 
 ### Install all skills
 
@@ -193,13 +182,6 @@ next install a sync rather than a copy:
 - A file you've since edited is **never** removed. Railtracks reports it and leaves it alone.
 - Re-installing an unchanged skill rewrites the manifest byte-for-byte, so it won't churn your diff.
 - If the install came from a different railtracks version, you'll be told when you re-install.
-
-!!! note "Skills installed before this feature"
-    Older railtracks versions installed GitHub Copilot skills as a marker block inside
-    `.github/copilot-instructions.md`, and Cursor skills as `.cursor/rules/<name>.mdc`. Those
-    predate the manifest, so railtracks can spot them but won't delete them — a `.mdc` looks
-    identical to a rule you wrote yourself. You'll be told where they are; removing them is your
-    call.
 
 ## Example: Building Your First Agent
 

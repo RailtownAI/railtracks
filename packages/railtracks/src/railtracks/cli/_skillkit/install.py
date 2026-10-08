@@ -20,7 +20,6 @@ import yaml
 
 from ..io import confirm_overwrite, print_status, print_success, print_warning
 from .manifest import (
-    find_legacy_installs,
     is_ours_unmodified,
     prune,
     read_record,
@@ -194,10 +193,6 @@ def install_skill_directory(
     destination = target.root / skill.name
     planned = _planned_files(skill, destination)
     previous = read_record(destination)
-
-    # Report legacy Copilot/Cursor installs the new handler will not touch.
-    for legacy in find_legacy_installs(skill.name):
-        print_warning(legacy.advice())
 
     skew = version_skew(previous)
     if skew:

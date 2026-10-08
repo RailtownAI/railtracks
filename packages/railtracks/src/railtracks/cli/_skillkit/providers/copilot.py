@@ -1,9 +1,7 @@
 """The GitHub Copilot install target.
 
 Native path: `.github/skills/<name>/`. Copilot reads `name` and `description`,
-and consumes `allowed-tools` and `license` from `tools.copilot`. The old
-marker-block in `.github/copilot-instructions.md` is not written any more;
-`find_legacy_installs` reports it if it is still on disk.
+and consumes `allowed-tools` and `license` from `tools.copilot`.
 """
 
 from __future__ import annotations
