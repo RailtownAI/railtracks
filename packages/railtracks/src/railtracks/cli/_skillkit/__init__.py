@@ -17,7 +17,6 @@ from .install import (
 from .manifest import (
     MANIFEST_FILE,
     InstallRecord,
-    find_legacy_installs,
     package_version,
     read_record,
 )
@@ -42,7 +41,6 @@ __all__ = [
     "SkillFormatError",
     "default_skills_directory",
     "discover_skills",
-    "find_legacy_installs",
     "install_skill_directory",
     "load_skill",
     "package_version",

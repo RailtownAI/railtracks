@@ -1,4 +1,5 @@
 import functools
+import inspect
 
 import pytest
 from railtracks.built_nodes.function.base import (
@@ -10,6 +11,7 @@ from railtracks.built_nodes.function.node import (
     _partial_with_resolved_metadata,
     function_node,
 )
+from railtracks.exceptions import NodeCreationError
 
 
 class _SimpleCalc:
@@ -50,11 +52,33 @@ def test_function_node_with_manifest(mock_function, mock_manifest):
     assert hasattr(node, "node_type")
 
 
-def test_function_node_builtin():
+def test_function_node_rejects_positional_only_builtin():
     import math
 
-    node = function_node(math.ceil, name="CeilFunc")
-    assert hasattr(node, "node_type")
+    with pytest.raises(NodeCreationError, match="positional-only"):
+        function_node(math.ceil, name="CeilFunc")
+
+
+def test_function_node_rejects_positional_only_function():
+    def f(x: int, /) -> int:
+        return x
+
+    with pytest.raises(NodeCreationError, match="positional-only"):
+        function_node(f)
+
+
+def test_function_node_rejects_builtin_with_introspectable_signature(monkeypatch):
+    # on 3.13+ time.sleep reports `(object, /)`; simulate that on older versions
+    import time
+
+    monkeypatch.setattr(
+        "railtracks.built_nodes.function.node.inspect.signature",
+        lambda func: inspect.Signature(
+            [inspect.Parameter("object", inspect.Parameter.POSITIONAL_ONLY)]
+        ),
+    )
+    with pytest.raises(NodeCreationError, match="positional-only"):
+        function_node(time.sleep)
 
 
 def test_function_node_with_stray_node_type_attribute_is_rebuilt(mock_function):
@@ -142,7 +166,7 @@ def test_function_node_sync_bound_method_with_manifest(mock_manifest):
 
 @pytest.mark.asyncio
 async def test_function_node_accepts_async_bound_method():
-    """An async bound method passes `asyncio.iscoroutinefunction` (there's no
+    """An async bound method passes `inspect.iscoroutinefunction` (there's no
     `inspect.isfunction`-style gate on that branch), so it's still accepted."""
 
     class Foo:
