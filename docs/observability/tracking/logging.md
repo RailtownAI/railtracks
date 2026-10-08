@@ -164,6 +164,7 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
     | Runner Created | `RT.Runner   : DEBUG    - Runner <RUNNER_ID> is initialized` |
     | Node Created   | `RT.Publisher: DEBUG    - RequestCreation(current_node_id=<PARENT_NODE_ID>, new_request_id=<REQUEST_ID>, running_mode=async, new_node_type=<NODE_NAME>, args=<INPUT_ARGS>, kwargs=<INPUT_KWARGS>)` |
     | Node Completed | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
+    | Run Data Saved | `RT.Session  : DEBUG    - Saving execution info to .railtracks/data/sessions/<FLOW_NAME>_<SESSION_ID>.json` |
 
 ??? note "INFO Messages"
     The creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
@@ -173,7 +174,6 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
     | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |
     | Invoking Nodes   | `RT          : INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
     | Node Completed   | `RT          : INFO     - <NODE_NAME> DONE` |
-    | Run Data Saved   | `RT.Runner   : INFO     - Saving execution info to .railtracks\<RUNNER_ID>.json` |
 
 ??? note "WARNING Messages"
     | Type              | Example |

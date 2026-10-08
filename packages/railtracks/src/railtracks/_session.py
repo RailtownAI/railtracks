@@ -211,7 +211,7 @@ class Session:
                     )
                     file_path = sessions_dir / f"{self._identifier}.json"
 
-                logger.info("Saving execution info to %s" % file_path)
+                logger.debug("Saving execution info to %s" % file_path)
 
                 content = json.dumps(self.payload())
                 file_path.write_text(content)
