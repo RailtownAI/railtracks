@@ -7,6 +7,7 @@ import httpx
 import litellm
 import pytest
 from railtracks.decisions import (
+    DecisionAnswers,
     DecisionProviderAuthenticationError,
     DecisionProviderConnectionError,
     DecisionProviderError,
@@ -125,8 +126,8 @@ class TestResponse:
         resp = await model.aask("Help!", Triage)
 
         assert isinstance(resp, DecisionResponse)
-        assert isinstance(resp.structured, Triage)
-        assert resp.structured.department.choice == "technical"
+        assert isinstance(resp.structured, DecisionAnswers)
+        assert resp.structured["department"].choice == "technical"
         assert resp.model_name == "jev-1.13.0"
         assert resp.requested_model_name == "jev-latest"
         assert resp.provider == "typesafe"
@@ -346,7 +347,7 @@ class TestRetries:
             failure, respond(), retry_approach=FixedRetry(max_tries=3, delay=0.0)
         )
         resp = await model.aask("Help!", Triage)
-        assert resp.structured.is_urgent.probability == 0.93
+        assert resp.structured["is_urgent"].probability == 0.93
         assert len(fake.calls) == 2
 
     async def test_exhausted_retries_raise_the_last_error(self, make_model):

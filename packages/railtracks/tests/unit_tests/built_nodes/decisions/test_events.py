@@ -1,5 +1,6 @@
 """decision.* events: emitted around aask inside a run, never outside one."""
 
+import base64
 import logging
 
 import litellm
@@ -8,6 +9,7 @@ import railtracks as rt
 import railtracks.context.central as central
 from railtracks.observability import Event, configure, configure_writers
 
+from ...decisions.test_state import PNG_B64
 from .conftest import Triage
 
 
@@ -89,6 +91,26 @@ async def test_invocation_and_response_paired_under_the_decision_node(
     assert response.payload["latency"] > 0
 
 
+async def test_attachment_state_recorded_without_base64(make_model, writer, tmp_path):
+    png = tmp_path / "cat.png"
+    png.write_bytes(base64.b64decode(PNG_B64))
+    model, fake = make_model(cls=rt.decisions.OpenAIDecisions, model_name="gpt-6-luna")
+    node = rt.decision_node("Classify Image", model=model, schema=Triage)
+    state = rt.decisions.DecisionState(text="Which animal?", attachments=str(png))
+
+    with rt.Session(flow_name="decisions"):
+        result = await rt.call(node, state)
+
+    assert result.structured["is_urgent"].probability == 0.93
+    [message] = fake.calls[0]["input"]
+    assert message["content"][1]["image_url"].startswith("data:image/png;base64,")
+    invocation, _ = _decision_events(writer)
+    assert invocation.payload["state"] == {
+        "text": "Which animal?",
+        "attachments": [str(png)],
+    }
+
+
 async def test_failure_paired_with_invocation(make_model, writer):
     model, _ = make_model(
         litellm.InternalServerError(
@@ -163,7 +185,7 @@ async def test_no_events_or_errors_outside_a_run(make_model, writer, caplog):
     with caplog.at_level(logging.DEBUG):
         resp = await model.aask("Help!", Triage)
 
-    assert resp.structured.is_urgent.probability == 0.93
+    assert resp.structured["is_urgent"].probability == 0.93
     assert _decision_events(writer) == []
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 

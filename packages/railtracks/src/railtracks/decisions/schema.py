@@ -1,18 +1,18 @@
 """Decision schemas: the questions a decision model answers together, and their answers.
 
-Users subclass ``DecisionSchema`` and declare ``Predicate`` (alias ``Noul``), ``Choice``
-and ``Score`` questions as class attributes. Each question type has a typed answer:
-``PredicateAnswer``, ``ChoiceAnswer`` and ``ScoreAnswer``.
+Users create named ``Predicate`` (alias ``Noul``), ``Choice`` and ``Score`` questions
+and group them in a ``DecisionSchema``. Each question type has a typed answer
+(``PredicateAnswer``, ``ChoiceAnswer``, ``ScoreAnswer``), which ``DecisionAnswers``
+returns when indexed with that question.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from types import MappingProxyType
-from typing import Any, ClassVar, Generic, Literal, TypeVar, Union, cast, overload
+from typing import Any, ClassVar, Generic, Literal, TypeVar, overload
 
 from pydantic import BaseModel, ConfigDict
-from typing_extensions import Self, TypeAlias
 
 from ._exceptions import SchemaDefinitionError
 
@@ -22,9 +22,6 @@ QuestionKind = Literal["predicate", "choice", "score"]
 
 MAX_CHOICES = 255
 MAX_SCORE_LEVELS = 10
-
-DecisionState: TypeAlias = Union[str, dict[str, Any], list[Any]]
-"""What a decision is about: text, or a JSON object or array."""
 
 
 # ================= Answers =================
@@ -89,51 +86,32 @@ class ScoreAnswer(DecisionAnswer):
 # ================= Questions =================
 
 
-class DecisionQuestion(Generic[_TAnswer]):
-    """A question declared as a ``DecisionSchema`` attribute.
+def _non_blank(value: object, what: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise SchemaDefinitionError(
+            f"Question {what} must be a non-empty string, got {value!r}."
+        )
+    return value
 
-    Class access returns the question; instance access returns its answer.
-    """
+
+class DecisionQuestion(Generic[_TAnswer]):
+    """A named question; indexing ``DecisionAnswers`` with it returns its answer."""
 
     kind: ClassVar[QuestionKind]
     """The wire ``type``."""
     answer_type: ClassVar[type[DecisionAnswer]]
 
-    def __init__(self, instructions: str) -> None:
-        if not isinstance(instructions, str) or not instructions.strip():
-            raise SchemaDefinitionError(
-                f"Question instructions must be a non-empty string, got {instructions!r}."
-            )
-        self.instructions = instructions
-        self._name: str | None = None
-        self._bound_names: list[str] = []
-
-    def __set_name__(self, owner: type, name: str) -> None:
-        # the first binding keeps the name, so a schema that already uses this
-        # question still works after a second one is rejected for reusing it
-        if self._name is None:
-            self._name = name
-        self._bound_names.append(f"{owner.__name__}.{name}")
+    def __init__(self, name: str, instructions: str) -> None:
+        self._name = _non_blank(name, "name")
+        self.instructions = _non_blank(instructions, "instructions")
 
     @property
     def name(self) -> str:
-        """The attribute name this question was declared under."""
-        if self._name is None:
-            raise AttributeError(
-                f"{type(self).__name__} is not attached to a schema class"
-            )
+        """The question's name; answers are keyed by it."""
         return self._name
 
-    @overload
-    def __get__(self, instance: None, owner: type) -> Self: ...
-
-    @overload
-    def __get__(self, instance: DecisionSchema, owner: type) -> _TAnswer: ...
-
-    def __get__(self, instance: DecisionSchema | None, owner: type) -> Self | _TAnswer:
-        if instance is None:
-            return self
-        return cast(_TAnswer, instance._answers[self.name])
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(name={self._name!r})"
 
 
 def _options(
@@ -175,16 +153,17 @@ class PredicateQuestion(DecisionQuestion[PredicateAnswer]):
     kind: ClassVar[QuestionKind] = "predicate"
     answer_type = PredicateAnswer
 
-    def __init__(self, *, instructions: str) -> None:
+    def __init__(self, *, name: str, instructions: str) -> None:
         """Create a predicate question.
 
         Args:
+            name: The question's name, unique within a schema.
             instructions: The condition to evaluate, phrased so that "true" means yes.
 
         Raises:
-            SchemaDefinitionError: If the instructions are blank.
+            SchemaDefinitionError: If the name or instructions are blank.
         """
-        super().__init__(instructions)
+        super().__init__(name, instructions)
 
 
 class ChoiceQuestion(DecisionQuestion[ChoiceAnswer]):
@@ -194,19 +173,24 @@ class ChoiceQuestion(DecisionQuestion[ChoiceAnswer]):
     answer_type = ChoiceAnswer
 
     def __init__(
-        self, *, instructions: str, choices: Mapping[str, str] | Sequence[str]
+        self,
+        *,
+        name: str,
+        instructions: str,
+        choices: Mapping[str, str] | Sequence[str],
     ) -> None:
         """Create a choice question.
 
         Args:
+            name: The question's name, unique within a schema.
             instructions: What the model should decide.
             choices: The values to pick from, as a list, or a mapping of value to a
                 description of when it applies (2 to 255 values).
 
         Raises:
-            SchemaDefinitionError: If the instructions or choices are invalid.
+            SchemaDefinitionError: If the name, instructions or choices are invalid.
         """
-        super().__init__(instructions)
+        super().__init__(name, instructions)
         self.choices = _options(choices, "Choice values", MAX_CHOICES)
 
 
@@ -217,111 +201,139 @@ class ScoreQuestion(DecisionQuestion[ScoreAnswer]):
     answer_type = ScoreAnswer
 
     def __init__(
-        self, *, instructions: str, levels: Mapping[str, str] | Sequence[str]
+        self,
+        *,
+        name: str,
+        instructions: str,
+        levels: Mapping[str, str] | Sequence[str],
     ) -> None:
         """Create a score question.
 
         Args:
+            name: The question's name, unique within a schema.
             instructions: What the model should rate.
             levels: The level labels from lowest to highest, as a list, or a mapping of
                 label to the level's criteria (2 to 10 levels). A level's index is its
                 score.
 
         Raises:
-            SchemaDefinitionError: If the instructions or levels are invalid.
+            SchemaDefinitionError: If the name, instructions or levels are invalid.
         """
-        super().__init__(instructions)
+        super().__init__(name, instructions)
         self.levels = _options(levels, "Score levels", MAX_SCORE_LEVELS)
+
+
+Predicate = PredicateQuestion
+Noul = PredicateQuestion
+"""An alias of ``Predicate``."""
+Choice = ChoiceQuestion
+Score = ScoreQuestion
 
 
 # ================= Schema =================
 
 
 class DecisionSchema:
-    """A set of questions answered together in one decision request.
+    """The questions answered together in one decision request::
 
-    Subclass it and declare each question as an attribute; the attribute name is the
-    question's name::
+        is_urgent = Predicate(name="is_urgent", instructions="The message is urgent")
+        team = Choice(
+            name="team",
+            instructions="Which team should handle this",
+            choices={"billing": "Payments and refunds", "technical": "Bugs"},
+        )
+        triage = DecisionSchema(predicate=[is_urgent], choice=[team])
 
-        class Triage(DecisionSchema):
-            is_urgent = DecisionSchema.Predicate(
-                instructions="The message conveys urgency"
-            )
-            team = DecisionSchema.Choice(
-                instructions="Which team should handle this",
-                choices={"billing": "Payments and refunds", "technical": "Bugs"},
-            )
-            frustration = DecisionSchema.Score(
-                instructions="How frustrated the customer is",
-                levels=["Calm", "Annoyed", "Furious"],
-            )
-
-    Questions are collected in definition order (parents first) into ``__questions__``.
-    ``Noul`` is an alias of ``Predicate``. On an answered instance, each attribute is
-    that question's answer.
+    Questions are ordered predicates first, then choices, then scores, each in list
+    order. A question object can be shared by several schemas.
     """
 
-    __questions__: ClassVar[Mapping[str, DecisionQuestion[Any]]] = MappingProxyType({})
-    _question_type: ClassVar[type[DecisionQuestion[Any]]] = DecisionQuestion
-    _is_abstract_schema: ClassVar[bool] = True
+    _KINDS: ClassVar[tuple[tuple[str, type[DecisionQuestion[Any]]], ...]] = (
+        ("predicate", PredicateQuestion),
+        ("choice", ChoiceQuestion),
+        ("score", ScoreQuestion),
+    )
 
-    Predicate = PredicateQuestion
-    Noul = PredicateQuestion
-    Choice = ChoiceQuestion
-    Score = ScoreQuestion
+    def __init__(
+        self,
+        *,
+        predicate: Sequence[PredicateQuestion] = (),
+        choice: Sequence[ChoiceQuestion] = (),
+        score: Sequence[ScoreQuestion] = (),
+    ) -> None:
+        """Group questions into a schema.
 
-    def __init_subclass__(cls, *, abstract: bool = False, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        cls._is_abstract_schema = abstract
-        if abstract:
-            return
+        Args:
+            predicate: Yes/no questions (``Predicate`` or ``Noul``).
+            choice: ``Choice`` questions.
+            score: ``Score`` questions.
 
-        reserved = {
-            attr
-            for base in cls.__mro__[1:]
-            if base.__dict__.get("_is_abstract_schema", False)
-            for attr in dir(base)
-        }
+        Raises:
+            SchemaDefinitionError: If a list holds a question of another kind, two
+                questions share a name, or there are no questions.
+        """
+        given = {"predicate": predicate, "choice": choice, "score": score}
         questions: dict[str, DecisionQuestion[Any]] = {}
-        for base in reversed(cls.__mro__[1:]):
-            questions.update(base.__dict__.get("__questions__", {}))
-
-        for attr, value in cls.__dict__.items():
-            if not isinstance(value, DecisionQuestion):
-                continue
-            if attr in reserved:
+        for kind, question_type in self._KINDS:
+            values = given[kind]
+            if not isinstance(values, (list, tuple)):
                 raise SchemaDefinitionError(
-                    f"Question name {attr!r} on {cls.__name__} clashes with an attribute of {cls.__mro__[1].__name__}.",
-                    notes=["Rename the question; its attribute name is its name."],
+                    f"{kind}= must be a list of {question_type.__name__}, "
+                    f"got {type(values).__name__}."
                 )
-            if len(value._bound_names) > 1:
-                raise SchemaDefinitionError(
-                    f"The same question object is used for more than one attribute: {value._bound_names}.",
-                    notes=["Create a separate question for each attribute."],
-                )
-            if not isinstance(value, cls._question_type):
-                raise SchemaDefinitionError(
-                    f"Question {attr!r} on {cls.__name__} is a {type(value).__name__}, not a {cls._question_type.__name__}.",
-                )
-            questions[attr] = value
-
+            for question in values:
+                if not isinstance(question, question_type):
+                    raise SchemaDefinitionError(
+                        f"{kind}= holds a {type(question).__name__}, "
+                        f"not a {question_type.__name__}.",
+                    )
+                if question.name in questions:
+                    raise SchemaDefinitionError(
+                        f"Two questions are named {question.name!r}.",
+                        notes=["Question names must be unique within a schema."],
+                    )
+                questions[question.name] = question
         if not questions:
             raise SchemaDefinitionError(
-                f"Schema {cls.__name__} has no questions.",
-                notes=["Declare at least one question as a class attribute."],
+                "The schema has no questions.",
+                notes=["Pass at least one question in predicate=, choice= or score=."],
             )
-        cls.__questions__ = MappingProxyType(questions)
+        self._questions = MappingProxyType(questions)
 
-    def __init__(self, answers: Mapping[str, DecisionAnswer]) -> None:
+    @property
+    def questions(self) -> Mapping[str, DecisionQuestion[Any]]:
+        """Every question keyed by name, in schema order."""
+        return self._questions
+
+    def __repr__(self) -> str:
+        groups = ", ".join(
+            f"{kind}={[q.name for q in self._questions.values() if q.kind == kind]}"
+            for kind, _ in self._KINDS
+        )
+        return f"DecisionSchema({groups})"
+
+
+class DecisionAnswers(Mapping[str, DecisionAnswer]):
+    """One answer per question of a schema.
+
+    Index with a question to get its typed answer (``answers[is_urgent]`` is a
+    ``PredicateAnswer``), or with a name to get it untyped. Iterates over the question
+    names in schema order.
+    """
+
+    def __init__(
+        self, schema: DecisionSchema, answers: Mapping[str, DecisionAnswer]
+    ) -> None:
         """Hold one answer per question.
 
         Args:
+            schema: The schema the answers are for.
             answers: The answers keyed by question name.
 
         Raises:
             ValueError: If an answer is missing, unexpected, or of the wrong type.
         """
-        questions = type(self).__questions__
+        questions = schema.questions
         unexpected = set(answers) - set(questions)
         if unexpected:
             raise ValueError(f"Unexpected answers: {sorted(unexpected)}")
@@ -332,20 +344,41 @@ class DecisionSchema:
                 raise ValueError(
                     f"Answer for question {name!r} must be a {question.answer_type.__name__}, got {type(answers[name]).__name__}"
                 )
+        self._schema = schema
         self._answers = {name: answers[name] for name in questions}
 
+    @property
+    def schema(self) -> DecisionSchema:
+        """The schema these answers are for."""
+        return self._schema
+
+    @overload
+    def __getitem__(self, key: DecisionQuestion[_TAnswer]) -> _TAnswer: ...
+
+    @overload
+    def __getitem__(self, key: str) -> DecisionAnswer: ...
+
+    def __getitem__(self, key: DecisionQuestion[Any] | str) -> DecisionAnswer:
+        if isinstance(key, DecisionQuestion):
+            # a same-named question from another schema is not this one
+            if self._schema.questions.get(key.name) is not key:
+                raise KeyError(key.name)
+            key = key.name
+        return self._answers[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._answers)
+
+    def __len__(self) -> int:
+        return len(self._answers)
+
     def encode(self) -> dict[str, Any]:
-        """The answers as plain JSON values, in definition order."""
+        """The answers as plain JSON values, in schema order."""
         return {
             name: answer.model_dump(mode="json")
             for name, answer in self._answers.items()
         }
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, DecisionSchema) or type(other) is not type(self):
-            return NotImplemented
-        return self._answers == other._answers
-
     def __repr__(self) -> str:
         fields = ", ".join(f"{k}={v!r}" for k, v in self._answers.items())
-        return f"{type(self).__name__}({fields})"
+        return f"DecisionAnswers({fields})"

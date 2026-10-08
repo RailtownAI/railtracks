@@ -90,9 +90,9 @@ class TestConstruction:
         assert param.name == "state"
         assert param.required
 
-    def test_name_defaults_to_schema_name(self, make_model):
+    def test_name_defaults_to_decision(self, make_model):
         model, _ = make_model()
-        assert rt.decision_node(model=model, schema=Triage).name() == "Triage"
+        assert rt.decision_node(model=model, schema=Triage).name() == "Decision"
 
     def test_default_detail_lists_each_question(self, make_model):
         model, _ = make_model()
@@ -115,16 +115,13 @@ class TestConstruction:
         with pytest.raises(NodeCreationError, match="name"):
             rt.decision_node(name, model=model, schema=Triage)
 
-    @pytest.mark.parametrize("schema", [str, dict, "Triage"])
+    @pytest.mark.parametrize(
+        "schema", [str, dict, "Triage", rt.decisions.DecisionSchema]
+    )
     def test_non_schema_rejected(self, make_model, schema):
         model, _ = make_model()
-        with pytest.raises(NodeCreationError, match="DecisionSchema subclass"):
+        with pytest.raises(NodeCreationError, match="needs a DecisionSchema"):
             rt.decision_node(model=model, schema=schema)
-
-    def test_abstract_schema_rejected(self, make_model):
-        model, _ = make_model()
-        with pytest.raises(NodeCreationError, match="subclass"):
-            rt.decision_node(model=model, schema=rt.decisions.DecisionSchema)
 
     def test_non_model_rejected(self):
         with pytest.raises(NodeCreationError, match="decision model"):
@@ -141,7 +138,7 @@ def test_flow_invoke_returns_the_decision_response(make_model):
     result = rt.Flow(name="Ticket Triage", entry_point=node).invoke("Help!")
 
     assert isinstance(result, DecisionResponse)
-    assert result.structured.department.choice == "technical"
+    assert result.structured["department"].choice == "technical"
     assert fake.last["input"] == "Help!"
 
 
@@ -152,7 +149,7 @@ async def test_call_passes_json_state_through(make_model):
     with rt.Session(flow_name="decisions"):
         result = await rt.call(node, {"subject": "Duplicate charge"})
 
-    assert result.structured.is_urgent.probability == 0.93
+    assert result.structured["is_urgent"].probability == 0.93
     assert fake.last["input"] == json.dumps({"subject": "Duplicate charge"})
 
 

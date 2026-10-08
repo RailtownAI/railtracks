@@ -9,7 +9,7 @@ from railtracks.utils.json.encoder import RTJSONEncoder
 from .conftest import TRIAGE_BODY, Triage, respond
 
 
-def _response(**overrides) -> DecisionResponse[Triage]:
+def _response(**overrides) -> DecisionResponse:
     fields = {
         "structured": parse_response(respond(), Triage).structured,
         "model_name": "jev-1.13.0",

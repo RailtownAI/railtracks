@@ -9,7 +9,7 @@ A provider subclass only sets class attributes.
 from __future__ import annotations
 
 import os
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar
 from urllib.parse import urlsplit
 
 import litellm
@@ -27,12 +27,11 @@ from .._exceptions import (
     DecisionProviderTimeoutError,
 )
 from ..model import DecisionModel, DecisionReply
-from ..schema import DecisionSchema, DecisionState
+from ..schema import DecisionSchema
+from ..state import DecisionInput
 from ._wire import describe_questions, parse_response, questions_to_wire, to_input
 
 _MAX_ERROR_BODY = 500
-
-_TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 
 # litellm prints a "Give Feedback / Get Help" banner on every mapped error without it
 litellm.suppress_debug_info = True
@@ -155,7 +154,7 @@ class LiteLLMDecisionModel(DecisionModel):
         """The model name litellm routes on: ``"<provider_prefix>/<model_name>"``."""
         return f"{self.provider_prefix}/{self.model_name}"
 
-    def describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
+    def describe_questions(self, schema: DecisionSchema) -> dict[str, Any]:
         return describe_questions(schema)
 
     def _pricing_keys(self) -> list[str]:
@@ -163,8 +162,8 @@ class LiteLLMDecisionModel(DecisionModel):
         return list(dict.fromkeys([*keys, self.model_name]))
 
     async def _send(
-        self, state: DecisionState, schema: type[_TSchema]
-    ) -> DecisionReply[_TSchema]:
+        self, state: DecisionInput, schema: DecisionSchema
+    ) -> DecisionReply:
         self._check_api_base()
         try:
             response = await litellm.adecisions(

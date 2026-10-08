@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, TypeVar, cast
+from typing import Any, ClassVar, cast
 
 from railtracks.llm.retries import RetryApproach, RetryError
 
@@ -23,9 +23,8 @@ from ._exceptions import (
 )
 from .pricing import decision_cost
 from .response import DecisionResponse
-from .schema import DecisionSchema, DecisionState
-
-_TSchema = TypeVar("_TSchema", bound=DecisionSchema)
+from .schema import DecisionAnswers, DecisionSchema
+from .state import DecisionInput
 
 RETRYABLE_ERRORS: tuple[type[DecisionProviderError], ...] = (
     DecisionProviderRateLimitError,
@@ -36,10 +35,10 @@ RETRYABLE_ERRORS: tuple[type[DecisionProviderError], ...] = (
 
 
 @dataclass(frozen=True)
-class DecisionReply(Generic[_TSchema]):
+class DecisionReply:
     """What a vendor's transport returns for one successful request."""
 
-    structured: _TSchema
+    structured: DecisionAnswers
     reported_model_name: str | None
     provider: str | None
     input_tokens: int | None
@@ -70,8 +69,8 @@ class DecisionModel(ABC):
 
     @abstractmethod
     async def _send(
-        self, state: DecisionState, schema: type[_TSchema]
-    ) -> DecisionReply[_TSchema]:
+        self, state: DecisionInput, schema: DecisionSchema
+    ) -> DecisionReply:
         """Make one request, raising a ``DecisionProviderError`` on failure."""
 
     @abstractmethod
@@ -79,22 +78,22 @@ class DecisionModel(ABC):
         """The ``litellm.model_cost`` keys to try for this model, in order."""
 
     @abstractmethod
-    def describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
+    def describe_questions(self, schema: DecisionSchema) -> dict[str, Any]:
         """``schema``'s questions as plain JSON, as the request would carry them."""
 
     async def aask(
-        self, state: DecisionState, schema: type[_TSchema]
-    ) -> DecisionResponse[_TSchema]:
+        self, state: DecisionInput, schema: DecisionSchema
+    ) -> DecisionResponse:
         """Answer every question in ``schema`` about ``state`` in one request.
 
         Args:
-            state: What to judge: text, a JSON object or array (sent as JSON text), or
-                a list of user messages, which may include images where the provider
-                accepts them.
-            schema: The ``DecisionSchema`` subclass declaring the questions.
+            state: What to judge: text, a JSON object or array (sent as JSON text), a
+                ``DecisionState`` with image attachments, or a list of user messages.
+                Images are accepted only where the provider takes them (OpenAI).
+            schema: The ``DecisionSchema`` holding the questions.
 
         Returns:
-            The answers as a ``schema`` instance, with model, token, latency and cost
+            The answers (``DecisionAnswers``), with model, token, latency and cost
             metadata.
 
         Raises:
@@ -124,8 +123,8 @@ class DecisionModel(ABC):
         )
 
     async def _send_with_retries(
-        self, state: DecisionState, schema: type[_TSchema]
-    ) -> DecisionReply[_TSchema]:
+        self, state: DecisionInput, schema: DecisionSchema
+    ) -> DecisionReply:
         if self.retry_approach is None:
             return await self._send(state, schema)
         try:

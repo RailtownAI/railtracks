@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .schema import DecisionSchema
-
-_TSchema = TypeVar("_TSchema", bound="DecisionSchema")
+    from .schema import DecisionAnswers
 
 
 @dataclass(frozen=True)
-class DecisionResponse(Generic[_TSchema]):
+class DecisionResponse:
     """The result of one decision request.
 
     Attributes:
-        structured: The schema instance holding one answer per question.
+        structured: One answer per question; index it with a question for its typed
+            answer, or with a question name.
         model_name: The model that answered, as reported by the provider (falls back
             to the requested name).
         requested_model_name: The model name the client asked for.
@@ -27,7 +26,7 @@ class DecisionResponse(Generic[_TSchema]):
         raw: The response as plain JSON, for debugging.
     """
 
-    structured: _TSchema
+    structured: DecisionAnswers
     model_name: str
     requested_model_name: str
     provider: str | None
@@ -43,7 +42,7 @@ class DecisionResponse(Generic[_TSchema]):
         This is what an agent reads when the decision node is one of its tools.
         """
         return " | ".join(
-            f"{name}: {answer}" for name, answer in self.structured._answers.items()
+            f"{name}: {answer}" for name, answer in self.structured.items()
         )
 
     def encode(self) -> dict[str, Any]:
