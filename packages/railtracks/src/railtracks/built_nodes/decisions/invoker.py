@@ -8,7 +8,7 @@ models emit nothing and raise ``DecisionProviderError``; here a node's request g
 from __future__ import annotations
 
 import uuid
-from typing import Any, TypeVar
+from typing import TypeVar
 
 from railtracks.context.central import get_current_scope, is_context_active
 from railtracks.decisions import (
@@ -77,13 +77,13 @@ def _node_error_for(error: DecisionProviderError) -> DecisionModelError:
 
 
 async def invoke_decision(
-    model: DecisionModel[Any], state: DecisionState, schema: type[_TSchema]
+    model: DecisionModel, state: DecisionState, schema: type[_TSchema]
 ) -> DecisionResponse[_TSchema]:
     """Ask ``model`` about ``state`` and emit the ``decision.*`` events for the call.
 
     Args:
         model: The decision model to ask.
-        state: What to judge: text, or a JSON object or array.
+        state: What to judge: text, a JSON object or array, or user messages.
         schema: The schema class declaring the questions.
 
     Returns:

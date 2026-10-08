@@ -95,6 +95,8 @@ class DecisionQuestion(Generic[_TAnswer]):
     Class access returns the question; instance access returns its answer.
     """
 
+    kind: ClassVar[QuestionKind]
+    """The wire ``type``."""
     answer_type: ClassVar[type[DecisionAnswer]]
 
     def __init__(self, instructions: str) -> None:

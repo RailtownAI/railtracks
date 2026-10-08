@@ -1,9 +1,10 @@
-"""OpenAI ``/v1/decisions`` request bodies and response parsing.
+"""``DecisionSchema`` to and from the OpenAI-shape request ``litellm.adecisions`` takes.
 
-Shapes follow https://developers.openai.com/api/docs/guides/decisions and the
-``Decision`` types in ``openai`` 3.26: questions and answers are arrays carrying an
-optional ``name``, choice and score probabilities are arrays of objects, and any answer
-may be a ``refusal``.
+rt always sends the OpenAI shape (``input`` plus a list of named ``questions``), for
+every provider: litellm translates it per provider, keeps refusals (the System One
+``state`` shape drops them) and accepts images where the provider does. Shapes follow
+``litellm.types.decisions`` (1.104.2) and
+https://developers.openai.com/api/docs/guides/decisions.
 """
 
 from __future__ import annotations
@@ -12,39 +13,23 @@ import json
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
-from ..._exceptions import (
-    DecisionProviderRefusalError,
-    DecisionProviderRequestError,
-    DecisionProviderResponseError,
-)
-from ...model import DecisionReply
-from ...schema import DecisionAnswer, DecisionSchema, DecisionState
-from .schema import (
-    OpenAIChoiceQuestion,
-    OpenAIQuestion,
-    OpenAISchema,
-    OpenAIScoreQuestion,
+from .._exceptions import DecisionProviderRefusalError, DecisionProviderResponseError
+from ..model import DecisionReply
+from ..schema import (
+    ChoiceQuestion,
+    DecisionAnswer,
+    DecisionQuestion,
+    DecisionSchema,
+    DecisionState,
+    ScoreQuestion,
 )
 
 _TSchema = TypeVar("_TSchema", bound=DecisionSchema)
 
 
-def openai_questions(
-    schema: type[DecisionSchema],
-) -> Mapping[str, OpenAIQuestion[Any]]:
-    """``schema``'s questions, once it is confirmed to be an ``OpenAISchema``.
-
-    Raises:
-        DecisionProviderRequestError: If ``schema`` is not an ``OpenAISchema`` subclass.
-    """
-    if not issubclass(schema, OpenAISchema):
-        raise DecisionProviderRequestError(
-            f"{schema.__name__} is not an OpenAISchema; OpenAI's Decisions API only "
-            "answers OpenAISchema questions."
-        )
-    return schema.__questions__
+# ================= Request =================
 
 
 def _options_to_wire(
@@ -59,26 +44,35 @@ def _options_to_wire(
     return wire
 
 
-def question_to_wire(name: str, question: OpenAIQuestion[Any]) -> dict[str, Any]:
+def question_to_wire(name: str, question: DecisionQuestion[Any]) -> dict[str, Any]:
     """One question in its wire form (``type``, ``name``, ``instructions``, ...)."""
     wire: dict[str, Any] = {
         "type": question.kind,
         "name": name,
         "instructions": question.instructions,
     }
-    if isinstance(question, OpenAIChoiceQuestion):
+    if isinstance(question, ChoiceQuestion):
         wire["choices"] = _options_to_wire(question.choices, "value")
-    elif isinstance(question, OpenAIScoreQuestion):
+    elif isinstance(question, ScoreQuestion):
         wire["levels"] = _options_to_wire(question.levels, "label")
     return wire
 
 
-def questions_to_wire(schema: type[DecisionSchema]) -> dict[str, dict[str, Any]]:
+def describe_questions(schema: type[DecisionSchema]) -> dict[str, dict[str, Any]]:
     """Every question of ``schema`` in wire form, keyed by name in definition order."""
     return {
         name: question_to_wire(name, question)
-        for name, question in openai_questions(schema).items()
+        for name, question in schema.__questions__.items()
     }
+
+
+def questions_to_wire(schema: type[DecisionSchema]) -> list[dict[str, Any]]:
+    """The ``questions`` argument: every question in wire form, in definition order.
+
+    Names are always sent and are unique (they are attribute names), so System One
+    providers key their answers by name rather than by position.
+    """
+    return list(describe_questions(schema).values())
 
 
 def is_user_messages(state: DecisionState) -> bool:
@@ -91,7 +85,7 @@ def is_user_messages(state: DecisionState) -> bool:
 
 
 def to_input(state: DecisionState) -> str | list[Any]:
-    """The ``input`` field: text as is, user messages as is, other JSON as JSON text."""
+    """The ``input`` argument: text as is, user messages as is, other JSON as JSON text."""
     if isinstance(state, str):
         return state
     if isinstance(state, list) and is_user_messages(state):
@@ -99,15 +93,7 @@ def to_input(state: DecisionState) -> str | list[Any]:
     return json.dumps(state)
 
 
-def build_request(
-    model_name: str, state: DecisionState, schema: type[DecisionSchema]
-) -> dict[str, Any]:
-    """The JSON body for ``POST /v1/decisions``."""
-    return {
-        "model": model_name,
-        "input": to_input(state),
-        "questions": list(questions_to_wire(schema).values()),
-    }
+# ================= Response =================
 
 
 def _malformed(field: str, problem: str = "missing") -> DecisionProviderResponseError:
@@ -121,27 +107,27 @@ def _optional_int(value: object) -> int | None:
 
 
 def _answer_payload(
-    raw: dict[str, Any], question: OpenAIQuestion[Any]
+    raw: dict[str, Any], question: DecisionQuestion[Any]
 ) -> dict[str, Any]:
     """Reshape one wire answer into the fields of ``question.answer_type``."""
-    if question.kind == "predicate":
-        return {"probability": raw.get("probability")}
-    probabilities = raw.get("probabilities")
-    if not isinstance(probabilities, list) or not all(
-        isinstance(p, dict) and "value" in p and "probability" in p
-        for p in probabilities
-    ):
-        raise ValueError("probabilities")
-    payload = {
-        "confidence": raw.get("confidence"),
-        "probabilities": {p["value"]: p["probability"] for p in probabilities},
-    }
-    if question.kind == "choice":
-        payload["choice"] = raw.get("choice")
-    else:
-        payload["score"] = raw.get("score")
-        payload["legend"] = {p["value"]: p.get("label") for p in probabilities}
-    return payload
+    if isinstance(question, (ChoiceQuestion, ScoreQuestion)):
+        probabilities = raw.get("probabilities")
+        if not isinstance(probabilities, list) or not all(
+            isinstance(p, dict) and "value" in p and "probability" in p
+            for p in probabilities
+        ):
+            raise ValueError("probabilities")
+        payload = {
+            "confidence": raw.get("confidence"),
+            "probabilities": {p["value"]: p["probability"] for p in probabilities},
+        }
+        if isinstance(question, ChoiceQuestion):
+            payload["choice"] = raw.get("choice")
+        else:
+            payload["score"] = raw.get("score")
+            payload["legend"] = {p["value"]: p.get("label") for p in probabilities}
+        return payload
+    return {"probability": raw.get("probability")}
 
 
 def _match_answers(answers: list[Any], names: list[str]) -> dict[str, object]:
@@ -159,7 +145,7 @@ def _match_answers(answers: list[Any], names: list[str]) -> dict[str, object]:
 
 
 def _parse_answer(
-    name: str, question: OpenAIQuestion[Any], raw: dict[str, Any]
+    name: str, question: DecisionQuestion[Any], raw: dict[str, Any]
 ) -> DecisionAnswer:
     if raw.get("type") != question.kind:
         raise _malformed(f"answers.{name}.type", f"expected {question.kind!r} for")
@@ -174,26 +160,32 @@ def _parse_answer(
         raise _malformed(f"answers.{name}.{e}", "invalid") from e
 
 
-def parse_response(body: object, schema: type[_TSchema]) -> DecisionReply[_TSchema]:
-    """Parse a ``/v1/decisions`` JSON body into a ``schema`` instance and metadata.
+def parse_response(response: object, schema: type[_TSchema]) -> DecisionReply[_TSchema]:
+    """Parse an ``OpenAIDecisionResponse`` (or its JSON dict) into a ``schema`` instance.
 
-    Answers are matched to questions by ``name``, or by position when the host leaves
-    names out.
+    Answers are matched to questions by ``name``, or by position when the provider
+    leaves names out. The cost is left to the caller, which reads it from litellm's
+    hidden params.
 
     Raises:
         DecisionProviderRefusalError: If the model declined any question; carries the
             answers it did give.
-        DecisionProviderResponseError: If the body is not an object, or an answer for
-            one of ``schema``'s questions is missing or malformed. The message names
-            the field.
+        DecisionProviderResponseError: If the response is not an object, or an answer
+            for one of ``schema``'s questions is missing or malformed. The message
+            names the field.
     """
+    body = (
+        response.model_dump(mode="json")
+        if isinstance(response, BaseModel)
+        else response
+    )
     if not isinstance(body, dict):
         raise _malformed("<body>", "expected a JSON object for")
     answers = body.get("answers")
     if not isinstance(answers, list):
         raise _malformed("answers")
 
-    questions = openai_questions(schema)
+    questions = schema.__questions__
     matched = _match_answers(answers, list(questions))
     parsed: dict[str, DecisionAnswer] = {}
     refused: list[str] = []

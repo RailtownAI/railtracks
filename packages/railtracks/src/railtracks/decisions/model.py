@@ -26,7 +26,6 @@ from .response import DecisionResponse
 from .schema import DecisionSchema, DecisionState
 
 _TSchema = TypeVar("_TSchema", bound=DecisionSchema)
-_TVendorSchema = TypeVar("_TVendorSchema", bound=DecisionSchema)
 
 RETRYABLE_ERRORS: tuple[type[DecisionProviderError], ...] = (
     DecisionProviderRateLimitError,
@@ -49,10 +48,9 @@ class DecisionReply(Generic[_TSchema]):
     raw: dict[str, Any]
 
 
-class DecisionModel(ABC, Generic[_TVendorSchema]):
-    """Base for a System One model client, generic in the vendor's schema base."""
+class DecisionModel(ABC):
+    """Base for a System One model client: answers any ``DecisionSchema``."""
 
-    schema_base: ClassVar[type[DecisionSchema]]
     provider_name: str
     """Who serves the model; the response's ``provider`` when the host reports none."""
     bills_output_tokens: ClassVar[bool] = True
@@ -71,12 +69,6 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
         """The base URL the next call goes to, or None if none is configured."""
 
     @abstractmethod
-    async def aask(
-        self, state: DecisionState, schema: type[_TVendorSchema]
-    ) -> DecisionResponse[_TVendorSchema]:
-        """Answer every question in ``schema`` about ``state`` in one request."""
-
-    @abstractmethod
     async def _send(
         self, state: DecisionState, schema: type[_TSchema]
     ) -> DecisionReply[_TSchema]:
@@ -90,13 +82,25 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
     def describe_questions(self, schema: type[_TSchema]) -> dict[str, Any]:
         """``schema``'s questions as plain JSON, as the request would carry them."""
 
-    def _check_request(self, state: DecisionState, schema: type[_TSchema]) -> None:
-        """Reject a request the host can't take, before any attempt. No-op by default."""
-
-    async def _ask(
+    async def aask(
         self, state: DecisionState, schema: type[_TSchema]
     ) -> DecisionResponse[_TSchema]:
-        self._check_request(state, schema)
+        """Answer every question in ``schema`` about ``state`` in one request.
+
+        Args:
+            state: What to judge: text, a JSON object or array (sent as JSON text), or
+                a list of user messages, which may include images where the provider
+                accepts them.
+            schema: The ``DecisionSchema`` subclass declaring the questions.
+
+        Returns:
+            The answers as a ``schema`` instance, with model, token, latency and cost
+            metadata.
+
+        Raises:
+            DecisionProviderRefusalError: If the model declines any question.
+            DecisionProviderError: If the call fails otherwise; the subclass says why.
+        """
         start = time.perf_counter()
         reply = await self._send_with_retries(state, schema)
         latency = time.perf_counter() - start
@@ -108,7 +112,7 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
             input_tokens=reply.input_tokens,
             output_tokens=reply.output_tokens,
             latency=latency,
-            # what the host billed, when it says; else the LiteLLM catalog price
+            # what litellm priced the call at, when it says; else the catalog price
             cost=reply.reported_cost
             if reply.reported_cost is not None
             else decision_cost(
@@ -134,6 +138,6 @@ class DecisionModel(ABC, Generic[_TVendorSchema]):
             last = cast(DecisionProviderError, e.exception_list[-1])
         # Raise the last provider error itself, outside the except block: chaining it
         # to the RetryError (whose own cause is this error) would make a cycle and hide
-        # the httpx root cause, which `last.__cause__` still holds.
+        # the litellm root cause, which `last.__cause__` still holds.
         last.notes.append(f"Gave up after {attempts} attempts.")
         raise last
