@@ -1,3 +1,4 @@
+import base64
 import os
 from unittest.mock import MagicMock, patch
 
@@ -6,7 +7,11 @@ import pytest
 import requests
 from railtracks.llm._exceptions import ProviderError
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import UserMessage
+from railtracks.llm.message import AssistantMessage, UserMessage
+from railtracks.llm.models._model_exception_base import (
+    AttachmentNotSupportedError,
+    ModelError,
+)
 from railtracks.llm.models.local.ollama import OllamaLLM
 
 # TODO: Remove with the notices in 1.5.0.
@@ -32,35 +37,57 @@ def mock_failed_response():
     return mock
 
 
+PDF_DATA_URI = (
+    "data:application/pdf;base64,"
+    + base64.b64encode(b"%PDF-1.4\n%fake pdf\n%%EOF").decode()
+)
+IMAGE_DATA_URI = "data:image/png;base64,iVBORw0KGgo="
+
+
 def test_pdf_attachment_rejected(mock_response):
     """PDF attachments raise: litellm's Ollama transform drops them (#1628)."""
-    import base64 as _b64
-
     with patch("requests.get", return_value=mock_response):
         ollama = OllamaLLM("test-model")
-    pdf_bytes = b"%PDF-1.4\n%fake pdf\n%%EOF"
-    b64 = _b64.b64encode(pdf_bytes).decode("utf-8")
-    message = UserMessage(
-        content="Summarize this.",
-        attachment=[f"data:application/pdf;base64,{b64}"],
+    message = UserMessage(content="Summarize this.", attachment=[PDF_DATA_URI])
+
+    with pytest.raises(AttachmentNotSupportedError, match="application/pdf") as exc:
+        ollama._to_litellm_message(message)
+    assert isinstance(exc.value, ModelError)
+    assert isinstance(exc.value, ValueError)
+
+
+def test_pdf_in_history_fails_chat_before_completion(mock_response):
+    """A PDF anywhere in the history fails the whole request without calling the model."""
+    with patch("requests.get", return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    messages = MessageHistory(
+        [
+            UserMessage(
+                content="Here is the paper.",
+                attachment=[IMAGE_DATA_URI, PDF_DATA_URI],
+            ),
+            AssistantMessage(content="Got it."),
+            UserMessage(content="Summarize it."),
+        ]
     )
 
-    with pytest.raises(ValueError, match="drops PDF attachments"):
-        ollama._to_litellm_message(message)
+    with patch.object(litellm, "completion") as mock_completion:
+        with pytest.raises(AttachmentNotSupportedError):
+            ollama.chat(messages)
+    mock_completion.assert_not_called()
 
 
 def test_image_attachment_kept(mock_response):
     """Image attachments still serialize as image_url on Ollama."""
     with patch("requests.get", return_value=mock_response):
         ollama = OllamaLLM("test-model")
-    attachment_data_uri = "data:image/png;base64,iVBORw0KGgo="
-    message = UserMessage(content="View this image.", attachment=[attachment_data_uri])
+    message = UserMessage(content="View this image.", attachment=[IMAGE_DATA_URI])
 
     litellm_message = ollama._to_litellm_message(message)
 
     assert litellm_message["content"][1] == {
         "type": "image_url",
-        "image_url": {"url": attachment_data_uri},
+        "image_url": {"url": IMAGE_DATA_URI},
     }
 
 

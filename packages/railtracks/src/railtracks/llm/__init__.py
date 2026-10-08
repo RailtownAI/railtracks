@@ -22,6 +22,7 @@ from .models import (
     PortKeyLLM,
 )
 from .models._model_exception_base import (
+    AttachmentNotSupportedError,
     FunctionCallingNotSupportedError,
     ModelError,
     ModelNotFoundError,
@@ -51,6 +52,7 @@ __all__ = [
     "ModelError",
     "ModelNotFoundError",
     "FunctionCallingNotSupportedError",
+    "AttachmentNotSupportedError",
     "UnsupportedHyperparameterError",
     "MutuallyExclusiveHyperparametersError",
     "ToolCall",
