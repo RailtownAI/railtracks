@@ -105,8 +105,7 @@ async def invoke_decision(
             DecisionInvocationEvent(
                 decision_id=decision_id,
                 model_name=model.model_name,
-                # None until configured; the call then fails with a request error
-                api_base=model.api_base or "",
+                api_base=model.api_base,
                 state=state,
                 questions=model.describe_questions(schema),
             )

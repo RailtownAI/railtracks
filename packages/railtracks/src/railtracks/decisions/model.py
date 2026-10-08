@@ -65,8 +65,8 @@ class DecisionModel(ABC):
 
     @property
     @abstractmethod
-    def api_base(self) -> str | None:
-        """The base URL the next call goes to, or None if none is configured."""
+    def api_base(self) -> str:
+        """The base URL the next call goes to."""
 
     @abstractmethod
     async def _send(
