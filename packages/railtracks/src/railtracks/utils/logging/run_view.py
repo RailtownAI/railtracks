@@ -377,9 +377,9 @@ def _traceback_lines(traceback_text: str, *, full: bool) -> list[Text]:
         frames = [frame for frame in frames if not _is_internal(frame[0])] or frames
     lines = []
     for path, line, name, source in frames:
-        lines.append(Text(f"{_display_path(path)}:{line} in {name}", "dim"))
+        lines.append(Text(f"{_display_path(path)}:{line} in {name}", "dim red"))
         if source:
-            lines.append(Text(f"  {source}"))
+            lines.append(Text(f"  {source}", "red"))
     return lines
 
 
