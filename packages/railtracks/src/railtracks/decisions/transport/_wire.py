@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import Any, TypeGuard, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -75,7 +75,7 @@ def questions_to_wire(schema: type[DecisionSchema]) -> list[dict[str, Any]]:
     return list(describe_questions(schema).values())
 
 
-def is_user_messages(state: DecisionState) -> bool:
+def is_user_messages(state: DecisionState) -> TypeGuard[list[Any]]:
     """Whether ``state`` is already OpenAI ``input`` messages (for text and images)."""
     return (
         isinstance(state, list)
@@ -88,7 +88,7 @@ def to_input(state: DecisionState) -> str | list[Any]:
     """The ``input`` argument: text as is, user messages as is, other JSON as JSON text."""
     if isinstance(state, str):
         return state
-    if isinstance(state, list) and is_user_messages(state):
+    if is_user_messages(state):
         return state
     return json.dumps(state)
 
