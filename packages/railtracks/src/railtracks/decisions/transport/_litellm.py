@@ -227,11 +227,8 @@ class LiteLLMDecisionModel(DecisionModel):
 
     def _key_notes(self) -> list[str]:
         """Debugging notes for a missing key, or for a key the provider rejected."""
-        if self._api_key:
-            source = "the api_key= argument"
-        elif os.environ.get(self.api_key_env):
-            source = f"the {self.api_key_env} environment variable"
-        else:
+        source = "the api_key= argument" if self._api_key else self._key_source()
+        if source is None:
             return [
                 f"Pass api_key= or set the {self.api_key_env} environment variable."
             ]
@@ -239,3 +236,9 @@ class LiteLLMDecisionModel(DecisionModel):
             f"{self.provider_name} rejected the key from {source}; check that it is "
             f"a valid {self.provider_name} key."
         ]
+
+    def _key_source(self) -> str | None:
+        """Where litellm reads the key from when no ``api_key=`` is given; None if unset."""
+        if os.environ.get(self.api_key_env):
+            return f"the {self.api_key_env} environment variable"
+        return None
