@@ -41,6 +41,7 @@ ProviderError                    talking to a model provider
 ├── ProviderAuthenticationError
 ├── ModelError
 │   ├── FunctionCallingNotSupportedError
+│   ├── AttachmentNotSupportedError
 │   └── UnsupportedHyperparameterError
 ├── ModelNotFoundError
 └── RetryError
