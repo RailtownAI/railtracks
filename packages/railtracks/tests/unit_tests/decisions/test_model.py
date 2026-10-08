@@ -226,6 +226,16 @@ class TestErrorMapping:
                 DecisionProviderRequestError,
             ),
             (
+                # no status to classify by: still a provider error, not a TypeError
+                litellm.APIError(
+                    status_code=None,
+                    message="no status",
+                    llm_provider=_PROVIDER,
+                    model=_MODEL,
+                ),
+                DecisionProviderError,
+            ),
+            (
                 litellm.APIResponseValidationError(
                     message="bad body", llm_provider=_PROVIDER, model=_MODEL
                 ),
@@ -245,6 +255,7 @@ class TestErrorMapping:
             "not-found",
             "api-error-5xx",
             "api-error-4xx",
+            "api-error-no-status",
             "response-validation",
         ],
     )

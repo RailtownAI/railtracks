@@ -205,11 +205,13 @@ class LiteLLMDecisionModel(DecisionModel):
                 target = provider_type
                 break
         if target is None and isinstance(error, litellm.APIError):
-            target = (
-                DecisionProviderServerError
-                if error.status_code >= 500
-                else DecisionProviderRequestError
-            )
+            status = error.status_code
+            if not isinstance(status, int):
+                target = DecisionProviderError
+            elif status >= 500:
+                target = DecisionProviderServerError
+            else:
+                target = DecisionProviderRequestError
         if target is None:
             return None
 
