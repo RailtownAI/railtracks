@@ -881,11 +881,11 @@ class LiteLLMWrapper(ModelBase, ABC):
         """
         choice = raw.choices[0]
 
-        if choice.finish_reason == "stop" and not choice.message.tool_calls:
-            # litellm types content as str | None, but a plain "stop" completion always
-            # carries (possibly empty) text content.
+        if not choice.message.tool_calls:
+            # A turn without tool calls is a plain reply whatever its finish_reason, so a
+            # cut-off or filtered reply keeps its text (or None), as in the streaming path.
             assistant_msg = _attach_reasoning(
-                AssistantMessage(content=cast(str, choice.message.content)),
+                AssistantMessage(content=choice.message.content),
                 choice.message,
             )
             return Response(message=assistant_msg, message_info=info)

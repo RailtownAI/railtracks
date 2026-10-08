@@ -1272,6 +1272,24 @@ class TestReasoningSurfacing:
         assert response.reasoning == "2 + 2 is 4"
         assert response.message.thinking_blocks == _THINKING_BLOCKS
 
+    @pytest.mark.parametrize(
+        "content,finish_reason",
+        [("partial ans", "length"), (None, "length"), (None, "content_filter")],
+        ids=["cut_off_with_text", "cut_off_empty", "filtered"],
+    )
+    def test_chat_with_tools_reply_without_calls_is_plain_content(
+        self, mock_litellm_wrapper, content, finish_reason
+    ):
+        """No tool calls means a plain reply whatever the finish_reason, never an empty
+        `ToolCalls` that the node cannot classify."""
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content=content, finish_reason=finish_reason)
+
+        response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
+
+        assert response.message.content == content
+        assert response.message.tool_calls == []
+
     def test_chat_with_tools_tool_call_surfaces_reasoning(self, mock_litellm_wrapper):
         wrapper = mock_litellm_wrapper()
         raw = _model_response(
