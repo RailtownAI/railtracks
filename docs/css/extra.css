@@ -455,6 +455,13 @@
 }
 
 /* ── Headings ────────────────────────────────────────────── */
+/* The 60px logo makes the desktop header taller than Material assumes; narrower screens hide the logo. */
+@media screen and (min-width: 76.25em) {
+  .md-header--lifted ~ .md-container .md-typeset :target {
+    --md-scroll-margin: 7.8rem;
+  }
+}
+
 .md-typeset h2 {
   font-size: 1.3rem;
   font-weight: 700;
@@ -467,4 +474,24 @@
   font-weight: 600;
   color: var(--md-default-fg-color--light);
   margin-top: 1.5rem;
+}
+
+/* ── Tooltips ────────────────────────────────────────────── */
+.md-typeset abbr {
+  border-bottom: none;
+  text-decoration: underline dotted 1px var(--md-default-fg-color--lighter);
+  text-underline-offset: 3px;
+}
+
+/* A tooltipped word inside a link keeps the link's own underline. */
+.md-typeset a abbr {
+  text-decoration: inherit;
+}
+
+/* Material sizes inline tooltips for short bold labels; glossary definitions are full sentences. */
+[role="tooltip"] > .md-tooltip2__inner {
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 0.4rem 0.6rem;
 }

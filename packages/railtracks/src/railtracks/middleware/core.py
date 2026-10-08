@@ -82,7 +82,10 @@ class Middleware(Generic[_P, _R, _Constraint]):
     ) -> None:
         _require_async(fn, "Middleware function")
         self._fn = fn
-        self.name = name if name is not None else fn.__name__
+        if name is None:
+            bound_to_self = getattr(fn, "__self__", None) is self
+            name = type(self).__name__ if bound_to_self else fn.__name__
+        self.name = name
         self.type_id = str(
             uuid.uuid4()
         )  # identifies this middleware definition, shared by every invocation
