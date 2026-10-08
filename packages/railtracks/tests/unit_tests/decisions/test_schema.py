@@ -252,6 +252,21 @@ class TestCollection:
                 first = shared
                 second = shared
 
+    def test_question_reused_in_another_schema_leaves_the_first_intact(self):
+        shared = DecisionSchema.Predicate(instructions="x")
+
+        class First(DecisionSchema):
+            is_urgent = shared
+
+        with pytest.raises(SchemaDefinitionError, match="First.is_urgent"):
+
+            class Second(DecisionSchema):
+                urgent = shared
+
+        assert First.is_urgent.name == "is_urgent"
+        first = First({"is_urgent": PredicateAnswer(probability=0.9)})
+        assert first.is_urgent.probability == 0.9
+
 
 # ================= Instances hold the answers =================
 
