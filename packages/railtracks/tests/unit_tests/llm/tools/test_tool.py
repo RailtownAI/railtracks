@@ -8,7 +8,7 @@ import warnings
 
 import pytest
 from railtracks.llm.tools import Parameter, Tool
-from railtracks.llm.tools.tool import ToolCreationError
+from railtracks.llm.tools.tool import ToolCreationError, to_tool_name
 
 
 class TestToolFromSchemaDict:
@@ -319,3 +319,34 @@ class TestRestFieldsInTools:
             warnings.simplefilter("always")
             Tool.from_function(broken, params=[])
         assert not [w for w in record if "Could not parse" in str(w.message)]
+
+
+class TestToolNames:
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("get_weather", "get_weather"),
+            ("get-weather_2", "get-weather_2"),
+            ("Weather Bot 2.0!", "Weather_Bot_2_0_"),
+            ("météo", "m_t_o"),
+            ("<lambda>", "_lambda_"),
+        ],
+    )
+    def test_invalid_characters_become_underscores(self, name, expected):
+        assert to_tool_name(name) == expected
+
+    def test_long_names_are_cut_to_64_characters(self):
+        assert to_tool_name("a" * 100) == "a" * 64
+
+    def test_from_function_makes_an_explicit_name_provider_safe(self):
+        def get_weather(city: str) -> str:
+            """Get the weather.
+
+            Args:
+                city: The city.
+            """
+            return city
+
+        tool = Tool.from_function(get_weather, name="Get Weather")
+
+        assert tool.name == "Get_Weather"

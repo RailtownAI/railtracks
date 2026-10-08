@@ -1,5 +1,7 @@
 import pytest
 import railtracks as rt
+from railtracks.built_nodes.llm.middleware import pre_llm
+from railtracks.exceptions import NodeCreationError
 from railtracks.llm import ToolCall
 
 # TODO: Remove with the notices in 1.5.0.
@@ -106,13 +108,17 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
 
     assert rng_node.tool_info().name == "RNG_Tool"
     assert rng_node.tool_info().detail == rng_tool_details
-    assert rng_node.tool_info().parameters == []
+    assert [p.name for p in rng_node.tool_info().parameters] == ["request"]
 
     system_message = "You are a math genius that calls the RNG tool to generate 5 random numbers between 1 and 100 and gives the sum of those numbers."
 
     math_llm = mock_llm(
         requested_tool_calls=[
-            ToolCall(name="RNG_Tool", identifier="id_42424242", arguments={})
+            ToolCall(
+                name="RNG_Tool",
+                identifier="id_42424242",
+                arguments={"request": "Generate the numbers."},
+            )
         ]
     )
     # ========================================
@@ -147,7 +153,11 @@ async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_mess
 
     caller_llm = mock_llm(
         requested_tool_calls=[
-            ToolCall(name="Encoder", identifier="id_42424242", arguments={})
+            ToolCall(
+                name="Encoder",
+                identifier="id_42424242",
+                arguments={"request": "hello world"},
+            )
         ]
     )
 
@@ -220,10 +230,109 @@ async def test_terminal_llm_tool_with_invalid_parameters(
     )
 
 
-def test_no_manifest(mock_llm):
-    agent = rt.agent_node(name="not a tool", llm=mock_llm)
-    with pytest.raises(NotImplementedError):
-        agent.tool_info()
+def test_no_manifest_and_no_system_message_raises_when_used_as_tool(mock_llm):
+    agent = rt.agent_node(name="not a tool", llm=mock_llm())
+
+    with pytest.raises(NodeCreationError, match="not a tool"):
+        rt.agent_node(name="Parent", llm=mock_llm(), tool_nodes=[agent])
+
+
+@pytest.mark.timeout(30)
+@pytest.mark.asyncio
+async def test_agent_without_manifest_is_called_with_request(mock_llm):
+    seen_by_child: list[rt.llm.MessageHistory] = []
+
+    @pre_llm
+    async def record_child_input(message_history, schema, tools):
+        seen_by_child.append(message_history)
+        return message_history, schema, tools
+
+    child = rt.agent_node(
+        name="Echo Agent",
+        llm=mock_llm("echoed"),
+        system_message="Echo the input back to the user.",
+        model_middleware=[record_child_input],
+    )
+    parent = rt.agent_node(
+        name="Parent",
+        llm=mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="Echo_Agent",
+                    identifier="id_42424242",
+                    arguments={"request": "Say hello"},
+                )
+            ]
+        ),
+        system_message="Delegate to the echo agent.",
+        tool_nodes=[child],
+    )
+
+    response = await rt.Flow(
+        "test_agent_without_manifest_is_called_with_request", parent
+    ).ainvoke("Please say hello")
+
+    child_messages = seen_by_child[0]
+    assert [m.role for m in child_messages] == ["system", "user"]
+    assert child_messages[-1].content == "Say hello"
+    assert "Tool Echo_Agent returned: 'echoed'" in response.content
+
+
+@pytest.mark.timeout(30)
+@pytest.mark.asyncio
+async def test_context_placeholders_fill_the_child_prompt_but_not_the_tool_description(
+    mock_llm,
+):
+    # ContextInjection fills messages only, so the caller's tool list keeps the placeholder.
+    tools_seen_by_parent: list[rt.llm.Tool] = []
+    seen_by_child: list[rt.llm.MessageHistory] = []
+
+    @pre_llm
+    async def record_parent_tools(message_history, schema, tools):
+        tools_seen_by_parent.extend(tools or [])
+        return message_history, schema, tools
+
+    @pre_llm
+    async def record_child_input(message_history, schema, tools):
+        seen_by_child.append(message_history)
+        return message_history, schema, tools
+
+    child = rt.agent_node(
+        name="Support Agent",
+        llm=mock_llm("helped"),
+        system_message="You help {customer_name} with their order.",
+        model_middleware=[
+            rt.prebuilt.middleware.ContextInjection(),
+            record_child_input,
+        ],
+    )
+    parent = rt.agent_node(
+        name="Parent",
+        llm=mock_llm(
+            requested_tool_calls=[
+                ToolCall(
+                    name="Support_Agent",
+                    identifier="id_42424242",
+                    arguments={"request": "Where is my order?"},
+                )
+            ]
+        ),
+        system_message="Delegate to the support agent.",
+        tool_nodes=[child],
+        model_middleware=[
+            rt.prebuilt.middleware.ContextInjection(),
+            record_parent_tools,
+        ],
+    )
+
+    await rt.Flow(
+        "test_context_placeholders", parent, context={"customer_name": "Ada"}
+    ).ainvoke("Where is my order?")
+
+    assert (
+        "You help {customer_name} with their order." in tools_seen_by_parent[0].detail
+    )
+    assert seen_by_child[0][0].content == "You help Ada with their order."
 
 
 # ====================================================== END terminal_llm as tool ========================================================

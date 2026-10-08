@@ -1,6 +1,6 @@
 """Unit tests for gaps in built_nodes/llm/llm_helpers.py: `get_node_from_name`'s
 multiple-candidates path, and `llm_prepare_called_as_tool_factory`'s array/object
-formatting branches (previously only exercised indirectly, with string params).
+formatting branches and its handling of missing or unknown arguments.
 """
 
 from __future__ import annotations
@@ -104,13 +104,46 @@ def test_prepare_called_as_tool_formats_string_param_plainly():
     assert "x: hello" in history[0].content
 
 
-def test_prepare_called_as_tool_empty_kwargs_returns_empty_history():
+def test_prepare_called_as_tool_missing_required_param_raises():
     params = [Parameter(name="x", param_type="string", description="d")]
+    prepare = llm_prepare_called_as_tool_factory(params)
+
+    with pytest.raises(TypeError, match="x"):
+        prepare()
+
+
+def test_prepare_called_as_tool_skips_missing_optional_param():
+    params = [
+        Parameter(name="city", param_type="string", description="d"),
+        Parameter(name="units", param_type="string", description="d", required=False),
+    ]
+    prepare = llm_prepare_called_as_tool_factory(params)
+
+    history = prepare(city="Paris")
+
+    assert "city: Paris" in history[0].content
+    assert "units" not in history[0].content
+
+
+def test_prepare_called_as_tool_ignores_unknown_arguments():
+    params = [Parameter(name="x", param_type="string", description="d")]
+    prepare = llm_prepare_called_as_tool_factory(params)
+
+    history = prepare(x="hello", made_up="ignored")
+
+    assert "made_up" not in history[0].content
+
+
+def test_prepare_called_as_tool_with_every_optional_param_omitted_still_sends_a_message():
+    params = [
+        Parameter(name="units", param_type="string", description="d", required=False)
+    ]
     prepare = llm_prepare_called_as_tool_factory(params)
 
     history = prepare()
 
-    assert list(history) == []
+    assert len(history) == 1
+    assert isinstance(history[0], UserMessage)
 
 
 # ---------------------------------------------------------------------------
