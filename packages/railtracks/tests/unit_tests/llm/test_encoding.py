@@ -195,6 +195,15 @@ class TestAdditionalEncodingCases:
         payload = result.split(",", 1)[1]
         assert base64.b64decode(payload, validate=True) == png_bytes
 
+    def test_detect_source_accepts_wrapped_unpadded_base64(self):
+        png_bytes = b"\x89PNG\r\n\x1a\n" + bytes(range(256)) * 3
+        b64 = base64.b64encode(png_bytes).decode("utf-8").rstrip("=")
+        wrapped = "\n".join(b64[i : i + 76] for i in range(0, len(b64), 76))
+
+        assert detect_source(wrapped) == "data_uri"
+        payload = ensure_data_uri(wrapped).split(",", 1)[1]
+        assert base64.b64decode(payload, validate=True) == png_bytes
+
 
 class TestDetectAttachmentMime:
     @pytest.mark.parametrize("brand", [b"avif", b"avis"])

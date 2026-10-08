@@ -9,6 +9,19 @@ from urllib.parse import urlparse
 from .attachment_formats import detect_attachment_mime_from_bytes
 
 
+def _normalize_base64(s: str) -> str:
+    """Remove all whitespace from base64 text and restore any missing padding.
+
+    Args:
+        s: Base64 text, possibly line-wrapped or unpadded.
+
+    Returns:
+        The payload with no whitespace and a length that is a multiple of 4.
+    """
+    s = "".join(s.split())
+    return s + "=" * (-len(s) % 4)
+
+
 def _is_base64_attachment(s: str) -> bool:
     """
     Return True if s appears to be a base64-encoded attachment payload (image or PDF),
@@ -24,10 +37,8 @@ def _is_base64_attachment(s: str) -> bool:
     try:
         decoded = base64.b64decode(s_stripped, validate=True)
     except Exception:
-        # try tolerant decode with padding
         try:
-            padding = "=" * ((4 - len(s_stripped) % 4) % 4)
-            decoded = base64.b64decode(s_stripped + padding)
+            decoded = base64.b64decode(_normalize_base64(s_stripped))
         except Exception:
             return False
 
@@ -68,9 +79,8 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
     try:
         decoded = base64.b64decode(s, validate=True)
     except Exception as e:
-        # Normalize what the tolerant decode accepts, so the returned URI is valid too.
-        s = "".join(s.split())
-        s += "=" * ((4 - len(s) % 4) % 4)
+        # The returned URI carries s, so it must be the normalized form.
+        s = _normalize_base64(s)
         try:
             decoded = base64.b64decode(s)
         except Exception:
