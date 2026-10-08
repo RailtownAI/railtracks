@@ -1,7 +1,7 @@
 ---
-name: rag-pipeline
+name: rag
 description: Build a RAG (retrieval-augmented generation) pipeline using railtracks. Use when the user wants to ingest documents into a vector store and retrieve relevant passages to answer questions.
-argument-hint: "[describe the data source and what you want to retrieve]"
+argument-hint: '[describe the data source and what you want to retrieve]'
 ---
 
 # Build a Railtracks RAG Pipeline
@@ -34,10 +34,10 @@ The pipeline has two paths:
 ```python
 from railtracks.retrieval.loaders import (
     TextLoader,  # .txt / .md files
-    CSVLoader,  # rows → documents; configure content_col, metadata_cols
+    CSVLoader,  # rows → documents; content_columns, id_column, ignore_columns
     JSONLoader,  # .json / .jsonl files
-    PyPDFLoader,  # PDF; strategy="page" (default), "paragraph", or "document"
-    HuggingFaceDatasetLoader,  # HF Hub datasets; pass dataset_name, split, text_column
+    PyPDFLoader,  # PDF file or folder; breakdown_strategy="page" (default), "paragraph", or "document"
+    HuggingFaceDatasetLoader,  # HF Hub datasets; pass dataset_name, split, content_columns
     LangChainLoaderAdapter,  # wrap any LangChain document loader
 )
 ```
@@ -58,7 +58,7 @@ from railtracks.retrieval.chunking import (
 from railtracks.retrieval.embedding import (
     OpenAIEmbedding,  # default model: "text-embedding-3-small"
     AzureEmbedding,  # Azure OpenAI routing
-    OllamaEmbedding,  # local dev; model, base_url
+    OllamaEmbedding,  # local dev; model, api_base
     LiteLLMEmbedding,  # any LiteLLM-supported provider
 )
 ```
@@ -179,9 +179,9 @@ from railtracks.retrieval.runtime import BatchIngested, DocumentFailed, Document
 async def ingest_with_progress(runtime: RetrievalRuntime, loader) -> None:
     async for event in runtime.ingest(loader=loader):
         if isinstance(event, BatchIngested):
-            print(f"batch {event.batch}: {event.chunks_written} chunks written")
+            print(f"batch {event.batch_index}: {len(event.embedded_chunks)} chunks written")
         elif isinstance(event, DocumentFailed):
-            print(f"FAILED: {event.document_id} — {event.error}")
+            print(f"FAILED: {event.document_id} — {event.errors}")
         elif isinstance(event, DocumentSkipped):
             print(f"skipped (unchanged): {event.document_id}")
 ```
@@ -191,10 +191,11 @@ async def ingest_with_progress(runtime: RetrievalRuntime, loader) -> None:
 from railtracks.retrieval.loaders import PyPDFLoader
 from railtracks.retrieval.chunking import RecursiveCharacterChunker
 
-# strategy="page" (default): one Document per page
-# strategy="paragraph": one Document per non-empty paragraph on each page
-# strategy="document": one Document for the whole PDF
-loader = PyPDFLoader("data/report.pdf", strategy="page")
+# breakdown_strategy="page" (default): one Document per page
+# breakdown_strategy="paragraph": one Document per non-empty paragraph on each page
+# breakdown_strategy="document": one Document for the whole PDF
+# Pass a folder instead of a file to load every .pdf in it, recursively
+loader = PyPDFLoader("data/report.pdf", breakdown_strategy="page")
 chunker = RecursiveCharacterChunker(chunk_size=800, overlap=100)
 ```
 
@@ -202,12 +203,13 @@ chunker = RecursiveCharacterChunker(chunk_size=800, overlap=100)
 ```python
 from railtracks.retrieval.loaders import CSVLoader
 
-# content_col: the column whose text gets embedded
-# metadata_cols: columns stored as metadata for filtering
+# content_columns: the columns whose text gets embedded (joined in order)
+# id_column: a column that uniquely identifies each row, for stable upserts
+# every other column is stored as metadata, unless listed in ignore_columns
 loader = CSVLoader(
     file_path="data/products.csv",
-    content_col="description",
-    metadata_cols=["product_id", "category", "price"],
+    content_columns=["description"],
+    id_column="product_id",
 )
 ```
 
@@ -218,7 +220,7 @@ from railtracks.retrieval.loaders import HuggingFaceDatasetLoader
 loader = HuggingFaceDatasetLoader(
     dataset_name="squad",
     split="train",
-    text_column="context",
+    content_columns=["context"],
 )
 ```
 
@@ -265,7 +267,7 @@ async def search_knowledge_base(query: str) -> str:
 RagAgent = rt.agent_node(
     "RAG Agent",
     tool_nodes=[search_knowledge_base],
-    llm=rt.llm.AnthropicLLM("claude-sonnet-5"),
+    llm=rt.llm.AnthropicLLM("claude-sonnet-5-5"),
     system_message="You are a helpful assistant. Always search the knowledge base before answering.",
 )
 flow = rt.Flow(name="RAG Flow", entry_point=RagAgent)
@@ -284,23 +286,25 @@ chunker = SentenceChunker(chunk_size=6, overlap=1)
 ```python
 from railtracks.retrieval.embedding import OllamaEmbedding
 
-embedder = OllamaEmbedding(model="nomic-embed-text", base_url="http://localhost:11434")
+embedder = OllamaEmbedding(model="nomic-embed-text", api_base="http://localhost:11434")
 ```
 
 ### Delete a document from the store
 ```python
 # Re-ingest will upsert (content-hash skips unchanged docs)
-# To explicitly remove:
-await runtime.delete_document(document_id="doc-uuid-here")
+# To explicitly remove (document_id is the Document.id UUID):
+from uuid import UUID
+
+await runtime.delete_document(document_id=UUID("1f0c9b6e-0000-4000-8000-000000000000"))
 ```
 
 ---
 
-## Things to avoid
-- Don't call `ChromaBackend(...)` without `await backend.initialize()` — use `await ChromaBackend.create(...)` as the factory instead, it handles initialization.
-- Don't mix embedding models across ingest and retrieve calls on the same collection — railtracks raises `EmbeddingModelMismatchError` to prevent silent vector corruption.
-- Don't buffer the entire corpus in memory before ingesting — use `ingest_all()` with a loader that streams (`astream()`); never call `loader.aload()` manually and pass the list directly.
-- Don't skip `documents_failed` in ingestion stats — always check and surface failures to the user.
-- Don't use `InMemoryVectorBackend` in production — vectors are lost on process restart; use `ChromaBackend` with a `path` or `PgvectorBackend`.
-- Don't construct `RetrievalRuntime` inside a request handler on every call — build it once at startup and reuse it.
-- Don't pass raw document text directly to `retrieve()` as a query — `retrieve()` takes the user's natural language question, not a chunk.
+## Rules
+- Create Chroma backends with `await ChromaBackend.create(...)`, which handles initialization.
+- Use the same embedding model for ingest and retrieve on a collection; railtracks raises `EmbeddingModelMismatchError` on a mismatch.
+- Ingest with `ingest_all()` and a loader that streams (`astream()`), so documents are processed as they load.
+- Check `documents_failed` in the ingestion stats and surface any failures to the user.
+- In production, store vectors in `ChromaBackend` with a `path`, or in `PgvectorBackend`; `InMemoryVectorBackend` keeps them only until the process restarts.
+- Build `RetrievalRuntime` once at startup and reuse it across requests.
+- Pass `retrieve()` the user's natural-language question as the query.

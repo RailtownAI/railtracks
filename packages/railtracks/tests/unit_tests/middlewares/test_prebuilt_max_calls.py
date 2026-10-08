@@ -19,6 +19,28 @@ def test_max_calls_is_a_plain_middleware():
     assert isinstance(MaxCalls(1), Middleware)
 
 
+def test_max_calls_is_named_after_its_class():
+    assert MaxCalls(1).name == "MaxCalls"
+
+
+def test_function_middleware_keeps_its_function_name():
+    async def my_middleware(call, *args, **kwargs):
+        return await call(*args, **kwargs)
+
+    assert Middleware(my_middleware).name == "my_middleware"
+
+
+def test_explicit_name_overrides_class_name():
+    class Named(Middleware):
+        def __init__(self):
+            super().__init__(self._middleware_fn, name="custom")
+
+        async def _middleware_fn(self, call, *args, **kwargs):
+            return await call(*args, **kwargs)
+
+    assert Named().name == "custom"
+
+
 def test_max_calls_exceeded_error_is_exported_flat():
     from railtracks.prebuilt.middleware import MaxCallsExceededError as PublicError
 

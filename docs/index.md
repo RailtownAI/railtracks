@@ -22,7 +22,7 @@ hide:
     <h3>Build</h3>
     <p>If you want to know how to build agents using Railtracks</p>
   </a>
-  <a class="card" href="observability/agenthub/local">
+  <a class="card" href="observability/agenthub/local_v2">
     <h3>Observe</h3>
     <p>If you want to inspect, track, and visualize your Agents</p>
   </a>
