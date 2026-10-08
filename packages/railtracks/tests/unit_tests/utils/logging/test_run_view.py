@@ -261,6 +261,57 @@ def test_middleware_passing_an_exception_through_prints_nothing(output, level):
     assert len(_lines(output)) == 2
 
 
+def _llm_done(node_id: str, invoke_id: str, tokens: int) -> Event:
+    return _event(
+        "llm.response",
+        spatial_parent_node_id=node_id,
+        parent_llm_invoke_id=invoke_id,
+        parent_llm_type_id="model-1",
+        reported_model_name="gpt",
+        input_tokens=tokens,
+        output_tokens=1,
+        total_cost=None,
+        latency=None,
+    )
+
+
+def test_siblings_running_at_once_name_their_branch(output, level):
+    """An orchestrator calls two agents in one turn, and their lines interleave."""
+    analyst, poet, tool = "node-analyst", "node-poet", "node-tool"
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Orchestrator", caller=None),
+        _node_started(analyst, "Word Analyst", caller=ENTRY),
+        _node_started(poet, "Poet", caller=ENTRY),
+        _llm_done(analyst, "llm-a1", tokens=199),
+        _node_started(tool, "count_letters", caller=analyst),
+        _node_done(tool),
+        _llm_done(poet, "llm-p1", tokens=47),
+        _node_done(poet),
+        # the poet is done, but the analyst's remaining lines still need its name
+        _llm_done(analyst, "llm-a2", tokens=234),
+        _node_done(analyst),
+        _llm_done(ENTRY, "llm-o2", tokens=311),
+        _node_done(ENTRY),
+    )
+
+    assert _lines(output)[1:] == [
+        "  ▶ Orchestrator",
+        "    ▶ Word Analyst",
+        "    ▶ Poet",
+        "      Word Analyst › ◆ gpt 199→1 tokens",
+        "      Word Analyst › ▶ count_letters",
+        "      Word Analyst › ✓ count_letters 0.250s",
+        "      Poet › ◆ gpt 47→1 tokens",
+        "    ✓ Poet 0.250s",
+        "      Word Analyst › ◆ gpt 234→1 tokens",
+        "    ✓ Word Analyst 0.250s",
+        "    ◆ gpt 311→1 tokens",
+        "  ✓ Orchestrator 0.250s",
+    ]
+
+
 def test_node_called_from_middleware_nests_under_that_middleware_node(output, level):
     view = RunView()
     _feed(

@@ -35,6 +35,11 @@ class _Run:
     # LLM and middleware invoke ids -> the node they ran in
     owners: dict[str, str] = field(default_factory=dict)
     failed: set[str] = field(default_factory=set)
+    # node id -> the node that called it (None for the entry point)
+    parents: dict[str, str | None] = field(default_factory=dict)
+    running: set[str] = field(default_factory=set)
+    # nodes that ran alongside a sibling; their lines carry the branch name
+    concurrent: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -42,6 +47,8 @@ class _Line:
     level: int
     depth: int
     text: Text
+    # the node to start from when looking for a concurrent branch to name
+    within: str | None = None
 
 
 class RunView:
@@ -84,6 +91,9 @@ class RunView:
         if line is not None and line.level >= run.level:
             prefix = elapsed_text(event.stamp.timestamp())
             prefix.append("  " * line.depth)
+            branch = _branch(run, line.within)
+            if branch is not None:
+                prefix.append(f"{_node_name(run, branch)} › ", "dim")
             console.print(prefix + line.text, soft_wrap=True)
 
         if event.event_type == "session.completed":
@@ -98,7 +108,17 @@ def _track(run: _Run, event: Event) -> None:
     if event_type == "node.creation":
         run.node_names[payload["node_id"]] = payload["name"]
     elif event_type == "node.invocation":
-        run.depths[payload["parent_node_id"]] = _caller_depth(run, payload) + 1
+        node_id = payload["parent_node_id"]
+        caller = _caller(run, payload)
+        run.depths[node_id] = run.depths.get(caller, 0) + 1 if caller else 1
+        siblings = {n for n in run.running if run.parents.get(n) == caller}
+        if siblings:
+            run.concurrent.update(siblings)
+            run.concurrent.add(node_id)
+        run.parents[node_id] = caller
+        run.running.add(node_id)
+    elif event_type == "node.destruction":
+        run.running.discard(payload["parent_node_id"])
     elif event_type == "node.failure":
         run.failed.add(payload["parent_node_id"])
     elif event_type.startswith("llm.") and event_type != "llm.creation":
@@ -118,7 +138,12 @@ def _render(run: _Run, event: Event) -> _Line | None:
         return _render_middleware(run, event_type, event.payload)
     if event_type in _CONTEXT_OPERATIONS:
         text = Text(f"· {event_type} {', '.join(event.payload['keys'])}", "dim")
-        return _Line(logging.DEBUG, _nested_depth(run, event.payload), text)
+        return _Line(
+            logging.DEBUG,
+            _nested_depth(run, event.payload),
+            text,
+            _owner(run, event.payload),
+        )
     return None
 
 
@@ -143,7 +168,9 @@ def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
     text = Text(f"▶ {_node_name(run, node_id)}")
     if run.level <= logging.DEBUG:
         text.append(f" {_call_args(payload['args'], payload['kwargs'])}", "dim")
-    return _Line(logging.INFO, run.depths.get(node_id, 1), text)
+    return _Line(
+        logging.INFO, run.depths.get(node_id, 1), text, run.parents.get(node_id)
+    )
 
 
 def _node_failure(run: _Run, payload: dict[str, Any]) -> _Line:
@@ -152,7 +179,9 @@ def _node_failure(run: _Run, payload: dict[str, Any]) -> _Line:
     text = Text(
         f"✗ {_node_name(run, node_id)} failed: {_exception(payload)}{fatal}", "red"
     )
-    return _Line(logging.ERROR, run.depths.get(node_id, 1), text)
+    return _Line(
+        logging.ERROR, run.depths.get(node_id, 1), text, run.parents.get(node_id)
+    )
 
 
 def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line | None:
@@ -166,19 +195,21 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line | None:
     )
     if run.level <= logging.DEBUG:
         text.append(f" → {_truncate(repr(payload['response']))}", "dim")
-    return _Line(logging.INFO, run.depths.get(node_id, 1), text)
+    return _Line(
+        logging.INFO, run.depths.get(node_id, 1), text, run.parents.get(node_id)
+    )
 
 
 def _llm_response(run: _Run, payload: dict[str, Any]) -> _Line:
     text = Text.assemble(
         (f"◆ {_model_name(run, payload)}", "cyan"), (_llm_stats(payload), "dim")
     )
-    return _Line(logging.INFO, _nested_depth(run, payload), text)
+    return _Line(logging.INFO, _nested_depth(run, payload), text, _owner(run, payload))
 
 
 def _llm_failure(run: _Run, payload: dict[str, Any]) -> _Line:
     text = Text(f"✗ {_model_name(run, payload)} failed: {_exception(payload)}", "red")
-    return _Line(logging.ERROR, _nested_depth(run, payload), text)
+    return _Line(logging.ERROR, _nested_depth(run, payload), text, _owner(run, payload))
 
 
 _RENDERERS: dict[str, Callable[[_Run, dict[str, Any]], _Line | None]] = {
@@ -206,11 +237,11 @@ def _render_middleware(
     """
     name = run.middleware_names.get(payload["parent_middleware_type_id"], "middleware")
     depth = _nested_depth(run, payload)
+    owner = _owner(run, payload)
 
     if event_type.endswith(".failure"):
-        return _Line(
-            logging.ERROR, depth, Text(f"✗ {name} failed: {_exception(payload)}", "red")
-        )
+        text = Text(f"✗ {name} failed: {_exception(payload)}", "red")
+        return _Line(logging.ERROR, depth, text, owner)
 
     decision = payload.get("decision")
     if decision is None:
@@ -219,16 +250,28 @@ def _render_middleware(
     text = Text(f"· {name} → {action}", "magenta")
     if decision.reason:
         text.append(f" ({_truncate(decision.reason)})", "dim")
-    return _Line(logging.DEBUG, depth, text)
+    return _Line(logging.DEBUG, depth, text, owner)
 
 
-def _caller_depth(run: _Run, payload: dict[str, Any]) -> int:
-    """Depth of whatever called this node; the entry point's caller is the run itself."""
+def _caller(run: _Run, payload: dict[str, Any]) -> str | None:
+    """The node that called this one, through its middleware if need be; None for the
+    entry point."""
     if payload.get("spatial_parent_type") == "middleware":
-        owner = run.owners.get(payload["spatial_parent_middleware_invoke_id"])
-        return run.depths.get(owner, 0) if owner is not None else 0
-    caller = payload.get("spatial_parent_node_id")
-    return run.depths.get(caller, 0) if caller is not None else 0
+        return run.owners.get(payload["spatial_parent_middleware_invoke_id"])
+    return payload.get("spatial_parent_node_id")
+
+
+def _branch(run: _Run, node_id: str | None) -> str | None:
+    """The nearest node at or above ``node_id`` that ran alongside a sibling.
+
+    Indentation alone can't tell siblings' lines apart once they interleave, so lines
+    inside such a branch are prefixed with its name.
+    """
+    while node_id is not None:
+        if node_id in run.concurrent:
+            return node_id
+        node_id = run.parents.get(node_id)
+    return None
 
 
 def _owner(run: _Run, payload: dict[str, Any]) -> str | None:
