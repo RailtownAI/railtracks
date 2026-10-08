@@ -387,6 +387,24 @@ class TestRetries:
             await model.aask("Help!", Triage)
         assert len(fake.calls) == 1
 
+    @pytest.mark.parametrize("api_base", ["not-a-url", "ftp://x.example", "https://"])
+    async def test_malformed_api_base_is_a_request_error(self, make_model, api_base):
+        model, fake = make_model(
+            api_base=api_base, retry_approach=FixedRetry(max_tries=3, delay=0.0)
+        )
+        with pytest.raises(DecisionProviderRequestError, match="api_base"):
+            await model.aask("Help!", Triage)
+        assert fake.calls == []
+
+    async def test_malformed_api_base_from_the_env_is_a_request_error(
+        self, make_model, monkeypatch
+    ):
+        monkeypatch.setenv("TYPESAFE_API_BASE", "api.typesafe.ai")
+        model, fake = make_model(retry_approach=FixedRetry(max_tries=3, delay=0.0))
+        with pytest.raises(DecisionProviderRequestError, match="TYPESAFE_API_BASE"):
+            await model.aask("Help!", Triage)
+        assert fake.calls == []
+
     async def test_no_retries_by_default(self, make_model):
         model, fake = make_model(_rate_limit(), respond())
         with pytest.raises(DecisionProviderRateLimitError):
