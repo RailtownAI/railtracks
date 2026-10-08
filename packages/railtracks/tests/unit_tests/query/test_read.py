@@ -12,6 +12,7 @@ class TestListNamespaces:
     def test_returns_the_registry_namespaces(self):
         assert list_namespaces() == [
             "context",
+            "decision",
             "llm",
             "middleware",
             "node",

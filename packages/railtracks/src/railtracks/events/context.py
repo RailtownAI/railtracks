@@ -16,6 +16,9 @@ from railtracks.observability import configure
 from railtracks.observability.writers.jsonl._serialize import RTObserverEncoder
 from railtracks.utils.logging.create import get_rt_logger
 
+# module import, not the name: _resolve -> railtracks.context -> here is a cycle,
+# so _resolve may still be loading when this module is first imported
+from . import _resolve
 from ._base import (
     LLMAndMiddlewareSpatialParent,
     NodeAndMiddlewareSpatialParent,
@@ -23,7 +26,6 @@ from ._base import (
     NoSpatialParent,
     SessionEventBase,
 )
-from ._resolve import context_spatial_parent
 from .send import emit, emit_nowait
 
 logger = get_rt_logger(__name__)
@@ -114,7 +116,7 @@ class ContextOperationBase(
     KeysAndValuesMixin,
 ):
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
-        return context_spatial_parent(scope)
+        return _resolve.context_spatial_parent(scope)
 
 
 @dataclass(kw_only=True)

@@ -1,7 +1,7 @@
 """Node-level queries within a session.
 
 These feed the session detail drawer and the graph endpoint: the per-node
-rows for the tree, the LLM cost/token roll-up per node, and the input/output
+rows for the tree, the LLM and decision cost/token roll-up per node, and the input/output
 payloads for the node details panel.
 """
 
@@ -81,20 +81,37 @@ def list_session_node_rows(
 def list_llm_totals_by_node(
     con: DuckDBPyConnection, session_id: str
 ) -> list[dict[str, Any]]:
-    """LLM cost/token roll-up per node, plus the model info of the final
-    response for that node."""
+    """LLM and decision cost/token roll-up per node, plus the model info of the
+    final response for that node.
+
+    Decision responses carry no ``llm.creation`` link, so their model name and
+    provider come from the event itself.
+    """
     sql = f"""
     WITH resp AS (
-      SELECT scope_id,
-             spatial_parent_node_id AS node_id,
-             timestamp,
-             parent_llm_type_id,
-             input_tokens,
-             output_tokens,
-             total_cost,
-             reported_model_name
-      FROM llm
-      WHERE event_type = 'llm.response' AND scope_id = ?
+      SELECT l.scope_id,
+             l.spatial_parent_node_id AS node_id,
+             l.timestamp,
+             l.parent_llm_type_id,
+             l.input_tokens,
+             l.output_tokens,
+             l.total_cost,
+             l.reported_model_name,
+             NULL AS provider
+      FROM llm l
+      WHERE l.event_type = 'llm.response' AND l.scope_id = ?
+      UNION ALL
+      SELECT d.scope_id,
+             d.spatial_parent_node_id AS node_id,
+             d.timestamp,
+             NULL AS parent_llm_type_id,
+             d.input_tokens,
+             d.output_tokens,
+             d.total_cost,
+             COALESCE(d.reported_model_name, d.model_name) AS reported_model_name,
+             d.provider
+      FROM decision d
+      WHERE d.event_type = 'decision.response' AND d.scope_id = ?
     ),
     agg AS (
       SELECT node_id,
@@ -110,7 +127,8 @@ def list_llm_totals_by_node(
       SELECT r.scope_id,
              r.node_id,
              r.parent_llm_type_id,
-             r.reported_model_name
+             r.reported_model_name,
+             r.provider
       FROM resp r
       JOIN agg USING (node_id)
       WHERE r.timestamp = agg.last_at
@@ -120,7 +138,8 @@ def list_llm_totals_by_node(
            a.output_tokens,
            a.total_cost,
            COALESCE(lr.reported_model_name, cr.model_name) AS model_name,
-           CAST(cr.model_provider AS VARCHAR)              AS model_provider
+           COALESCE(lr.provider, CAST(cr.model_provider AS VARCHAR))
+                                                           AS model_provider
     FROM agg a
     LEFT JOIN last_resp lr USING (node_id)
     LEFT JOIN creations cr
@@ -129,9 +148,57 @@ def list_llm_totals_by_node(
     return _rows(
         con,
         sql,
-        (session_id,),
+        (session_id, session_id),
         label=f"list_llm_totals_by_node({session_id[:8]})",
     )
+
+
+def get_decision_details(
+    con: DuckDBPyConnection, session_id: str, node_id: str
+) -> dict[str, Any] | None:
+    """For a node that made decision requests, the model of the last one plus
+    input-token and cost totals across all of them; None if it made none.
+
+    Latency is left out on purpose: decisions run inside the node, so their
+    latency is already part of the node's duration.
+    """
+    sql = """
+    WITH resp AS (
+      SELECT d.timestamp,
+             COALESCE(d.reported_model_name, d.model_name) AS model_name,
+             d.provider,
+             d.input_tokens,
+             d.output_tokens,
+             d.total_cost
+      FROM decision d
+      WHERE d.event_type = 'decision.response'
+        AND d.scope_id = ?
+        AND d.spatial_parent_node_id = ?
+    )
+    SELECT ARG_MAX(model_name, timestamp)    AS model_name,
+           ARG_MAX(provider, timestamp)      AS provider,
+           SUM(COALESCE(input_tokens, 0))    AS input_tokens,
+           SUM(COALESCE(output_tokens, 0))   AS output_tokens,
+           SUM(total_cost)                   AS total_cost,
+           COUNT(*)                          AS decisions
+    FROM resp
+    """
+    rows = _rows(
+        con,
+        sql,
+        (session_id, node_id),
+        label=f"get_decision_details({node_id[:8]})",
+    )
+    if not rows or not rows[0]["decisions"]:
+        return None
+    row = rows[0]
+    return {
+        "model_name": row["model_name"],
+        "provider": row["provider"],
+        "input_tokens": row["input_tokens"],
+        "output_tokens": row["output_tokens"],
+        "total_cost": row["total_cost"],
+    }
 
 
 def get_node_row(

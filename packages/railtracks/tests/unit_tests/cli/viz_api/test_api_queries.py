@@ -971,3 +971,216 @@ def test_failed_call_cost_surfaces_as_zero_in_llm_traces(
     assert rows[0]["total_cost"] == 0.0, (
         f"expected 0.0 for failed call, got {rows[0]['total_cost']!r}"
     )
+
+
+# ================= decision.* rollups =================
+
+_DECISION_SESSION = "11111111-2222-3333-4444-555555555555"
+_DECISION_NODE = "decision-node"
+_AGENT_NODE = "agent-node"
+
+
+def _decision_session_events(
+    session_id: str, *, with_llm: bool = False
+) -> list[dict[str, object]]:
+    """A session whose Tool node made one decision request, optionally plus an
+    Agent node with one LLM response."""
+    on_decision_node = {
+        "spatial_parent_type": "node",
+        "spatial_parent_node_id": _DECISION_NODE,
+        "parent_type": "node",
+        "parent_node_id": _DECISION_NODE,
+    }
+    events = [
+        _event(
+            "started",
+            "session.started",
+            session_id,
+            {"session_id": session_id, "flow_name": "triage"},
+        ),
+        _event(
+            "creation",
+            "node.creation",
+            session_id,
+            {"node_id": _DECISION_NODE, "name": "Triage Ticket", "node_type": "Tool"},
+        ),
+        _event(
+            "decision-invocation",
+            "decision.invocation",
+            session_id,
+            {
+                **on_decision_node,
+                "decision_id": "d1",
+                "model_name": "jev-latest",
+                "api_base": "https://api.typesafe.ai",
+                "state": "Help!",
+                "questions": {"is_urgent": {"type": "noul"}},
+            },
+        ),
+        _event(
+            "decision-response",
+            "decision.response",
+            session_id,
+            {
+                **on_decision_node,
+                "decision_id": "d1",
+                "model_name": "jev-latest",
+                "reported_model_name": "jev-1.13.0",
+                "provider": "TypeSafe",
+                "answers": {"is_urgent": {"noul": 0.93}},
+                "input_tokens": 296,
+                "output_tokens": 20,
+                "total_cost": 0.5,
+                "latency": 9.0,
+            },
+        ),
+        _event(
+            "completed",
+            "session.completed",
+            session_id,
+            {"status": "success", "duration_seconds": 1.0},
+        ),
+    ]
+    if with_llm:
+        events += [
+            _event(
+                "agent-creation",
+                "node.creation",
+                session_id,
+                {"node_id": _AGENT_NODE, "name": "Agent", "node_type": "Agent"},
+            ),
+            _event(
+                "llm-response",
+                "llm.response",
+                session_id,
+                {
+                    "spatial_parent_type": "node",
+                    "spatial_parent_node_id": _AGENT_NODE,
+                    "parent_type": "llm",
+                    "parent_llm_type_id": "llm-type",
+                    "parent_llm_invoke_id": "llm-call",
+                    "input_tokens": 100,
+                    "output_tokens": 10,
+                    "total_cost": 0.25,
+                },
+            ),
+        ]
+    return events
+
+
+def test_session_totals_include_a_decision_only_session(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path, _DECISION_SESSION, *_decision_session_events(_DECISION_SESSION)
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    row = queries.get_session_row(query.con, _DECISION_SESSION)
+
+    assert row is not None
+    assert row["total_cost"] == pytest.approx(0.5)
+    assert row["input_tokens"] == 296
+    assert row["output_tokens"] == 20
+
+
+def test_session_totals_add_decisions_to_llm_calls(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path,
+        _DECISION_SESSION,
+        *_decision_session_events(_DECISION_SESSION, with_llm=True),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    row = queries.get_session_row(query.con, _DECISION_SESSION)
+    stats = queries.get_session_stats(query.con)
+
+    assert row is not None
+    assert row["total_cost"] == pytest.approx(0.75)
+    assert row["input_tokens"] == 396
+    assert row["output_tokens"] == 30
+    assert stats["total_cost"] == pytest.approx(0.75)
+
+
+def test_session_with_unpriced_decisions_has_null_cost(tmp_path: Path) -> None:
+    events = _decision_session_events(_DECISION_SESSION)
+    for event in events:
+        if event["event_type"] == "decision.response":
+            event["payload"]["total_cost"] = None  # type: ignore[index]
+    _write_events(tmp_path, _DECISION_SESSION, *events)
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    row = queries.get_session_row(query.con, _DECISION_SESSION)
+
+    assert row is not None
+    assert row["total_cost"] is None
+    assert row["input_tokens"] == 296
+
+
+def test_node_totals_include_decisions_keyed_by_their_node(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path,
+        _DECISION_SESSION,
+        *_decision_session_events(_DECISION_SESSION, with_llm=True),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    totals = {
+        r["node_id"]: r
+        for r in queries.list_llm_totals_by_node(query.con, _DECISION_SESSION)
+    }
+
+    assert totals[_DECISION_NODE]["total_cost"] == pytest.approx(0.5)
+    assert totals[_DECISION_NODE]["input_tokens"] == 296
+    assert totals[_DECISION_NODE]["output_tokens"] == 20
+    assert totals[_DECISION_NODE]["model_name"] == "jev-1.13.0"
+    assert totals[_DECISION_NODE]["model_provider"] == "TypeSafe"
+    assert totals[_AGENT_NODE]["total_cost"] == pytest.approx(0.25)
+
+
+def test_get_decision_details(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path, _DECISION_SESSION, *_decision_session_events(_DECISION_SESSION)
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    details = queries.get_decision_details(query.con, _DECISION_SESSION, _DECISION_NODE)
+    missing = queries.get_decision_details(query.con, _DECISION_SESSION, "other-node")
+
+    assert details == {
+        "model_name": "jev-1.13.0",
+        "provider": "TypeSafe",
+        "input_tokens": 296,
+        "output_tokens": 20,
+        "total_cost": pytest.approx(0.5),
+    }
+    assert missing is None
+
+
+def test_tool_node_detail_and_graph_show_decision_cost(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_events(
+        tmp_path, _DECISION_SESSION, *_decision_session_events(_DECISION_SESSION)
+    )
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    client = TestClient(app)
+
+    detail = client.get(
+        f"/api/v2/sessions/{_DECISION_SESSION}/nodes/{_DECISION_NODE}"
+    ).json()
+    [graph_node] = client.get(f"/api/v2/sessions/{_DECISION_SESSION}/graph").json()[
+        "nodes"
+    ]
+
+    for node in (detail, graph_node):
+        assert node["total_cost"] == pytest.approx(0.5)
+        assert node["input_tokens"] == 296
+        assert node["output_tokens"] == 20
+        assert node["model_name"] == "jev-1.13.0"
+        assert node["model_provider"] == "TypeSafe"
+        # decision latency (9.0) is nested inside the node, never added to it
+        assert node["latency_seconds"] != pytest.approx(9.0)

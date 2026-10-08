@@ -1,8 +1,10 @@
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from ._base import RTError
 
 if TYPE_CHECKING:
+    from railtracks.decisions.schema import DecisionAnswer
     from railtracks.llm.history import MessageHistory
 
 __all__ = [
@@ -13,6 +15,14 @@ __all__ = [
     "LLMTimeoutError",
     "LLMRateLimitError",
     "LLMAuthenticationError",
+    "DecisionModelError",
+    "DecisionTimeoutError",
+    "DecisionRateLimitError",
+    "DecisionServerError",
+    "DecisionAuthenticationError",
+    "DecisionRequestError",
+    "DecisionResponseError",
+    "DecisionRefusalError",
     "GlobalTimeOutError",
     "ContextError",
     "FatalError",
@@ -141,6 +151,80 @@ class LLMRateLimitError(LLMError):
 
 class LLMAuthenticationError(LLMError):
     """The provider rejected the credentials. Retrying will not help; fix the config."""
+
+
+class DecisionModelError(NodeInvocationError):
+    """
+    Raised when a System One decision model call fails.
+
+    A `NodeInvocationError`, like `LLMError`, so a failed decision terminates the node
+    that made it and callers can catch both kinds of model failure the same way.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.reason = reason
+        message = f"{self._color('Decision Model Error: ', self.BOLD_RED)}{self._color(reason, self.RED)}"
+        super().__init__(message, notes=notes, fatal=fatal)
+
+
+class DecisionTimeoutError(DecisionModelError):
+    """The decision model did not answer in time, or could not be reached."""
+
+
+class DecisionRateLimitError(DecisionModelError):
+    """The provider rejected the call for rate or quota reasons. Usually worth backing off."""
+
+
+class DecisionServerError(DecisionModelError):
+    """The provider failed with a 5xx status. Usually transient."""
+
+
+class DecisionAuthenticationError(DecisionModelError):
+    """The API key is missing or was rejected. Retrying will not help; fix the config."""
+
+
+class DecisionRequestError(DecisionModelError):
+    """The provider rejected the request (a 4xx other than auth or rate limits)."""
+
+    def __init__(
+        self,
+        reason: str,
+        body: str,
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.body = body
+        super().__init__(reason, notes=notes, fatal=fatal)
+
+
+class DecisionResponseError(DecisionModelError):
+    """The provider's response could not be parsed into answers."""
+
+
+class DecisionRefusalError(DecisionModelError):
+    """The model declined to answer one or more questions.
+
+    Attributes:
+        refused: The names of the questions the model declined.
+        answers: The answers it did give, keyed by question name.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        refused: list[str],
+        answers: "Mapping[str, DecisionAnswer] | None" = None,
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.refused = list(refused)
+        self.answers = dict(answers or {})
+        super().__init__(reason, notes=notes, fatal=fatal)
 
 
 class NodeCreationError(RTError):
