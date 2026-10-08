@@ -84,7 +84,7 @@ pip install "railtracks[ocr]"             # PyPDF + OCR (requires Tesseract)
 1. **Read the existing code** — check what files already exist. Understand what data source, chunking strategy, and query pattern the user needs before writing anything.
 2. **Choose a loader** — match the source type (file, PDF, CSV, HuggingFace dataset, etc.). Ask the user to clarify if not obvious from `$ARGUMENTS`.
 3. **Choose a chunker** — default to `RecursiveCharacterChunker` for plain text, `MarkdownHeaderChunker` for structured docs, `SentenceChunker` for narrative text. Use `SemanticChunker` only when chunk boundaries matter semantically.
-4. **Choose an embedder** — default to `OpenAIEmbedding()` (text-embedding-3-small). Use `OllamaEmbedding` for local/offline dev.
+4. **Choose an embedder** — match the user's setup: `OpenAIEmbedding()` if they have an OpenAI key, `OllamaEmbedding` for local/offline dev, `LiteLLMEmbedding` for other providers. Ask if not obvious from context.
 5. **Choose a backend** — `InMemoryVectorBackend` for demos/tests, `ChromaBackend` for local persistence, `PgvectorBackend` for production.
 6. **Construct `RetrievalRuntime`** — pass chunker, embedder, store. Initialize async backends with `await backend.initialize()` or the `ChromaBackend.create()` factory.
 7. **Ingest documents** — call `runtime.ingest_all(loader=...)`. Print stats. Handle `documents_failed` gracefully.
