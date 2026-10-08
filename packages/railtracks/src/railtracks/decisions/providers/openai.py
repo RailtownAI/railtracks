@@ -10,11 +10,11 @@ from ..transport._litellm import LiteLLMDecisionModel
 class OpenAIDecisions(LiteLLMDecisionModel):
     """OpenAI's Decisions API, e.g. ``gpt-6-luna`` (public beta since 2026-10-06).
 
-    Calls ``litellm.adecisions`` with ``openai/<model_name>``. litellm reads
-    ``OPENAI_API_KEY`` (required) and takes the base URL from ``litellm.api_base``, then
-    ``OPENAI_BASE_URL``, then ``OPENAI_API_BASE``. The input can be text, other JSON
-    (sent as JSON text), or a list of user messages with ``input_text`` and
-    ``input_image`` parts. Guide:
+    Calls ``litellm.adecisions`` with ``openai/<model_name>``. litellm reads the key
+    from ``litellm.api_key``, then ``litellm.openai_key``, then ``OPENAI_API_KEY`` (one
+    is required), and the base URL from ``litellm.api_base``, then ``OPENAI_BASE_URL``,
+    then ``OPENAI_API_BASE``. The input can be text, other JSON (sent as JSON text),
+    or a list of user messages with ``input_text`` and ``input_image`` parts. Guide:
     https://developers.openai.com/api/docs/guides/decisions.
 
     Pricing counts input tokens only: the API bills input tokens alone, while
@@ -38,3 +38,10 @@ class OpenAIDecisions(LiteLLMDecisionModel):
             or os.environ.get("OPENAI_API_BASE")
             or self.default_api_base
         )
+
+    def _key_source(self) -> str | None:
+        # litellm's OpenAI path reads these globals before OPENAI_API_KEY
+        for setting in ("api_key", "openai_key"):
+            if getattr(litellm, setting, None):
+                return f"litellm.{setting}"
+        return super()._key_source()

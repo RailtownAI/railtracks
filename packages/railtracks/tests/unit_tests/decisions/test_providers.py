@@ -121,6 +121,12 @@ class TestOpenRouterAI:
         assert resp.cost == pytest.approx(296 * 4.2e-08)
 
 
+def _rejected(provider: str) -> litellm.AuthenticationError:
+    return litellm.AuthenticationError(
+        message="Incorrect API key provided", llm_provider=provider, model="m"
+    )
+
+
 # ================= OpenAI =================
 
 
@@ -162,6 +168,35 @@ class TestOpenAIDecisions:
         )
         with pytest.raises(DecisionProviderAuthenticationError, match="OPENAI_API_KEY"):
             await model.aask("Help!", Triage)
+
+    @pytest.mark.parametrize("setting", ["api_key", "openai_key"])
+    async def test_rejected_litellm_global_key_is_named(
+        self, make_model, monkeypatch, setting
+    ):
+        # litellm's OpenAI path reads these globals before OPENAI_API_KEY
+        monkeypatch.setattr(litellm, setting, "sk-global")
+        model, _ = make_model(
+            _rejected("openai"),
+            cls=OpenAIDecisions,
+            model_name="gpt-6-luna",
+            api_key=None,
+        )
+        with pytest.raises(DecisionProviderAuthenticationError) as info:
+            await model.aask("Help!", Triage)
+        notes = " ".join(info.value.notes)
+        assert f"rejected the key from litellm.{setting}" in notes
+
+    @pytest.mark.parametrize("provider", [TypeSafeAI, OpenRouterAI])
+    async def test_litellm_global_key_is_openai_only(
+        self, make_model, monkeypatch, provider
+    ):
+        monkeypatch.setattr(litellm, "api_key", "sk-global")
+        model, _ = make_model(_rejected("typesafe"), cls=provider, api_key=None)
+        with pytest.raises(DecisionProviderAuthenticationError) as info:
+            await model.aask("Help!", Triage)
+        notes = " ".join(info.value.notes)
+        assert "rejected" not in notes
+        assert f"set the {provider.api_key_env} environment variable" in notes
 
     def test_pricing_keys(self):
         assert OpenAIDecisions("gpt-6-luna")._pricing_keys() == ["gpt-6-luna"]
