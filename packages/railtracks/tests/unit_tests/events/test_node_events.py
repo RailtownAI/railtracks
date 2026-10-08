@@ -1,5 +1,6 @@
 """Node event classes: event_type strings and parent-resolver dispatch."""
 
+import pytest
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry, ScopeKind
 from railtracks.events._base import NodeParent, NodeSpatialParent, NoSpatialParent
@@ -10,6 +11,7 @@ from railtracks.events.node import (
     NodeInvocation,
     NodeResponse,
 )
+from railtracks.exceptions import FatalError, NodeInvocationError
 
 
 def chain(*entries: tuple[ScopeKind, str]) -> ScopeLink[ScopeEntry] | None:
@@ -35,6 +37,22 @@ def test_event_type_strings():
         NodeDestruction(response="r", duration_seconds=0.0).event_type()
         == "node.destruction"
     )
+
+
+@pytest.mark.parametrize(
+    ("error", "fatal"),
+    [
+        (FatalError("stop"), True),
+        (NodeInvocationError("bad config", fatal=True), True),
+        (NodeInvocationError("retry me"), False),
+        (ValueError("bad"), False),
+    ],
+)
+def test_node_failure_marks_exceptions_that_stop_the_run(error, fatal):
+    event = NodeFailure.from_exception(error)
+
+    assert event.fatal is fatal
+    assert event.exception_name == type(error).__name__
 
 
 def test_runtime_node_event_resolves_self_and_enclosing_node():

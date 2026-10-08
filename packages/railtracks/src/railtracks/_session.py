@@ -30,14 +30,16 @@ from .state.state import RTState
 from .utils.config import ExecutorConfig
 from .utils.json.encoder import RTJSONEncoder
 from .utils.logging.create import get_rt_logger
+from .utils.logging.run_view import RunView
 
 logger = get_rt_logger(__name__)
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
 
-# Shared across sessions (it keys its state by session id)
+# Shared across sessions (both key their state by session id)
 _node_internals = NodeInternalsCollector()
+_run_view = RunView()
 
 
 class Session:
@@ -129,6 +131,7 @@ class Session:
 
         # NOTE: `payload` still reports per-node details.internals
         add_inline_listener(_node_internals.record)
+        add_inline_listener(_run_view.record)
 
         # held so the context survives `delete_globals()` on close
         self.context = register_globals(

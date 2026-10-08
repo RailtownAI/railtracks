@@ -7,20 +7,39 @@ Railtracks emits log records for execution (node creation, completion, failures)
 
 ??? example "Example Logs"
     ```
-    [+3.525  s] RT          : INFO     - START CREATED Github Agent
-    [+8.041  s] RT          : INFO     - Github Agent CREATED create_issue
-    [+8.685  s] RT          : INFO     - create_issue DONE
-    [+14.333 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+14.760 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+17.540 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+18.961 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+23.401 s] RT          : INFO     - Github Agent DONE
+    [+  3.525s] ▶ Github Flow  entry: Github Agent
+    [+  3.526s]   ▶ Github Agent
+    [+  8.040s]     ◆ claude-sonnet-4-6 812→64 tokens · $0.0034 · 4.51s
+    [+  8.041s]     ▶ create_issue
+    [+  8.685s]     ✓ create_issue 0.644s
+    [+ 14.333s]     ◆ claude-sonnet-4-6 1004→71 tokens · $0.0041 · 5.64s
+    [+ 14.334s]     ▶ assign_copilot_to_issue
+    [+ 14.760s]     ✓ assign_copilot_to_issue 0.426s
+    [+ 23.400s]     ◆ claude-sonnet-4-6 1190→112 tokens · $0.0052 · 8.63s
+    [+ 23.401s]   ✓ Github Agent 19.875s
+    [+ 23.402s] ✓ Github Flow in 19.877s
     ```
 
 ---
 
 !!! Critical
     Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in.
+
+## Run View
+
+With logging enabled, each run prints as an indented tree built from the run's events: the run itself, every node it calls nested under its caller, and each LLM call with its model, tokens, cost, and latency. The logging level decides how much it shows:
+
+| Level | Run view shows |
+|-------|----------------|
+| `DEBUG` | Everything below, plus node arguments and responses, guardrail and verifier decisions, and context reads and writes |
+| `INFO` | Each node starting and finishing, and each LLM call |
+| `WARNING` | The run starting and finishing |
+| `ERROR` / `CRITICAL` | Failures only |
+| `NONE` | Nothing |
+
+Failures always print, marked `(fatal)` when they stop the run. Each run uses the level of the thread it started in, so calling `enable_logging(level=...)` in a worker thread changes what that thread's runs print.
+
+The run view replaces the console lines for node creation and completion (`<PARENT> CREATED <CHILD>`, `<NODE> DONE`). Those records are still emitted, marked with `rt_lifecycle` in `extras`, and still reach your file handler and any handler you attach yourself. Failure records, with their tracebacks, print as before.
 
 ## Configuring Logging
 
@@ -145,6 +164,8 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
     | Node Completed | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
 
 ??? note "INFO Messages"
+    The creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
+
     | Type             | Example |
     |------------------|---------|
     | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |

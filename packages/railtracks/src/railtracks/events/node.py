@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from typing_extensions import Self
+
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
 from railtracks.events._base import (
@@ -14,6 +16,7 @@ from railtracks.events._base import (
     ParentEventBase,
 )
 from railtracks.events._resolve import node_parent, node_spatial_parent
+from railtracks.exceptions import FatalError, NodeInvocationError
 
 
 @dataclass(kw_only=True)
@@ -54,6 +57,18 @@ class NodeInvocation(NodeEventBase):
 
 @dataclass(kw_only=True)
 class NodeFailure(NodeEventBase, FailureMixin):
+    """The node raised. `fatal` marks an exception that stops the whole run on its own;
+    a run started with `end_on_error` stops on any failure."""
+
+    fatal: bool = False
+
+    @classmethod
+    def from_exception(cls, exc: Exception, **kwargs) -> Self:
+        fatal = isinstance(exc, FatalError) or (
+            isinstance(exc, NodeInvocationError) and exc.fatal
+        )
+        return super().from_exception(exc, fatal=fatal, **kwargs)
+
     def event_type(self) -> str:
         return "node.failure"
 

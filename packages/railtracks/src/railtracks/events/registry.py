@@ -113,6 +113,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "kwargs": JSON,
         "response": JSON,
         "duration_seconds": FLOAT,
+        "fatal": BOOLEAN,
         **_FAILURE,
     },
     "middleware": {
