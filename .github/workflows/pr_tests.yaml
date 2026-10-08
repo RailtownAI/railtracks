@@ -96,6 +96,8 @@ jobs:
               - '!packages/railtracks/tests/unit_tests/retrieval/**'
               - 'packages/railtracks/tests/integration_tests/**'
               - 'packages/railtracks/pyproject.toml'
+              - 'plugins/**'
+              - 'scripts/sync_plugin_skills.py'
               - '.github/workflows/pr_tests.yaml'
               - '.github/actions/install-deps/**'
             retrieval:
@@ -136,6 +138,10 @@ jobs:
       - name: Check pyproject.toml dependency order
         run: |
           python scripts/check_dependencies_sorted.py
+
+      - name: Check plugin skills are in sync
+        run: |
+          python scripts/sync_plugin_skills.py --check
 
       - name: Run tests
         shell: bash

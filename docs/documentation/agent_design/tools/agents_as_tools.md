@@ -18,8 +18,8 @@ You find the current weather and forecast for a city.
     - The description is built once, when the calling agent is created, and placeholders in it are never filled. With a system message like `"You help {customer_name}."`, the sub-agent still gets the filled value when it uses [`ContextInjection`](../middleware/prebuilt/list/context_injection.md), but the calling agent sees `{customer_name}` as written, because `ContextInjection` fills messages, not tool descriptions. Write a manifest if the description must not contain placeholders.
     - An agent with neither a system message nor a manifest raises `NodeCreationError` when you pass it to `tool_nodes`.
 
-## 2. Agent Manifest
-In this way, at agent definition time, you also define how this agent can be used by other agents. The manifest replaces the generated description and parameters.
+## 2. Tool Manifest
+A **tool manifest** is the description an agent carries of how other agents may call it: a description of what it does and the parameters it expects. Passing `manifest=` at agent definition time sets these yourself, replacing the generated description and parameters.
 ```python
 --8<-- "docs/scripts/documentation/agent_tool_options.py:manifest"
 ```
@@ -32,4 +32,4 @@ By using a python function to call your agent, you can have the flexibility of y
 --8<-- "docs/scripts/documentation/agent_tool_options.py:function"
 ```
 
-You can refer to [API Reference](../../../api_reference/railtracks.html) for more information. Or take a look at our [Agents as Tools tutorial](../../../tutorials/walkthroughs/agents_as_tools.md).
+You can refer to [API Reference](../../../api_reference/railtracks.html) for more information. Or take a look at the [Agents as Tools](../../../tutorials/walkthroughs/agents_as_tools.md) walkthrough.
