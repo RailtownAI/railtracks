@@ -14,6 +14,7 @@ TODO: (Suggested) Fix this bahaviour by adding a no-bare-name rule for skills.
 import re
 
 import railtracks
+from railtracks.cli._agents_md import TEMPLATE_PATH
 from railtracks.cli._skillkit.registry import discover_skills
 
 # `rt.` is the aliased import every skill uses; `railtracks.` is the spelled-out form.
@@ -128,6 +129,23 @@ def test_every_symbol_mentioned_by_a_skill_exists():
         raise AssertionError(
             "Bundled skills reference symbols that do not exist:\n" + report
         )
+
+
+def test_every_symbol_mentioned_by_the_agents_md_block_exists():
+    """The always-on `AGENTS.md` block must not name a symbol the package does not have."""
+    text = TEMPLATE_PATH.read_text(encoding="utf-8")
+    symbols = _extract_symbols(text)
+    missing = [
+        f"{symbol} — {detail}"
+        for symbol in sorted(symbols)
+        for status, detail in [_resolve(symbol)]
+        if status == "missing"
+    ]
+
+    assert "railtracks.agent_node" in symbols
+    assert not missing, "The AGENTS.md block references missing symbols:\n" + "\n".join(
+        missing
+    )
 
 
 def test_extraction_finds_symbols_in_prose_and_tables():

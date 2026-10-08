@@ -1,7 +1,7 @@
 ---
 name: middleware
 description: Add middleware to a railtracks agent or node (retries, logging, timing, guardrails, context injection). Use when the user wants to wrap, retry, guard, or observe node or LLM calls.
-argument-hint: "[describe the middleware to implement]"
+argument-hint: '[describe the middleware to implement]'
 ---
 
 # Add Middleware to a Railtracks Agent or Node

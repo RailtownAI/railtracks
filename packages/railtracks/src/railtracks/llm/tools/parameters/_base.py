@@ -98,11 +98,22 @@ class Parameter(ABC):
         self.default_present = default_present
         if param_type is not None:
             if isinstance(param_type, list):
-                self.param_type = [
-                    _normalize_param_type_scalar(pt) for pt in param_type
-                ]
+                normalized = []
+                for pt in param_type:
+                    try:
+                        normalized.append(_normalize_param_type_scalar(pt))
+                    except ValueError as exc:
+                        raise ValueError(
+                            f"Invalid param_type for parameter '{name}': {exc}"
+                        ) from exc
+                self.param_type = normalized
             else:
-                self.param_type = _normalize_param_type_scalar(param_type)
+                try:
+                    self.param_type = _normalize_param_type_scalar(param_type)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Invalid param_type for parameter '{name}': {exc}"
+                    ) from exc
         elif hasattr(self, "param_type") and self.param_type is None:
             self.param_type = None
 
