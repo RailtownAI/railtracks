@@ -12,7 +12,13 @@ from typing import Any, ClassVar, Literal, TypeVar
 from typing_extensions import TypedDict
 
 from ..._exceptions import SchemaDefinitionError
-from ...schema import DecisionAnswer, DecisionQuestion, DecisionSchema
+from ...schema import (
+    ChoiceAnswer,
+    DecisionAnswer,
+    DecisionQuestion,
+    DecisionSchema,
+    ScoreAnswer,
+)
 
 MAX_CHOICE_LABELS = 255
 MIN_SCORE_LEVELS = 2
@@ -35,43 +41,6 @@ class NoulAnswer(DecisionAnswer):
 
     def __str__(self) -> str:
         return f"{'yes' if self.noul >= 0.5 else 'no'} {self.noul:.2f}"
-
-
-class ChoiceAnswer(DecisionAnswer):
-    """The most likely label and the probability of each label.
-
-    Attributes:
-        choice: The label with the highest probability.
-        confidence: How concentrated the probabilities are, from 0 to 1.
-        probabilities: The probability of each label.
-    """
-
-    choice: str
-    confidence: float
-    probabilities: dict[str, float]
-
-    def __str__(self) -> str:
-        probability = self.probabilities.get(self.choice, self.confidence)
-        return f"{self.choice} {probability:.2f}"
-
-
-class ScoreAnswer(DecisionAnswer):
-    """An expected level on an ordered rubric.
-
-    Attributes:
-        score: The probability-weighted level; may fall between levels.
-        confidence: Confidence in the score, from 0 to 1.
-        probabilities: The probability of each level, keyed by level index.
-        legend: The rubric's level descriptions, keyed by level index.
-    """
-
-    score: float
-    confidence: float
-    probabilities: dict[int, float]
-    legend: dict[int, str]
-
-    def __str__(self) -> str:
-        return f"{self.score:.1f}/{max(self.legend)}"
 
 
 # ================= Questions =================
@@ -214,6 +183,6 @@ class TypeSafeSchema(DecisionSchema, abstract=True):
     __questions__: ClassVar[Mapping[str, TypeSafeQuestion[Any]]]
     _question_type = TypeSafeQuestion
 
-    Noul = NoulQuestion
-    Choice = ChoiceQuestion
-    Score = ScoreQuestion
+    Noul = NoulQuestion  # type: ignore[assignment]
+    Choice = ChoiceQuestion  # type: ignore[assignment]
+    Score = ScoreQuestion  # type: ignore[assignment]

@@ -1,15 +1,18 @@
-"""TypeSafeSchema: question validation, collection, inheritance and typed answers."""
+"""DecisionSchema: question validation, collection, inheritance and typed answers."""
 
 import pytest
-from railtracks.decisions import SchemaDefinitionError
-from railtracks.decisions.models.typesafe_compatible.schema import (
+import railtracks as rt
+from railtracks.decisions import (
     ChoiceAnswer,
-    ChoiceQuestion,
-    NoulAnswer,
-    NoulQuestion,
+    DecisionSchema,
+    PredicateAnswer,
+    SchemaDefinitionError,
     ScoreAnswer,
+)
+from railtracks.decisions.schema import (
+    ChoiceQuestion,
+    PredicateQuestion,
     ScoreQuestion,
-    TypeSafeSchema,
 )
 
 DEPARTMENTS = {
@@ -20,19 +23,19 @@ DEPARTMENTS = {
 FRUSTRATION = ["Calm", "Frustrated but civil", "Very angry"]
 
 
-class Triage(TypeSafeSchema):
-    is_urgent = TypeSafeSchema.Noul(instructions="The message conveys urgency")
-    department = TypeSafeSchema.Choice(
-        instructions="Which team should handle this", criteria=DEPARTMENTS
+class Triage(DecisionSchema):
+    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
+    department = DecisionSchema.Choice(
+        instructions="Which team should handle this", choices=DEPARTMENTS
     )
-    frustration = TypeSafeSchema.Score(
-        instructions="How frustrated the customer is", criteria=FRUSTRATION
+    frustration = DecisionSchema.Score(
+        instructions="How frustrated the customer is", levels=FRUSTRATION
     )
 
 
 def _answers() -> dict:
     return {
-        "is_urgent": NoulAnswer(noul=0.93),
+        "is_urgent": PredicateAnswer(probability=0.93),
         "department": ChoiceAnswer(
             choice="technical",
             confidence=0.8,
@@ -47,97 +50,135 @@ def _answers() -> dict:
     }
 
 
+def test_exported_from_rt_decisions():
+    assert rt.decisions.DecisionSchema is DecisionSchema
+    assert rt.decisions.PredicateAnswer is PredicateAnswer
+    assert rt.decisions.ChoiceAnswer is ChoiceAnswer
+    assert rt.decisions.ScoreAnswer is ScoreAnswer
+
+
 # ================= Question validation =================
 
 
-class TestNoul:
+class TestPredicate:
     def test_minimal(self):
-        q = TypeSafeSchema.Noul(instructions="Is it urgent?")
+        q = DecisionSchema.Predicate(instructions="Is it urgent?")
         assert q.instructions == "Is it urgent?"
-        assert q.criteria is None
+        assert q.kind == "predicate"
+        assert q.answer_type is PredicateAnswer
 
-    def test_true_false_descriptions(self):
-        q = TypeSafeSchema.Noul(
-            instructions="Repeat contact?",
-            criteria={"true": "Mentions a prior ticket", "false": "No prior contact"},
-        )
-        assert q.criteria == {
-            "true": "Mentions a prior ticket",
-            "false": "No prior contact",
-        }
+    def test_noul_is_an_alias_of_predicate(self):
+        assert DecisionSchema.Noul is DecisionSchema.Predicate
+        assert isinstance(DecisionSchema.Noul(instructions="x"), PredicateQuestion)
 
-    def test_unknown_criteria_key_rejected(self):
-        with pytest.raises(SchemaDefinitionError, match="maybe"):
-            TypeSafeSchema.Noul(instructions="x", criteria={"maybe": "?"})  # type: ignore[typeddict-unknown-key]
-
-    def test_blank_instructions_rejected(self):
+    @pytest.mark.parametrize("instructions", ["", "  ", None])
+    def test_blank_instructions_rejected(self, instructions):
         with pytest.raises(SchemaDefinitionError, match="instructions"):
-            TypeSafeSchema.Noul(instructions="  ")
+            DecisionSchema.Predicate(instructions=instructions)
+
+    def test_true_false_criteria_not_accepted(self):
+        with pytest.raises(TypeError):
+            DecisionSchema.Noul(instructions="x", criteria={"true": "y"})  # type: ignore[call-arg]
 
 
 class TestChoice:
-    def test_criteria_copied(self):
-        criteria = dict(DEPARTMENTS)
-        q = TypeSafeSchema.Choice(instructions="Which team", criteria=criteria)
-        criteria["legal"] = "Contracts"
-        assert list(q.criteria) == ["billing", "technical", "sales"]
+    def test_mapping_keeps_descriptions_in_order(self):
+        q = DecisionSchema.Choice(instructions="Which team", choices=DEPARTMENTS)
+        assert q.choices == DEPARTMENTS
+        assert list(q.choices) == ["billing", "technical", "sales"]
+        assert q.kind == "choice"
 
-    def test_fewer_than_two_labels_rejected(self):
-        with pytest.raises(SchemaDefinitionError, match="at least 2"):
-            TypeSafeSchema.Choice(instructions="x", criteria={"only": "one"})
+    def test_list_has_no_descriptions(self):
+        q = DecisionSchema.Choice(instructions="x", choices=["a", "b"])
+        assert q.choices == {"a": None, "b": None}
 
-    def test_255_labels_allowed(self):
-        criteria = {f"label_{i}": f"option {i}" for i in range(255)}
+    def test_choices_copied(self):
+        choices = dict(DEPARTMENTS)
+        q = DecisionSchema.Choice(instructions="Which team", choices=choices)
+        choices["legal"] = "Contracts"
+        assert list(q.choices) == ["billing", "technical", "sales"]
+
+    def test_255_choices_allowed(self):
+        choices = [f"label_{i}" for i in range(255)]
         assert (
-            len(TypeSafeSchema.Choice(instructions="x", criteria=criteria).criteria)
-            == 255
+            len(DecisionSchema.Choice(instructions="x", choices=choices).choices) == 255
         )
 
-    def test_more_than_255_labels_rejected(self):
-        criteria = {f"label_{i}": f"option {i}" for i in range(256)}
-        with pytest.raises(SchemaDefinitionError, match="at most 255"):
-            TypeSafeSchema.Choice(instructions="x", criteria=criteria)
-
-    def test_blank_label_rejected(self):
-        with pytest.raises(SchemaDefinitionError, match="label"):
-            TypeSafeSchema.Choice(instructions="x", criteria={"": "a", "b": "b"})
+    @pytest.mark.parametrize(
+        "choices, match",
+        [
+            (["only"], "at least 2"),
+            ([f"label_{i}" for i in range(256)], "at most 255"),
+            (["a", "a"], "unique"),
+            (["a", ""], "non-empty"),
+            (["a", 1], "non-empty"),
+            ("ab", "list"),
+            ({"a": "fine", "b": 2}, "description"),
+        ],
+        ids=[
+            "one",
+            "too-many",
+            "duplicate",
+            "blank",
+            "not-a-string",
+            "bare-string",
+            "bad-description",
+        ],
+    )
+    def test_invalid_choices_rejected(self, choices, match):
+        with pytest.raises(SchemaDefinitionError, match=match):
+            DecisionSchema.Choice(instructions="x", choices=choices)
 
 
 class TestScore:
+    def test_list_levels_in_order(self):
+        q = DecisionSchema.Score(instructions="How frustrated", levels=FRUSTRATION)
+        assert list(q.levels) == FRUSTRATION
+        assert q.kind == "score"
+
+    def test_mapping_keeps_criteria(self):
+        q = DecisionSchema.Score(
+            instructions="x", levels={"Low": "Fine", "High": "Bad"}
+        )
+        assert q.levels == {"Low": "Fine", "High": "Bad"}
+
     def test_levels_copied(self):
         levels = list(FRUSTRATION)
-        q = TypeSafeSchema.Score(instructions="How frustrated", criteria=levels)
+        q = DecisionSchema.Score(instructions="How frustrated", levels=levels)
         levels.append("Furious")
-        assert q.criteria == FRUSTRATION
+        assert list(q.levels) == FRUSTRATION
 
     @pytest.mark.parametrize("count", [2, 10])
     def test_level_bounds_allowed(self, count):
-        q = TypeSafeSchema.Score(
-            instructions="x", criteria=[f"level {i}" for i in range(count)]
+        q = DecisionSchema.Score(
+            instructions="x", levels=[f"level {i}" for i in range(count)]
         )
-        assert len(q.criteria) == count
+        assert len(q.levels) == count
 
-    @pytest.mark.parametrize("count", [0, 1, 11])
-    def test_level_bounds_rejected(self, count):
-        with pytest.raises(SchemaDefinitionError, match="between 2 and 10"):
-            TypeSafeSchema.Score(
-                instructions="x", criteria=[f"level {i}" for i in range(count)]
+    @pytest.mark.parametrize(
+        "count, match", [(0, "at least 2"), (1, "at least 2"), (11, "at most 10")]
+    )
+    def test_level_bounds_rejected(self, count, match):
+        with pytest.raises(SchemaDefinitionError, match=match):
+            DecisionSchema.Score(
+                instructions="x", levels=[f"level {i}" for i in range(count)]
             )
 
-    def test_bare_string_rejected(self):
-        with pytest.raises(SchemaDefinitionError, match="list"):
-            TypeSafeSchema.Score(instructions="x", criteria="Calm")
-
-    def test_blank_level_rejected(self):
-        with pytest.raises(SchemaDefinitionError, match="level"):
-            TypeSafeSchema.Score(instructions="x", criteria=["Calm", ""])
+    @pytest.mark.parametrize(
+        "levels, match",
+        [("Calm", "list"), (["Calm", ""], "non-empty"), (["Low", "Low"], "unique")],
+        ids=["bare-string", "blank", "duplicate"],
+    )
+    def test_invalid_levels_rejected(self, levels, match):
+        with pytest.raises(SchemaDefinitionError, match=match):
+            DecisionSchema.Score(instructions="x", levels=levels)
 
 
 def test_invalid_question_fails_at_class_definition():
     with pytest.raises(SchemaDefinitionError):
 
-        class Broken(TypeSafeSchema):
-            only = TypeSafeSchema.Choice(instructions="x", criteria={"a": "a"})
+        class Broken(DecisionSchema):
+            only = DecisionSchema.Choice(instructions="x", choices=["a"])
 
 
 # ================= Schema collection =================
@@ -151,13 +192,23 @@ class TestCollection:
         assert Triage.__questions__["department"].name == "department"
 
     def test_class_access_returns_the_question(self):
-        assert isinstance(Triage.is_urgent, NoulQuestion)
+        assert isinstance(Triage.is_urgent, PredicateQuestion)
         assert isinstance(Triage.department, ChoiceQuestion)
         assert isinstance(Triage.frustration, ScoreQuestion)
 
+    def test_noul_declares_a_predicate(self):
+        class Spam(DecisionSchema):
+            is_spam = DecisionSchema.Noul(instructions="The message is spam")
+
+        assert isinstance(Spam.is_spam, PredicateQuestion)
+        assert (
+            Spam({"is_spam": PredicateAnswer(probability=0.2)}).is_spam.probability
+            == 0.2
+        )
+
     def test_subclass_inherits_parent_questions_first(self):
         class Extended(Triage):
-            is_spam = TypeSafeSchema.Noul(instructions="The message is spam")
+            is_spam = DecisionSchema.Predicate(instructions="The message is spam")
 
         assert list(Extended.__questions__) == [
             "is_urgent",
@@ -169,7 +220,7 @@ class TestCollection:
 
     def test_subclass_override_keeps_position(self):
         class Overridden(Triage):
-            is_urgent = TypeSafeSchema.Noul(instructions="Needs a reply today")
+            is_urgent = DecisionSchema.Predicate(instructions="Needs a reply today")
 
         assert list(Overridden.__questions__) == [
             "is_urgent",
@@ -181,23 +232,23 @@ class TestCollection:
     def test_empty_schema_rejected(self):
         with pytest.raises(SchemaDefinitionError, match="no questions"):
 
-            class Empty(TypeSafeSchema):
+            class Empty(DecisionSchema):
                 pass
 
-    @pytest.mark.parametrize("name", ["encode", "Noul", "Choice", "Score"])
+    @pytest.mark.parametrize("name", ["encode", "Predicate", "Noul", "Choice", "Score"])
     def test_name_clash_with_schema_attribute_rejected(self, name):
         with pytest.raises(SchemaDefinitionError, match=name):
             type(
                 "Clashing",
-                (TypeSafeSchema,),
-                {name: TypeSafeSchema.Noul(instructions="x")},
+                (DecisionSchema,),
+                {name: DecisionSchema.Predicate(instructions="x")},
             )
 
     def test_question_reused_under_two_names_rejected(self):
-        shared = TypeSafeSchema.Noul(instructions="x")
+        shared = DecisionSchema.Predicate(instructions="x")
         with pytest.raises(SchemaDefinitionError, match="more than one"):
 
-            class Reused(TypeSafeSchema):
+            class Reused(DecisionSchema):
                 first = shared
                 second = shared
 
@@ -208,7 +259,7 @@ class TestCollection:
 class TestInstance:
     def test_instance_access_returns_the_answer(self):
         triage = Triage(_answers())
-        assert triage.is_urgent.noul == 0.93
+        assert triage.is_urgent.probability == 0.93
         assert triage.department.probabilities["technical"] == 0.88
         assert triage.frustration.legend[2] == "Very angry"
 
@@ -216,6 +267,12 @@ class TestInstance:
         answers = _answers()
         del answers["frustration"]
         with pytest.raises(ValueError, match="frustration"):
+            Triage(answers)
+
+    def test_unexpected_answer_rejected(self):
+        answers = _answers()
+        answers["extra"] = PredicateAnswer(probability=0.1)
+        with pytest.raises(ValueError, match="extra"):
             Triage(answers)
 
     def test_wrong_answer_type_rejected(self):
@@ -227,7 +284,7 @@ class TestInstance:
     def test_encode_is_plain_json_in_definition_order(self):
         encoded = Triage(_answers()).encode()
         assert list(encoded) == ["is_urgent", "department", "frustration"]
-        assert encoded["is_urgent"] == {"noul": 0.93}
+        assert encoded["is_urgent"] == {"probability": 0.93}
         assert encoded["frustration"]["legend"] == {
             "0": "Calm",
             "1": "Frustrated but civil",
@@ -242,14 +299,14 @@ class TestInstance:
 
 
 class TestAnswerStr:
-    def test_noul_yes(self):
-        assert str(NoulAnswer(noul=0.93)) == "yes 0.93"
+    def test_predicate_yes(self):
+        assert str(PredicateAnswer(probability=0.93)) == "yes 0.93"
 
-    def test_noul_no_still_shows_p_yes(self):
-        assert str(NoulAnswer(noul=0.12)) == "no 0.12"
+    def test_predicate_no_still_shows_probability(self):
+        assert str(PredicateAnswer(probability=0.12)) == "no 0.12"
 
-    def test_noul_half_is_yes(self):
-        assert str(NoulAnswer(noul=0.5)) == "yes 0.50"
+    def test_predicate_half_is_yes(self):
+        assert str(PredicateAnswer(probability=0.5)) == "yes 0.50"
 
     def test_choice_shows_probability_of_choice(self):
         assert str(_answers()["department"]) == "technical 0.88"
