@@ -234,12 +234,25 @@ def _validate_and_normalize_callable(
     if manifest is not None:
         validate_tool_manifest_against_function(func, manifest.parameters)
 
+    # tool arguments are always passed by keyword, so positional-only params can never be filled
+    try:
+        params = list(inspect.signature(func).parameters.values())
+    except (TypeError, ValueError):
+        params = []
+    if any(p.kind is inspect.Parameter.POSITIONAL_ONLY for p in params):
+        raise NodeCreationError(
+            message=f"{getattr(func, '__name__', repr(func))} has positional-only parameters, which can't be called as a tool.",
+            notes=[
+                "Wrap it in a regular function that takes keyword arguments, e.g. `def ceil(x: float) -> int: return math.ceil(x)`.",
+            ],
+        )
+
     if inspect.isbuiltin(func):
         # builtins are C-level and can't hold our node-type attribute; wrap them
         return _function_preserving_metadata(func)
 
     if not (
-        asyncio.iscoroutinefunction(func)
+        inspect.iscoroutinefunction(func)
         or inspect.isfunction(func)
         or inspect.ismethod(func)  # bound (and class) methods
         or isinstance(func, functools.partial)
@@ -291,7 +304,7 @@ def _single_function_node(
 
     unwrapped_func: Callable[_P, Coroutine[None, None, _TOutput]]
     is_sync = False
-    if not asyncio.iscoroutinefunction(func):
+    if not inspect.iscoroutinefunction(func):
         is_sync = True
         # narrowed: the guard above means `func` returns _TOutput, not a coroutine
         sync_func = cast(Callable[_P, _TOutput], func)
