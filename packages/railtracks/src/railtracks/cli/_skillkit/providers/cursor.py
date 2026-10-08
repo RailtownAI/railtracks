@@ -2,8 +2,7 @@
 
 Native path: `.cursor/skills/<name>/`. Cursor reads `name` (which must equal the
 folder name), `description`, plus `paths` and `disable-model-invocation` from
-`tools.cursor`. The old `.cursor/rules/<name>.mdc` is not written any more;
-`find_legacy_installs` reports it if it is still on disk.
+`tools.cursor`.
 """
 
 from __future__ import annotations
