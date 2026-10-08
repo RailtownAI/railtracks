@@ -1,7 +1,8 @@
 """Triage support tickets with TypeSafe's hosted Jev model.
 
-One request answers all three questions about a ticket: a yes/no (Noul), a pick from
-named labels (Choice) and a rubric level (Score), each as calibrated probabilities.
+One request answers all three questions about a ticket: a yes/no (Predicate), a pick
+from named labels (Choice) and a rubric level (Score), each as calibrated probabilities.
+The call goes through `litellm.adecisions` as `typesafe/jev-latest`.
 The decision node runs as a Flow's entry point, so the call is recorded with its cost
 and shows up in `railtracks viz`.
 
@@ -12,7 +13,7 @@ Run: uv run python examples/s1/jev_example.py
 
 import railtracks as rt
 
-TypeSafeSchema = rt.decisions.TypeSafeSchema
+DecisionSchema = rt.decisions.DecisionSchema
 
 jev = rt.decisions.TypeSafeAI(
     model_name="jev-latest",
@@ -21,19 +22,19 @@ jev = rt.decisions.TypeSafeAI(
 )
 
 
-class Triage(TypeSafeSchema):
-    is_urgent = TypeSafeSchema.Noul(instructions="The message conveys urgency")
-    department = TypeSafeSchema.Choice(
+class Triage(DecisionSchema):
+    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
+    department = DecisionSchema.Choice(
         instructions="Which team should handle this",
-        criteria={
+        choices={
             "billing": "Charges, refunds, invoices, or plan changes",
             "technical": "Bugs, outages, errors, or integration problems",
             "sales": "Pricing questions, upgrades, or new purchases",
         },
     )
-    frustration = TypeSafeSchema.Score(
+    frustration = DecisionSchema.Score(
         instructions="How frustrated the customer is",
-        criteria=["Calm", "Frustrated but civil", "Very angry"],
+        levels=["Calm", "Frustrated but civil", "Very angry"],
     )
 
 

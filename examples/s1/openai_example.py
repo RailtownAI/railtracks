@@ -1,10 +1,10 @@
 """Triage support tickets with OpenAI's Decisions API (gpt-6-luna).
 
-OpenAI's Decisions API (`POST /v1/decisions`, public beta) answers the same three
-kinds of question as the `/v1/systemone` hosts, under its own names: a Predicate
-(yes/no), a Choice and a Score. Its questions are declared with `OpenAISchema`; the
-answers come back as the same types (`PredicateAnswer`, `ChoiceAnswer`, `ScoreAnswer`).
-The input can also include images, sent as inline base64 data URLs.
+OpenAI's Decisions API (`POST /v1/decisions`, public beta) answers the same
+`DecisionSchema` as the System One vendors: a Predicate (yes/no), a Choice and a Score,
+with answers of the same types (`PredicateAnswer`, `ChoiceAnswer`, `ScoreAnswer`). The
+call goes through `litellm.adecisions` as `openai/gpt-6-luna`. Unlike the System One
+vendors, the input can also include images, sent as user messages with base64 data URLs.
 
 The model may decline a question; that raises `DecisionRefusalError` from a node
 (`DecisionProviderRefusalError` from a direct `aask`), naming the refused questions.
@@ -16,14 +16,14 @@ Run: uv run python examples/s1/openai_example.py
 
 import railtracks as rt
 
-OpenAISchema = rt.decisions.OpenAISchema
+DecisionSchema = rt.decisions.DecisionSchema
 
 luna = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")  # reads OPENAI_API_KEY
 
 
-class Triage(OpenAISchema):
-    is_urgent = OpenAISchema.Predicate(instructions="The message conveys urgency")
-    department = OpenAISchema.Choice(
+class Triage(DecisionSchema):
+    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
+    department = DecisionSchema.Choice(
         instructions="Which team should handle this",
         choices={
             "billing": "Charges, refunds, invoices, or plan changes",
@@ -31,7 +31,7 @@ class Triage(OpenAISchema):
             "sales": "Pricing questions, upgrades, or new purchases",
         },
     )
-    frustration = OpenAISchema.Score(
+    frustration = DecisionSchema.Score(
         instructions="How frustrated the customer is",
         levels=["Calm", "Frustrated but civil", "Very angry"],
     )

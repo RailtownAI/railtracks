@@ -1,8 +1,9 @@
 """Triage support tickets with Jev through OpenRouter.
 
-OpenRouter serves System One models at `/api/v1/systemone`, with the vendor in the model
-id (`typesafe/jev-1.13`). Its responses report what the call cost (`usage.cost`) and who
-served it (`provider`), so the result's `cost` is what you were billed.
+OpenRouter serves System One models at its decisions endpoint, with the vendor in the
+model id (`typesafe/jev-1.13`). The call goes through `litellm.adecisions` as
+`openrouter/typesafe/jev-1.13`, and the result's `cost` is litellm's price for it
+(input tokens only).
 
 Needs OPENROUTER_API_KEY.
 
@@ -11,24 +12,24 @@ Run: uv run python examples/s1/openrouter_example.py
 
 import railtracks as rt
 
-TypeSafeSchema = rt.decisions.TypeSafeSchema
+DecisionSchema = rt.decisions.DecisionSchema
 
 jev = rt.decisions.OpenRouterAI(model_name="typesafe/jev-1.13")
 
 
-class Triage(TypeSafeSchema):
-    is_urgent = TypeSafeSchema.Noul(instructions="The message conveys urgency")
-    department = TypeSafeSchema.Choice(
+class Triage(DecisionSchema):
+    is_urgent = DecisionSchema.Predicate(instructions="The message conveys urgency")
+    department = DecisionSchema.Choice(
         instructions="Which team should handle this",
-        criteria={
+        choices={
             "billing": "Charges, refunds, invoices, or plan changes",
             "technical": "Bugs, outages, errors, or integration problems",
             "sales": "Pricing questions, upgrades, or new purchases",
         },
     )
-    frustration = TypeSafeSchema.Score(
+    frustration = DecisionSchema.Score(
         instructions="How frustrated the customer is",
-        criteria=["Calm", "Frustrated but civil", "Very angry"],
+        levels=["Calm", "Frustrated but civil", "Very angry"],
     )
 
 
@@ -40,10 +41,10 @@ if __name__ == "__main__":
         "Hey, is the annual plan cheaper than monthly? Also exports seem slow lately."
     )
 
-    # is_urgent: no 0.17 | department: sales 0.47 | frustration: 0.3/2
+    # is_urgent: no 0.19 | department: sales 0.47 | frustration: 0.3/2
     print(result)
     # No label reaches 0.8: the ticket mixes a pricing question with a performance one.
-    # {'technical': 0.11, 'sales': 0.47, 'billing': 0.42}
+    # {'billing': 0.39, 'technical': 0.14, 'sales': 0.47}
     print(result.structured.department.probabilities)
-    # typesafe/jev-1.13-20260917 via TypeSafe: $1.7388e-05
+    # typesafe/jev-1.13-20260917 via openrouter: $1.7388e-05
     print(f"{result.model_name} via {result.provider}: ${result.cost}")
