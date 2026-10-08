@@ -50,12 +50,7 @@ from .models import (
     TypeSafeCompatibleAI,
     UpstageAI,
 )
-from .models.openai_decisions import OpenAISchema, PredicateAnswer
-from .models.typesafe_compatible import (
-    ChoiceAnswer,
-    NoulAnswer,
-    ScoreAnswer,
-    TypeSafeSchema,
-)
+from .models.openai_decisions import OpenAISchema
+from .models.typesafe_compatible import NoulAnswer, TypeSafeSchema
 from .response import DecisionResponse
-from .schema import DecisionSchema
+from .schema import ChoiceAnswer, DecisionSchema, PredicateAnswer, ScoreAnswer

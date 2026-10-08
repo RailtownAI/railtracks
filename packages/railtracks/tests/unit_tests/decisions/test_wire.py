@@ -3,15 +3,16 @@
 import copy
 
 import pytest
-from railtracks.decisions import DecisionProviderResponseError, TypeSafeSchema
+from railtracks.decisions import (
+    ChoiceAnswer,
+    DecisionProviderResponseError,
+    NoulAnswer,
+    ScoreAnswer,
+    TypeSafeSchema,
+)
 from railtracks.decisions.models.typesafe_compatible._wire import (
     build_request,
     parse_response,
-)
-from railtracks.decisions.models.typesafe_compatible.schema import (
-    ChoiceAnswer,
-    NoulAnswer,
-    ScoreAnswer,
 )
 
 from .conftest import TRIAGE_RESPONSE, Triage
