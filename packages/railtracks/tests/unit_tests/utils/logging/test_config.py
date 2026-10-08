@@ -79,13 +79,8 @@ def test_short_suffix_label_strips_leading_underscores():
             logging.WARNING,
             "RT.railtracks.state.state: WARNING  - hello world",
         ),
-        ("RT.railtracks._session", "short", logging.INFO, "· RT.Session: hello world"),
-        (
-            "RT.railtracks.state.state",
-            "full",
-            logging.INFO,
-            "· RT.railtracks.state.state: hello world",
-        ),
+        ("RT.railtracks._session", "short", logging.INFO, "· hello world"),
+        ("RT.railtracks.state.state", "full", logging.INFO, "· hello world"),
     ],
 )
 def test_console_handler_line_layout(console_output, name, name_style, level, expected):

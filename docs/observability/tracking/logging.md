@@ -68,7 +68,7 @@ Loggers use dotted names (often from `__name__`), e.g. `RT.railtracks._session`.
 --8<-- "docs/scripts/_logging.py:logging_name_style"
 ```
 
-File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console formatter applies `name_style`.
+File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console applies `name_style`. The console shows the name on `DEBUG`, `WARNING`, `ERROR`, and `CRITICAL` lines; `INFO` lines print as plain notes.
 
 ### Logging Levels
 
@@ -166,14 +166,14 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
     | Node Completed | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
 
 ??? note "INFO Messages"
-    The console prints INFO records as dim notes (`· <LOGGER>: <MESSAGE>`). The creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
+    The console prints INFO records as dim notes (`· <MESSAGE>`). The creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
 
     | Type             | Example |
     |------------------|---------|
     | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |
     | Invoking Nodes   | `RT          : INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
     | Node Completed   | `RT          : INFO     - <NODE_NAME> DONE` |
-    | Run Data Saved   | `· RT.Session: Saving execution info to .railtracks/data/sessions/<FLOW_NAME>_<SESSION_ID>.json` |
+    | Run Data Saved   | `· Saving run data to .railtracks/data/sessions/<FLOW_NAME>_<SESSION_ID>.json` |
 
 ??? note "WARNING Messages"
     | Type              | Example |
