@@ -3,7 +3,7 @@
 ## Calling the Agent directly
 Once you have defined your agent class ([Build Your First Agent](byfa.md)) you can then run your workflow and see results!
 
-To begin you just have to use **`call`** method from Railtracks. This is an asynchronous method so you will need to run it in an async context.
+To begin you just have to use the **`call`** method from Railtracks, which is called [direct invocation](../../documentation/invocation/call.md). This is an asynchronous method so you will need to run it in an async context. Once you are past a first run, wrap your agent in a [Flow](../../documentation/invocation/flows.md) instead: that is where context, timeouts and run inspection are configured.
 
 === "Asynchronous"
     ```python
