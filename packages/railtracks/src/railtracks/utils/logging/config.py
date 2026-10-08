@@ -144,13 +144,13 @@ class LifecycleFilter(logging.Filter):
 class RichConsoleHandler(logging.Handler):
     """Writes RT log records to the shared rich console, coloured by level.
 
-    The record is formatted with a plain ``logging.Formatter``, so nothing beyond the
+    INFO records print as dim notes in the run view's style; other levels keep their
+    level label. The record is formatted with a plain ``logging.Formatter``, so nothing beyond the
     standard attributes is written onto it for handlers further up the tree to pick up.
     """
 
     _LEVEL_STYLES = {
         logging.DEBUG: "cyan",
-        logging.INFO: "default",
         logging.WARNING: "yellow",
         logging.ERROR: "bright_red",
         logging.CRITICAL: "bold red",
@@ -166,10 +166,13 @@ class RichConsoleHandler(logging.Handler):
                 record.name, name_style=self.name_style, rt_prefix=rt_logger_name
             )
             line = elapsed_text(record.created)
-            line.append(
-                f"{display_name:<12}: {record.levelname:<8} - {self.format(record)}",
-                style=self._LEVEL_STYLES.get(record.levelno, "default"),
-            )
+            if record.levelno == logging.INFO:
+                line.append(f"· {display_name}: {self.format(record)}", style="dim")
+            else:
+                line.append(
+                    f"{display_name:<12}: {record.levelname:<8} - {self.format(record)}",
+                    style=self._LEVEL_STYLES.get(record.levelno, "default"),
+                )
             console.print(line, soft_wrap=True)
         except Exception:
             self.handleError(record)

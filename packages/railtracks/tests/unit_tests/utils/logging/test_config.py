@@ -27,10 +27,12 @@ from rich.console import Console
 # ================= RichConsoleHandler Tests =================
 
 
-def _record(name: str = "RT.railtracks.state.state", **extra) -> logging.LogRecord:
+def _record(
+    name: str = "RT.railtracks.state.state", level: int = logging.INFO, **extra
+) -> logging.LogRecord:
     record = logging.LogRecord(
         name=name,
-        level=logging.INFO,
+        level=level,
         pathname="",
         lineno=0,
         msg="hello %s",
@@ -56,20 +58,38 @@ def test_short_suffix_label_strips_leading_underscores():
 
 
 @pytest.mark.parametrize(
-    ("name", "name_style", "expected"),
+    ("name", "name_style", "level", "expected"),
     [
-        ("RT.railtracks._session", "short", "RT.Session  : INFO     - hello world"),
-        ("RT.railtracks.state.state", "short", "RT.State    : INFO     - hello world"),
-        ("RT", "short", "RT          : INFO     - hello world"),
+        (
+            "RT.railtracks._session",
+            "short",
+            logging.WARNING,
+            "RT.Session  : WARNING  - hello world",
+        ),
+        (
+            "RT.railtracks.state.state",
+            "short",
+            logging.ERROR,
+            "RT.State    : ERROR    - hello world",
+        ),
+        ("RT", "short", logging.DEBUG, "RT          : DEBUG    - hello world"),
         (
             "RT.railtracks.state.state",
             "full",
-            "RT.railtracks.state.state: INFO     - hello world",
+            logging.WARNING,
+            "RT.railtracks.state.state: WARNING  - hello world",
+        ),
+        ("RT.railtracks._session", "short", logging.INFO, "· RT.Session: hello world"),
+        (
+            "RT.railtracks.state.state",
+            "full",
+            logging.INFO,
+            "· RT.railtracks.state.state: hello world",
         ),
     ],
 )
-def test_console_handler_line_layout(console_output, name, name_style, expected):
-    RichConsoleHandler(name_style=name_style).emit(_record(name))
+def test_console_handler_line_layout(console_output, name, name_style, level, expected):
+    RichConsoleHandler(name_style=name_style).emit(_record(name, level))
 
     assert console_output.getvalue().rstrip("\n").endswith(f"] {expected}")
 
