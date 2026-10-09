@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 
 from railtracks.exceptions import FatalError, NodeInvocationError
 from railtracks.nodes.nodes import Node
+from railtracks.utils.logging.config import LIFECYCLE_EXTRA
 from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.profiling import Stamp
 
@@ -194,7 +195,7 @@ class RTState:
             request_ids=[request_id],
         )
 
-        logger.info(request_creation_obj.to_logging_msg())
+        logger.info(request_creation_obj.to_logging_msg(), extra=LIFECYCLE_EXTRA)
         # 4. Return the request id of the node that was created, plus the instance.
         return request_ids[0], node_instance
 
@@ -374,7 +375,11 @@ class RTState:
         )
 
         if self.executor_config.end_on_error:
-            logger.critical(node_exception_action.to_logging_msg(), exc_info=exception)
+            logger.critical(
+                node_exception_action.to_logging_msg(),
+                exc_info=exception,
+                extra=LIFECYCLE_EXTRA,
+            )
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
@@ -382,12 +387,20 @@ class RTState:
         if (
             isinstance(exception, NodeInvocationError) and exception.fatal
         ) or isinstance(exception, FatalError):
-            logger.critical(node_exception_action.to_logging_msg(), exc_info=exception)
+            logger.critical(
+                node_exception_action.to_logging_msg(),
+                exc_info=exception,
+                extra=LIFECYCLE_EXTRA,
+            )
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
         # for any other error we want it to bubble up so the user can handle.
-        logger.error(node_exception_action.to_logging_msg(), exc_info=exception)
+        logger.error(
+            node_exception_action.to_logging_msg(),
+            exc_info=exception,
+            extra=LIFECYCLE_EXTRA,
+        )
         return Failure(exception)
 
     @property
@@ -430,7 +443,7 @@ class RTState:
             output=result,
         )
 
-        logger.info(request_completion_obj.to_logging_msg())
+        logger.info(request_completion_obj.to_logging_msg(), extra=LIFECYCLE_EXTRA)
         return result
 
     async def handle_result(self, result: RequestFinishedBase):

@@ -7,20 +7,44 @@ Railtracks emits log records for execution ([node](../../documentation/agent_des
 
 ??? example "Example Logs"
     ```
-    [+3.525  s] RT          : INFO     - START CREATED Github Agent
-    [+8.041  s] RT          : INFO     - Github Agent CREATED create_issue
-    [+8.685  s] RT          : INFO     - create_issue DONE
-    [+14.333 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+14.760 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+17.540 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+18.961 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+23.401 s] RT          : INFO     - Github Agent DONE
+    [+  3.525s] ▶ Github Flow  entry: Github Agent
+    [+  3.526s]   ↳ Github Agent
+    [+  8.040s]     ◆ claude-sonnet-4-6 812→64 tokens · $0.0034 · 4.51s
+    [+  8.041s]     ↳ create_issue
+    [+  8.685s]     ✓ create_issue 0.644s
+    [+ 14.333s]     ◆ claude-sonnet-4-6 1004→71 tokens · $0.0041 · 5.64s
+    [+ 14.334s]     ↳ assign_copilot_to_issue
+    [+ 14.760s]     ✓ assign_copilot_to_issue 0.426s
+    [+ 23.400s]     ◆ claude-sonnet-4-6 1190→112 tokens · $0.0052 · 8.63s
+    [+ 23.401s]   ✓ Github Agent 19.875s
+    [+ 23.402s] ✓ Github Flow in 19.877s
+                  → Created issue #42 "Fix login timeout" and assigned it to Copilot.
     ```
 
 ---
 
 !!! Critical
     Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in.
+
+## Run View
+
+With logging enabled, each run prints as an indented tree built from the run's events: the run itself, every node it calls nested under its caller, and each LLM call with its model, tokens, cost, and latency. The logging level decides how much it shows:
+
+| Level | Run view shows |
+|-------|----------------|
+| `DEBUG` | Everything below, plus node arguments and responses, guardrail and verifier decisions, and context reads and writes |
+| `INFO` | Each node starting and finishing, each LLM call, and the run's result on one line |
+| `WARNING` | The run starting and finishing |
+| `ERROR` / `CRITICAL` | Failures only |
+| `NONE` | Nothing |
+
+When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`.
+
+In a Jupyter notebook the run view prints into the cell's output as one block, and frames from notebook code show as `<cell>`.
+
+Failures always print, marked `(fatal)` when they stop the run, with the lines of your code the exception came through indented underneath (railtracks and standard-library frames are left out; `DEBUG` shows them all). A node that its middleware retries shows a `↻ <NODE> retrying after <ERROR>` line, and its final outcome is what the `✓` or `✗` line reports. Each run uses the level of the thread it started in, so calling `enable_logging(level=...)` in a worker thread changes what that thread's runs print.
+
+The run view replaces the console lines for node creation, completion, and failure (`<PARENT> CREATED <CHILD>`, `<NODE> DONE`, `<NODE> FAILED`). Those records are still emitted, marked with `rt_lifecycle` in `extras`, and still reach your file handler and any handler you attach yourself, failures with their full traceback.
 
 ## Configuring Logging
 
@@ -47,7 +71,7 @@ Loggers use dotted names (often from `__name__`), e.g. `RT.railtracks._session`.
 --8<-- "docs/scripts/_logging.py:logging_name_style"
 ```
 
-File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console formatter applies `name_style`.
+File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console applies `name_style`. The console shows the name on `DEBUG`, `WARNING`, `ERROR`, and `CRITICAL` lines; `INFO` lines print as plain notes.
 
 ### Logging Levels
 
@@ -145,12 +169,14 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
     | Node Completed | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
 
 ??? note "INFO Messages"
+    The console prints INFO records as dim notes (`· <MESSAGE>`). The creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
+
     | Type             | Example |
     |------------------|---------|
     | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |
     | Invoking Nodes   | `RT          : INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
     | Node Completed   | `RT          : INFO     - <NODE_NAME> DONE` |
-    | Run Data Saved   | `RT.Runner   : INFO     - Saving execution info to .railtracks\<RUNNER_ID>.json` |
+    | Run Data Saved   | `· Saving run data to .railtracks/data/sessions/<FLOW_NAME>_<SESSION_ID>.json` |
 
 ??? note "WARNING Messages"
     | Type              | Example |
@@ -158,6 +184,8 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
     | Overwriting File  | `RT.Runner   : WARNING  - File .railtracks\<RUNNER_ID>.json already exists, overwriting...` |
 
 ??? note "ERROR Messages"
+    This record reaches the file handler and your own handlers with its full traceback; the console shows the failure through the run view instead.
+
     | Type        | Example |
     |-------------|---------|
     | Node Failed | `RT          : ERROR    - <NODE_NAME> FAILED` |

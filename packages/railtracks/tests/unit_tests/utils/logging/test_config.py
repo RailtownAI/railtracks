@@ -1,13 +1,17 @@
+import io
 import logging
 import os
+import sys
 import tempfile
 from unittest.mock import patch
 
 import pytest
+from railtracks.utils.logging import config
 from railtracks.utils.logging.config import (
-    ColorfulFormatter,
+    LIFECYCLE_EXTRA,
+    LifecycleFilter,
+    RichConsoleHandler,
     ThreadAwareFilter,
-    _default_format_string,
     _module_logging_level,
     _short_suffix_label,
     detach_logging_handlers,
@@ -15,53 +19,37 @@ from railtracks.utils.logging.config import (
     initialize_module_logging,
     prepare_logger,
     rt_logger,
+    run_view_level,
     setup_file_handler,
 )
+from rich.console import Console
 
-# ================= ColorfulFormatter Tests =================
+# ================= RichConsoleHandler Tests =================
 
 
-def test_colorful_formatter_adds_relative_seconds():
-    """Test that the formatter adds relative_seconds attribute to log records."""
-    formatter = ColorfulFormatter()
+def _record(
+    name: str = "RT.railtracks.state.state", level: int = logging.INFO, **extra
+) -> logging.LogRecord:
     record = logging.LogRecord(
-        name="test",
-        level=logging.INFO,
+        name=name,
+        level=level,
         pathname="",
         lineno=0,
-        msg="test message",
-        args=(),
+        msg="hello %s",
+        args=("world",),
         exc_info=None,
     )
-    record.relativeCreated = 1234.567
-
-    formatter.format(record)
-
-    assert hasattr(record, "relative_seconds")
-    assert record.relative_seconds == "1.235"  # type: ignore
+    record.__dict__.update(extra)
+    return record
 
 
-def test_colorful_formatter_restores_original_msg():
-    """Test that formatter restores original msg and args after formatting."""
-    formatter = ColorfulFormatter()
-    original_msg = "test message with %s and %s keywords"
-    original_args = ("CREATED", "DONE")
-    record = logging.LogRecord(
-        name="test",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg=original_msg,
-        args=original_args,
-        exc_info=None,
+@pytest.fixture
+def console_output(monkeypatch) -> io.StringIO:
+    buffer = io.StringIO()
+    monkeypatch.setattr(
+        config, "console", Console(file=buffer, width=200, color_system=None)
     )
-    record.relativeCreated = 1000.0
-
-    formatter.format(record)
-
-    # Verify original values are restored
-    assert record.msg == original_msg
-    assert record.args == original_args
+    return buffer
 
 
 def test_short_suffix_label_strips_leading_underscores():
@@ -69,79 +57,132 @@ def test_short_suffix_label_strips_leading_underscores():
     assert _short_suffix_label("state") == "State"
 
 
-def test_colorful_formatter_short_display_name_underscore_module():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
-    record = logging.LogRecord(
-        name="RT.railtracks._session",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
-    )
-    record.relativeCreated = 1000.0
+@pytest.mark.parametrize(
+    ("name", "name_style", "level", "expected"),
+    [
+        (
+            "RT.railtracks._session",
+            "short",
+            logging.WARNING,
+            "RT.Session  : WARNING  - hello world",
+        ),
+        (
+            "RT.railtracks.state.state",
+            "short",
+            logging.ERROR,
+            "RT.State    : ERROR    - hello world",
+        ),
+        ("RT", "short", logging.DEBUG, "RT          : DEBUG    - hello world"),
+        (
+            "RT.railtracks.state.state",
+            "full",
+            logging.WARNING,
+            "RT.railtracks.state.state: WARNING  - hello world",
+        ),
+        ("RT.railtracks._session", "short", logging.INFO, "· hello world"),
+        ("RT.railtracks.state.state", "full", logging.INFO, "· hello world"),
+    ],
+)
+def test_console_handler_line_layout(console_output, name, name_style, level, expected):
+    RichConsoleHandler(name_style=name_style).emit(_record(name, level))
 
-    out = formatter.format(record)
-
-    assert "RT.Session" in out
-    assert "_session" not in out
-
-
-def test_colorful_formatter_short_display_name_rt_capitalized_suffix():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
-    record = logging.LogRecord(
-        name="RT.railtracks.state.state",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
-    )
-    record.relativeCreated = 1000.0
-
-    out = formatter.format(record)
-
-    assert "RT.State" in out
-    assert "railtracks.state.state" not in out
+    assert console_output.getvalue().rstrip("\n").endswith(f"] {expected}")
 
 
-def test_colorful_formatter_full_display_name_preserves_dotted_name():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="full")
-    record = logging.LogRecord(
-        name="RT.railtracks.state.state",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
-    )
-    record.relativeCreated = 1000.0
+def test_console_handler_leaves_no_custom_attributes_on_the_record(console_output):
+    """Handlers further up the tree (e.g. a log shipper on root) see the record as logged."""
+    record = _record()
+    before = set(record.__dict__)
 
-    out = formatter.format(record)
+    RichConsoleHandler().emit(record)
 
-    assert "RT.railtracks.state.state" in out
+    assert set(record.__dict__) - before <= {"message"}
 
 
-def test_colorful_formatter_short_display_name_root_rt():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
-    record = logging.LogRecord(
-        name="RT",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
-    )
-    record.relativeCreated = 1000.0
+def test_console_handler_includes_the_traceback(console_output):
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        record = _record()
+        record.exc_info = sys.exc_info()
 
-    out = formatter.format(record)
+    RichConsoleHandler().emit(record)
 
-    assert "RT          :" in out
-    assert "RT." not in out.split(":")[0]
+    assert "ValueError: boom" in console_output.getvalue()
+
+
+def test_lifecycle_filter_drops_only_marked_records():
+    lifecycle_filter = LifecycleFilter()
+
+    assert lifecycle_filter.filter(_record(**LIFECYCLE_EXTRA)) is False
+    assert lifecycle_filter.filter(_record()) is True
+
+
+def test_lifecycle_records_still_reach_other_handlers(console_output):
+    """The filter sits on railtracks' console handler, not the logger."""
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+    captured: list[logging.LogRecord] = []
+    other = logging.Handler()
+    other.emit = captured.append
+    rt_logger.addHandler(other)
+
+    rt_logger.info("A CREATED B", extra=LIFECYCLE_EXTRA)
+
+    assert [r.getMessage() for r in captured] == ["A CREATED B"]
+    assert console_output.getvalue() == ""
+    detach_logging_handlers()
+
+
+def test_console_writes_to_stderr_in_a_terminal():
+    assert config._make_console().stderr is True
+
+
+def test_console_writes_ansi_to_stdout_in_a_notebook(monkeypatch):
+    """Rich would send each line as its own HTML output; one ANSI stream reads as a block."""
+    monkeypatch.setattr("rich.console._is_jupyter", lambda: True)
+
+    notebook_console = config._make_console()
+
+    assert notebook_console.is_jupyter is False
+    assert notebook_console.is_terminal is True
+    assert notebook_console.file is sys.stdout
+
+
+# ================= run_view_level Tests =================
+
+
+def test_run_view_level_is_none_until_the_console_is_enabled():
+    detach_logging_handlers()
+
+    assert run_view_level() is None
+
+
+def test_run_view_level_prefers_the_thread_level():
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+    token = _module_logging_level.set(logging.DEBUG)
+    try:
+        assert run_view_level() == logging.DEBUG
+    finally:
+        _module_logging_level.reset(token)
+
+    token = _module_logging_level.set(None)
+    try:
+        assert run_view_level() == logging.INFO
+    finally:
+        _module_logging_level.reset(token)
+    detach_logging_handlers()
+
+
+def test_prepare_logger_enables_the_run_view_at_its_setting():
+    prepare_logger(setting="WARNING")
+    token = _module_logging_level.set(None)
+    try:
+        assert run_view_level() == logging.WARNING
+    finally:
+        _module_logging_level.reset(token)
+    detach_logging_handlers()
 
 
 # ================= ThreadAwareFilter Tests =================
@@ -253,7 +294,7 @@ def test_prepare_logger_debug_sets_debug_level():
     assert any(
         h.level == logging.DEBUG
         for h in rt_logger.handlers
-        if isinstance(h, logging.StreamHandler)
+        if isinstance(h, RichConsoleHandler)
     )
     # Clean up
     detach_logging_handlers()
@@ -267,7 +308,7 @@ def test_prepare_logger_info_sets_info_level():
     assert any(
         h.level == logging.INFO
         for h in rt_logger.handlers
-        if isinstance(h, logging.StreamHandler)
+        if isinstance(h, RichConsoleHandler)
     )
     # Clean up
     detach_logging_handlers()
@@ -281,7 +322,7 @@ def test_prepare_logger_warning_sets_warning_level():
     assert any(
         h.level == logging.WARNING
         for h in rt_logger.handlers
-        if isinstance(h, logging.StreamHandler)
+        if isinstance(h, RichConsoleHandler)
     )
     # Clean up
     detach_logging_handlers()
@@ -320,16 +361,16 @@ def test_prepare_logger_clears_existing_handlers():
 
 
 def test_enable_logging_adds_real_handlers():
-    """Test that enable_logging() (opt-in API) adds real handlers (e.g. StreamHandler)."""
+    """Test that enable_logging() (opt-in API) adds railtracks' console handler."""
     detach_logging_handlers()
 
     enable_logging(level="INFO")
 
-    stream_handlers = [
-        h for h in rt_logger.handlers if isinstance(h, logging.StreamHandler)
+    console_handlers = [
+        h for h in rt_logger.handlers if isinstance(h, RichConsoleHandler)
     ]
-    assert len(stream_handlers) >= 1, (
-        "enable_logging() should add at least one StreamHandler"
+    assert len(console_handlers) == 1, (
+        "enable_logging() should add railtracks' console handler"
     )
 
     detach_logging_handlers()
