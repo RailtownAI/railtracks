@@ -39,8 +39,19 @@ _file_format_string = (
 # Marks a record the run view already shows, so the console handler skips it
 LIFECYCLE_EXTRA = {"rt_lifecycle": True}
 
+
+def _make_console() -> Console:
+    """Terminal output goes to stderr. In a notebook, rich would send every line as
+    its own HTML output, so it writes ANSI text to stdout instead; Jupyter merges
+    that into one block (stderr would be tinted like an error)."""
+    terminal = Console(stderr=True)
+    if terminal.is_jupyter:
+        return Console(force_jupyter=False, force_terminal=True)
+    return terminal
+
+
 # Shared by the console handler and the run view so their lines interleave on one clock
-console = Console(stderr=True)
+console = _make_console()
 _start_time = time.time()
 
 # Default level of the run view; None until railtracks installs its console handler

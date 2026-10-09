@@ -31,6 +31,8 @@ _SITE_DIRS = tuple(
 )
 
 _FRAME = re.compile(r'^  File "(?P<path>[^"]+)", line (?P<line>\d+), in (?P<name>.+)$')
+# the file IPython compiles a notebook cell into
+_NOTEBOOK_CELL = re.compile(r"ipykernel_\d+[/\\]\d+\.py$")
 _CHAIN_BREAK = re.compile(
     r"\n(?:The above exception was the direct cause|During handling of the above"
     r" exception)[^\n]*\n"
@@ -420,6 +422,8 @@ def _is_under(path: str, directories: tuple[str, ...]) -> bool:
 
 def _display_path(path: str) -> str:
     """The path relative to the working directory when it is inside it."""
+    if _NOTEBOOK_CELL.search(path):
+        return "<cell>"
     try:
         relative = os.path.relpath(path)
     except ValueError:

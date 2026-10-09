@@ -341,6 +341,20 @@ def test_failure_shows_only_the_frames_outside_railtracks_and_the_stdlib(output,
     ]
 
 
+def test_a_notebook_cell_frame_shows_as_cell(output, level):
+    traceback = _traceback(
+        ("/var/folders/7v/T/ipykernel_11286/1101257469.py", "raise ValueError('bad')")
+    )
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_failed(ENTRY, traceback=traceback),
+    )
+
+    assert _lines(output)[-2].strip() == "<cell>:1 in fn1"
+
+
 def test_debug_shows_every_frame(output, level):
     level(logging.DEBUG)
     traceback = _traceback(

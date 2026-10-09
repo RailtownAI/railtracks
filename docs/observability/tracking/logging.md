@@ -40,6 +40,8 @@ With logging enabled, each run prints as an indented tree built from the run's e
 
 When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`.
 
+In a Jupyter notebook the run view prints into the cell's output as one block, and frames from notebook code show as `<cell>`.
+
 Failures always print, marked `(fatal)` when they stop the run, with the lines of your code the exception came through indented underneath (railtracks and standard-library frames are left out; `DEBUG` shows them all). A node that its middleware retries shows a `↻ <NODE> retrying after <ERROR>` line, and its final outcome is what the `✓` or `✗` line reports. Each run uses the level of the thread it started in, so calling `enable_logging(level=...)` in a worker thread changes what that thread's runs print.
 
 The run view replaces the console lines for node creation, completion, and failure (`<PARENT> CREATED <CHILD>`, `<NODE> DONE`, `<NODE> FAILED`). Those records are still emitted, marked with `rt_lifecycle` in `extras`, and still reach your file handler and any handler you attach yourself, failures with their full traceback.

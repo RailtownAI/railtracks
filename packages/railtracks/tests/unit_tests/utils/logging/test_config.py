@@ -134,6 +134,21 @@ def test_lifecycle_records_still_reach_other_handlers(console_output):
     detach_logging_handlers()
 
 
+def test_console_writes_to_stderr_in_a_terminal():
+    assert config._make_console().stderr is True
+
+
+def test_console_writes_ansi_to_stdout_in_a_notebook(monkeypatch):
+    """Rich would send each line as its own HTML output; one ANSI stream reads as a block."""
+    monkeypatch.setattr("rich.console._is_jupyter", lambda: True)
+
+    notebook_console = config._make_console()
+
+    assert notebook_console.is_jupyter is False
+    assert notebook_console.is_terminal is True
+    assert notebook_console.file is sys.stdout
+
+
 # ================= run_view_level Tests =================
 
 
