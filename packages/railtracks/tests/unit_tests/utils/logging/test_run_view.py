@@ -158,8 +158,8 @@ def test_nested_nodes_indent_under_their_caller(output, level):
 
     assert _lines(output) == [
         "▶ My Flow  entry: Entry",
-        "  ▶ Entry",
-        "    ▶ Child",
+        "  ↳ Entry",
+        "    ↳ Child",
         "    ✓ Child 0.250s",
         "  ✓ Entry 0.250s",
         "✓ My Flow in 0.500s",
@@ -194,7 +194,7 @@ def test_debug_adds_arguments_and_responses(output, level):
     )
 
     assert _lines(output)[1:] == [
-        "  ▶ Entry ('hi', n=2)",
+        "  ↳ Entry ('hi', n=2)",
         "  ✓ Entry 0.250s → 42",
     ]
 
@@ -249,7 +249,7 @@ def test_a_retried_node_shows_the_retry_and_its_final_success(output, level):
     )
 
     assert _lines(output)[1:] == [
-        "  ▶ Entry",
+        "  ↳ Entry",
         "  ↻ Entry retrying after ValueError: flaky",
         "  ✓ Entry 0.250s",
     ]
@@ -426,11 +426,11 @@ def test_siblings_running_at_once_name_their_branch(output, level):
     )
 
     assert _lines(output)[1:] == [
-        "  ▶ Orchestrator",
-        "    ▶ Word Analyst",
-        "    ▶ Poet",
+        "  ↳ Orchestrator",
+        "    ↳ Word Analyst",
+        "    ↳ Poet",
         "      Word Analyst › ◆ gpt 199→1 tokens",
-        "      Word Analyst › ▶ count_letters",
+        "      Word Analyst › ↳ count_letters",
         "      Word Analyst › ✓ count_letters 0.250s",
         "      Poet › ◆ gpt 47→1 tokens",
         "    ✓ Poet 0.250s",
@@ -466,7 +466,7 @@ def test_node_called_from_middleware_nests_under_that_middleware_node(output, le
         ),
     )
 
-    assert _lines(output)[-1] == "    ▶ Judge"
+    assert _lines(output)[-1] == "    ↳ Judge"
 
 
 def test_nothing_prints_when_the_console_is_not_enabled(output, level):
@@ -504,8 +504,8 @@ def test_each_run_keeps_the_level_it_started_with(output, level):
             ),
         )
 
-    assert "  ▶ chatty" in _lines(output)
-    assert "  ▶ quiet" not in _lines(output)
+    assert "  ↳ chatty" in _lines(output)
+    assert "  ↳ quiet" not in _lines(output)
 
 
 def test_run_state_is_dropped_when_the_run_completes(output, level):
@@ -539,7 +539,7 @@ def test_a_flow_prints_through_the_session_listener(console_enabled):
 
     lines = _lines(console_enabled)
     assert lines[0] == "▶ Shout Flow  entry: shout"
-    assert lines[1] == "  ▶ shout"
+    assert lines[1] == "  ↳ shout"
     assert lines[2].startswith("  ✓ shout ")
     assert lines[3].startswith("✓ Shout Flow in ")
 
@@ -584,7 +584,7 @@ def test_a_flow_retried_by_middleware_ends_in_success(console_enabled):
 
     lines = _lines(console_enabled)
     assert lines[1:4] == [
-        "  ▶ flaky",
+        "  ↳ flaky",
         "  ↻ flaky retrying after ValueError: flaky",
         lines[3],
     ]

@@ -215,7 +215,7 @@ def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
             "yellow",
         )
     else:
-        text = Text(f"▶ {_node_name(run, node_id)}")
+        text = Text(f"↳ {_node_name(run, node_id)}")
     if run.level <= logging.DEBUG:
         text.append(f" {_call_args(payload['args'], payload['kwargs'])}", "dim")
     return _Line(

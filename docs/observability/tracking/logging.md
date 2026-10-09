@@ -8,12 +8,12 @@ Railtracks emits log records for execution (node creation, completion, failures)
 ??? example "Example Logs"
     ```
     [+  3.525s] ▶ Github Flow  entry: Github Agent
-    [+  3.526s]   ▶ Github Agent
+    [+  3.526s]   ↳ Github Agent
     [+  8.040s]     ◆ claude-sonnet-4-6 812→64 tokens · $0.0034 · 4.51s
-    [+  8.041s]     ▶ create_issue
+    [+  8.041s]     ↳ create_issue
     [+  8.685s]     ✓ create_issue 0.644s
     [+ 14.333s]     ◆ claude-sonnet-4-6 1004→71 tokens · $0.0041 · 5.64s
-    [+ 14.334s]     ▶ assign_copilot_to_issue
+    [+ 14.334s]     ↳ assign_copilot_to_issue
     [+ 14.760s]     ✓ assign_copilot_to_issue 0.426s
     [+ 23.400s]     ◆ claude-sonnet-4-6 1190→112 tokens · $0.0052 · 8.63s
     [+ 23.401s]   ✓ Github Agent 19.875s
@@ -37,7 +37,7 @@ With logging enabled, each run prints as an indented tree built from the run's e
 | `ERROR` / `CRITICAL` | Failures only |
 | `NONE` | Nothing |
 
-When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ▶ count_letters`.
+When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`.
 
 Failures always print, marked `(fatal)` when they stop the run, with the lines of your code the exception came through indented underneath (railtracks and standard-library frames are left out; `DEBUG` shows them all). A node that its middleware retries shows a `↻ <NODE> retrying after <ERROR>` line, and its final outcome is what the `✓` or `✗` line reports. Each run uses the level of the thread it started in, so calling `enable_logging(level=...)` in a worker thread changes what that thread's runs print.
 
