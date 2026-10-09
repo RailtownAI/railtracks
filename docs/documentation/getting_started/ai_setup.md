@@ -4,6 +4,9 @@ Railtracks ships with built-in support for the most popular AI coding assistants
 
 Without a skill, your assistant has to guess at the API. With one, it knows exactly what `rt.agent_node()`, `rt.function_node()`, and `rt.Flow` expect; and it won't make things up.
 
+!!! tip "Using Claude Code?"
+    The [Claude Code plugin](claude_code_plugin.md) is the quickest way in: two commands, and it works before Railtracks is installed.
+
 ## Installation
 
 Make sure the CLI is installed first:
@@ -12,6 +15,20 @@ Make sure the CLI is installed first:
 pip install 'railtracks[visual]'
 ```
 
+
+## Always-On Rules (`AGENTS.md`)
+
+Skills load only when the assistant decides they're relevant, and it often doesn't. For the core API, always-on context works better: in [Vercel's agent evals](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), a short `AGENTS.md` index beat on-demand skills by a wide margin. Run this from your project root:
+
+```bash
+railtracks agents-md
+```
+
+It writes a short Railtracks block (the core patterns, the right call where coding agents often guess wrong, and links to these docs) into `AGENTS.md`, creating the file if needed. The block sits between `<!-- BEGIN:railtracks-agent-rules -->` and `<!-- END:railtracks-agent-rules -->`, and re-running the command replaces only what's between the markers, so anything else you keep in `AGENTS.md` is left alone. Because Claude Code skips `AGENTS.md` when a `CLAUDE.md` exists, the command also creates `CLAUDE.md` with an `@AGENTS.md` import, or adds that line to your existing `CLAUDE.md` if it's missing.
+
+The block records the railtracks version that wrote it; rerun `railtracks agents-md` after upgrading so it matches. To opt out, delete the block (markers included) from `AGENTS.md`, and the `@AGENTS.md` line from `CLAUDE.md` if nothing else needs it.
+
+Skills and the block work well together: the block keeps the basics right in every session, and skills cover multi-step work like RAG pipelines and middleware.
 
 ## Supported Assistants
 
@@ -33,7 +50,7 @@ pip install 'railtracks[visual]'
 
 === "Claude Code"
 
-    Installs a skill file at `.claude/skills/agent-builder/SKILL.md`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.
+    Installs a skill directory at `.claude/skills/agent-builder/`. Claude Code automatically picks up skills in this directory and applies them when you ask it to build an agent.
 
     ```bash
     railtracks add claude:agent-builder
@@ -44,29 +61,35 @@ pip install 'railtracks[visual]'
         .claude/
         └── skills/
             └── agent-builder/
-                └── SKILL.md   ← railtracks agent-building knowledge
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
+
+    !!! note "Supporting files"
+        A skill can ship more than `SKILL.md`; `references/`, `scripts/`, and so on. The whole
+        directory is copied, with its sub-paths intact. Claude Code loads a supporting file only
+        when `SKILL.md` links it, on demand, so nothing extra enters the context until it is needed.
 
 === "GitHub Copilot"
 
-    Appends the skill to `.github/copilot-instructions.md`, which Copilot reads as workspace-level instructions in every chat.
+    Installs a skill directory at `.github/skills/agent-builder/`. Copilot auto-discovers skills in `.github/skills` and loads one on demand when its description matches what you're working on.
 
     ```bash
     railtracks add copilot:agent-builder
     ```
 
-    ??? success "What gets created / updated"
+    ??? success "What gets created"
         ```
         .github/
-        └── copilot-instructions.md   ← skill appended inside marker comments
+        └── skills/
+            └── agent-builder/
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
-
-    !!! note "Idempotent"
-        Running this command twice is safe — it detects the existing section and skips it. Use `--force` to replace it.
 
 === "Cursor"
 
-    Installs a `.mdc` rules file at `.cursor/rules/agent-builder.mdc`. Cursor loads these rules when they match the current context.
+    Installs a skill directory at `.cursor/skills/agent-builder/`. Cursor discovers skills in `.cursor/skills` and loads one when its description matches the current context.
 
     ```bash
     railtracks add cursor:agent-builder
@@ -75,9 +98,33 @@ pip install 'railtracks[visual]'
     ??? success "What gets created"
         ```
         .cursor/
-        └── rules/
-            └── agent-builder.mdc   ← railtracks agent-building knowledge
+        └── skills/
+            └── agent-builder/
+                ├── SKILL.md   ← railtracks agent-building knowledge
+                └── ...        ← any supporting files the skill ships
         ```
+
+### Install all skills
+
+Use `all` instead of a skill name to install every bundled skill for an assistant:
+
+```bash
+railtracks add claude:all
+railtracks add codex:all
+railtracks add copilot:all
+railtracks add cursor:all
+```
+
+Each skill uses the same installer and overwrite behavior as an individual install.
+If a Copilot skill is already present, or you decline an overwrite for Claude Code,
+Codex, or Cursor, the bulk command keeps that skill unchanged and continues with
+the remaining skills. It reports installed and skipped totals at the end. Re-running
+the command installs any missing skills without requiring you to replace existing ones.
+To replace existing skills without prompting, append `--force`:
+
+```bash
+railtracks add claude:all --force
+```
 
 ## Options
 
@@ -101,7 +148,7 @@ railtracks add --list
 | Skill | Description |
 |---|---|
 | `agent-builder` | Build agents, tools, flows, and multi-agent workflows with railtracks |
-| `rag-pipeline` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
+| `rag` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
 | `middleware` | Add middleware to railtracks nodes and agents, including retries, logging, and guardrails |
 
 
@@ -113,11 +160,28 @@ Skills are bundled **inside the railtracks package**, no internet connection req
 2. Formats it with the frontmatter and structure that your specific assistant expects
 3. Writes it to the correct location in your project
 
+!!! tip "Point your assistant at the docs"
+    For anything a skill doesn't cover, point your assistant at [`https://docs.railtracks.org/llms.txt`](https://docs.railtracks.org/llms.txt), which links a plain Markdown copy of every docs page.
+
 !!! tip "Commit the files"
     These files are small and stable. Committing them means every developer on your team gets the same assistant behaviour out of the box, no manual setup required.
 
 !!! warning "Existing files"
-    For Claude Code and Cursor, if the target file already exists you'll be prompted to confirm before overwriting. Pass `--force` to skip the prompt.
+    You'll be prompted before anything is overwritten that railtracks can't confirm it wrote itself
+    and that nobody has edited since. Re-running the command over an untouched install doesn't
+    prompt; there's nothing of yours to lose. Pass `--force` to skip the prompt entirely.
+
+## Keeping Skills in Sync
+
+Each installed skill carries a small `.railtracks.json` recording what was written, which railtracks
+version wrote it, and a checksum per file. **Commit it along with the skill** — it's what makes the
+next install a sync rather than a copy:
+
+- A supporting file an older railtracks shipped and the current one dropped is **removed**, so a
+  stale page can't linger and get read by your assistant.
+- A file you've since edited is **never** removed. Railtracks reports it and leaves it alone.
+- Re-installing an unchanged skill rewrites the manifest byte-for-byte, so it won't churn your diff.
+- If the install came from a different railtracks version, you'll be told when you re-install.
 
 ## Example: Building Your First Agent
 
