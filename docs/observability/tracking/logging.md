@@ -18,6 +18,7 @@ Railtracks emits log records for execution (node creation, completion, failures)
     [+ 23.400s]     ◆ claude-sonnet-4-6 1190→112 tokens · $0.0052 · 8.63s
     [+ 23.401s]   ✓ Github Agent 19.875s
     [+ 23.402s] ✓ Github Flow in 19.877s
+                  → Created issue #42 "Fix login timeout" and assigned it to Copilot.
     ```
 
 ---
@@ -32,7 +33,7 @@ With logging enabled, each run prints as an indented tree built from the run's e
 | Level | Run view shows |
 |-------|----------------|
 | `DEBUG` | Everything below, plus node arguments and responses, guardrail and verifier decisions, and context reads and writes |
-| `INFO` | Each node starting and finishing, and each LLM call |
+| `INFO` | Each node starting and finishing, each LLM call, and the run's result on one line |
 | `WARNING` | The run starting and finishing |
 | `ERROR` / `CRITICAL` | Failures only |
 | `NONE` | Nothing |

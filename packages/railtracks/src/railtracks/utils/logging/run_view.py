@@ -60,6 +60,8 @@ class _Run:
     running: set[str] = field(default_factory=set)
     # nodes that ran alongside a sibling; their lines carry the branch name
     concurrent: set[str] = field(default_factory=set)
+    # what the entry point returned, shown under the run's closing line
+    result: str | None = None
 
 
 @dataclass
@@ -167,6 +169,8 @@ def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
     elif event_type == "node.response":
         run.attempt_failures.pop(node_id, None)
     elif event_type == "node.destruction":
+        if run.parents[node_id] is None and payload.get("exception_name") is None:
+            run.result = _display(payload["response"])
         run.running.discard(node_id)
         run.attempt_failures.pop(node_id, None)
         run.retrying.pop(node_id, None)
@@ -203,7 +207,11 @@ def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
     if payload["status"] == "failure":
         text = Text(f"✗ {run.label} failed{duration}: {payload['error']}", "bold red")
         return _Line(logging.ERROR, 0, text)
-    return _Line(logging.WARNING, 0, Text(f"✓ {run.label}{duration}", "bold green"))
+    text = Text(f"✓ {run.label}{duration}", "bold green")
+    detail = []
+    if run.result is not None and run.level <= logging.INFO:
+        detail.append(Text(f"→ {run.result}"))
+    return _Line(logging.WARNING, 0, text, detail=detail)
 
 
 def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
@@ -246,7 +254,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
         (f" {payload['duration_seconds']:.3f}s", "dim"),
     )
     if run.level <= logging.DEBUG:
-        text.append(f" → {_truncate(repr(payload['response']))}", "dim")
+        text.append(f" → {_display(payload['response'])}", "dim")
     return _Line(
         logging.INFO, run.depths.get(node_id, 1), text, run.parents.get(node_id)
     )
@@ -423,6 +431,11 @@ def _call_args(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
     parts = [repr(arg) for arg in args]
     parts.extend(f"{key}={value!r}" for key, value in kwargs.items())
     return _truncate(f"({', '.join(parts)})")
+
+
+def _display(value: Any) -> str:
+    """A value as one short line; ``str`` so an agent's response shows its content."""
+    return _truncate(str(value))
 
 
 def _truncate(value: str) -> str:

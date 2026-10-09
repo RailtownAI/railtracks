@@ -163,6 +163,7 @@ def test_nested_nodes_indent_under_their_caller(output, level):
         "    ✓ Child 0.250s",
         "  ✓ Entry 0.250s",
         "✓ My Flow in 0.500s",
+        "              → ok",
     ]
 
 
@@ -182,6 +183,58 @@ def test_warning_shows_only_the_run_and_failures(output, level):
         "  ✗ Entry failed: ValueError: bad",
         "✗ My Flow failed in 0.500s: bad",
     ]
+
+
+class _AgentAnswer:
+    """Stands in for an agent's response, whose ``str`` is its content."""
+
+    def __repr__(self) -> str:
+        return "LLMResponse(...)"
+
+    def __str__(self) -> str:
+        return "There are 3 r's.\nThree little r's."
+
+
+def test_the_run_ends_with_what_the_entry_point_returned(output, level):
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_started(CHILD, "Child", caller=ENTRY),
+        _node_done(CHILD, response="not the result"),
+        _node_done(ENTRY, response=_AgentAnswer()),
+        _completed(),
+    )
+
+    assert _lines(output)[-2:] == [
+        "✓ My Flow in 0.500s",
+        "              → There are 3 r's. Three little r's.",
+    ]
+
+
+def test_warning_leaves_out_the_result(output, level):
+    level(logging.WARNING)
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_done(ENTRY),
+        _completed(),
+    )
+
+    assert _lines(output)[-1] == "✓ My Flow in 0.500s"
+
+
+def test_a_failed_run_has_no_result_line(output, level):
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_failed(ENTRY),
+        _completed(status="failure", error="bad"),
+    )
+
+    assert not any("→" in line for line in _lines(output))
 
 
 def test_debug_adds_arguments_and_responses(output, level):
@@ -542,6 +595,7 @@ def test_a_flow_prints_through_the_session_listener(console_enabled):
     assert lines[1] == "  ↳ shout"
     assert lines[2].startswith("  ✓ shout ")
     assert lines[3].startswith("✓ Shout Flow in ")
+    assert lines[4].strip() == "→ HI"
 
 
 def test_a_failing_flow_points_at_the_line_that_raised(console_enabled):
