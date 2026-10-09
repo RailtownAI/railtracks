@@ -195,7 +195,7 @@ Your assistant will use the skill to generate correct `rt.function_node` tools, 
 
 ## Example: Building a RAG Pipeline
 
-Install the RAG skill and ask your assistant to wire up a pipeline over your data (replace `claude` with your assistant prefix, e.g. `codex`, `copilot`, or `cursor`):
+Install the RAG skill and ask your assistant to wire up a pipeline over your data:
 
 ```bash
 railtracks add <assistant>:rag
