@@ -29,6 +29,7 @@ Guardrails are model middleware too; a policy layer that inspects inputs and out
 | [BlockTextInputGuard / BlockTextOutputGuard](list/block_text.md) | Model | Block an interaction when a regex pattern matches the input or output. |
 | [InputLengthGuard / OutputLengthGuard](list/length.md) | Model | Block an interaction when the character count exceeds a ceiling. |
 | [PIIRedactInputGuard / PIIRedactOutputGuard](list/pii_redaction.md) | Model | Redact PII (emails, phone numbers, custom patterns, …) from inputs and outputs. |
+| [ScopeGuard](list/scope.md) | Model | Block requests outside the agent's scope, judged by a separate model. |
 
 ### Verifiers
 

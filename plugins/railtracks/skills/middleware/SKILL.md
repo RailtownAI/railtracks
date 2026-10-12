@@ -40,6 +40,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 ### 2. Middleware vs. guardrails
 - `rt.input_guard` / `rt.output_guard` are middleware under the hood (`BaseGuardrail` extends `Middleware`), specialized for one thing: "should this content pass?" The guard function receives an `LLMGuardrailEvent` and returns a `GuardrailDecision` (`allow` / `block` / `transform`).
 - Use a guard, not hand-rolled middleware, whenever the logic is a content-policy decision (PII/secrets detection, profanity, jailbreak checks, redaction). You get for free: structured `GuardrailTrace` records (`rail_name`, `phase`, `action`, `reason`), `fail_open=` to decide whether a guard's own bug blocks or passes traffic, and consistent block semantics other tooling can rely on.
+- To keep a domain-specific agent from answering off-topic requests, use the prebuilt `ScopeGuard(scope=..., model=..., sensitivity=...)` from `railtracks.prebuilt.guardrails`; a judge model labels the request before the agent's own model runs.
 - Use plain middleware for everything that isn't a pass/block decision on content: retries, timing, logging, context injection, auth/telemetry.
 
 ### 3. Ordering & composition

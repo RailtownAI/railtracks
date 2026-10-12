@@ -201,7 +201,7 @@ railtracks viz --beta
 ## Rules
 - Pass `llm=` to every `rt.agent_node(...)`; it's required.
 - Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`.
-- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, …) from `railtracks.prebuilt.guardrails`.
+- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, `ScopeGuard`, …) from `railtracks.prebuilt.guardrails`.
 - Stream with `rt.astream(...)`.
 - Run agents through `rt.Flow(...)`.
 - Give each agent one entry point: a `Flow`, or `await rt.call()` inside another node.
