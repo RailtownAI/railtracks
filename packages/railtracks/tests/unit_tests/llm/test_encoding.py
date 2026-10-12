@@ -84,6 +84,48 @@ class TestEncode:
         result = encode("https://example.com/image.png")
         assert result == base64.b64encode(image_data).decode("utf-8")
 
+    @staticmethod
+    def _mock_response(mock_urlopen, body: bytes) -> Mock:
+        response = Mock()
+        response.read.side_effect = lambda size=-1: body if size < 0 else body[:size]
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        mock_urlopen.return_value = response
+        return response
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_url_over_size_limit_raises(self, mock_urlopen):
+        self._mock_response(mock_urlopen, b"x" * (1024 * 1024 + 1))
+
+        with pytest.raises(ValueError, match="exceeds the 1.0 MB limit"):
+            encode("https://example.com/report.pdf", max_mb=1.0)
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_url_at_size_limit_is_encoded(self, mock_urlopen):
+        body = b"x" * (1024 * 1024)
+        self._mock_response(mock_urlopen, body)
+
+        result = encode("https://example.com/report.pdf", max_mb=1.0)
+
+        assert base64.b64decode(result) == body
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_url_read_is_bounded(self, mock_urlopen):
+        """The body is read with a size, so an endless response cannot exhaust memory."""
+        response = self._mock_response(mock_urlopen, b"%PDF-1.4")
+
+        encode("https://example.com/report.pdf", max_mb=1.0)
+
+        response.read.assert_called_once_with(1024 * 1024 + 1)
+
+    def test_local_file_is_not_size_limited(self, tmp_path):
+        local = tmp_path / "big.pdf"
+        local.write_bytes(b"x" * (1024 * 1024 + 1))
+
+        result = encode(str(local), max_mb=1.0)
+
+        assert len(base64.b64decode(result)) == 1024 * 1024 + 1
+
     @patch("railtracks.llm.encoding.request.urlopen")
     def test_url_http_error(self, mock_urlopen):
         mock_urlopen.side_effect = HTTPError(

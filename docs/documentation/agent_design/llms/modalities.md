@@ -92,18 +92,21 @@ Supported PDF sources:
 - HTTPS URLs ending in `.pdf` — **only with `trust_urls=True`** (see below)
 
 !!! warning "URL PDFs require `trust_urls=True`"
-    Unlike image URLs (which the provider fetches), PDFs are passed to the provider inline as base64. That means railtracks downloads the URL **in-process** before the call. End-user-supplied URLs are an SSRF surface once their bytes are fetched on your server and embedded in the prompt, so this path is opt-in:
+    Unlike most image URLs (which the provider fetches), PDFs are passed to the provider inline as base64. That means railtracks downloads the URL **in-process** before the call. End-user-supplied URLs are an SSRF surface once their bytes are fetched on your server and embedded in the prompt, so this path is opt-in:
 
     ```python
     --8<-- "docs/scripts/multimodal.py:pdf_url"
     ```
 
-### Tuning the fetch timeout
+### Tuning the fetch timeout and size limit
 
-The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links:
+The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links. The download stops once it passes `attachment_max_mb` (32 MB by default) and raises a `ValueError`, so a very large or never-ending response cannot exhaust memory:
 
 ```python
 --8<-- "docs/scripts/multimodal.py:pdf_timeout"
 ```
 
-Only applies when `trust_urls=True` — local files, data URIs, and image URLs do not perform any in-process network I/O.
+Both settings only apply when `trust_urls=True`. Railtracks itself makes no network requests for local files, data URIs and image URLs.
+
+!!! warning "litellm may download image URLs itself"
+    `trust_urls` controls only the downloads Railtracks makes. litellm, which Railtracks uses to call providers, downloads some image URLs in-process before sending the request: `http://` image URLs for Anthropic models, and for Gemini models, `http://` URLs and `https://` URLs whose image type it cannot tell from the URL. If image URLs come from end users, download and check them yourself and pass a local file or data URI instead.

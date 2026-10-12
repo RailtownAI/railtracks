@@ -266,8 +266,9 @@ class TestAttachment:
         assert attachment.mime_type == "image/png"
         assert attachment.filename == "photo.png"
 
-    def test_attachment_timeout_threads_to_probe_and_encode(self, monkeypatch):
-        """attachment_timeout must reach both the HEAD probe and encode()."""
+    def test_attachment_limits_thread_to_probe_and_encode(self, monkeypatch):
+        """attachment_timeout must reach the HEAD probe and encode(), and
+        attachment_max_mb must reach encode()."""
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
@@ -289,10 +290,11 @@ class TestAttachment:
             seen["probe_timeout"] = timeout
             return _FakeResp()
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             seen["encode_timeout"] = timeout
+            seen["encode_max_mb"] = max_mb
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
         monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
@@ -303,16 +305,18 @@ class TestAttachment:
             attachment="https://example.com/no-ext",
             trust_urls=True,
             attachment_timeout=42.0,
+            attachment_max_mb=5.0,
         )
         assert seen["probe_timeout"] == 42.0
         assert seen["encode_timeout"] == 42.0
+        assert seen["encode_max_mb"] == 5.0
 
     def test_url_pdf_is_fetched_and_encoded(self, monkeypatch):
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             assert path == "https://example.com/docs/report.pdf?sig=xyz"
@@ -371,7 +375,7 @@ class TestAttachment:
             assert req.get_method() == "HEAD"
             return _FakeResp()
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")
@@ -428,7 +432,7 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")

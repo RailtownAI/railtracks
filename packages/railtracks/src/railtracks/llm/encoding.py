@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 from .attachment_formats import detect_attachment_mime_from_bytes
 
+DEFAULT_MAX_DOWNLOAD_MB = 32.0
+
 
 def _is_base64_attachment(s: str) -> bool:
     """
@@ -116,19 +118,23 @@ def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
     raise ValueError(f"Could not determine image source type for: {path}")
 
 
-def encode(path: str, *, timeout: float = 10.0) -> str:
+def encode(
+    path: str, *, timeout: float = 10.0, max_mb: float = DEFAULT_MAX_DOWNLOAD_MB
+) -> str:
     """Encodes image/audio located at path to a Base64 string.
 
     Args:
         path: The path to the local file or URL to encode.
         timeout: Per-request timeout in seconds for URL fetches.
+        max_mb: Largest body accepted from a URL, in megabytes. The read stops one
+            byte past the limit. Local files are not limited.
 
     Returns:
         str: Base64 encoded string
 
     Raises:
         FileNotFoundError: If the file doesn't exist.
-        ValueError: If the path is not a local file.
+        ValueError: If the path is not a local file, or a URL body exceeds `max_mb`.
     """
     source_type = detect_source(path)
 
@@ -145,8 +151,14 @@ def encode(path: str, *, timeout: float = 10.0) -> str:
                 encoding = base64.b64encode(image_file.read()).decode("utf-8")
         case "url":
             try:
+                max_bytes = int(max_mb * 1024 * 1024)
                 with request.urlopen(path, timeout=timeout) as url:
-                    encoding = base64.b64encode(url.read()).decode("utf-8")
+                    data = url.read(max_bytes + 1)
+                if len(data) > max_bytes:
+                    raise ValueError(
+                        f"Download from {path!r} exceeds the {max_mb} MB limit."
+                    )
+                encoding = base64.b64encode(data).decode("utf-8")
             except error.HTTPError as e:
                 raise ValueError(f"Failed to encode URL: {path}. Error: {e}")
         case "data_uri":
