@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import os
 import re
 from copy import deepcopy
@@ -27,6 +28,17 @@ _EXTENSION_MIME_MAP = {
     ".webp": "image/webp",
     ".pdf": "application/pdf",
 }
+
+# MIME types no image endpoint serves. Broader types such as application/xml are left
+# out: Windows maps .aspx/.ashx to them, and those are common dynamic image handlers.
+_NON_IMAGE_MIME_PREFIXES = (
+    "audio/",
+    "video/",
+    "text/",
+    "application/msword",
+    "application/vnd.ms-",
+    "application/vnd.openxmlformats-officedocument.",
+)
 
 
 def _modality_for_mime(mime_type: str) -> str:
@@ -84,6 +96,10 @@ class Attachment:
             attachment_timeout: Per-request timeout in seconds for the HEAD
                 probe and the in-process PDF download. Defaults to 10. Only
                 applies when `trust_urls=True`.
+
+        Raises:
+            ValueError: If a local file has an unsupported extension, or a URL's
+                extension names an audio, video, text or Office document type.
         """
         self.url = url
         self.file_extension = None
@@ -123,8 +139,14 @@ class Attachment:
         _, file_extension = os.path.splitext(url_path)
         file_extension = file_extension.lower()
         probed_filename: str | None = None
+        guessed_mime = mimetypes.guess_type(url_path)[0]
         if file_extension in _EXTENSION_MIME_MAP:
             self.mime_type = _EXTENSION_MIME_MAP[file_extension]
+        elif guessed_mime and guessed_mime.startswith(_NON_IMAGE_MIME_PREFIXES):
+            raise ValueError(
+                f"Unsupported attachment format: {file_extension} ({guessed_mime}) in URL "
+                f"{self.url!r}. Supported formats: {', '.join(_EXTENSION_MIME_MAP.keys())}."
+            )
         elif trust_urls:
             # No usable extension (e.g. https://arxiv.org/pdf/1706.03762);
             # HEAD-probe to figure out what we're actually being handed.

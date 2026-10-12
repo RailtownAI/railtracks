@@ -422,6 +422,66 @@ class TestAttachment:
         assert attachment.mime_type is None
         assert attachment.encoding is None
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://example.com/call.mp3",
+            "https://example.com/clip.mp4",
+            "https://example.com/voice.wav",
+            "https://example.com/report.docx",
+            "https://example.com/notes.txt",
+            "https://example.com/CALL.MP3",
+            "https://example.com/call.mp3?token=abc",
+        ],
+    )
+    def test_url_with_non_image_extension_raises(self, url):
+        """A URL whose extension names a non-image type must not be sent as an image."""
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            Attachment(url)
+
+    def test_url_with_non_image_extension_raises_without_probe(self, monkeypatch):
+        """The extension already rules the URL out, so trust_urls must not fetch it."""
+        from railtracks.llm import message as message_module
+
+        def boom_urlopen(req, timeout=None):
+            raise AssertionError("no request expected for a non-image extension")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", boom_urlopen)
+
+        with pytest.raises(ValueError, match="audio/mpeg"):
+            Attachment("https://example.com/call.mp3", trust_urls=True)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://cdn.example.com/abc123",
+            "https://example.com/thumb.php?id=3",
+            "https://example.com/GetImage.ashx?id=1",
+            "https://example.com/photo.svg",
+        ],
+    )
+    def test_url_without_non_image_extension_still_passes_as_image(self, url):
+        attachment = Attachment(url)
+        assert attachment.modality == "image"
+        assert attachment.encoding is None
+
+    def test_url_with_xml_guess_still_passes_as_image(self, monkeypatch):
+        """Windows maps .aspx/.ashx to application/xml; image handlers use them."""
+        from railtracks.llm import message as message_module
+
+        monkeypatch.setattr(
+            message_module.mimetypes,
+            "guess_type",
+            lambda path: ("application/xml", None),
+        )
+
+        attachment = Attachment("https://example.com/GetImage.ashx?id=1")
+        assert attachment.modality == "image"
+
+    def test_user_message_rejects_non_image_url(self):
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            UserMessage("Summarize this", attachment="https://example.com/call.mp3")
+
     def test_user_message_threads_trust_urls(self, monkeypatch):
         """UserMessage(trust_urls=True) must propagate to every Attachment it builds."""
         from railtracks.llm import message as message_module
