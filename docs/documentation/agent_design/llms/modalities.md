@@ -106,7 +106,7 @@ The HEAD probe and PDF download share a per-request timeout that defaults to 10 
 --8<-- "docs/scripts/multimodal.py:pdf_timeout"
 ```
 
-Both settings only apply when `trust_urls=True`. Railtracks itself makes no network requests for local files, data URIs and image URLs.
+Both settings only apply when `trust_urls=True`. With `trust_urls=False`, Railtracks itself makes no network requests. With `trust_urls=True`, it makes none for local files, data URIs and image URLs with a recognized extension.
 
 !!! warning "Some image URLs are downloaded in your process anyway"
     `trust_urls` controls only the downloads Railtracks makes. Some providers can't take an image by URL, so litellm, which Railtracks uses to call providers, downloads the image in your process before sending the request, whatever `trust_urls` is set to. If image URLs come from end users, download and check them yourself and pass a local file or data URI instead.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 import re
 from copy import deepcopy
@@ -87,7 +88,8 @@ class Attachment:
                 probe and the in-process PDF download. Defaults to 10. Only
                 applies when `trust_urls=True`.
             attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
-                Defaults to 32. Only applies when `trust_urls=True`.
+                Must be positive and finite. Defaults to 32. Only applies when
+                `trust_urls=True`.
         """
         self.url = url
         self.file_extension = None
@@ -99,6 +101,10 @@ class Attachment:
         if not isinstance(url, str):
             raise TypeError(
                 f"The url parameter must be a string representing a file path or URL, but got {type(url)}"
+            )
+        if not 0 < attachment_max_mb < math.inf:
+            raise ValueError(
+                f"attachment_max_mb must be a positive, finite number, got {attachment_max_mb!r}."
             )
 
         match detect_source(url):

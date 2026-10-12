@@ -311,6 +311,13 @@ class TestAttachment:
         assert seen["encode_timeout"] == 42.0
         assert seen["encode_max_mb"] == 5.0
 
+    @pytest.mark.parametrize("max_mb", [0, -1, float("inf"), float("nan")])
+    def test_attachment_max_mb_must_be_positive_and_finite(self, max_mb):
+        with pytest.raises(ValueError, match="attachment_max_mb"):
+            Attachment(
+                "https://example.com/doc.pdf", trust_urls=True, attachment_max_mb=max_mb
+            )
+
     def test_url_pdf_is_fetched_and_encoded(self, monkeypatch):
         from railtracks.llm import message as message_module
 
