@@ -88,9 +88,15 @@ class Observer:
     async def start(self) -> None:
         """Take a reference on the observer, bringing the writers up on the first one.
 
-        Safe to call from any event loop or thread. Pair every call with `shutdown()`.
+        Safe to call from any event loop or thread. Pair every call with `shutdown()`,
+        unless this call is cancelled: the reference is then released on its own.
         """
-        await self._on_observer_loop(self._acquire())
+        try:
+            await self._on_observer_loop(self._acquire())
+        except asyncio.CancelledError:
+            # The shielded acquire still completes, and the lock queues this release behind it
+            asyncio.run_coroutine_threadsafe(self._release(), self._ensure_loop())
+            raise
 
     async def shutdown(self) -> None:
         """Release a reference taken by `start()`.
@@ -247,7 +253,8 @@ class Observer:
                     await self._teardown(name)
                 return
             flushed = [
-                await self._enqueue_flush(entry) for entry in self._writers.values()
+                self._enqueue_flush(name, entry)
+                for name, entry in self._writers.items()
             ]
         # Waited on outside the lock so other runs can start or finish meanwhile
         await asyncio.gather(*flushed)
@@ -303,12 +310,14 @@ class Observer:
             except asyncio.QueueFull:
                 self._handle_full_queue(name, entry, event)
 
-    def _handle_full_queue(self, name: str, entry: _Entry, event: Event) -> None:
+    def _handle_full_queue(
+        self, name: str, entry: _Entry, item: Event | _Flush
+    ) -> None:
         match entry.policy:
             case QueuePolicy.DROP_OLDEST:
-                self._drop_oldest(name, entry, event)
+                self._drop_oldest(name, entry, item)
 
-    def _drop_oldest(self, name: str, entry: _Entry, event: Event) -> None:
+    def _drop_oldest(self, name: str, entry: _Entry, item: Event | _Flush) -> None:
         try:
             evicted = entry.queue.get_nowait()
         except asyncio.QueueEmpty:
@@ -316,7 +325,7 @@ class Observer:
         else:
             if isinstance(evicted, _Flush):
                 _resolve(evicted)  # the consumer will never reach it now
-        entry.queue.put_nowait(event)
+        entry.queue.put_nowait(item)
         self._drops[name] += 1
         logger.warning(
             "observability writer %r queue full; dropped oldest event "
@@ -326,9 +335,13 @@ class Observer:
             self._drops[name],
         )
 
-    async def _enqueue_flush(self, entry: _Entry) -> asyncio.Future[None]:
+    def _enqueue_flush(self, name: str, entry: _Entry) -> asyncio.Future[None]:
+        """Queue a flush marker without waiting, so a full queue never stalls the lock."""
         flush = _Flush(reached=asyncio.get_running_loop().create_future())
-        await entry.queue.put(flush)
+        try:
+            entry.queue.put_nowait(flush)
+        except asyncio.QueueFull:
+            self._handle_full_queue(name, entry, flush)
         return flush.reached
 
     async def _teardown(self, name: str) -> None:

@@ -387,6 +387,68 @@ async def test_earlier_shutdown_does_not_hang_when_its_flush_marker_is_dropped(
         await obs.shutdown()
 
 
+async def test_flush_marker_on_a_full_queue_does_not_stall_other_runs(make_observer):
+    gated = GatedWriter()
+    obs = make_observer()
+    await obs.start()
+    await obs.start()
+    await obs.register(gated, "gated", maxsize=2)
+    await obs.publish(_event("e0"))
+    await _settle(obs)  # the consumer now holds e0, blocked on the gate
+    await obs.publish(_event("e1"))
+    await obs.publish(_event("e2"))
+    await _settle(obs)  # queue is full: [e1, e2]
+
+    first_shutdown = asyncio.ensure_future(obs.shutdown())
+    try:
+        await asyncio.sleep(0)  # let the shutdown hand its release to the observer loop
+        await _settle(obs)  # the marker evicted e1: queue is [e2, marker]
+        assert obs._drops["gated"] == 1
+
+        await asyncio.wait_for(obs.start(), timeout=5)
+        assert not first_shutdown.done()
+    finally:
+        gated.gate.set()
+        await asyncio.wait_for(first_shutdown, timeout=5)
+        await obs.shutdown()
+        await obs.shutdown()
+    assert [e.scope_id for e in gated.events] == ["e0", "e2"]
+    assert obs._running is False
+
+
+class _BlockingStartWriter(MemoryWriter):
+    """Holds `start()` open until `gate` is set. Tests must set it before finishing."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered = threading.Event()
+        self.gate = threading.Event()
+
+    async def start(self) -> None:
+        self.entered.set()
+        await asyncio.to_thread(self.gate.wait)
+        await super().start()
+
+
+async def test_cancelled_start_releases_its_reference(make_observer):
+    w = _BlockingStartWriter()
+    obs = make_observer()
+    obs.configure_writers([w])
+    pending = asyncio.ensure_future(obs.start())
+    try:
+        assert await asyncio.to_thread(w.entered.wait, 5)
+        pending.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await pending
+    finally:
+        w.gate.set()
+
+    await _wait_until(lambda: w.shutdown_called)
+    assert w.started is True
+    assert obs._users == 0
+    assert obs._running is False
+
+
 async def test_extra_shutdowns_are_ignored(make_observer):
     w = MemoryWriter()
     obs = make_observer()

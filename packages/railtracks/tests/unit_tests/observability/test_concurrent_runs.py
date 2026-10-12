@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
+import pytest
 import railtracks as rt
-from railtracks.observability import Event, configure, configure_writers
+from railtracks.observability import Event, JsonlWriter, configure, configure_writers
 
 
 class _CollectingWriter:
@@ -208,3 +212,79 @@ async def test_mixed_async_and_threaded_flows_share_the_observer():
     assert (async_result, thread_result) == ("slow", "quick")
     assert sorted(_completed_flows(writer)) == ["async-flow", "thread-flow"]
     assert configure.observer._running is False
+
+
+def test_overlapping_runs_keep_jsonl_handles_bounded(tmp_path: Path):
+    """A server with a run always in flight never fully shuts the writers down, so
+    the writer itself must cap how many session files it holds open."""
+    writer = JsonlWriter(tmp_path, max_open_files=3)
+    configure_writers([writer])
+    a_running = threading.Event()
+    release_a = threading.Event()
+    open_counts: list[int] = []
+
+    @rt.function_node
+    def held_task() -> str:
+        """Stay open until the test releases it."""
+        a_running.set()
+        release_a.wait(timeout=10)
+        return "A"
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future_a = pool.submit(rt.Flow("flow-A", held_task).invoke)
+        try:
+            assert a_running.wait(timeout=5)
+            for n in range(10):
+                assert rt.Flow(f"flow-{n}", quick).invoke() == "quick"
+                open_counts.append(len(writer._files))
+            assert configure.observer._running is True
+        finally:
+            release_a.set()
+        assert future_a.result(timeout=10) == "A"
+
+    assert max(open_counts) <= 3
+    session_files = sorted(tmp_path.glob("*.jsonl"))
+    assert len(session_files) == 11
+    for path in session_files:
+        types = [
+            json.loads(line)["event_type"]
+            for line in path.read_text("utf-8").splitlines()
+        ]
+        assert types[0] == "session.started"
+        assert types[-1] == "session.completed"
+
+
+async def test_run_that_fails_before_its_session_starts_releases_the_observer():
+    configure_writers([_CollectingWriter()])
+    failing = AsyncMock(side_effect=RuntimeError("publisher failed"))
+
+    with patch("railtracks.interaction._call.activate_publisher", new=failing):
+        with pytest.raises(RuntimeError, match="publisher failed"):
+            await rt.Flow("broken-flow", quick).ainvoke()
+
+    assert configure.observer._users == 0
+    assert configure.observer._running is False
+
+
+async def test_cancelled_run_releases_the_observer():
+    writer = _CollectingWriter()
+    configure_writers([writer])
+    started = asyncio.Event()
+
+    @rt.function_node
+    async def wait_forever() -> str:
+        """Block until cancelled."""
+        started.set()
+        await asyncio.sleep(60)
+        return "never"
+
+    run = asyncio.ensure_future(rt.Flow("cancelled-flow", wait_forever).ainvoke())
+    await asyncio.wait_for(started.wait(), timeout=5)
+    assert configure.observer._users == 1
+    run.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await run
+
+    assert configure.observer._users == 0
+    assert configure.observer._running is False
+    assert _completed_flows(writer) == ["cancelled-flow"]

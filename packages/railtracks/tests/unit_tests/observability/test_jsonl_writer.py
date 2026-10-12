@@ -182,3 +182,35 @@ async def test_start_propagates_mkdir_oserror(
     monkeypatch.setattr(Path, "mkdir", _refuse)
     with pytest.raises(OSError, match="Read-only file system"):
         await writer.start()
+
+
+async def test_open_files_are_capped_and_evicted_scopes_reopen_in_append_mode(
+    tmp_path: Path,
+):
+    writer = JsonlWriter(tmp_path, max_open_files=2)
+    await writer.start()
+    try:
+        for scope_id in ["a", "b", "a", "c"]:  # "b" is the least recently written
+            await writer.write(_make_session_event(SCOPE_SESSION, scope_id=scope_id))
+        assert list(writer._files) == ["a", "c"]
+
+        await writer.write(_make_session_event(SCOPE_SESSION, scope_id="b"))
+        assert list(writer._files) == ["c", "b"]
+    finally:
+        await writer.shutdown()
+
+    lines = {
+        scope_id: (tmp_path / f"{scope_id}.jsonl").read_text("utf-8").splitlines()
+        for scope_id in ["a", "b", "c"]
+    }
+    assert {scope_id: len(found) for scope_id, found in lines.items()} == {
+        "a": 2,
+        "b": 2,
+        "c": 1,
+    }
+    assert all(_parse_line(line).scope_id == "b" for line in lines["b"])
+
+
+def test_max_open_files_must_be_positive(tmp_path: Path):
+    with pytest.raises(ValueError, match="max_open_files"):
+        JsonlWriter(tmp_path, max_open_files=0)

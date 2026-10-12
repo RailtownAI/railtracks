@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import OrderedDict
 from pathlib import Path
 from typing import TextIO
 
@@ -10,10 +11,24 @@ from ._serialize import RTObserverEncoder
 
 
 class JsonlWriter:
-    def __init__(self, directory: Path | None = None):
-        """Write events to ``directory`` or the shared visualizer event store."""
+    def __init__(self, directory: Path | None = None, max_open_files: int = 64):
+        """Write events to ``directory`` or the shared visualizer event store.
+
+        Args:
+            directory: Where the per-scope ``.jsonl`` files go. Defaults to the
+                visualizer event store.
+            max_open_files: How many scope files to keep open at once. The least
+                recently written one is closed to make room, and reopened in append
+                mode if more events arrive for it.
+
+        Raises:
+            ValueError: If ``max_open_files`` is less than 1.
+        """
+        if max_open_files < 1:
+            raise ValueError(f"max_open_files must be at least 1, got {max_open_files}")
         self._directory = directory if directory is not None else resolve_events_dir()
-        self._files: dict[str, TextIO] = {}
+        self._max_open_files = max_open_files
+        self._files: OrderedDict[str, TextIO] = OrderedDict()
 
     async def start(self) -> None:
         self._directory.mkdir(parents=True, exist_ok=True)
@@ -22,10 +37,15 @@ class JsonlWriter:
         handle = self._files.get(event.scope_id)
         if handle is None:
             _check_safe_scope_id(event.scope_id)
+            if len(self._files) >= self._max_open_files:
+                _, oldest = self._files.popitem(last=False)
+                oldest.close()
             handle = (self._directory / f"{event.scope_id}.jsonl").open(
                 "a", encoding="utf-8"
             )
             self._files[event.scope_id] = handle
+        else:
+            self._files.move_to_end(event.scope_id)
         handle.write(_serialize(event) + "\n")
         handle.flush()
 
