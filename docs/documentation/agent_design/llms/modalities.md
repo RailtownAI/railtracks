@@ -106,4 +106,6 @@ The HEAD probe and PDF download share a per-request timeout that defaults to 10 
 --8<-- "docs/scripts/multimodal.py:pdf_timeout"
 ```
 
-Only applies when `trust_urls=True` — local files, data URIs, and image URLs do not perform any in-process network I/O.
+Only applies when `trust_urls=True` — local files and data URIs do not perform any in-process network I/O from railtracks itself.
+
+Note: `trust_urls=False` prevents railtracks from fetching user-supplied URLs in-process (including PDF downloads and HEAD probes for unknown extensions). However, some providers (via litellm) may still fetch certain image URLs themselves before calling the model, regardless of the `trust_urls` setting. For example, Anthropic may download `http://` image URLs and inline them, and Gemini may download image URLs without a recognised extension. A complete single fetch policy covering these cases is tracked separately.
