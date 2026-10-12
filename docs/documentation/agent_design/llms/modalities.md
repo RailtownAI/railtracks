@@ -108,5 +108,5 @@ The HEAD probe and PDF download share a per-request timeout that defaults to 10 
 
 Both settings only apply when `trust_urls=True`. Railtracks itself makes no network requests for local files, data URIs and image URLs.
 
-!!! warning "litellm may download image URLs itself"
-    `trust_urls` controls only the downloads Railtracks makes. litellm, which Railtracks uses to call providers, downloads some image URLs in-process before sending the request: `http://` image URLs for Anthropic models, and for Gemini models, `http://` URLs and `https://` URLs whose image type it cannot tell from the URL. If image URLs come from end users, download and check them yourself and pass a local file or data URI instead.
+!!! warning "Some image URLs are downloaded in your process anyway"
+    `trust_urls` controls only the downloads Railtracks makes. Some providers can't take an image by URL, so litellm, which Railtracks uses to call providers, downloads the image in your process before sending the request, whatever `trust_urls` is set to. If image URLs come from end users, download and check them yourself and pass a local file or data URI instead.
