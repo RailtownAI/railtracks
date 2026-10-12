@@ -12,6 +12,10 @@ from railtracks.prebuilt.guardrails._pii.config import (
 from railtracks.prebuilt.guardrails.input.block_text import BlockTextInputGuard
 from railtracks.prebuilt.guardrails.input.length_guard import InputLengthGuard
 from railtracks.prebuilt.guardrails.input.pii_redact import PIIRedactInputGuard
+from railtracks.prebuilt.guardrails.input.scope_guard import (
+    ScopeGuard,
+    ScopeSensitivity,
+)
 from railtracks.prebuilt.guardrails.output.block_text import BlockTextOutputGuard
 from railtracks.prebuilt.guardrails.output.length_guard import OutputLengthGuard
 from railtracks.prebuilt.guardrails.output.pii_redact import PIIRedactOutputGuard
@@ -26,4 +30,6 @@ __all__ = [
     "PIIRedactConfig",
     "PIIRedactInputGuard",
     "PIIRedactOutputGuard",
+    "ScopeGuard",
+    "ScopeSensitivity",
 ]
