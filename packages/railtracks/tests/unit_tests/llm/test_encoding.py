@@ -76,13 +76,30 @@ class TestEncode:
     def test_encode_url(self, mock_urlopen):
         image_data = b"url image data"
         mock_response = Mock()
-        mock_response.read.return_value = image_data
+        # Support chunked reads used by the size-limited download
+        chunks = [image_data, b""]
+        mock_response.read.side_effect = lambda n=None: chunks.pop(0) if chunks else b""
         mock_response.__enter__ = Mock(return_value=mock_response)
         mock_response.__exit__ = Mock(return_value=False)
         mock_urlopen.return_value = mock_response
 
         result = encode("https://example.com/image.png")
         assert result == base64.b64encode(image_data).decode("utf-8")
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_encode_url_exceeds_max_bytes(self, mock_urlopen):
+        large_chunk = b"x" * 100
+        mock_response = Mock()
+        # Simulate reading more than max_bytes
+        def read_side(n=None):
+            return large_chunk
+        mock_response.read.side_effect = read_side
+        mock_response.__enter__ = Mock(return_value=mock_response)
+        mock_response.__exit__ = Mock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        with pytest.raises(ValueError, match="exceeded maximum size"):
+            encode("https://example.com/large.pdf", max_bytes=50)
 
     @patch("railtracks.llm.encoding.request.urlopen")
     def test_url_http_error(self, mock_urlopen):
