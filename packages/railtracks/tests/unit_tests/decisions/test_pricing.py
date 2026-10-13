@@ -42,61 +42,45 @@ def test_malformed_entry_never_raises(monkeypatch):
     assert decision_cost(["typesafe/broken"], 100, None) is None
 
 
-# ================= Bundled catalog fallback =================
+# ================= Public litellm API only =================
 
 
-@pytest.fixture
-def bundled(monkeypatch):
-    """Replace litellm's bundled catalog with a small dict."""
-    entries: dict = {}
-    monkeypatch.setattr(pricing, "_bundled_cost_map", lambda: entries)
-    return entries
+def test_priced_through_litellm_cost_per_token(monkeypatch):
+    calls = []
+    real = litellm.cost_per_token
 
+    def spy(**kwargs):
+        calls.append(kwargs)
+        return real(**kwargs)
 
-def test_bundled_catalog_used_when_the_live_one_lacks_the_model(bundled, monkeypatch):
-    monkeypatch.delitem(litellm.model_cost, "typesafe/gone", raising=False)
-    bundled["typesafe/gone"] = {"input_cost_per_token": 4.2e-08}
-    assert decision_cost(["typesafe/gone"], 100, None) == pytest.approx(100 * 4.2e-08)
-
-
-def test_live_catalog_wins_over_the_bundled_one(bundled, monkeypatch):
-    monkeypatch.setitem(
-        litellm.model_cost, "typesafe/both", {"input_cost_per_token": 1e-06}
+    monkeypatch.setattr(litellm, "cost_per_token", spy)
+    assert decision_cost(["typesafe/jev-latest"], 100, None) == pytest.approx(
+        100 * 4.2e-08
     )
-    bundled["typesafe/both"] = {"input_cost_per_token": 9e-06}
-    assert decision_cost(["typesafe/both"], 100, None) == pytest.approx(1e-04)
+    assert calls == [
+        {"model": "typesafe/jev-latest", "prompt_tokens": 100, "completion_tokens": 0}
+    ]
 
 
-def test_any_live_key_wins_before_the_bundled_catalog(bundled, monkeypatch):
-    # the first key only in the bundled catalog, the second in the live one
-    bundled["openrouter/typesafe/x"] = {"input_cost_per_token": 9e-06}
-    monkeypatch.setitem(
-        litellm.model_cost, "typesafe/x", {"input_cost_per_token": 1e-06}
-    )
-    cost = decision_cost(["openrouter/typesafe/x", "typesafe/x"], 100, None)
-    assert cost == pytest.approx(1e-04)
+def test_model_missing_from_litellm_catalog_is_unpriced(monkeypatch):
+    # no fallback to litellm internals: an unlisted model is simply unpriced
+    for key in ("openrouter/typesafe/gone", "typesafe/gone", "gone"):
+        monkeypatch.delitem(litellm.model_cost, key, raising=False)
+    keys = ["openrouter/typesafe/gone", "typesafe/gone", "gone"]
+    assert decision_cost(keys, 296, 73) is None
 
 
-def test_unreadable_bundled_catalog_is_none(monkeypatch):
-    def broken():
-        raise OSError("missing")
+def test_litellm_errors_never_escape(monkeypatch):
+    def boom(**kwargs):
+        raise RuntimeError("cost map unavailable")
 
-    monkeypatch.setattr(pricing, "_load_bundled_cost_map", broken)
-    pricing._bundled_cost_map.cache_clear()
-    try:
-        assert decision_cost(["typesafe/kev-4b"], 100, None) is None
-    finally:
-        pricing._bundled_cost_map.cache_clear()
+    monkeypatch.setattr(litellm, "cost_per_token", boom)
+    assert decision_cost(["typesafe/jev-latest"], 100, 10) is None
 
 
-def test_real_bundled_catalog_prices_jev_on_openrouter(monkeypatch):
-    # the entry the remote catalog dropped is still in the pinned wheel's copy
-    monkeypatch.delitem(
-        litellm.model_cost, "openrouter/typesafe/jev-1.13", raising=False
-    )
-    monkeypatch.delitem(litellm.model_cost, "typesafe/jev-1.13", raising=False)
-    monkeypatch.delitem(litellm.model_cost, "jev-1.13", raising=False)
-    cost = decision_cost(
-        ["openrouter/typesafe/jev-1.13", "typesafe/jev-1.13", "jev-1.13"], 296, 73
-    )
-    assert cost == pytest.approx(296 * 4.2e-08)
+def test_pricing_does_not_import_litellm_internals():
+    source = pricing.__file__
+    with open(source, encoding="utf-8") as f:
+        text = f.read()
+    assert "litellm_core_utils" not in text
+    assert "GetModelCostMap" not in text
