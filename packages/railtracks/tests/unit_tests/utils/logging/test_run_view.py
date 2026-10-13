@@ -283,6 +283,24 @@ def test_failure_is_marked_fatal_when_it_stops_the_run(
     assert _lines(output)[-1].endswith("(fatal)") is marked
 
 
+@pytest.mark.parametrize(("fatal", "shown"), [(True, True), (False, False)])
+def test_critical_shows_only_failures_that_stop_the_run(output, level, fatal, shown):
+    level(logging.CRITICAL)
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_failed(ENTRY, fatal=fatal),
+        _completed(status="failure", error="bad"),
+    )
+
+    expected = [
+        "  ✗ Entry failed: ValueError: bad (fatal)",
+        "✗ My Flow failed in 0.500s: bad",
+    ]
+    assert _lines(output) == (expected if shown else [])
+
+
 def test_a_retried_node_shows_the_retry_and_its_final_success(output, level):
     _feed(
         RunView(),

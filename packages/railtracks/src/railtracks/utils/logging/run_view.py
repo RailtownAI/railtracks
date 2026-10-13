@@ -64,6 +64,8 @@ class _Run:
     concurrent: set[str] = field(default_factory=set)
     # what the entry point returned, shown under the run's closing line
     result: str | None = None
+    # set once a node fails in a way that stops the run
+    fatal: bool = False
 
 
 @dataclass
@@ -171,8 +173,10 @@ def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
     elif event_type == "node.response":
         run.attempt_failures.pop(node_id, None)
     elif event_type == "node.destruction":
-        if run.parents[node_id] is None and payload.get("exception_name") is None:
+        failed = payload.get("exception_name") is not None
+        if run.parents[node_id] is None and not failed:
             run.result = _display(payload["response"])
+        run.fatal = run.fatal or (failed and _is_fatal(run, payload))
         run.running.discard(node_id)
         run.attempt_failures.pop(node_id, None)
         run.retrying.pop(node_id, None)
@@ -208,7 +212,7 @@ def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
     duration = f" in {payload['duration_seconds']:.3f}s"
     if payload["status"] == "failure":
         text = Text(f"✗ {run.label} failed{duration}: {payload['error']}", "bold red")
-        return _Line(logging.ERROR, 0, text)
+        return _Line(logging.CRITICAL if run.fatal else logging.ERROR, 0, text)
     text = Text(f"✓ {run.label}{duration}", "bold green")
     detail = []
     if run.result is not None and run.level <= logging.INFO:
@@ -237,15 +241,17 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
     """The node's final outcome, after its middleware had its say."""
     node_id = payload["parent_node_id"]
     if payload.get("exception_name") is not None:
-        fatal = " (fatal)" if payload.get("fatal") or run.end_on_error else ""
+        fatal = _is_fatal(run, payload)
         text = Text(
-            f"✗ {_node_name(run, node_id)} failed: {_exception(payload)}{fatal}", "red"
+            f"✗ {_node_name(run, node_id)} failed: {_exception(payload)}"
+            f"{' (fatal)' if fatal else ''}",
+            "red",
         )
         detail = _traceback_lines(
             payload.get("traceback") or "", full=run.level <= logging.DEBUG
         )
         return _Line(
-            logging.ERROR,
+            logging.CRITICAL if fatal else logging.ERROR,
             run.depths.get(node_id, 1),
             text,
             run.parents.get(node_id),
@@ -370,6 +376,11 @@ def _llm_stats(payload: dict[str, Any]) -> str:
     if payload.get("latency") is not None:
         stats.append(f"{payload['latency']:.2f}s")
     return f" {' · '.join(stats)}" if stats else ""
+
+
+def _is_fatal(run: _Run, payload: dict[str, Any]) -> bool:
+    """Whether a node's failure stops the whole run."""
+    return bool(payload.get("fatal")) or run.end_on_error
 
 
 def _exception(payload: dict[str, Any]) -> str:
