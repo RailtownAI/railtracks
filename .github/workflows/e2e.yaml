@@ -26,6 +26,9 @@ jobs:
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
 
+      - name: Install Tesseract
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr
+
       - name: Run E2E tests
         env:
           OPENAI_API_KEY: ${{ secrets.E2E_TESTS_OPENAI_API_KEY }}

@@ -9,7 +9,7 @@ in the workspace `pyproject.toml`'s `addopts`, so this only runs when
 invoked explicitly. It requires:
 
     1. `pip install "railtracks[ocr]"` for the Python OCR libs
-    2. The Tesseract binary installed and on PATH
+    2. The Tesseract binary installed and on PATH (the tests skip without it)
 
 Run manually with:
 
@@ -18,6 +18,7 @@ Run manually with:
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,9 @@ import pytest
 pytest.importorskip("PIL")
 pytest.importorskip("pypdfium2")
 pytest.importorskip("pytesseract")
+
+if shutil.which("tesseract") is None:
+    pytest.skip("Tesseract binary not on PATH", allow_module_level=True)
 
 from PIL import Image, ImageDraw, ImageFont  # noqa: E402
 from railtracks.retrieval.loaders.pdf_ocr_loader import PyPDFOCRLoader  # noqa: E402
