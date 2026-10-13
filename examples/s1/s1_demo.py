@@ -157,20 +157,20 @@ if __name__ == "__main__":
     # text only and reject attachments before sending anything). Pass a DecisionState
     # with local paths, URLs or data URIs (PNG, JPEG, GIF, WebP):
     #
-    luna = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")
-    big_cat = rt.decisions.Predicate(
-        name="big_cat", instructions="The animal is a big cat (lion, tiger, ...)"
-    )
-    Classify = rt.decision_node(
-        "Classify Photo",
-        model=luna,
-        schema=rt.decisions.DecisionSchema(predicate=[big_cat]),
-    )
-    photo = rt.decisions.DecisionState(
-        text="A photo of an animal.", attachments="path/to/tiger.jpg"
-    )
-    result = rt.Flow(name="Photo", entry_point=Classify).invoke(photo)
-    print(result.structured[big_cat].probability)  # 1.0 for a tiger
-
+    # luna = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")
+    # big_cat = rt.decisions.Predicate(
+    #     name="big_cat", instructions="The animal is a big cat (lion, tiger, ...)"
+    # )
+    # Classify = rt.decision_node(
+    #     "Classify Photo",
+    #     model=luna,
+    #     schema=rt.decisions.DecisionSchema(predicate=[big_cat]),
+    # )
+    # photo = rt.decisions.DecisionState(
+    #     text="A photo of an animal.", attachments="path/to/tiger.jpg"
+    # )
+    # result = rt.Flow(name="Photo", entry_point=Classify).invoke(photo)
+    # print(result.structured[big_cat].probability)  # 1.0 for a tiger
+    #
     # OpenAI may decline a question: a node then raises DecisionRefusalError, with
     # .refused naming the declined questions and .answers holding the rest.
