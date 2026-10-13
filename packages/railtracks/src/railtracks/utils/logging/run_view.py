@@ -62,6 +62,10 @@ class _Run:
     running: set[str] = field(default_factory=set)
     # nodes that ran alongside a sibling; their lines carry the branch name
     concurrent: set[str] = field(default_factory=set)
+    # (caller, node name) -> how many times that caller has called it
+    call_counts: dict[tuple[str | None, str], int] = field(default_factory=dict)
+    # node id -> which of its caller's calls to that name it is, from 1
+    call_numbers: dict[str, int] = field(default_factory=dict)
     # what the entry point returned, shown under the run's closing line
     result: str | None = None
     # set once a node fails in a way that stops the run
@@ -121,7 +125,7 @@ class RunView:
             prefix.append("  " * line.depth)
             branch = _branch(run, line.within)
             if branch is not None:
-                prefix.append(f"{_node_name(run, branch)} › ", "dim")
+                prefix.append(f"{_label(run, branch)} › ", "dim")
             console.print(prefix + line.text, soft_wrap=True)
             pad = " " * (len(prefix.plain) + 2)
             for detail in line.detail:
@@ -156,6 +160,9 @@ def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
         caller = _caller(run, payload)
         run.depths[node_id] = run.depths.get(caller, 0) + 1 if caller else 1
         run.parents[node_id] = caller
+        key = (caller, _node_name(run, node_id))
+        run.call_counts[key] = run.call_counts.get(key, 0) + 1
+        run.call_numbers[node_id] = run.call_counts[key]
 
     if event_type == "node.invocation":
         failure = run.attempt_failures.pop(node_id, None)
@@ -225,11 +232,11 @@ def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
     retrying = run.retrying.get(node_id)
     if retrying is not None:
         text = Text(
-            f"↻ {_node_name(run, node_id)} retrying after {_exception(retrying)}",
+            f"↻ {_label(run, node_id)} retrying after {_exception(retrying)}",
             "yellow",
         )
     else:
-        text = Text(f"↳ {_node_name(run, node_id)}")
+        text = Text(f"↳ {_label(run, node_id)}")
     if run.level <= logging.DEBUG:
         text.append(f" {_call_args(payload['args'], payload['kwargs'])}", "dim")
     return _Line(
@@ -243,7 +250,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
     if payload.get("exception_name") is not None:
         fatal = _is_fatal(run, payload)
         text = Text(
-            f"✗ {_node_name(run, node_id)} failed: {_exception(payload)}"
+            f"✗ {_label(run, node_id)} failed: {_exception(payload)}"
             f"{' (fatal)' if fatal else ''}",
             "red",
         )
@@ -258,7 +265,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
             detail,
         )
     text = Text.assemble(
-        (f"✓ {_node_name(run, node_id)}", "green"),
+        (f"✓ {_label(run, node_id)}", "green"),
         (f" {payload['duration_seconds']:.3f}s", "dim"),
     )
     if run.level <= logging.DEBUG:
@@ -357,6 +364,16 @@ def _nested_depth(run: _Run, payload: dict[str, Any]) -> int:
 
 def _node_name(run: _Run, node_id: str) -> str:
     return run.node_names.get(node_id, node_id)
+
+
+def _label(run: _Run, node_id: str) -> str:
+    """A node's name, numbered once it runs alongside siblings if its caller called
+    that name more than once, so same-named branches stay apart."""
+    name = _node_name(run, node_id)
+    key = (run.parents.get(node_id), name)
+    if node_id in run.concurrent and run.call_counts.get(key, 0) > 1:
+        return f"{name} #{run.call_numbers[node_id]}"
+    return name
 
 
 def _model_name(run: _Run, payload: dict[str, Any]) -> str:

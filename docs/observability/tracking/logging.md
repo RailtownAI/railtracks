@@ -39,7 +39,7 @@ With logging enabled, each run prints as an indented tree built from the run's e
 | `CRITICAL` | Only failures that stop the run |
 | `NONE` | Nothing |
 
-When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`.
+When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`. Branches of the same node are numbered, as in `double_count #2 › ↳ count_chars`.
 
 In a Jupyter notebook the run view prints into the cell's output as one block, and frames from notebook code show as `<cell>`.
 
