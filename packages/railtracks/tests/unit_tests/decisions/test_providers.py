@@ -113,7 +113,13 @@ class TestOpenRouterAI:
             "typesafe/jev-1.13",
         ]
 
-    async def test_catalog_price(self, make_model):
+    async def test_catalog_price(self, make_model, monkeypatch):
+        # litellm fetches its catalog at import; pin the entry so this stays offline
+        monkeypatch.setitem(
+            litellm.model_cost,
+            "openrouter/typesafe/jev-1.13",
+            {"input_cost_per_token": 4.2e-08, "output_cost_per_token": 0.0},
+        )
         model, _ = make_model(
             respond(cost=None), cls=OpenRouterAI, model_name="typesafe/jev-1.13"
         )
