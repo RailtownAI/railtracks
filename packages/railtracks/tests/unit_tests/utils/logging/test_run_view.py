@@ -409,13 +409,11 @@ def test_only_the_final_exception_of_a_chain_is_shown(output, level):
 
 
 def test_llm_call_nests_under_its_node_with_its_stats(output, level):
-    view = RunView()
-    # a model announces itself once; a later run still knows its name
-    _feed(view, _event("llm.creation", llm_id="model-1", model_name="claude-x"))
     _feed(
-        view,
+        RunView(),
         _started(),
         _node_started(ENTRY, "Entry", caller=None),
+        _event("llm.creation", llm_id="model-1", model_name="claude-x"),
         _event(
             "llm.response",
             spatial_parent_node_id=ENTRY,

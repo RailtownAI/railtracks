@@ -46,9 +46,10 @@ class _Run:
     level: int
     label: str
     end_on_error: bool
-    # shared across runs: a model or middleware announces itself once per process
-    models: dict[str, str]
+    # shared across runs: a middleware announces itself once per process
     middleware_names: dict[str, str]
+    # LLM id -> model name; a model announces itself before each call
+    models: dict[str, str] = field(default_factory=dict)
     node_names: dict[str, str] = field(default_factory=dict)
     depths: dict[str, int] = field(default_factory=dict)
     # LLM and middleware invoke ids -> the node they ran in
@@ -88,14 +89,11 @@ class RunView:
 
     def __init__(self) -> None:
         self._runs: dict[str, _Run] = {}
-        self._models: dict[str, str] = {}
         self._middleware_names: dict[str, str] = {}
 
     def record(self, event: Event) -> None:
         payload = event.payload
-        if event.event_type == "llm.creation":
-            self._models[payload["llm_id"]] = payload["model_name"]
-        elif event.event_type == "middleware.creation":
+        if event.event_type == "middleware.creation":
             self._middleware_names[payload["middleware_type_id"]] = payload[
                 "middleware_name"
             ]
@@ -110,7 +108,6 @@ class RunView:
                 or payload.get("entry_point_name")
                 or "run",
                 end_on_error=bool(payload.get("end_on_error")),
-                models=self._models,
                 middleware_names=self._middleware_names,
             )
 
@@ -144,7 +141,9 @@ def _track(run: _Run, event: Event) -> None:
         run.node_names[payload["node_id"]] = payload["name"]
     elif event_type.startswith("node."):
         _track_node(run, event_type, payload)
-    elif event_type.startswith("llm.") and event_type != "llm.creation":
+    elif event_type == "llm.creation":
+        run.models[payload["llm_id"]] = payload["model_name"]
+    elif event_type.startswith("llm."):
         run.owners[payload["parent_llm_invoke_id"]] = payload["spatial_parent_node_id"]
     elif event_type.startswith("middleware.") and event_type != "middleware.creation":
         owner = _owner(run, payload)
