@@ -161,7 +161,6 @@ def test_nested_nodes_indent_under_their_caller(output, level):
         "    ✓ Child 0.250s",
         "  ✓ Entry 0.250s",
         "✓ My Flow in 0.500s",
-        "              → ok",
     ]
 
 
@@ -193,7 +192,8 @@ class _AgentAnswer:
         return "There are 3 r's.\nThree little r's."
 
 
-def test_the_run_ends_with_what_the_entry_point_returned(output, level):
+def test_the_run_ends_with_what_the_entry_point_returned_at_debug(output, level):
+    level(logging.DEBUG)
     _feed(
         RunView(),
         _started(),
@@ -210,8 +210,8 @@ def test_the_run_ends_with_what_the_entry_point_returned(output, level):
     ]
 
 
-def test_warning_leaves_out_the_result(output, level):
-    level(logging.WARNING)
+def test_info_leaves_out_the_result(output, level):
+    """The result is user content, which only DEBUG prints."""
     _feed(
         RunView(),
         _started(),
@@ -224,6 +224,7 @@ def test_warning_leaves_out_the_result(output, level):
 
 
 def test_a_failed_run_has_no_result_line(output, level):
+    level(logging.DEBUG)
     _feed(
         RunView(),
         _started(),
@@ -637,7 +638,8 @@ def test_a_flow_prints_through_the_session_listener(console_enabled):
     assert lines[1] == "  ↳ shout"
     assert lines[2].startswith("  ✓ shout ")
     assert lines[3].startswith("✓ Shout Flow in ")
-    assert lines[4].strip() == "→ HI"
+    # what the flow returned is user content, which INFO leaves out
+    assert not any("HI" in line for line in lines)
 
 
 def test_a_failing_flow_points_at_the_line_that_raised(console_enabled):

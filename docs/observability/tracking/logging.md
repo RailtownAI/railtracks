@@ -18,7 +18,6 @@ Railtracks emits log records for execution ([node](../../documentation/agent_des
     [+ 23.400s]     ◆ claude-sonnet-4-6 1190→112 tokens · $0.0052 · 8.63s
     [+ 23.401s]   ✓ Github Agent 19.875s
     [+ 23.402s] ✓ Github Flow in 19.877s
-                  → Created issue #42 "Fix login timeout" and assigned it to Copilot.
     ```
 
 ---
@@ -32,12 +31,14 @@ With logging enabled, each run prints as an indented tree built from the run's e
 
 | Level | Run view shows |
 |-------|----------------|
-| `DEBUG` | Everything below, plus node arguments and responses, guardrail and verifier decisions, and context reads and writes |
-| `INFO` | Each node starting and finishing, each LLM call, and the run's result on one line |
+| `DEBUG` | Everything below, plus node arguments and responses, the run's result, guardrail and verifier decisions, and context reads and writes |
+| `INFO` | Each node starting and finishing, and each LLM call |
 | `WARNING` | The run starting and finishing |
 | `ERROR` | Failures only |
 | `CRITICAL` | Only failures that stop the run |
 | `NONE` | Nothing |
+
+Only `DEBUG` prints user content: node arguments and responses, the run's result, and guardrail reasons. `INFO` and above show names, timings, models, token counts, costs, and failures, so turning logging on doesn't put your users' conversations in your logs.
 
 When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`. Branches of the same node are numbered, as in `double_count #2 › ↳ count_chars`.
 

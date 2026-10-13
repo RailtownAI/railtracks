@@ -235,7 +235,7 @@ def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
         return _Line(logging.CRITICAL if run.fatal else logging.ERROR, 0, text)
     text = Text(f"✓ {run.label}{duration}", "bold green")
     detail = []
-    if run.result is not None and run.level <= logging.INFO:
+    if run.result is not None and run.level <= logging.DEBUG:
         detail.append(Text(f"→ {run.result}"))
     return _Line(logging.WARNING, 0, text, detail=detail)
 
