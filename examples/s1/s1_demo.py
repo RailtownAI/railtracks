@@ -5,19 +5,22 @@ calibrated probabilities instead of prose: a yes/no (Predicate), a pick from nam
 labels (Choice), or a level on a rubric (Score). One request answers every question in a
 single forward pass, typically in well under a second.
 
-This example triages support tickets with TypeSafe's Jev:
+This example triages support tickets. It covers every S1 vendor railtracks supports;
+switching is one line:
 
-1. the model   -> `rt.decisions.TypeSafeAI`; swapping vendors is one line
+1. the model   -> `rt.decisions.TypeSafeAI` (Jev), `OpenRouterAI` or `OpenAIDecisions`
+                  (gpt-6-luna, which also judges images: see the end of the file)
 2. the schema  -> named question objects grouped in a `DecisionSchema`; every
                   vendor answers the same schema
 3. the node    -> `rt.decision_node`, the S1 counterpart of `rt.agent_node`
 4. using it    -> as a Flow, routing an inbox on the probabilities, as an agent's
-                  tool, and as a direct call
+                  tool, as a direct call, and with images
 
 Decision nodes record each request (`decision.*` events), so `railtracks viz` shows it
 with its answers, latency and cost.
 
-Needs TYPESAFE_API_KEY, plus OPENAI_API_KEY for the agent.
+Needs the chosen vendor's key (TYPESAFE_API_KEY, OPENROUTER_API_KEY or OPENAI_API_KEY),
+plus OPENAI_API_KEY for the agent.
 
 Run: uv run python examples/s1/s1_demo.py
 """
@@ -28,8 +31,12 @@ import railtracks as rt
 
 ##### 1. The model #####
 
-jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # reads TYPESAFE_API_KEY
-# The same schema works on every vendor; swap the line above for one of these:
+jev = rt.decisions.TypeSafeAI(
+    model_name="jev-latest",  # reads TYPESAFE_API_KEY
+    # optional: retries rate limits, timeouts, dropped connections and 5xx; not 4xx
+    retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3),
+)
+# The same schema works on every vendor; swap the model above for one of these:
 # jev = rt.decisions.OpenRouterAI(model_name="typesafe/jev-1.13")  # OPENROUTER_API_KEY
 # jev = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")  # OPENAI_API_KEY
 
@@ -126,8 +133,10 @@ if __name__ == "__main__":
     # {'billing': 0.0, 'technical': 1.0, 'sales': 0.0} and {0: 0.0, 1: 0.02, 2: 0.98}
     print(result.structured[department].probabilities)
     print(result.structured[frustration].probabilities)
-    # jev-1.13.0: 0.39s, $1.764e-05
-    print(f"{result.model_name}: {result.latency:.2f}s, ${result.cost}")
+    # jev-1.13.0 via TypeSafe: 0.39s, $1.764e-05
+    print(
+        f"{result.model_name} via {result.provider}: {result.latency:.2f}s, ${result.cost}"
+    )
 
     # Acting on the probabilities: confident tickets are routed, the rest escalated.
     # {'needs_a_person': [<annual plan + slow exports>], 'billing': [<charged twice>],
@@ -143,3 +152,23 @@ if __name__ == "__main__":
     # is_urgent: no 0.23 | department: billing 1.00 | frustration: 0.2/2
     ticket = {"subject": "Duplicate charge", "body": TICKETS[0]}
     print(asyncio.run(jev.aask(ticket, triage)))
+
+    # Images: OpenAI's gpt-6-luna also judges pictures (TypeSafe and OpenRouter take
+    # text only and reject attachments before sending anything). Pass a DecisionState
+    # with local paths, URLs or data URIs (PNG, JPEG, GIF, WebP):
+    #
+    # luna = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")
+    # big_cat = rt.decisions.Predicate(
+    #     name="big_cat", instructions="The animal is a big cat (lion, tiger, ...)"
+    # )
+    # Classify = rt.decision_node(
+    #     "Classify Photo", model=luna, schema=rt.decisions.DecisionSchema(predicate=[big_cat])
+    # )
+    # photo = rt.decisions.DecisionState(
+    #     text="A photo of an animal.", attachments="path/to/tiger.jpg"
+    # )
+    # result = rt.Flow(name="Photo", entry_point=Classify).invoke(photo)
+    # print(result.structured[big_cat].probability)  # 1.0 for a tiger
+    #
+    # OpenAI may decline a question: a node then raises DecisionRefusalError, with
+    # .refused naming the declined questions and .answers holding the rest.

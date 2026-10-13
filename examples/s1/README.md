@@ -2,8 +2,7 @@
 
 System One models read a piece of text and answer typed questions about it with calibrated probabilities instead of prose: a yes/no (`Predicate`), a pick from named values (`Choice`), or a level on a rubric (`Score`). One request answers every question in a single forward pass. In railtracks the models live in `rt.decisions`, the way chat models live in `rt.llm`, and `rt.decision_node` turns a model plus a schema into a node, the way `rt.agent_node` does for an LLM.
 
-- `s1_demo.py` -> start here. Triages a support inbox with Jev: one ticket through a Flow, a whole inbox routed on the probabilities (confident tickets go to a team queue, unclear ones to a person), the decision as an agent's tool, and a direct `aask` call with a JSON state. Swapping vendors is a one-line change at the top.
-- `jev_example.py`, `openrouter_example.py`, `openai_example.py` -> the same triage schema and Flow on each vendor, one file per vendor.
+`s1_demo.py` is the one example. It triages a support inbox: one ticket through a Flow, a whole inbox routed on the probabilities (confident tickets go to a team queue, unclear ones to a person), the decision as an agent's tool, and a direct `aask` call with a JSON state. It runs on TypeSafe's Jev; OpenRouter and OpenAI are commented one-line swaps at the top, and an image example for OpenAI's `gpt-6-luna` is commented at the end.
 
 ## Vendors
 
@@ -50,14 +49,13 @@ Attachments are local paths (sent as base64 data URLs), http(s) URLs (fetched by
 
 Every call goes through `litellm.adecisions`, the way chat models go through litellm's completion API. railtracks always sends OpenAI's request shape (`input` plus a list of named `questions`) with the model as `"<vendor>/<model>"` (`typesafe/jev-latest`, `openrouter/typesafe/jev-1.13`, `openai/gpt-6-luna`); litellm translates it to each vendor's own API, reads the key and base URL from the environment variables above, and returns OpenAI's response shape, which railtracks parses into your schema. The result's `cost` is litellm's price for the call. Images are only accepted by OpenAI; a System One vendor rejects them before anything is sent.
 
-## Running them
+## Running it
 
 ```bash
 uv run python examples/s1/s1_demo.py
-uv run python examples/s1/openrouter_example.py
 ```
 
-Each example needs its vendor's key in your environment (see the table); `s1_demo.py` also needs `OPENAI_API_KEY` for the agent. Every example imports without keys or network, so you can read the objects it builds in a REPL first.
+It needs the chosen vendor's key in your environment (see the table), plus `OPENAI_API_KEY` for the agent. It imports without keys or network, so you can read the objects it builds in a REPL first.
 
 Decision nodes are recorded: each request emits `decision.*` events with its answers, tokens, latency and cost, so `railtracks viz` shows them and includes their cost in the session totals. Calling `model.aask(...)` directly outside a node is not recorded, the same as calling an LLM directly.
 
@@ -70,4 +68,4 @@ Decision nodes are recorded: each request emits `decision.*` events with its ans
 | A `decision_node` call fails | at call time | `rt.exceptions.DecisionModelError` and its subclasses, with the provider error as `__cause__` |
 | The model declines a question (OpenAI can) | at call time | `rt.decisions.DecisionProviderRefusalError` (direct) / `rt.exceptions.DecisionRefusalError` (node); `.refused` names the questions, `.answers` holds the ones it did answer |
 
-litellm's exceptions are mapped to these classes, so you never need to catch a litellm type. Rate limits, timeouts, dropped connections and 5xx responses are retried when the model has a `retry_approach` (see `jev_example.py`); a rejected key, a refusal and other 4xx responses are not.
+litellm's exceptions are mapped to these classes, so you never need to catch a litellm type. Rate limits, timeouts, dropped connections and 5xx responses are retried when the model has a `retry_approach` (see the model in `s1_demo.py`); a rejected key, a refusal and other 4xx responses are not.
