@@ -14,6 +14,7 @@ from .models import (
     AnthropicLLM,
     AppleFMLLM,
     AzureAILLM,
+    EchoLLM,
     GeminiLLM,
     HuggingFaceLLM,
     OllamaLLM,
@@ -22,6 +23,7 @@ from .models import (
     PortKeyLLM,
 )
 from .models._model_exception_base import (
+    AttachmentNotSupportedError,
     FunctionCallingNotSupportedError,
     ModelError,
     ModelNotFoundError,
@@ -51,6 +53,7 @@ __all__ = [
     "ModelError",
     "ModelNotFoundError",
     "FunctionCallingNotSupportedError",
+    "AttachmentNotSupportedError",
     "UnsupportedHyperparameterError",
     "MutuallyExclusiveHyperparametersError",
     "ToolCall",
@@ -67,6 +70,7 @@ __all__ = [
     "AnthropicLLM",
     "AppleFMLLM",
     "AzureAILLM",
+    "EchoLLM",
     "HuggingFaceLLM",
     "OpenAILLM",
     "GeminiLLM",

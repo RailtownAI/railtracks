@@ -1,6 +1,6 @@
 # Middleware
 
-Middleware in Railtracks is a function that wraps a node's call, letting you add behavior around it without touching the node itself. Concretely, middleware can do things like:
+Middleware in Railtracks is a function that wraps a [node](../overview.md#node)'s call, letting you add behavior around it without touching the node itself. Concretely, middleware can do things like:
 
 - Log inputs and outputs
 - Handle automatic retries

@@ -50,7 +50,7 @@ body:
 
         Agent = rt.agent_node(
             name="doc-agent",
-            llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+            llm=rt.llm.OpenAILLM("gpt-6-luna"),
             tool_nodes=[search_docs],
         )
 

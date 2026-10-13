@@ -88,9 +88,14 @@ def test_convert_value_dict_error():
         tm.convert_kwargs_to_appropriate_types(a={"key": "value"})
 
 
-def test_builtin_function_raises_runtime_error():
+def test_builtin_function_raises_runtime_error(monkeypatch):
+    # builtins only lack a signature before Python 3.13, so simulate that
+    def no_signature(function):
+        raise ValueError("no signature found")
+
+    monkeypatch.setattr("railtracks.llm.type_mapping.inspect.signature", no_signature)
     with pytest.raises(RuntimeError):
-        TypeMapper(time.sleep)  # time.sleep is a builtin
+        TypeMapper(time.sleep)
 
 
 def test_invalid_conversion_returns_error_message():

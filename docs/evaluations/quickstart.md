@@ -17,4 +17,4 @@ Multiple agents found in the data:
 Select agent index(es) (comma-separated), or -1 to evaluate all:
 ```
 
-Upon selection, the results of the evaluation are automatically saved to your `.railtracks/data/evaluations` folder. You can subsequently use the `railtracks viz` command to look and analyze the results.
+Upon selection, the results of the evaluation are automatically saved to your `.railtracks/data/evaluations` folder. You can then run `railtracks viz` to open the [legacy visualizer](../observability/agenthub/local.md) and analyze the results.
