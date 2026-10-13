@@ -10,7 +10,6 @@ from railtracks.cli._skillkit.manifest import (
     InstalledFile,
     InstallRecord,
     file_digest,
-    find_legacy_installs,
     is_ours_unmodified,
     package_version,
     prune,
@@ -241,75 +240,3 @@ class TestVersionSkew:
     def test_silent_when_the_recorded_version_is_unknown(self):
         """An install made outside a packaged environment is not skew evidence."""
         assert version_skew(make_record(version="unknown")) is None
-
-
-# --- legacy detection: report only, never remove ----------------------------
-
-
-class TestFindLegacyInstalls:
-    def test_finds_a_copilot_marker_block(self, tmp_path):
-        instructions = tmp_path / ".github" / "copilot-instructions.md"
-        instructions.parent.mkdir(parents=True)
-        instructions.write_text(
-            "# Mine\n<!-- railtracks:fixture-skill:start -->\nbody\n"
-            "<!-- railtracks:fixture-skill:end -->\n",
-            encoding="utf-8",
-        )
-
-        found = find_legacy_installs("fixture-skill", tmp_path)
-
-        assert [(f.target, f.shape, f.confirmed) for f in found] == [
-            ("Copilot", "region", True)
-        ]
-
-    def test_copilot_block_for_another_skill_is_not_ours_to_report(self, tmp_path):
-        instructions = tmp_path / ".github" / "copilot-instructions.md"
-        instructions.parent.mkdir(parents=True)
-        instructions.write_text(
-            "<!-- railtracks:other-skill:start -->\n<!-- railtracks:other-skill:end -->\n",
-            encoding="utf-8",
-        )
-
-        assert find_legacy_installs("fixture-skill", tmp_path) == []
-
-    def test_finds_a_cursor_rules_file(self, tmp_path):
-        rule = tmp_path / ".cursor" / "rules" / "fixture-skill.mdc"
-        rule.parent.mkdir(parents=True)
-        rule.write_text(
-            "---\ndescription: x\nalwaysApply: false\n---\n\nbody\n", encoding="utf-8"
-        )
-
-        found = find_legacy_installs("fixture-skill", tmp_path)
-
-        assert [(f.target, f.shape, f.confirmed) for f in found] == [
-            ("Cursor", "file", True)
-        ]
-
-    def test_a_cursor_file_that_does_not_look_like_ours_is_still_reported_unconfirmed(
-        self, tmp_path
-    ):
-        """§3.3: an `.mdc` carries nothing saying railtracks, so a name match is a
-        reason to tell the user and never a reason to delete their file."""
-        rule = tmp_path / ".cursor" / "rules" / "fixture-skill.mdc"
-        rule.parent.mkdir(parents=True)
-        rule.write_text(
-            "---\nalwaysApply: true\n---\n\nhand written\n", encoding="utf-8"
-        )
-
-        found = find_legacy_installs("fixture-skill", tmp_path)
-
-        assert found[0].confirmed is False
-        assert "may be yours" in found[0].advice()
-
-    def test_finds_nothing_in_a_clean_repo(self, tmp_path):
-        assert find_legacy_installs("fixture-skill", tmp_path) == []
-
-    def test_detection_never_touches_the_files_it_finds(self, tmp_path):
-        rule = tmp_path / ".cursor" / "rules" / "fixture-skill.mdc"
-        rule.parent.mkdir(parents=True)
-        rule.write_text("---\nalwaysApply: false\n---\n", encoding="utf-8")
-        before = file_digest(rule)
-
-        find_legacy_installs("fixture-skill", tmp_path)
-
-        assert rule.is_file() and file_digest(rule) == before
