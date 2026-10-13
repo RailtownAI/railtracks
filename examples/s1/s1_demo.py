@@ -31,9 +31,11 @@ import railtracks as rt
 
 ##### 1. The model #####
 
-jev = rt.decisions.OpenRouterAI(model_name="typesafe/jev-1.13", # reads OPENROUTER_API_KEY
-        # optional: retries rate limits, timeouts, dropped connections and 5xx; not 4xx
-            retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3))  
+jev = rt.decisions.OpenRouterAI(
+    model_name="typesafe/jev-1.13",  # reads OPENROUTER_API_KEY
+    # optional: retries rate limits, timeouts, dropped connections and 5xx; not 4xx
+    retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3),
+)
 # The same schema works on every vendor; swap the model above for one of these:
 # jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # TYPESAFE_API_KEY
 # jev = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")  # OPENAI_API_KEY
@@ -160,13 +162,15 @@ if __name__ == "__main__":
         name="big_cat", instructions="The animal is a big cat (lion, tiger, ...)"
     )
     Classify = rt.decision_node(
-        "Classify Photo", model=luna, schema=rt.decisions.DecisionSchema(predicate=[big_cat])
+        "Classify Photo",
+        model=luna,
+        schema=rt.decisions.DecisionSchema(predicate=[big_cat]),
     )
     photo = rt.decisions.DecisionState(
         text="A photo of an animal.", attachments="path/to/tiger.jpg"
     )
     result = rt.Flow(name="Photo", entry_point=Classify).invoke(photo)
     print(result.structured[big_cat].probability)  # 1.0 for a tiger
-    
+
     # OpenAI may decline a question: a node then raises DecisionRefusalError, with
     # .refused naming the declined questions and .answers holding the rest.

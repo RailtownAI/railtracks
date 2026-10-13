@@ -2,7 +2,7 @@
 
 System One models read a piece of text and answer typed questions about it with calibrated probabilities instead of prose: a yes/no (`Predicate`), a pick from named values (`Choice`), or a level on a rubric (`Score`). One request answers every question in a single forward pass. In railtracks the models live in `rt.decisions`, the way chat models live in `rt.llm`, and `rt.decision_node` turns a model plus a schema into a node, the way `rt.agent_node` does for an LLM.
 
-`s1_demo.py` is the one example. It triages a support inbox: one ticket through a Flow, a whole inbox routed on the probabilities (confident tickets go to a team queue, unclear ones to a person), the decision as an agent's tool, and a direct `aask` call with a JSON state. It runs on TypeSafe's Jev; OpenRouter and OpenAI are commented one-line swaps at the top, and an image example for OpenAI's `gpt-6-luna` is commented at the end.
+`s1_demo.py` is the one example. It triages a support inbox: one ticket through a Flow, a whole inbox routed on the probabilities (confident tickets go to a team queue, unclear ones to a person), the decision as an agent's tool, and a direct `aask` call with a JSON state. It runs Jev through OpenRouter; TypeSafe and OpenAI are commented one-line swaps at the top, and an image example for OpenAI's `gpt-6-luna` is commented at the end.
 
 ## Vendors
 
