@@ -1,6 +1,7 @@
 """LiteLLMDecisionModel.aask: the litellm.adecisions call, error mapping, retries and
 the response."""
 
+import asyncio
 import copy
 
 import httpx
@@ -422,3 +423,65 @@ class TestRetries:
         with pytest.raises(DecisionProviderRateLimitError):
             await model.aask("Help!", Triage)
         assert len(fake.calls) == 1
+
+
+class _Handler:
+    """Stands in for litellm's cached ``AsyncHTTPHandler``."""
+
+    def __init__(self):
+        self.closed_in_loop = None
+
+    async def close(self):
+        self.closed_in_loop = asyncio.get_running_loop()
+
+
+class TestClientCleanup:
+    """litellm caches one async client per event loop; it must be closed before
+    ``asyncio.run`` closes the loop, or its SSL transport is torn down after it."""
+
+    @staticmethod
+    def _cache_handler(provider: str) -> _Handler:
+        handler = _Handler()
+        litellm.in_memory_llm_clients_cache.set_cache(
+            "async_httpx_client" + provider, handler
+        )
+        return handler
+
+    def test_cached_client_closed_and_evicted_when_the_loop_shuts_down(
+        self, make_model
+    ):
+        model, _ = make_model(respond(), respond())
+        seen = {}
+
+        async def run():
+            seen["loop"] = asyncio.get_running_loop()
+            seen["handler"] = self._cache_handler("typesafe")
+            await model.aask("Help!", Triage)
+            await model.aask("Again", Triage)
+            # still open while the loop runs, so calls in this loop reuse it
+            assert seen["handler"].closed_in_loop is None
+
+        asyncio.run(run())
+
+        # closed inside its own loop, during asyncio.run's shutdown
+        assert seen["handler"].closed_in_loop is seen["loop"]
+        key = f"async_httpx_client{'typesafe'}-{id(seen['loop'])}"
+        assert key not in litellm.in_memory_llm_clients_cache.cache_dict
+
+    def test_each_loop_closes_its_own_client(self, make_model):
+        model, _ = make_model(respond(), respond())
+        handlers = []
+
+        async def run():
+            handlers.append(self._cache_handler("typesafe"))
+            await model.aask("Help!", Triage)
+
+        asyncio.run(run())
+        asyncio.run(run())
+
+        assert all(h.closed_in_loop is not None for h in handlers)
+        assert handlers[0].closed_in_loop is not handlers[1].closed_in_loop
+
+    def test_no_cached_client_is_fine(self, make_model):
+        model, _ = make_model(respond())
+        asyncio.run(model.aask("Help!", Triage))

@@ -29,6 +29,7 @@ from .._exceptions import (
 from ..model import DecisionModel, DecisionReply
 from ..schema import DecisionSchema
 from ..state import DecisionInput
+from ._client_cleanup import close_client_on_loop_shutdown
 from ._wire import describe_questions, parse_response, questions_to_wire, to_input
 
 _MAX_ERROR_BODY = 500
@@ -165,6 +166,7 @@ class LiteLLMDecisionModel(DecisionModel):
         self, state: DecisionInput, schema: DecisionSchema
     ) -> DecisionReply:
         self._check_api_base()
+        await close_client_on_loop_shutdown(self.provider_prefix)
         try:
             response = await litellm.adecisions(
                 model=self.litellm_model,
