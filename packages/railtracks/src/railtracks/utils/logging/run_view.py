@@ -35,6 +35,26 @@ _NOTEBOOK_CELL = re.compile(r"ipykernel_\d+[/\\]\d+\.py$")
 
 
 @dataclass
+class _Node:
+    """What the view knows about one node call."""
+
+    name: str
+    # set once the node is seen running, or ending if its middleware never ran it
+    placed: bool = False
+    # the node that called it; None for the entry point
+    parent: str | None = None
+    depth: int = 1
+    # which of its caller's calls to this name it is, from 1
+    number: int = 1
+    # ran alongside a sibling; lines inside it carry its name
+    concurrent: bool = False
+    # the failure of its latest attempt, until it runs again or ends
+    attempt_failure: dict[str, Any] | None = None
+    # the failed attempt that the current attempt is retrying
+    retrying: dict[str, Any] | None = None
+
+
+@dataclass
 class _Run:
     """What the view has learned about one running session."""
 
@@ -45,23 +65,13 @@ class _Run:
     middleware_names: dict[str, str]
     # LLM id -> model name; a model announces itself before each call
     models: dict[str, str] = field(default_factory=dict)
-    node_names: dict[str, str] = field(default_factory=dict)
-    depths: dict[str, int] = field(default_factory=dict)
+    nodes: dict[str, _Node] = field(default_factory=dict)
+    # ids of the nodes running right now
+    running: set[str] = field(default_factory=set)
     # LLM and middleware invoke ids -> the node they ran in
     owners: dict[str, str] = field(default_factory=dict)
-    # node id -> the failure of its latest attempt, until the node runs again or ends
-    attempt_failures: dict[str, dict[str, Any]] = field(default_factory=dict)
-    # node id -> the failed attempt that the current attempt is retrying
-    retrying: dict[str, dict[str, Any]] = field(default_factory=dict)
-    # node id -> the node that called it (None for the entry point)
-    parents: dict[str, str | None] = field(default_factory=dict)
-    running: set[str] = field(default_factory=set)
-    # nodes that ran alongside a sibling; their lines carry the branch name
-    concurrent: set[str] = field(default_factory=set)
     # (caller, node name) -> how many times that caller has called it
     call_counts: dict[tuple[str | None, str], int] = field(default_factory=dict)
-    # node id -> which of its caller's calls to that name it is, from 1
-    call_numbers: dict[str, int] = field(default_factory=dict)
     # what the entry point returned, shown under the run's closing line
     result: str | None = None
     # set once a node fails in a way that stops the run
@@ -133,7 +143,7 @@ def _track(run: _Run, event: Event) -> None:
     event_type = event.event_type
 
     if event_type == "node.creation":
-        run.node_names[payload["node_id"]] = payload["name"]
+        run.nodes[payload["node_id"]] = _Node(name=payload["name"])
     elif event_type.startswith("node."):
         _track_node(run, event_type, payload)
     elif event_type == "llm.creation":
@@ -148,39 +158,48 @@ def _track(run: _Run, event: Event) -> None:
 
 def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
     node_id = payload["parent_node_id"]
-    if node_id not in run.parents:
+    node = run.nodes.setdefault(node_id, _Node(name=node_id))
+    if not node.placed:
         # first sighting; usually the invocation, but a node whose middleware raises
         # before running it only shows up in its destruction
-        caller = _caller(run, payload)
-        run.depths[node_id] = run.depths.get(caller, 0) + 1 if caller else 1
-        run.parents[node_id] = caller
-        key = (caller, _node_name(run, node_id))
-        run.call_counts[key] = run.call_counts.get(key, 0) + 1
-        run.call_numbers[node_id] = run.call_counts[key]
+        _place(run, node, payload)
 
     if event_type == "node.invocation":
-        failure = run.attempt_failures.pop(node_id, None)
-        if failure is not None:
-            run.retrying[node_id] = failure
+        if node.attempt_failure is not None:
+            node.retrying, node.attempt_failure = node.attempt_failure, None
         elif node_id not in run.running:
-            caller = run.parents[node_id]
-            siblings = {n for n in run.running if run.parents.get(n) == caller}
-            if siblings:
-                run.concurrent.update(siblings)
-                run.concurrent.add(node_id)
+            _mark_concurrent_siblings(run, node)
         run.running.add(node_id)
     elif event_type == "node.failure":
-        run.attempt_failures[node_id] = payload
+        node.attempt_failure = payload
     elif event_type == "node.response":
-        run.attempt_failures.pop(node_id, None)
+        node.attempt_failure = None
     elif event_type == "node.destruction":
         failed = payload.get("exception_name") is not None
-        if run.parents[node_id] is None and not failed:
+        if node.parent is None and not failed:
             run.result = _display(payload["response"])
         run.fatal = run.fatal or (failed and _is_fatal(run, payload))
         run.running.discard(node_id)
-        run.attempt_failures.pop(node_id, None)
-        run.retrying.pop(node_id, None)
+        node.attempt_failure = node.retrying = None
+
+
+def _place(run: _Run, node: _Node, payload: dict[str, Any]) -> None:
+    """Fixes where a node sits under its caller, and which of the caller's calls it is."""
+    node.placed = True
+    node.parent = _caller(run, payload)
+    caller = run.nodes.get(node.parent) if node.parent else None
+    node.depth = caller.depth + 1 if caller is not None else 1
+    key = (node.parent, node.name)
+    run.call_counts[key] = run.call_counts.get(key, 0) + 1
+    node.number = run.call_counts[key]
+
+
+def _mark_concurrent_siblings(run: _Run, node: _Node) -> None:
+    """Marks ``node`` and its running siblings as concurrent, if any are running."""
+    for sibling_id in run.running:
+        sibling = run.nodes[sibling_id]
+        if sibling.parent == node.parent:
+            sibling.concurrent = node.concurrent = True
 
 
 def _render(run: _Run, event: Event) -> _Line | None:
@@ -222,29 +241,26 @@ def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
 
 
 def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
-    node_id = payload["parent_node_id"]
-    retrying = run.retrying.get(node_id)
-    if retrying is not None:
+    node = run.nodes[payload["parent_node_id"]]
+    if node.retrying is not None:
         text = Text(
-            f"↻ {_label(run, node_id)} retrying after {_exception(retrying)}",
+            f"↻ {_label(run, node)} retrying after {_exception(node.retrying)}",
             "yellow",
         )
     else:
-        text = Text(f"↳ {_label(run, node_id)}")
+        text = Text(f"↳ {_label(run, node)}")
     if run.level <= logging.DEBUG:
         text.append(f" {_call_args(payload['args'], payload['kwargs'])}", "dim")
-    return _Line(
-        logging.INFO, run.depths.get(node_id, 1), text, run.parents.get(node_id)
-    )
+    return _Line(logging.INFO, node.depth, text, node.parent)
 
 
 def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
     """The node's final outcome, after its middleware had its say."""
-    node_id = payload["parent_node_id"]
+    node = run.nodes[payload["parent_node_id"]]
     if payload.get("exception_name") is not None:
         fatal = _is_fatal(run, payload)
         text = Text(
-            f"✗ {_label(run, node_id)} failed: {_exception(payload)}"
+            f"✗ {_label(run, node)} failed: {_exception(payload)}"
             f"{' (fatal)' if fatal else ''}",
             "red",
         )
@@ -253,20 +269,18 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
         )
         return _Line(
             logging.CRITICAL if fatal else logging.ERROR,
-            run.depths.get(node_id, 1),
+            node.depth,
             text,
-            run.parents.get(node_id),
+            node.parent,
             detail,
         )
     text = Text.assemble(
-        (f"✓ {_label(run, node_id)}", "green"),
+        (f"✓ {_label(run, node)}", "green"),
         (f" {payload['duration_seconds']:.3f}s", "dim"),
     )
     if run.level <= logging.DEBUG:
         text.append(f" → {_display(payload['response'])}", "dim")
-    return _Line(
-        logging.INFO, run.depths.get(node_id, 1), text, run.parents.get(node_id)
-    )
+    return _Line(logging.INFO, node.depth, text, node.parent)
 
 
 def _llm_response(run: _Run, payload: dict[str, Any]) -> _Line:
@@ -329,16 +343,17 @@ def _caller(run: _Run, payload: dict[str, Any]) -> str | None:
     return payload.get("spatial_parent_node_id")
 
 
-def _branch(run: _Run, node_id: str | None) -> str | None:
+def _branch(run: _Run, node_id: str | None) -> _Node | None:
     """The nearest node at or above ``node_id`` that ran alongside a sibling.
 
     Indentation alone can't tell siblings' lines apart once they interleave, so lines
     inside such a branch are prefixed with its name.
     """
-    while node_id is not None:
-        if node_id in run.concurrent:
-            return node_id
-        node_id = run.parents.get(node_id)
+    node = run.nodes.get(node_id) if node_id is not None else None
+    while node is not None:
+        if node.concurrent:
+            return node
+        node = run.nodes.get(node.parent) if node.parent is not None else None
     return None
 
 
@@ -353,21 +368,18 @@ def _owner(run: _Run, payload: dict[str, Any]) -> str | None:
 
 def _nested_depth(run: _Run, payload: dict[str, Any]) -> int:
     owner = _owner(run, payload)
-    return run.depths.get(owner, 1) + 1 if owner is not None else 1
+    if owner is None:
+        return 1
+    node = run.nodes.get(owner)
+    return (node.depth if node is not None else 1) + 1
 
 
-def _node_name(run: _Run, node_id: str) -> str:
-    return run.node_names.get(node_id, node_id)
-
-
-def _label(run: _Run, node_id: str) -> str:
+def _label(run: _Run, node: _Node) -> str:
     """A node's name, numbered once it runs alongside siblings if its caller called
     that name more than once, so same-named branches stay apart."""
-    name = _node_name(run, node_id)
-    key = (run.parents.get(node_id), name)
-    if node_id in run.concurrent and run.call_counts.get(key, 0) > 1:
-        return f"{name} #{run.call_numbers[node_id]}"
-    return name
+    if node.concurrent and run.call_counts.get((node.parent, node.name), 0) > 1:
+        return f"{node.name} #{node.number}"
+    return node.name
 
 
 def _model_name(run: _Run, payload: dict[str, Any]) -> str:
