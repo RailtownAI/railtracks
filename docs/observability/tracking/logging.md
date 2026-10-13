@@ -24,7 +24,7 @@ Railtracks emits log records for execution ([node](../../documentation/agent_des
 ---
 
 !!! Critical
-    Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in.
+    Every log Railtracks sends about a run (node, LLM, and session records) will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in. The observability pipeline's own warnings (`RT.railtracks.observability.*`) don't carry it, since that pipeline logs independently of the run's context.
 
 ## Run View
 

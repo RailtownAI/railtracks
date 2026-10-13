@@ -6,7 +6,8 @@ import tempfile
 from unittest.mock import patch
 
 import pytest
-from railtracks.utils.logging import config
+from railtracks.observability import configure
+from railtracks.utils.logging import config, setup
 from railtracks.utils.logging.config import (
     LifecycleFilter,
     RichConsoleHandler,
@@ -14,13 +15,12 @@ from railtracks.utils.logging.config import (
     _module_logging_level,
     _short_suffix_label,
     detach_logging_handlers,
-    enable_logging,
-    initialize_module_logging,
     lifecycle_logger_name,
     rt_logger,
     run_view_level,
     setup_file_handler,
 )
+from railtracks.utils.logging.setup import enable_logging, initialize_module_logging
 from rich.console import Console
 
 # ================= RichConsoleHandler Tests =================
@@ -298,6 +298,17 @@ def test_enable_logging_adds_real_handlers():
         "enable_logging() should add railtracks' console handler"
     )
 
+    detach_logging_handlers()
+
+
+def test_enable_logging_registers_the_run_view(monkeypatch):
+    """Logging registers its own run view with observability; core doesn't wire it."""
+    monkeypatch.setattr(configure, "_inline_listeners", [])
+    detach_logging_handlers()
+
+    enable_logging(level="INFO")
+
+    assert configure.inline_listeners() == [setup._run_view.record]
     detach_logging_handlers()
 
 
