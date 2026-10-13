@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from enum import Enum
-from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from railtracks.built_nodes._types import ModelSource
 from railtracks.built_nodes.llm.node import agent_node
@@ -37,6 +37,14 @@ class _ScopeLabel(str, Enum):
 class _ScopeVerdict(BaseModel):
     reason: str
     label: _ScopeLabel
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def _normalize_label(cls, value: object) -> object:
+        """Accept ``in scope`` or ``out-of-scope`` from a judge that drifts from the enum spelling."""
+        if isinstance(value, str):
+            return re.sub(r"[\s-]+", "_", value.strip()).upper()
+        return value
 
 
 _BLOCKED_LABELS: dict[ScopeSensitivity, frozenset[_ScopeLabel]] = {
@@ -110,8 +118,9 @@ class ScopeGuard(InputGuard):
         scope: str,
         model: ModelSource,
         *,
-        sensitivity: ScopeSensitivity
-        | Literal["LOW", "MEDIUM", "HIGH"] = ScopeSensitivity.MEDIUM,
+        sensitivity: ScopeSensitivity | str = ScopeSensitivity.MEDIUM,
+        name: str | None = None,
+        fail_open: bool = True,
     ) -> None:
         """Initialize the scope guard.
 
@@ -119,6 +128,8 @@ class ScopeGuard(InputGuard):
             scope: Natural-language description of what the agent covers; may also list what it does not cover, with examples.
             model: The judge model, or a no-arg factory returning one. A small, cheap model is recommended.
             sensitivity: How readily the guard blocks; see :class:`ScopeSensitivity`. Strings are case-insensitive.
+            name: Optional rail name for traces (see :class:`InputGuard`); the judge node is named ``<name>-judge``.
+            fail_open: Whether to allow the request to continue when the judge raises an unexpected exception. Unlike the other prebuilt guards this defaults to ``True``, so a judge outage does not take the agent down.
 
         Raises:
             ValueError: If *scope* is blank or *sensitivity* is not ``LOW``, ``MEDIUM`` or ``HIGH``.
@@ -126,7 +137,7 @@ class ScopeGuard(InputGuard):
         if not scope.strip():
             raise ValueError("scope must not be empty.")
         self._sensitivity = _parse_sensitivity(sensitivity)
-        super().__init__(fail_open=True)
+        super().__init__(name=name, fail_open=fail_open)
         self._judge = agent_node(
             name=f"{self._rail_name()}-judge",
             llm=model,

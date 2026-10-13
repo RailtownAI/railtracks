@@ -51,7 +51,7 @@ def _guarded_agent(mock_llm, guard, *, name="guarded", **llm_kwargs):
 
 @pytest.mark.asyncio
 async def test_out_of_scope_blocks_before_guarded_model(mock_llm):
-    """I1: the maintainer's usage; the guarded model is never called."""
+    """An out-of-scope request is blocked and the guarded model is never called."""
     judge_llm, judge = _judge(mock_llm, "OUT_OF_SCOPE")
     guard = ScopeGuard(scope=SCOPE, model=judge_llm)
     agent, chat = _guarded_agent(mock_llm, guard)
@@ -71,7 +71,7 @@ async def test_out_of_scope_blocks_before_guarded_model(mock_llm):
 
 @pytest.mark.asyncio
 async def test_high_sensitivity_blocks_unknown(mock_llm):
-    """I2"""
+    """With HIGH sensitivity an UNKNOWN label blocks before the guarded model runs."""
     judge_llm, _ = _judge(mock_llm, "UNKNOWN")
     guard = ScopeGuard(SCOPE, judge_llm, sensitivity="HIGH")
     agent, chat = _guarded_agent(mock_llm, guard, name="guarded-high")
@@ -86,7 +86,7 @@ async def test_high_sensitivity_blocks_unknown(mock_llm):
 
 @pytest.mark.asyncio
 async def test_low_sensitivity_never_blocks(mock_llm):
-    """I3: observation mode still runs the judge but lets the request through."""
+    """Observation mode (LOW) still runs the judge but lets the request through."""
     judge_llm, judge = _judge(mock_llm, "OUT_OF_SCOPE")
     guard = ScopeGuard(SCOPE, judge_llm, sensitivity="LOW")
     agent, chat = _guarded_agent(mock_llm, guard, name="guarded-low")
@@ -101,7 +101,7 @@ async def test_low_sensitivity_never_blocks(mock_llm):
 
 @pytest.mark.asyncio
 async def test_in_scope_runs_guarded_agent(mock_llm):
-    """I4"""
+    """An in-scope request reaches the guarded model after exactly one judge call."""
     judge_llm, judge = _judge(mock_llm, "IN_SCOPE")
     guard = ScopeGuard(SCOPE, judge_llm)
     agent, chat = _guarded_agent(mock_llm, guard, name="guarded-in")
@@ -118,7 +118,7 @@ async def test_in_scope_runs_guarded_agent(mock_llm):
 
 @pytest.mark.asyncio
 async def test_judge_runs_once_across_tool_loop(mock_llm):
-    """I5: the tool loop makes two model calls but only the first is judged."""
+    """The tool loop makes two model calls but only the first is judged."""
 
     @rt.function_node
     def lookup_invoice(invoice_id: str) -> str:
@@ -161,7 +161,7 @@ async def test_judge_runs_once_across_tool_loop(mock_llm):
 
 @pytest.mark.asyncio
 async def test_pii_redacted_before_judge(mock_llm):
-    """I6: PII redaction listed first, so the judge only sees redacted text."""
+    """PII redaction listed first, so the judge only sees redacted text."""
     judge_llm, judge = _judge(mock_llm, "IN_SCOPE")
     guarded_llm = mock_llm(custom_response="ok")
     agent = rt.agent_node(
@@ -180,7 +180,7 @@ async def test_pii_redacted_before_judge(mock_llm):
 
 @pytest.mark.asyncio
 async def test_blocked_subagent_error_reaches_parent_model(mock_llm):
-    """I7: a blocked sub-agent surfaces to its parent as a tool error, not a raise."""
+    """A blocked sub-agent surfaces to its parent as a tool error, not a raise."""
     judge_llm, _ = _judge(mock_llm, "OUT_OF_SCOPE")
     child = rt.agent_node(
         name="Child",
@@ -212,7 +212,7 @@ async def test_blocked_subagent_error_reaches_parent_model(mock_llm):
 
 @pytest.mark.asyncio
 async def test_judge_failure_fails_open(mock_llm):
-    """I8"""
+    """A judge failure fails open: the request reaches the guarded model."""
     judge_llm = mock_llm()
 
     def boom(messages, schema, **kwargs):
@@ -230,7 +230,7 @@ async def test_judge_failure_fails_open(mock_llm):
 
 @pytest.mark.asyncio
 async def test_stream_does_not_leak_judge_output(mock_llm):
-    """I9: only the guarded model's text is streamed, never the judge's JSON."""
+    """Only the guarded model's text is streamed, never the judge's JSON."""
     judge_llm, judge = _judge(mock_llm, "IN_SCOPE")
     agent = rt.agent_node(
         name="guarded-stream",
@@ -248,7 +248,7 @@ async def test_stream_does_not_leak_judge_output(mock_llm):
 
 @pytest.mark.asyncio
 async def test_stream_block_emits_no_chunks(mock_llm):
-    """I10"""
+    """A blocked streaming call raises before any chunk is emitted."""
     judge_llm, _ = _judge(mock_llm, "OUT_OF_SCOPE")
     agent = rt.agent_node(
         name="guarded-stream-block",
@@ -266,7 +266,7 @@ async def test_stream_block_emits_no_chunks(mock_llm):
 
 @pytest.mark.asyncio
 async def test_multi_turn_history_gives_judge_context(mock_llm):
-    """I11"""
+    """Earlier user and assistant turns are passed to the judge as context."""
     judge_llm, judge = _judge(mock_llm, "IN_SCOPE")
     guard = ScopeGuard(SCOPE, judge_llm)
     agent, chat = _guarded_agent(mock_llm, guard, name="guarded-history")

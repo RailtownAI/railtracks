@@ -383,6 +383,31 @@ class TestJudgeFailure:
         assert traces[-1].action == "error"
         assert traces[-1].meta["exception_type"] == "LLMError"
 
+    async def test_fail_open_false_blocks_on_judge_error(self, mock_llm):
+        llm = mock_llm()
+
+        def boom(messages, schema, **kwargs):
+            raise RuntimeError("judge down")
+
+        llm._structured = boom  # type: ignore[method-assign]
+        guard = ScopeGuard(SCOPE, llm, fail_open=False)
+
+        _, traces, decision = await self._run(guard)
+
+        assert decision.action == GuardrailAction.BLOCK
+        assert traces[-1].action == "error"
+        assert traces[-1].meta["exception_type"] == "LLMError"
+
+    @pytest.mark.parametrize("raw", ["out of scope", "Out-Of-Scope", " out_of_scope "])
+    async def test_label_spelling_is_normalized(self, mock_llm, raw):
+        llm = mock_llm(custom_response=f'{{"reason": "r", "label": "{raw}"}}')
+        guard = ScopeGuard(SCOPE, llm)
+
+        _, traces, decision = await self._run(guard)
+
+        assert decision.action == GuardrailAction.BLOCK
+        assert traces[-1].meta["label"] == "OUT_OF_SCOPE"
+
     async def test_invalid_label_fails_open(self, mock_llm):
         llm = mock_llm(custom_response='{"reason": "r", "label": "RELATED"}')
         guard = ScopeGuard(SCOPE, llm)
@@ -415,6 +440,17 @@ class TestGuardName:
         assert guard.name == "ScopeGuard"
         assert traces[-1].rail_name == "ScopeGuard"
         assert guard._judge.name() == "ScopeGuard-judge"
+
+    async def test_custom_name(self, mock_llm):
+        llm, _ = _judge_llm(mock_llm, "OUT_OF_SCOPE")
+        guard = ScopeGuard(SCOPE, llm, name="bakery-scope")
+        history = MessageHistory([UserMessage("write a poem")])
+
+        _, traces, _ = await guard.run(event=_input_event(history), value=history)
+
+        assert guard.name == "bakery-scope"
+        assert traces[-1].rail_name == "bakery-scope"
+        assert guard._judge.name() == "bakery-scope-judge"
 
 
 class TestDecide:
