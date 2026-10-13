@@ -1,8 +1,10 @@
 """Live decision calls through ``litellm.adecisions``, one run per vendor.
 
-TypeSafe (``jev-latest``), OpenRouter (``typesafe/jev-1.13``) and OpenAI
-(``gpt-6-luna``). Each call costs about $0.00002 to $0.00004. A vendor's tests are
-skipped when its key (TYPESAFE_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY) is unset.
+OpenRouter (``typesafe/jev-1.13``) and OpenAI (``gpt-6-luna``). TypeSafe has no live
+run: OpenRouter serves the same Jev model, and ``TypeSafeAI`` differs only in its
+litellm prefix, key and base URL, which the unit tests cover. Each call costs about
+$0.00002 to $0.00004. A vendor's tests are skipped when its key (OPENROUTER_API_KEY,
+OPENAI_API_KEY) is unset.
 """
 
 import base64
@@ -36,7 +38,6 @@ class Vendor:
     """What the reported model name starts with; hosts report a dated snapshot."""
 
 
-TYPESAFE = Vendor(rt.decisions.TypeSafeAI, "jev-latest", "TYPESAFE_API_KEY", "jev-")
 OPENROUTER = Vendor(
     rt.decisions.OpenRouterAI,
     "typesafe/jev-1.13",
@@ -58,7 +59,7 @@ def _param(vendor: Vendor):
     )
 
 
-ALL_VENDORS = [_param(TYPESAFE), _param(OPENROUTER), _param(OPENAI)]
+ALL_VENDORS = [_param(OPENROUTER), _param(OPENAI)]
 
 
 is_urgent = Predicate(name="is_urgent", instructions="The message conveys urgency")
