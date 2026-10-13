@@ -106,7 +106,7 @@ Railtracks supports six logging levels aligned with the standard Python logging 
     ```
 
 !!! warning "File Handler logging level"
-    Currently the logs outputted to the File Handler will be at `DEBUG` level for completeness. If you'd like us to support customizing this parameter, please open an issue at [railtracks/issues](https://github.com/RailtownAI/railtracks/issues)
+    Currently the logs outputted to the File Handler will be at `INFO` level. If you'd like us to support customizing this parameter, please open an issue at [railtracks/issues](https://github.com/RailtownAI/railtracks/issues)
 
 !!! tip "Custom Handlers"
 
@@ -162,33 +162,31 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 
 ## Log Message Examples
 
-??? note "DEBUG Messages"
-    The node creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
+Each example shows a record as `<LOGGER> : <LEVEL> - <MESSAGE>`, with the logger name as `name_style="short"` prints it. The console uses that layout for `DEBUG`, `WARNING`, `ERROR`, and `CRITICAL` records and prints `INFO` records as dim notes (`· <MESSAGE>`). Records about nodes starting, finishing, and failing reach the file handler and your own handlers, failures with their full traceback; the console shows them through the run view instead.
 
-    | Type           | Example |
-    |----------------|---------|
-    | Runner Created | `RT.Runner   : DEBUG    - Runner <RUNNER_ID> is initialized` |
-    | Node Created   | `RT.Publisher: DEBUG    - RequestCreation(current_node_id=<PARENT_NODE_ID>, new_request_id=<REQUEST_ID>, running_mode=async, new_node_type=<NODE_NAME>, args=<INPUT_ARGS>, kwargs=<INPUT_KWARGS>)` |
-    | Node Completed | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
+??? note "DEBUG Messages"
+    | Type            | Example |
+    |-----------------|---------|
+    | Session Created | `RT.Session  : DEBUG    - Session <SESSION_ID> is initialized` |
+    | Node Created    | `RT.Publisher: DEBUG    - RequestCreation(current_node_id=<PARENT_NODE_ID>, new_request_id=<REQUEST_ID>, running_mode=async, new_node_type=<NODE_NAME>, args=<INPUT_ARGS>, kwargs=<INPUT_KWARGS>)` |
+    | Node Completed  | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
+    | Node Failed     | `RT.Publisher: DEBUG    - <NODE_NAME> FAILED with error <ERROR>` |
 
 ??? note "INFO Messages"
-    The console prints INFO records as dim notes (`· <MESSAGE>`). The creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
-
     | Type             | Example |
     |------------------|---------|
-    | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |
-    | Invoking Nodes   | `RT          : INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
-    | Node Completed   | `RT          : INFO     - <NODE_NAME> DONE` |
-    | Run Data Saved   | `· Saving run data to .railtracks/data/sessions/<FLOW_NAME>_<SESSION_ID>.json` |
+    | Initial Request  | `RT.State    : INFO     - START CREATED <NODE_NAME>` |
+    | Invoking Nodes   | `RT.State    : INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
+    | Node Completed   | `RT.State    : INFO     - <NODE_NAME> DONE` |
+    | Run Data Saved   | `RT.Session  : INFO     - Saving run data to .railtracks/data/sessions/<FLOW_NAME>_<SESSION_ID>.json` |
 
 ??? note "WARNING Messages"
     | Type              | Example |
     |-------------------|---------|
-    | Overwriting File  | `RT.Runner   : WARNING  - File .railtracks\<RUNNER_ID>.json already exists, overwriting...` |
+    | No System Message | `RT.Validation: WARNING  - No SystemMessage was provided. This is not recommended. Please provide the first message as a SystemMessage.` |
 
-??? note "ERROR Messages"
-    This record reaches the file handler and your own handlers with its full traceback; the console shows the failure through the run view instead.
-
-    | Type        | Example |
-    |-------------|---------|
-    | Node Failed | `RT          : ERROR    - <NODE_NAME> FAILED` |
+??? note "ERROR and CRITICAL Messages"
+    | Type              | Example |
+    |-------------------|---------|
+    | Node Failed       | `RT.State    : ERROR    - <NODE_NAME> FAILED` |
+    | Node Failed Fatal | `RT.State    : CRITICAL - <NODE_NAME> FAILED` |
