@@ -175,6 +175,16 @@ def test_run_view_level_prefers_the_thread_level():
     detach_logging_handlers()
 
 
+def test_run_view_level_is_none_once_the_console_handler_is_removed():
+    """Someone swapping railtracks' console for their own handler turns the view off."""
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+
+    rt_logger.handlers.clear()
+
+    assert run_view_level() is None
+
+
 def test_prepare_logger_enables_the_run_view_at_its_setting():
     prepare_logger(setting="WARNING")
     token = _module_logging_level.set(None)

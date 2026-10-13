@@ -632,7 +632,10 @@ def test_run_state_is_dropped_when_the_run_completes(output, level):
 @pytest.fixture
 def console_enabled(monkeypatch, output) -> io.StringIO:
     """End to end: real runs reach the view through the session's inline listener."""
-    monkeypatch.setattr(config, "_console_level", logging.INFO)
+    # attached only for the run view to find its level; it prints no records itself
+    console_handler = config.RichConsoleHandler(run_view_level=logging.INFO)
+    console_handler.setLevel(logging.CRITICAL + 1)
+    monkeypatch.setattr(config.rt_logger, "handlers", [console_handler])
     # other tests leave a thread level behind; these runs should use the console's
     token = config._module_logging_level.set(None)
     yield output

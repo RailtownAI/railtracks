@@ -54,9 +54,6 @@ def _make_console() -> Console:
 console = _make_console()
 _start_time = time.time()
 
-# Default level of the run view; None until railtracks installs its console handler
-_console_level: int | None = None
-
 # log levels are ints hence the type hints
 _module_logging_level: ContextVar[int | None] = ContextVar(
     "module_logging_level", default=None
@@ -84,12 +81,15 @@ def run_view_level() -> int | None:
 
     Returns:
         The thread's own level if one was set, else the level railtracks' console was
-        enabled with, or None when railtracks' console is not enabled.
+        enabled with, or None when railtracks' console handler is not attached.
     """
-    if _console_level is None:
+    console_handler = next(
+        (h for h in rt_logger.handlers if isinstance(h, RichConsoleHandler)), None
+    )
+    if console_handler is None:
         return None
     thread_level = _module_logging_level.get()
-    return thread_level if thread_level is not None else _console_level
+    return thread_level if thread_level is not None else console_handler.run_view_level
 
 
 def _short_suffix_label(segment: str) -> str:
@@ -156,8 +156,9 @@ class RichConsoleHandler(logging.Handler):
     """Writes RT log records to the shared rich console, coloured by level.
 
     INFO records print as dim notes in the run view's style; other levels keep the
-    logger name and level label. The record is formatted with a plain ``logging.Formatter``, so nothing beyond the
-    standard attributes is written onto it for handlers further up the tree to pick up.
+    logger name and level label. The record is formatted with a plain
+    ``logging.Formatter``, so nothing beyond the standard attributes is written onto it
+    for handlers further up the tree to pick up.
     """
 
     _LEVEL_STYLES = {
@@ -167,9 +168,16 @@ class RichConsoleHandler(logging.Handler):
         logging.CRITICAL: "bold red",
     }
 
-    def __init__(self, *, name_style: LoggerNameDisplay = "short") -> None:
+    def __init__(
+        self,
+        *,
+        name_style: LoggerNameDisplay = "short",
+        run_view_level: int = logging.INFO,
+    ) -> None:
         super().__init__()
         self.name_style: LoggerNameDisplay = name_style
+        # what the run view prints for runs in threads that set no level of their own
+        self.run_view_level = run_view_level
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
@@ -189,8 +197,10 @@ class RichConsoleHandler(logging.Handler):
             self.handleError(record)
 
 
-def _console_handler(name_style: LoggerNameDisplay) -> RichConsoleHandler:
-    handler = RichConsoleHandler(name_style=name_style)
+def _console_handler(
+    name_style: LoggerNameDisplay, run_view_level: int
+) -> RichConsoleHandler:
+    handler = RichConsoleHandler(name_style=name_style, run_view_level=run_view_level)
     handler.addFilter(LifecycleFilter())
     return handler
 
@@ -234,13 +244,13 @@ def prepare_logger(
     """
     Prepares the logger based on the setting and optionally sets up the file handler if a path is provided.
     """
-    global _console_level
-
     detach_logging_handlers()
     if path is not None:
         setup_file_handler(file_name=path, file_logging_level=logging.INFO)
 
-    console_handler = _console_handler(name_style)
+    console_handler = _console_handler(
+        name_style, str_to_log_level.get(setting or "INFO", logging.INFO)
+    )
 
     logger = logging.getLogger(rt_logger_name)
 
@@ -263,18 +273,14 @@ def prepare_logger(
             raise ValueError("Invalid log level setting")
 
     logger.addHandler(console_handler)
-    _console_level = str_to_log_level[setting or "INFO"]
 
 
 def detach_logging_handlers():
     """
     Shuts down the logging system and detaches all logging handlers.
     """
-    global _console_level
-
     # Get the root logger
     rt_logger.handlers.clear()
-    _console_level = None
 
 
 def initialize_module_logging(
@@ -296,8 +302,6 @@ def initialize_module_logging(
     each thread's ContextVar to determine what should be logged. The same level
     decides what the run view prints for runs started in that thread.
     """
-    global _console_level
-
     env_level_str = (
         level if level is not None else os.getenv("RT_LOG_LEVEL", "INFO")
     ).upper()
@@ -325,10 +329,9 @@ def initialize_module_logging(
         if isinstance(h, logging.NullHandler):
             logger.removeHandler(h)
 
-    console_handler = _console_handler(name_style)
+    console_handler = _console_handler(name_style, env_level_int)
     console_handler.addFilter(ThreadAwareFilter())
     logger.addHandler(console_handler)
-    _console_level = env_level_int
 
     # Set up file handler if specified
     if env_log_file is not None:
