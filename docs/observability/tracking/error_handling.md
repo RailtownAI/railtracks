@@ -20,7 +20,7 @@ RTError (base)
 └── FatalError
 ```
 
-`NodeInvocationError` tells you *that* a node terminated; its subclasses tell you *why*. Every level is a plain `except` clause, so you handle only as much detail as you care about:
+`NodeInvocationError` tells you *that* a [node](../../documentation/agent_design/overview.md#node) terminated; its subclasses tell you *why*. Every level is a plain `except` clause, so you handle only as much detail as you care about:
 
 ```python
 --8<-- "docs/scripts/error_handling.py:llm_dispatch"
@@ -41,6 +41,7 @@ ProviderError                    talking to a model provider
 ├── ProviderAuthenticationError
 ├── ModelError
 │   ├── FunctionCallingNotSupportedError
+│   ├── AttachmentNotSupportedError
 │   └── UnsupportedHyperparameterError
 ├── ModelNotFoundError
 └── RetryError
@@ -57,6 +58,10 @@ You only see these when calling a model **directly**. Inside a node they are tra
 | `ProviderAuthenticationError` | `LLMAuthenticationError` |
 | `ProviderError` (anything else) | `LLMError` |
 | `ToolCreationError` | `NodeInvocationError` with `fatal=True` |
+
+A reply the node cannot use, such as one with no text and no tool calls (cut off or filtered before any text, or audio or images only), also surfaces as `LLMError`, with `message_history` attached.
+
+A reply that ends early but carries some text is returned as that text, so it may be incomplete. This happens when the model hits the output token limit (`finish_reason="length"`) or the provider's content filter stops it (`finish_reason="content_filter"`). Check the finish reason when completeness matters: Railtracks logs it as an error on the `RT.litellm_wrapper` logger, since the returned `Response` does not carry it.
 
 You never have to unwrap anything to find out *what* went wrong: an exhausted retry of timeouts arrives as an `LLMTimeoutError`, whether or not a retry approach was configured.
 

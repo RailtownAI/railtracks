@@ -1,18 +1,18 @@
 # --8<-- [start: quickstart]
 import railtracks as rt
 
-agent = rt.agent_node(
+MyAgent = rt.agent_node(
     name="MyAgent",
     system_message="You are a helpful assistant that can answer questions and perform tasks.",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 
 # Create your flow by supplying an entry point.
-flow = rt.Flow(name="MyFlow", entry_point=agent)
+flow = rt.Flow(name="MyFlow", entry_point=MyAgent)
 
 # And then invoke it with some input!
 response = flow.invoke("What is the capital of France?")
-print(response)
+print(response.content)
 # --8<-- [end: quickstart]
 
 
@@ -20,7 +20,7 @@ print(response)
 # Configuration options are passed as keyword arguments during initialization
 configured_flow = rt.Flow(
     name="MyFlow",
-    entry_point=agent,
+    entry_point=MyAgent,
     timeout=60,
     end_on_error=True,
     payload_callback=lambda payload: print("Payload:", payload)
@@ -32,7 +32,7 @@ configured_flow = rt.Flow(
 # Creating context shared across instances
 context_flow = rt.Flow(
     name="MyFlow",
-    entry_point=agent,
+    entry_point=MyAgent,
     context={"shared_key": "shared_value"}
 )
 
@@ -44,7 +44,7 @@ context_response = context_injected_flow.invoke("What is the value of shared_key
 
 # --8<-- [start: connecting]
 # .connect() gives you a FlowConnection, which you invoke in place of the Flow.
-connect_flow = rt.Flow(name="MyFlow", entry_point=agent, context={"shared_key": "shared_value"})
+connect_flow = rt.Flow(name="MyFlow", entry_point=MyAgent, context={"shared_key": "shared_value"})
 connection = connect_flow.connect()
 connection_response = connection.invoke("What is the capital of France?")
 
@@ -54,7 +54,7 @@ print(connection.context.get("shared_key"))
 
 
 # --8<-- [start: connection_message_histories]
-history_flow = rt.Flow(name="MyFlow", entry_point=agent)
+history_flow = rt.Flow(name="MyFlow", entry_point=MyAgent)
 history_connection = history_flow.connect()
 history_response = history_connection.invoke("What is the capital of France?")
 
@@ -66,7 +66,7 @@ for history in history_connection.message_histories():
 
 
 # --8<-- [start: connection_failure]
-failure_flow = rt.Flow(name="MyFlow", entry_point=agent)
+failure_flow = rt.Flow(name="MyFlow", entry_point=MyAgent)
 failure_connection = failure_flow.connect()
 
 try:
@@ -80,7 +80,7 @@ except Exception:
 # --8<-- [start: connection_concurrent]
 import asyncio
 
-concurrent_flow = rt.Flow(name="MyFlow", entry_point=agent, context={"shared_key": "shared_value"})
+concurrent_flow = rt.Flow(name="MyFlow", entry_point=MyAgent, context={"shared_key": "shared_value"})
 connections = []
 futures = []
 

@@ -16,7 +16,7 @@ Copy the returned history, append the next user message, and pass it to the agen
 --8<-- "docs/scripts/documentation/message_history.py:direct_handoff"
 ```
 
-`MessageHistory` behaves like a list. Copying the returned history before appending keeps the earlier response snapshot unchanged. Passing only `response.text` gives the next agent the previous answer without the messages that led to it.
+`MessageHistory` behaves like a list. Copying the returned history before appending keeps the earlier response snapshot unchanged. Passing only `response.content` gives the next agent the previous answer without the messages that led to it.
 
 ## Share history between nodes in one run
 

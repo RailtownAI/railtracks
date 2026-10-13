@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from railtracks.context.central import SessionIdentity
+from railtracks.context.external import MutableExternalContext
 
 
 @pytest.fixture
@@ -34,6 +35,7 @@ def mock_context_functions():
         patch("railtracks.interaction._call.get_current_scope") as get_scope,
         patch("railtracks.interaction._call.get_session_identity") as get_identity,
         patch("railtracks.interaction._call.get_local_config") as get_config,
+        patch("railtracks.events.context.safe_get_runner_context") as get_runner,
     ):
         # Set default return values
         get_parent.return_value = "parent_123"
@@ -46,6 +48,8 @@ def mock_context_functions():
             flow_id=None,
             session_name=None,
         )
+        # _start snapshots the context at both ends of the run
+        get_runner.return_value.external_context = MutableExternalContext({})
 
         yield {
             "is_context_present": present,
@@ -57,6 +61,7 @@ def mock_context_functions():
             "get_current_scope": get_scope,
             "get_session_identity": get_identity,
             "get_local_config": get_config,
+            "safe_get_runner_context": get_runner,
         }
 
 

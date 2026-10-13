@@ -90,8 +90,8 @@ from railtracks.exceptions import (
 
 try:
     # Setup phase
-    node = rt.agent_node(
-        llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    Assistant = rt.agent_node(
+        llm=rt.llm.OpenAILLM("gpt-6-luna"),
         system_message="You are a helpful assistant",
     )
 
@@ -99,7 +99,7 @@ try:
     rt.set_config(timeout=60.0)
 
     # Execution phase
-    result = await rt.call(node, user_input="Explain quantum computing")
+    result = await rt.call(Assistant, user_input="Explain quantum computing")
 
 except NodeCreationError as e:
     # Configuration or setup issue
@@ -197,23 +197,23 @@ except LLMError as err:
 import railtracks as rt
 from railtracks.exceptions import LLMRateLimitError, LLMTimeoutError, LLMError
 
-cheap = rt.agent_node(llm=rt.llm.OpenAILLM("gpt-5.4-mini"), name="Cheap")
-strong = rt.agent_node(llm=rt.llm.AnthropicLLM("claude-sonnet-5"), name="Strong")
+CheapAgent = rt.agent_node(llm=rt.llm.OpenAILLM("gpt-6-luna"), name="Cheap")
+StrongAgent = rt.agent_node(llm=rt.llm.AnthropicLLM("claude-sonnet-5-5"), name="Strong")
 
 
 @rt.function_node
 async def summarise(user_input: str) -> str:
     """Summarise text, degrading gracefully as things go wrong."""
     try:
-        return (await rt.call(cheap, user_input)).content
+        return (await rt.call(CheapAgent, user_input)).content
 
     except LLMTimeoutError:
         # Slow model, not a broken one -- a second attempt often lands.
-        return (await rt.call(cheap, user_input)).content
+        return (await rt.call(CheapAgent, user_input)).content
 
     except LLMRateLimitError:
         # Rate limited on the cheap tier; spend money instead of waiting.
-        return (await rt.call(strong, user_input)).content
+        return (await rt.call(StrongAgent, user_input)).content
 
     except LLMError as e:
         # Anything else from the LLM: give the caller something usable.

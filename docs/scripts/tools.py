@@ -44,7 +44,7 @@ MathAgent = rt.agent_node(
                   solve_expression, 
                   AddNode,
                 ],    # the agent has access to these tools
-                llm = rt.llm.OpenAILLM("gpt-5.4-mini"),
+                llm = rt.llm.OpenAILLM("gpt-6-luna"),
             )
 
 # run the agent

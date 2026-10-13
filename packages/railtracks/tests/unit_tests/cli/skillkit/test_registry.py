@@ -9,7 +9,7 @@ from railtracks.cli._skillkit.registry import (
     load_skill,
 )
 
-BUNDLED_SKILLS = ("agent-builder", "middleware", "rag-pipeline")
+BUNDLED_SKILLS = ("agent-builder", "middleware", "rag")
 
 
 def write_skill(
@@ -104,9 +104,9 @@ class TestLegacySkillsMapping:
             "argument_hint": "[describe what the agent should do]",
         }
 
-    def test_rag_pipeline_values_match(self):
-        assert SKILLS["rag-pipeline"] == {
-            "name": "rag-pipeline",
+    def test_rag_values_match(self):
+        assert SKILLS["rag"] == {
+            "name": "rag",
             "description": (
                 "Build a RAG (retrieval-augmented generation) pipeline using railtracks. "
                 "Use when the user wants to ingest documents into a vector store and retrieve "

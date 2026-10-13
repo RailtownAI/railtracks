@@ -1,6 +1,14 @@
+## What a Function Node Is
+
+A **function node** is one of your own Python functions turned into a [node](../overview.md#node) by the `@rt.function_node` decorator. Railtracks reads the function's type hints to build its parameter schema and its docstring to describe it, so one decorated function serves two purposes at once: a step you can invoke yourself with [`rt.call`](../../invocation/call.md), and a tool an agent is allowed to choose.
+
+Use a function node wherever the work has one correct implementation, such as a calculation, a database query, or an API call. That keeps deterministic work out of the model's hands and leaves the [agent node](../overview.md#agent-node) responsible only for deciding *when* the work should happen.
+
+## Defining a Function Node
+
 Allowing your agents to use your `python` functions as tools for your agents is quite straight forward. You can choose one of the following ways:
 !!! warning "Docstrings"
-    Your Python functions need to contain **_typehints_** for parameters and **_docstrings_** formatted in [Google-style docstrings](https://google.github.io/styleguide/pyguide.html#:~:text=one%2Dline%20docstring.-,Args%3A,-List%20each%20parameter) as that is what Railtracks automatically parses to inform your LLM about the capability of the tool
+    Your Python functions need to contain **_typehints_** for parameters and **_docstrings_** as that is what Railtracks automatically parses to inform your LLM about the capability of the tool. Parameter descriptions can be written as [Google-style](https://google.github.io/styleguide/pyguide.html#:~:text=one%2Dline%20docstring.-,Args%3A,-List%20each%20parameter), [NumPy-style](https://numpydoc.readthedocs.io/en/latest/format.html), or [reST/Sphinx-style](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#field-lists) docstrings. Typehints always belong on the function signature itself, whatever style you pick.
 === "Globally"
     ```python
     import railtracks as rt
@@ -25,7 +33,7 @@ Allowing your agents to use your `python` functions as tools for your agents is 
     )
     ```
 
-    1. Simply add the `railtracks.function_node` decorator before the definition of your function. This transforms your function into a node type usable upon passing to any agent.
+    1. Simply add the `railtracks.function_node` decorator before the definition of your function.
 
 === "Agent Specific"
 
@@ -46,6 +54,68 @@ Allowing your agents to use your `python` functions as tools for your agents is 
     square = rt.function_node(functools.partial(power, exp=2), name="square")
     cube = rt.function_node(functools.partial(power, exp=3), name="cube")
     ```
+
+## Supported docstring styles
+
+The same tool written in each of the three supported styles. All three produce identical parameter descriptions for the LLM.
+
+=== "Google"
+
+    ```python
+    @rt.function_node
+    def power(base: float, exp: float) -> float:
+        """
+        Raise base to the power of exp.
+
+        Args:
+            base: The number to raise.
+            exp: The exponent applied to base.
+
+        Returns:
+            base raised to exp.
+        """
+        return base**exp
+    ```
+
+=== "NumPy"
+
+    ```python
+    @rt.function_node
+    def power(base: float, exp: float) -> float:
+        """
+        Raise base to the power of exp.
+
+        Parameters
+        ----------
+        base : float
+            The number to raise.
+        exp : float
+            The exponent applied to base.
+
+        Returns
+        -------
+        float
+            base raised to exp.
+        """
+        return base**exp
+    ```
+
+=== "reST/Sphinx"
+
+    ```python
+    @rt.function_node
+    def power(base: float, exp: float) -> float:
+        """
+        Raise base to the power of exp.
+
+        :param base: The number to raise.
+        :param exp: The exponent applied to base.
+        :return: base raised to exp.
+        """
+        return base**exp
+    ```
+
+The Google `Args:` header can also be written as `Arguments:` or `Parameters:`, and reST accepts every Sphinx parameter field name (`:param`, `:parameter`, `:arg`, `:argument`, `:key`, `:keyword`). Use one style per docstring: if a docstring mixes them, Railtracks warns and reads only one, in the order Google, NumPy, reST.
 
 ## Inspecting an agent's tools
 

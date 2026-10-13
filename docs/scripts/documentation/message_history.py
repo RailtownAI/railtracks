@@ -4,7 +4,7 @@ import railtracks as rt
 ChatAgent = rt.agent_node(
     name="ChatAgent",
     system_message="Answer clearly and remember details from the conversation.",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 # --8<-- [end: message_history_setup]
 
@@ -19,7 +19,7 @@ async def direct_conversation() -> str:
     next_history = rt.llm.MessageHistory(first_response.message_history)
     next_history.append(rt.llm.UserMessage("Which region did I mention?"))
     second_response = await rt.call(ChatAgent, next_history)
-    return second_response.text
+    return second_response.content
 
 
 # --8<-- [end: direct_handoff]
@@ -37,7 +37,7 @@ async def conversation_turn(user_message: str) -> str:
 
     response = await rt.call(ChatAgent, history)
     rt.context.put("conversation_history", response.message_history)
-    return response.text
+    return response.content
 
 
 @rt.function_node

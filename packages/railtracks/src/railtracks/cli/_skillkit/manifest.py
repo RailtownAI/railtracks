@@ -4,9 +4,6 @@ Every install writes `.railtracks.json` into the skill directory: which skill an
 target it was, the railtracks version that wrote it, and a hash per file. The hashes
 are what make removal safe — only a file this record names, whose bytes are still
 unchanged, may be deleted on a re-install.
-
-`find_legacy_installs` covers skill installs written in the other shapes older
-railtracks versions used; it reports them and never removes them.
 """
 
 from __future__ import annotations
@@ -236,98 +233,3 @@ def version_skew(previous: InstallRecord | None) -> str | None:
         f"'{previous.skill}' was installed from railtracks "
         f"{previous.package_version}; this is {current}."
     )
-
-
-# ---------------------------------------------------------------------------
-# Legacy install detection — report only.
-# Deleted once the older install shapes are out of circulation, tracked in
-# https://github.com/RailtownAI/railtracks/issues/1534
-# ---------------------------------------------------------------------------
-
-COPILOT_INSTRUCTIONS = Path(".github") / "copilot-instructions.md"
-CURSOR_RULES = Path(".cursor") / "rules"
-
-
-@dataclass(frozen=True)
-class LegacyInstall:
-    """A skill install found on disk in one of the older shapes.
-
-    Attributes:
-        target: The assistant it was installed for.
-        path: The file holding it.
-        shape: `"region"` for a fenced block inside a file the user also owns,
-            `"file"` for a whole file. Each needs a different removal.
-        confirmed: Whether the install identifies itself as ours. Copilot's markers
-            do; a Cursor `.mdc` cannot, so it is a name match and nothing more.
-    """
-
-    target: str
-    path: Path
-    shape: str
-    confirmed: bool
-
-    def advice(self) -> str:
-        """What to tell the user, given it will not be removed for them."""
-        if self.shape == "region":
-            return (
-                f"{self.path} still carries a legacy {self.target} install of this "
-                f"skill between its '<!-- railtracks:' markers. It is injected into "
-                f"every request and will not be updated again — delete that block."
-            )
-        confidence = (
-            "It looks like ours"
-            if self.confirmed
-            else "It matches the name of a bundled skill, but nothing in the file "
-            "identifies it, so it may be yours"
-        )
-        return (
-            f"{self.path} is a legacy {self.target} install of this skill. "
-            f"{confidence} — review it and delete it if you no longer want it; "
-            f"it will not be updated again."
-        )
-
-
-def find_legacy_installs(
-    skill_name: str, project: Path | None = None
-) -> list[LegacyInstall]:
-    """Find installs of `skill_name` in the older shapes, under `project`.
-
-    Detection only, and it must stay that way: no manifest describes these, and a
-    Cursor `.mdc` carries no marker, so a match is never proof the file is ours.
-    """
-    root = Path(".") if project is None else project
-    found: list[LegacyInstall] = []
-
-    instructions = root / COPILOT_INSTRUCTIONS
-    if instructions.is_file():
-        try:
-            text = instructions.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            text = ""
-        if f"<!-- railtracks:{skill_name}:start -->" in text:
-            found.append(
-                LegacyInstall(
-                    target="Copilot",
-                    path=instructions,
-                    shape="region",
-                    confirmed=True,
-                )
-            )
-
-    rule = root / CURSOR_RULES / f"{skill_name}.mdc"
-    if rule.is_file():
-        try:
-            text = rule.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            text = ""
-        # Matching our generated frontmatter raises confidence; it never licenses a delete.
-        found.append(
-            LegacyInstall(
-                target="Cursor",
-                path=rule,
-                shape="file",
-                confirmed="alwaysApply: false" in text,
-            )
-        )
-
-    return found

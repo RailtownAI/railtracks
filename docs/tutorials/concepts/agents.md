@@ -21,6 +21,8 @@ for a while now, but LLMs have changed the game and made it much easier to use t
 accomplish complex tasks and goals. This ability makes them uniquely suited to operate as the **brain** for your agentic
 system.
 
+In Railtracks, an agent built on an LLM is an [agent node](../../documentation/agent_design/overview.md#agent-node).
+
 ```mermaid
 graph TB
     User[User]

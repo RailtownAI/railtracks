@@ -18,15 +18,15 @@ tools = server.tools
 # --8<-- [start: github_call]
 import railtracks as rt
 
-agent = rt.agent_node(
+GitHubAgent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a GitHub Copilot agent that can interact with GitHub repositories.""",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 
 user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 
-flow = rt.Flow("github-flow", entry_point=agent)
+flow = rt.Flow("github-flow", entry_point=GitHubAgent)
 result = flow.invoke(user_prompt)
 print(result.content)
 
@@ -62,18 +62,18 @@ tools = server.tools
 
 # --8<-- [start: notion_call]
 import railtracks as rt
-agent = rt.agent_node(
+NotionAgent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a master Notion page designer. You love creating beautiful
      and well-structured Notion pages and make sure that everything is correctly formatted.""",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 
 user_prompt = """Create a new page in Notion called 'Jokes' under the parent page "Welcome to Notion!" with a small joke at the top of the page."""
 message_history = rt.llm.MessageHistory()
 message_history.append(rt.llm.UserMessage(user_prompt))
 
-notion_flow = rt.Flow("notion-flow", entry_point=agent)
+notion_flow = rt.Flow("notion-flow", entry_point=NotionAgent)
 result = notion_flow.invoke(message_history)
 print(result.content)
 
@@ -111,7 +111,7 @@ CodeAgent = rt.agent_node(
     You can execute code in it using run_in_sandbox.
     You can only see the output of the code if it is printed to stdout or stderr, so anything you want to see must be printed.
     You can install packages with code like 'import os; os.system('pip install numpy')'""",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 # --8<-- [end: sandbox_setup]
 
@@ -155,7 +155,7 @@ BashAgent = rt.agent_node(
     tool_nodes={bash_tool},
     system_message=f"You are a useful helper that can run local shell commands. "
                    f"You are on a {platform.system()} machine. Use appropriate shell commands to answer the user's questions.",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 
 user_prompt = """What directories are in the current directory?"""
@@ -197,7 +197,7 @@ import railtracks as rt
 SlackAgent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are a Slack agent that can interact with Slack channels.""",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 
 user_prompt = """Send a message to general saying "Hello!"."""
@@ -272,7 +272,7 @@ tools = fetch_mcp_tools + [google_search]
 WebSearchAgent = rt.agent_node(
     # tool_nodes={*tools},    # Uncomment this line to use the tools
     system_message="""You are an information gathering agent that can search the web.""",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
 )
 
 # Example usage

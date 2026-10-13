@@ -14,9 +14,15 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 from .._exceptions import _ColoredError
-from .docstring_parser import extract_main_description, parse_docstring_args
+from .docstring_parser import (
+    count_parameter_sections,
+    extract_main_description,
+    find_unparsed_rest_param_fields,
+    parse_docstring_args,
+)
 from .parameter_handlers import (
     DefaultParameterHandler,
+    LiteralParameterHandler,
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
@@ -24,6 +30,7 @@ from .parameter_handlers import (
 )
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
+from .typing_utils import resolve_type_hints
 
 
 def _validate_tool_params(parameters: Any, param_type: type) -> Any:
@@ -168,7 +175,7 @@ class Tool:
     @classmethod
     def from_function(
         cls,
-        func: Callable,
+        func: Callable[..., Any],
         /,
         *,
         name: str | None = None,
@@ -220,15 +227,27 @@ class Tool:
         if params is not None:
             parameters = params
         else:
-            # Check for multiple Args sections (warning)
+            resolved_types = resolve_type_hints(func, signature)
+
+            # Check for multiple parameter sections (warning)
             # Only need to do this if we need to.
-            if docstring.count("Args:") > 1:
-                warnings.warn("Multiple 'Args:' sections found in the docstring.")
+            if count_parameter_sections(docstring) > 1:
+                warnings.warn(
+                    "Multiple parameter sections found in the docstring. Only one "
+                    "is used, in priority order: Google, NumPy, reST."
+                )
+            unparsed_fields = find_unparsed_rest_param_fields(docstring)
+            if unparsed_fields:
+                warnings.warn(
+                    f"Could not parse reST parameter fields {unparsed_fields!r} in the "
+                    f"docstring of '{function_name}'; their descriptions are ignored."
+                )
             # Create parameter handlers
             handlers: List[ParameterHandler] = [
                 PydanticModelHandler(),
                 SequenceParameterHandler(),
                 UnionParameterHandler(),
+                LiteralParameterHandler(),
                 DefaultParameterHandler(),
             ]
 
@@ -244,10 +263,15 @@ class Tool:
                 # Check if the parameter is required
                 required = param.default == inspect.Parameter.empty
 
-                handler = next(h for h in handlers if h.can_handle(param.annotation))
+                annotation = (
+                    resolved_types.get(param.name, param.annotation)
+                    if isinstance(param.annotation, str)
+                    else param.annotation
+                )
+                handler = next(h for h in handlers if h.can_handle(annotation))
 
                 param_obj = handler.create_parameter(
-                    param.name, param.annotation, description, required
+                    param.name, annotation, description, required
                 )
 
                 parameters.append(param_obj)

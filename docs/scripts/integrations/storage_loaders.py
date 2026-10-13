@@ -226,14 +226,14 @@ async def search_knowledge_base(query: str) -> str:
     return "\n\n".join(r.chunk.content for r in results.chunks)
 
 # 4. Build the agent
-agent = rt.agent_node(
+KnowledgeAgent = rt.agent_node(
     name="KnowledgeAgent",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You are a helpful assistant. Use the knowledge base to answer questions.",
     tool_nodes=[search_knowledge_base],
 )
 
-flow = rt.Flow("knowledge-flow", entry_point=agent)
+flow = rt.Flow("knowledge-flow", entry_point=KnowledgeAgent)
 response = flow.invoke("What is our remote work policy?")
 # --8<-- [end:pipeline_s3_to_rag]
 

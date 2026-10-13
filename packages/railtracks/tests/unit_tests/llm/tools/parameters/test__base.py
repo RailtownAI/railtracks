@@ -96,3 +96,15 @@ def test_to_json_schema_default_injection_with_none():
     p = Parameter("foo", param_type=["string", "none"])
     schema = p.to_json_schema()
     assert schema == {"type": ["string", "null"], "default": None}
+
+
+def test_invalid_param_type_error_includes_parameter_name():
+    # Verify the error message names the offending parameter for easier debugging
+    with pytest.raises(ValueError, match="param_name"):
+        Parameter("param_name", param_type="bool")
+
+
+def test_invalid_param_type_error_includes_parameter_name_in_list():
+    # Same for a union list where one entry is invalid
+    with pytest.raises(ValueError, match="my_param"):
+        Parameter("my_param", param_type=["string", "bool"])

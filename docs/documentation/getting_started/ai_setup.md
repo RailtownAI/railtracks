@@ -4,6 +4,9 @@ Railtracks ships with built-in support for the most popular AI coding assistants
 
 Without a skill, your assistant has to guess at the API. With one, it knows exactly what `rt.agent_node()`, `rt.function_node()`, and `rt.Flow` expect; and it won't make things up.
 
+!!! tip "Using Claude Code?"
+    The [Claude Code plugin](claude_code_plugin.md) is the quickest way in: two commands, and it works before Railtracks is installed.
+
 ## Installation
 
 Make sure the CLI is installed first:
@@ -12,6 +15,20 @@ Make sure the CLI is installed first:
 pip install 'railtracks[visual]'
 ```
 
+
+## Always-On Rules (`AGENTS.md`)
+
+Skills load only when the assistant decides they're relevant, and it often doesn't. For the core API, always-on context works better: in [Vercel's agent evals](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), a short `AGENTS.md` index beat on-demand skills by a wide margin. Run this from your project root:
+
+```bash
+railtracks agents-md
+```
+
+It writes a short Railtracks block (the core patterns, the right call where coding agents often guess wrong, and links to these docs) into `AGENTS.md`, creating the file if needed. The block sits between `<!-- BEGIN:railtracks-agent-rules -->` and `<!-- END:railtracks-agent-rules -->`, and re-running the command replaces only what's between the markers, so anything else you keep in `AGENTS.md` is left alone. Because Claude Code skips `AGENTS.md` when a `CLAUDE.md` exists, the command also creates `CLAUDE.md` with an `@AGENTS.md` import, or adds that line to your existing `CLAUDE.md` if it's missing.
+
+The block records the railtracks version that wrote it; rerun `railtracks agents-md` after upgrading so it matches. To opt out, delete the block (markers included) from `AGENTS.md`, and the `@AGENTS.md` line from `CLAUDE.md` if nothing else needs it.
+
+Skills and the block work well together: the block keeps the basics right in every session, and skills cover multi-step work like RAG pipelines and middleware.
 
 ## Supported Assistants
 
@@ -70,12 +87,6 @@ pip install 'railtracks[visual]'
                 └── ...        ← any supporting files the skill ships
         ```
 
-    !!! note "Migrated from copilot-instructions.md"
-        Older railtracks versions appended Copilot skills as a marker block inside
-        `.github/copilot-instructions.md`. That path is no longer written; if you have one from a
-        prior install, railtracks reports it on your next `railtracks add` and leaves it in place for
-        you to remove (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
-
 === "Cursor"
 
     Installs a skill directory at `.cursor/skills/agent-builder/`. Cursor discovers skills in `.cursor/skills` and loads one when its description matches the current context.
@@ -92,11 +103,6 @@ pip install 'railtracks[visual]'
                 ├── SKILL.md   ← railtracks agent-building knowledge
                 └── ...        ← any supporting files the skill ships
         ```
-
-    !!! note "Migrated from .cursor/rules"
-        Older railtracks versions installed Cursor skills as a single `.cursor/rules/<name>.mdc`
-        file. That path is no longer written; a `.mdc` from a prior install is reported on your next
-        `railtracks add` and left in place (see [Keeping Skills in Sync](#keeping-skills-in-sync)).
 
 ### Install all skills
 
@@ -142,7 +148,7 @@ railtracks add --list
 | Skill | Description |
 |---|---|
 | `agent-builder` | Build agents, tools, flows, and multi-agent workflows with railtracks |
-| `rag-pipeline` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
+| `rag` | Build retrieval-augmented generation (RAG) pipelines with loaders, chunkers, embedders, and vector stores |
 | `middleware` | Add middleware to railtracks nodes and agents, including retries, logging, and guardrails |
 
 
@@ -153,6 +159,9 @@ Skills are bundled **inside the railtracks package**, no internet connection req
 1. Reads the bundled skill content for the requested skill
 2. Formats it with the frontmatter and structure that your specific assistant expects
 3. Writes it to the correct location in your project
+
+!!! tip "Point your assistant at the docs"
+    For anything a skill doesn't cover, point your assistant at [`https://docs.railtracks.org/llms.txt`](https://docs.railtracks.org/llms.txt), which links a plain Markdown copy of every docs page.
 
 !!! tip "Commit the files"
     These files are small and stable. Committing them means every developer on your team gets the same assistant behaviour out of the box, no manual setup required.
@@ -174,13 +183,6 @@ next install a sync rather than a copy:
 - Re-installing an unchanged skill rewrites the manifest byte-for-byte, so it won't churn your diff.
 - If the install came from a different railtracks version, you'll be told when you re-install.
 
-!!! note "Skills installed before this feature"
-    Older railtracks versions installed GitHub Copilot skills as a marker block inside
-    `.github/copilot-instructions.md`, and Cursor skills as `.cursor/rules/<name>.mdc`. Those
-    predate the manifest, so railtracks can spot them but won't delete them — a `.mdc` looks
-    identical to a rule you wrote yourself. You'll be told where they are; removing them is your
-    call.
-
 ## Example: Building Your First Agent
 
 Once the skill is installed, just ask your assistant:
@@ -196,7 +198,7 @@ Your assistant will use the skill to generate correct `rt.function_node` tools, 
 Install the RAG skill and ask your assistant to wire up a pipeline over your data:
 
 ```bash
-railtracks add claude:rag-pipeline
+railtracks add claude:rag
 ```
 
 ```

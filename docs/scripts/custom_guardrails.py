@@ -52,7 +52,7 @@ def strip_sign_off(event: LLMGuardrailEvent) -> GuardrailDecision:
 # --8<-- [start: decorator_attach]
 Agent = rt.agent_node(
     name="custom-guard-demo",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You are a concise assistant.",
     model_middleware=[block_passwords, strip_sign_off],
 )
@@ -72,7 +72,7 @@ class SafetyReport(BaseModel):
 
 Judge = rt.agent_node(
     name="safety-judge",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     output_schema=SafetyReport,
     system_message="You decide whether a user request is safe to answer.",
 )
@@ -82,9 +82,9 @@ Judge = rt.agent_node(
 async def llm_judge(event: LLMGuardrailEvent) -> GuardrailDecision:
     """Delegate the decision to a second agent."""
     verdict = await rt.call(Judge, user_input=str(event.messages[-1].content))
-    if not verdict.structured.safe_request:
+    if not verdict.content.safe_request:
         return GuardrailDecision.block(
-            reason=f"The judge flagged this request: {verdict.structured.reason}",
+            reason=f"The judge flagged this request: {verdict.content.reason}",
             user_facing_message="I can't help with that.",
         )
     return GuardrailDecision.allow()

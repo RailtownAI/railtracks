@@ -12,7 +12,7 @@ from pathlib import Path
 import railtracks as rt
 from railtracks.prebuilt.middleware import MaxCalls, Timeout
 
-MODEL_NAME = os.environ.get("HARNESS_MODEL", "gpt-5.4-mini")
+MODEL_NAME = os.environ.get("HARNESS_MODEL", "gpt-6-luna")
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 ##### 1. Tool surface: read-only, three sharp tools #####
@@ -75,5 +75,5 @@ if __name__ == "__main__":
         "Which optional dependency extras does the railtracks package declare, and what is in each?"
     )
 
-    print(result.text)
+    print(result.content)
     print("\nRun `railtracks viz` to replay this run.")

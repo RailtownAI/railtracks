@@ -21,13 +21,13 @@ web = rt.prebuilt.WebSearchToolSet()
 Researcher = rt.agent_node(
     name="Researcher",
     tool_nodes=web.tool_set(),
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message=web.prompt(),
 )
 
 Summarizer = rt.agent_node(
     name="Summarizer",
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message=(
         "Answer the user's question using only the provided source material. "
         "Cite the URL your answer came from."
@@ -53,9 +53,9 @@ async def research(question: str) -> str:
 
     # Summarizer turns the raw findings into a direct, cited answer.
     answer = await rt.call(
-        Summarizer, f"Question: {question}\n\nSource material:\n{findings.text}"
+        Summarizer, f"Question: {question}\n\nSource material:\n{findings.content}"
     )
-    return answer.text
+    return answer.content
 
 
 #### Flow Definition #####

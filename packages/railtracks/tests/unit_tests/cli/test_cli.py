@@ -470,7 +470,7 @@ class TestSkillInstallers(unittest.TestCase):
         self.assertNotIn("$ARGUMENTS", content)
 
     def test_cursor_installs_skill_directory(self):
-        """Cursor skills ship as `.cursor/skills/<name>/SKILL.md`, not the legacy .mdc."""
+        """Cursor skills ship as `.cursor/skills/<name>/SKILL.md`."""
         add_skill("cursor:agent-builder")
 
         target = Path(".cursor/skills/agent-builder/SKILL.md")
@@ -479,13 +479,6 @@ class TestSkillInstallers(unittest.TestCase):
         self.assertTrue(content.startswith("---\nname: agent-builder\n"))
         self.assertIn("description:", content)
         self.assertIn("# Build a Railtracks Agent", content)
-
-    def test_cursor_does_not_write_the_legacy_mdc(self):
-        """D10: no legacy writes. The old .mdc path must not be touched."""
-        add_skill("cursor:agent-builder")
-
-        self.assertFalse(Path(".cursor/rules/agent-builder.mdc").exists())
-        self.assertFalse(Path(".cursor/rules").exists())
 
     def test_cursor_does_not_use_other_tool_directories(self):
         """Cursor installation must use its own skills discovery path."""
@@ -505,7 +498,7 @@ class TestSkillInstallers(unittest.TestCase):
         self.assertNotIn("$ARGUMENTS", content)
 
     def test_copilot_installs_skill_directory(self):
-        """Copilot skills ship as `.github/skills/<name>/SKILL.md` — no marker block."""
+        """Copilot skills ship as `.github/skills/<name>/SKILL.md`."""
         add_skill("copilot:agent-builder")
 
         target = Path(".github/skills/agent-builder/SKILL.md")
@@ -514,12 +507,6 @@ class TestSkillInstallers(unittest.TestCase):
         self.assertTrue(content.startswith("---\nname: agent-builder\n"))
         self.assertIn("description:", content)
         self.assertIn("# Build a Railtracks Agent", content)
-
-    def test_copilot_does_not_write_the_legacy_marker_block(self):
-        """D10: no legacy writes. copilot-instructions.md must not be touched."""
-        add_skill("copilot:agent-builder")
-
-        self.assertFalse(Path(".github/copilot-instructions.md").exists())
 
     def test_copilot_resolves_argument_placeholder(self):
         """Copilot's directory install ships no argument-hint field, so $ARGUMENTS goes."""
@@ -578,9 +565,7 @@ def test_add_all_matches_individual_installs(tool, force, tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize("tool", SUPPORTED_TOOLS)
-@pytest.mark.parametrize(
-    "preinstalled", [[next(iter(SKILLS))], ["rag-pipeline"], list(SKILLS)]
-)
+@pytest.mark.parametrize("preinstalled", [[next(iter(SKILLS))], ["rag"], list(SKILLS)])
 def test_add_all_continues_after_skips(
     tool, preinstalled, tmp_path, monkeypatch, capsys
 ):
@@ -728,6 +713,26 @@ class TestListSkills(unittest.TestCase):
                 main()
 
         mock_error.assert_called_once()
+
+    @patch("railtracks.cli.add_skill")
+    def test_add_force_before_spec(self, mock_add):
+        """`--force` is accepted before the spec, as the usage text shows"""
+        with patch.object(
+            sys, "argv", ["railtracks", "add", "--force", "claude:agent-builder"]
+        ):
+            main()
+
+        mock_add.assert_called_once_with("claude:agent-builder", force=True)
+
+    @patch("railtracks.cli.add_skill")
+    def test_add_force_after_spec(self, mock_add):
+        """`--force` is also accepted after the spec"""
+        with patch.object(
+            sys, "argv", ["railtracks", "add", "claude:agent-builder", "--force"]
+        ):
+            main()
+
+        mock_add.assert_called_once_with("claude:agent-builder", force=True)
 
 
 class TestPortChecking(unittest.TestCase):

@@ -4,7 +4,7 @@ from railtracks.context.central import get_current_scope
 from railtracks.events._base import (
     SessionEventBase,
 )
-from railtracks.observability.publish import publish_event
+from railtracks.observability.publish import publish_event, publish_event_nowait
 from railtracks.observability_bridge._factory import make_session_event
 from railtracks.utils.logging.create import get_rt_logger
 
@@ -35,3 +35,19 @@ async def pipe(event: SessionEventBase) -> None:
     event.verify()
 
     await publish_event(make_session_event(event.event_type(), event.encode()))
+
+
+def emit_nowait(event: SessionEventBase) -> None:
+    """Sync counterpart of `emit`, callable from any thread.
+
+    The parent is resolved on the calling thread, so the event records the scope it
+    happened in; only delivery is handed to the observer's loop.
+    """
+    try:
+        event.resolve_relationships(get_current_scope())
+        event.verify()
+        publish_event_nowait(make_session_event(event.event_type(), event.encode()))
+    except Exception:  # noqa: BLE001 - observability must not crash a node
+        logger.exception(
+            "observability: failed to emit %s", type(event).__name__, exc_info=True
+        )
