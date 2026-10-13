@@ -64,3 +64,19 @@ def test_created_and_done_records_are_marked_as_lifecycle(caplog):
         r.getMessage() for r in _rt_records(caplog) if getattr(r, "rt_lifecycle", False)
     }
     assert lifecycle == {"START CREATED echo", "echo DONE"}
+
+
+def test_debug_records_of_node_starts_and_ends_are_marked_as_lifecycle(caplog):
+    with caplog.at_level(logging.DEBUG, logger="RT"):
+        rt.Flow(name="Echo Flow", entry_point=rt.function_node(echo)).invoke("x")
+        with pytest.raises(ValueError):
+            rt.Flow(name="Boom Flow", entry_point=rt.function_node(boom)).invoke("x")
+
+    lifecycle = [
+        r.getMessage()
+        for r in _rt_records(caplog)
+        if r.levelno == logging.DEBUG and getattr(r, "rt_lifecycle", False)
+    ]
+    assert any(message.startswith("RequestCreation(") for message in lifecycle)
+    assert "echo DONE with result x" in lifecycle
+    assert "boom FAILED with error cannot handle 'x'" in lifecycle

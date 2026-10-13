@@ -163,6 +163,8 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 ## Log Message Examples
 
 ??? note "DEBUG Messages"
+    The node creation and completion records below reach the file handler and your own handlers; the console shows them through the run view instead.
+
     | Type           | Example |
     |----------------|---------|
     | Runner Created | `RT.Runner   : DEBUG    - Runner <RUNNER_ID> is initialized` |

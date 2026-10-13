@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 from railtracks.utils.logging import get_rt_logger
+from railtracks.utils.logging.config import LIFECYCLE_EXTRA
 from railtracks.utils.publisher import Publisher
 
-from .messages import RequestCompletionMessage, RequestCreationFailure, RequestFailure
+from .messages import (
+    RequestCompletionMessage,
+    RequestCreation,
+    RequestCreationFailure,
+    RequestFailure,
+    RequestSuccess,
+)
 
 logger = get_rt_logger(__name__)
 
@@ -24,7 +31,13 @@ class RTPublisher(Publisher[RequestCompletionMessage]):
 
         In the case that we see an error that is also logged.
         """
+        # the run view already prints node starts, results, and failures
+        extra = (
+            LIFECYCLE_EXTRA
+            if isinstance(message, (RequestCreation, RequestSuccess, RequestFailure))
+            else None
+        )
         if isinstance(message, (RequestCreationFailure, RequestFailure)):
-            logger.debug(message.log_message(), exc_info=message.error)
+            logger.debug(message.log_message(), exc_info=message.error, extra=extra)
         else:
-            logger.debug(message.log_message())
+            logger.debug(message.log_message(), extra=extra)
