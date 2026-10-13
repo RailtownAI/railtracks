@@ -1,4 +1,14 @@
 # ------------------------------- Exception Messages ------------------------------
+AGENT_TOOL_DESCRIPTION_MISSING_MSG: "Agent '{agent_name}' is used as a tool, but it has neither a manifest nor a system message to describe it to the calling agent."
+AGENT_TOOL_DESCRIPTION_MISSING_NOTES:
+  - "Pass system_message= to rt.agent_node, and railtracks will describe the agent from it."
+  - "Or pass manifest=rt.ToolManifest(description=...) to describe the agent yourself."
+
+BLANK_MANIFEST_DESCRIPTION_MSG: "The ToolManifest for agent '{agent_name}' has a blank description."
+BLANK_MANIFEST_DESCRIPTION_NOTES:
+  - "The description tells the calling agent what this agent does and when to use it."
+  - "Write a description, or leave manifest= unset so railtracks describes the agent from its system message."
+
 CLASSMETHOD_REQUIRED_MSG: "The '{method_name}' method must be a @classmethod."
 CLASSMETHOD_REQUIRED_NOTES:
   - "Add @classmethod decorator to '{method_name}'."
@@ -35,6 +45,7 @@ DUPLICATE_TOOL_NAMES_MSG: "Multiple tool nodes share the tool name '{tool_name}'
 DUPLICATE_TOOL_NAMES_NOTES:
   - "Every node in tool_nodes must expose a unique tool_info().name, otherwise the model cannot address them unambiguously."
   - "Pass an explicit name to disambiguate, e.g. rt.function_node(my_func, name=\"my_unique_name\")."
+  - "Agents created without a name all share the default name 'LLM Agent', so give each agent used as a tool its own name=."
 
 INVALID_SYSTEM_MESSAGE_MSG: "system_message must be of type string or SystemMessage, not any other type."
 

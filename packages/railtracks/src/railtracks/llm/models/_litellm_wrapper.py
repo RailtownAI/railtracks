@@ -72,6 +72,13 @@ _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 # legitimate streamed value.
 _STREAM_DONE = object()
 
+# litellm `finish_reason` values (normalized to OpenAI's) meaning the model stopped before
+# finishing its reply, mapped to the cause logged for it.
+_INCOMPLETE_FINISH_REASONS: Dict[str, str] = {
+    "length": "was cut off at the output token limit",
+    "content_filter": "was stopped by the provider's content filter",
+}
+
 # Dropped unsupported parameters from the request to the model.
 litellm.drop_params = True
 litellm.modify_params = True
@@ -223,6 +230,45 @@ def _attach_reasoning(assistant_msg: AssistantMessage, source: Any) -> Assistant
     assistant_msg.reasoning_content = getattr(source, "reasoning_content", None)
     assistant_msg.thinking_blocks = getattr(source, "thinking_blocks", None)
     return assistant_msg
+
+
+def _log_incomplete_finish(finish_reason: str | None, model_name: str) -> None:
+    """Log an error when the model stopped before finishing its reply.
+
+    The call still succeeds and returns whatever arrived, so the log is the only signal
+    that the reply may be partial.
+
+    Args:
+        finish_reason: The `finish_reason` litellm reported for the turn, if any.
+        model_name: The model that produced the reply, named in the log.
+    """
+    cause = _INCOMPLETE_FINISH_REASONS.get(finish_reason or "")
+    if cause is not None:
+        logger.error(
+            "The reply from %s %s (finish_reason=%r) and may be incomplete.",
+            model_name,
+            cause,
+            finish_reason,
+        )
+
+
+def _reply_text(content: str | None, finish_reason: str | None) -> str | None:
+    """Return the reply text, or `None` when the model stopped early with no text at all.
+
+    An empty reply is only a valid answer when the model finished normally. Keying on an
+    explicit early-stop `finish_reason` keeps empty keep-alive or metadata chunks, and a
+    missing `finish_reason`, from ever turning a reply into an error.
+
+    Args:
+        content: The text the model returned, if any.
+        finish_reason: The `finish_reason` litellm reported for the turn, if any.
+
+    Returns:
+        `content` unchanged, or `None` if it is empty and the turn ended early.
+    """
+    if not content and finish_reason in _INCOMPLETE_FINISH_REASONS:
+        return None
+    return content
 
 
 def _echo_reasoning(base: Dict[str, Any], msg: Message) -> None:
@@ -595,6 +641,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         active_tool_calls: Dict[int, StreamedToolCall] = {}
         completed_tool_calls: List[StreamedToolCall] = []
         stream_finished = False
+        finish_reason: str | None = None
 
         for chunk in raw:
             raw_chunks.append(chunk)
@@ -613,6 +660,7 @@ class LiteLLMWrapper(ModelBase, ABC):
 
             if self._is_stream_finished(choice):
                 stream_finished = True
+                finish_reason = choice.finish_reason
                 continue
 
             reasoning_delta = getattr(choice.delta, "reasoning_content", None)
@@ -648,6 +696,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             self._assemble_thinking_blocks(raw_chunks) if saw_thinking_blocks else None
         )
 
+        _log_incomplete_finish(finish_reason, self._model_name)
         r = self._prepare_response(
             accumulated_content=accumulated_content,
             tools=tools,
@@ -655,6 +704,7 @@ class LiteLLMWrapper(ModelBase, ABC):
             message_info=message_info,
             reasoning_content=accumulated_reasoning or None,
             thinking_blocks=thinking_blocks,
+            finish_reason=finish_reason,
         )
 
         yield r
@@ -691,13 +741,15 @@ class LiteLLMWrapper(ModelBase, ABC):
         message_info: MessageInfo,
         reasoning_content: str | None = None,
         thinking_blocks: list[dict] | None = None,
+        finish_reason: str | None = None,
     ):
         """
         From the provided content, creates a completes a response object dyanmically.
 
         This function handles the normalization of the different response `content` types.
         Any `reasoning_content`/`thinking_blocks` accumulated from the stream are attached
-        to the built assistant message.
+        to the built assistant message. A plain reply with no text whose `finish_reason`
+        shows it ended early gets `None` content, as the non-streaming paths do.
         """
         structured_response: BaseModel | None = None
 
@@ -711,7 +763,9 @@ class LiteLLMWrapper(ModelBase, ABC):
                 content=ToolCalls(tools, text=accumulated_content or None)
             )
         else:
-            message = AssistantMessage(content=accumulated_content)
+            message = AssistantMessage(
+                content=_reply_text(accumulated_content, finish_reason)
+            )
 
         message.reasoning_content = reasoning_content
         message.thinking_blocks = thinking_blocks
@@ -857,8 +911,11 @@ class LiteLLMWrapper(ModelBase, ABC):
 
     def _chat_handle_base(self, raw: ModelResponse, info: MessageInfo):
         message = raw["choices"][0]["message"]
+        finish_reason = raw.choices[0].finish_reason
+        _log_incomplete_finish(finish_reason, self._model_name)
         assistant_msg = _attach_reasoning(
-            AssistantMessage(content=message["content"]), message
+            AssistantMessage(content=_reply_text(message["content"], finish_reason)),
+            message,
         )
         return Response(message=assistant_msg, message_info=info)
 
@@ -869,6 +926,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         schema: Type[BaseModel],
     ) -> Response:
         message = raw["choices"][0]["message"]
+        _log_incomplete_finish(raw.choices[0].finish_reason, self._model_name)
         parsed = schema(**json.loads(message["content"]))
         assistant_msg = _attach_reasoning(AssistantMessage(content=parsed), message)
         return Response(message=assistant_msg, message_info=info)
@@ -880,12 +938,15 @@ class LiteLLMWrapper(ModelBase, ABC):
         Handle the response from litellm.completion when using tools.
         """
         choice = raw.choices[0]
+        _log_incomplete_finish(choice.finish_reason, self._model_name)
 
-        if choice.finish_reason == "stop" and not choice.message.tool_calls:
-            # litellm types content as str | None, but a plain "stop" completion always
-            # carries (possibly empty) text content.
+        if not choice.message.tool_calls:
+            # A turn without tool calls is a plain reply whatever its finish_reason, as in
+            # the streaming path; a cut-off or filtered reply keeps any text it has.
             assistant_msg = _attach_reasoning(
-                AssistantMessage(content=cast(str, choice.message.content)),
+                AssistantMessage(
+                    content=_reply_text(choice.message.content, choice.finish_reason)
+                ),
                 choice.message,
             )
             return Response(message=assistant_msg, message_info=info)

@@ -17,7 +17,7 @@ def weather_tool(city: str):
     return f"{city} is sunny with a temperature of 25°C."
 
 
-#As before, we will create our Weather Agent with the additional tool manifest so that other agents know how to use it
+#As before, we will create our Weather Agent with its weather tool
 WeatherToolCallAgent = rt.agent_node(
     name="Weather Agent",
     llm=rt.llm.OpenAILLM("gpt-6-luna"),

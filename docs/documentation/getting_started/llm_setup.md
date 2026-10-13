@@ -85,3 +85,26 @@ Not sure which to use? A few pointers:
 | Need multimodal (vision) | OpenAI, Anthropic, or Gemini |
 
 For a full breakdown of supported providers and how to configure each one, see [Supported Providers](../../integrations/llms/providers.md).
+
+---
+
+## Testing without an API key
+
+`EchoLLM` is an offline model for tests and local examples. Constructing it and calling it needs no API key and no network access. Pass it to an [agent node](../agent_design/overview.md#agent-node) the same way you would pass any other model, then run that agent through a [Flow](../invocation/flows.md).
+
+On every chat call the model returns one assistant message: the full message history it received, one message per line in each message's `str()` form (`role: content`), then a final line that reads `This is an echo of the test model.` It never requests a tool call, so an agent that has tools finishes in a single turn and the reply is still that echo. The async methods return the same text as the sync ones. [Structured output](../agent_design/structured_extraction.md) is not supported; `structured` and `astructured` raise `NotImplementedError` with the message `EchoLLM does not support structured output.`
+
+```python
+--8<-- "docs/scripts/documentation/echo_llm.py:echo"
+```
+
+Running that example prints:
+
+```text
+system: You are a helper
+user: hi
+This is an echo of the test model.
+```
+
+The response reports zero input tokens, zero output tokens, zero cost, and zero latency, and the model name is `echo`.
+
