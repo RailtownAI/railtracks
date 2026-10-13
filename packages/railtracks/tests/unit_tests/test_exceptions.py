@@ -7,6 +7,7 @@ from railtracks.exceptions.errors import (
     LLMError,
     NodeCreationError,
     NodeInvocationError,
+    is_fatal,
 )
 
 # NOTE: This file contains very basic tests to ensure that the exception classes are working as expected.
@@ -153,6 +154,19 @@ def test_fatalerror_is_rcerror():
     err = FatalError("boom")
     assert isinstance(err, RTError)
     assert str(err) == "boom" or "boom" in str(err)
+
+
+@pytest.mark.parametrize(
+    "exc,expected",
+    [
+        (FatalError("boom"), True),
+        (NodeInvocationError("bad config", fatal=True), True),
+        (NodeInvocationError("bad config"), False),
+        (ValueError("boom"), False),
+    ],
+)
+def test_is_fatal_only_for_exceptions_that_stop_the_run(exc, expected):
+    assert is_fatal(exc) is expected
 
 
 # =========== END FatalError tests =================

@@ -32,7 +32,7 @@ from .utils import create_sub_state_info
 if TYPE_CHECKING:
     from railtracks.utils.config import ExecutorConfig
 
-from railtracks.exceptions import FatalError, NodeInvocationError
+from railtracks.exceptions.errors import is_fatal
 from railtracks.nodes.nodes import Node
 from railtracks.utils.logging.config import LIFECYCLE_EXTRA
 from railtracks.utils.logging.create import get_rt_logger
@@ -374,19 +374,7 @@ class RTState:
             exception=exception,
         )
 
-        if self.executor_config.end_on_error:
-            logger.critical(
-                node_exception_action.to_logging_msg(),
-                exc_info=exception,
-                extra=LIFECYCLE_EXTRA,
-            )
-            await self.publisher.publish(FatalFailure(error=exception))
-            return Failure(exception)
-
-        # fatal exceptions should only be thrown if there is something seriously wrong. At the moment only NodeInvocatioErrors have 'fatal' flags
-        if (
-            isinstance(exception, NodeInvocationError) and exception.fatal
-        ) or isinstance(exception, FatalError):
+        if self.executor_config.end_on_error or is_fatal(exception):
             logger.critical(
                 node_exception_action.to_logging_msg(),
                 exc_info=exception,

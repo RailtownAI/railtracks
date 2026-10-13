@@ -17,7 +17,7 @@ from railtracks.events._base import (
     ParentEventBase,
 )
 from railtracks.events._resolve import node_parent, node_spatial_parent
-from railtracks.exceptions import FatalError, NodeInvocationError
+from railtracks.exceptions.errors import is_fatal
 
 
 def failure_details(exc: BaseException) -> dict[str, Any]:
@@ -36,8 +36,7 @@ def failure_details(exc: BaseException) -> dict[str, Any]:
         "exception_name": type(exc).__name__,
         "exception_message": str(exc),
         "traceback": "".join(format_exception(type(exc), exc, exc.__traceback__)),
-        "fatal": isinstance(exc, FatalError)
-        or (isinstance(exc, NodeInvocationError) and exc.fatal),
+        "fatal": is_fatal(exc),
     }
 
 
