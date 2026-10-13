@@ -8,17 +8,19 @@ from urllib.parse import urlparse
 
 from .attachment_formats import detect_attachment_mime_from_bytes
 
+_URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
+
 
 def _normalize_base64(s: str) -> str:
-    """Remove all whitespace from base64 text and restore any missing padding.
+    """Convert base64 text to the standard alphabet with no whitespace and full padding.
 
     Args:
-        s: Base64 text, possibly line-wrapped or unpadded.
+        s: Base64 text, possibly line-wrapped, unpadded, or URL-safe.
 
     Returns:
-        The payload with no whitespace and a length that is a multiple of 4.
+        Standard-alphabet base64 with a length that is a multiple of 4.
     """
-    s = "".join(s.split())
+    s = "".join(s.split()).translate(_URLSAFE_TO_STANDARD)
     return s + "=" * (-len(s) % 4)
 
 

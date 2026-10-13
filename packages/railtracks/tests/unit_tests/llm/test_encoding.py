@@ -204,6 +204,15 @@ class TestAdditionalEncodingCases:
         payload = ensure_data_uri(wrapped).split(",", 1)[1]
         assert base64.b64decode(payload, validate=True) == png_bytes
 
+    def test_ensure_data_uri_converts_urlsafe_alphabet(self):
+        png_bytes = b"\x89PNG\r\n\x1a\n" + b"\xfb\xff" * 30
+        urlsafe = base64.urlsafe_b64encode(png_bytes).decode("utf-8")
+        assert "-" in urlsafe and "_" in urlsafe
+
+        assert detect_source(urlsafe) == "data_uri"
+        payload = ensure_data_uri(urlsafe).split(",", 1)[1]
+        assert base64.b64decode(payload, validate=True) == png_bytes
+
 
 class TestDetectAttachmentMime:
     @pytest.mark.parametrize("brand", [b"avif", b"avis"])
