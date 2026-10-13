@@ -30,13 +30,8 @@ _SITE_DIRS = tuple(
     os.path.realpath(sysconfig.get_paths()[key]) for key in ("purelib", "platlib")
 )
 
-_FRAME = re.compile(r'^  File "(?P<path>[^"]+)", line (?P<line>\d+), in (?P<name>.+)$')
 # the file IPython compiles a notebook cell into
 _NOTEBOOK_CELL = re.compile(r"ipykernel_\d+[/\\]\d+\.py$")
-_CHAIN_BREAK = re.compile(
-    r"\n(?:The above exception was the direct cause|During handling of the above"
-    r" exception)[^\n]*\n"
-)
 
 
 @dataclass
@@ -254,7 +249,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
             "red",
         )
         detail = _traceback_lines(
-            payload.get("traceback") or "", full=run.level <= logging.DEBUG
+            payload.get("frames") or [], full=run.level <= logging.DEBUG
         )
         return _Line(
             logging.CRITICAL if fatal else logging.ERROR,
@@ -403,37 +398,23 @@ def _exception(payload: dict[str, Any]) -> str:
     return f"{payload['exception_name']}: {_truncate(payload['exception_message'])}"
 
 
-def _traceback_lines(traceback_text: str, *, full: bool) -> list[Text]:
-    """Where the final exception was raised: each frame and its source line.
+def _traceback_lines(frames: list[dict[str, Any]], *, full: bool) -> list[Text]:
+    """Where the exception was raised: each frame and its source line.
 
     Leaves out railtracks and standard-library frames unless ``full`` is set or nothing
     else is left.
     """
-    frames = _frames(_CHAIN_BREAK.split(traceback_text)[-1])
     if not full:
-        frames = [frame for frame in frames if not _is_internal(frame[0])] or frames
+        frames = [
+            frame for frame in frames if not _is_internal(frame["file"])
+        ] or frames
     lines = []
-    for path, line, name, source in frames:
-        lines.append(Text(f"{_display_path(path)}:{line} in {name}", "red"))
-        if source:
-            lines.append(Text(f"  {source}", "red"))
+    for frame in frames:
+        location = f"{_display_path(frame['file'])}:{frame['line']}"
+        lines.append(Text(f"{location} in {frame['function']}", "red"))
+        if frame["source"]:
+            lines.append(Text(f"  {frame['source']}", "red"))
     return lines
-
-
-def _frames(traceback_text: str) -> list[tuple[str, str, str, str]]:
-    """``(path, line, function, source)`` for each frame of a formatted traceback."""
-    lines = traceback_text.splitlines()
-    frames = []
-    for index, line in enumerate(lines):
-        match = _FRAME.match(line)
-        if match is None:
-            continue
-        following = lines[index + 1] if index + 1 < len(lines) else ""
-        source = following.strip() if following.startswith("    ") else ""
-        if source.startswith(("^", "~")):
-            source = ""
-        frames.append((match["path"], match["line"], match["name"], source))
-    return frames
 
 
 def _is_internal(path: str) -> bool:

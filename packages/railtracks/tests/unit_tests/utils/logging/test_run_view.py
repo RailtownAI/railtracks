@@ -92,7 +92,7 @@ def _node_failed(
     *,
     caller: str | None = None,
     fatal: bool = False,
-    traceback: str = "",
+    frames: list[dict[str, object]] | None = None,
     exception_name: str = "ValueError",
 ) -> Event:
     """A destruction that carries the node's final failure."""
@@ -105,7 +105,7 @@ def _node_failed(
         duration_seconds=0.25,
         exception_name=exception_name,
         exception_message="bad",
-        traceback=traceback,
+        frames=frames or [],
         fatal=fatal,
     )
 
@@ -116,19 +116,17 @@ def _attempt_failed(node_id: str) -> Event:
         parent_node_id=node_id,
         exception_name="ValueError",
         exception_message="flaky",
-        traceback="",
+        frames=[],
         fatal=False,
     )
 
 
-def _traceback(*frames: tuple[str, str]) -> str:
-    """A formatted traceback through ``(path, source)`` frames, ending in a ValueError."""
-    lines = ["Traceback (most recent call last):"]
-    for number, (path, source) in enumerate(frames, start=1):
-        lines.append(f'  File "{path}", line {number}, in fn{number}')
-        lines.append(f"    {source}")
-    lines.append("ValueError: bad")
-    return "\n".join(lines) + "\n"
+def _frames(*frames: tuple[str, str]) -> list[dict[str, object]]:
+    """Traceback frames through ``(path, source)``, outermost first."""
+    return [
+        {"file": path, "line": number, "function": f"fn{number}", "source": source}
+        for number, (path, source) in enumerate(frames, start=1)
+    ]
 
 
 def _feed(view: RunView, *events: Event | list[Event]) -> None:
@@ -340,7 +338,7 @@ def test_a_node_whose_middleware_raises_before_it_runs_shows_as_failed(output, l
 
 
 def test_failure_shows_only_the_frames_outside_railtracks_and_the_stdlib(output, level):
-    traceback = _traceback(
+    frames = _frames(
         (os.path.join(run_view._RAILTRACKS_DIR, "nodes", "nodes.py"), "await body()"),
         (os.path.join(run_view._STDLIB_DIR, "asyncio", "threads.py"), "await loop()"),
         ("/elsewhere/agent.py", "raise ValueError('bad')"),
@@ -349,7 +347,7 @@ def test_failure_shows_only_the_frames_outside_railtracks_and_the_stdlib(output,
         RunView(),
         _started(),
         _node_started(ENTRY, "Entry", caller=None),
-        _node_failed(ENTRY, traceback=traceback),
+        _node_failed(ENTRY, frames=frames),
     )
 
     assert _lines(output)[-3:] == [
@@ -360,14 +358,14 @@ def test_failure_shows_only_the_frames_outside_railtracks_and_the_stdlib(output,
 
 
 def test_a_notebook_cell_frame_shows_as_cell(output, level):
-    traceback = _traceback(
+    frames = _frames(
         ("/var/folders/7v/T/ipykernel_11286/1101257469.py", "raise ValueError('bad')")
     )
     _feed(
         RunView(),
         _started(),
         _node_started(ENTRY, "Entry", caller=None),
-        _node_failed(ENTRY, traceback=traceback),
+        _node_failed(ENTRY, frames=frames),
     )
 
     assert _lines(output)[-2].strip() == "<cell>:1 in fn1"
@@ -375,7 +373,7 @@ def test_a_notebook_cell_frame_shows_as_cell(output, level):
 
 def test_debug_shows_every_frame(output, level):
     level(logging.DEBUG)
-    traceback = _traceback(
+    frames = _frames(
         (os.path.join(run_view._RAILTRACKS_DIR, "nodes", "nodes.py"), "await body()"),
         ("/elsewhere/agent.py", "raise ValueError('bad')"),
     )
@@ -383,29 +381,10 @@ def test_debug_shows_every_frame(output, level):
         RunView(),
         _started(),
         _node_started(ENTRY, "Entry", caller=None),
-        _node_failed(ENTRY, traceback=traceback),
+        _node_failed(ENTRY, frames=frames),
     )
 
     assert sum("in fn" in line for line in _lines(output)) == 2
-
-
-def test_only_the_final_exception_of_a_chain_is_shown(output, level):
-    cause = _traceback(("/elsewhere/cause.py", "open(path)"))
-    final = _traceback(("/elsewhere/agent.py", "raise ValueError('bad')"))
-    chained = (
-        f"{cause}\nThe above exception was the direct cause of the following"
-        f" exception:\n\n{final}"
-    )
-    _feed(
-        RunView(),
-        _started(),
-        _node_started(ENTRY, "Entry", caller=None),
-        _node_failed(ENTRY, traceback=chained),
-    )
-
-    text = output.getvalue()
-    assert "agent.py:1 in fn1" in text
-    assert "cause.py" not in text
 
 
 def test_llm_call_nests_under_its_node_with_its_stats(output, level):

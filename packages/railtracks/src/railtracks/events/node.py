@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from traceback import format_exception
-from typing import Any
+from dataclasses import dataclass, field
+from traceback import TracebackException
+from typing import Any, TypedDict
 
 from typing_extensions import Self
 
@@ -20,22 +20,44 @@ from railtracks.events._resolve import node_parent, node_spatial_parent
 from railtracks.exceptions.errors import is_fatal
 
 
+class Frame(TypedDict):
+    """One frame of a failure's traceback."""
+
+    file: str
+    line: int | None
+    function: str
+    source: str
+
+
 def failure_details(exc: BaseException) -> dict[str, Any]:
     """The failure fields node events carry for an exception.
 
-    `fatal` marks an exception that stops the whole run on its own; a run started with
-    `end_on_error` stops on any failure.
+    `traceback` is the full formatted text, chained exceptions included; `frames` holds
+    only the frames of ``exc`` itself, outermost first. `fatal` marks an exception that
+    stops the whole run on its own; a run started with `end_on_error` stops on any
+    failure.
 
     Args:
         exc: The exception the node raised.
 
     Returns:
-        ``exception_name``, ``exception_message``, ``traceback``, and ``fatal``.
+        ``exception_name``, ``exception_message``, ``traceback``, ``frames``, and
+        ``fatal``.
     """
+    trace = TracebackException.from_exception(exc)
     return {
         "exception_name": type(exc).__name__,
         "exception_message": str(exc),
-        "traceback": "".join(format_exception(type(exc), exc, exc.__traceback__)),
+        "traceback": "".join(trace.format()),
+        "frames": [
+            Frame(
+                file=frame.filename,
+                line=frame.lineno,
+                function=frame.name,
+                source=frame.line or "",
+            )
+            for frame in trace.stack
+        ],
         "fatal": is_fatal(exc),
     }
 
@@ -82,6 +104,7 @@ class NodeFailure(NodeEventBase, FailureMixin):
     may still retry or recover; `node.destruction` carries the final outcome."""
 
     traceback: str = ""
+    frames: list[Frame] = field(default_factory=list)
     fatal: bool = False
 
     @classmethod
@@ -112,6 +135,7 @@ class NodeDestruction(NodeEventBase):
     exception_name: str | None = None
     exception_message: str | None = None
     traceback: str | None = None
+    frames: list[Frame] | None = None
     fatal: bool = False
 
     def event_type(self) -> str:

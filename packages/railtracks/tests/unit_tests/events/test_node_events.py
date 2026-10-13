@@ -68,11 +68,36 @@ def test_failure_details_include_the_raising_frame():
     assert details["fatal"] is False
 
 
+def test_failure_frames_cover_only_the_final_exception():
+    def open_config():
+        raise OSError("missing")
+
+    try:
+        try:
+            open_config()
+        except OSError as cause:
+            raise ValueError("bad") from cause
+    except ValueError as error:
+        details = failure_details(error)
+
+    assert details["frames"] == [
+        {
+            "file": __file__,
+            "line": details["frames"][0]["line"],
+            "function": "test_failure_frames_cover_only_the_final_exception",
+            "source": 'raise ValueError("bad") from cause',
+        }
+    ]
+    # the text keeps the whole chain
+    assert "OSError: missing" in details["traceback"]
+
+
 def test_node_destruction_has_no_failure_by_default():
     event = NodeDestruction(response="r", duration_seconds=0.0)
 
     assert event.exception_name is None
     assert event.traceback is None
+    assert event.frames is None
     assert event.fatal is False
 
 
