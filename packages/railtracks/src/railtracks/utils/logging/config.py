@@ -235,46 +235,6 @@ def setup_file_handler(
     logger.addHandler(file_handler)
 
 
-def prepare_logger(
-    *,
-    setting: AllowableLogLevels | None,
-    path: str | os.PathLike | None = None,
-    name_style: LoggerNameDisplay = "short",
-):
-    """
-    Prepares the logger based on the setting and optionally sets up the file handler if a path is provided.
-    """
-    detach_logging_handlers()
-    if path is not None:
-        setup_file_handler(file_name=path, file_logging_level=logging.INFO)
-
-    console_handler = _console_handler(
-        name_style, str_to_log_level.get(setting or "INFO", logging.INFO)
-    )
-
-    logger = logging.getLogger(rt_logger_name)
-
-    match setting:
-        case "DEBUG":
-            console_handler.setLevel(logging.DEBUG)
-        case "INFO":
-            console_handler.setLevel(logging.INFO)
-        case "WARNING":
-            console_handler.setLevel(logging.WARNING)
-        case "ERROR":
-            console_handler.setLevel(logging.ERROR)
-        case "CRITICAL":
-            console_handler.setLevel(logging.CRITICAL)
-        case "NONE":
-            console_handler.addFilter(lambda x: False)
-        case None:
-            pass
-        case _:
-            raise ValueError("Invalid log level setting")
-
-    logger.addHandler(console_handler)
-
-
 def detach_logging_handlers():
     """
     Shuts down the logging system and detaches all logging handlers.

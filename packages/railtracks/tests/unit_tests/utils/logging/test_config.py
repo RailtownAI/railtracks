@@ -17,7 +17,6 @@ from railtracks.utils.logging.config import (
     detach_logging_handlers,
     enable_logging,
     initialize_module_logging,
-    prepare_logger,
     rt_logger,
     run_view_level,
     setup_file_handler,
@@ -185,16 +184,6 @@ def test_run_view_level_is_none_once_the_console_handler_is_removed():
     assert run_view_level() is None
 
 
-def test_prepare_logger_enables_the_run_view_at_its_setting():
-    prepare_logger(setting="WARNING")
-    token = _module_logging_level.set(None)
-    try:
-        assert run_view_level() == logging.WARNING
-    finally:
-        _module_logging_level.reset(token)
-    detach_logging_handlers()
-
-
 # ================= ThreadAwareFilter Tests =================
 
 
@@ -291,80 +280,6 @@ def test_detach_logging_handlers_clears_all_handlers():
     detach_logging_handlers()
 
     assert len(rt_logger.handlers) == 0
-
-
-# ================= prepare_logger Tests =================
-
-
-def test_prepare_logger_debug_sets_debug_level():
-    """Test that DEBUG setting configures DEBUG level."""
-    prepare_logger(setting="DEBUG")
-
-    # Check that console handler has DEBUG level
-    assert any(
-        h.level == logging.DEBUG
-        for h in rt_logger.handlers
-        if isinstance(h, RichConsoleHandler)
-    )
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_info_sets_info_level():
-    """Test that INFO setting configures INFO level."""
-    prepare_logger(setting="INFO")
-
-    # Check that console handler has INFO level
-    assert any(
-        h.level == logging.INFO
-        for h in rt_logger.handlers
-        if isinstance(h, RichConsoleHandler)
-    )
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_warning_sets_warning_level():
-    """Test that WARNING setting configures WARNING level."""
-    prepare_logger(setting="WARNING")
-
-    # Check that console handler has WARNING level
-    assert any(
-        h.level == logging.WARNING
-        for h in rt_logger.handlers
-        if isinstance(h, RichConsoleHandler)
-    )
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_none_adds_filter():
-    """Test that NONE setting adds a filter that blocks all messages."""
-    prepare_logger(setting="NONE")
-
-    # Check that handlers exist with a filter
-    assert len(rt_logger.handlers) > 0
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_invalid_setting_raises_error():
-    """Test that invalid setting raises ValueError."""
-    with pytest.raises(ValueError, match="Invalid log level setting"):
-        prepare_logger(setting="INVALID")  # type: ignore
-
-
-def test_prepare_logger_clears_existing_handlers():
-    """Test that prepare_logger clears handlers before adding new ones."""
-    # Add a handler
-    rt_logger.addHandler(logging.NullHandler())
-
-    prepare_logger(setting="INFO")
-
-    # Should have exactly the handlers added by prepare_logger, not additional ones
-    assert len(rt_logger.handlers) <= 2  # Console handler + optional file handler
-    # Clean up
-    detach_logging_handlers()
 
 
 # ================= enable_logging Tests =================
