@@ -32,12 +32,12 @@ str_to_log_level: Dict[str, int] = {
 rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
 
+# node creation, completion, and failure records; the run view prints these instead
+lifecycle_logger_name = f"{rt_logger_name}.lifecycle"
+
 _file_format_string = (
     "%(asctime)s - %(relativeCreated)d - %(levelname)ss - %(name)s - %(message)s"
 )
-
-# Marks a record the run view already shows, so the console handler skips it
-LIFECYCLE_EXTRA = {"rt_lifecycle": True}
 
 
 def _make_console() -> Console:
@@ -146,10 +146,10 @@ class ThreadAwareFilter(logging.Filter):
 
 
 class LifecycleFilter(logging.Filter):
-    """Drops the node lifecycle records that the run view already prints."""
+    """Drops records from the lifecycle logger, which the run view already prints."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return not getattr(record, "rt_lifecycle", False)
+        return record.name != lifecycle_logger_name
 
 
 class RichConsoleHandler(logging.Handler):

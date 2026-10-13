@@ -8,7 +8,6 @@ from unittest.mock import patch
 import pytest
 from railtracks.utils.logging import config
 from railtracks.utils.logging.config import (
-    LIFECYCLE_EXTRA,
     LifecycleFilter,
     RichConsoleHandler,
     ThreadAwareFilter,
@@ -17,6 +16,7 @@ from railtracks.utils.logging.config import (
     detach_logging_handlers,
     enable_logging,
     initialize_module_logging,
+    lifecycle_logger_name,
     rt_logger,
     run_view_level,
     setup_file_handler,
@@ -113,7 +113,7 @@ def test_console_handler_includes_the_traceback(console_output):
 def test_lifecycle_filter_drops_only_marked_records():
     lifecycle_filter = LifecycleFilter()
 
-    assert lifecycle_filter.filter(_record(**LIFECYCLE_EXTRA)) is False
+    assert lifecycle_filter.filter(_record(lifecycle_logger_name)) is False
     assert lifecycle_filter.filter(_record()) is True
 
 
@@ -126,7 +126,7 @@ def test_lifecycle_records_still_reach_other_handlers(console_output):
     other.emit = captured.append
     rt_logger.addHandler(other)
 
-    rt_logger.info("A CREATED B", extra=LIFECYCLE_EXTRA)
+    logging.getLogger(lifecycle_logger_name).info("A CREATED B")
 
     assert [r.getMessage() for r in captured] == ["A CREATED B"]
     assert console_output.getvalue() == ""

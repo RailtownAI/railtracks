@@ -34,13 +34,13 @@ if TYPE_CHECKING:
 
 from railtracks.exceptions.errors import is_fatal
 from railtracks.nodes.nodes import Node
-from railtracks.utils.logging.config import LIFECYCLE_EXTRA
-from railtracks.utils.logging.create import get_rt_logger
+from railtracks.utils.logging.create import get_lifecycle_logger, get_rt_logger
 from railtracks.utils.profiling import Stamp
 
 from .info import ExecutionInfo
 
 logger = get_rt_logger(__name__)
+lifecycle_logger = get_lifecycle_logger()
 
 _TOutput = TypeVar("_TOutput")
 _P = ParamSpec("_P")
@@ -195,7 +195,7 @@ class RTState:
             request_ids=[request_id],
         )
 
-        logger.info(request_creation_obj.to_logging_msg(), extra=LIFECYCLE_EXTRA)
+        lifecycle_logger.info(request_creation_obj.to_logging_msg())
         # 4. Return the request id of the node that was created, plus the instance.
         return request_ids[0], node_instance
 
@@ -375,19 +375,15 @@ class RTState:
         )
 
         if self.executor_config.end_on_error or is_fatal(exception):
-            logger.critical(
-                node_exception_action.to_logging_msg(),
-                exc_info=exception,
-                extra=LIFECYCLE_EXTRA,
+            lifecycle_logger.critical(
+                node_exception_action.to_logging_msg(), exc_info=exception
             )
             await self.publisher.publish(FatalFailure(error=exception))
             return Failure(exception)
 
         # for any other error we want it to bubble up so the user can handle.
-        logger.error(
-            node_exception_action.to_logging_msg(),
-            exc_info=exception,
-            extra=LIFECYCLE_EXTRA,
+        lifecycle_logger.error(
+            node_exception_action.to_logging_msg(), exc_info=exception
         )
         return Failure(exception)
 
@@ -431,7 +427,7 @@ class RTState:
             output=result,
         )
 
-        logger.info(request_completion_obj.to_logging_msg(), extra=LIFECYCLE_EXTRA)
+        lifecycle_logger.info(request_completion_obj.to_logging_msg())
         return result
 
     async def handle_result(self, result: RequestFinishedBase):

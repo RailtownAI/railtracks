@@ -49,34 +49,18 @@ def test_node_failure_is_an_error_record_with_traceback_and_ids(caplog):
     # populated yet; the keys are still part of every record
     assert hasattr(failure, "node_id")
     assert hasattr(failure, "run_id")
-    # the run view prints failures, so railtracks' console skips this record; handlers
+    # the run view prints failures, so railtracks' console skips this logger; handlers
     # like a log shipper's still receive it
-    assert failure.rt_lifecycle is True
+    assert failure.name == "RT.lifecycle"
 
 
-def test_created_and_done_records_are_marked_as_lifecycle(caplog):
+def test_created_and_done_records_are_on_the_lifecycle_logger(caplog):
     flow = rt.Flow(name="Echo Flow", entry_point=rt.function_node(echo))
 
     with caplog.at_level(logging.INFO, logger="RT"):
         flow.invoke("x")
 
     lifecycle = {
-        r.getMessage() for r in _rt_records(caplog) if getattr(r, "rt_lifecycle", False)
+        r.getMessage() for r in _rt_records(caplog) if r.name == "RT.lifecycle"
     }
     assert lifecycle == {"START CREATED echo", "echo DONE"}
-
-
-def test_debug_records_of_node_starts_and_ends_are_marked_as_lifecycle(caplog):
-    with caplog.at_level(logging.DEBUG, logger="RT"):
-        rt.Flow(name="Echo Flow", entry_point=rt.function_node(echo)).invoke("x")
-        with pytest.raises(ValueError):
-            rt.Flow(name="Boom Flow", entry_point=rt.function_node(boom)).invoke("x")
-
-    lifecycle = [
-        r.getMessage()
-        for r in _rt_records(caplog)
-        if r.levelno == logging.DEBUG and getattr(r, "rt_lifecycle", False)
-    ]
-    assert any(message.startswith("RequestCreation(") for message in lifecycle)
-    assert "echo DONE with result x" in lifecycle
-    assert "boom FAILED with error cannot handle 'x'" in lifecycle

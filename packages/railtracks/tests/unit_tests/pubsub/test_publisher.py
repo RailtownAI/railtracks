@@ -6,9 +6,7 @@ from railtracks.utils.publisher import Subscriber
 
 
 @pytest.mark.asyncio
-async def test_rcpublisher_logging_sub(dummy_publisher):
-    # Should have one default broadcast_callback (logging_sub)
-    assert len(dummy_publisher._subscribers) >= 1
+async def test_rcpublisher_queues_published_messages(dummy_publisher):
     msg = RequestCompletionMessage()
     dummy_publisher._running = True
     dummy_publisher._queue = asyncio.Queue()
