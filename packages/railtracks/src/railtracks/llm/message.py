@@ -29,7 +29,12 @@ _EXTENSION_MIME_MAP = {
     ".pdf": "application/pdf",
 }
 
-# Omits application/xml, which Windows maps .aspx/.ashx image handlers to.
+# Dynamic endpoints that can serve any type; mimetypes may map them to text/* or XML.
+_SERVER_SCRIPT_EXTENSIONS = frozenset(
+    {".asp", ".aspx", ".ashx", ".cgi", ".jsp", ".php", ".pl", ".py"}
+)
+
+# MIME types that no image endpoint serves.
 _NON_IMAGE_MIME_PREFIXES = (
     "audio/",
     "video/",
@@ -97,8 +102,10 @@ class Attachment:
                 applies when `trust_urls=True`.
 
         Raises:
-            ValueError: If a local file has an unsupported extension, or a URL's
-                extension names an audio, video, text or Office document type.
+            TypeError: If `url` is not a string.
+            ValueError: If a local file has an unsupported extension, a URL's
+                extension names an audio, video, text or Office document type,
+                or a `.pdf` URL is passed while `trust_urls` is False.
         """
         self.url = url
         self.file_extension = None
@@ -138,7 +145,11 @@ class Attachment:
         _, file_extension = os.path.splitext(url_path)
         file_extension = file_extension.lower()
         probed_filename: str | None = None
-        guessed_mime = mimetypes.guess_type(url_path)[0]
+        guessed_mime = (
+            None
+            if file_extension in _SERVER_SCRIPT_EXTENSIONS
+            else mimetypes.guess_type(url_path)[0]
+        )
         if file_extension in _EXTENSION_MIME_MAP:
             self.mime_type = _EXTENSION_MIME_MAP[file_extension]
         elif guessed_mime and guessed_mime.startswith(_NON_IMAGE_MIME_PREFIXES):

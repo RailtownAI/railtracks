@@ -457,6 +457,8 @@ class TestAttachment:
             "https://cdn.example.com/abc123",
             "https://example.com/thumb.php?id=3",
             "https://example.com/GetImage.ashx?id=1",
+            "https://example.com/img.pl?id=3",
+            "https://example.com/cgi-bin/chart.cgi",
             "https://example.com/photo.svg",
         ],
     )
@@ -465,18 +467,48 @@ class TestAttachment:
         assert attachment.modality == "image"
         assert attachment.encoding is None
 
-    def test_url_with_xml_guess_still_passes_as_image(self, monkeypatch):
-        """Windows maps .aspx/.ashx to application/xml; image handlers use them."""
+    @pytest.mark.parametrize("ext", [".php", ".aspx", ".ashx", ".pl", ".py"])
+    def test_server_script_url_ignores_mimetypes_guess(self, monkeypatch, ext):
+        """Platform tables can map script extensions to text/*; they must still pass."""
         from railtracks.llm import message as message_module
 
         monkeypatch.setattr(
             message_module.mimetypes,
             "guess_type",
-            lambda path: ("application/xml", None),
+            lambda path: ("text/plain", None),
         )
 
-        attachment = Attachment("https://example.com/GetImage.ashx?id=1")
+        attachment = Attachment(f"https://example.com/img{ext}?id=3")
         assert attachment.modality == "image"
+
+    def test_server_script_url_is_probed_when_trusted(self, monkeypatch):
+        """A script endpoint serving a PDF is classified by the HEAD probe."""
+        from railtracks.llm import message as message_module
+
+        class _FakeResp:
+            headers = {"Content-Type": "application/pdf"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_urlopen(req, timeout=None):
+            assert req.get_method() == "HEAD"
+            return _FakeResp()
+
+        def fake_encode(path, *, timeout=10.0):
+            return "JVBERi0="
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        attachment = Attachment(
+            "https://example.com/cgi-bin/download.pl?id=5", trust_urls=True
+        )
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
 
     def test_user_message_rejects_non_image_url(self):
         with pytest.raises(ValueError, match="Unsupported attachment format"):
