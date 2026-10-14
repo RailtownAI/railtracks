@@ -17,12 +17,12 @@ from ..pubsub.messages import (
     RequestFinishedBase,
     RequestSuccess,
 )
-from ..pubsub.publisher import RTPublisher
 from ..utils.logging.action import (
     RequestCreationAction,
     RequestFailureAction,
     RequestSuccessAction,
 )
+from ..utils.publisher import Publisher
 
 # all the things we need to import from RT directly.
 # all the things we need to import from RT directly.
@@ -67,7 +67,7 @@ class RTState:
         execution_info: ExecutionInfo,
         executor_config: ExecutorConfig,
         coordinator: Coordinator,
-        publisher: RTPublisher,
+        publisher: Publisher[RequestCompletionMessage],
     ):
         self._node_heap = execution_info.node_forest
         self._request_heap = execution_info.request_forest

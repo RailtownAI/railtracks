@@ -18,7 +18,8 @@ from typing import (
 from railtracks.exceptions import ContextError
 
 if TYPE_CHECKING:
-    from railtracks.pubsub.publisher import RTPublisher
+    from railtracks.pubsub.messages import RequestCompletionMessage
+    from railtracks.utils.publisher import Publisher
 
     _LoggerAdapter = logging.LoggerAdapter[logging.Logger]
 else:
@@ -94,12 +95,12 @@ def is_context_active() -> bool:
     return context is not None and context.session_context.is_active
 
 
-def get_publisher() -> RTPublisher:
+def get_publisher() -> Publisher[RequestCompletionMessage]:
     """
     Get the publisher for the current thread's global variables.
 
     Returns:
-        RTPublisher: The publisher associated with the current thread's global variables.
+        Publisher: The publisher associated with the current thread's global variables.
 
     Raises:
         ContextError: If the global variables have not been registered or no publisher is
@@ -308,7 +309,7 @@ def push_stream_queue(stream_queue: asyncio.Queue[Any]):
 def register_globals(
     *,
     session_id: str,
-    rt_publisher: RTPublisher | None,
+    rt_publisher: Publisher[RequestCompletionMessage] | None,
     executor_config: ExecutorConfig,
     global_context_vars: dict[str, Any],
     flow_name: str | None = None,

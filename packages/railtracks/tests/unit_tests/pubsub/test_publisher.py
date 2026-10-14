@@ -6,7 +6,7 @@ from railtracks.utils.publisher import Subscriber
 
 
 @pytest.mark.asyncio
-async def test_rcpublisher_queues_published_messages(dummy_publisher):
+async def test_publisher_queues_published_messages(dummy_publisher):
     msg = RequestCompletionMessage()
     dummy_publisher._running = True
     dummy_publisher._queue = asyncio.Queue()
