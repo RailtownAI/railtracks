@@ -93,6 +93,11 @@ class LangChainLoaderAdapter(BaseDocumentLoader):
         else:
             raw_source = metadata.pop("source", None)
             source = str(raw_source) if raw_source is not None else None
+        # LangChain PDF loaders reuse the file path as source for every page.
+        # Append page (when present) so Document.id stays unique per page.
+        page = metadata.get("page")
+        if source is not None and page is not None:
+            source = f"{source}#page={page}"
         return Document(
             content=content,
             type=self._document_type,

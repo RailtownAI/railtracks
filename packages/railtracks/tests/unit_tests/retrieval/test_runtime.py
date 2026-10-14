@@ -827,3 +827,51 @@ async def test_sanitizer_errors_propagate():
     loader = SanitizingLoader(inner, _Boom())
     with pytest.raises(RuntimeError, match="redaction failure"):
         [_ async for _ in loader.astream()]
+
+
+# ---------------------------------------------------------------------------
+# #1648 — shared Document.source / Document.id must not drop sibling pages
+# ---------------------------------------------------------------------------
+
+
+async def test_ingest_keeps_all_pages_when_sources_are_unique():
+    """Pages that share a PDF path but use distinct sources all land in the store."""
+    from railtracks.retrieval.chunking import IdentityChunker
+
+    store = _store()
+    embedder = _FakeEmbedder()
+    runtime = RetrievalRuntime(IdentityChunker(), embedder, store)
+    pages = [
+        Document(
+            content=f"page {n} text",
+            source=f"report.pdf#page={n}",
+            metadata={"page": n},
+        )
+        for n in (1, 2, 3)
+    ]
+    stats = await runtime.ingest_all(_ListLoader(pages))
+    assert stats.chunks_embedded == 3
+    assert await store.count() == 3
+
+    stats2 = await runtime.ingest_all(_ListLoader(pages))
+    assert stats2.documents_skipped == 3
+    assert await store.count() == 3
+
+
+async def test_ingest_shared_source_still_overwrites_and_warns(caplog):
+    """Same source → same Document.id → delete-before-write keeps only the last page."""
+    import logging
+
+    from railtracks.retrieval.chunking import IdentityChunker
+
+    store = _store()
+    runtime = RetrievalRuntime(IdentityChunker(), _FakeEmbedder(), store)
+    pages = [
+        Document(content=f"page {n} text", source="report.pdf", metadata={"page": n})
+        for n in (1, 2, 3)
+    ]
+    with caplog.at_level(logging.WARNING):
+        stats = await runtime.ingest_all(_ListLoader(pages))
+    assert stats.chunks_embedded == 3
+    assert await store.count() == 1
+    assert any("duplicate Document.id" in r.message for r in caplog.records)

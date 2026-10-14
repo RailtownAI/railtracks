@@ -62,12 +62,14 @@ class SQLLoader(BaseDocumentLoader):
         metadata_columns: Column names to include in :attr:`Document.metadata`.
             When ``None`` all columns except ``content_column`` and
             ``id_column`` are included.
-        id_column: Column whose value is preserved in :attr:`Document.source`
-            (when ``source_column`` is not set) and used as the lookup key for
-            ``keys`` filtering. :attr:`Document.id` is always an auto-generated
-            UUID regardless of this value.
-        source_column: Column to use as :attr:`Document.source`. Falls back
-            to ``id_column`` when ``None``.
+        id_column: Column whose value is used (namespaced by
+            ``table_or_query``) to build :attr:`Document.source` when
+            ``source_column`` is not set, and as the lookup key for ``keys``
+            filtering. :attr:`Document.id` is derived from ``source`` via
+            ``uuid5``, so the namespaced form must be unique per row.
+        source_column: Column whose value is used (namespaced by
+            ``table_or_query``) as :attr:`Document.source`. Falls back to
+            ``id_column``, then to the 0-based row index, when unset/missing.
         engine: An existing ``sqlalchemy.Engine`` instance.
         engine_kwargs: Extra keyword arguments forwarded to
             ``sqlalchemy.create_engine()``.
@@ -148,7 +150,9 @@ class SQLLoader(BaseDocumentLoader):
     def __exit__(self, *_: object) -> None:
         self.close()
 
-    def _row_to_document(self, row: dict[str, Any]) -> Document:
+    def _row_to_document(
+        self, row: dict[str, Any], *, row_index: int | None = None
+    ) -> Document:
         if self._content_column not in row:
             available = sorted(row.keys())
             raise ValueError(
@@ -166,14 +170,18 @@ class SQLLoader(BaseDocumentLoader):
                 excluded.add(self._id_column)
             meta = {k: v for k, v in row.items() if k not in excluded}
 
-        # Document.id is always an auto-generated UUID. The row's id_column
-        # value (typically not a UUID for relational data) is preserved in
-        # Document.source so it can round-trip back into the database.
+        # Namespace row keys with table_or_query so Document.id (uuid5 of
+        # source) is unique across tables and across rows that share an id.
         source_col = self._source_column or self._id_column
         if source_col and source_col in row and row[source_col] is not None:
-            source = str(row[source_col])
+            row_key = str(row[source_col])
+        elif row_index is not None:
+            row_key = str(row_index)
         else:
-            source = self._table_or_query
+            row_key = "0"
+        source = f"{self._table_or_query}#{row_key}"
+        if row_index is not None:
+            meta.setdefault("row_index", row_index)
 
         return Document(
             content=content,
@@ -235,5 +243,5 @@ class SQLLoader(BaseDocumentLoader):
                     f"Available columns: {sorted(rows[0].keys())}.",
                     stacklevel=2,
                 )
-        for row in rows:
-            yield self._row_to_document(row)
+        for row_index, row in enumerate(rows):
+            yield self._row_to_document(row, row_index=row_index)
