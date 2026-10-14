@@ -57,6 +57,8 @@ class _Run:
     level: int
     label: str
     end_on_error: bool
+    # only DEBUG prints user content: arguments, responses, and the run's result
+    show_content: bool
     # shared across runs: a middleware announces itself once per process
     middleware_names: dict[str, str]
     # LLM id -> model name; a model announces itself before each call
@@ -107,6 +109,7 @@ class RunView:
                 or payload.get("entry_point_name")
                 or "run",
                 end_on_error=bool(payload.get("end_on_error")),
+                show_content=level <= logging.DEBUG,
                 middleware_names=self._middleware_names,
             )
 
@@ -227,7 +230,7 @@ def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
         return _Line(logging.CRITICAL if payload["fatal"] else logging.ERROR, 0, text)
     text = Text(f"✓ {run.label}{duration}", "bold green")
     detail = []
-    if run.result is not None and run.level <= logging.DEBUG:
+    if run.result is not None and run.show_content:
         detail.append(Text(f"→ {run.result}"))
     return _Line(logging.WARNING, 0, text, detail=detail)
 
@@ -241,7 +244,7 @@ def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
         )
     else:
         text = Text(f"↳ {node.name}")
-    if run.level <= logging.DEBUG:
+    if run.show_content:
         text.append(f" {_call_args(payload['args'], payload['kwargs'])}", "dim")
     return _Line(logging.INFO, node.depth, text, node.parent)
 
@@ -269,7 +272,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
         (f"✓ {node.name}", "green"),
         (f" {payload['duration_seconds']:.3f}s", "dim"),
     )
-    if run.level <= logging.DEBUG:
+    if run.show_content:
         text.append(f" → {_display(payload['response'])}", "dim")
     return _Line(logging.INFO, node.depth, text, node.parent)
 
