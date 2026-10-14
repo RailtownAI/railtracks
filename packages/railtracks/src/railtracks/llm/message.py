@@ -29,8 +29,7 @@ _EXTENSION_MIME_MAP = {
     ".pdf": "application/pdf",
 }
 
-# MIME types no image endpoint serves. Broader types such as application/xml are left
-# out: Windows maps .aspx/.ashx to them, and those are common dynamic image handlers.
+# Omits application/xml, which Windows maps .aspx/.ashx image handlers to.
 _NON_IMAGE_MIME_PREFIXES = (
     "audio/",
     "video/",
