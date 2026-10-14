@@ -16,7 +16,6 @@ __all__ = [
     "GlobalTimeOutError",
     "ContextError",
     "FatalError",
-    "is_fatal",
 ]
 
 
@@ -205,18 +204,4 @@ class ContextError(RTError):
 
 
 class FatalError(RTError):
-    pass
-
-
-def is_fatal(exc: BaseException) -> bool:
-    """Whether an exception stops the whole run on its own, whatever the run's config.
-
-    Args:
-        exc: The exception a node raised.
-
-    Returns:
-        True for a ``FatalError`` or a ``NodeInvocationError`` raised with ``fatal=True``.
-    """
-    return isinstance(exc, FatalError) or (
-        isinstance(exc, NodeInvocationError) and exc.fatal
-    )
+    fatal = True

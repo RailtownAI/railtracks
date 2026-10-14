@@ -144,6 +144,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "status": _enum("success", "failure"),
         "error": STRING,
         "duration_seconds": FLOAT,
+        "fatal": BOOLEAN,
     },
 }
 

@@ -32,7 +32,6 @@ from .utils import create_sub_state_info
 if TYPE_CHECKING:
     from railtracks.utils.config import ExecutorConfig
 
-from railtracks.exceptions.errors import is_fatal
 from railtracks.nodes.nodes import Node
 from railtracks.utils.logging.create import get_lifecycle_logger, get_rt_logger
 from railtracks.utils.profiling import Stamp
@@ -374,7 +373,7 @@ class RTState:
             exception=exception,
         )
 
-        if self.executor_config.end_on_error or is_fatal(exception):
+        if self.executor_config.end_on_error or getattr(exception, "fatal", False):
             lifecycle_logger.critical(
                 node_exception_action.to_logging_msg(), exc_info=exception
             )

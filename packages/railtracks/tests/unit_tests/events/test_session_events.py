@@ -15,7 +15,7 @@ from railtracks.events.session import (
     SessionStarted,
     format_error,
 )
-from railtracks.exceptions import GlobalTimeOutError
+from railtracks.exceptions import FatalError, GlobalTimeOutError
 from railtracks.observability import Event, configure, configure_writers
 
 
@@ -64,6 +64,12 @@ def add_one(x: int) -> int:
 def boom(x: int) -> int:
     """Explodes."""
     raise ValueError("kaboom")
+
+
+@rt.function_node
+def stop(x: int) -> int:
+    """Stops the run."""
+    raise FatalError("cannot continue")
 
 
 # ── The event classes ────────────────────────────────────────────────────────
@@ -164,6 +170,21 @@ async def test_failed_run_still_reports_completed(writer):
 
     # the observer is torn down on the failure path too, so writers get drained
     assert configure.observer._running is False
+
+
+@pytest.mark.parametrize(
+    ("node", "end_on_error", "fatal"),
+    [(boom, False, False), (boom, True, True), (stop, False, True)],
+)
+async def test_completed_marks_a_failure_that_stops_the_run(
+    writer, node, end_on_error, fatal
+):
+    with rt.Session(flow_name="f", end_on_error=end_on_error):
+        with pytest.raises((ValueError, FatalError)):
+            await rt.call(node, 1)
+
+    completed = _of_type(writer.events, "session.completed")
+    assert completed[0].payload["fatal"] is fatal
 
 
 async def test_global_timeout_reports_the_timeout_error(writer):

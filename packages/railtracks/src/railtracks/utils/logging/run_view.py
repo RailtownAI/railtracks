@@ -70,8 +70,6 @@ class _Run:
     owners: dict[str, str] = field(default_factory=dict)
     # what the entry point returned, shown under the run's closing line
     result: str | None = None
-    # set once a node fails in a way that stops the run
-    fatal: bool = False
 
 
 @dataclass
@@ -174,7 +172,6 @@ def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
         failed = payload.get("exception_name") is not None
         if node.parent is None and not failed:
             run.result = _display(payload["response"])
-        run.fatal = run.fatal or (failed and _is_fatal(run, payload))
         run.running.discard(node_id)
         node.attempt_failure = node.retrying = None
 
@@ -225,7 +222,7 @@ def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
     duration = f" in {payload['duration_seconds']:.3f}s"
     if payload["status"] == "failure":
         text = Text(f"✗ {run.label} failed{duration}: {payload['error']}", "bold red")
-        return _Line(logging.CRITICAL if run.fatal else logging.ERROR, 0, text)
+        return _Line(logging.CRITICAL if payload["fatal"] else logging.ERROR, 0, text)
     text = Text(f"✓ {run.label}{duration}", "bold green")
     detail = []
     if run.result is not None and run.level <= logging.DEBUG:
@@ -251,7 +248,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
     """The node's final outcome, after its middleware had its say."""
     node = run.nodes[payload["parent_node_id"]]
     if payload.get("exception_name") is not None:
-        fatal = _is_fatal(run, payload)
+        fatal = payload["fatal"] or run.end_on_error
         text = Text(
             f"✗ {node.name} failed: {_exception(payload)}{' (fatal)' if fatal else ''}",
             "red",
@@ -383,11 +380,6 @@ def _llm_stats(payload: dict[str, Any]) -> str:
     if payload.get("latency") is not None:
         stats.append(f"{payload['latency']:.2f}s")
     return f" {' · '.join(stats)}" if stats else ""
-
-
-def _is_fatal(run: _Run, payload: dict[str, Any]) -> bool:
-    """Whether a node's failure stops the whole run."""
-    return bool(payload.get("fatal")) or run.end_on_error
 
 
 def _exception(payload: dict[str, Any]) -> str:

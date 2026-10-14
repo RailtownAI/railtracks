@@ -60,8 +60,16 @@ def _started(session: str = SESSION, end_on_error: bool = False) -> Event:
     )
 
 
-def _completed(status: str = "success", error: str | None = None) -> Event:
-    return _event("session.completed", status=status, error=error, duration_seconds=0.5)
+def _completed(
+    status: str = "success", error: str | None = None, fatal: bool = False
+) -> Event:
+    return _event(
+        "session.completed",
+        status=status,
+        error=error,
+        duration_seconds=0.5,
+        fatal=fatal,
+    )
 
 
 def _node_started(node_id: str, name: str, caller: str | None) -> list[Event]:
@@ -290,7 +298,7 @@ def test_critical_shows_only_failures_that_stop_the_run(output, level, fatal, sh
         _started(),
         _node_started(ENTRY, "Entry", caller=None),
         _node_failed(ENTRY, fatal=fatal),
-        _completed(status="failure", error="bad"),
+        _completed(status="failure", error="bad", fatal=fatal),
     )
 
     expected = [

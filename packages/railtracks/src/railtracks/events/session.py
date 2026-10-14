@@ -56,11 +56,13 @@ class SessionStarted(SessionEventFamilyBase):
 @dataclass(kw_only=True)
 class SessionCompleted(SessionEventFamilyBase):
     """A top-level run has finished, successfully or otherwise. `error` is a
-    stringified exception and is only set when `status` is `"failure"`."""
+    stringified exception and is only set when `status` is `"failure"`; `fatal` marks a
+    failure that stopped the run, from a fatal error or a run with `end_on_error`."""
 
     status: SessionStatus
     error: str | None
     duration_seconds: float
+    fatal: bool = False
 
     def event_type(self) -> str:
         return "session.completed"

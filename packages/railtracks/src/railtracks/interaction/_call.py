@@ -215,6 +215,8 @@ async def _start(
                 status="success" if error is None else "failure",
                 error=None if error is None else format_error(error),
                 duration_seconds=time.perf_counter() - start_time,
+                fatal=error is not None
+                and (config.end_on_error or getattr(error, "fatal", False)),
             )
         )
         await shutdown()
