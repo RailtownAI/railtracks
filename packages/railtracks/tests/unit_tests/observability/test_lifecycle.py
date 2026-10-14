@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 
 from railtracks.observability import (
     SCOPE_SESSION,
     Event,
+    JsonlWriter,
     configure,
     configure_writers,
     ensure_started,
@@ -52,8 +54,10 @@ async def test_concurrent_ensure_started_coalesces():
     # Registration succeeded — publishing works end-to-end.
     event = _make_session_event()
     await publish_event(event)
-    await shutdown()
+    for _ in results:
+        await shutdown()
     assert writer.events == [event]
+    assert configure.observer._running is False
 
 
 async def test_reset_for_tests_swaps_in_fresh_observer():
@@ -84,3 +88,41 @@ async def test_reset_for_tests_swaps_in_fresh_observer():
     assert writer2.events == [event2]
     # writer1 was not touched by the second run.
     assert writer1.events == [event1]
+
+
+def test_first_runs_on_separate_threads_inject_one_default_writer(
+    monkeypatch, tmp_path
+):
+    """Runs starting together on different threads must not both inject the default
+    JsonlWriter, nor try to configure writers on an Observer the other just started."""
+    monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
+    monkeypatch.setenv("RAILTRACKS_EVENTS_DIR", str(tmp_path / "events"))
+    threads = 8
+    barrier = threading.Barrier(threads)
+    errors: list[BaseException] = []
+    writer_counts: list[int] = []
+
+    async def run() -> None:
+        observer = await ensure_started()
+        writer_counts.append(len(observer._writers))
+        await shutdown()
+
+    def worker() -> None:
+        barrier.wait(timeout=5)
+        try:
+            asyncio.run(run())
+        except BaseException as exc:  # noqa: BLE001 - surfaced by the assertion below
+            errors.append(exc)
+
+    workers = [threading.Thread(target=worker) for _ in range(threads)]
+    for t in workers:
+        t.start()
+    for t in workers:
+        t.join(timeout=10)
+
+    assert errors == []
+    assert writer_counts == [1] * threads
+    pending = configure.observer._pending_writers
+    assert len(pending) == 1
+    assert isinstance(pending[0], JsonlWriter)
+    assert configure.observer._running is False

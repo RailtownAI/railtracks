@@ -197,6 +197,8 @@ To use your own writer set (or add more alongside the default), call
     to still have the local event files, you need to pass `JsonlWriter()` as
     well as any new or custom writers.
 
+Every run in the process shares the configured writers, including runs that overlap on one event loop or run on separate threads. Writers run on a background thread with its own event loop, so a custom writer's `start`, `write`, and `shutdown` are always called from that thread, never from the loop or thread your flow runs on. A run's events have reached its writers by the time the run returns.
+
 ### Use another event directory
 
 Set `RAILTRACKS_EVENTS_DIR` in both the process recording events and the

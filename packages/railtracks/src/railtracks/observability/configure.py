@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Callable
 
 from ..utils.config import _disable_events
@@ -14,6 +15,9 @@ from .writers.jsonl import JsonlWriter
 logger = get_rt_logger(__name__)
 
 observer: Observer = Observer()
+
+# Two runs starting together on different threads must not both inject the default writer
+_default_writer_lock = threading.Lock()
 
 # Called synchronously before the event reaches the Observer's per-writer queues
 _inline_listeners: list[Callable[[Event], None]] = []
@@ -41,25 +45,27 @@ def inline_listeners() -> list[Callable[[Event], None]]:
 
 
 async def ensure_started() -> Observer:
-    """Start the singleton observer if not already started, return it.
+    """Take a reference on the singleton observer, starting it if needed, and return it.
 
-    Auto-registers a default `JsonlWriter` when no writers have been configured
-    and `RAILTRACKS_DISABLE_EVENTS` is unset.
+    Pair every call with `shutdown()`. Auto-registers a default `JsonlWriter` when no
+    writers have been configured and `RAILTRACKS_DISABLE_EVENTS` is unset.
     """
-    if (
-        not observer._running
-        and not observer._pending_writers
-        and not _disable_events()
-    ):
-        observer.configure_writers([JsonlWriter()])
+    with _default_writer_lock:
+        if (
+            not observer._running
+            and not observer._pending_writers
+            and not _disable_events()
+        ):
+            observer.configure_writers([JsonlWriter()])
     await observer.start()
     return observer
 
 
 async def shutdown() -> None:
-    """Drain per-writer queues and stop the singleton Observer's consumer tasks.
+    """Release the reference taken by `ensure_started()`.
 
-    Safe to call when the observer isn't running.
+    The last release drains per-writer queues and stops the consumer tasks. Safe to
+    call when the observer isn't running.
     """
     await observer.shutdown()
 
@@ -67,9 +73,10 @@ async def shutdown() -> None:
 def reset_for_tests() -> None:
     """Clear singleton state. For test isolation only.
 
-    Swaps in a fresh `Observer` so consumer tasks from a previous test's event
-    loop don't leak into the next one.
+    Stops the current Observer's thread without draining and swaps in a fresh
+    `Observer`, so writers from a previous test don't leak into the next one.
     """
     global observer
+    observer._stop_thread()
     observer = Observer()
     _inline_listeners.clear()

@@ -155,6 +155,17 @@ async def _start(
     kwargs,
 ):
     await ensure_started()
+    try:
+        return await _run_session(node, args, kwargs)
+    finally:
+        await shutdown()
+
+
+async def _run_session(
+    node: type[Node[_P, _TOutput]],
+    args,
+    kwargs,
+):
     await activate_publisher()
 
     config = get_local_config()
@@ -217,7 +228,6 @@ async def _start(
                 duration_seconds=time.perf_counter() - start_time,
             )
         )
-        await shutdown()
 
     return result
 
