@@ -79,7 +79,7 @@ The `attachment` parameter can be a single `str` or a `list[str]`. We currently 
 
 ---
 ## PDF documents
-PDF input works through the same `attachment` parameter. The provider must natively support PDF input (currently OpenAI's `gpt-4o` / `gpt-5.x` family and Anthropic's Claude models via the `file` content block); other providers will reject the request.
+PDF input works through the same `attachment` parameter. The provider must natively support PDF input (currently OpenAI's `gpt-5.x` family and Anthropic's Claude models via the `file` content block); other providers will reject the request.
 
 ```python
 --8<-- "docs/scripts/multimodal.py:pdf_local"

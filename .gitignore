@@ -35,6 +35,9 @@ docs/api_reference/railtracks/
 docs/api_reference/index.html
 docs/api_reference/railtracks.html
 
+# Generated from docs/glossary.md by scripts/mkdocs_hooks.py
+docs/includes/glossary_tooltips.md
+
 # Documentation build output
 site/
 
@@ -46,7 +49,3 @@ core-licenses-summary.md
 
 # Ignore Files copied during release workflow for PyPI packaging (for Flit)
 packages/railtracks/docs/
-
-
-.claude
-CLAUDE.md

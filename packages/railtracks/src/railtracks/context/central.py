@@ -11,7 +11,6 @@ from typing import (
     Any,
     Callable,
     Coroutine,
-    KeysView,
     MutableMapping,
     NamedTuple,
 )
@@ -72,7 +71,7 @@ def safe_get_runner_context() -> RunnerContextVars:
             message="Context is not available. But some function tried to access it.",
             notes=[
                 "You need to have an active runner to access context.",
-                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
+                "Eg.-\n    flow = rt.Flow('my-flow', entry_point=node)\n    result = flow.invoke(user_input)",
             ],
         )
     return context
@@ -113,7 +112,7 @@ def get_publisher() -> RTPublisher:
             message="No publisher is attached to the current context.",
             notes=[
                 "You need to have an active runner to access the publisher.",
-                "Eg.-\n with rt.Session():\n    _ = rt.call(node)",
+                "Eg.-\n    flow = rt.Flow('my-flow', entry_point=node)\n    result = flow.invoke(user_input)",
             ],
         )
     return publisher
@@ -494,78 +493,6 @@ class ContextVarScopeManager:
 def delete_globals() -> None:
     """Resets the globals to None."""
     runner_context.set(None)
-
-
-def get(
-    key: str,
-    /,
-    default: Any | None = None,
-) -> Any:
-    """
-    Get a value from context
-
-    Args:
-        key (str): The key to retrieve.
-        default (Any | None): The default value to return if the key does not exist. If set to None and the key does not exist, a KeyError will be raised.
-    Returns:
-        Any: The value associated with the key, or the default value if the key does not exist.
-
-    Raises:
-        KeyError: If the key does not exist and no default value is provided.
-    """
-    context = safe_get_runner_context()
-    return context.external_context.get(key, default=default)
-
-
-def put(
-    key: str,
-    value: Any,
-) -> None:
-    """
-    Set a value in the context.
-
-    Args:
-        key (str): The key to set.
-        value (Any): The value to set.
-    """
-    context = safe_get_runner_context()
-    context.external_context.put(key, value)
-
-
-def update(data: dict[str, Any]) -> None:
-    """
-    Sets the values in the context. If the context already has values, this will overwrite them, but it will not delete any existing keys.
-
-    Args:
-        data (dict[str, Any]): The data to update the context with.
-    """
-    context = safe_get_runner_context()
-    context.external_context.update(data)
-
-
-def delete(key: str) -> None:
-    """
-    Delete a key from the context.
-
-    Args:
-        key (str): The key to delete.
-
-    Raises:
-        KeyError: If the key does not exist.
-    """
-    context = safe_get_runner_context()
-    context.external_context.delete(key)
-
-
-def keys() -> KeysView[str]:
-    """
-    Get the keys of the context.
-
-    Returns:
-        KeysView[str]: The keys in the context.
-    """
-    context = safe_get_runner_context()
-    return context.external_context.keys()
 
 
 def set_config(

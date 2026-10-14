@@ -15,7 +15,7 @@ async def retry(call, *args, **kwargs):
     raise RuntimeError(f"All retries exhausted: {last}") from last
 
 # you can add the middleware to a node at creation time.
-RetryAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"), middleware=[retry])
+RetryAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"), middleware=[retry])
 # --8<-- [end: wrappers]
 
 
@@ -31,8 +31,8 @@ async def timed(call, *args, **kwargs):
 # --8<-- [end: wrappers_timed]
 
 
-# --8<-- [start: after_node_demo]
-@rt.after_node
+# --8<-- [start: post_node_demo]
+@rt.post_node
 def log_result(result):
     print("node finished:", result)
     return result
@@ -43,17 +43,17 @@ async def log_result_async(call, *args, **kwargs):
     result = await call(*args, **kwargs)
     print("node finished:", result)
     return result
-# --8<-- [end: after_node_demo]
+# --8<-- [end: post_node_demo]
 
 
 # --8<-- [start: model_middleware_demo]
-@rt.before_llm
+@rt.pre_llm
 def print_message(message_history: rt.llm.MessageHistory, schema, tools):
     print(message_history)
     return message_history, schema, tools
 
 
-@rt.after_llm
+@rt.post_llm
 def print_response(response: rt.llm.Response):
     print(response.message)
     return response
@@ -72,7 +72,7 @@ async def periodic_failure(llm_call, message_history, schema, tools):
 # --8<-- [start: attach_creation]
 CreationTimeAgent = rt.agent_node(
     name="Agent",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     middleware=[retry, log_result],  # runs once per agent call
     model_middleware=[print_message, print_response],  # runs once per model call
 )
@@ -80,7 +80,7 @@ CreationTimeAgent = rt.agent_node(
 
 
 # --8<-- [start: attach_after_creation]
-BaseAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"))
+BaseAgent = rt.agent_node(name="Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"))
 
 ExtendedAgent = rt.couple(BaseAgent, middleware=[retry, log_result])
 
@@ -121,7 +121,7 @@ async def inner(call, *args, **kwargs):
 
 
 OrderedAgent = rt.agent_node(
-    name="Agent", llm=rt.llm.OpenAILLM("gpt-4o"), middleware=[outer, inner]
+    name="Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"), middleware=[outer, inner]
 )
 # calling OrderedAgent prints, in order:
 #   outer: before
@@ -151,7 +151,7 @@ from railtracks.prebuilt.guardrails import PIIRedactInputGuard, PIIRedactOutputG
 
 GuardedAgent = rt.agent_node(
     name="pii-redact-demo",
-    llm=rt.llm.OpenAILLM("gpt-4o"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You are a concise assistant.",
     model_middleware=[PIIRedactInputGuard(), PIIRedactOutputGuard()],
 )

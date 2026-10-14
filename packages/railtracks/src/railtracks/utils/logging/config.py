@@ -342,4 +342,8 @@ def enable_logging(
             ``short`` (``RT.<Label>``: last segment with leading non-letters stripped,
             then capitalized). Default ``short``.
     """
-    initialize_module_logging(level=level, log_file=log_file, name_style=name_style)
+    initialize_module_logging(
+        level=level,
+        log_file=log_file,
+        name_style=name_style,
+    )

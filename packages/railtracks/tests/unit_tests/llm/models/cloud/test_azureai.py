@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import litellm
 import pytest
-from railtracks.llm._exceptions import RTLLMError
+from railtracks.llm._exceptions import ProviderError
 from railtracks.llm.message import AssistantMessage
 from railtracks.llm.models import AzureAILLM
 from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
@@ -78,7 +78,7 @@ def test_chat_failure(message_history):
         ),
     ):
         with pytest.raises(
-            RTLLMError, match="Azure AI LLM error while processing the request"
+            ProviderError, match="Azure AI LLM error while processing the request"
         ):
             llm.chat(message_history)
 
@@ -96,7 +96,7 @@ def test_chat_with_tools_success(message_history, response, tool):
 
 
 def test_chat_with_tools_failure(message_history, tool):
-    """A litellm InternalServerError during chat_with_tools surfaces as RTLLMError."""
+    """A litellm InternalServerError during chat_with_tools surfaces as ProviderError."""
     llm = AzureAILLM(model_name=TEST_CHAT_MODEL_NAME)
 
     with patch.object(
@@ -106,5 +106,5 @@ def test_chat_with_tools_failure(message_history, tool):
             "Internal server error", "azure_ai", MODEL_NAME
         ),
     ):
-        with pytest.raises(RTLLMError):
+        with pytest.raises(ProviderError):
             llm.chat_with_tools(message_history, [tool])

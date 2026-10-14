@@ -3,7 +3,7 @@ from unittest.mock import patch
 import litellm
 import pytest
 from railtracks.llm import AnthropicLLM, GeminiLLM, HuggingFaceLLM, OpenAILLM
-from railtracks.llm._exceptions import RTLLMError
+from railtracks.llm._exceptions import ProviderError
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._model_exception_base import (
     MutuallyExclusiveHyperparametersError,
@@ -56,7 +56,7 @@ class TestInvalidModelNames:
                 # Return the actual provider, which should mismatch with the class being tested
                 mock_provider.return_value = ("something", actual_provider, "info")
 
-                with pytest.raises(RTLLMError):
+                with pytest.raises(ProviderError):
                     _ = provider_class(model_name)
 
 
@@ -90,7 +90,7 @@ class TestFunctionCallingSupport:
                 assert model is not None
 
                 with pytest.raises(
-                    RTLLMError, match="does not support function calling"
+                    ProviderError, match="does not support function calling"
                 ):
                     model.chat_with_tools(MessageHistory([]), [])
 

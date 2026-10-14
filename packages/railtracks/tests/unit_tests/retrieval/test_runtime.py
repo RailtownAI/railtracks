@@ -344,6 +344,56 @@ async def test_ingest_writes_entries_with_call_scope():
     assert {e.content for e in bob_entries} == {"gamma", "delta"}
 
 
+async def test_duplicate_check_is_scoped_per_tenant():
+    """The staleness/duplicate check must not let one tenant's ingest mark
+    another tenant's identical source+content as already present. Same
+    source and content, different scope, must both actually land."""
+    store = _store()
+    runtime, _, _ = _runtime(store=store)
+    alice = StoreScope(labels={"user_id": "alice"})
+    bob = StoreScope(labels={"user_id": "bob"})
+
+    await runtime.ingest_all(
+        _ListLoader([Document(source="shared", content="alpha beta")]),
+        scope=alice,
+    )
+    events = [
+        e
+        async for e in runtime.ingest(
+            _ListLoader([Document(source="shared", content="alpha beta")]),
+            scope=bob,
+        )
+    ]
+
+    assert not any(isinstance(e, DocumentSkipped) for e in events)
+    bob_entries = await store.find({"scope_user_id": "bob"}, limit=10)
+    assert {e.content for e in bob_entries} == {"alpha", "beta"}
+
+
+async def test_reingest_does_not_clobber_other_tenants_entries():
+    """Document.id is derived from source alone, so two tenants ingesting
+    the same source (with different content, so the duplicate check does
+    not short-circuit) share one document_id. The delete-before-write step
+    must scope its delete_where to the calling tenant, or it wipes the
+    other tenant's already-written rows for that same document_id."""
+    store = _store()
+    runtime, _, _ = _runtime(store=store)
+    alice = StoreScope(labels={"user_id": "alice"})
+    bob = StoreScope(labels={"user_id": "bob"})
+
+    await runtime.ingest_all(
+        _ListLoader([Document(source="shared", content="alpha beta")]),
+        scope=alice,
+    )
+    await runtime.ingest_all(
+        _ListLoader([Document(source="shared", content="gamma delta epsilon")]),
+        scope=bob,
+    )
+
+    alice_entries = await store.find({"scope_user_id": "alice"}, limit=10)
+    assert {e.content for e in alice_entries} == {"alpha", "beta"}
+
+
 async def test_retrieve_raises_on_model_mismatch():
     embedder_v1 = _FakeEmbedder(model="model-v1")
     runtime, store, _ = _runtime(embedder=embedder_v1)

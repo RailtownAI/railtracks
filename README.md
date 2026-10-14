@@ -23,9 +23,14 @@
   </a>
 </p>
 
+<p align="center">
+  <b>Own the AI!</b><br>
+  Assemble a custom agent harness in plain Python. The loop, the tools, the context, the controls, the record. All yours.
+</p>
+
 ## What is Railtracks?
 
-Railtracks is a Python framework for building agentic systems. Agent behavior, tools, and multi-step flows are defined entirely in standard Python using the control flow and abstractions you already know.
+Railtracks is a Python **agent framework** for building your own **agents and/or harness**. Every piece is an ordinary Python object you assemble yourself: a tool-calling loop, a tool surface of functions, sub-agents and MCP servers, context management, permission and budget controls, and a replayable record of every run. No YAML, no DSL, no black-box runtime.
 
 
 ```python
@@ -39,22 +44,45 @@ def get_weather(location: str) -> str:
 
 
 # Create an agent with tools
-agent = rt.agent_node(
+# agent_node returns a class, so use PascalCase
+WeatherAgent = rt.agent_node(
     "Weather Assistant",
     # Alternatively, use @rt.function_node at def time
     tool_nodes=[rt.function_node(get_weather)],
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You help users with weather information.",
 )
 
 # Run it
-flow = rt.Flow(name="Weather Flow", entry_point=agent)
+flow = rt.Flow(name="Weather Flow", entry_point=WeatherAgent)
 result = flow.invoke("What's the weather in Paris?")
 # or `await flow.ainvoke("What's the weather in Paris?")` in an async context
-print(result.text)  # "Based on the current data, it's sunny in Paris!"
+print(result.content)  # "Based on the current data, it's sunny in Paris!"
 ```
 
 Execution order, branching, and looping are expressed using standard Python control flow.
+
+## What is an agent harness?
+
+Everything around the model call. The model brings judgment. The harness brings the loop that keeps calling it, the tools it can reach, what lands in its context, the limits on what it may do, and the record of what it did. Change your model tomorrow and the harness is what you still own.
+
+Five parts. Take the ones your problem needs, wire them together in plain Python, leave the rest out.
+
+| Part | What it decides | Railtracks primitives |
+|---|---|---|
+| **Loop** | When the agent keeps going, and when it's done | `rt.agent_node` runs the tool-calling loop; `rt.Flow` and `rt.call` drive multi-step work |
+| **Tool surface** | What the agent can actually do | `rt.function_node`, `rt.ToolManifest` for agents-as-tools, `rt.connect_mcp` for MCP servers |
+| **Context** | What the model sees on this turn | `system_message`, `rt.context`, todo and key-value memory toolsets, retrieval |
+| **Controls** | What it's allowed to do, and how much of it | `MaxCalls`, `Timeout`, `Retry`, `Lock`, human-in-the-loop verifiers, guardrails |
+| **Record** | What happened, and whether you can replay it | Session state, `railtracks viz`, `rt.evaluations.evaluate` |
+
+The shapes this usually takes:
+
+- **Coding harness.** Read, edit, and shell tools, a todo list that survives across turns, human approval on anything that touches the working tree. Runnable in [`examples/harness/coding_harness.py`](examples/harness/coding_harness.py).
+- **Research harness.** Search and fetch, retrieval over what it has gathered, memory for findings, a structured-output pass to force the report into a schema.
+- **Operations harness.** A few high-consequence tools, each behind a real approver, with an audit trail you can hand to someone else.
+
+Start with the [Agent Harness guide](https://docs.railtracks.org/documentation/harness/overview/), or run the [harness examples](examples/harness) as they are: a read-only harness in under 80 lines, and a coding harness whose file writes and shell commands each stop for your approval.
 
 ## Why Railtracks?
 
@@ -81,7 +109,11 @@ def my_tool(text: str) -> str:
 #### Tool-First Architecture
 ```python
 # Any function becomes a tool
-agent = rt.agent_node("Assistant", tool_nodes=[my_tool, api_call])
+Assistant = rt.agent_node(
+    "Assistant",
+    tool_nodes=[my_tool, api_call],
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+)
 ```
 - Automatic function-to-tool conversion
 - Seamless API and database integration
@@ -95,7 +127,7 @@ agent = rt.agent_node("Assistant", tool_nodes=[my_tool, api_call])
 #### Familiar Interface
 ```python
 # Native Async support
-result = await rt.call(agent, query)
+result = await rt.call(Assistant, query)
 ```
 - Standardized `call` interface, consistent with asyncio patterns
 - Built-in validation, error handling, and retries
@@ -141,6 +173,21 @@ echo "OPENAI_API_KEY=sk-..." >> .env
 
 
 <details open>
+<summary><b>Building with Claude Code?</b></summary>
+
+Install the Railtracks plugin so Claude Code writes Railtracks code correctly:
+
+```bash
+claude plugin marketplace add RailtownAI/railtracks
+claude plugin install railtracks@railtracks
+```
+
+Using Codex, Copilot, or Cursor? Run `railtracks add <assistant>:all` (see [AI Coding Assistants](https://docs.railtracks.org/documentation/getting_started/ai_setup/)).
+
+</details>
+
+
+<details open>
 <summary><b>Your First Agent</b></summary>
 
 
@@ -162,18 +209,18 @@ def word_count(text: str) -> int:
 
 
 # 2. Build an agent with tools
-text_analyzer = rt.agent_node(
+TextAnalyzer = rt.agent_node(
     "Text Analyzer",
     tool_nodes=[count_characters, word_count],
-    llm=rt.llm.OpenAILLM("gpt-5.4-mini"),
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
     system_message="You analyze text using the available tools.",
 )
 
 # 3. Use it to solve the classic "How many r's in strawberry?" problem
-text_flow = rt.Flow(name="Text Analysis Flow", entry_point=text_analyzer)
+text_flow = rt.Flow(name="Text Analysis Flow", entry_point=TextAnalyzer)
 
 result = text_flow.invoke("How many 'r's are in 'strawberry'?")
-print(result.text)
+print(result.content)
 ```
 
 </details>
@@ -185,10 +232,10 @@ Railtracks integrates with major model providers through a unified interface:
 
 ```python
 # OpenAI
-rt.llm.OpenAILLM("gpt-5.4-mini")
+rt.llm.OpenAILLM("gpt-6-luna")
 
 # Anthropic
-rt.llm.AnthropicLLM("claude-sonnet-5")
+rt.llm.AnthropicLLM("claude-sonnet-5-5")
 
 # Local models
 rt.llm.OllamaLLM("llama3")

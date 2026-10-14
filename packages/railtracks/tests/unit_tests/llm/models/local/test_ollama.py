@@ -1,12 +1,17 @@
+import base64
 import os
 from unittest.mock import MagicMock, patch
 
 import litellm
 import pytest
 import requests
-from railtracks.llm._exceptions import RTLLMError
+from railtracks.llm._exceptions import ProviderError
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import UserMessage
+from railtracks.llm.message import AssistantMessage, UserMessage
+from railtracks.llm.models._model_exception_base import (
+    AttachmentNotSupportedError,
+    ModelError,
+)
 from railtracks.llm.models.local.ollama import OllamaLLM
 
 # TODO: Remove with the notices in 1.5.0.
@@ -30,6 +35,60 @@ def mock_failed_response():
         "Connection failed"
     )
     return mock
+
+
+PDF_DATA_URI = (
+    "data:application/pdf;base64,"
+    + base64.b64encode(b"%PDF-1.4\n%fake pdf\n%%EOF").decode()
+)
+IMAGE_DATA_URI = "data:image/png;base64,iVBORw0KGgo="
+
+
+def test_pdf_attachment_rejected(mock_response):
+    """PDF attachments raise: litellm's Ollama transform drops them (#1628)."""
+    with patch("requests.get", return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    message = UserMessage(content="Summarize this.", attachment=[PDF_DATA_URI])
+
+    with pytest.raises(AttachmentNotSupportedError, match="application/pdf") as exc:
+        ollama._to_litellm_message(message)
+    assert isinstance(exc.value, ModelError)
+    assert isinstance(exc.value, ValueError)
+
+
+def test_pdf_in_history_fails_chat_before_completion(mock_response):
+    """A PDF anywhere in the history fails the whole request without calling the model."""
+    with patch("requests.get", return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    messages = MessageHistory(
+        [
+            UserMessage(
+                content="Here is the paper.",
+                attachment=[IMAGE_DATA_URI, PDF_DATA_URI],
+            ),
+            AssistantMessage(content="Got it."),
+            UserMessage(content="Summarize it."),
+        ]
+    )
+
+    with patch.object(litellm, "completion") as mock_completion:
+        with pytest.raises(AttachmentNotSupportedError):
+            ollama.chat(messages)
+    mock_completion.assert_not_called()
+
+
+def test_image_attachment_kept(mock_response):
+    """Image attachments still serialize as image_url on Ollama."""
+    with patch("requests.get", return_value=mock_response):
+        ollama = OllamaLLM("test-model")
+    message = UserMessage(content="View this image.", attachment=[IMAGE_DATA_URI])
+
+    litellm_message = ollama._to_litellm_message(message)
+
+    assert litellm_message["content"][1] == {
+        "type": "image_url",
+        "image_url": {"url": IMAGE_DATA_URI},
+    }
 
 
 def test_model_type():
@@ -70,7 +129,7 @@ def test_temperature_passed_to_litellm_completion(mock_response):
 def test_init_model_not_available(mock_response):
     """Test initialization with unavailable model"""
     with patch("requests.get", return_value=mock_response):
-        with pytest.raises(RTLLMError) as exc_info:
+        with pytest.raises(ProviderError) as exc_info:
             OllamaLLM("unavailable-model")
         assert "not available on server" in str(exc_info.value)
 
@@ -108,7 +167,7 @@ def test_chat_with_tools_unsupported(mock_response):
             messages = MessageHistory([UserMessage(content="test message")])
             tools = []
 
-            with pytest.raises(RTLLMError) as exc_info:
+            with pytest.raises(ProviderError) as exc_info:
                 ollama.chat_with_tools(messages, tools)
             assert "does not support function calling" in str(exc_info.value)
 
@@ -128,7 +187,7 @@ def test_init_with_auto_domain_missing_env(mock_response):
     """Test initialization with auto domain but missing environment variable"""
     with patch("requests.get", return_value=mock_response):
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(RTLLMError) as exc_info:
+            with pytest.raises(ProviderError) as exc_info:
                 OllamaLLM("test-model", domain="auto")
             assert "OLLAMA_HOST environment variable not set" in str(exc_info.value)
 
@@ -137,7 +196,7 @@ def test_init_with_custom_domain_missing_env(mock_response):
     """Test initialization with custom domain but missing environment variable"""
     with patch("requests.get", return_value=mock_response):
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(RTLLMError) as exc_info:
+            with pytest.raises(ProviderError) as exc_info:
                 OllamaLLM("test-model", domain="auto")
             assert "OLLAMA_HOST environment variable not set" in str(exc_info.value)
 
@@ -161,7 +220,7 @@ def test_init_with_auto_domain(mock_response):
 def test_init_with_custom_domain_missing_arg(mock_response):
     """Test initialization with custom domain but missing custom_domain argument"""
     with patch("requests.get", return_value=mock_response):
-        with pytest.raises(RTLLMError) as exc_info:
+        with pytest.raises(ProviderError) as exc_info:
             OllamaLLM("test-model", domain="custom")
         assert "Custom domain must be provided" in str(exc_info.value)
 

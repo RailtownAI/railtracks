@@ -6,16 +6,24 @@ parameters and descriptions.
 """
 
 import inspect
+import re
 import warnings
+from collections.abc import Iterable as ABCIterable
 from typing import Any, Callable, Dict, Iterable, List, Type
 
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from .._exceptions import RTLLMError
-from .docstring_parser import extract_main_description, parse_docstring_args
+from .._exceptions import _ColoredError
+from .docstring_parser import (
+    count_parameter_sections,
+    extract_main_description,
+    find_unparsed_rest_param_fields,
+    parse_docstring_args,
+)
 from .parameter_handlers import (
     DefaultParameterHandler,
+    LiteralParameterHandler,
     ParameterHandler,
     PydanticModelHandler,
     SequenceParameterHandler,
@@ -23,6 +31,81 @@ from .parameter_handlers import (
 )
 from .parameters import Parameter
 from .schema_parser import parse_json_schema_to_parameter
+from .typing_utils import resolve_type_hints
+
+# OpenAI and Anthropic both require tool names to match ^[a-zA-Z0-9_-]{1,64}$.
+_TOOL_NAME_INVALID_CHARS = re.compile(r"[^a-zA-Z0-9_-]")
+_TOOL_NAME_MAX_LENGTH = 64
+
+
+def to_tool_name(name: str) -> str:
+    """
+    Convert a display name into a name providers accept for a tool.
+
+    Every character other than an ASCII letter, a digit, `_` or `-` becomes `_`, and the
+    result is cut to 64 characters, so `"Weather Bot 2.0"` becomes `"Weather_Bot_2_0"`.
+
+    Args:
+        name: The name to convert, such as an agent's name or a function's name.
+
+    Returns:
+        The provider-safe tool name.
+    """
+    return _TOOL_NAME_INVALID_CHARS.sub("_", name)[:_TOOL_NAME_MAX_LENGTH]
+
+
+def _validate_tool_params(parameters: Any, param_type: type) -> Any:
+    """Validate the shape of ``parameters`` before a Tool is built from it.
+
+    Lives in this module rather than in ``railtracks.validation`` so the ``llm``
+    package never imports upward: errors it raises on Tool's behalf must be
+    ToolCreationError, defined right here, not the outer package's NodeCreationError.
+
+    Returns the (possibly materialized) parameters for the caller to store. A
+    single-pass iterable (e.g. a generator) must be materialized here, before
+    validation consumes it, or the caller is left with an exhausted iterator.
+    """
+    if parameters is None:
+        return None
+
+    if isinstance(parameters, dict):
+        if not parameters:
+            return parameters
+        if parameters.get("type") != "object":
+            raise ToolCreationError(
+                message="A 'type' key set to 'object' must be provided in the JSON schema for Tool parameters.",
+                notes=[
+                    "If you are having issues with passing in a JSON schema, try providing a list of Parameter objects instead."
+                ],
+            )
+        if "properties" not in parameters:
+            raise ToolCreationError(
+                message="A 'properties' key must be provided in the JSON schema for Tool parameters.",
+                notes=[
+                    "Add a 'properties' entry, even an empty one, describing the tool's parameters."
+                ],
+            )
+        return parameters
+
+    if isinstance(parameters, ABCIterable) and not isinstance(parameters, (str, bytes)):
+        parameters = list(parameters)
+        if not all(isinstance(x, param_type) for x in parameters):
+            raise ToolCreationError(
+                message="Parameters must be an iterable of Parameter objects, a dict, or None.",
+                notes=[
+                    "If the tool expects no parameters, use None or pass in an empty list instead."
+                ],
+            )
+        return parameters
+
+    raise ToolCreationError(
+        message="Tool parameters must be an iterable of Parameter objects (e.g. a list, set, or tuple), a dict, or None.",
+        notes=[
+            "If the tool expects no parameters, use None.",
+            "If you are having issues with passing in a JSON schema, try providing a list of Parameter objects instead.",
+            "You can make a Tool object from a custom function. \nEg.-\ndef my_function():\n    ...\nsample_tool = rc.llm.Tool.from_function(my_function)",
+        ],
+    )
 
 
 class Tool:
@@ -43,13 +126,14 @@ class Tool:
         Args:
             name: The name of the tool.
             detail: A detailed description of the tool.
-            parameters: Parameters attached to this tool; a set of Parameter objects, or a dict.
+            parameters: Parameters attached to this tool; a set or list of Parameter objects, or a dict.
         """
+        parameters = _validate_tool_params(parameters, Parameter)
 
         if (
             isinstance(parameters, dict) and len(parameters) > 0
-        ):  # if parameters is a JSON-output_schema, convert into Parameter objects (Checks should be done in validate_tool_params)
-            props = parameters.get("properties") or {}
+        ):  # if parameters is a JSON-output_schema, convert into Parameter objects
+            props = parameters["properties"]
             required_fields = list(parameters.get("required", []))
             if not props and required_fields:
                 raise ToolCreationError(
@@ -62,11 +146,19 @@ class Tool:
                 )
             param_objs: List[Parameter] = []
             for param_name, prop in props.items():
-                param_objs.append(
-                    parse_json_schema_to_parameter(
-                        param_name, prop, param_name in required_fields
+                try:
+                    param_objs.append(
+                        parse_json_schema_to_parameter(
+                            param_name, prop, param_name in required_fields
+                        )
                     )
-                )
+                except ValueError as e:
+                    raise ToolCreationError(
+                        f"Tool {name!r}: failed to parse schema for parameter '{param_name}': {e}",
+                        notes=[
+                            "Check that the parameter's 'type' is a valid JSON schema type."
+                        ],
+                    ) from e
             parameters = param_objs
 
         self._name = name
@@ -104,7 +196,7 @@ class Tool:
     @classmethod
     def from_function(
         cls,
-        func: Callable,
+        func: Callable[..., Any],
         /,
         *,
         name: str | None = None,
@@ -119,7 +211,8 @@ class Tool:
 
         Args:
             func: The function to create a tool from.
-            name: Optional name for the tool. If not provided, uses the function's name.
+            name: Optional name for the tool. If not provided, uses the function's name. Either
+                is passed through `to_tool_name` so providers accept it.
             details: Optional detailed description for the tool. If not provided, extracts from the function's docstring.
             params: Optional parameters for the tool. If not provided, infers from the function's signature and docstring.
 
@@ -145,26 +238,34 @@ class Tool:
                 ],
             )
 
-        if name is not None:
-            # TODO: add some checking here to ensure that the name is valid snake case.
-            function_name = name
-        else:
-            function_name = func.__name__
+        function_name = to_tool_name(name if name is not None else func.__name__)
 
         docstring = func.__doc__.strip() if func.__doc__ else ""
 
         if params is not None:
             parameters = params
         else:
-            # Check for multiple Args sections (warning)
+            resolved_types = resolve_type_hints(func, signature)
+
+            # Check for multiple parameter sections (warning)
             # Only need to do this if we need to.
-            if docstring.count("Args:") > 1:
-                warnings.warn("Multiple 'Args:' sections found in the docstring.")
+            if count_parameter_sections(docstring) > 1:
+                warnings.warn(
+                    "Multiple parameter sections found in the docstring. Only one "
+                    "is used, in priority order: Google, NumPy, reST."
+                )
+            unparsed_fields = find_unparsed_rest_param_fields(docstring)
+            if unparsed_fields:
+                warnings.warn(
+                    f"Could not parse reST parameter fields {unparsed_fields!r} in the "
+                    f"docstring of '{function_name}'; their descriptions are ignored."
+                )
             # Create parameter handlers
             handlers: List[ParameterHandler] = [
                 PydanticModelHandler(),
                 SequenceParameterHandler(),
                 UnionParameterHandler(),
+                LiteralParameterHandler(),
                 DefaultParameterHandler(),
             ]
 
@@ -180,10 +281,15 @@ class Tool:
                 # Check if the parameter is required
                 required = param.default == inspect.Parameter.empty
 
-                handler = next(h for h in handlers if h.can_handle(param.annotation))
+                annotation = (
+                    resolved_types.get(param.name, param.annotation)
+                    if isinstance(param.annotation, str)
+                    else param.annotation
+                )
+                handler = next(h for h in handlers if h.can_handle(annotation))
 
                 param_obj = handler.create_parameter(
-                    param.name, param.annotation, description, required
+                    param.name, annotation, description, required
                 )
 
                 parameters.append(param_obj)
@@ -225,13 +331,26 @@ class Tool:
         param_objs = set()
         for name, prop in properties.items():
             required = name in required_fields
-            param_objs.add(parse_json_schema_to_parameter(name, prop, required))
+            try:
+                param_objs.add(parse_json_schema_to_parameter(name, prop, required))
+            except Exception as e:
+                warnings.warn(
+                    f"Tool {tool.name!r}: failed to parse schema for parameter '{name}': {e}. Falling back to basic object."
+                )
+                # Fallback to a basic object parameter if parsing fails (e.g. invalid type string)
+                param_objs.add(
+                    Parameter(name=name, param_type="object", required=required)
+                )
 
         return cls(name=tool.name, detail=tool.description, parameters=param_objs)
 
 
-class ToolCreationError(RTLLMError):
-    """Exception raised when a tool cannot be created."""
+class ToolCreationError(_ColoredError, Exception):
+    """Exception raised when a tool cannot be created.
+
+    A separate root from `ProviderError`: a malformed tool is a bug in the caller's
+    code, not a runtime failure of a provider, and it ends the run.
+    """
 
     def __init__(self, message, notes=None):
         super().__init__(message)

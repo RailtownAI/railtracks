@@ -377,10 +377,32 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
 
         super().__init__(content=content, role=Role.assistant)
 
+        # Metadata that lives outside `content`. Any attribute added below must also
+        # be copied in `copy_metadata_from`, or rebuild paths will silently drop it.
+        #
         # Optionally stores the raw litellm message object so providers that
         # attach extra metadata (e.g. Gemini thought_signature) can round-trip
         # it back without any manual reconstruction.
         self.raw_litellm_message: Any | None = None
+
+        # Reasoning/"thinking" the model surfaced alongside its answer, when the
+        # provider returns it (Anthropic, DeepSeek, Gemini, OpenAI in part).
+        self.reasoning_content: str | None = None  # human-readable text
+        self.thinking_blocks: list[dict[str, Any]] | None = None
+
+    def copy_metadata_from(self, other: Message) -> "AssistantMessage":
+        """Copy the provider metadata that lives outside `content` from `other`.
+
+        Rebuild paths (e.g. the tool loop, which must deep-copy `tool_calls`) construct a
+        fresh message from `content` alone; this carries over everything else so the
+        rebuild stays lossless. New metadata attributes must be added here. Read with
+        `getattr` so a plain `Message` source (which lacks these) is a no-op. Returns self
+        for chaining.
+        """
+        self.raw_litellm_message = getattr(other, "raw_litellm_message", None)
+        self.reasoning_content = getattr(other, "reasoning_content", None)
+        self.thinking_blocks = getattr(other, "thinking_blocks", None)
+        return self
 
     def encode(self):
         encoded = super().encode()
@@ -389,6 +411,13 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         # spoke with its calls; surface it the way providers put it on the wire.
         if isinstance(self.content, ToolCalls) and self.content.text is not None:
             encoded["text"] = self.content.text
+
+        # Surface reasoning in the serialized message so it is visible in the run
+        # graph/session data, not just on the live object.
+        if self.reasoning_content is not None:
+            encoded["reasoning_content"] = self.reasoning_content
+        if self.thinking_blocks is not None:
+            encoded["thinking_blocks"] = self.thinking_blocks
 
         return encoded
 

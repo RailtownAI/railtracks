@@ -113,13 +113,13 @@ class MiddlewareKind(str, Enum):
     ``parent_middleware_type_id`` — see :func:`queries._middleware_kind_case`.
 
     The derivation is a precedence ladder rather than a switch, and that is
-    load-bearing: ``@before_llm`` and ``@after_llm`` are both built on
+    load-bearing: ``@pre_llm`` and ``@post_llm`` are both built on
     ``@wrap_llm``, so each emits its own specialised pair *and* the generic
     ``middleware.model.invocation`` / ``.response``. Measured on one agent run
     with every decorator stacked, ``middleware.model.invocation`` fires four
-    times — once each for the ``@before_llm``, the ``@after_llm``, the
+    times — once each for the ``@pre_llm``, the ``@post_llm``, the
     ``@wrap_llm`` and the framework's own ``_llm_observe``. Equality tests would
-    call a ``@before_llm`` a plain model wrapper; only most-specific-wins is
+    call a ``@pre_llm`` a plain model wrapper; only most-specific-wins is
     right.
 
     ``NODE_WRAPPER`` and ``LLM_WRAPPER`` are the same decorator shape in the two
@@ -137,12 +137,19 @@ class MiddlewareKind(str, Enum):
     ============================ ==========================================
     ``INPUT_GUARD``              ``@input_guard`` / ``InputGuard`` subclass
     ``OUTPUT_GUARD``             ``@output_guard`` / ``OutputGuard`` subclass
-    ``REQUEST_TRANSFORM``        ``@before_llm``
-    ``RESPONSE_TRANSFORM``       ``@after_llm``
-    ``RESULT_HOOK``              ``@after_node``
+    ``REQUEST_TRANSFORM``        ``@pre_llm``
+    ``RESPONSE_TRANSFORM``       ``@post_llm``
+    ``RESULT_HOOK``              ``@post_node``
     ``LLM_WRAPPER``              ``@wrap_llm`` (``model_middleware=``)
     ``NODE_WRAPPER``             ``@wrap_node`` (``middleware=``)
+    ``VERIFIER``                 ``pre_verifier(...)`` / ``post_verifier(...)`` (``middleware=``)
     ============================ ==========================================
+
+    ``VERIFIER`` deliberately isn't split into ``PRE_VERIFIER`` / ``POST_VERIFIER``
+    the way the guard pair is: a ``pre_verifier``/``post_verifier`` pair is normally
+    one ``approve_fn`` registered together in ``middleware=[...]``, and splitting
+    the kind would turn that one registration into two rows at the
+    ``(name, kind, band)`` grain the Middleware table aggregates on.
     """
 
     INPUT_GUARD = "input_guard"
@@ -152,6 +159,7 @@ class MiddlewareKind(str, Enum):
     RESULT_HOOK = "result_hook"
     LLM_WRAPPER = "llm_wrapper"
     NODE_WRAPPER = "node_wrapper"
+    VERIFIER = "verifier"
 
 
 class MiddlewareBand(str, Enum):
@@ -324,7 +332,8 @@ class SessionSummary(BaseModel):
     #: ``session.completed.duration_seconds`` when completed, else ``end_time - start_time``.
     duration: float | None = None
     status: SessionStatus
-    total_cost: float = 0.0
+    #: None when every LLM call in the session had an unresolvable pricing entry.
+    total_cost: float | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     node_count: int = 0
@@ -388,7 +397,8 @@ class NodeDetail(BaseModel):
     tool_output: Any = None
     model_name: str | None = None
     model_provider: str | None = None
-    total_cost: float = 0.0
+    #: None when the node's LLM calls all had an unresolvable pricing entry.
+    total_cost: float | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     guardrails: list[Guardrail] = Field(default_factory=list)
@@ -405,7 +415,8 @@ class GraphNode(BaseModel):
     time: float | None = None
     model_name: str | None = None
     model_provider: str | None = None
-    total_cost: float = 0.0
+    #: None when the node's LLM calls all had an unresolvable pricing entry.
+    total_cost: float | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     latency_seconds: float | None = None
@@ -475,7 +486,8 @@ class LLMTrace(BaseModel):
     error_message: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
-    total_cost: float = 0.0
+    #: None when the model had no pricing entry (unpriced/self-hosted model).
+    total_cost: float | None = None
     #: Per-call latency reported by the provider, in seconds. Null when the
     #: provider did not report one, and always null on an error row.
     latency_seconds: float | None = None

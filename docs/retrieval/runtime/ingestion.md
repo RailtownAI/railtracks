@@ -27,6 +27,11 @@ Use `ingest_all` for batch jobs and tests where you only care about the
 summary. Use `ingest` (below) anywhere you need to surface progress, react to
 failures, or stream events to another system.
 
+If a JSON or Hugging Face content field contains a dictionary or list, normalize
+it at the loader boundary before chunking and embedding. The built-in
+[`JsonExtractor` and `ProseExtractor`](../components/ingestion/methods.md#structured-content-extractors)
+preserve structure as valid JSON or labelled prose while leaving metadata raw.
+
 ---
 
 ## Streaming events

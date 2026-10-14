@@ -5,8 +5,18 @@ import functools
 import inspect
 from typing import Awaitable, Callable, Concatenate, ParamSpec, TypeVar, overload
 
+from railtracks.events.middleware import (
+    MiddlewareVerifierPostFailureEvent,
+    MiddlewareVerifierPostInvocationEvent,
+    MiddlewareVerifierPostResponseEvent,
+)
+from railtracks.events.send import emit
 from railtracks.middleware.core import Middleware, wrap_node
-from railtracks.middleware.verdict import Verdict, VerifierRejectedError
+from railtracks.middleware.verdict import (
+    Verdict,
+    VerifierDecision,
+    VerifierRejectedError,
+)
 from railtracks.utils.logging.create import get_rt_logger
 from railtracks.utils.unpack import unpack_async_sync
 
@@ -65,12 +75,11 @@ def post_verifier(
     call's OUTPUT AFTER it has already run.
 
     The wrapped node always runs first. ``approve_fn`` is then called with the
-    produced value as its first argument, followed by the node's own
-    ``*args, **kwargs`` — sync or async, both supported — and must return a
-    `Verdict`. ``result`` comes first (rather than trailing as a keyword) so
-    the whole call is statically checkable: a `Verdict` mistyped against the
-    node's actual return type, or an ``approve_fn`` with the wrong shape, is
-    a type-checker error instead of a runtime surprise.
+    produced value as its first positional parameter, followed by the node's
+    own ``*args, **kwargs`` — sync or async, both supported — and must return
+    a `Verdict`. This shape is validated eagerly, at ``post_verifier(...)``
+    call time: an ``approve_fn`` that doesn't take ``result`` first raises
+    `TypeError` immediately, naming what was found instead.
 
     Decline can't undo the call (it already happened) but still raises
     `VerifierRejectedError`, stopping the result from propagating onward. On
@@ -80,13 +89,10 @@ def post_verifier(
     If ``timeout`` is set and ``approve_fn`` doesn't respond in time, the call
     is treated as declined with reason ``"timeout"``.
 
-    ``approve_fn``'s shape is checked eagerly, when ``post_verifier(...)`` is
-    called -- not deferred to the first real invocation. An ``approve_fn``
-    that doesn't take ``result`` as its first positional parameter raises
-    `TypeError` immediately, with a message naming what was found instead.
-
     See also :func:`~railtracks.prebuilt.middleware.pre_verifier.pre_verifier`,
-    which gates whether a call happens at all, BEFORE it runs.
+    which gates whether a call happens at all, BEFORE it runs. For the full
+    picture (composing with other middleware, custom approval backends,
+    guided walkthroughs), see the Verifiers docs.
     """
 
     if approve_fn is None:
@@ -103,6 +109,9 @@ def _wrapper(approve_fn: _ApproveFn[_R, _P], timeout: float | None):
     ) -> _R:
         result = await call(*args, **kwargs)
 
+        await emit(MiddlewareVerifierPostInvocationEvent(response=result))
+
+        is_timeout = False
         try:
             review = unpack_async_sync(approve_fn(result, *args, **kwargs))
             if timeout is None:
@@ -111,6 +120,22 @@ def _wrapper(approve_fn: _ApproveFn[_R, _P], timeout: float | None):
                 verdict = await asyncio.wait_for(review, timeout=timeout)
         except asyncio.TimeoutError:
             verdict = Verdict(accepted=False, comment="timeout")
+            is_timeout = True
+        except Exception as e:
+            await emit(MiddlewareVerifierPostFailureEvent.from_exception(e))
+            raise
+
+        new_result = verdict.result if verdict.result is not None else result
+        overridden = verdict.result is not None
+
+        await emit(
+            MiddlewareVerifierPostResponseEvent(
+                decision=VerifierDecision.from_verdict(
+                    verdict, overridden=overridden, timeout=is_timeout
+                ),
+                response=new_result,
+            )
+        )
 
         if not verdict.accepted:
             raise VerifierRejectedError(verdict.comment or "rejected")
@@ -118,6 +143,6 @@ def _wrapper(approve_fn: _ApproveFn[_R, _P], timeout: float | None):
         if verdict.comment:
             logger.info("post_verifier accepted with comment: %s", verdict.comment)
 
-        return verdict.result if verdict.result is not None else result
+        return new_result
 
     return wrapped

@@ -1,5 +1,6 @@
 import asyncio
 import gc
+import logging
 import threading
 from json import JSONDecodeError
 from unittest.mock import patch
@@ -16,17 +17,26 @@ from litellm.types.utils import (
     Usage,
 )
 from pydantic import BaseModel
-from railtracks.exceptions import LLMError, NodeInvocationError
 from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
+from railtracks.llm._exceptions import (
+    ProviderAuthenticationError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
     _retrieve_worker_exception,
     _to_litellm_tool,
+    classify_provider_error,
 )
+from railtracks.llm.models._model_exception_base import ModelError
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
+from railtracks.llm.retries import FixedRetry
+from railtracks.llm.tools.tool import ToolCreationError
 
 
 class _ConcreteLiteLLMWrapperForTest(LiteLLMWrapper):
@@ -66,7 +76,7 @@ class TestHelpers:
         """
         Test _parameters_to_json_schema with invalid input.
         """
-        with pytest.raises(NodeInvocationError):
+        with pytest.raises(ToolCreationError):
             _parameters_to_json_schema(123)  # type: ignore
 
     # =================================== END _parameters_to_json_schema Tests ====================================
@@ -105,6 +115,34 @@ class TestHelpers:
         litellm_message = wrapper._to_litellm_message(assistant_message)
         assert litellm_message["role"] == "assistant"
         assert litellm_message["content"] == "This is an assistant message."
+
+    def test_to_litellm_message_assistant_message_echoes_reasoning(
+        self, mock_litellm_wrapper
+    ):
+        """#1431: reasoning/thinking set on an assistant message must be echoed back so
+        signed thinking blocks survive the round-trip (Anthropic requires it), even on a
+        plain (non-tool) assistant turn."""
+        message = AssistantMessage(content="4")
+        message.reasoning_content = "2 + 2 is 4"
+        message.thinking_blocks = [
+            {"type": "thinking", "thinking": "2 + 2", "signature": "sig-abc"}
+        ]
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
+        assert litellm_message["content"] == "4"
+        assert litellm_message["reasoning_content"] == "2 + 2 is 4"
+        assert litellm_message["thinking_blocks"] == [
+            {"type": "thinking", "thinking": "2 + 2", "signature": "sig-abc"}
+        ]
+
+    def test_to_litellm_message_assistant_message_without_reasoning_omits_keys(
+        self, mock_litellm_wrapper, assistant_message
+    ):
+        """No reasoning => no reasoning keys on the wire (defaults stay clean)."""
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(assistant_message)
+        assert "reasoning_content" not in litellm_message
+        assert "thinking_blocks" not in litellm_message
 
     def test_to_litellm_message_tool_message(self, mock_litellm_wrapper, tool_message):
         """
@@ -265,6 +303,29 @@ class TestHelpers:
         file_block = litellm_message["content"][1]
         assert file_block["type"] == "file"
 
+    def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
+        """
+        A structured-output AssistantMessage (content is a parsed pydantic
+        BaseModel, not a str) must be serialized to a JSON string, not passed
+        through as a raw BaseModel instance -- litellm/the OpenAI SDK reject
+        non-string content with a 400 when this message is fed back into a
+        later completion call (e.g. manually-threaded multi-turn history).
+        """
+
+        class Reply(BaseModel):
+            text: str
+            wants_to_end: bool
+
+        message = AssistantMessage(content=Reply(text="hi", wants_to_end=False))
+        wrapper = mock_litellm_wrapper()
+        litellm_message = wrapper._to_litellm_message(message)
+
+        assert isinstance(litellm_message["content"], str)
+        assert (
+            litellm_message["content"]
+            == Reply(text="hi", wants_to_end=False).model_dump_json()
+        )
+
     # =================================== END _to_litellm_message Tests ====================================
 
 
@@ -376,13 +437,15 @@ class TestCompletionMethods:
         ],
         ids=["sync_structured", "async_structured"],
     )
-    async def test_structured_invalid_json_raises_llm_error(
+    async def test_structured_invalid_json_raises_model_error(
         self, mock_litellm_wrapper, message_history, method_name, is_async
     ):
         class Schema(BaseModel):
             val: int
 
-        with pytest.raises(LLMError, match="Structured LLM call failed"):
+        # The llm package raises its own ProviderError type; the node layer translates
+        # it into LLMError at the llm_helpers boundary, not here.
+        with pytest.raises(ModelError, match="Structured LLM call failed"):
             wrapper = mock_litellm_wrapper(
                 content='{"field": "VAL", "invalid": "json"}'
             )
@@ -629,14 +692,27 @@ class TestAsyncStreaming:
 
 
 # ================= START streamed delta accumulation tests =========================
-def _delta_chunk(*, content=None, tool_calls=None, finish_reason=None, usage=None):
+def _delta_chunk(
+    *,
+    content=None,
+    tool_calls=None,
+    finish_reason=None,
+    usage=None,
+    reasoning_content=None,
+    thinking_blocks=None,
+):
     """A single `ModelResponseStream` shaped the way litellm hands them to the handler."""
     return ModelResponseStream(
         model="mock-model",
         choices=[
             StreamingChoices(
                 index=0,
-                delta=Delta(content=content, tool_calls=tool_calls),
+                delta=Delta(
+                    content=content,
+                    tool_calls=tool_calls,
+                    reasoning_content=reasoning_content,
+                    thinking_blocks=thinking_blocks,
+                ),
                 finish_reason=finish_reason,
             )
         ],
@@ -1199,6 +1275,314 @@ def test_common_hyperparameter_passed_to_litellm_completion(
 
 # ================= END common hyperparameter support tests =========================
 
+# ================= START #1431 reasoning/thinking surfacing tests ===================
+
+_THINKING_BLOCKS = [{"type": "thinking", "thinking": "2 + 2", "signature": "sig-abc"}]
+
+
+def _model_response(*, content, finish_reason="stop", reasoning=False, tool_calls=None):
+    """A non-streamed `ModelResponse`, optionally carrying reasoning on its message."""
+    message = {
+        "role": "assistant",
+        "content": content,
+        "tool_calls": tool_calls,
+    }
+    if reasoning:
+        message["reasoning_content"] = "2 + 2 is 4"
+        message["thinking_blocks"] = _THINKING_BLOCKS
+    return ModelResponse(choices=[{"message": message, "finish_reason": finish_reason}])
+
+
+class TestReasoningSurfacing:
+    """#1431: reasoning/thinking the provider returns must surface on the assistant
+    message (so it rides along in history and the run graph) and via `Response.reasoning`,
+    across every response-building path, and stay None when the provider returns none."""
+
+    def test_chat_handle_base_surfaces_reasoning(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="4", reasoning=True)
+
+        response = wrapper._chat_handle_base(raw, MessageInfo())
+
+        assert response.reasoning == "2 + 2 is 4"
+        assert response.message.reasoning_content == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_chat_handle_base_without_reasoning_is_none(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="4", reasoning=False)
+
+        response = wrapper._chat_handle_base(raw, MessageInfo())
+
+        assert response.reasoning is None
+        assert response.message.reasoning_content is None
+        assert response.message.thinking_blocks is None
+
+    def test_structured_handle_base_surfaces_reasoning(self, mock_litellm_wrapper):
+        class Reply(BaseModel):
+            answer: int
+
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content='{"answer": 4}', reasoning=True)
+
+        response = wrapper._structured_handle_base(raw, MessageInfo(), Reply)
+
+        assert isinstance(response.message.content, Reply)
+        assert response.message.reasoning_content == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_chat_with_tools_plain_reply_surfaces_reasoning(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="4", reasoning=True)
+
+        response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
+
+        assert response.reasoning == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    @pytest.mark.parametrize(
+        "content,finish_reason,expected",
+        [
+            ("partial ans", "length", "partial ans"),
+            (None, "length", None),
+            ("", "length", None),
+            (None, "content_filter", None),
+        ],
+        ids=["cut_off_with_text", "cut_off_none", "cut_off_empty", "filtered"],
+    )
+    def test_chat_with_tools_reply_without_calls_is_plain_content(
+        self, mock_litellm_wrapper, content, finish_reason, expected
+    ):
+        """No tool calls means a plain reply whatever the finish_reason, never an empty
+        `ToolCalls` that the node cannot classify."""
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content=content, finish_reason=finish_reason)
+
+        response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
+
+        assert response.message.content == expected
+        assert response.message.tool_calls == []
+
+    def test_chat_with_tools_tool_call_surfaces_reasoning(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(
+            content=None,
+            finish_reason="tool_calls",
+            reasoning=True,
+            tool_calls=[
+                litellm.ChatCompletionMessageToolCall(
+                    function=litellm.Function(arguments="{}", name="tool_x"),
+                    id="id123",
+                    type="function",
+                )
+            ],
+        )
+
+        response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
+
+        assert isinstance(response.message.content, ToolCalls)
+        assert response.message.reasoning_content == "2 + 2 is 4"
+        assert response.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_streamed_reasoning_deltas_accumulate_onto_final_response(
+        self, mock_litellm_wrapper
+    ):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(reasoning_content="2 + 2 ", thinking_blocks=_THINKING_BLOCKS),
+            _delta_chunk(reasoning_content="is 4"),
+            _delta_chunk(content="4"),
+            _delta_chunk(finish_reason="stop"),
+        ]
+
+        text, final = _drain(wrapper, chunks)
+
+        assert "".join(text) == "4"
+        assert final.reasoning == "2 + 2 is 4"
+        assert final.message.thinking_blocks == _THINKING_BLOCKS
+
+    def test_streamed_fragmented_thinking_blocks_are_reassembled(
+        self, mock_litellm_wrapper
+    ):
+        """Anthropic streams thinking as many single-element `thinking_blocks` deltas,
+        each an unsigned text fragment, with the real signature arriving on a final
+        block whose `thinking` is empty. The final response must carry one merged,
+        signed block (what Anthropic requires echoed back), not the raw fragments."""
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "Let ", "signature": ""}
+                ]
+            ),
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "me ", "signature": ""}
+                ]
+            ),
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "count.", "signature": ""}
+                ]
+            ),
+            _delta_chunk(
+                thinking_blocks=[
+                    {"type": "thinking", "thinking": "", "signature": "sig-final"}
+                ]
+            ),
+            _delta_chunk(content="4"),
+            _delta_chunk(finish_reason="stop"),
+        ]
+
+        _text, final = _drain(wrapper, chunks)
+
+        assert final.message.thinking_blocks == [
+            {"type": "thinking", "thinking": "Let me count.", "signature": "sig-final"}
+        ]
+
+    def test_streamed_without_reasoning_is_none(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        chunks = [_delta_chunk(content="4"), _delta_chunk(finish_reason="stop")]
+
+        _text, final = _drain(wrapper, chunks)
+
+        assert final.reasoning is None
+        assert final.message.thinking_blocks is None
+
+    def test_non_reasoning_stream_skips_thinking_reassembly(self, mock_litellm_wrapper):
+        """A stream with no thinking deltas must not pay for `_assemble_thinking_blocks`.
+
+        Making the reassembly raise proves it is never called when no thinking was seen.
+        """
+        wrapper = mock_litellm_wrapper()
+
+        def _boom(_raw_chunks):
+            raise AssertionError(
+                "reassembly should be skipped for non-reasoning streams"
+            )
+
+        wrapper._assemble_thinking_blocks = _boom
+        chunks = [_delta_chunk(content="4"), _delta_chunk(finish_reason="stop")]
+
+        _text, final = _drain(wrapper, chunks)
+
+        assert final.message.thinking_blocks is None
+
+
+# ================= END #1431 reasoning/thinking surfacing tests =====================
+
+# ================= START #1620 incomplete reply tests ===============================
+
+
+class TestIncompleteReplies:
+    """#1620: a reply cut off or filtered before any text must reach the node as `None`
+    content on every path (so it raises `LLMError`), while a normal empty reply stays a
+    valid `""` and empty keep-alive or metadata chunks never trigger it."""
+
+    @pytest.mark.parametrize("finish_reason", ["length", "content_filter"])
+    def test_streamed_early_stop_without_text_has_no_content(
+        self, mock_litellm_wrapper, finish_reason
+    ):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(content=""),
+            _delta_chunk(),
+            _delta_chunk(finish_reason=finish_reason),
+        ]
+
+        text, final = _drain(wrapper, chunks)
+
+        assert text == []
+        assert final.message.content is None
+
+    @pytest.mark.parametrize(
+        "chunks",
+        [
+            [_delta_chunk(content=""), _delta_chunk(finish_reason="stop")],
+            [_delta_chunk(content=""), _delta_chunk()],
+            [ModelResponseStream(model="mock-model", choices=[])],
+            [_delta_chunk(finish_reason=""), _delta_chunk(finish_reason="stop")],
+        ],
+        ids=["stopped", "no_finish_reason", "no_choices", "blank_finish_reason"],
+    )
+    def test_streamed_empty_reply_stays_valid(self, mock_litellm_wrapper, chunks):
+        wrapper = mock_litellm_wrapper()
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message.content == ""
+
+    def test_streamed_partial_text_is_kept_when_cut_off(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(content="parti"),
+            _delta_chunk(content="al"),
+            _delta_chunk(finish_reason="length"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message.content == "partial"
+
+    @pytest.mark.parametrize(
+        "content,finish_reason,expected",
+        [
+            ("", "length", None),
+            ("", "content_filter", None),
+            ("partial", "length", "partial"),
+            ("", "stop", ""),
+        ],
+        ids=["cut_off_empty", "filtered_empty", "cut_off_with_text", "stopped_empty"],
+    )
+    def test_chat_handle_base_early_stop(
+        self, mock_litellm_wrapper, content, finish_reason, expected
+    ):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content=content, finish_reason=finish_reason)
+
+        response = wrapper._chat_handle_base(raw, MessageInfo())
+
+        assert response.message.content == expected
+
+    @pytest.mark.parametrize(
+        "finish_reason,logged",
+        [
+            ("length", True),
+            ("content_filter", True),
+            ("stop", False),
+            ("tool_calls", False),
+        ],
+    )
+    def test_early_stop_is_logged_as_error(
+        self, mock_litellm_wrapper, caplog, finish_reason, logged
+    ):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="partial", finish_reason=finish_reason)
+
+        with caplog.at_level(logging.ERROR, logger="RT.litellm_wrapper"):
+            wrapper._chat_handle_base(raw, MessageInfo())
+
+        records = [r for r in caplog.records if r.name == "RT.litellm_wrapper"]
+        assert len(records) == int(logged)
+        if logged:
+            assert records[0].levelno == logging.ERROR
+            assert finish_reason in records[0].getMessage()
+            assert "mock-model" in records[0].getMessage()
+
+    def test_streamed_early_stop_is_logged_once(self, mock_litellm_wrapper, caplog):
+        wrapper = mock_litellm_wrapper()
+        chunks = [_delta_chunk(content="partial"), _delta_chunk(finish_reason="length")]
+
+        with caplog.at_level(logging.ERROR, logger="RT.litellm_wrapper"):
+            _drain(wrapper, chunks)
+
+        records = [r for r in caplog.records if r.name == "RT.litellm_wrapper"]
+        assert len(records) == 1
+        assert "length" in records[0].getMessage()
+
+
+# ================= END #1620 incomplete reply tests =================================
+
 # ================= START #1394 reasoning_effort-default-for-tools tests =============
 
 
@@ -1292,3 +1676,108 @@ class TestReasoningEffortDefaultForTools:
 
 
 # ================= END #1394 reasoning_effort-default-for-tools tests ===============
+
+
+# =================================== START classify_provider_error Tests ==================================
+class TestClassifyProviderError:
+    """litellm's exception vocabulary must not leak past the llm package."""
+
+    @pytest.mark.parametrize(
+        "litellm_exc,expected",
+        [
+            (litellm.exceptions.Timeout("t", "m", "p"), ProviderTimeoutError),
+            (
+                litellm.exceptions.RateLimitError("r", "m", "p"),
+                ProviderRateLimitError,
+            ),
+            (
+                litellm.exceptions.AuthenticationError("a", "m", "p"),
+                ProviderAuthenticationError,
+            ),
+        ],
+        ids=["timeout", "rate_limit", "auth"],
+    )
+    def test_known_litellm_errors_are_classified(self, litellm_exc, expected):
+        assert classify_provider_error(litellm_exc) is expected
+
+    def test_unknown_errors_are_left_alone(self):
+        """Anything unrecognised stays unclassified rather than being mislabelled."""
+        assert classify_provider_error(ValueError("who knows")) is None
+
+    def test_retry_error_is_classified_by_what_was_retried(self):
+        """An exhausted retry of timeouts is still a timeout, not a generic failure."""
+        retry_error = RetryError(
+            "exponential",
+            "Max retries exceeded",
+            [],
+            [litellm.exceptions.Timeout("t", "m", "p")],
+        )
+        assert classify_provider_error(retry_error) is ProviderTimeoutError
+
+    def test_retry_error_with_no_recorded_exceptions(self):
+        assert classify_provider_error(RetryError("x", "y", [], [])) is None
+
+
+class TestStructuredPreservesProviderErrors:
+    """Structured output must classify failures the same way plain `chat` does.
+
+    `_structured` wraps its body in a catch-all that turns failures into `ModelError`.
+    Provider errors are already classified by `_call_provider`, so re-wrapping them
+    would leave structured output as the only path where a caller cannot tell a
+    timeout from an auth failure, or detect that retries were exhausted.
+    """
+
+    @pytest.mark.parametrize(
+        "litellm_exc,expected",
+        [
+            (litellm.exceptions.Timeout("t", "m", "p"), ProviderTimeoutError),
+            (litellm.exceptions.RateLimitError("r", "m", "p"), ProviderRateLimitError),
+            (
+                litellm.exceptions.AuthenticationError("a", "m", "p"),
+                ProviderAuthenticationError,
+            ),
+        ],
+        ids=["timeout", "rate_limit", "auth"],
+    )
+    def test_classified_provider_errors_are_not_rewrapped(
+        self, message_history, litellm_exc, expected
+    ):
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="test-model")
+        with patch.object(litellm, "completion", side_effect=litellm_exc):
+            with pytest.raises(expected):
+                wrapper.structured(message_history, schema=Schema)
+
+    def test_exhausted_retries_stay_detectable(self, message_history):
+        """`RetryError` must survive so callers can distinguish it from a single failure."""
+
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(
+            model_name="test-model",
+            retry_approach=FixedRetry(max_tries=2, delay=0),
+        )
+        with patch.object(
+            litellm,
+            "completion",
+            side_effect=litellm.exceptions.Timeout("t", "m", "p"),
+        ):
+            with pytest.raises(RetryError):
+                wrapper.structured(message_history, schema=Schema)
+
+    def test_unclassified_failures_still_become_model_error(self, message_history):
+        """The catch-all still applies to anything that is not a provider error."""
+
+        class Schema(BaseModel):
+            val: int
+
+        wrapper = _ConcreteLiteLLMWrapperForTest(model_name="test-model")
+        with patch.object(litellm, "completion", side_effect=ValueError("who knows")):
+            with pytest.raises(ModelError, match="Structured LLM call failed"):
+                wrapper.structured(message_history, schema=Schema)
+
+
+# =================================== END classify_provider_error Tests ====================================

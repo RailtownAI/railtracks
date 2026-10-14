@@ -57,11 +57,12 @@ async def test_terminal_llm(llm):
         llm=llm,
     )
 
-    with rt.Session():
-        response = await rt.call(terminal_node, user_input="Please reverse '12345'.")
-        final_resp: StringResponse | None = response
+    response = await rt.Flow("test_terminal_llm", terminal_node).ainvoke(
+        "Please reverse '12345'."
+    )
+    final_resp: StringResponse | None = response
 
-        assert final_resp is not None and "54321" in final_resp.content
+    assert final_resp is not None and "54321" in final_resp.content
 
 
 @pytest.mark.asyncio
@@ -79,16 +80,17 @@ async def test_structured_llm(llm, test_case):
         llm=llm,
     )
 
-    with rt.Session():
-        response = await rt.call(structured_node, user_input=test_case["user_input"])
+    response = await rt.Flow("test_structured_llm", structured_node).ainvoke(
+        test_case["user_input"]
+    )
 
-        final_resp = response
+    final_resp = response
 
-        # Basic type check
-        assert final_resp is not None
-        assert isinstance(final_resp.structured, test_case["schema"])
+    # Basic type check
+    assert final_resp is not None
+    assert isinstance(final_resp.structured, test_case["schema"])
 
-        # Custom validation
-        assert test_case["validator"](final_resp), (
-            f"Validation failed for {test_case['case_id']}"
-        )
+    # Custom validation
+    assert test_case["validator"](final_resp), (
+        f"Validation failed for {test_case['case_id']}"
+    )

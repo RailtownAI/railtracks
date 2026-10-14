@@ -53,13 +53,13 @@ _INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
 #: Kind per ``middleware_type_id``, as a precedence ladder over the *specialised*
 #: event types a middleware emits.
 #:
-#: Most-specific-wins is load-bearing, not defensive. ``@before_llm`` and
-#: ``@after_llm`` are both built on ``@wrap_llm``, so each emits its own
+#: Most-specific-wins is load-bearing, not defensive. ``@pre_llm`` and
+#: ``@post_llm`` are both built on ``@wrap_llm``, so each emits its own
 #: specialised pair *and* the generic ``middleware.model.invocation`` /
 #: ``.response``. Measured on one agent run with every decorator stacked,
 #: ``middleware.model.invocation`` fires four times — once each for the
-#: ``@before_llm``, the ``@after_llm``, the ``@wrap_llm`` and ``_llm_observe``.
-#: Rewriting these ``LIKE``s as equality tests would label a ``@before_llm`` a
+#: ``@pre_llm``, the ``@post_llm``, the ``@wrap_llm`` and ``_llm_observe``.
+#: Rewriting these ``LIKE``s as equality tests would label a ``@pre_llm`` a
 #: plain model wrapper.
 #:
 #: The final band fallback catches an LLM-band middleware that emits no
@@ -74,7 +74,7 @@ _INTERNAL_MIDDLEWARE_NAMES = ("_observe_middleware", "_llm_observe")
 #: as ``llm_wrapper``.
 #:
 #: The consequence is worth stating plainly rather than discovering: a
-#: ``@before_llm`` is reported as a request transform **only when the framework
+#: ``@pre_llm`` is reported as a request transform **only when the framework
 #: emits the specialised pair for it**, and where it does not, the honest answer
 #: from the stream is "something wrapped the LLM call". The ladder is not guessing
 #: past what was recorded, and the ``.input.%`` / ``.output.%`` rungs are kept
@@ -96,6 +96,8 @@ _OUTCOME_PASSED_LITERAL = f"'{MiddlewareOutcome.PASSED.value}'"
 _MIDDLEWARE_KIND_LADDER: list[tuple[str, MiddlewareKind]] = [
     ("event_type LIKE 'middleware.guard.input.%'", MiddlewareKind.INPUT_GUARD),
     ("event_type LIKE 'middleware.guard.output.%'", MiddlewareKind.OUTPUT_GUARD),
+    # Covers both `middleware.verifier.pre.*` and `.post.*`.
+    ("event_type LIKE 'middleware.verifier.%'", MiddlewareKind.VERIFIER),
     ("event_type LIKE 'middleware.model.input.%'", MiddlewareKind.REQUEST_TRANSFORM),
     ("event_type LIKE 'middleware.model.output.%'", MiddlewareKind.RESPONSE_TRANSFORM),
     ("event_type LIKE 'middleware.regular.output.%'", MiddlewareKind.RESULT_HOOK),
@@ -183,11 +185,13 @@ def _middleware_rows_cte() -> str:
       passing through.
 
       ``raised_here`` separates them by asking whether what it wrapped failed
-      first: if a ``node.failure`` or ``llm.failure`` in the same session carries
-      the same exception message at or before this event, the exception came from
-      inside and the middleware only sat in its path. Checked against the guard
-      decisions, which are authoritative: all 14 blocks on the store are also
-      ``raised_here`` or carry ``action = 'block'``, and no wrapper is.
+      first: if a ``node.failure``, an ``llm.failure``, or (see
+      ``callee_failures`` below) a verifier's own ``middleware.failure`` in the
+      same session carries the same exception message at or before this event,
+      the exception came from inside and the middleware only sat in its path.
+      Checked against the guard decisions, which are authoritative: all 14
+      blocks on the store are also ``raised_here`` or carry
+      ``action = 'block'``, and no wrapper is.
     """
     return (
         _MIDDLEWARE_NAME_CTE
@@ -217,14 +221,29 @@ def _middleware_rows_cte() -> str:
     -- What the middleware wrapped, when that failed, and with which exception.
     -- Only the message is compared: the same exception object is re-reported at
     -- each layer, so identity is the message plus the session plus the ordering.
+    --
+    -- A verifier's own failure counts too: its node never ran, so there is no
+    -- node/llm failure to inherit otherwise. `invoke_id` keeps it from also
+    -- excusing itself.
     callee_failures AS (
-      SELECT scope_id, timestamp, exception_message
+      SELECT scope_id, timestamp, exception_message, NULL AS invoke_id
       FROM node
       WHERE event_type = 'node.failure' AND exception_message IS NOT NULL
       UNION ALL
-      SELECT scope_id, timestamp, exception_message
+      SELECT scope_id, timestamp, exception_message, NULL AS invoke_id
       FROM llm
       WHERE event_type = 'llm.failure' AND exception_message IS NOT NULL
+      UNION ALL
+      SELECT f.scope_id, f.timestamp, f.exception_message,
+             f.parent_middleware_invoke_id AS invoke_id
+      FROM middleware f
+      WHERE f.event_type = 'middleware.failure'
+        AND EXISTS (
+          SELECT 1 FROM middleware d
+          WHERE d.scope_id = f.scope_id
+            AND d.parent_middleware_invoke_id = f.parent_middleware_invoke_id
+            AND d.event_type LIKE 'middleware.verifier.%'
+        )
     ),
     mw_events AS (
       SELECT ev.event_id,
@@ -235,7 +254,16 @@ def _middleware_rows_cte() -> str:
              ev.parent_middleware_invoke_id,
              ev.spatial_parent_node_id,
              ev.spatial_parent_llm_invoke_id,
-             ev.decision->>'action'         AS action,
+             -- Verifier decisions ('accept'/'decline' + `overridden`) are
+             -- normalized onto the guard vocabulary ('allow'/'transform'/'block')
+             -- here, so every downstream aggregate reads one vocabulary.
+             CASE ev.decision->>'action'
+               WHEN 'accept' THEN
+                 CASE WHEN ev.decision->>'overridden' = 'true' THEN 'transform'
+                      ELSE 'allow' END
+               WHEN 'decline' THEN 'block'
+               ELSE ev.decision->>'action'
+             END                             AS action,
              ev.decision->>'reason'         AS reason,
              ev.event_type LIKE '%.failure' AS is_failure,
              ev.exception_message,
@@ -287,6 +315,7 @@ def _middleware_rows_cte() -> str:
                WHERE cf.scope_id = ev.scope_id
                  AND cf.exception_message IS NOT DISTINCT FROM ev.exception_message
                  AND cf.timestamp <= ev.timestamp
+                 AND cf.invoke_id IS DISTINCT FROM ev.parent_middleware_invoke_id
              )                                                 AS raised_here
       FROM mw_events ev
       LEFT JOIN mw_llm_nodes ln

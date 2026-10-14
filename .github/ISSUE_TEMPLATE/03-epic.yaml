@@ -1,0 +1,53 @@
+name: "Epic"
+description: "Multi-week initiative. Tracker only; sub-issues do the work."
+labels: ["kind:tracking"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > **Maintainer only.** This template is for maintainers filing tracking issues for multi-week initiatives. Outside contributors: please use **Feature Request** for feature ideas, or [Discussions](https://github.com/RailtownAI/railtracks/discussions) for open-ended proposals.
+
+  - type: markdown
+    attributes:
+      value: |
+        **This is a tracking issue.** Do not PR against it. Pick a linked sub-issue instead. This issue will not appear in the public `help wanted` list.
+
+        Add sub-issues via GitHub's native **Sub-issues** panel on the issue sidebar after creating this epic.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Primary component
+      description: Which subsystem is this epic primarily about? For cross-cutting epics, pick the largest surface area.
+      options:
+        - Agents / Nodes
+        - Tools
+        - LLM Providers
+        - Middleware
+        - Guardrails
+        - RAG / Retrieval
+        - Prebuilt Add-ons
+        - Human-in-the-loop
+        - Observability / Visualizer
+        - MCP Integration
+        - Evaluations
+        - Cross-cutting / Multiple
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One sentence. What does "done" look like?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & design notes
+      description: What's in, what's out, key design decisions. Link the design doc if there is one.
+    validations:
+      required: true

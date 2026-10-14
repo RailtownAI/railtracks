@@ -35,9 +35,9 @@ async def test_input_guard_exception_blocks_the_call_by_default(mock_llm):
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingInputGuard(fail_open=False)],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="hi")
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("fail_closed_input", Agent).ainvoke(user_input="hi")
 
 
 @pytest.mark.asyncio
@@ -47,8 +47,8 @@ async def test_input_guard_exception_does_not_block_the_call_when_fail_open(mock
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingInputGuard(fail_open=True)],
     )
-    with rt.Session():
-        result = await rt.call(Agent, user_input="hi")
+
+    result = await rt.Flow("fail_open_input", Agent).ainvoke(user_input="hi")
 
     assert isinstance(result, StringResponse)
     assert "ok" in result.text
@@ -61,9 +61,9 @@ async def test_output_guard_exception_blocks_the_call_by_default(mock_llm):
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingOutputGuard(fail_open=False)],
     )
-    with rt.Session():
-        with pytest.raises(GuardrailBlockedError):
-            await rt.call(Agent, user_input="hi")
+
+    with pytest.raises(GuardrailBlockedError):
+        await rt.Flow("fail_closed_output", Agent).ainvoke(user_input="hi")
 
 
 @pytest.mark.asyncio
@@ -73,8 +73,8 @@ async def test_output_guard_exception_does_not_block_the_call_when_fail_open(moc
         llm=mock_llm(custom_response="ok"),
         model_middleware=[RaisingOutputGuard(fail_open=True)],
     )
-    with rt.Session():
-        result = await rt.call(Agent, user_input="hi")
+
+    result = await rt.Flow("fail_open_output", Agent).ainvoke(user_input="hi")
 
     assert isinstance(result, StringResponse)
     assert "ok" in result.text

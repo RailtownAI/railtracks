@@ -78,8 +78,9 @@ async def test_add_nums_tool(mcp_server):
     server = connect_mcp(MCPHttpParams(url=f"http://127.0.0.1:{FAST_MCP_PORT}/mcp"))
     assert len(server.tools) == 1
 
-    with rt.Session(timeout=1000):
-        response = await rt.call(server.tools[0], num1=1, num2=3, print_s="Hello")
+    response = await rt.Flow(
+        "test_add_nums_tool", server.tools[0], timeout=1000
+    ).ainvoke(num1=1, num2=3, print_s="Hello")
 
     print(response.content)
     assert response.content[0].text == "14", (

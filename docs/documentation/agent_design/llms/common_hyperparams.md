@@ -18,11 +18,37 @@ controlling sampling, output length, and reasoning behavior.
 --8<-- "docs/scripts/documentation/common_hyperparams.py:basic_usage"
 ```
 
+This sampling example deliberately uses [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), a non-reasoning model. Its `temperature` controls sampling; [OpenAI recommends adjusting either `temperature` or `top_p`, rather than both](https://developers.openai.com/api/reference/resources/chat). Check model-specific support before copying these settings to a reasoning model.
+
 `reasoning_effort` accepts one of `"minimal"`, `"low"`, `"medium"`, `"high"`:
 
 ```python
 --8<-- "docs/scripts/documentation/common_hyperparams.py:reasoning_effort"
 ```
+
+## Accessing the reasoning a model returned
+
+Reasoning-capable providers (Anthropic, DeepSeek, Gemini, OpenAI in part) can return
+their intermediate "thinking" alongside the answer. When they do, railtracks surfaces it
+on the response so you never have to reach into provider internals:
+
+```python
+response = await model.achat(history)
+
+print(response.reasoning)              # human-readable reasoning text, or None
+print(response.message.reasoning_content)  # same text, on the message
+print(response.message.thinking_blocks)    # structured, signed blocks (or None)
+```
+
+- `response.reasoning` (and `response.message.reasoning_content`) is the plain-text
+  reasoning: `None` when the model returned none (a non-reasoning model, or one not
+  asked to expose its thinking).
+- `response.message.thinking_blocks` holds the structured blocks, including any provider
+  signatures. Because reasoning lives on the assistant *message*, it travels with the
+  message in history and is included when the run graph is serialized.
+
+Streaming works the same way: the reasoning is accumulated and attached to the final
+`Response` yielded by `astream_*` (reasoning is not emitted as separate stream chunks).
 
 ## Not every model supports every hyperparameter
 

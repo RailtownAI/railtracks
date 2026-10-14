@@ -22,7 +22,7 @@ class ContextInjection(ModelMiddleware):
 
         rt.agent_node(
             "Agent",
-            llm=rt.llm.OpenAILLM(model_name="gpt-4o"),
+            llm=rt.llm.OpenAILLM(model_name="gpt-6-luna"),
             system_message="You are helping {user_name}.",
             model_middleware=[middleware.ContextInjection()],
         )

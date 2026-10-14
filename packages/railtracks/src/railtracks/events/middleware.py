@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from railtracks.llm.message import Message
     from railtracks.llm.response import Response
     from railtracks.llm.tools.tool import Tool
+    from railtracks.middleware.verdict import VerifierDecision
 
 
 @dataclass(kw_only=True)
@@ -236,3 +237,51 @@ class MiddlewareModelResponseEvent(MiddlewareModelEventBase):
 class MiddlewareModelFailureEvent(MiddlewareModelEventBase, FailureMixin):
     def event_type(self) -> str:
         return "middleware.model.failure"
+
+
+@dataclass(kw_only=True)
+class MiddlewareVerifierPreInvocationEvent(MiddlewareRegularEventBase):
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
+
+    def event_type(self) -> str:
+        return "middleware.verifier.pre.invocation"
+
+
+@dataclass(kw_only=True)
+class MiddlewareVerifierPreResponseEvent(MiddlewareRegularEventBase):
+    decision: VerifierDecision
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
+
+    def event_type(self) -> str:
+        return "middleware.verifier.pre.response"
+
+
+@dataclass(kw_only=True)
+class MiddlewareVerifierPreFailureEvent(MiddlewareRegularEventBase, FailureMixin):
+    def event_type(self) -> str:
+        return "middleware.verifier.pre.failure"
+
+
+@dataclass(kw_only=True)
+class MiddlewareVerifierPostInvocationEvent(MiddlewareRegularEventBase):
+    response: Any
+
+    def event_type(self) -> str:
+        return "middleware.verifier.post.invocation"
+
+
+@dataclass(kw_only=True)
+class MiddlewareVerifierPostResponseEvent(MiddlewareRegularEventBase):
+    decision: VerifierDecision
+    response: Any
+
+    def event_type(self) -> str:
+        return "middleware.verifier.post.response"
+
+
+@dataclass(kw_only=True)
+class MiddlewareVerifierPostFailureEvent(MiddlewareRegularEventBase, FailureMixin):
+    def event_type(self) -> str:
+        return "middleware.verifier.post.failure"

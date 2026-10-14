@@ -35,7 +35,7 @@ class ProviderLLMWrapper(LiteLLMWrapper, ABC):
 
         Args:
             model_name (str): Name of the model to use, with or without the provider
-                prefix (e.g. "gpt-4o" or "openai/gpt-4o").
+                prefix (e.g. "gpt-4.1" or "openai/gpt-4.1").
             stream (bool): Whether to stream the response.
             api_base (str | None, optional): Override the provider's API base URL.
             api_key (str | None, optional): Override the provider's API key.

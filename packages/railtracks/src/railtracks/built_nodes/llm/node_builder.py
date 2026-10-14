@@ -5,21 +5,18 @@ from typing import Generic, Iterable, Type, TypeVar, Union, cast, overload
 
 from pydantic import BaseModel
 
-from railtracks.built_nodes._node_builder import NodeBuilder, unpack
+from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes._types import ModelSource
-from railtracks.llm import Parameter, SystemMessage, Tool
+from railtracks.llm import Parameter, SystemMessage
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.middleware import ModelMiddleware
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
-from railtracks.validation.node_creation.validation import (
-    _check_duplicate_param_names,
-    _check_duplicate_tool_names,
-    _check_tool_params_and_details,
-)
+from railtracks.validation.node_creation.validation import _check_duplicate_tool_names
 
-from .llm_helpers import llm_invoke_factory, llm_prepare_called_as_tool_factory
+from ._agent_tool import agent_tool_arguments, agent_tool_info
+from .llm_helpers import llm_invoke_factory
 from .response import StringResponse, StructuredResponse
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
@@ -88,12 +85,14 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
         casted_instance._node_name = name
         casted_instance._node_class = "Agent"
 
+        # Middleware are shared policy objects, not per-node payload state: a
+        # MaxCalls budget or a Lock handed to two agents must be the same object
+        # in both, and must stay the instance the caller still holds. Only the
+        # list is copied.
         unwrapped_model_middleware: list[ModelMiddleware] = (
-            list(deepcopy(model_middleware)) if model_middleware is not None else []
+            list(model_middleware) if model_middleware is not None else []
         )
-        unwrapped_middleware = (
-            list(deepcopy(middleware)) if middleware is not None else []
-        )
+        unwrapped_middleware = list(middleware) if middleware is not None else []
 
         tool_nodes = list(deepcopy(connected_nodes)) if connected_nodes else None
         _check_duplicate_tool_names(tool_nodes)
@@ -107,36 +106,15 @@ class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):
             schema=schema,
         )
 
-        if tool_details is not None:
-            tool = cls._prepare_llm_tool(
-                name=name, tool_details=tool_details, tool_params=tool_params
-            )
-
-            casted_instance._tool_info = lambda: tool
-            casted_instance._prepare_arguments = lambda **kwargs: {
-                "user_input": llm_prepare_called_as_tool_factory(unpack(tool_params))(
-                    **kwargs
-                )
-            }
+        casted_instance._tool_info = agent_tool_info(
+            agent_name=name,
+            system_message=system_message,
+            tool_details=tool_details,
+            tool_params=tool_params,
+        )
+        casted_instance._prepare_arguments = agent_tool_arguments(tool_params)
 
         casted_instance._user_middleware = unwrapped_middleware
         casted_instance._user_model_middleware = unwrapped_model_middleware
 
         return casted_instance
-
-    @classmethod
-    def _prepare_llm_tool(
-        cls, name: str, tool_details: str, tool_params: list[Parameter] | None = None
-    ):
-        _check_tool_params_and_details(tool_params, tool_details)
-        _check_duplicate_param_names(tool_params or [])
-
-        name = name.replace(" ", "_")
-
-        tool = Tool(
-            name=name,
-            detail=tool_details,
-            parameters=tool_params,
-        )
-
-        return tool

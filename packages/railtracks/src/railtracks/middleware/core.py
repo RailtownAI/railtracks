@@ -13,12 +13,32 @@ from typing import (
     overload,
 )
 
+from typing_extensions import TypeVar as TypeVarWithDefault
+
 from railtracks.events.middleware import MiddlewareCreationEvent
 from railtracks.events.send import emit
 from railtracks.utils.logging.create import get_rt_logger
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+_SignatureOutput = TypeVar("_SignatureOutput", covariant=True)
+
+
+class _MiddlewareSignature(Generic[_P, _SignatureOutput]):
+    """Carry a middleware's callable constraints through collection inference.
+
+    The output is covariant so ``Never`` can represent an unconstrained output,
+    as needed by middleware that only inspects call arguments.
+    """
+
+
+# The default preserves the public two-parameter ``Middleware[P, R]`` form while
+# allowing slot-agnostic middleware to opt out with a third argument of ``Never``.
+_Constraint = TypeVarWithDefault(
+    "_Constraint",
+    covariant=True,
+    default=_MiddlewareSignature[_P, _R],
+)
 
 
 def _require_callable(fn: Callable, role: str) -> None:
@@ -37,7 +57,7 @@ def _require_async(fn: Callable, role: str) -> None:
 logger = get_rt_logger(__name__)
 
 
-class Middleware(Generic[_P, _R]):
+class Middleware(Generic[_P, _R, _Constraint]):
     """Execution-control middleware: wraps a callable to control how it is invoked.
 
     Built from an async call-style function ``fn(call, *args, **kwargs)`` where
@@ -62,7 +82,10 @@ class Middleware(Generic[_P, _R]):
     ) -> None:
         _require_async(fn, "Middleware function")
         self._fn = fn
-        self.name = name if name is not None else fn.__name__
+        if name is None:
+            bound_to_self = getattr(fn, "__self__", None) is self
+            name = type(self).__name__ if bound_to_self else fn.__name__
+        self.name = name
         self.type_id = str(
             uuid.uuid4()
         )  # identifies this middleware definition, shared by every invocation

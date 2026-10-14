@@ -2,7 +2,7 @@
 #   Copyright (c) Railtown AI. All rights reserved.
 #   Licensed under the MIT License. See LICENSE in project root for information.
 #   -------------------------------------------------------------
-"""The Railtracks Framework for building resilient agentic systems in simple python"""
+"""Build agents and harnesses in plain Python: the loop, tools, context, and controls around an LLM"""
 
 from __future__ import annotations
 
@@ -17,8 +17,6 @@ if TYPE_CHECKING:
     from railtracks.interaction import interactive as interactive
 
 __all__ = [
-    "Session",
-    "session",
     "call",
     "astream",
     "broadcast",
@@ -49,8 +47,11 @@ __all__ = [
     "NodeMessageHistory",
     "enable_logging",
     "wrap_node",
+    "post_node",
     "after_node",
     "couple",
+    "pre_llm",
+    "post_llm",
     "before_llm",
     "after_llm",
     "wrap_llm",
@@ -76,13 +77,22 @@ from . import (
     prebuilt,
     retrieval,
 )
-from ._session import Session, session
-from .built_nodes.llm.middleware import after_llm, before_llm, wrap_llm
+
+# Reachable for existing code, but out of __all__: the entry point is rt.Flow
+from ._session import Session as Session
+from ._session import session as session
+from .built_nodes.llm.middleware import (
+    after_llm,
+    before_llm,
+    post_llm,
+    pre_llm,
+    wrap_llm,
+)
 from .context.central import session_id, set_config
 from .guardrails import input_guard, output_guard
 from .interaction import astream, broadcast, call, call_batch, couple
 from .llm.context_injection_utils import escape_braces
-from .middleware import after_node, wrap_node
+from .middleware import after_node, post_node, wrap_node
 from .nodes.manifest import ToolManifest
 from .orchestration.connection import FlowConnection, NodeMessageHistory
 from .orchestration.flow import Flow
@@ -125,5 +135,5 @@ def __getattr__(name: str):
 
 
 def __dir__() -> list[str]:
-    # "interactive" is not in __all__ but is still reachable
-    return sorted({*__all__, "interactive"})
+    # Reachable but out of __all__, so pdoc does not advertise them
+    return sorted({*__all__, "interactive", "Session", "session"})

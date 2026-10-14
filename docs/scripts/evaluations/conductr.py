@@ -46,7 +46,7 @@ results = evals.evaluate(
 import railtracks
 SomeAgent = railtracks.agent_node(
     name="Some Agent",
-    llm=railtracks.llm.OpenAILLM("gpt-4o"),
+    llm=railtracks.llm.OpenAILLM("gpt-6-luna"),
 )
 
 # --8<-- [start: send_runs]

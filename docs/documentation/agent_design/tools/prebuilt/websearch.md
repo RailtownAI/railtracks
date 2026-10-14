@@ -3,6 +3,17 @@
 A common need for an agent is to look things up on the live web. Railtracks provides a built-in web search tool you can drop into your agent right away.
 
 ## Usage
+
+The default web-search backends rely on optional dependencies in the `websearch` extra, so install it before constructing `WebSearchToolSet`:
+
+```bash
+pip install "railtracks[websearch]"
+# or
+uv pip install "railtracks[websearch]"
+```
+
+This installs the default search and fetch dependencies (`tavily-python`, `httpx`, and `trafilatura`). Even if you swap in another backend such as `BraveSearch`, the fetch side still relies on the same HTTP/text-extraction packages, so the extra is still required.
+
 Adding the web search tool to your agent is super easy.
 
 ```python

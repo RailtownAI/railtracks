@@ -59,10 +59,11 @@ async def test_structured_llm_run_with_different_inputs(
         output_schema=simple_output_model,
     )
 
-    with rt.Session():
-        user_input = user_input_factory()
-        response = await rt.call(simple_agent, user_input=user_input)
+    user_input = user_input_factory()
+    response = await rt.Flow(
+        "test_structured_llm_run_with_different_inputs", simple_agent
+    ).ainvoke(user_input)
 
-        assert isinstance(response.content, simple_output_model)
-        assert isinstance(response.content.text, str)
-        assert isinstance(response.content.number, int)
+    assert isinstance(response.content, simple_output_model)
+    assert isinstance(response.content.text, str)
+    assert isinstance(response.content.number, int)

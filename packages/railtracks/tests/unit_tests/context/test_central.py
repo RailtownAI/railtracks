@@ -329,17 +329,3 @@ def test_captured_scope_after_llm_call_carries_no_llm_id():
 
 
 # ============ END ContextVarScopeManager Tests ===============
-
-
-# ============ START External Context Access Tests ===============
-def test_get_and_put(monkeypatch, make_runner_context_vars, make_external_context_mock):
-    ec = make_external_context_mock()
-    rt = make_runner_context_vars(external_context=ec)
-    monkeypatch.setattr(central, "safe_get_runner_context", mock.Mock(return_value=rt))
-    assert central.get("foo") == "bar"
-    assert central.get("notfound", default=123) == 123
-    central.put("baz", 42)
-    ec.put.assert_called_with("baz", 42)
-
-
-# ============ END External Context Access Tests ===============

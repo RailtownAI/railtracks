@@ -36,7 +36,18 @@ def _normalize_param_type_scalar(
     if isinstance(param_type, ParameterType):
         return param_type.value
     if isinstance(param_type, type):
-        return ParameterType.from_python_type(param_type).value
+        mapped = ParameterType.from_python_type(param_type)
+        if mapped == ParameterType.OBJECT and param_type is not dict:
+            raise ValueError(f"Unmapped Python type: {param_type}")
+        return mapped.value
+    if isinstance(param_type, str):
+        if param_type == "none":
+            return ParameterType.NONE.value
+        valid_schema_types = {pt.value for pt in ParameterType}
+        if param_type not in valid_schema_types:
+            raise ValueError(
+                f"Unrecognized schema parameter type: '{param_type}'. Must be one of {valid_schema_types}"
+            )
     return param_type
 
 
@@ -87,11 +98,22 @@ class Parameter(ABC):
         self.default_present = default_present
         if param_type is not None:
             if isinstance(param_type, list):
-                self.param_type = [
-                    _normalize_param_type_scalar(pt) for pt in param_type
-                ]
+                normalized = []
+                for pt in param_type:
+                    try:
+                        normalized.append(_normalize_param_type_scalar(pt))
+                    except ValueError as exc:
+                        raise ValueError(
+                            f"Invalid param_type for parameter '{name}': {exc}"
+                        ) from exc
+                self.param_type = normalized
             else:
-                self.param_type = _normalize_param_type_scalar(param_type)
+                try:
+                    self.param_type = _normalize_param_type_scalar(param_type)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Invalid param_type for parameter '{name}': {exc}"
+                    ) from exc
         elif hasattr(self, "param_type") and self.param_type is None:
             self.param_type = None
 
@@ -116,7 +138,7 @@ class Parameter(ABC):
         # default can be None, 0, False; None means optional parameter
         if self.default_present:
             schema_dict["default"] = self.default
-        elif isinstance(self.param_type, list) and "none" in self.param_type:
+        elif isinstance(self.param_type, list) and "null" in self.param_type:
             schema_dict["default"] = None
 
         return schema_dict

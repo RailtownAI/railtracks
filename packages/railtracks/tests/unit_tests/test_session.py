@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
+import railtracks as rt
 from railtracks import Session, session
 
 
@@ -555,3 +556,15 @@ async def test_session_decorator_handles_tuple_returns(
 
 
 # ================ END Session: Decorator Tests ===============
+
+
+# ================= START Session: Public Surface ============
+@pytest.mark.parametrize("name", ["Session", "session"])
+def test_session_names_are_not_advertised_but_stay_reachable(name):
+    """Out of __all__ so pdoc does not advertise them; still importable so existing code works."""
+    assert name not in rt.__all__
+    assert hasattr(rt, name)
+    assert name in dir(rt)
+
+
+# ================ END Session: Public Surface ===============

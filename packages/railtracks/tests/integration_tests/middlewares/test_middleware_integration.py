@@ -6,7 +6,7 @@ import pytest
 import railtracks as rt
 from jsonschema import validate
 from pydantic import BaseModel, Field
-from railtracks.built_nodes.llm.middleware import before_llm
+from railtracks.built_nodes.llm.middleware import pre_llm
 from railtracks.exceptions.errors import LLMError
 from railtracks.guardrails.core import (
     GuardrailBlockedError,
@@ -678,7 +678,7 @@ class TestGuardrailsEndToEnd:
                 trace.append("output")
                 return GuardrailDecision.allow()
 
-        @before_llm
+        @pre_llm
         async def plain_tracer(message_history, schema, tools):
             trace.append("plain")
             return message_history, schema, tools
@@ -1090,11 +1090,16 @@ class TestConcurrencyAndRetryInterplay:
             await asyncio.sleep(0.01 if tag == 0 else 0)
             return tag
 
-        with rt.Session():
-            results = await asyncio.gather(
+        @rt.function_node
+        async def entry():
+            return await asyncio.gather(
                 rt.call(slow_identity, 0),
                 rt.call(slow_identity, 1),
             )
+
+        results = await rt.Flow(
+            "test_concurrent_invocations_do_not_leak_state", entry
+        ).ainvoke()
 
         assert sorted(results) == [0, 1]
         assert order.count("start-0") == 1
@@ -1154,7 +1159,8 @@ class TestSessionPersistence:
             "PersistAgent", llm=mock_llm(custom_response="ok"), middleware=[tracer]
         )
 
-        with rt.Session() as session:
-            await rt.call(agent, user_input="hi")
+        flow = rt.Flow("PersistAgent", agent)
+        conn = flow.connect()
+        await conn.ainvoke("hi")
 
-        validate(session.payload(), json_state_schema)
+        validate(conn.session.payload(), json_state_schema)

@@ -1,6 +1,11 @@
-class RTLLMError(Exception):
-    """
-    A simple base class for all LLM Exceptions to inherit from.
+from __future__ import annotations
+
+
+class _ColoredError:
+    """Terminal colouring shared by this package's error roots.
+
+    Not an ``Exception`` subclass, so mixing it in does not give the roots a common
+    ancestor.
     """
 
     # ANSI color codes for terminal output
@@ -16,7 +21,32 @@ class RTLLMError(Exception):
         return f"{color_code}{text}{cls.RESET}"
 
 
-class RetryError(RTLLMError):
+class ProviderError(_ColoredError, Exception):
+    """
+    Base class for failures that happen while talking to a model provider.
+
+    Covers the model misbehaving, an unknown model, and exhausted retries. Errors about
+    *defining* a tool are a separate root -- see
+    :class:`railtracks.llm.tools.tool.ToolCreationError`.
+
+    Raised only by direct model calls. Inside a node these surface as
+    :class:`railtracks.exceptions.LLMError`.
+    """
+
+
+class ProviderTimeoutError(ProviderError):
+    """The provider did not answer in time."""
+
+
+class ProviderRateLimitError(ProviderError):
+    """The provider rejected the call for rate/quota reasons."""
+
+
+class ProviderAuthenticationError(ProviderError):
+    """The provider rejected the credentials. Retrying will not help."""
+
+
+class RetryError(ProviderError):
     """
     Raised when an error occurs during an LLM call that is being retried.
     """

@@ -1038,6 +1038,11 @@ template {
     word-wrap: break-word;
 }
 
+/* Messages rendered as plain text keep their line breaks without markup. */
+.message-text.plain-text {
+    white-space: pre-wrap;
+}
+
 /* Upload modal visibility states */
 .upload-modal.modal-visible {
     display: flex;

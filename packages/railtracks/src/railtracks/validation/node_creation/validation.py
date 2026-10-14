@@ -10,13 +10,14 @@ from railtracks.exceptions.messages.exception_messages import (
 )
 from railtracks.llm import Parameter, SystemMessage
 from railtracks.llm.tools.parameters import ParameterType
+from railtracks.llm.tools.typing_utils import resolve_type_hints
 from railtracks.utils.logging import get_rt_logger
 
 # Global logger for validation
 logger = get_rt_logger(__name__)
 
 
-def validate_function(func: Callable) -> None:
+def validate_function(func: Callable[..., Any]) -> None:
     """
     Validate that the function is safe to use in a node.
     If there are any dict or Dict parameters, raise an error.
@@ -268,6 +269,26 @@ def _check_tool_params_and_details(tool_params: Any, tool_details: Any) -> None:
         )
 
 
+def _check_manifest_description(tool_details: str, agent_name: str) -> None:
+    """
+    Ensure an agent's ToolManifest has a description that is not blank.
+
+    Args:
+        tool_details: The description from the agent's ToolManifest.
+        agent_name: The name of the agent the manifest belongs to.
+
+    Raises:
+        NodeCreationError: If the description is empty or only whitespace.
+    """
+    if not tool_details.strip():
+        raise NodeCreationError(
+            get_message(ExceptionMessageKey.BLANK_MANIFEST_DESCRIPTION_MSG).format(
+                agent_name=agent_name
+            ),
+            notes=get_notes(ExceptionMessageKey.BLANK_MANIFEST_DESCRIPTION_NOTES),
+        )
+
+
 def validate_tool_metadata(
     tool_params: Any,
     tool_details: Any,
@@ -295,55 +316,36 @@ def validate_tool_metadata(
 # ================================================ END Common Validation accross easy_usage_wrappers ===========================================================
 
 
-# ================================================================= START Tool init error ===========================================================
-def validate_tool_params(parameters: Any, param_type) -> bool:
-    if not (isinstance(parameters, (set, dict)) or parameters is None):
+# ============================================================== START Tool Manifest Verification ===========================================================
+def _check_type_compatibility(
+    param_name: str,
+    func_param: inspect.Parameter,
+    manifest_param_type: ParameterType,
+    resolved_types: Dict[str, Any],
+) -> None:
+    base_annotation = func_param.annotation
+    annotation = (
+        resolved_types.get(param_name, base_annotation)
+        if isinstance(base_annotation, str)
+        else base_annotation
+    )
+    inferred = ParameterType.from_python_type(annotation)
+
+    if inferred == ParameterType.OBJECT and annotation is not dict:
+        return  # inference is unreliable here, trust the manifest
+
+    if inferred != manifest_param_type:
         raise NodeCreationError(
-            message=get_message(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_MSG),
-            notes=get_notes(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_NOTES),
+            message=f"Type mismatch for parameter '{param_name}': function expects '{inferred}', but manifest specifies '{manifest_param_type}'.",
+            notes=[
+                "Ensure the parameter types in the tool manifest match the function signature.",
+                "Refer to the ParameterType enum for valid types.",
+            ],
         )
 
-    if isinstance(parameters, dict) and len(parameters) > 0:
-        try:
-            assert "type" in parameters, (
-                "A 'type' key must be provided in the JSON-output_schema."
-            )
-            assert parameters["type"] == "object", (
-                "The outer-most 'type' must be 'object' in the JSON-output_schema."
-            )
-            assert "additionalProperties" in parameters, (
-                "The 'additionalProperties' key must be present and set to False."
-            )
-            assert not parameters["additionalProperties"], (
-                "The 'additionalProperties' must be set to False in the JSON-output_schema."
-            )
-            assert "properties" in parameters, (
-                "A 'properties' key must be provided in the JSON-output_schema."
-            )
-        except AssertionError as e:
-            raise NodeCreationError(
-                message=get_message(
-                    ExceptionMessageKey.TOOL_PARAMETERS_FROM_SCHEMA_FAILED_MSG
-                ).format(reason=str(e)),
-                notes=get_notes(ExceptionMessageKey.TOOL_PARAMETERS_TYPE_NOTES),
-            ) from e
 
-    elif isinstance(parameters, set):
-        if not all(isinstance(x, param_type) for x in parameters):
-            raise NodeCreationError(
-                message=ExceptionMessageKey.PARAMETER_SET_CONTAINS_INVALID_TYPE_MSG,
-                notes=ExceptionMessageKey.PARAMETER_SET_CONTAINS_INVALID_TYPE_NOTES,
-            )
-
-    return True
-
-
-# ================================================================== END Tool init error ===========================================================
-
-
-# ============================================================== START Tool Manifest Verification ===========================================================
 def _check_manifest_params_exist_in_function(
-    func_params: dict, manifest_params: dict
+    func_params: dict, manifest_params: dict, resolved_types: dict
 ) -> None:
     """Check that all manifest parameters exist in function signature."""
     for param_name in manifest_params:
@@ -355,21 +357,16 @@ def _check_manifest_params_exist_in_function(
                     "Remove the extra parameter from the tool manifest or add it to the function signature.",
                 ],
             )
-        if (
-            ParameterType.from_python_type(func_params[param_name].annotation)
-            != manifest_params[param_name]
-        ):
-            raise NodeCreationError(
-                message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
-                notes=[
-                    "Ensure the parameter types in the tool manifest match the function signature.",
-                    "Refer to the ParameterType enum for valid types.",
-                ],
-            )
+        _check_type_compatibility(
+            param_name,
+            func_params[param_name],
+            manifest_params[param_name],
+            resolved_types,
+        )
 
 
 def _check_required_params_in_manifest(
-    func_params: dict, manifest_params: dict
+    func_params: dict, manifest_params: dict, resolved_types: dict
 ) -> None:
     """Check that required function parameters are present in manifest."""
     for param_name, func_param in func_params.items():
@@ -382,21 +379,13 @@ def _check_required_params_in_manifest(
                         "All required function parameters must be included in the manifest.",
                     ],
                 )
-            if (
-                ParameterType.from_python_type(func_params[param_name].annotation)
-                != manifest_params[param_name]
-            ):
-                raise NodeCreationError(
-                    message=f"Type mismatch for parameter '{param_name}': function expects '{ParameterType.from_python_type(func_params[param_name].annotation)}', but manifest specifies '{manifest_params[param_name]}'.",
-                    notes=[
-                        "Ensure the parameter types in the tool manifest match the function signature.",
-                        "Refer to the ParameterType enum for valid types.",
-                    ],
-                )
+            _check_type_compatibility(
+                param_name, func_param, manifest_params[param_name], resolved_types
+            )
 
 
 def validate_tool_manifest_against_function(
-    func: Callable, manifest_params: Iterable[Parameter] | None
+    func: Callable[..., Any], manifest_params: Iterable[Parameter] | None
 ) -> None:
     """
     Validate that tool manifest parameters are compatible with function signature.
@@ -419,6 +408,8 @@ def validate_tool_manifest_against_function(
     except ValueError:
         # For builtin functions, we can't validate - trust the user
         return
+
+    resolved_types = resolve_type_hints(func, sig, warn_on_error=False)
 
     # Get function parameters (excluding 'self' and 'cls' for methods)
     func_params = {}
@@ -449,8 +440,10 @@ def validate_tool_manifest_against_function(
     manifest_param_dict = {p.name: p.param_type for p in manifest_params}
 
     # Perform all validation checks
-    _check_manifest_params_exist_in_function(func_params, manifest_param_dict)
-    _check_required_params_in_manifest(func_params, manifest_param_dict)
+    _check_manifest_params_exist_in_function(
+        func_params, manifest_param_dict, resolved_types
+    )
+    _check_required_params_in_manifest(func_params, manifest_param_dict, resolved_types)
 
 
 # ============================================================== END Tool Manifest Verification ===========================================================

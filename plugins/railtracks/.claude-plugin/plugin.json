@@ -1,0 +1,8 @@
+{
+  "name": "railtracks",
+  "displayName": "Railtracks",
+  "description": "Accurate, up-to-date guidance for building agents, tools, flows, middleware, and RAG pipelines with Railtracks",
+  "author": { "name": "Railtracks team" },
+  "homepage": "https://docs.railtracks.org/",
+  "repository": "https://github.com/RailtownAI/railtracks"
+}

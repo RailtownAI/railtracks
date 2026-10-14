@@ -1,6 +1,6 @@
 # Guardrails Overview
 
-Guardrails are a policy layer around agent execution. They inspect requests before they reach a model and responses before they are returned, letting you enforce rules for safety, reliability, and product behavior.
+Guardrails are a policy layer around agent execution, implemented as [model middleware](../overview.md#model-middleware). They inspect requests before they reach a model and responses before they are returned, letting you enforce rules for safety, reliability, and product behavior.
 
 Guardrails aren't just about blocking unsafe content. They can also:
 
@@ -21,7 +21,7 @@ Railtracks organizes guardrails into 2 categories:
 Guardrails are model middleware, so you attach them on the `model_middleware=` slot just like any other middleware:
 
 ```python
-agent = rt.agent_node(..., model_middleware=[my_input_guard, my_output_guard])
+GuardedAgent = rt.agent_node(..., model_middleware=[my_input_guard, my_output_guard])
 ```
 
 See [Attaching Middleware](../overview.md#attaching-middleware) for creation-time vs. after-creation attachment and ordering.
