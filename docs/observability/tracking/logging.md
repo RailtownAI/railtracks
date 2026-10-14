@@ -40,7 +40,7 @@ With logging enabled, each run prints as an indented tree built from the run's e
 
 Only `DEBUG` prints user content: node arguments and responses, the run's result, and guardrail reasons. `INFO` and above show names, timings, models, token counts, costs, and failures, so turning logging on doesn't put your users' conversations in your logs.
 
-When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`. Branches of the same node are numbered, as in `double_count #2 › ↳ count_chars`.
+When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`.
 
 In a Jupyter notebook the run view prints into the cell's output as one block, and frames from notebook code show as `<cell>`.
 

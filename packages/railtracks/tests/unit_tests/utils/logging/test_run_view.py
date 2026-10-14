@@ -504,35 +504,6 @@ def test_siblings_running_at_once_name_their_branch(output, level):
     ]
 
 
-def test_same_named_siblings_running_at_once_are_numbered(output, level):
-    """A node fanned out over two inputs runs as two branches with the same name."""
-    first, second = "node-first", "node-second"
-    _feed(
-        RunView(),
-        _started(),
-        _node_started(ENTRY, "Fan Out", caller=None),
-        _node_started(first, "double_count", caller=ENTRY),
-        _node_started(second, "double_count", caller=ENTRY),
-        _node_started("node-tool-1", "count_chars", caller=first),
-        _node_started("node-tool-2", "count_chars", caller=second),
-        _node_done("node-tool-1"),
-        _node_done("node-tool-2"),
-        _node_done(first),
-        _node_done(second),
-    )
-
-    assert _lines(output)[2:] == [
-        "    ↳ double_count",
-        "    ↳ double_count #2",
-        "      double_count #1 › ↳ count_chars",
-        "      double_count #2 › ↳ count_chars",
-        "      double_count #1 › ✓ count_chars 0.250s",
-        "      double_count #2 › ✓ count_chars 0.250s",
-        "    ✓ double_count #1 0.250s",
-        "    ✓ double_count #2 0.250s",
-    ]
-
-
 def test_node_called_from_middleware_nests_under_that_middleware_node(output, level):
     view = RunView()
     _feed(

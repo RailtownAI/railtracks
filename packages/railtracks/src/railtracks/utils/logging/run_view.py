@@ -44,8 +44,6 @@ class _Node:
     # the node that called it; None for the entry point
     parent: str | None = None
     depth: int = 1
-    # which of its caller's calls to this name it is, from 1
-    number: int = 1
     # ran alongside a sibling; lines inside it carry its name
     concurrent: bool = False
     # the failure of its latest attempt, until it runs again or ends
@@ -70,8 +68,6 @@ class _Run:
     running: set[str] = field(default_factory=set)
     # LLM and middleware invoke ids -> the node they ran in
     owners: dict[str, str] = field(default_factory=dict)
-    # (caller, node name) -> how many times that caller has called it
-    call_counts: dict[tuple[str | None, str], int] = field(default_factory=dict)
     # what the entry point returned, shown under the run's closing line
     result: str | None = None
     # set once a node fails in a way that stops the run
@@ -127,7 +123,7 @@ class RunView:
             prefix.append("  " * line.depth)
             branch = _branch(run, line.within)
             if branch is not None:
-                prefix.append(f"{_label(run, branch)} › ", "dim")
+                prefix.append(f"{branch.name} › ", "dim")
             console.print(prefix + line.text, soft_wrap=True)
             pad = " " * (len(prefix.plain) + 2)
             for detail in line.detail:
@@ -184,14 +180,11 @@ def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
 
 
 def _place(run: _Run, node: _Node, payload: dict[str, Any]) -> None:
-    """Fixes where a node sits under its caller, and which of the caller's calls it is."""
+    """Fixes where a node sits under its caller."""
     node.placed = True
     node.parent = _caller(run, payload)
     caller = run.nodes.get(node.parent) if node.parent else None
     node.depth = caller.depth + 1 if caller is not None else 1
-    key = (node.parent, node.name)
-    run.call_counts[key] = run.call_counts.get(key, 0) + 1
-    node.number = run.call_counts[key]
 
 
 def _mark_concurrent_siblings(run: _Run, node: _Node) -> None:
@@ -244,11 +237,11 @@ def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
     node = run.nodes[payload["parent_node_id"]]
     if node.retrying is not None:
         text = Text(
-            f"↻ {_label(run, node)} retrying after {_exception(node.retrying)}",
+            f"↻ {node.name} retrying after {_exception(node.retrying)}",
             "yellow",
         )
     else:
-        text = Text(f"↳ {_label(run, node)}")
+        text = Text(f"↳ {node.name}")
     if run.level <= logging.DEBUG:
         text.append(f" {_call_args(payload['args'], payload['kwargs'])}", "dim")
     return _Line(logging.INFO, node.depth, text, node.parent)
@@ -260,8 +253,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
     if payload.get("exception_name") is not None:
         fatal = _is_fatal(run, payload)
         text = Text(
-            f"✗ {_label(run, node)} failed: {_exception(payload)}"
-            f"{' (fatal)' if fatal else ''}",
+            f"✗ {node.name} failed: {_exception(payload)}{' (fatal)' if fatal else ''}",
             "red",
         )
         detail = _traceback_lines(
@@ -275,7 +267,7 @@ def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
             detail,
         )
     text = Text.assemble(
-        (f"✓ {_label(run, node)}", "green"),
+        (f"✓ {node.name}", "green"),
         (f" {payload['duration_seconds']:.3f}s", "dim"),
     )
     if run.level <= logging.DEBUG:
@@ -372,14 +364,6 @@ def _nested_depth(run: _Run, payload: dict[str, Any]) -> int:
         return 1
     node = run.nodes.get(owner)
     return (node.depth if node is not None else 1) + 1
-
-
-def _label(run: _Run, node: _Node) -> str:
-    """A node's name, numbered once it runs alongside siblings if its caller called
-    that name more than once, so same-named branches stay apart."""
-    if node.concurrent and run.call_counts.get((node.parent, node.name), 0) > 1:
-        return f"{node.name} #{node.number}"
-    return node.name
 
 
 def _model_name(run: _Run, payload: dict[str, Any]) -> str:
