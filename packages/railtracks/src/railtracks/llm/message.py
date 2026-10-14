@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import os
 import re
 from copy import deepcopy
@@ -13,7 +12,13 @@ from urllib.parse import urlparse
 
 from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .context_injection_utils import ValueDict, fill_template
-from .encoding import DEFAULT_MAX_DOWNLOAD_MB, detect_source, encode, ensure_data_uri
+from .encoding import (
+    DEFAULT_MAX_DOWNLOAD_MB,
+    detect_source,
+    encode,
+    ensure_data_uri,
+    validate_max_mb,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +107,7 @@ class Attachment:
             raise TypeError(
                 f"The url parameter must be a string representing a file path or URL, but got {type(url)}"
             )
-        if not 0 < attachment_max_mb < math.inf:
-            raise ValueError(
-                f"attachment_max_mb must be a positive, finite number, got {attachment_max_mb!r}."
-            )
+        validate_max_mb(attachment_max_mb, name="attachment_max_mb")
 
         match detect_source(url):
             case "local":
@@ -302,7 +304,8 @@ class UserMessage(_StringOnlyContent[Role.user]):
                     applies when `trust_urls=True`. Raise this for large PDFs
                     over slow links.
         attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
-                    Defaults to 32. Only applies when `trust_urls=True`.
+                    Must be positive and finite. Defaults to 32. Only applies
+                    when `trust_urls=True`.
     """
 
     def __init__(

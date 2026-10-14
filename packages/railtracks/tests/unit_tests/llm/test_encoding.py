@@ -1,10 +1,13 @@
 import base64
+import http.client
+import io
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 import pytest
 from railtracks.llm.attachment_formats import detect_image_mime_from_bytes
 from railtracks.llm.encoding import (
+    _READ_CHUNK_BYTES,
     _is_base64_attachment,
     detect_source,
     encode,
@@ -72,26 +75,36 @@ class TestEncode:
         with pytest.raises(ValueError, match="Path is not a file"):
             encode(str(directory))
 
-    @patch("railtracks.llm.encoding.request.urlopen")
-    def test_encode_url(self, mock_urlopen):
-        image_data = b"url image data"
-        mock_response = Mock()
-        mock_response.read.return_value = image_data
-        mock_response.__enter__ = Mock(return_value=mock_response)
-        mock_response.__exit__ = Mock(return_value=False)
-        mock_urlopen.return_value = mock_response
-
-        result = encode("https://example.com/image.png")
-        assert result == base64.b64encode(image_data).decode("utf-8")
-
     @staticmethod
     def _mock_response(mock_urlopen, body: bytes) -> Mock:
         response = Mock()
-        response.read.side_effect = lambda size=-1: body if size < 0 else body[:size]
+        response.read.side_effect = io.BytesIO(body).read
+        response.length = None
         response.__enter__ = Mock(return_value=response)
         response.__exit__ = Mock(return_value=False)
         mock_urlopen.return_value = response
         return response
+
+    @staticmethod
+    def _http_response(mock_urlopen, raw: bytes) -> http.client.HTTPResponse:
+        """A real `HTTPResponse` parsed from `raw`, read through a `BufferedReader` like a socket."""
+
+        class _Sock:
+            def makefile(self, mode: str) -> io.BufferedReader:
+                return io.BufferedReader(io.BytesIO(raw))
+
+        response = http.client.HTTPResponse(_Sock())  # type: ignore[arg-type]
+        response.begin()
+        mock_urlopen.return_value = response
+        return response
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_encode_url(self, mock_urlopen):
+        image_data = b"url image data"
+        self._mock_response(mock_urlopen, image_data)
+
+        result = encode("https://example.com/image.png")
+        assert result == base64.b64encode(image_data).decode("utf-8")
 
     @patch("railtracks.llm.encoding.request.urlopen")
     def test_url_over_size_limit_raises(self, mock_urlopen):
@@ -111,12 +124,53 @@ class TestEncode:
 
     @patch("railtracks.llm.encoding.request.urlopen")
     def test_url_read_is_bounded(self, mock_urlopen):
-        """The body is read with a size, so an endless response cannot exhaust memory."""
-        response = self._mock_response(mock_urlopen, b"%PDF-1.4")
+        """Every read passes a chunk size, so neither an endless body nor a large cap allocates up front."""
+        response = self._mock_response(mock_urlopen, b"x" * (3 * _READ_CHUNK_BYTES))
 
         encode("https://example.com/report.pdf", max_mb=1.0)
 
-        response.read.assert_called_once_with(1024 * 1024 + 1)
+        sizes = [c.args[0] for c in response.read.call_args_list]
+        assert len(sizes) > 1
+        assert all(0 < size <= _READ_CHUNK_BYTES for size in sizes)
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_url_without_content_length_and_large_cap(self, mock_urlopen):
+        """A close-delimited body under a huge cap is read without reserving the cap in memory."""
+        body = b"%PDF-1.4 tiny"
+        self._http_response(mock_urlopen, b"HTTP/1.0 200 OK\r\n\r\n" + body)
+
+        result = encode("https://example.com/report.pdf", max_mb=1_000_000)
+
+        assert base64.b64decode(result) == body
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_url_truncated_body_raises(self, mock_urlopen):
+        self._http_response(
+            mock_urlopen,
+            b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n%PDF-1.4 cut",
+        )
+
+        with pytest.raises(ValueError, match="988 bytes short of its Content-Length"):
+            encode("https://example.com/report.pdf")
+
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_url_complete_body_with_content_length(self, mock_urlopen):
+        body = b"%PDF-1.4 whole"
+        self._http_response(
+            mock_urlopen,
+            b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body,
+        )
+
+        assert base64.b64decode(encode("https://example.com/report.pdf")) == body
+
+    @pytest.mark.parametrize("max_mb", [0, -1, float("inf"), float("nan")])
+    @patch("railtracks.llm.encoding.request.urlopen")
+    def test_max_mb_must_be_positive_and_finite(self, mock_urlopen, max_mb):
+        with pytest.raises(
+            ValueError, match="max_mb must be a positive, finite number"
+        ):
+            encode("https://example.com/report.pdf", max_mb=max_mb)
+        mock_urlopen.assert_not_called()
 
     def test_local_file_is_not_size_limited(self, tmp_path):
         local = tmp_path / "big.pdf"
