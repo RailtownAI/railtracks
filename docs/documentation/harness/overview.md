@@ -12,9 +12,9 @@ Railtracks is an agent harness framework. Every part of that list is an ordinary
 |---|---|---|
 | **Loop** | When does the agent keep going, and when is it done? | [`rt.agent_node`](../agent_design/overview.md) runs the tool-calling loop; [`rt.Flow`](../invocation/flows.md) and [`rt.call`](../invocation/call.md) drive multi-step work |
 | **Tool surface** | What can the agent actually do? | [`rt.function_node`](../agent_design/tools/function_tools.md), [`rt.ToolManifest`](../agent_design/tools/agents_as_tools.md), [`rt.connect_mcp`](../agent_design/tools/mcp.md) |
-| **Context** | What does the model see on this turn? | `system_message`, [`rt.context`](../advanced/context.md), [`ToDoToolSet`](../agent_design/tools/prebuilt/todos.md), [`KeyValueMemoryToolSet`](../agent_design/tools/prebuilt/key_value_memory.md), [retrieval](../../retrieval/runtime/quickstart.md) |
+| **Context** | What does the model see on this turn? | [`system_message`](../agent_design/llms/system_messages.md), [`rt.context`](../advanced/context.md), [`ToDoToolSet`](../agent_design/tools/prebuilt/todos.md), [`KeyValueMemoryToolSet`](../agent_design/tools/prebuilt/key_value_memory.md), [retrieval](../../retrieval/runtime/quickstart.md) |
 | **Controls** | What is it allowed to do, and how much of it? | [`middleware=` / `model_middleware=`](../agent_design/middleware/overview.md): `MaxCalls`, `Timeout`, `Retry`, `Lock`, [verifiers](../agent_design/middleware/verifiers/overview.md), [guardrails](../agent_design/middleware/guardrails/overview.md) |
-| **Record** | What happened, and can I replay it? | session state, [`railtracks viz`](../../observability/agenthub/local.md), [`rt.evaluations.evaluate`](../../evaluations/quickstart.md) |
+| **Record** | What happened, and can I replay it? | the event stream, [`railtracks viz --beta`](../../observability/agenthub/local_v2.md), [`rt.evaluations.evaluate`](../../evaluations/quickstart.md) |
 
 The sections below build one harness up part by part: a repository assistant that reads code, plans its work, and runs shell commands only with permission.
 
@@ -26,7 +26,7 @@ An agent with tools is already a loop: the model proposes a tool call, the tool 
 --8<-- "docs/scripts/documentation/harness.py:loop"
 ```
 
-`rt.Flow` is the entry point that runs it: it opens a session, tracks state, and applies run-wide settings like `timeout` and `context`. Inside a node, `rt.call` invokes another node directly, which is how you nest loops (an agent that delegates to sub-agents) or write the outer loop yourself in plain Python when a tool-calling loop is the wrong shape.
+`rt.Flow` is the entry point that runs it: it starts a [run](../invocation/flows.md#run), tracks state, and applies run-wide settings like `timeout` and `context`. Inside a node, `rt.call` invokes another node directly, which is how you nest loops (an agent that delegates to sub-agents) or write the outer loop yourself in plain Python when a tool-calling loop is the wrong shape.
 
 ## 2. The tool surface
 
@@ -88,7 +88,7 @@ The general rule is to place each control at the narrowest boundary that still c
 
 ## 5. The record
 
-A harness you cannot inspect is a harness you cannot improve. Runs are recorded as session state, so `railtracks viz` replays the full request graph locally: every tool call, its arguments, token usage, and where time went. That same recorded data is what [evaluations](../../evaluations/quickstart.md) score, which is how you tell whether a prompt or tool change actually helped.
+A harness you cannot inspect is a harness you cannot improve. Every run is recorded as an event stream, so `railtracks viz --beta` replays the full request graph locally: every tool call, its arguments, token usage, middleware decisions, and where time went. That same recorded data is what [evaluations](../../evaluations/quickstart.md) score, which is how you tell whether a prompt or tool change actually helped.
 
 ```python
 --8<-- "docs/scripts/documentation/harness.py:record"
@@ -119,4 +119,4 @@ Scale the controls to the blast radius of the tools, not to the sophistication o
 - [Agent Design](../agent_design/overview.md) for the agent layer in detail.
 - [Middleware](../agent_design/middleware/overview.md) for the full control catalogue.
 - [Flows](../invocation/flows.md) for wiring multi-agent harnesses.
-- [Observability](../../observability/agenthub/local.md) for inspecting and replaying runs.
+- [Observability](../../observability/agenthub/local_v2.md) for inspecting and replaying runs.

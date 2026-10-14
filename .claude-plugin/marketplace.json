@@ -1,0 +1,12 @@
+{
+  "name": "railtracks",
+  "description": "Railtracks skills for AI coding agents",
+  "owner": { "name": "Railtracks team" },
+  "plugins": [
+    {
+      "name": "railtracks",
+      "source": "./plugins/railtracks",
+      "description": "Railtracks API guidance for agents, tools, flows, middleware, and RAG"
+    }
+  ]
+}

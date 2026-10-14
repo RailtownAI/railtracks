@@ -83,6 +83,21 @@ class FunctionCallingNotSupportedError(ModelError):
         )
 
 
+class AttachmentNotSupportedError(ModelError, ValueError):
+    """Error raised when a model cannot accept an attachment's modality.
+
+    Also a `ValueError`, matching the base wrapper's PDF-support rejection.
+    """
+
+    def __init__(self, model_name: str, mime_type: str | None, reason: str):
+        super().__init__(
+            reason=(
+                f"Model {model_name} does not accept "
+                f"{mime_type or 'this'} attachments: {reason}"
+            )
+        )
+
+
 class UnsupportedHyperparameterError(ModelError):
     """Error raised when a model does not support a given common LLM hyperparameter."""
 

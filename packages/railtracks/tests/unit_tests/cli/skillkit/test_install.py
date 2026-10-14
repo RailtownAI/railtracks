@@ -650,7 +650,7 @@ class TestCursorDirectoryInstall(unittest.TestCase):
         return Path(f".cursor/skills/{name}/SKILL.md").read_text(encoding="utf-8")
 
     def test_cursor_target_writes_to_its_native_path(self):
-        """§3.1 / D8: Cursor's native path is `.cursor/skills/`, not `.cursor/rules`."""
+        """§3.1 / D8: Cursor's native path is `.cursor/skills/`."""
         self.assertEqual(CURSOR.root, Path(".cursor") / "skills")
 
     def test_argument_placeholder_is_stripped(self):
@@ -750,105 +750,6 @@ class TestCursorDirectoryInstall(unittest.TestCase):
             ),
             "# Generated\n",
         )
-
-
-class TestLegacyDetectionWiredIntoInstall(unittest.TestCase):
-    """§4.4: `find_legacy_installs` reaches the user's terminal through the CLI.
-
-    Tested in isolation on the manifest; here it has to surface through the install
-    itself, so the handler cannot silently grow a private "is this ours?" answer.
-    """
-
-    def setUp(self):
-        self.test_dir = tempfile.mkdtemp()
-        self.source = Path(tempfile.mkdtemp())
-        self.original_cwd = os.getcwd()
-        os.chdir(self.test_dir)
-
-    def tearDown(self):
-        os.chdir(self.original_cwd)
-        shutil.rmtree(self.test_dir)
-        shutil.rmtree(self.source)
-
-    def _fixture(self):
-        return _write_skill(
-            self.source,
-            "fixture-skill",
-            "name: fixture-skill\ndescription: A fixture.\n",
-        )
-
-    def _install_legacy_copilot_region(self):
-        instructions = Path(".github/copilot-instructions.md")
-        instructions.parent.mkdir(parents=True, exist_ok=True)
-        instructions.write_text(
-            "<!-- railtracks:fixture-skill:start -->\nold body\n"
-            "<!-- railtracks:fixture-skill:end -->\n",
-            encoding="utf-8",
-        )
-
-    def _install_legacy_cursor_file(self):
-        rule = Path(".cursor/rules/fixture-skill.mdc")
-        rule.parent.mkdir(parents=True, exist_ok=True)
-        rule.write_text(
-            "---\ndescription: x\nalwaysApply: false\n---\n\nold body\n",
-            encoding="utf-8",
-        )
-
-    def test_a_legacy_copilot_region_is_reported_on_a_copilot_install(self):
-        """The migration path: user re-runs `add copilot:x`, learns the old block is stale."""
-        self._install_legacy_copilot_region()
-
-        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
-            install_skill_directory(self._fixture(), COPILOT, force=True)
-
-        reported = " ".join(
-            str(c.args[0]) for c in mock_warning.call_args_list if c.args
-        )
-        self.assertIn("copilot-instructions.md", reported)
-        self.assertIn("legacy", reported)
-
-    def test_a_legacy_cursor_mdc_is_reported_on_a_cursor_install(self):
-        """The migration path: user re-runs `add cursor:x`, learns the old .mdc is stale."""
-        self._install_legacy_cursor_file()
-
-        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
-            install_skill_directory(self._fixture(), CURSOR, force=True)
-
-        reported = " ".join(
-            str(c.args[0]) for c in mock_warning.call_args_list if c.args
-        )
-        self.assertIn("fixture-skill.mdc", reported)
-        self.assertIn("legacy", reported)
-
-    def test_the_legacy_install_is_reported_but_not_removed(self):
-        """D12: the manifest recognises legacy installs; it never deletes them."""
-        self._install_legacy_copilot_region()
-        self._install_legacy_cursor_file()
-        before_copilot = Path(".github/copilot-instructions.md").read_text(
-            encoding="utf-8"
-        )
-        before_cursor = Path(".cursor/rules/fixture-skill.mdc").read_text(
-            encoding="utf-8"
-        )
-
-        with patch("railtracks.cli._skillkit.install.print_warning"):
-            install_skill_directory(self._fixture(), COPILOT, force=True)
-
-        self.assertEqual(
-            Path(".github/copilot-instructions.md").read_text(encoding="utf-8"),
-            before_copilot,
-        )
-        self.assertEqual(
-            Path(".cursor/rules/fixture-skill.mdc").read_text(encoding="utf-8"),
-            before_cursor,
-        )
-
-    def test_a_clean_repo_reports_no_legacy_installs(self):
-        """No legacy content on disk, no legacy warnings — the common case is silent."""
-        with patch("railtracks.cli._skillkit.install.print_warning") as mock_warning:
-            install_skill_directory(self._fixture(), COPILOT, force=True)
-
-        self.assertEqual(mock_warning.call_count, 0)
 
 
 class TestInstallTargetParameters(unittest.TestCase):

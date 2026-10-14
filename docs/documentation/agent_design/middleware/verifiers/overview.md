@@ -1,6 +1,6 @@
 # Verifiers
 
-Human-in-the-loop (HIL) isn't a separate feature in Railtracks — it's `pre_verifier` and `post_verifier`, two node middleware that gate a call with any callable you provide. Where the human (or policy, or second model call) actually sits is entirely up to that callable; Railtracks only handles the gating.
+Human-in-the-loop (HIL) isn't a separate feature in Railtracks — it's `pre_verifier` and `post_verifier`, two [node middleware](../overview.md#node-middleware) that gate a call with any callable you provide. Where the human (or policy, or second model call) actually sits is entirely up to that callable; Railtracks only handles the gating.
 
 ```python
 from railtracks.prebuilt.middleware import pre_verifier, post_verifier
