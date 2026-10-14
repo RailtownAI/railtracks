@@ -53,7 +53,7 @@ A capability an agent may choose to invoke, letting it act on the world instead 
 
 <!-- tooltip: tool manifest, tool manifests -->
 
-The description an agent carries of how other agents may call it, given as `manifest=rt.ToolManifest(...)`. It is what lets an agent be used as a tool without a wrapper function. [Agents as Tools](documentation/agent_design/tools/agents_as_tools.md#2-tool-manifest)
+The description an agent carries of how other agents may call it, given as `manifest=rt.ToolManifest(...)`. It sets the description and parameters other agents see, in place of the ones generated from the agent's system message. [Agents as Tools](documentation/agent_design/tools/agents_as_tools.md#2-tool-manifest)
 
 ### LLM
 

@@ -166,7 +166,10 @@ def agent_node(
             factory resolved fresh on every model call (lets the agent pick its model
             at invocation time, e.g. from config or rt.context).
         system_message (SystemMessage | str | None): System message for the agent.
-        manifest (ToolManifest | None): If you want to use this as a tool in other agents you can pass in a ToolManifest.
+        manifest (ToolManifest | None): How this agent appears when other agents use it as a tool. If None,
+            the description is built from the agent's name and system_message, and the agent takes a single
+            string parameter, `request`. A manifest without parameters also takes `request`. A manifest with
+            a blank description raises NodeCreationError.
         middleware (list[Middleware] | None): Middleware applied around the agent's node boundary
             (user_input -> Response).
         model_middleware (list[Middleware] | None): Middleware applied around each raw model call
@@ -179,7 +182,6 @@ def agent_node(
 
     unpacked_tool_nodes = _unpack_tool_nodes(tool_nodes)
 
-    # See issue (___) this logic should be migrated soon.
     if manifest is not None:
         tool_details = manifest.description
         tool_params = manifest.parameters

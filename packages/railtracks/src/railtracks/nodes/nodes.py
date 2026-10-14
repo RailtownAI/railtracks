@@ -211,10 +211,14 @@ class Node(ABC, Generic[_P, _TOutput]):
         """
         A method used to provide information about the node in the form of a tool definition.
         This is commonly used with LLMs Tool Calling tooling.
+
+        Raises:
+            NotImplementedError: If the node does not override this method, so it cannot be
+                used as a tool.
         """
-        # TODO: this should default to interfacing within the init method of the class
         raise NotImplementedError(
-            "You must implement the tool_info method in your node"
+            f"{cls.__name__} cannot be used as a tool because it does not implement "
+            "tool_info(). Override tool_info() to return the Tool the calling agent should see."
         )
 
     @classmethod
