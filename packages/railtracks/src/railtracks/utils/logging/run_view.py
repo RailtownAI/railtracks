@@ -36,14 +36,12 @@ _NOTEBOOK_CELL = re.compile(r"ipykernel_\d+[/\\]\d+\.py$")
 
 @dataclass
 class _Node:
-    """What the view knows about one node call."""
+    """What the view knows about one node call, from the first time it is seen."""
 
     name: str
-    # set once the node is seen running, or ending if its middleware never ran it
-    placed: bool = False
     # the node that called it; None for the entry point
-    parent: str | None = None
-    depth: int = 1
+    parent: str | None
+    depth: int
     # ran alongside a sibling; lines inside it carry its name
     concurrent: bool = False
     # the failure of its latest attempt, until it runs again or ends
@@ -63,6 +61,8 @@ class _Run:
     middleware_names: dict[str, str]
     # LLM id -> model name; a model announces itself before each call
     models: dict[str, str] = field(default_factory=dict)
+    # node id -> name, from its creation until the node is first seen
+    names: dict[str, str] = field(default_factory=dict)
     nodes: dict[str, _Node] = field(default_factory=dict)
     # ids of the nodes running right now
     running: set[str] = field(default_factory=set)
@@ -137,7 +137,7 @@ def _track(run: _Run, event: Event) -> None:
     event_type = event.event_type
 
     if event_type == "node.creation":
-        run.nodes[payload["node_id"]] = _Node(name=payload["name"])
+        run.names[payload["node_id"]] = payload["name"]
     elif event_type.startswith("node."):
         _track_node(run, event_type, payload)
     elif event_type == "llm.creation":
@@ -152,11 +152,11 @@ def _track(run: _Run, event: Event) -> None:
 
 def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
     node_id = payload["parent_node_id"]
-    node = run.nodes.setdefault(node_id, _Node(name=node_id))
-    if not node.placed:
+    node = run.nodes.get(node_id)
+    if node is None:
         # first sighting; usually the invocation, but a node whose middleware raises
         # before running it only shows up in its destruction
-        _place(run, node, payload)
+        node = run.nodes[node_id] = _place(run, node_id, payload)
 
     if event_type == "node.invocation":
         if node.attempt_failure is not None:
@@ -175,12 +175,15 @@ def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
         node.attempt_failure = node.retrying = None
 
 
-def _place(run: _Run, node: _Node, payload: dict[str, Any]) -> None:
-    """Fixes where a node sits under its caller."""
-    node.placed = True
-    node.parent = _caller(run, payload)
-    caller = run.nodes.get(node.parent) if node.parent else None
-    node.depth = caller.depth + 1 if caller is not None else 1
+def _place(run: _Run, node_id: str, payload: dict[str, Any]) -> _Node:
+    """The record for a node seen for the first time, nested under its caller."""
+    parent = _caller(run, payload)
+    caller = run.nodes.get(parent) if parent is not None else None
+    return _Node(
+        name=run.names.pop(node_id, node_id),
+        parent=parent,
+        depth=caller.depth + 1 if caller is not None else 1,
+    )
 
 
 def _mark_concurrent_siblings(run: _Run, node: _Node) -> None:
