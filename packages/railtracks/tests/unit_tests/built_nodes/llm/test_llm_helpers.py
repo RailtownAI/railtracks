@@ -1,13 +1,16 @@
 """Unit tests for gaps in built_nodes/llm/llm_helpers.py: `get_node_from_name`'s
 multiple-candidates path, and `llm_prepare_called_as_tool_factory`'s array/object
-formatting branches (previously only exercised indirectly, with string params).
+formatting branches and its handling of missing or unknown arguments.
 """
 
 from __future__ import annotations
 
+import re
+
 import litellm
 import pytest
 import railtracks.built_nodes.llm.llm_helpers as llm_helpers
+from pydantic import BaseModel
 from railtracks.built_nodes.llm.llm_helpers import (
     get_node_from_name,
     llm_prepare_called_as_tool_factory,
@@ -26,9 +29,11 @@ from railtracks.llm._exceptions import (
     ProviderTimeoutError,
     RetryError,
 )
+from railtracks.llm.content import ToolResponse
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import UserMessage
+from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.llm.models._model_exception_base import ModelError, ModelNotFoundError
+from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool, ToolCreationError
 
 
@@ -104,13 +109,46 @@ def test_prepare_called_as_tool_formats_string_param_plainly():
     assert "x: hello" in history[0].content
 
 
-def test_prepare_called_as_tool_empty_kwargs_returns_empty_history():
+def test_prepare_called_as_tool_missing_required_param_raises():
     params = [Parameter(name="x", param_type="string", description="d")]
+    prepare = llm_prepare_called_as_tool_factory(params)
+
+    with pytest.raises(TypeError, match="x"):
+        prepare()
+
+
+def test_prepare_called_as_tool_skips_missing_optional_param():
+    params = [
+        Parameter(name="city", param_type="string", description="d"),
+        Parameter(name="units", param_type="string", description="d", required=False),
+    ]
+    prepare = llm_prepare_called_as_tool_factory(params)
+
+    history = prepare(city="Paris")
+
+    assert "city: Paris" in history[0].content
+    assert "units" not in history[0].content
+
+
+def test_prepare_called_as_tool_ignores_unknown_arguments():
+    params = [Parameter(name="x", param_type="string", description="d")]
+    prepare = llm_prepare_called_as_tool_factory(params)
+
+    history = prepare(x="hello", made_up="ignored")
+
+    assert "made_up" not in history[0].content
+
+
+def test_prepare_called_as_tool_with_every_optional_param_omitted_still_sends_a_message():
+    params = [
+        Parameter(name="units", param_type="string", description="d", required=False)
+    ]
     prepare = llm_prepare_called_as_tool_factory(params)
 
     history = prepare()
 
-    assert list(history) == []
+    assert len(history) == 1
+    assert isinstance(history[0], UserMessage)
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +237,58 @@ async def test_existing_llmerror_is_not_wrapped_twice(monkeypatch):
     assert exc.value is inner
     assert exc.value.message_history is history
     assert exc.value.reason == "stream ended early"
+
+
+def _invoker_returning(response: Response):
+    """A stand-in ModelInvoker whose `invoke` always returns `response`."""
+
+    class _FixedInvoker:
+        @classmethod
+        def create_with_llm_observe(cls, *args, **kwargs):
+            return cls()
+
+        async def invoke(self, *args, **kwargs):
+            return response
+
+    return _FixedInvoker
+
+
+async def test_response_without_text_content_raises_llmerror(monkeypatch):
+    """A reply with `content=None` (audio-only, or cut off or filtered before any text)
+    must surface as a node-terminating `LLMError` carrying the history."""
+    response = Response(message=AssistantMessage(content=None))
+    monkeypatch.setattr(llm_helpers, "ModelInvoker", _invoker_returning(response))
+    invoke = llm_helpers.llm_invoke_factory(object(), None)
+
+    with pytest.raises(LLMError) as exc:
+        await invoke(_FakeNode(), "hello")
+
+    assert "no text content" in exc.value.reason
+    assert exc.value.message_history is not None
+    assert exc.value.message_history[-1].content == "hello"
+
+
+class _Answer(BaseModel):
+    text: str
+
+
+@pytest.mark.parametrize(
+    "schema,expected", [(None, "expected str."), (_Answer, "expected str or _Answer.")]
+)
+def test_unusable_content_type_raises_llmerror_naming_the_expected_types(
+    schema, expected
+):
+    response = Response(
+        message=AssistantMessage(
+            content=ToolResponse(identifier="1", name="t", result="r")
+        )
+    )
+    history = MessageHistory([UserMessage("hello")])
+
+    with pytest.raises(LLMError, match=re.escape(expected)) as exc:
+        llm_helpers.process_message(response, schema, message_history=history)
+
+    assert exc.value.message_history is history
 
 
 # ---------------------------------------------------------------------------

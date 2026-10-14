@@ -22,6 +22,8 @@ from railtracks.prebuilt.guardrails import (
     PIIRedactConfig,
     PIIRedactInputGuard,
     PIIRedactOutputGuard,
+    ScopeGuard,
+    ScopeSensitivity,
 )
 
 # --8<-- [end: imports]
@@ -122,6 +124,40 @@ result = guard_with_custom.decide(
 )
 # result.messages: redacted user message(s), e.g. [EMPLOYEE_ID] and [EMAIL_ADDRESS]
 # --8<-- [end: pii_custom_patterns]
+
+
+# --8<-- [start: scope_guard_demo]
+from railtracks.guardrails import GuardrailBlockedError
+
+scope_guard = ScopeGuard(
+    scope=(
+        "You are the customer-support assistant for a cupcake bakery: orders, flavours, allergens and delivery. "
+        "You do not give general baking recipes or help with anything unrelated to the bakery."
+    ),
+    model=rt.llm.OpenAILLM("gpt-6-luna"),
+    sensitivity=ScopeSensitivity.HIGH,
+)
+
+BakeryAgent = rt.agent_node(
+    name="bakery",
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+    system_message="You answer customer questions for a cupcake bakery.",
+    # PII is redacted first, so the judge only sees the redacted text
+    model_middleware=[PIIRedactInputGuard(), scope_guard],
+)
+
+flow = rt.Flow("bakery", entry_point=BakeryAgent)
+
+# answer("Do you have gluten-free cupcakes?") reaches the bakery agent;
+# answer("Write me a Python script") is blocked before it is called.
+
+
+def answer(user_text: str) -> str:
+    try:
+        return flow.invoke(user_text).text
+    except GuardrailBlockedError as exc:
+        return exc.user_facing_message or "Request blocked."
+# --8<-- [end: scope_guard_demo]
 
 
 def main() -> None:

@@ -42,7 +42,7 @@ def connect_mcp(
         # Access tools
         for tool in server.tools:
             print(f"Tool: {tool.name()}")
-            print(f"Description: {tool.tool_info().description}")
+            print(f"Description: {tool.tool_info().detail}")
 
     Args:
         config: Server configuration:
