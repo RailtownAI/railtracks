@@ -222,6 +222,7 @@ class TestPyPDFLoaderParagraphStrategy:
             docs = await PyPDFLoader(str(pdf), breakdown_strategy="paragraph").aload()
 
         assert docs[1].metadata == {
+            "path": str(pdf),
             "page": 1,
             "paragraph": 2,
             "total_pages": 2,
@@ -277,3 +278,45 @@ class TestPyPDFLoaderDirectory:
                 str(tmp_path), breakdown_strategy="document"
             ).aload()
         assert len(docs) == 1
+
+
+class TestPyPDFLoaderUniqueSources:
+    """Regression for #1648: shared file-path source overwrote earlier pages."""
+
+    async def test_page_strategy_sources_are_unique_and_stable(self, tmp_path):
+        pdf = tmp_path / "report.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        reader = _make_reader(["page 1 text", "page 2 text", "page 3 text"])
+        with patch(
+            "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+        ):
+            docs = await PyPDFLoader(str(pdf), breakdown_strategy="page").aload()
+        assert [d.source for d in docs] == [
+            f"{pdf}#page=1",
+            f"{pdf}#page=2",
+            f"{pdf}#page=3",
+        ]
+        assert len({d.id for d in docs}) == 3
+        assert all(d.metadata["path"] == str(pdf) for d in docs)
+        with patch(
+            "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+        ):
+            again = await PyPDFLoader(str(pdf), breakdown_strategy="page").aload()
+        assert [d.id for d in again] == [d.id for d in docs]
+
+    async def test_paragraph_strategy_sources_include_page_and_paragraph(
+        self, tmp_path
+    ):
+        pdf = tmp_path / "report.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        reader = _make_reader(["first para\n\nsecond para", "only para"])
+        with patch(
+            "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+        ):
+            docs = await PyPDFLoader(str(pdf), breakdown_strategy="paragraph").aload()
+        assert [d.source for d in docs] == [
+            f"{pdf}#page=1&paragraph=1",
+            f"{pdf}#page=1&paragraph=2",
+            f"{pdf}#page=2&paragraph=1",
+        ]
+        assert len({d.id for d in docs}) == 3

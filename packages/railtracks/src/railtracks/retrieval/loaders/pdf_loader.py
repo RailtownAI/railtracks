@@ -111,8 +111,11 @@ class PyPDFLoader(BaseDocumentLoader):
                     yield Document(
                         content=content,
                         type=DocumentType.PDF,
-                        source=source,
+                        # Unique per paragraph so Document.id (uuid5 of source)
+                        # does not collide across pages/paragraphs of one file.
+                        source=f"{source}#page={page_number}&paragraph={paragraph_number}",
                         metadata={
+                            "path": source,
                             "page": page_number,
                             "paragraph": paragraph_number,
                             "total_pages": total_pages,
@@ -123,8 +126,11 @@ class PyPDFLoader(BaseDocumentLoader):
             yield Document(
                 content=text,
                 type=DocumentType.PDF,
-                source=source,
+                # Unique per page so Document.id does not collide; plain path
+                # stays in metadata["path"] for filtering/display.
+                source=f"{source}#page={page_number}",
                 metadata={
+                    "path": source,
                     "page": page_number,
                     "total_pages": total_pages,
                     "file_type": ".pdf",
