@@ -167,22 +167,27 @@ class Node(ABC, Generic[_P, _TOutput]):
 
         # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
         self.middleware.get_scope_manager = lambda: self._scope_manager
-        result: _TOutput | None = None
-        error: BaseException | None = None
         start_time = time.perf_counter()
         try:
             result = await self.middleware.run(body, *args, **kwargs)
-            return result
-        except BaseException as e:
-            error = e
+        except BaseException as error:
+            await emit(
+                NodeDestruction(
+                    response=None,
+                    duration_seconds=time.perf_counter() - start_time,
+                    status="failure",
+                    **failure_details(error),
+                )
+            )
             raise
-        finally:
-            destruction_event = NodeDestruction(
+        await emit(
+            NodeDestruction(
                 response=result,
                 duration_seconds=time.perf_counter() - start_time,
-                **(failure_details(error) if error is not None else {}),
+                status="success",
             )
-            await emit(destruction_event)
+        )
+        return result
 
     @classmethod
     def extend_middleware(

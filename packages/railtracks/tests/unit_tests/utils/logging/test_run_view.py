@@ -92,6 +92,7 @@ def _node_done(node_id: str, response="ok") -> Event:
         parent_node_id=node_id,
         response=response,
         duration_seconds=0.25,
+        status="success",
     )
 
 
@@ -111,6 +112,7 @@ def _node_failed(
         spatial_parent_node_id=caller,
         response=None,
         duration_seconds=0.25,
+        status="failure",
         exception_name=exception_name,
         exception_message="bad",
         frames=frames or [],

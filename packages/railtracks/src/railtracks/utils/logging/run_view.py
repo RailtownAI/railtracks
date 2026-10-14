@@ -169,8 +169,7 @@ def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
     elif event_type == "node.response":
         node.attempt_failure = None
     elif event_type == "node.destruction":
-        failed = payload.get("exception_name") is not None
-        if node.parent is None and not failed:
+        if node.parent is None and payload["status"] == "success":
             run.result = _display(payload["response"])
         run.running.discard(node_id)
         node.attempt_failure = node.retrying = None
@@ -247,7 +246,7 @@ def _node_invocation(run: _Run, payload: dict[str, Any]) -> _Line:
 def _node_destruction(run: _Run, payload: dict[str, Any]) -> _Line:
     """The node's final outcome, after its middleware had its say."""
     node = run.nodes[payload["parent_node_id"]]
-    if payload.get("exception_name") is not None:
+    if payload["status"] == "failure":
         fatal = payload["fatal"] or run.end_on_error
         text = Text(
             f"✗ {node.name} failed: {_exception(payload)}{' (fatal)' if fatal else ''}",

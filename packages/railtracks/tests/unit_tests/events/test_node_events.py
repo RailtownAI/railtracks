@@ -35,7 +35,9 @@ def test_event_type_strings():
         == "node.failure"
     )
     assert (
-        NodeDestruction(response="r", duration_seconds=0.0).event_type()
+        NodeDestruction(
+            response="r", duration_seconds=0.0, status="success"
+        ).event_type()
         == "node.destruction"
     )
 
@@ -92,8 +94,8 @@ def test_failure_frames_cover_only_the_final_exception():
     assert "OSError: missing" in details["traceback"]
 
 
-def test_node_destruction_has_no_failure_by_default():
-    event = NodeDestruction(response="r", duration_seconds=0.0)
+def test_successful_node_destruction_has_no_failure_fields():
+    event = NodeDestruction(response="r", duration_seconds=0.0, status="success")
 
     assert event.exception_name is None
     assert event.traceback is None

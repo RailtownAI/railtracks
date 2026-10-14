@@ -113,6 +113,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "kwargs": JSON,
         "response": JSON,
         "duration_seconds": FLOAT,
+        "status": _enum("success", "failure"),
         "fatal": BOOLEAN,
         "traceback": STRING,
         "frames": JSON,

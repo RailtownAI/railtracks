@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from traceback import TracebackException
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 from typing_extensions import Self
 
@@ -127,10 +127,11 @@ class NodeResponse(NodeEventBase):
 @dataclass(kw_only=True)
 class NodeDestruction(NodeEventBase):
     """The node's final outcome, outside its middleware. The failure fields are set when
-    the call raised and left None when it returned."""
+    `status` is `"failure"` and left None when it is `"success"`."""
 
     response: Any
     duration_seconds: float
+    status: Literal["success", "failure"]
     exception_name: str | None = None
     exception_message: str | None = None
     traceback: str | None = None
