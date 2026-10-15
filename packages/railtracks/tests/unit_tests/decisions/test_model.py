@@ -7,6 +7,8 @@ import copy
 import httpx
 import litellm
 import pytest
+from litellm.llms.custom_httpx.http_handler import get_async_httpx_client
+from litellm.types.utils import LlmProviders
 from railtracks.decisions import (
     DecisionAnswers,
     DecisionProviderAuthenticationError,
@@ -17,6 +19,9 @@ from railtracks.decisions import (
     DecisionResponse,
     SchemaDefinitionError,
     TypeSafeDecisions,
+)
+from railtracks.decisions.transport._client_cleanup import (
+    close_client_on_loop_shutdown,
 )
 from railtracks.exceptions._base import RTError
 from railtracks.llm.retries import FixedRetry
@@ -447,6 +452,28 @@ class TestClientCleanup:
 
         assert all(h.closed_in_loop is not None for h in handlers)
         assert handlers[0].closed_in_loop is not handlers[1].closed_in_loop
+
+    @pytest.mark.parametrize(
+        "provider",
+        [LlmProviders.TYPESAFE, LlmProviders.OPENROUTER, LlmProviders.OPENAI],
+    )
+    def test_closes_the_client_litellm_creates(self, provider):
+        """Uses litellm's own cache key, so a change to it fails here."""
+        cache = litellm.in_memory_llm_clients_cache
+        seen = {}
+
+        async def run():
+            seen["handler"] = get_async_httpx_client(llm_provider=provider)
+            # read now: the handler's ``client`` property replaces a closed client
+            seen["client"] = seen["handler"].client
+            await close_client_on_loop_shutdown(provider.value)
+            assert seen["handler"] in cache.cache_dict.values()
+            assert not seen["client"].is_closed
+
+        asyncio.run(run())
+
+        assert seen["client"].is_closed
+        assert seen["handler"] not in cache.cache_dict.values()
 
     def test_no_cached_client_is_fine(self, make_model):
         model, _ = make_model(respond())
