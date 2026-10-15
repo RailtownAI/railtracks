@@ -141,7 +141,7 @@ Each request made by a decision node is recorded as `decision.*` events, so `rai
 
 ## Limitations
 - **Text only.** The input is a string, or a JSON object or array sent as JSON text. Images and other attachments are not supported yet.
-- **No model middleware.** A decision node makes no LLM call, so passing `pre_llm`, `post_llm` or `wrap_llm` middleware, or an LLM guardrail, raises `NodeCreationError`. Node middleware (`rt.wrap_node`, `rt.post_node`) works:
+- **No model middleware.** A decision node makes no LLM call, so passing model-only middleware (`pre_llm`, `post_llm` or `wrap_llm` middleware, an LLM guardrail, or `ContextInjection`) raises `NodeCreationError`. Node middleware works: your own `rt.wrap_node` and `rt.post_node` middleware, and prebuilt middleware that works in either slot, such as `Retry`, `MaxCalls` and `Timeout`, which then wraps the whole node call.
 
 ```python
 --8<-- "docs/scripts/documentation/decision_nodes.py:node_middleware"
