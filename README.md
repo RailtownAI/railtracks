@@ -243,6 +243,23 @@ rt.llm.OllamaLLM("llama3")
 
 Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [full provider list](https://docs.railtracks.org/integrations/llms/providers/).
 
+## Decision Models
+
+For classify, route and grade steps, `rt.decision_node` asks a System One decision model a schema of questions and returns calibrated probabilities in one fast call, instead of generating text:
+
+```python
+is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message is urgent")
+schema = rt.decisions.DecisionSchema(predicate=[is_urgent])
+Triage = rt.decision_node(
+    "Triage", model=rt.decisions.TypeSafeDecisions("jev-latest"), schema=schema
+)
+
+result = rt.Flow(name="Triage", entry_point=Triage).invoke("Checkout is down!")
+print(result.structured[is_urgent].probability)  # 0.97
+```
+
+Works with **TypeSafe**, **OpenRouter** and **OpenAI**, and the node drops into an agent's `tool_nodes` like any other tool. See [Decision Nodes](https://docs.railtracks.org/documentation/agent_design/decision_nodes/).
+
 ## Contributing
 
 Railtracks is developed in the open. Contributions, bug reports, and feature requests are welcome via [GitHub Issues](https://github.com/RailtownAI/railtracks/issues).
