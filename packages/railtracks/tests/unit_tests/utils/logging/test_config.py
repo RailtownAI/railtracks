@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+import re
 import sys
 import tempfile
 from unittest.mock import patch
@@ -300,6 +301,24 @@ def test_setup_file_handler_with_custom_level(tmp_path):
     assert file_handler.level == logging.DEBUG
     # Clean up
     rt_logger.handlers.clear()
+
+
+def test_the_log_file_is_utf8_and_labels_its_columns(tmp_path):
+    log_file = tmp_path / "test.log"
+    setup_file_handler(file_name=log_file)
+    # not the platform default, which is cp1252 on Windows
+    assert rt_logger.handlers[-1].encoding == "utf-8"
+    token = _module_logging_level.set(logging.INFO)
+    try:
+        rt_logger.error("cannot handle 'x ✓ é 中文'")
+    finally:
+        _module_logging_level.reset(token)
+        for handler in rt_logger.handlers:
+            handler.close()
+        rt_logger.handlers.clear()
+
+    line = log_file.read_text(encoding="utf-8")
+    assert re.search(r" - \d+ms - ERROR - RT - cannot handle 'x ✓ é 中文'\n$", line)
 
 
 # ================= detach_logging_handlers Tests =================

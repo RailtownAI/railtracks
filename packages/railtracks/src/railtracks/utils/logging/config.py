@@ -37,7 +37,7 @@ rt_logger = logging.getLogger(rt_logger_name)
 lifecycle_logger_name = f"{rt_logger_name}.lifecycle"
 
 _file_format_string = (
-    "%(asctime)s - %(relativeCreated)d - %(levelname)ss - %(name)s - %(message)s"
+    "%(asctime)s - %(relativeCreated)dms - %(levelname)s - %(name)s - %(message)s"
 )
 
 
@@ -228,7 +228,7 @@ def setup_file_handler(
             Accepts standard logging levels (DEBUG, INFO, WARNING, ERROR, CRITICAL).
             Defaults to logging.INFO.
     """
-    file_handler = logging.FileHandler(file_name)
+    file_handler = logging.FileHandler(file_name, encoding="utf-8")
     file_handler.setLevel(file_logging_level)
     file_handler.addFilter(ThreadAwareFilter())
 
