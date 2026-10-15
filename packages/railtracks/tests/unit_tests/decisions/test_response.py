@@ -9,9 +9,19 @@ from railtracks.utils.json.encoder import RTJSONEncoder
 from .conftest import TRIAGE_BODY, Triage, respond
 
 
+def _answers(response: object):
+    return parse_response(
+        response,
+        Triage,
+        requested_model_name="jev-latest",
+        provider="typesafe",
+        latency=0.0,
+    ).structured
+
+
 def _response(**overrides) -> DecisionResponse:
     fields = {
-        "structured": parse_response(respond(), Triage).structured,
+        "structured": _answers(respond()),
         "model_name": "jev-1.13.0",
         "requested_model_name": "jev-latest",
         "provider": None,
@@ -35,7 +45,7 @@ def test_str_one_segment_per_question_in_definition_order():
 def test_str_predicate_below_half_is_no():
     body = json.loads(json.dumps(TRIAGE_BODY))
     body["answers"][0]["probability"] = 0.12
-    resp = _response(structured=parse_response(body, Triage).structured)
+    resp = _response(structured=_answers(body))
     assert str(resp).startswith("is_urgent: no 0.12 | ")
 
 

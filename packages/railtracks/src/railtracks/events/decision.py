@@ -30,7 +30,6 @@ class DecisionEventBase(ParentEventBase[NodeSpatialParent, NodeParent]):
 class DecisionInvocationEvent(DecisionEventBase):
     """A decision request about to be sent; ``questions`` is the wire form."""
 
-    api_base: str
     state: str | dict[str, Any] | list[Any]
     questions: dict[str, Any]
 

@@ -9,6 +9,7 @@ from railtracks.decisions import (
     ChoiceAnswer,
     DecisionProviderError,
     DecisionProviderRefusalError,
+    DecisionResponse,
     DecisionSchema,
     PredicateAnswer,
     Score,
@@ -22,6 +23,17 @@ from railtracks.decisions.transport._wire import (
 )
 
 from .conftest import TRIAGE_BODY, Triage, respond
+
+
+def _parse(response: object) -> DecisionResponse:
+    return parse_response(
+        response,
+        Triage,
+        requested_model_name="jev-latest",
+        provider="typesafe",
+        latency=0.5,
+    )
+
 
 TRIAGE_QUESTIONS = [
     {
@@ -123,7 +135,7 @@ class TestRequest:
 
 class TestParseResponse:
     def test_parses_all_three_answer_types(self):
-        triage = parse_response(respond(), Triage).structured
+        triage = _parse(respond()).structured
         assert triage["is_urgent"] == PredicateAnswer(probability=0.93)
         assert triage["department"] == ChoiceAnswer(
             choice="technical",
@@ -138,19 +150,27 @@ class TestParseResponse:
         )
 
     def test_metadata(self):
-        reply = parse_response(respond(), Triage)
-        assert reply.reported_model_name == "jev-1.13.0"
+        reply = _parse(respond())
+        assert isinstance(reply, DecisionResponse)
+        assert reply.model_name == "jev-1.13.0"
+        assert reply.requested_model_name == "jev-latest"
+        assert reply.provider == "typesafe"
         assert reply.input_tokens == 296
         assert reply.output_tokens == 20
-        assert reply.provider is None
-        assert reply.reported_cost is None  # the transport reads the cost
+        assert reply.latency == 0.5
+        assert reply.cost is None  # the model prices the call
         assert reply.raw["usage"]["total_tokens"] == 316
         assert reply.raw["answers"][0]["name"] == "is_urgent"
+
+    def test_model_name_falls_back_to_the_requested_one(self):
+        body = copy.deepcopy(TRIAGE_BODY)
+        del body["model"]
+        assert _parse(body).model_name == "jev-latest"
 
     def test_answers_matched_by_name_not_position(self):
         body = copy.deepcopy(TRIAGE_BODY)
         body["answers"].reverse()
-        assert parse_response(respond(body), Triage).structured["is_urgent"] == (
+        assert _parse(respond(body)).structured["is_urgent"] == (
             PredicateAnswer(probability=0.93)
         )
 
@@ -158,14 +178,14 @@ class TestParseResponse:
         body = copy.deepcopy(TRIAGE_BODY)
         for answer in body["answers"]:
             answer["name"] = None
-        reply = parse_response(respond(body), Triage)
+        reply = _parse(respond(body))
         assert reply.structured["department"].choice == "technical"
 
     def test_refusal_raises_with_the_other_answers(self):
         body = copy.deepcopy(TRIAGE_BODY)
         body["answers"][1] = {"type": "refusal", "name": "department"}
         with pytest.raises(DecisionProviderRefusalError) as info:
-            parse_response(respond(body), Triage)
+            _parse(respond(body))
         assert info.value.refused == ["department"]
         assert set(info.value.answers) == {"is_urgent", "frustration"}
         assert "department" in info.value.reason
@@ -177,12 +197,12 @@ class TestParseResponse:
             for name in ("is_urgent", "department", "frustration")
         ]
         with pytest.raises(DecisionProviderRefusalError) as info:
-            parse_response(respond(body), Triage)
+            _parse(respond(body))
         assert info.value.refused == ["is_urgent", "department", "frustration"]
         assert info.value.answers == {}
 
     def test_dict_body_accepted(self):
-        reply = parse_response(copy.deepcopy(TRIAGE_BODY), Triage)
+        reply = _parse(copy.deepcopy(TRIAGE_BODY))
         assert reply.structured["is_urgent"].probability == 0.93
 
     @pytest.mark.parametrize(
@@ -212,8 +232,8 @@ class TestParseResponse:
         body = copy.deepcopy(TRIAGE_BODY)
         mutate(body)
         with pytest.raises(DecisionProviderError, match=field.replace(".", r"\.")):
-            parse_response(body, Triage)
+            _parse(body)
 
     def test_non_object_body_rejected(self):
         with pytest.raises(DecisionProviderError, match="<body>"):
-            parse_response(["not", "an", "object"], Triage)
+            _parse(["not", "an", "object"])

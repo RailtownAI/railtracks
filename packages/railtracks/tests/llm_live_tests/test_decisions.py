@@ -21,13 +21,12 @@ from railtracks.decisions import (
     Predicate,
     Score,
 )
-from railtracks.decisions.transport._litellm import LiteLLMDecisionModel
 from railtracks.observability import Event, configure, configure_writers
 
 
 @dataclass(frozen=True)
 class Vendor:
-    model_class: type[LiteLLMDecisionModel]
+    model_class: type[DecisionModel]
     model_name: str
     key_env: str
     reported_prefix: str

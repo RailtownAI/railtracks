@@ -16,7 +16,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from .._exceptions import DecisionProviderError, DecisionProviderRefusalError
-from ..model import DecisionReply
+from ..response import DecisionResponse
 from ..schema import (
     ChoiceQuestion,
     DecisionAnswer,
@@ -147,12 +147,26 @@ def _parse_answer(
         raise _malformed(f"answers.{name}.{e}", "invalid") from e
 
 
-def parse_response(response: object, schema: DecisionSchema) -> DecisionReply:
-    """Parse an ``OpenAIDecisionResponse`` (or its JSON dict) into a ``schema`` instance.
+def parse_response(
+    response: object,
+    schema: DecisionSchema,
+    *,
+    requested_model_name: str,
+    provider: str,
+    latency: float,
+) -> DecisionResponse:
+    """Parse an ``OpenAIDecisionResponse`` (or its JSON dict) into a ``DecisionResponse``.
 
     Answers are matched to questions by ``name``, or by position when the provider
-    leaves names out. The cost is left to the caller, which reads it from litellm's
-    hidden params.
+    leaves names out. ``cost`` is left None for the model to fill in.
+
+    Args:
+        response: What ``litellm.adecisions`` returned.
+        schema: The schema the request asked.
+        requested_model_name: The model name the client asked for; the response's
+            ``model_name`` when the provider reports none.
+        provider: Who served the request.
+        latency: Seconds the call took.
 
     Raises:
         DecisionProviderRefusalError: If the model declined any question; carries the
@@ -198,12 +212,14 @@ def parse_response(response: object, schema: DecisionSchema) -> DecisionReply:
     usage = body.get("usage")
     usage = usage if isinstance(usage, dict) else {}
     model = body.get("model")
-    return DecisionReply(
+    return DecisionResponse(
         structured=DecisionAnswers(schema, parsed),
-        reported_model_name=model if isinstance(model, str) else None,
-        provider=None,
+        model_name=model if isinstance(model, str) and model else requested_model_name,
+        requested_model_name=requested_model_name,
+        provider=provider,
         input_tokens=_optional_int(usage.get("input_tokens")),
         output_tokens=_optional_int(usage.get("output_tokens")),
-        reported_cost=None,
+        latency=latency,
+        cost=None,
         raw=body,
     )

@@ -21,6 +21,7 @@ from railtracks.decisions import (
     DecisionSchema,
 )
 from railtracks.decisions.state import DecisionInput
+from railtracks.decisions.transport._wire import describe_questions
 from railtracks.events._resolve import has_enclosing_node
 from railtracks.events.decision import (
     DecisionFailureEvent,
@@ -87,9 +88,8 @@ async def invoke_decision(
             DecisionInvocationEvent(
                 decision_id=decision_id,
                 model_name=model.model_name,
-                api_base=model.api_base,
                 state=state,
-                questions=model.describe_questions(schema),
+                questions=describe_questions(schema),
             )
         )
 

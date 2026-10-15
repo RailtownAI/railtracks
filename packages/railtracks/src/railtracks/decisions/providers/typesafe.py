@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ..transport._litellm import LiteLLMDecisionModel
+from ..model import DecisionModel
 
 
-class TypeSafeAI(LiteLLMDecisionModel):
+class TypeSafeAI(DecisionModel):
     """TypeSafe's hosted System One models, e.g. ``jev-latest``.
 
     Calls ``litellm.adecisions`` with ``typesafe/<model_name>``. litellm reads
@@ -13,7 +13,4 @@ class TypeSafeAI(LiteLLMDecisionModel):
 
     provider_prefix = "typesafe"
     provider_name = "typesafe"
-    default_api_base = "https://api.typesafe.ai"
-    api_base_env = "TYPESAFE_API_BASE"
-    api_key_env = "TYPESAFE_API_KEY"
     pricing_prefixes = ("typesafe",)

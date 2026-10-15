@@ -74,7 +74,7 @@ async def test_invocation_and_response_paired_under_the_decision_node(
         assert event.payload["spatial_parent_node_id"] == node_id
         assert event.payload["model_name"] == "jev-latest"
 
-    assert invocation.payload["api_base"] == "https://api.typesafe.ai"
+    assert "api_base" not in invocation.payload
     assert invocation.payload["state"] == "Help!"
     assert invocation.payload["questions"]["department"]["type"] == "choice"
     assert invocation.payload["questions"]["department"]["name"] == "department"

@@ -155,7 +155,7 @@ class DecisionModelError(NodeInvocationError):
     Raised when a System One decision model call fails.
 
     Raised as is for a failure no subclass covers: a dropped connection, a 5xx or
-    other 4xx status, a malformed `api_base` or a response that could not be parsed.
+    other 4xx status or a response that could not be parsed.
 
     A `NodeInvocationError`, like `LLMError`, so a failed decision terminates the node
     that made it and callers can catch both kinds of model failure the same way.

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ..transport._litellm import LiteLLMDecisionModel
+from ..model import DecisionModel
 
 
-class OpenRouterAI(LiteLLMDecisionModel):
+class OpenRouterAI(DecisionModel):
     """System One models through OpenRouter's decisions endpoint.
 
     Model ids carry the vendor, e.g. ``typesafe/jev-1.13``; calls
@@ -14,7 +14,4 @@ class OpenRouterAI(LiteLLMDecisionModel):
 
     provider_prefix = "openrouter"
     provider_name = "openrouter"
-    default_api_base = "https://openrouter.ai/api"
-    api_base_env = "OPENROUTER_API_BASE"
-    api_key_env = "OPENROUTER_API_KEY"
     pricing_prefixes = ("openrouter",)

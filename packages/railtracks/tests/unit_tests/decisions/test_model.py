@@ -1,4 +1,4 @@
-"""LiteLLMDecisionModel.aask: the litellm.adecisions call, error mapping, retries and
+"""DecisionModel.aask: the litellm.adecisions call, error mapping, retries and
 the response."""
 
 import asyncio
@@ -114,7 +114,8 @@ class TestRequest:
     def test_construction_without_key_or_network(self):
         model = TypeSafeAI(model_name="jev-latest")
         assert model.model_name == "jev-latest"
-        assert model.api_base == "https://api.typesafe.ai"
+        # litellm resolves the base URL; the model does not repeat that lookup
+        assert not hasattr(model, "api_base")
 
 
 class TestResponse:
@@ -299,34 +300,14 @@ class TestErrorMapping:
         assert not issubclass(SchemaDefinitionError, DecisionProviderError)
 
 
-class TestKeyNotes:
-    async def test_missing_key_names_the_env_var(self, make_model):
+class TestAuthentication:
+    async def test_missing_key_keeps_litellm_message(self, make_model):
         missing = _auth("Missing API key for Decisions provider 'typesafe'")
         model, _ = make_model(missing, api_key=None)
-        with pytest.raises(
-            DecisionProviderAuthenticationError, match="TYPESAFE_API_KEY"
-        ) as info:
-            await model.aask("Help!", Triage)
-        notes = " ".join(info.value.notes)
-        assert "rejected" not in notes
-        assert "Pass api_key= or set the TYPESAFE_API_KEY" in notes
-
-    async def test_key_passed_as_argument_rejected(self, make_model):
-        model, _ = make_model(_auth())
         with pytest.raises(DecisionProviderAuthenticationError) as info:
             await model.aask("Help!", Triage)
-        notes = " ".join(info.value.notes)
-        assert "rejected the key from the api_key= argument" in notes
-
-    async def test_key_from_the_environment_rejected(self, make_model, monkeypatch):
-        monkeypatch.setenv("TYPESAFE_API_KEY", "env-key")
-        model, _ = make_model(_auth(), api_key=None)
-        with pytest.raises(DecisionProviderAuthenticationError) as info:
-            await model.aask("Help!", Triage)
-        notes = " ".join(info.value.notes)
-        assert (
-            "rejected the key from the TYPESAFE_API_KEY environment variable" in notes
-        )
+        assert "Missing API key for Decisions provider 'typesafe'" in info.value.reason
+        assert info.value.notes == []
 
 
 class TestRetries:
@@ -401,24 +382,6 @@ class TestRetries:
         with pytest.raises(DecisionProviderRefusalError):
             await model.aask("Help!", Triage)
         assert len(fake.calls) == 1
-
-    @pytest.mark.parametrize("api_base", ["not-a-url", "ftp://x.example", "https://"])
-    async def test_malformed_api_base_fails_before_the_call(self, make_model, api_base):
-        model, fake = make_model(
-            api_base=api_base, retry_approach=FixedRetry(max_tries=3, delay=0.0)
-        )
-        with pytest.raises(DecisionProviderError, match="api_base"):
-            await model.aask("Help!", Triage)
-        assert fake.calls == []
-
-    async def test_malformed_api_base_from_the_env_fails_before_the_call(
-        self, make_model, monkeypatch
-    ):
-        monkeypatch.setenv("TYPESAFE_API_BASE", "api.typesafe.ai")
-        model, fake = make_model(retry_approach=FixedRetry(max_tries=3, delay=0.0))
-        with pytest.raises(DecisionProviderError, match="TYPESAFE_API_BASE"):
-            await model.aask("Help!", Triage)
-        assert fake.calls == []
 
     async def test_no_retries_by_default(self, make_model):
         model, fake = make_model(_rate_limit(), respond())

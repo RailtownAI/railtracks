@@ -24,7 +24,6 @@ def _invocation() -> DecisionInvocationEvent:
     return DecisionInvocationEvent(
         decision_id="d1",
         model_name="jev-latest",
-        api_base="https://api.typesafe.ai",
         state="Help!",
         questions={"is_urgent": {"type": "noul", "instructions": "Urgent?"}},
     )

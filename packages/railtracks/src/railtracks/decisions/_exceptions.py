@@ -35,7 +35,7 @@ class DecisionProviderError(_NotedError):
     """A call to a decision model failed. Raised only by direct model calls.
 
     Raised as is for a failure no subclass covers: a dropped connection, a 5xx or
-    other 4xx status, a malformed ``api_base`` or a response that could not be parsed.
+    other 4xx status or a response that could not be parsed.
     """
 
 

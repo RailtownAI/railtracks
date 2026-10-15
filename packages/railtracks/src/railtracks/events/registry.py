@@ -136,7 +136,6 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         **_PARENT_EVENT,
         "decision_id": STRING,
         "model_name": STRING,
-        "api_base": STRING,
         "state": JSON,
         "questions": JSON,
         "reported_model_name": STRING,
