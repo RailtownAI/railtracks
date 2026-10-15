@@ -3,6 +3,7 @@ __all__ = [
     "ChoiceAnswer",
     "DecisionAnswer",
     "DecisionAnswers",
+    "DecisionInput",
     "DecisionProviderAuthenticationError",
     "DecisionProviderError",
     "DecisionProviderRateLimitError",
@@ -44,3 +45,4 @@ from .schema import (
     Score,
     ScoreAnswer,
 )
+from .state import DecisionInput

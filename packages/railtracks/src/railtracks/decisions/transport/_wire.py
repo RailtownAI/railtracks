@@ -3,7 +3,7 @@
 rt always sends the OpenAI shape (``input`` plus a list of named ``questions``), for
 every provider: litellm translates it per provider and keeps refusals (the System One
 ``state`` shape drops them). The input is always text: other JSON is sent as JSON text.
-Shapes follow ``litellm.types.decisions`` (1.104.2) and
+Shapes follow ``litellm.types.decisions`` (1.104.3 through 1.105.x) and
 https://developers.openai.com/api/docs/guides/decisions.
 """
 

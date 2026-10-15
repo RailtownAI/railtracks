@@ -1,6 +1,5 @@
 """The three decision providers: litellm model prefix, pricing and the provider name."""
 
-import copy
 import importlib.util
 import inspect
 import json
@@ -15,7 +14,7 @@ from railtracks.decisions import (
     TypeSafeDecisions,
 )
 
-from .conftest import TRIAGE_BODY, Triage, respond
+from .conftest import Triage, respond
 
 PROVIDERS = [TypeSafeDecisions, OpenRouterDecisions, OpenAIDecisions]
 
@@ -121,19 +120,6 @@ class TestOpenAIDecisions:
     async def test_cost_is_input_tokens_only(self, make_model, chat_priced_luna):
         model, _ = make_model(
             respond(cost=None), cls=OpenAIDecisions, model_name="gpt-6-luna"
-        )
-        resp = await model.aask("x", Triage)
-        assert resp.cost == pytest.approx(296 * 1e-07)
-
-    async def test_litellm_cost_used_when_no_output_tokens(
-        self, make_model, chat_priced_luna
-    ):
-        body = copy.deepcopy(TRIAGE_BODY)
-        body["usage"]["output_tokens"] = 0
-        model, _ = make_model(
-            respond(body, cost=296 * 1e-07),
-            cls=OpenAIDecisions,
-            model_name="gpt-6-luna",
         )
         resp = await model.aask("x", Triage)
         assert resp.cost == pytest.approx(296 * 1e-07)

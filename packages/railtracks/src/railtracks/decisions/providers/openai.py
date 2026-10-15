@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
-
 import litellm
 
-from ..model import DecisionModel
+from ..model import DecisionModel, LiteLLMDecisionResponse
 
 
 class OpenAIDecisions(DecisionModel):
@@ -23,7 +21,9 @@ class OpenAIDecisions(DecisionModel):
     provider_prefix = "openai"
     provider_name = "openai"
 
-    def _cost(self, response: Any, input_tokens: int | None) -> float | None:
+    def _cost(
+        self, response: LiteLLMDecisionResponse, input_tokens: int | None
+    ) -> float | None:
         """``input_tokens`` at litellm's input price; None if litellm does not list the
         model. Never raises."""
         if input_tokens is None:

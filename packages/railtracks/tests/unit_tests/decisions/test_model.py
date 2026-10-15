@@ -7,16 +7,23 @@ import copy
 import httpx
 import litellm
 import pytest
-from litellm.llms.custom_httpx.http_handler import get_async_httpx_client
+import railtracks.decisions
+from litellm.llms.custom_httpx.http_handler import (
+    AsyncHTTPHandler,
+    get_async_httpx_client,
+)
 from litellm.types.utils import LlmProviders
 from railtracks.decisions import (
     DecisionAnswers,
+    DecisionModel,
     DecisionProviderAuthenticationError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
     DecisionProviderRefusalError,
     DecisionProviderTimeoutError,
     DecisionResponse,
+    OpenAIDecisions,
+    OpenRouterDecisions,
     SchemaDefinitionError,
     TypeSafeDecisions,
 )
@@ -75,6 +82,15 @@ def _auth(message: str = 'TypesafeException - {"error": "invalid key"}'):
     return litellm.AuthenticationError(
         message=message, llm_provider=_PROVIDER, model=_MODEL
     )
+
+
+def test_aask_input_type_is_public():
+    assert "DecisionInput" in railtracks.decisions.__all__
+
+
+def test_base_class_needs_a_provider():
+    with pytest.raises(TypeError, match="provider_prefix"):
+        DecisionModel("jev-latest")
 
 
 class TestRequest:
@@ -468,6 +484,39 @@ class TestClientCleanup:
             seen["client"] = seen["handler"].client
             await close_client_on_loop_shutdown(provider.value)
             assert seen["handler"] in cache.cache_dict.values()
+            assert not seen["client"].is_closed
+
+        asyncio.run(run())
+
+        assert seen["client"].is_closed
+        assert seen["handler"] not in cache.cache_dict.values()
+
+    @pytest.mark.parametrize(
+        "cls", [TypeSafeDecisions, OpenRouterDecisions, OpenAIDecisions]
+    )
+    def test_closes_the_client_adecisions_creates(self, cls, monkeypatch):
+        """litellm.adecisions builds and caches the client itself, so a change to the
+        key it caches under fails here."""
+
+        async def post(self, url, **kwargs):
+            # the client is cached before it sends; failing here keeps it offline
+            raise httpx.ConnectError("offline", request=httpx.Request("POST", url))
+
+        monkeypatch.setattr(AsyncHTTPHandler, "post", post)
+        cache = litellm.in_memory_llm_clients_cache
+        seen = {}
+
+        async def run():
+            with pytest.raises(DecisionProviderError):
+                await cls("jev-latest", api_key="test-key").aask("Help!", Triage)
+            suffix = f"-{id(asyncio.get_running_loop())}"
+            [seen["handler"]] = [
+                handler
+                for key, handler in cache.cache_dict.items()
+                if key.endswith(suffix) and isinstance(handler, AsyncHTTPHandler)
+            ]
+            # read now: the handler's ``client`` property replaces a closed client
+            seen["client"] = seen["handler"].client
             assert not seen["client"].is_closed
 
         asyncio.run(run())

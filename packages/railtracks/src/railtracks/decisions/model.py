@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import Any, ClassVar
+from typing import ClassVar, Union
 
 import litellm
+from litellm.types.decisions import DecisionsResponse, OpenAIDecisionResponse
+from typing_extensions import TypeAlias
 
 from railtracks.llm.retries import RetryApproach, RetryError
 
@@ -35,9 +37,11 @@ from .transport._wire import parse_response, questions_to_wire, to_input
 # litellm prints a "Give Feedback / Get Help" banner on every mapped error without it
 litellm.suppress_debug_info = True
 
-# Checked in order; any other litellm exception is a plain DecisionProviderError.
-# litellm.Timeout comes first: it is an openai.APIConnectionError (though not a
-# litellm.APIConnectionError), and timeouts are not provider-tagged.
+LiteLLMDecisionResponse: TypeAlias = Union[OpenAIDecisionResponse, DecisionsResponse]
+"""What ``litellm.adecisions`` returns."""
+
+# Checked in order; any other exception propagates unchanged. litellm.Timeout is not
+# a litellm.APIConnectionError, so it needs its own entry.
 _LITELLM_ERRORS: tuple[
     tuple[tuple[type[Exception], ...], type[DecisionProviderError]], ...
 ] = (
@@ -73,6 +77,9 @@ def _optional_cost(value: object) -> float | None:
 class DecisionModel:
     """A System One model client: answers any ``DecisionSchema`` through ``litellm.adecisions``.
 
+    Create a provider subclass (``TypeSafeDecisions``, ``OpenRouterDecisions``,
+    ``OpenAIDecisions``), not this base class.
+
     Attributes:
         provider_prefix: litellm's provider name, prefixed to the model name
             (``"typesafe/jev-latest"``).
@@ -104,7 +111,20 @@ class DecisionModel:
             retry_approach: Retry strategy for litellm's transient errors (rate
                 limits, timeouts, connection failures, 500 and 503). None (the
                 default) makes one attempt, as for LLM providers.
+
+        Raises:
+            TypeError: If the class sets no ``provider_prefix`` or ``provider_name``.
         """
+        missing = [
+            name
+            for name in ("provider_prefix", "provider_name")
+            if not hasattr(self, name)
+        ]
+        if missing:
+            raise TypeError(
+                f"{type(self).__name__} sets no {' or '.join(missing)}; create a "
+                "provider class such as TypeSafeDecisions instead."
+            )
         self.model_name = model_name
         self.retry_approach = retry_approach
         self._api_key = api_key
@@ -151,16 +171,20 @@ class DecisionModel:
             parsed, cost=self._cost(response, parsed.input_tokens)
         )
 
-    def _cost(self, response: Any, input_tokens: int | None) -> float | None:
+    def _cost(
+        self, response: LiteLLMDecisionResponse, input_tokens: int | None
+    ) -> float | None:
         """The call's cost in USD: litellm's ``response_cost``, or None when litellm
-        could not price it."""
+        could not price it. ``OpenAIDecisions`` overrides it to price input tokens only."""
         hidden = getattr(response, "_hidden_params", None) or {}
         return _optional_cost(hidden.get("response_cost"))
 
-    async def _adecisions(self, state: DecisionInput, schema: DecisionSchema) -> Any:
+    async def _adecisions(
+        self, state: DecisionInput, schema: DecisionSchema
+    ) -> LiteLLMDecisionResponse:
         """One ``litellm.adecisions`` call, retried per ``retry_approach``."""
 
-        async def adecisions() -> Any:
+        async def adecisions() -> LiteLLMDecisionResponse:
             return await litellm.adecisions(
                 model=self.litellm_model,
                 input=to_input(state),

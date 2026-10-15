@@ -1,8 +1,8 @@
 """Shared fixtures for decision tests: a Triage schema and a mocked ``litellm.adecisions``.
 
-The responses are ``OpenAIDecisionResponse`` objects shaped as litellm 1.104.2 returns
-them for an OpenAI-shape request (answers in question order, carrying their ``name``;
-cost in ``_hidden_params["response_cost"]``).
+The responses are ``OpenAIDecisionResponse`` objects shaped as litellm 1.104.3 through
+1.105.x returns them for an OpenAI-shape request (answers in question order, carrying
+their ``name``; cost in ``_hidden_params["response_cost"]``).
 """
 
 from typing import Any, Callable

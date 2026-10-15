@@ -48,13 +48,16 @@ def decision_node(
             sentence listing each question's instructions.
         middleware (Iterable[Middleware] | None): Node middleware (`wrap_node`,
             `post_node`) applied around the node boundary (state -> DecisionResponse).
+            Model middleware is rejected when it is a `ModelMiddleware` (`pre_llm`,
+            `post_llm`, `wrap_llm`, LLM guardrails, `ContextInjection`); a plain
+            `Middleware` is taken as node middleware.
         _shape (Callable[_P, object]): Internal use only. Used to infer the ParamSpec for
             the node's input shape.
 
     Raises:
         NodeCreationError: If the name is blank, the model is not a `DecisionModel`,
-            the schema is not a `DecisionSchema`, or ``middleware`` holds model
-            middleware.
+            the schema is not a `DecisionSchema`, or ``middleware`` holds a
+            `ModelMiddleware`.
     """
     middleware = list(middleware) if middleware is not None else None
     _validate(name, model, schema, middleware)
