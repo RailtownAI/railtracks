@@ -10,7 +10,7 @@ from railtracks.events.middleware import (
 )
 from railtracks.events.send import emit
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.middleware import ModelMiddleware
+from railtracks.llm.middleware import ModelMiddleware, ModelOnlyMiddleware
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 
@@ -107,7 +107,7 @@ def wrap_llm(
 
             return response
 
-        return ModelMiddleware(wrapped, name=name)
+        return ModelOnlyMiddleware(wrapped, name=name)
 
     if fn is None:
         return decorator

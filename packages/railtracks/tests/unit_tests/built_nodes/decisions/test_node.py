@@ -23,7 +23,7 @@ from railtracks.exceptions import (
 from railtracks.guardrails import GuardrailDecision
 from railtracks.llm import ToolCall
 from railtracks.observability import Event, configure, configure_writers
-from railtracks.prebuilt.middleware import ContextInjection
+from railtracks.prebuilt.middleware import ContextInjection, MaxCalls, Retry
 from railtracks.utils.json.encoder import RTJSONEncoder
 
 from .conftest import Triage, respond
@@ -163,6 +163,15 @@ class TestConstruction:
         result = rt.Flow(name="Ticket Triage", entry_point=node).invoke("Help!")
 
         assert seen == ["Help!", result]
+
+    def test_slot_agnostic_middleware_accepted(self, make_model):
+        model, _ = make_model()
+        node = rt.decision_node(
+            model=model, schema=Triage, middleware=[Retry(2), MaxCalls(5)]
+        )
+        result = rt.Flow(name="Ticket Triage", entry_point=node).invoke("Help!")
+
+        assert isinstance(result, DecisionResponse)
 
 
 # ================= Invocation =================

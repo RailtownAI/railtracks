@@ -6,7 +6,7 @@ from railtracks.decisions import DecisionModel, DecisionResponse, DecisionSchema
 from railtracks.decisions.state import DecisionInput
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Parameter, Tool
-from railtracks.llm.middleware import ModelMiddleware
+from railtracks.llm.middleware import ModelOnlyMiddleware
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 
@@ -48,16 +48,16 @@ def decision_node(
             sentence listing each question's instructions.
         middleware (Iterable[Middleware] | None): Node middleware (`wrap_node`,
             `post_node`) applied around the node boundary (state -> DecisionResponse).
-            Model middleware is rejected when it is a `ModelMiddleware` (`pre_llm`,
-            `post_llm`, `wrap_llm`, LLM guardrails, `ContextInjection`); a plain
-            `Middleware` is taken as node middleware.
+            Model-only middleware (`pre_llm`, `post_llm`, `wrap_llm`, LLM guardrails,
+            `ContextInjection`) is rejected; any other `Middleware`, including
+            slot-agnostic ones such as `Retry`, is taken as node middleware.
         _shape (Callable[_P, object]): Internal use only. Used to infer the ParamSpec for
             the node's input shape.
 
     Raises:
         NodeCreationError: If the name is blank, the model is not a `DecisionModel`,
-            the schema is not a `DecisionSchema`, or ``middleware`` holds a
-            `ModelMiddleware`.
+            the schema is not a `DecisionSchema`, or ``middleware`` holds model-only
+            middleware.
     """
     middleware = list(middleware) if middleware is not None else None
     _validate(name, model, schema, middleware)
@@ -109,7 +109,7 @@ def _validate(
             notes=["Build one with rt.decisions.DecisionSchema(predicate=[...], ...)."],
         )
     model_middleware = [
-        m.name for m in middleware or [] if isinstance(m, ModelMiddleware)
+        m.name for m in middleware or [] if isinstance(m, ModelOnlyMiddleware)
     ]
     if model_middleware:
         raise NodeCreationError(
