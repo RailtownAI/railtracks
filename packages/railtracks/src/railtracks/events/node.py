@@ -17,6 +17,7 @@ from railtracks.events._base import (
     ParentEventBase,
 )
 from railtracks.events._resolve import node_parent, node_spatial_parent
+from railtracks.events.session import format_error, strip_ansi
 
 
 class Frame(TypedDict):
@@ -46,8 +47,8 @@ def failure_details(exc: BaseException) -> dict[str, Any]:
     trace = TracebackException.from_exception(exc)
     return {
         "exception_name": type(exc).__name__,
-        "exception_message": str(exc),
-        "traceback": "".join(trace.format()),
+        "exception_message": format_error(exc),
+        "traceback": strip_ansi("".join(trace.format())),
         "frames": [
             Frame(
                 file=frame.filename,

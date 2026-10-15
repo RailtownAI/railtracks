@@ -1,5 +1,8 @@
+import io
+import sys
+
 import pytest
-from railtracks.exceptions._base import RTError
+from railtracks.exceptions._base import RTError, _stderr_is_terminal
 from railtracks.exceptions.errors import (
     ContextError,
     FatalError,
@@ -12,6 +15,40 @@ from railtracks.exceptions.errors import (
 # NOTE: This file contains very basic tests to ensure that the exception classes are working as expected.
 
 
+class _Stderr(io.StringIO):
+    def __init__(self, tty: bool):
+        super().__init__()
+        self._tty = tty
+
+    def isatty(self) -> bool:
+        return self._tty
+
+
+# pytest swaps sys.stderr for its own capture before each test runs, so the fixtures
+# decide the terminal check itself
+@pytest.fixture
+def terminal(monkeypatch):
+    """Stderr is a terminal, where RT errors are coloured."""
+    monkeypatch.setattr("railtracks.exceptions._base._stderr_is_terminal", lambda: True)
+
+
+@pytest.fixture
+def redirected(monkeypatch):
+    """Stderr goes to a file or pipe, where colour codes would only be noise."""
+    monkeypatch.setattr(
+        "railtracks.exceptions._base._stderr_is_terminal", lambda: False
+    )
+
+
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [(_Stderr(tty=True), True), (_Stderr(tty=False), False), (None, False)],
+)
+def test_stderr_counts_as_a_terminal_only_when_it_is_one(monkeypatch, stderr, expected):
+    monkeypatch.setattr(sys, "stderr", stderr)
+    assert _stderr_is_terminal() is expected
+
+
 # =========== START RTError utility tests ===========
 @pytest.mark.parametrize(
     "text,color_code,expected",
@@ -20,15 +57,22 @@ from railtracks.exceptions.errors import (
         ("world", RTError.GREEN, f"{RTError.GREEN}world{RTError.RESET}"),
     ],
 )
-def test_rcerror_color_helper(text, color_code, expected):
+def test_rcerror_color_helper(terminal, text, color_code, expected):
     assert RTError._color(text, color_code) == expected
+
+
+def test_errors_are_plain_when_stderr_is_redirected(redirected):
+    assert RTError._color("hello", RTError.RED) == "hello"
+    assert str(GlobalTimeOutError(12.3)) == "Execution timed out after 12.3 seconds"
+    assert "\033[" not in str(NodeInvocationError("fail", notes=["check x"]))
+    assert "\033[" not in str(LLMError("bad response"))
 
 
 # ========== END RTError utility tests ==============
 
 
 # =========== START NodeInvocationError tests =======
-def test_nodeinvocationerror_basic():
+def test_nodeinvocationerror_basic(terminal):
     err = NodeInvocationError("fail occurred")
     assert err.fatal is False
     assert err.notes == []
@@ -119,7 +163,7 @@ def test_llmerror_format_verbose_without_history():
 
 
 # =========== START GlobalTimeOutError tests =======
-def test_globaltimeout_basic():
+def test_globaltimeout_basic(terminal):
     err = GlobalTimeOutError(12.3)
     s = str(err)
     assert "12.3" in s

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 
 class _ColoredError:
     """Terminal colouring shared by this package's error roots.
@@ -17,7 +19,10 @@ class _ColoredError:
 
     @classmethod
     def _color(cls, text, color_code):
-        """A simple helper method to colorize text for output."""
+        """Colours text for a terminal; leaves it plain when stderr is redirected (a log
+        file, CI), so the codes don't end up there."""
+        if not _stderr_is_terminal():
+            return str(text)
         return f"{color_code}{text}{cls.RESET}"
 
 
@@ -65,3 +70,11 @@ class RetryError(ProviderError):
         self.notes = notes
         self.exception_list = exception_list
         super().__init__(full_message)
+
+
+def _stderr_is_terminal() -> bool:
+    try:
+        return sys.stderr.isatty()
+    except (AttributeError, ValueError):
+        # no stderr at all (pythonw), or one that has been closed
+        return False
