@@ -6,6 +6,7 @@ from railtracks.decisions import DecisionModel, DecisionResponse, DecisionSchema
 from railtracks.decisions.state import DecisionInput
 from railtracks.exceptions import NodeCreationError
 from railtracks.llm import Parameter, Tool
+from railtracks.llm.middleware import ModelMiddleware
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 
@@ -45,16 +46,18 @@ def decision_node(
             every model answers any schema.
         description (str | None): The tool description an agent sees. Defaults to a
             sentence listing each question's instructions.
-        middleware (Iterable[Middleware] | None): Middleware applied around the node
-            boundary (state -> DecisionResponse).
+        middleware (Iterable[Middleware] | None): Node middleware (`wrap_node`,
+            `post_node`) applied around the node boundary (state -> DecisionResponse).
         _shape (Callable[_P, object]): Internal use only. Used to infer the ParamSpec for
             the node's input shape.
 
     Raises:
-        NodeCreationError: If the name is blank, the model is not a `DecisionModel`, or
-            the schema is not a `DecisionSchema`.
+        NodeCreationError: If the name is blank, the model is not a `DecisionModel`,
+            the schema is not a `DecisionSchema`, or ``middleware`` holds model
+            middleware.
     """
-    _validate(name, model, schema)
+    middleware = list(middleware) if middleware is not None else None
+    _validate(name, model, schema, middleware)
     node_name = name if name is not None else "Decision"
     detail = description if description is not None else _default_detail(schema)
 
@@ -82,7 +85,12 @@ def decision_node(
     return cast(type[Node[_P, DecisionResponse]], builder.build())
 
 
-def _validate(name: str | None, model: DecisionModel, schema: DecisionSchema) -> None:
+def _validate(
+    name: str | None,
+    model: DecisionModel,
+    schema: DecisionSchema,
+    middleware: list[Middleware[..., DecisionResponse]] | None,
+) -> None:
     if name is not None and (not isinstance(name, str) or not name.strip()):
         raise NodeCreationError(
             message=f"decision_node name must be a non-empty string, got {name!r}.",
@@ -96,6 +104,17 @@ def _validate(name: str | None, model: DecisionModel, schema: DecisionSchema) ->
         raise NodeCreationError(
             message=f"decision_node needs a DecisionSchema as its schema, got {schema!r}.",
             notes=["Build one with rt.decisions.DecisionSchema(predicate=[...], ...)."],
+        )
+    model_middleware = [
+        m.name for m in middleware or [] if isinstance(m, ModelMiddleware)
+    ]
+    if model_middleware:
+        raise NodeCreationError(
+            message=f"decision_node does not accept model middleware, got {model_middleware!r}.",
+            notes=[
+                "A decision node makes no LLM call, so pre_llm/post_llm/wrap_llm middleware and guardrails would never run.",
+                "Node middleware (rt.wrap_node, rt.post_node) is supported.",
+            ],
         )
 
 

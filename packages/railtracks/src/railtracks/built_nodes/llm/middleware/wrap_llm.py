@@ -13,7 +13,6 @@ from railtracks.llm.history import MessageHistory
 from railtracks.llm.middleware import ModelMiddleware
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
-from railtracks.middleware.core import wrap_node
 
 from ..._types import LLM_CALL
 
@@ -80,7 +79,6 @@ def wrap_llm(
     """
 
     def decorator(fn):
-        @wrap_node(name=name)
         @functools.wraps(fn)
         async def wrapped(
             llm_call: LLM_CALL,
@@ -109,7 +107,7 @@ def wrap_llm(
 
             return response
 
-        return wrapped
+        return ModelMiddleware(wrapped, name=name)
 
     if fn is None:
         return decorator

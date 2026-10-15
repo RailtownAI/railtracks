@@ -20,8 +20,10 @@ from railtracks.exceptions import (
     DecisionTimeoutError,
     NodeCreationError,
 )
+from railtracks.guardrails import GuardrailDecision
 from railtracks.llm import ToolCall
 from railtracks.observability import Event, configure, configure_writers
+from railtracks.prebuilt.middleware import ContextInjection
 from railtracks.utils.json.encoder import RTJSONEncoder
 
 from .conftest import Triage, respond
@@ -51,6 +53,10 @@ class _Collecting:
 
 
 _MODEL = "typesafe/jev-latest"
+
+
+async def _passthrough_llm(llm_call, history, schema, tools):
+    return await llm_call(history, schema, tools)
 
 
 def _failing_on(state: str):
@@ -119,6 +125,44 @@ class TestConstruction:
     def test_non_model_rejected(self):
         with pytest.raises(NodeCreationError, match="decision model"):
             rt.decision_node(model=object(), schema=Triage)
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            lambda: rt.pre_llm(lambda history, schema, tools: (history, schema, tools)),
+            lambda: rt.post_llm(lambda response: response),
+            lambda: rt.wrap_llm(_passthrough_llm),
+            lambda: ContextInjection(),
+            lambda: rt.input_guard(lambda event: GuardrailDecision.allow()),
+        ],
+        ids=["pre_llm", "post_llm", "wrap_llm", "context_injection", "input_guard"],
+    )
+    def test_model_middleware_rejected(self, make_model, build):
+        model, _ = make_model()
+        node_middleware = rt.post_node(lambda response: response)
+        with pytest.raises(NodeCreationError, match="model middleware") as exc:
+            rt.decision_node(
+                model=model, schema=Triage, middleware=[node_middleware, build()]
+            )
+        assert any("wrap_node" in note for note in exc.value.notes)
+
+    def test_node_middleware_runs(self, make_model):
+        model, _ = make_model()
+        seen = []
+
+        @rt.wrap_node
+        async def record(call, state):
+            seen.append(state)
+            return await call(state)
+
+        node = rt.decision_node(
+            model=model,
+            schema=Triage,
+            middleware=[record, rt.post_node(lambda r: seen.append(r) or r)],
+        )
+        result = rt.Flow(name="Ticket Triage", entry_point=node).invoke("Help!")
+
+        assert seen == ["Help!", result]
 
 
 # ================= Invocation =================
