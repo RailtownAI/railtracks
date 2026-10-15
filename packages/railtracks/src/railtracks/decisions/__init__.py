@@ -11,15 +11,14 @@ __all__ = [
     "DecisionModel",
     "DecisionResponse",
     "DecisionSchema",
-    "Noul",
     "OpenAIDecisions",
-    "OpenRouterAI",
+    "OpenRouterDecisions",
     "Predicate",
     "PredicateAnswer",
     "SchemaDefinitionError",
     "Score",
     "ScoreAnswer",
-    "TypeSafeAI",
+    "TypeSafeDecisions",
 ]
 
 
@@ -32,7 +31,7 @@ from ._exceptions import (
     SchemaDefinitionError,
 )
 from .model import DecisionModel
-from .providers import OpenAIDecisions, OpenRouterAI, TypeSafeAI
+from .providers import OpenAIDecisions, OpenRouterDecisions, TypeSafeDecisions
 from .response import DecisionResponse
 from .schema import (
     Choice,
@@ -40,7 +39,6 @@ from .schema import (
     DecisionAnswer,
     DecisionAnswers,
     DecisionSchema,
-    Noul,
     Predicate,
     PredicateAnswer,
     Score,

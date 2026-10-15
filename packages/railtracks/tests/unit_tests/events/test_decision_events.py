@@ -25,7 +25,7 @@ def _invocation() -> DecisionInvocationEvent:
         decision_id="d1",
         model_name="jev-latest",
         state="Help!",
-        questions={"is_urgent": {"type": "noul", "instructions": "Urgent?"}},
+        questions={"is_urgent": {"type": "predicate", "instructions": "Urgent?"}},
     )
 
 
@@ -37,7 +37,7 @@ def test_event_type_strings():
             model_name="jev-latest",
             reported_model_name="jev-1.13.0",
             provider=None,
-            answers={"is_urgent": {"noul": 0.9}},
+            answers={"is_urgent": {"probability": 0.9}},
             input_tokens=10,
             output_tokens=2,
             total_cost=None,

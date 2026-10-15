@@ -8,7 +8,7 @@ single forward pass, typically in well under a second.
 This example triages support tickets. It covers every S1 vendor railtracks supports;
 switching is one line:
 
-1. the model   -> `rt.decisions.TypeSafeAI` (Jev), `OpenRouterAI` or `OpenAIDecisions`
+1. the model   -> `rt.decisions.TypeSafeDecisions` (Jev), `OpenRouterDecisions` or `OpenAIDecisions`
                   (gpt-6-luna)
 2. the schema  -> named question objects grouped in a `DecisionSchema`; every
                   vendor answers the same schema
@@ -31,13 +31,13 @@ import railtracks as rt
 
 ##### 1. The model #####
 
-jev = rt.decisions.OpenRouterAI(
+jev = rt.decisions.OpenRouterDecisions(
     model_name="typesafe/jev-1.13",  # reads OPENROUTER_API_KEY
     # optional: retries rate limits, timeouts, dropped connections, 500 and 503
     retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3),
 )
 # The same schema works on every vendor; swap the model above for one of these:
-# jev = rt.decisions.TypeSafeAI(model_name="jev-latest")  # TYPESAFE_API_KEY
+# jev = rt.decisions.TypeSafeDecisions(model_name="jev-latest")  # TYPESAFE_API_KEY
 # jev = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")  # OPENAI_API_KEY
 
 ##### 2. The schema: named questions, grouped by kind #####

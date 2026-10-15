@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..model import DecisionModel
 
 
-class OpenRouterAI(DecisionModel):
+class OpenRouterDecisions(DecisionModel):
     """System One models through OpenRouter's decisions endpoint.
 
     Model ids carry the vendor, e.g. ``typesafe/jev-1.13``; calls

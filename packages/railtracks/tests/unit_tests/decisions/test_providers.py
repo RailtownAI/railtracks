@@ -11,13 +11,13 @@ import railtracks as rt
 from railtracks.decisions import (
     DecisionModel,
     OpenAIDecisions,
-    OpenRouterAI,
-    TypeSafeAI,
+    OpenRouterDecisions,
+    TypeSafeDecisions,
 )
 
 from .conftest import TRIAGE_BODY, Triage, respond
 
-PROVIDERS = [TypeSafeAI, OpenRouterAI, OpenAIDecisions]
+PROVIDERS = [TypeSafeDecisions, OpenRouterDecisions, OpenAIDecisions]
 
 
 @pytest.mark.parametrize("provider", PROVIDERS)
@@ -42,13 +42,16 @@ def test_decision_model_is_the_one_concrete_base():
 
 
 def test_exports():
-    assert rt.decisions.TypeSafeAI is TypeSafeAI
-    assert rt.decisions.OpenRouterAI is OpenRouterAI
+    assert rt.decisions.TypeSafeDecisions is TypeSafeDecisions
+    assert rt.decisions.OpenRouterDecisions is OpenRouterDecisions
     assert rt.decisions.OpenAIDecisions is OpenAIDecisions
     for removed in (
         "TypeSafeSchema",
         "OpenAISchema",
         "NoulAnswer",
+        "Noul",
+        "TypeSafeAI",
+        "OpenRouterAI",
         "TypeSafeCompatibleAI",
         "UpstageAI",
         "LayaAI",
@@ -60,8 +63,8 @@ def test_exports():
 @pytest.mark.parametrize(
     "provider, model_name, litellm_model",
     [
-        (TypeSafeAI, "jev-latest", "typesafe/jev-latest"),
-        (OpenRouterAI, "typesafe/jev-1.13", "openrouter/typesafe/jev-1.13"),
+        (TypeSafeDecisions, "jev-latest", "typesafe/jev-latest"),
+        (OpenRouterDecisions, "typesafe/jev-1.13", "openrouter/typesafe/jev-1.13"),
         (OpenAIDecisions, "gpt-6-luna", "openai/gpt-6-luna"),
     ],
 )
@@ -78,22 +81,22 @@ async def test_litellm_model_carries_the_provider_prefix(
 # ================= TypeSafe =================
 
 
-class TestTypeSafeAI:
+class TestTypeSafeDecisions:
     def test_defaults(self):
-        model = TypeSafeAI("jev-latest")
+        model = TypeSafeDecisions("jev-latest")
         assert model.provider_name == "typesafe"
 
 
 # ================= OpenRouter =================
 
 
-class TestOpenRouterAI:
+class TestOpenRouterDecisions:
     def test_defaults(self):
-        assert OpenRouterAI("typesafe/jev-1.13").provider_name == "openrouter"
+        assert OpenRouterDecisions("typesafe/jev-1.13").provider_name == "openrouter"
 
     async def test_cost_is_litellms_response_cost(self, make_model):
         model, _ = make_model(
-            respond(cost=0.002), cls=OpenRouterAI, model_name="typesafe/jev-1.13"
+            respond(cost=0.002), cls=OpenRouterDecisions, model_name="typesafe/jev-1.13"
         )
         resp = await model.aask("Help!", Triage)
         assert resp.cost == 0.002

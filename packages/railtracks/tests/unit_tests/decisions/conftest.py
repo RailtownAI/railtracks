@@ -16,7 +16,7 @@ from railtracks.decisions import (
     DecisionSchema,
     Predicate,
     Score,
-    TypeSafeAI,
+    TypeSafeDecisions,
 )
 
 _PROVIDER_ENV = (
@@ -140,12 +140,12 @@ def fake_decisions(monkeypatch) -> Callable[..., FakeDecisions]:
 
 @pytest.fixture
 def make_model(fake_decisions) -> Callable[..., tuple[DecisionModel, FakeDecisions]]:
-    """Build a provider client (``TypeSafeAI`` unless ``cls=`` says otherwise) whose
+    """Build a provider client (``TypeSafeDecisions`` unless ``cls=`` says otherwise) whose
     ``litellm.adecisions`` calls go to a ``FakeDecisions``."""
 
     def _make(
         *outcomes: OpenAIDecisionResponse | Exception,
-        cls: type[DecisionModel] = TypeSafeAI,
+        cls: type[DecisionModel] = TypeSafeDecisions,
         model_name: str = "jev-latest",
         **kwargs: Any,
     ) -> tuple[DecisionModel, FakeDecisions]:

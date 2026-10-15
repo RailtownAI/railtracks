@@ -1013,7 +1013,7 @@ def _decision_session_events(
                 "decision_id": "d1",
                 "model_name": "jev-latest",
                 "state": "Help!",
-                "questions": {"is_urgent": {"type": "noul"}},
+                "questions": {"is_urgent": {"type": "predicate"}},
             },
         ),
         _event(
@@ -1026,7 +1026,7 @@ def _decision_session_events(
                 "model_name": "jev-latest",
                 "reported_model_name": "jev-1.13.0",
                 "provider": "TypeSafe",
-                "answers": {"is_urgent": {"noul": 0.93}},
+                "answers": {"is_urgent": {"probability": 0.93}},
                 "input_tokens": 296,
                 "output_tokens": 20,
                 "total_cost": 0.5,

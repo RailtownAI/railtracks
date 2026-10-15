@@ -10,8 +10,8 @@ Every vendor answers the same `rt.decisions.DecisionSchema`, so switching is a o
 
 | Class | Serves | Key | Notes |
 |---|---|---|---|
-| `TypeSafeAI` | TypeSafe's Jev (`jev-latest`) | `TYPESAFE_API_KEY` (required) | `TYPESAFE_API_BASE` overrides the URL; text and JSON input only |
-| `OpenRouterAI` | System One models on OpenRouter (`typesafe/jev-1.13`) | `OPENROUTER_API_KEY` (required) | `OPENROUTER_API_BASE` overrides the URL; text and JSON input only |
+| `TypeSafeDecisions` | TypeSafe's Jev (`jev-latest`) | `TYPESAFE_API_KEY` (required) | `TYPESAFE_API_BASE` overrides the URL; text and JSON input only |
+| `OpenRouterDecisions` | System One models on OpenRouter (`typesafe/jev-1.13`) | `OPENROUTER_API_KEY` (required) | `OPENROUTER_API_BASE` overrides the URL; text and JSON input only |
 | `OpenAIDecisions` | OpenAI's Decisions API (`gpt-6-luna`, public beta) | `OPENAI_API_KEY` (required) | `OPENAI_BASE_URL` overrides the URL; text and JSON input only; bills input tokens only |
 
 Each class also takes `api_key=`, `api_base=`, `timeout=` (seconds, default 30) and `retry_approach=`.
@@ -28,7 +28,7 @@ triage = rt.decisions.DecisionSchema(predicate=[is_urgent], choice=[department])
 
 | Question | Created as | Answer | Read |
 |---|---|---|---|
-| Yes/no | `rt.decisions.Predicate(name=, instructions=)` (alias `Noul`) | `PredicateAnswer` | `.probability` |
+| Yes/no | `rt.decisions.Predicate(name=, instructions=)` | `PredicateAnswer` | `.probability` |
 | One of several values | `rt.decisions.Choice(name=, instructions=, choices={value: description} or [values])`, 2 to 255 values | `ChoiceAnswer` | `.choice`, `.confidence`, `.probabilities[value]` |
 | A level on an ordered rubric | `rt.decisions.Score(name=, instructions=, levels={label: criteria} or [labels])`, 2 to 10 levels | `ScoreAnswer` | `.score` (expected level index), `.confidence`, `.probabilities[index]`, `.legend[index]` |
 

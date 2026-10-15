@@ -34,13 +34,13 @@ department = rt.decisions.Choice(
 frustration = rt.decisions.Score(
     name="frustration", instructions="How frustrated", levels=["Calm", "Angry"]
 )
-needs_manager = rt.decisions.Noul(
+needs_manager = rt.decisions.Predicate(
     name="needs_manager", instructions="A manager must step in"
 )
 
 triage = DecisionSchema(predicate=[is_urgent], choice=[department], score=[frustration])
 
-jev = rt.decisions.TypeSafeAI(model_name="jev-latest")
+jev = rt.decisions.TypeSafeDecisions(model_name="jev-latest")
 
 
 def questions() -> None:
@@ -104,7 +104,7 @@ async def node_calls() -> None:
 
 
 async def other_providers() -> None:
-    openrouter = rt.decisions.OpenRouterAI("typesafe/jev-1.13")
+    openrouter = rt.decisions.OpenRouterDecisions("typesafe/jev-1.13")
     luna = rt.decisions.OpenAIDecisions("gpt-6-luna")
     assert_type(await openrouter.aask("x", triage), DecisionResponse)
     assert_type(await luna.aask("x", triage), DecisionResponse)

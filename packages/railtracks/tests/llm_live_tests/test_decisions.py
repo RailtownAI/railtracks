@@ -1,7 +1,7 @@
 """Live decision calls through ``litellm.adecisions``, one run per vendor.
 
 OpenRouter (``typesafe/jev-1.13``) and OpenAI (``gpt-6-luna``). TypeSafe has no live
-run: OpenRouter serves the same Jev model, and ``TypeSafeAI`` differs only in its
+run: OpenRouter serves the same Jev model, and ``TypeSafeDecisions`` differs only in its
 litellm prefix, key and base URL, which the unit tests cover. Each call costs about
 $0.00002 to $0.00004. A vendor's tests are skipped when its key (OPENROUTER_API_KEY,
 OPENAI_API_KEY) is unset.
@@ -34,7 +34,7 @@ class Vendor:
 
 
 OPENROUTER = Vendor(
-    rt.decisions.OpenRouterAI,
+    rt.decisions.OpenRouterDecisions,
     "typesafe/jev-1.13",
     "OPENROUTER_API_KEY",
     "typesafe/jev-1.13",

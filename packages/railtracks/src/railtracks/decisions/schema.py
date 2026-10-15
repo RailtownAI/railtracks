@@ -1,6 +1,6 @@
 """Decision schemas: the questions a decision model answers together, and their answers.
 
-Users create named ``Predicate`` (alias ``Noul``), ``Choice`` and ``Score`` questions
+Users create named ``Predicate``, ``Choice`` and ``Score`` questions
 and group them in a ``DecisionSchema``. Each question type has a typed answer
 (``PredicateAnswer``, ``ChoiceAnswer``, ``ScoreAnswer``), which ``DecisionAnswers``
 returns when indexed with that question.
@@ -224,8 +224,6 @@ class ScoreQuestion(DecisionQuestion[ScoreAnswer]):
 
 
 Predicate = PredicateQuestion
-Noul = PredicateQuestion
-"""An alias of ``Predicate``."""
 Choice = ChoiceQuestion
 Score = ScoreQuestion
 
@@ -264,7 +262,7 @@ class DecisionSchema:
         """Group questions into a schema.
 
         Args:
-            predicate: Yes/no questions (``Predicate`` or ``Noul``).
+            predicate: Yes/no questions (``Predicate``).
             choice: ``Choice`` questions.
             score: ``Score`` questions.
 

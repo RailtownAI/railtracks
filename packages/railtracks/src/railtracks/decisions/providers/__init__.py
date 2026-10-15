@@ -1,10 +1,10 @@
 __all__ = [
     "OpenAIDecisions",
-    "OpenRouterAI",
-    "TypeSafeAI",
+    "OpenRouterDecisions",
+    "TypeSafeDecisions",
 ]
 
 
 from .openai import OpenAIDecisions
-from .openrouter import OpenRouterAI
-from .typesafe import TypeSafeAI
+from .openrouter import OpenRouterDecisions
+from .typesafe import TypeSafeDecisions

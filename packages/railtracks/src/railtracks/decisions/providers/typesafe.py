@@ -3,7 +3,7 @@ from __future__ import annotations
 from ..model import DecisionModel
 
 
-class TypeSafeAI(DecisionModel):
+class TypeSafeDecisions(DecisionModel):
     """TypeSafe's hosted System One models, e.g. ``jev-latest``.
 
     Calls ``litellm.adecisions`` with ``typesafe/<model_name>``. litellm reads

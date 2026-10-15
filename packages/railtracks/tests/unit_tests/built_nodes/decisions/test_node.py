@@ -148,7 +148,7 @@ async def test_call_passes_json_state_through(make_model):
 
 async def test_call_batch_preserves_order_and_returns_exceptions(monkeypatch):
     monkeypatch.setattr(litellm, "adecisions", _failing_on("b"))
-    model = rt.decisions.TypeSafeAI("jev-latest", api_key="k")
+    model = rt.decisions.TypeSafeDecisions("jev-latest", api_key="k")
     node = rt.decision_node(model=model, schema=Triage)
 
     with rt.Session(flow_name="decisions", end_on_error=False):

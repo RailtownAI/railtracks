@@ -39,8 +39,8 @@ def decision_node(
 
     Args:
         name (str | None): The node and tool name. Defaults to "Decision".
-        model (DecisionModel): The decision model, e.g. `rt.decisions.TypeSafeAI`,
-            `rt.decisions.OpenRouterAI` or `rt.decisions.OpenAIDecisions`.
+        model (DecisionModel): The decision model, e.g. `rt.decisions.TypeSafeDecisions`,
+            `rt.decisions.OpenRouterDecisions` or `rt.decisions.OpenAIDecisions`.
         schema (DecisionSchema): The questions to answer, as a `DecisionSchema`;
             every model answers any schema.
         description (str | None): The tool description an agent sees. Defaults to a
@@ -90,7 +90,7 @@ def _validate(name: str | None, model: DecisionModel, schema: DecisionSchema) ->
         )
     if not isinstance(model, DecisionModel):
         raise NodeCreationError(
-            message=f"decision_node model must be a decision model such as rt.decisions.TypeSafeAI, got {type(model).__name__}.",
+            message=f"decision_node model must be a decision model such as rt.decisions.TypeSafeDecisions, got {type(model).__name__}.",
         )
     if not isinstance(schema, DecisionSchema):
         raise NodeCreationError(

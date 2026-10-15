@@ -16,7 +16,7 @@ from railtracks.decisions import (
     DecisionProviderTimeoutError,
     DecisionResponse,
     SchemaDefinitionError,
-    TypeSafeAI,
+    TypeSafeDecisions,
 )
 from railtracks.exceptions._base import RTError
 from railtracks.llm.retries import FixedRetry
@@ -112,7 +112,7 @@ class TestRequest:
         assert fake.last["api_key"] is None
 
     def test_construction_without_key_or_network(self):
-        model = TypeSafeAI(model_name="jev-latest")
+        model = TypeSafeDecisions(model_name="jev-latest")
         assert model.model_name == "jev-latest"
         # litellm resolves the base URL; the model does not repeat that lookup
         assert not hasattr(model, "api_base")

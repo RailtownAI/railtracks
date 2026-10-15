@@ -7,7 +7,6 @@ from railtracks.decisions import (
     ChoiceAnswer,
     DecisionAnswers,
     DecisionSchema,
-    Noul,
     Predicate,
     PredicateAnswer,
     SchemaDefinitionError,
@@ -91,10 +90,6 @@ class TestPredicate:
         assert q.kind == "predicate"
         assert q.answer_type is PredicateAnswer
 
-    def test_noul_is_an_alias_of_predicate(self):
-        assert Noul is Predicate
-        assert isinstance(Noul(name="x", instructions="x"), PredicateQuestion)
-
     @pytest.mark.parametrize("instructions", ["", "  ", None])
     def test_blank_instructions_rejected(self, instructions):
         with pytest.raises(SchemaDefinitionError, match="instructions"):
@@ -102,7 +97,7 @@ class TestPredicate:
 
     def test_true_false_criteria_not_accepted(self):
         with pytest.raises(TypeError):
-            Noul(name="x", instructions="x", criteria={"true": "y"})  # type: ignore[call-arg]
+            Predicate(name="x", instructions="x", criteria={"true": "y"})  # type: ignore[call-arg]
 
 
 class TestChoice:
@@ -219,11 +214,6 @@ class TestSchema:
         schema = DecisionSchema(predicate=predicates)
         predicates.append(Predicate(name="later", instructions="x"))
         assert list(schema.questions) == ["is_urgent"]
-
-    def test_noul_goes_in_the_predicate_list(self):
-        spam = Noul(name="is_spam", instructions="The message is spam")
-        schema = DecisionSchema(predicate=[spam])
-        assert isinstance(schema.questions["is_spam"], PredicateQuestion)
 
     def test_question_reused_across_schemas(self):
         first = DecisionSchema(predicate=[is_urgent])
