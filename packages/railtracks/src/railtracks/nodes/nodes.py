@@ -170,7 +170,8 @@ class Node(ABC, Generic[_P, _TOutput]):
         start_time = time.perf_counter()
         try:
             result = await self.middleware.run(body, *args, **kwargs)
-        except BaseException as error:
+        # a cancelled node, cut off as the loop shuts down, has no outcome to report
+        except Exception as error:
             await emit(
                 NodeDestruction(
                     response=None,
