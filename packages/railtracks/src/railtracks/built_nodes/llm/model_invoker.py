@@ -164,7 +164,7 @@ class ModelInvoker:
         """
         Creates a new :class:`ModelInvoker` with the given model and middleware, inserting the obersvation middleware as the last element run.
         """
-        unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
+        unwrapped_middleware = list(middleware) if middleware is not None else []
         return cls(
             model,
             [*unwrapped_middleware, _llm_observe],
