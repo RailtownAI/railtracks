@@ -96,8 +96,9 @@ def enable_logging(
     Runs print as an indented run view built from session events. The level picks
     what it shows: ``WARNING`` the run's start and end plus failures, ``INFO`` adds
     each node and LLM call, ``DEBUG`` adds arguments, responses, the run's result,
-    middleware decisions, and context operations. Only ``DEBUG`` prints user
-    content. Each run uses the level of the thread it started in.
+    middleware decisions, and context operations. Only ``DEBUG`` prints arguments,
+    responses, and results; failure lines include the exception's message at every
+    level that shows failures. Each run uses the level of the thread it started in.
 
     Args:
         level: Logging level (default "INFO"). Overridden by RT_LOG_LEVEL when None.

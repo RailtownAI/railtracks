@@ -57,7 +57,7 @@ class _Run:
     level: int
     label: str
     end_on_error: bool
-    # only DEBUG prints user content: arguments, responses, and the run's result
+    # only DEBUG prints arguments, responses, and the run's result
     show_content: bool
     # shared across runs: a middleware announces itself once per process
     middleware_names: dict[str, str]

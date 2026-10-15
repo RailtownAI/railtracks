@@ -38,7 +38,7 @@ With logging enabled, each run prints as an indented tree built from the run's e
 | `CRITICAL` | Only failures that stop the run |
 | `NONE` | Nothing |
 
-Only `DEBUG` prints user content: node arguments and responses, the run's result, and guardrail reasons. `INFO` and above show names, timings, models, token counts, costs, and failures, so turning logging on doesn't put your users' conversations in your logs.
+Only `DEBUG` prints node arguments and responses, the run's result, and guardrail reasons. `INFO` and above show names, timings, models, token counts, and costs, so turning logging on doesn't put your users' conversations in your logs. Failure lines print at every level that shows failures and include the exception's message, which can quote user input; provider errors often quote the prompt.
 
 When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`.
 
