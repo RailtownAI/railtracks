@@ -1,4 +1,5 @@
 import base64
+import http.client
 import math
 import os
 import re
@@ -144,7 +145,8 @@ def _download_capped(path: str, *, timeout: float, max_mb: float) -> bytes:
 
     Raises:
         ValueError: If the server returns an HTTP error, the body exceeds
-            `max_mb`, or the body ends before its declared `Content-Length`.
+            `max_mb`, or the body ends before its declared `Content-Length`
+            or final chunk.
     """
     max_bytes = int(max_mb * 1024 * 1024)
     chunks: list[bytes] = []
@@ -161,7 +163,9 @@ def _download_capped(path: str, *, timeout: float, max_mb: float) -> bytes:
             # Bytes still owed under Content-Length; None when the server sent none.
             missing = getattr(url, "length", None)
     except error.HTTPError as e:
-        raise ValueError(f"Failed to encode URL: {path}. Error: {e}")
+        raise ValueError(f"Failed to encode URL: {path}. Error: {e!r}") from e
+    except http.client.IncompleteRead as e:
+        raise ValueError(f"Download from {path!r} ended early: {e!r}") from e
     if isinstance(missing, int) and missing > 0:
         raise ValueError(
             f"Download from {path!r} ended {missing} bytes short of its Content-Length."
@@ -188,7 +192,7 @@ def encode(
         FileNotFoundError: If the file doesn't exist.
         ValueError: If `max_mb` is not positive and finite, the path is not a
             local file, a URL body exceeds `max_mb`, or a URL body ends before
-            its declared `Content-Length`.
+            its declared `Content-Length` or final chunk.
     """
     validate_max_mb(max_mb)
     source_type = detect_source(path)

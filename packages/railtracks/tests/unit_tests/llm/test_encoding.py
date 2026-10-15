@@ -154,6 +154,16 @@ class TestEncode:
             encode("https://example.com/report.pdf")
 
     @patch("railtracks.llm.encoding.request.urlopen")
+    def test_url_truncated_chunked_body_raises(self, mock_urlopen):
+        self._http_response(
+            mock_urlopen,
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n64\r\n%PDF-1.4",
+        )
+
+        with pytest.raises(ValueError, match="ended early"):
+            encode("https://example.com/report.pdf")
+
+    @patch("railtracks.llm.encoding.request.urlopen")
     def test_url_complete_body_with_content_length(self, mock_urlopen):
         body = b"%PDF-1.4 whole"
         self._http_response(
