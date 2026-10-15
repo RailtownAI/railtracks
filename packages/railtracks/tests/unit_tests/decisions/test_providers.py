@@ -28,7 +28,16 @@ def test_providers_subclass_decision_model(provider):
 def test_decision_model_is_the_one_concrete_base():
     assert not inspect.isabstract(DecisionModel)
     assert importlib.util.find_spec("railtracks.decisions.transport._litellm") is None
-    for leftover in ("api_base", "_send", "describe_questions", "_key_notes"):
+    assert importlib.util.find_spec("railtracks.decisions.pricing") is None
+    for leftover in (
+        "api_base",
+        "_send",
+        "describe_questions",
+        "_key_notes",
+        "_pricing_keys",
+        "pricing_prefixes",
+        "bills_output_tokens",
+    ):
         assert not hasattr(DecisionModel, leftover)
 
 
@@ -74,12 +83,6 @@ class TestTypeSafeAI:
         model = TypeSafeAI("jev-latest")
         assert model.provider_name == "typesafe"
 
-    def test_pricing_keys_do_not_try_openrouter(self):
-        assert TypeSafeAI("jev-latest")._pricing_keys() == [
-            "typesafe/jev-latest",
-            "jev-latest",
-        ]
-
 
 # ================= OpenRouter =================
 
@@ -88,24 +91,12 @@ class TestOpenRouterAI:
     def test_defaults(self):
         assert OpenRouterAI("typesafe/jev-1.13").provider_name == "openrouter"
 
-    def test_pricing_keys(self):
-        assert OpenRouterAI("typesafe/jev-1.13")._pricing_keys() == [
-            "openrouter/typesafe/jev-1.13",
-            "typesafe/jev-1.13",
-        ]
-
-    async def test_catalog_price(self, make_model, monkeypatch):
-        # litellm fetches its catalog at import; pin the entry so this stays offline
-        monkeypatch.setitem(
-            litellm.model_cost,
-            "openrouter/typesafe/jev-1.13",
-            {"input_cost_per_token": 4.2e-08, "output_cost_per_token": 0.0},
-        )
+    async def test_cost_is_litellms_response_cost(self, make_model):
         model, _ = make_model(
-            respond(cost=None), cls=OpenRouterAI, model_name="typesafe/jev-1.13"
+            respond(cost=0.002), cls=OpenRouterAI, model_name="typesafe/jev-1.13"
         )
         resp = await model.aask("Help!", Triage)
-        assert resp.cost == pytest.approx(296 * 4.2e-08)
+        assert resp.cost == 0.002
 
 
 # ================= OpenAI =================
@@ -114,9 +105,6 @@ class TestOpenRouterAI:
 class TestOpenAIDecisions:
     def test_defaults(self):
         assert OpenAIDecisions("gpt-6-luna").provider_name == "openai"
-
-    def test_pricing_keys(self):
-        assert OpenAIDecisions("gpt-6-luna")._pricing_keys() == ["gpt-6-luna"]
 
     @pytest.fixture
     def chat_priced_luna(self, monkeypatch):
@@ -127,9 +115,7 @@ class TestOpenAIDecisions:
             {"input_cost_per_token": 1e-07, "output_cost_per_token": 5e-07},
         )
 
-    async def test_catalog_cost_is_input_tokens_only(
-        self, make_model, chat_priced_luna
-    ):
+    async def test_cost_is_input_tokens_only(self, make_model, chat_priced_luna):
         model, _ = make_model(
             respond(cost=None), cls=OpenAIDecisions, model_name="gpt-6-luna"
         )
@@ -160,6 +146,25 @@ class TestOpenAIDecisions:
         )
         resp = await model.aask("x", Triage)
         assert resp.cost == pytest.approx(296 * 1e-07)
+
+    async def test_unlisted_model_has_no_cost(self, make_model, monkeypatch):
+        monkeypatch.delitem(litellm.model_cost, "gpt-unlisted", raising=False)
+        model, _ = make_model(cls=OpenAIDecisions, model_name="gpt-unlisted")
+        resp = await model.aask("x", Triage)
+        assert resp.cost is None
+
+    def test_no_input_tokens_means_no_cost(self, chat_priced_luna):
+        # litellm's response type requires usage, so ask the cost hook directly
+        assert OpenAIDecisions("gpt-6-luna")._cost(respond(), None) is None
+
+    async def test_pricing_never_raises(self, make_model, monkeypatch):
+        def boom(**kwargs):
+            raise ValueError("bad catalog entry")
+
+        monkeypatch.setattr(litellm, "cost_per_token", boom)
+        model, _ = make_model(cls=OpenAIDecisions, model_name="gpt-6-luna")
+        resp = await model.aask("x", Triage)
+        assert resp.cost is None
 
     async def test_json_array_sent_as_json_text(self, make_model):
         state = [{"role": "user", "content": "Is this urgent?"}]

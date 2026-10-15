@@ -14,4 +14,3 @@ class OpenRouterAI(DecisionModel):
 
     provider_prefix = "openrouter"
     provider_name = "openrouter"
-    pricing_prefixes = ("openrouter",)

@@ -135,30 +135,31 @@ class TestResponse:
         assert resp.cost == pytest.approx(TRIAGE_COST)
         assert resp.raw["usage"]["input_tokens"] == 296
 
-    async def test_litellm_cost_preferred_over_catalog(self, make_model):
+    async def test_cost_is_litellms_response_cost(self, make_model):
         model, _ = make_model(respond(cost=0.002))
         resp = await model.aask("Help!", Triage)
         assert resp.cost == 0.002
 
-    async def test_catalog_price_without_litellm_cost(self, make_model):
+    async def test_no_litellm_cost_means_no_cost(self, make_model, monkeypatch):
+        # no fallback to the catalog, even for a model litellm lists
+        monkeypatch.setitem(
+            litellm.model_cost,
+            "typesafe/jev-latest",
+            {"input_cost_per_token": 4.2e-08, "output_cost_per_token": 0.0},
+        )
         model, _ = make_model(respond(cost=None))
-        resp = await model.aask("Help!", Triage)
-        assert resp.cost == pytest.approx(296 * 4.2e-08)
-
-    async def test_unpriced_model_has_no_cost(self, make_model):
-        model, _ = make_model(respond(cost=None), model_name="kev-4b")
         resp = await model.aask("Help!", Triage)
         assert resp.cost is None
 
     @pytest.mark.parametrize(
         "cost", [-1.0, "0.1", True], ids=["negative", "str", "bool"]
     )
-    async def test_unusable_litellm_cost_falls_back_to_catalog(self, make_model, cost):
+    async def test_unusable_litellm_cost_means_no_cost(self, make_model, cost):
         response = respond(cost=None)
         response._hidden_params["response_cost"] = cost
         model, _ = make_model(response)
         resp = await model.aask("Help!", Triage)
-        assert resp.cost == pytest.approx(296 * 4.2e-08)
+        assert resp.cost is None
 
     async def test_refusal_raises(self, make_model):
         body = copy.deepcopy(TRIAGE_BODY)

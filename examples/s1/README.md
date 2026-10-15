@@ -36,7 +36,7 @@ Names must be unique within a schema; a question object can be shared by several
 
 ## How routing works
 
-Every call goes through `litellm.adecisions`, the way chat models go through litellm's completion API. railtracks always sends OpenAI's request shape (`input` plus a list of named `questions`) with the model as `"<vendor>/<model>"` (`typesafe/jev-latest`, `openrouter/typesafe/jev-1.13`, `openai/gpt-6-luna`); litellm translates it to each vendor's own API, reads the key and base URL from the environment variables above, and returns OpenAI's response shape, which railtracks parses into your schema. The result's `cost` is litellm's price for the call.
+Every call goes through `litellm.adecisions`, the way chat models go through litellm's completion API. railtracks always sends OpenAI's request shape (`input` plus a list of named `questions`) with the model as `"<vendor>/<model>"` (`typesafe/jev-latest`, `openrouter/typesafe/jev-1.13`, `openai/gpt-6-luna`); litellm translates it to each vendor's own API, reads the key and base URL from the environment variables above, and returns OpenAI's response shape, which railtracks parses into your schema. The result's `cost` is litellm's price for the call, or None when litellm can't price it.
 
 ## Running it
 

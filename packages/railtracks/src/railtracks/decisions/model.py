@@ -26,7 +26,6 @@ from ._exceptions import (
     DecisionProviderRateLimitError,
     DecisionProviderTimeoutError,
 )
-from .pricing import decision_cost
 from .response import DecisionResponse
 from .schema import DecisionSchema
 from .state import DecisionInput
@@ -78,17 +77,10 @@ class DecisionModel:
         provider_prefix: litellm's provider name, prefixed to the model name
             (``"typesafe/jev-latest"``).
         provider_name: Who serves the model: the response's ``provider``.
-        bills_output_tokens: Whether catalog pricing should charge output tokens; False
-            when the API bills input only (OpenAI's Decisions API) but the catalog lists
-            chat prices.
-        pricing_prefixes: Prefixes tried, in order, before the bare model name when
-            looking the model up in ``litellm.model_cost``.
     """
 
     provider_prefix: ClassVar[str]
     provider_name: ClassVar[str]
-    bills_output_tokens: ClassVar[bool] = True
-    pricing_prefixes: ClassVar[tuple[str, ...]] = ()
 
     def __init__(
         self,
@@ -155,18 +147,15 @@ class DecisionModel:
             provider=self.provider_name,
             latency=latency,
         )
+        return dataclasses.replace(
+            parsed, cost=self._cost(response, parsed.input_tokens)
+        )
+
+    def _cost(self, response: Any, input_tokens: int | None) -> float | None:
+        """The call's cost in USD: litellm's ``response_cost``, or None when litellm
+        could not price it."""
         hidden = getattr(response, "_hidden_params", None) or {}
-        cost = _optional_cost(hidden.get("response_cost"))
-        if not self.bills_output_tokens and parsed.output_tokens:
-            # litellm prices output at the catalog's chat rate; the API bills none
-            cost = None
-        if cost is None:
-            cost = decision_cost(
-                self._pricing_keys(),
-                parsed.input_tokens,
-                parsed.output_tokens if self.bills_output_tokens else None,
-            )
-        return dataclasses.replace(parsed, cost=cost)
+        return _optional_cost(hidden.get("response_cost"))
 
     async def _adecisions(self, state: DecisionInput, schema: DecisionSchema) -> Any:
         """One ``litellm.adecisions`` call, retried per ``retry_approach``."""
@@ -203,8 +192,3 @@ class DecisionModel:
                     f"Decision request to {self.litellm_model} failed: {error!r}"
                 )
         return None
-
-    def _pricing_keys(self) -> list[str]:
-        """The ``litellm.model_cost`` keys to try for this model, in order."""
-        keys = [f"{prefix}/{self.model_name}" for prefix in self.pricing_prefixes]
-        return list(dict.fromkeys([*keys, self.model_name]))

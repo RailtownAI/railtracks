@@ -21,8 +21,8 @@ class DecisionResponse:
         input_tokens: Input tokens, when reported.
         output_tokens: Output tokens, when reported.
         latency: Seconds the call took, including retries.
-        cost: Cost in USD: litellm's ``response_cost`` for the call, else the
-            LiteLLM pricing table's price, else None.
+        cost: Cost in USD as litellm priced the call (``response_cost``); None when
+            litellm could not price it.
         raw: The response as plain JSON, for debugging.
     """
 

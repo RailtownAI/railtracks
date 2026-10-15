@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
+import litellm
+
 from ..model import DecisionModel
 
 
@@ -12,10 +16,22 @@ class OpenAIDecisions(DecisionModel):
     then ``OPENAI_API_BASE``. Text and JSON input only. Guide:
     https://developers.openai.com/api/docs/guides/decisions.
 
-    Pricing counts input tokens only: the API bills input tokens alone, while
+    The cost counts input tokens only: the API bills input tokens alone, while
     ``litellm.model_cost`` lists ``gpt-6-luna`` at chat prices.
     """
 
     provider_prefix = "openai"
     provider_name = "openai"
-    bills_output_tokens = False
+
+    def _cost(self, response: Any, input_tokens: int | None) -> float | None:
+        """``input_tokens`` at litellm's input price; None if litellm does not list the
+        model. Never raises."""
+        if input_tokens is None:
+            return None
+        try:
+            input_cost, _ = litellm.cost_per_token(
+                model=self.model_name, prompt_tokens=input_tokens, completion_tokens=0
+            )
+        except Exception:
+            return None
+        return float(input_cost)

@@ -13,4 +13,3 @@ class TypeSafeAI(DecisionModel):
 
     provider_prefix = "typesafe"
     provider_name = "typesafe"
-    pricing_prefixes = ("typesafe",)
