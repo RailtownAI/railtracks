@@ -1,9 +1,6 @@
 # Google Cloud Storage
 
-`GCSLoader` fetches objects from a GCS bucket and returns them as
-`Document` objects (`railtracks.retrieval.models.Document`) containing
-UTF-8 decoded content, a `source` URI, and provider metadata (`bucket`,
-`name`).
+`GCSLoader` fetches objects from a GCS bucket and returns them as `Document` objects (`railtracks.retrieval.models.Document`) containing the object's text, a `source` URI, and provider metadata (`bucket`, `name`). PDFs are parsed into text; see [PDFs and other binary objects](#pdfs-and-other-binary-objects).
 
 ## Installation
 
@@ -68,6 +65,14 @@ Pass explicit `credentials` to override ADC.
 ```python
 --8<-- "docs/scripts/integrations/storage_loaders.py:gcs_service_account"
 ```
+
+## PDFs and other binary objects
+
+Objects whose name ends in `.pdf` are parsed with the same logic as [`PyPDFLoader`](../../retrieval/components/ingestion/methods.md#pypdfloader), which needs the `pdf` extra (`pip install railtracks[pdf]`). Without it, text objects still load, and the first PDF raises an `ImportError` naming the extra.
+
+By default each non-empty page becomes its own `Document`, with `page`, `total_pages` and `file_type` added to the metadata above. Pass `pdf_breakdown_strategy="paragraph"` or `"document"` to split PDFs the way `PyPDFLoader` does.
+
+Any other object that is not valid text in `encoding`, such as an image or a Word file, is skipped with a warning instead of stopping the load.
 
 ## Document fields
 

@@ -4,8 +4,12 @@ import asyncio
 from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
+from railtracks.retrieval.loaders._pdf_options import (
+    BreakdownStrategy,
+    validate_breakdown_strategy,
+)
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.loaders.cloud._common import infer_document_type
+from railtracks.retrieval.loaders.cloud._common import stream_object_documents
 from railtracks.retrieval.models import Document
 
 
@@ -26,9 +30,14 @@ class AzureBlobLoader(BaseDocumentLoader):
     """Document loader for Azure Blob Storage.
 
     Fetches blobs from a container and yields them as :class:`Document`
-    instances with UTF-8 decoded content and source metadata. Listing is
-    recursive — any blob whose name starts with ``prefix`` is loaded,
+    instances with source metadata. Listing is recursive — any blob
+    whose name starts with ``prefix`` is loaded,
     including subfolders.
+
+    Text objects are decoded with ``encoding``. PDFs are parsed with the same
+    logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
+    ``pdf_breakdown_strategy``. Any other object that is not valid text is
+    skipped with a warning.
 
     Authentication defaults to ``DefaultAzureCredential``, which resolves
     credentials from environment variables, managed identity, the Azure CLI,
@@ -48,9 +57,13 @@ class AzureBlobLoader(BaseDocumentLoader):
         credential: Azure credential used for authentication. Defaults to
             ``DefaultAzureCredential()`` when ``None``.
         encoding: Text encoding used to decode blob bytes. Defaults to ``"utf-8"``.
+        pdf_breakdown_strategy: How to split each PDF into ``Document`` objects,
+            as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
+            ``"document"``.
 
     Raises:
         ImportError: If ``azure-storage-blob`` or ``azure-identity`` are not installed.
+        ValueError: If ``pdf_breakdown_strategy`` is not a known strategy.
     """
 
     def __init__(
@@ -62,6 +75,7 @@ class AzureBlobLoader(BaseDocumentLoader):
         keys: Optional[list[str]] = None,
         credential: Optional[Any] = None,
         encoding: str = "utf-8",
+        pdf_breakdown_strategy: BreakdownStrategy = "page",
     ) -> None:
         try:
             from azure.storage.blob import ContainerClient
@@ -78,6 +92,10 @@ class AzureBlobLoader(BaseDocumentLoader):
         self._prefix = prefix
         self._keys = list(keys) if keys is not None else None
         self._encoding = encoding
+        validate_breakdown_strategy(
+            pdf_breakdown_strategy, name="pdf_breakdown_strategy"
+        )
+        self._pdf_breakdown_strategy = pdf_breakdown_strategy
         self._container_client = ContainerClient(
             account_url=self._account_url,
             container_name=container_name,
@@ -97,20 +115,9 @@ class AzureBlobLoader(BaseDocumentLoader):
             kwargs["name_starts_with"] = self._prefix
         return [blob.name for blob in self._container_client.list_blobs(**kwargs)]
 
-    def _fetch_document(self, blob_name: str) -> Document:
+    def _fetch_bytes(self, blob_name: str) -> bytes:
         blob_client = self._container_client.get_blob_client(blob_name)
-        data = blob_client.download_blob().readall()
-        content = data.decode(self._encoding)
-        return Document(
-            content=content,
-            type=infer_document_type(blob_name),
-            source=f"{self._account_url}/{self._container_name}/{blob_name}",
-            metadata={
-                "account_url": self._account_url,
-                "container": self._container_name,
-                "blob_name": blob_name,
-            },
-        )
+        return blob_client.download_blob().readall()
 
     async def astream(self) -> AsyncGenerator[Document, None]:
         """Stream documents one at a time as each blob is downloaded.
@@ -124,4 +131,17 @@ class AzureBlobLoader(BaseDocumentLoader):
             names = await asyncio.to_thread(self._list_keys)
 
         for name in names:
-            yield await asyncio.to_thread(self._fetch_document, name)
+            data = await asyncio.to_thread(self._fetch_bytes, name)
+            async for doc in stream_object_documents(
+                data,
+                key=name,
+                source=f"{self._account_url}/{self._container_name}/{name}",
+                metadata={
+                    "account_url": self._account_url,
+                    "container": self._container_name,
+                    "blob_name": name,
+                },
+                encoding=self._encoding,
+                pdf_breakdown_strategy=self._pdf_breakdown_strategy,
+            ):
+                yield doc
