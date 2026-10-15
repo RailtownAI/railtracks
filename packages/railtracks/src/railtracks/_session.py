@@ -22,7 +22,7 @@ from .execution.coordinator import Coordinator
 from .execution.execution_strategy import AsyncioExecutionStrategy
 from .observability.configure import add_inline_listener
 from .observability.node_internals import NodeInternalsCollector
-from .pubsub import RTPublisher, event_subscriber
+from .pubsub import RequestCompletionMessage, event_subscriber
 from .state.info import (
     ExecutionInfo,
 )
@@ -30,6 +30,7 @@ from .state.state import RTState
 from .utils.config import ExecutorConfig
 from .utils.json.encoder import RTJSONEncoder
 from .utils.logging.create import get_rt_logger
+from .utils.publisher import Publisher
 
 logger = get_rt_logger(__name__)
 
@@ -108,7 +109,7 @@ class Session:
         self.flow_name = flow_name
         self.flow_id = flow_id
 
-        self.publisher: RTPublisher = RTPublisher()
+        self.publisher: Publisher[RequestCompletionMessage] = Publisher()
 
         self._identifier = str(uuid.uuid4())
 
@@ -208,7 +209,7 @@ class Session:
                     )
                     file_path = sessions_dir / f"{self._identifier}.json"
 
-                logger.info("Saving execution info to %s" % file_path)
+                logger.info("Saving run data to %s" % file_path)
 
                 content = json.dumps(self.payload())
                 file_path.write_text(content)

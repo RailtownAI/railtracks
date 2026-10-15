@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 from railtracks.pubsub.messages import BroadcastEvent
-from railtracks.pubsub.publisher import Publisher
+from railtracks.utils.publisher import Publisher
 
 
 # ================================== Pub Sub Fixtures ==================================

@@ -204,4 +204,4 @@ class ContextError(RTError):
 
 
 class FatalError(RTError):
-    pass
+    fatal = True

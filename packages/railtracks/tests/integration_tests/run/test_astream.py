@@ -4,7 +4,12 @@ import pytest
 import railtracks as rt
 from pydantic import BaseModel
 from railtracks.context.central import is_context_present
-from railtracks.exceptions import GlobalTimeOutError, LLMError, NodeCreationError
+from railtracks.exceptions import (
+    FatalError,
+    GlobalTimeOutError,
+    LLMError,
+    NodeCreationError,
+)
 from railtracks.llm import ToolCall
 
 
@@ -307,6 +312,43 @@ async def test_astream_owns_and_closes_its_own_session_on_node_error(mock_llm):
             pass
 
     assert not is_context_present()
+
+
+@pytest.mark.asyncio
+async def test_astream_inside_a_node_stops_when_another_node_fails_fatally(mock_llm):
+    """A fatal failure ends the whole run, so a stream read inside a node raises it too
+    rather than waiting for a completion the closed session can't deliver."""
+
+    class _SlowLLM(mock_llm):
+        async def _astream_chat(self, messages, **kwargs):
+            await asyncio.sleep(0.3)
+            async for chunk in super()._astream_chat(messages, **kwargs):
+                yield chunk
+
+    agent = rt.agent_node(name="Slow", system_message="stream", llm=_SlowLLM())
+    consumer_error = asyncio.get_running_loop().create_future()
+
+    @rt.function_node
+    async def consume() -> str:
+        try:
+            return (await rt.astream(agent, user_input="go")).text
+        except BaseException as e:
+            consumer_error.set_result(e)
+            raise
+
+    @rt.function_node
+    async def explode() -> None:
+        await asyncio.sleep(0.05)
+        raise FatalError("stop")
+
+    @rt.function_node
+    async def entry() -> None:
+        await asyncio.gather(rt.call(consume), rt.call(explode))
+
+    with pytest.raises(FatalError):
+        await rt.Flow("test_astream_fatal_failure", entry).ainvoke()
+
+    assert isinstance(await asyncio.wait_for(consumer_error, timeout=2), FatalError)
 
 
 @pytest.mark.asyncio

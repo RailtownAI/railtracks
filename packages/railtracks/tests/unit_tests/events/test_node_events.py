@@ -1,5 +1,6 @@
 """Node event classes: event_type strings and parent-resolver dispatch."""
 
+import pytest
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry, ScopeKind
 from railtracks.events._base import NodeParent, NodeSpatialParent, NoSpatialParent
@@ -9,7 +10,10 @@ from railtracks.events.node import (
     NodeFailure,
     NodeInvocation,
     NodeResponse,
+    failure_details,
 )
+from railtracks.events.session import format_error
+from railtracks.exceptions import FatalError, NodeInvocationError
 
 
 def chain(*entries: tuple[ScopeKind, str]) -> ScopeLink[ScopeEntry] | None:
@@ -32,9 +36,87 @@ def test_event_type_strings():
         == "node.failure"
     )
     assert (
-        NodeDestruction(response="r", duration_seconds=0.0).event_type()
+        NodeDestruction(
+            response="r", duration_seconds=0.0, status="success"
+        ).event_type()
         == "node.destruction"
     )
+
+
+@pytest.mark.parametrize(
+    ("error", "fatal"),
+    [
+        (FatalError("stop"), True),
+        (NodeInvocationError("bad config", fatal=True), True),
+        (NodeInvocationError("retry me"), False),
+        (ValueError("bad"), False),
+    ],
+)
+def test_node_failure_marks_exceptions_that_stop_the_run(error, fatal):
+    event = NodeFailure.from_exception(error)
+
+    assert event.fatal is fatal
+    assert event.exception_name == type(error).__name__
+    assert event.traceback.rstrip().endswith(
+        f"{type(error).__name__}: {format_error(error)}"
+    )
+
+
+def test_failure_details_include_the_raising_frame():
+    try:
+        raise ValueError("bad")
+    except ValueError as error:
+        details = failure_details(error)
+
+    assert details["exception_name"] == "ValueError"
+    assert "test_failure_details_include_the_raising_frame" in details["traceback"]
+    assert details["fatal"] is False
+
+
+def test_failure_details_leave_out_colour_codes(monkeypatch):
+    # a terminal, where RT errors colour their own text
+    monkeypatch.setattr("railtracks.exceptions._base._stderr_is_terminal", lambda: True)
+    error = NodeInvocationError("bad config", notes=["check the config"])
+    assert "\033[" in str(error)
+
+    details = failure_details(error)
+
+    assert "\033[" not in details["exception_message"]
+    assert "\033[" not in details["traceback"]
+    assert "bad config" in details["exception_message"]
+
+
+def test_failure_frames_cover_only_the_final_exception():
+    def open_config():
+        raise OSError("missing")
+
+    try:
+        try:
+            open_config()
+        except OSError as cause:
+            raise ValueError("bad") from cause
+    except ValueError as error:
+        details = failure_details(error)
+
+    assert details["frames"] == [
+        {
+            "file": __file__,
+            "line": details["frames"][0]["line"],
+            "function": "test_failure_frames_cover_only_the_final_exception",
+            "source": 'raise ValueError("bad") from cause',
+        }
+    ]
+    # the text keeps the whole chain
+    assert "OSError: missing" in details["traceback"]
+
+
+def test_successful_node_destruction_has_no_failure_fields():
+    event = NodeDestruction(response="r", duration_seconds=0.0, status="success")
+
+    assert event.exception_name is None
+    assert event.traceback is None
+    assert event.frames is None
+    assert event.fatal is False
 
 
 def test_runtime_node_event_resolves_self_and_enclosing_node():
