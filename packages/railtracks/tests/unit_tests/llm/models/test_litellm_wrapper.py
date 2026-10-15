@@ -1,5 +1,6 @@
 import asyncio
 import gc
+import logging
 import threading
 from json import JSONDecodeError
 from unittest.mock import patch
@@ -1011,6 +1012,73 @@ class TestStreamedUsage:
         assert info.total_cost is not None
         assert info.total_cost > 0
 
+    @pytest.mark.parametrize(
+        "cache_usage",
+        [
+            {"prompt_tokens_details": {"cached_tokens": 900}},
+            {"cache_read_input_tokens": 900},
+        ],
+        ids=["openai-compatible", "anthropic"],
+    )
+    def test_streamed_cached_input_tokens_are_priced_at_the_cache_rate(
+        self, cache_usage
+    ):
+        """Provider-normalized cache details must reach the fallback calculator.
+
+        OpenAI-compatible providers report cached tokens in ``prompt_tokens_details``;
+        Anthropic reports ``cache_read_input_tokens``. ``Usage`` normalizes the latter
+        into both shapes, matching the objects returned by litellm.
+        """
+        plain_response = ModelResponseStream(
+            model="claude-sonnet-4-5-20250929",
+            choices=[],
+            usage=Usage(prompt_tokens=1000, completion_tokens=100, total_tokens=1100),
+        )
+        cached_response = ModelResponseStream(
+            model="claude-sonnet-4-5-20250929",
+            choices=[],
+            usage=Usage(
+                prompt_tokens=1000,
+                completion_tokens=100,
+                total_tokens=1100,
+                **cache_usage,
+            ),
+        )
+
+        plain_info = LiteLLMWrapper.extract_message_info(
+            plain_response,
+            0.0,
+            requested_model="anthropic/claude-sonnet-4-5-20250929",
+        )
+        cached_info = LiteLLMWrapper.extract_message_info(
+            cached_response,
+            0.0,
+            requested_model="anthropic/claude-sonnet-4-5-20250929",
+        )
+
+        assert plain_info.total_cost is not None
+        assert cached_info.total_cost is not None
+        assert cached_info.total_cost < plain_info.total_cost
+
+    def test_buffered_response_uses_litellm_reported_cost(self):
+        """Buffered responses should use LiteLLM's precomputed cost directly."""
+        response = ModelResponse(
+            model="claude-sonnet-4-5-20250929",
+            choices=[],
+            usage=Usage(prompt_tokens=1000, completion_tokens=100, total_tokens=1100),
+        )
+        response._hidden_params["response_cost"] = 0.00123
+
+        with patch("litellm.completion_cost") as completion_cost:
+            info = LiteLLMWrapper.extract_message_info(
+                response,
+                0.0,
+                requested_model="anthropic/claude-sonnet-4-5-20250929",
+            )
+
+        completion_cost.assert_not_called()
+        assert info.total_cost == pytest.approx(0.00123)
+
     def test_streamed_invocations_request_usage(self):
         """Anthropic and Gemini emit no usage on a stream unless it is asked for."""
         captured = {}
@@ -1272,6 +1340,29 @@ class TestReasoningSurfacing:
         assert response.reasoning == "2 + 2 is 4"
         assert response.message.thinking_blocks == _THINKING_BLOCKS
 
+    @pytest.mark.parametrize(
+        "content,finish_reason,expected",
+        [
+            ("partial ans", "length", "partial ans"),
+            (None, "length", None),
+            ("", "length", None),
+            (None, "content_filter", None),
+        ],
+        ids=["cut_off_with_text", "cut_off_none", "cut_off_empty", "filtered"],
+    )
+    def test_chat_with_tools_reply_without_calls_is_plain_content(
+        self, mock_litellm_wrapper, content, finish_reason, expected
+    ):
+        """No tool calls means a plain reply whatever the finish_reason, never an empty
+        `ToolCalls` that the node cannot classify."""
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content=content, finish_reason=finish_reason)
+
+        response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
+
+        assert response.message.content == expected
+        assert response.message.tool_calls == []
+
     def test_chat_with_tools_tool_call_surfaces_reasoning(self, mock_litellm_wrapper):
         wrapper = mock_litellm_wrapper()
         raw = _model_response(
@@ -1379,6 +1470,118 @@ class TestReasoningSurfacing:
 
 
 # ================= END #1431 reasoning/thinking surfacing tests =====================
+
+# ================= START #1620 incomplete reply tests ===============================
+
+
+class TestIncompleteReplies:
+    """#1620: a reply cut off or filtered before any text must reach the node as `None`
+    content on every path (so it raises `LLMError`), while a normal empty reply stays a
+    valid `""` and empty keep-alive or metadata chunks never trigger it."""
+
+    @pytest.mark.parametrize("finish_reason", ["length", "content_filter"])
+    def test_streamed_early_stop_without_text_has_no_content(
+        self, mock_litellm_wrapper, finish_reason
+    ):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(content=""),
+            _delta_chunk(),
+            _delta_chunk(finish_reason=finish_reason),
+        ]
+
+        text, final = _drain(wrapper, chunks)
+
+        assert text == []
+        assert final.message.content is None
+
+    @pytest.mark.parametrize(
+        "chunks",
+        [
+            [_delta_chunk(content=""), _delta_chunk(finish_reason="stop")],
+            [_delta_chunk(content=""), _delta_chunk()],
+            [ModelResponseStream(model="mock-model", choices=[])],
+            [_delta_chunk(finish_reason=""), _delta_chunk(finish_reason="stop")],
+        ],
+        ids=["stopped", "no_finish_reason", "no_choices", "blank_finish_reason"],
+    )
+    def test_streamed_empty_reply_stays_valid(self, mock_litellm_wrapper, chunks):
+        wrapper = mock_litellm_wrapper()
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message.content == ""
+
+    def test_streamed_partial_text_is_kept_when_cut_off(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        chunks = [
+            _delta_chunk(content="parti"),
+            _delta_chunk(content="al"),
+            _delta_chunk(finish_reason="length"),
+        ]
+
+        _, final = _drain(wrapper, chunks)
+
+        assert final.message.content == "partial"
+
+    @pytest.mark.parametrize(
+        "content,finish_reason,expected",
+        [
+            ("", "length", None),
+            ("", "content_filter", None),
+            ("partial", "length", "partial"),
+            ("", "stop", ""),
+        ],
+        ids=["cut_off_empty", "filtered_empty", "cut_off_with_text", "stopped_empty"],
+    )
+    def test_chat_handle_base_early_stop(
+        self, mock_litellm_wrapper, content, finish_reason, expected
+    ):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content=content, finish_reason=finish_reason)
+
+        response = wrapper._chat_handle_base(raw, MessageInfo())
+
+        assert response.message.content == expected
+
+    @pytest.mark.parametrize(
+        "finish_reason,logged",
+        [
+            ("length", True),
+            ("content_filter", True),
+            ("stop", False),
+            ("tool_calls", False),
+        ],
+    )
+    def test_early_stop_is_logged_as_error(
+        self, mock_litellm_wrapper, caplog, finish_reason, logged
+    ):
+        wrapper = mock_litellm_wrapper()
+        raw = _model_response(content="partial", finish_reason=finish_reason)
+
+        with caplog.at_level(logging.ERROR, logger="RT.litellm_wrapper"):
+            wrapper._chat_handle_base(raw, MessageInfo())
+
+        records = [r for r in caplog.records if r.name == "RT.litellm_wrapper"]
+        assert len(records) == int(logged)
+        if logged:
+            assert records[0].levelno == logging.ERROR
+            assert finish_reason in records[0].getMessage()
+            assert "mock-model" in records[0].getMessage()
+
+    def test_streamed_early_stop_is_logged_once(self, mock_litellm_wrapper, caplog):
+        wrapper = mock_litellm_wrapper()
+        chunks = [_delta_chunk(content="partial"), _delta_chunk(finish_reason="length")]
+
+        with caplog.at_level(logging.ERROR, logger="RT.litellm_wrapper"):
+            _drain(wrapper, chunks)
+
+        records = [r for r in caplog.records if r.name == "RT.litellm_wrapper"]
+        assert len(records) == 1
+        assert "length" in records[0].getMessage()
+
+
+# ================= END #1620 incomplete reply tests =================================
 
 # ================= START #1394 reasoning_effort-default-for-tools tests =============
 

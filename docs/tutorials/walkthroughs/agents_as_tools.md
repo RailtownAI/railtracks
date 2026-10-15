@@ -7,7 +7,7 @@ In Railtracks, you can use any **Agent** as a tool that other agents can use. Th
 
 ## Understanding **`ToolManifest`**
 
-Before diving into examples, it's important to understand what a **`ToolManifest`** is and why it's essential when creating agents that can be used as tools - it's a specification that describes how an agent should be used when called as a tool by other agents and defines:
+Any agent with a system message can be used as a tool as it is: Railtracks describes it to other agents using its name and system message (see [Agents as Tools](../../documentation/agent_design/tools/agents_as_tools.md)). A **`ToolManifest`** lets you decide exactly how the agent is presented instead. It's a specification that describes how an agent should be used when called as a tool by other agents and defines:
 
 - **`description`**: What the tool does and how it should be used
 - **`parameters`**: What inputs the tool expects, including their names, types, and descriptions
@@ -22,7 +22,7 @@ Before diving into examples, it's important to understand what a **`ToolManifest
 --8<-- "docs/scripts/tutorials/agents_as_tools.py:manifest"
 ```
 
-The **`ToolManifest`** acts as a contract that tells other agents exactly how to interact with your agent when using it as a tool. Without it, other agents wouldn't know what parameters to pass or what to expect from your agent.
+The **`ToolManifest`** acts as a contract that tells other agents exactly how to interact with your agent when using it as a tool. Here it names the input `math_problem` and sums the agent up in one sentence, which is shorter than handing the calling agent the calculator's full system message.
 
 ### Working Example: Shopping Assistant
 
