@@ -690,3 +690,15 @@ def test_a_node_rejected_by_its_middleware_shows_as_failed(console_enabled):
     lines = _lines(console_enabled)
     assert "  ✗ guarded failed: PermissionError: not allowed" in lines
     assert not any(line.lstrip().startswith("✓ guarded") for line in lines)
+
+
+async def test_a_streamed_agent_prints_its_run(console_enabled, mock_llm):
+    agent = rt.agent_node(
+        name="Streamer", system_message="stream", llm=mock_llm(custom_response="Hi")
+    )
+    assert (await rt.astream(agent, "go")).text == "Hi"
+
+    lines = _lines(console_enabled)
+    assert lines[0] == "▶ Streamer  entry: Streamer"
+    assert lines[1] == "  ↳ Streamer"
+    assert lines[-1].startswith("✓ Streamer in ")

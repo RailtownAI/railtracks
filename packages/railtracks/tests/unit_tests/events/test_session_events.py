@@ -1,6 +1,7 @@
-"""Session events: the classes themselves, and the hot-path emission in `_call.py::_start`.
+"""Session events: the classes themselves, and the hot-path emission for a top-level
+`rt.call` or `rt.astream`.
 
-The hot-path tests run a real graph through `Flow`/`Session` and assert that
+The hot-path tests run a real graph through `Flow`/`Session`/`rt.astream` and assert that
 `session.started` opens the run and `session.completed` closes it, on both the success
 and the failure path.
 """
@@ -15,7 +16,7 @@ from railtracks.events.session import (
     SessionStarted,
     format_error,
 )
-from railtracks.exceptions import FatalError, GlobalTimeOutError
+from railtracks.exceptions import FatalError, GlobalTimeOutError, LLMError
 from railtracks.observability import Event, configure, configure_writers
 
 
@@ -204,3 +205,61 @@ async def test_global_timeout_reports_the_timeout_error(writer):
     completed = _of_type(writer.events, "session.completed")[0]
     assert completed.payload["status"] == "failure"
     assert "timed out" in completed.payload["error"]
+
+
+def _streamer(llm):
+    return rt.agent_node(name="Streamer", system_message="stream", llm=llm)
+
+
+async def test_a_top_level_stream_is_bracketed_by_session_events(writer, mock_llm):
+    final = await rt.astream(_streamer(mock_llm(custom_response="Echo")), "go")
+    assert final.text == "Echo"
+
+    assert writer.events[0].event_type == "session.started"
+    assert writer.events[-1].event_type == "session.completed"
+    assert writer.events[0].payload["entry_point_name"] == "Streamer"
+    assert writer.events[-1].payload["status"] == "success"
+
+
+async def test_a_failed_top_level_stream_still_reports_completed(writer, mock_llm):
+    class _FailingLLM(mock_llm):
+        async def _astream_chat(self, messages, **kwargs):
+            yield "a"
+            raise RuntimeError("boom mid-stream")
+
+    with pytest.raises(LLMError):
+        await rt.astream(_streamer(_FailingLLM()), "go")
+
+    completed = _of_type(writer.events, "session.completed")
+    assert len(completed) == 1
+    assert completed[0].payload["status"] == "failure"
+    assert configure.observer._running is False
+
+
+async def test_a_timed_out_top_level_stream_reports_the_timeout(writer, mock_llm):
+    class _SlowLLM(mock_llm):
+        async def _astream_chat(self, messages, **kwargs):
+            await asyncio.sleep(0.5)
+            yield "too late"
+
+    with rt.Session(flow_name="f", timeout=0.1):
+        with pytest.raises(GlobalTimeOutError):
+            await rt.astream(_streamer(_SlowLLM()), "go")
+
+    completed = _of_type(writer.events, "session.completed")[0]
+    assert completed.payload["status"] == "failure"
+    assert "timed out" in completed.payload["error"]
+
+
+async def test_a_stream_inside_a_node_is_part_of_its_callers_run(writer, mock_llm):
+    agent = _streamer(mock_llm(custom_response="Echo"))
+
+    @rt.function_node
+    async def entry() -> str:
+        """Streams the agent."""
+        return (await rt.astream(agent, "go")).text
+
+    assert await rt.Flow("f", entry).ainvoke() == "Echo"
+
+    assert len(_of_type(writer.events, "session.started")) == 1
+    assert len(_of_type(writer.events, "session.completed")) == 1
