@@ -27,7 +27,7 @@ MIDDLEWARE_CALL = "mw-invoke-1"
 def output(monkeypatch) -> io.StringIO:
     buffer = io.StringIO()
     monkeypatch.setattr(
-        run_view, "console", Console(file=buffer, width=200, color_system=None)
+        run_view, "_console", Console(file=buffer, width=200, color_system=None)
     )
     return buffer
 
@@ -37,7 +37,7 @@ def level(monkeypatch):
     """Sets the level the next run starts at."""
 
     def set_level(value: int | None) -> None:
-        monkeypatch.setattr(run_view, "run_view_level", lambda: value)
+        monkeypatch.setattr(run_view, "_run_view_level", lambda: value)
 
     set_level(logging.INFO)
     return set_level
@@ -592,7 +592,7 @@ def test_run_state_is_dropped_when_the_run_completes(output, level):
 def console_enabled(monkeypatch, output) -> io.StringIO:
     """End to end: real runs reach the view through its inline listener."""
     # attached only for the run view to find its level; it prints no records itself
-    console_handler = config.RichConsoleHandler(run_view_level=logging.INFO)
+    console_handler = config._RichConsoleHandler(enabled_level=logging.INFO)
     console_handler.setLevel(logging.CRITICAL + 1)
     monkeypatch.setattr(config.rt_logger, "handlers", [console_handler])
     monkeypatch.setattr(configure, "_inline_listeners", [RunView().record])

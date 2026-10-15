@@ -52,7 +52,7 @@ def _make_console() -> Console:
 
 
 # Shared by the console handler and the run view so their lines interleave on one clock
-console = _make_console()
+_console = _make_console()
 _start_time = time.time()
 
 # log levels are ints hence the type hints
@@ -65,7 +65,7 @@ _module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
 )
 
 
-def elapsed_text(timestamp: float) -> Text:
+def _elapsed_text(timestamp: float) -> Text:
     """The ``[+seconds]`` prefix that starts every console line.
 
     Args:
@@ -77,7 +77,7 @@ def elapsed_text(timestamp: float) -> Text:
     return Text().append(f"[+{timestamp - _start_time:7.3f}s] ", "bright_black")
 
 
-def run_view_level() -> int | None:
+def _run_view_level() -> int | None:
     """The level the run view prints at for a run starting in the current context.
 
     Returns:
@@ -85,12 +85,12 @@ def run_view_level() -> int | None:
         enabled with, or None when railtracks' console handler is not attached.
     """
     console_handler = next(
-        (h for h in rt_logger.handlers if isinstance(h, RichConsoleHandler)), None
+        (h for h in rt_logger.handlers if isinstance(h, _RichConsoleHandler)), None
     )
     if console_handler is None:
         return None
     thread_level = _module_logging_level.get()
-    return thread_level if thread_level is not None else console_handler.run_view_level
+    return thread_level if thread_level is not None else console_handler.enabled_level
 
 
 def _short_suffix_label(segment: str) -> str:
@@ -146,7 +146,7 @@ class ThreadAwareFilter(logging.Filter):
         )
 
 
-class LifecycleFilter(logging.Filter):
+class _LifecycleFilter(logging.Filter):
     """Drops lifecycle records for runs the run view is printing, so the console shows
     each node once. A run it isn't printing keeps them, so its failures still show."""
 
@@ -160,7 +160,7 @@ class LifecycleFilter(logging.Filter):
         return not self._run_view_shows(getattr(record, "session_id", None))
 
 
-class RichConsoleHandler(logging.Handler):
+class _RichConsoleHandler(logging.Handler):
     """Writes RT log records to the shared rich console, coloured by level.
 
     INFO records print as dim notes in the run view's style; other levels keep the
@@ -180,16 +180,16 @@ class RichConsoleHandler(logging.Handler):
         self,
         *,
         name_style: LoggerNameDisplay = "short",
-        run_view_level: int = logging.INFO,
+        enabled_level: int = logging.INFO,
     ) -> None:
         super().__init__()
         self.name_style: LoggerNameDisplay = name_style
         # what the run view prints for runs in threads that set no level of their own
-        self.run_view_level = run_view_level
+        self.enabled_level = enabled_level
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            line = elapsed_text(record.created)
+            line = _elapsed_text(record.created)
             if record.levelno == logging.INFO:
                 line.append(f"· {self.format(record)}", style="dim")
             else:
@@ -200,18 +200,18 @@ class RichConsoleHandler(logging.Handler):
                     f"{display_name:<12}: {record.levelname:<8} - {self.format(record)}",
                     style=self._LEVEL_STYLES.get(record.levelno, "default"),
                 )
-            console.print(line, soft_wrap=True)
+            _console.print(line, soft_wrap=True)
         except Exception:
             self.handleError(record)
 
 
 def _console_handler(
     name_style: LoggerNameDisplay,
-    run_view_level: int,
+    enabled_level: int,
     run_view_shows: Callable[[str | None], bool],
-) -> RichConsoleHandler:
-    handler = RichConsoleHandler(name_style=name_style, run_view_level=run_view_level)
-    handler.addFilter(LifecycleFilter(run_view_shows))
+) -> _RichConsoleHandler:
+    handler = _RichConsoleHandler(name_style=name_style, enabled_level=enabled_level)
+    handler.addFilter(_LifecycleFilter(run_view_shows))
     return handler
 
 

@@ -11,15 +11,15 @@ import railtracks as rt
 from railtracks.observability import configure
 from railtracks.utils.logging import config, run_view, setup
 from railtracks.utils.logging.config import (
-    LifecycleFilter,
-    RichConsoleHandler,
     ThreadAwareFilter,
+    _LifecycleFilter,
     _module_logging_level,
+    _RichConsoleHandler,
+    _run_view_level,
     _short_suffix_label,
     detach_logging_handlers,
     lifecycle_logger_name,
     rt_logger,
-    run_view_level,
     setup_file_handler,
 )
 from railtracks.utils.logging.setup import enable_logging, initialize_module_logging
@@ -48,7 +48,7 @@ def _record(
 def console_output(monkeypatch) -> io.StringIO:
     buffer = io.StringIO()
     monkeypatch.setattr(
-        config, "console", Console(file=buffer, width=200, color_system=None)
+        config, "_console", Console(file=buffer, width=200, color_system=None)
     )
     return buffer
 
@@ -85,7 +85,7 @@ def test_short_suffix_label_strips_leading_underscores():
     ],
 )
 def test_console_handler_line_layout(console_output, name, name_style, level, expected):
-    RichConsoleHandler(name_style=name_style).emit(_record(name, level))
+    _RichConsoleHandler(name_style=name_style).emit(_record(name, level))
 
     assert console_output.getvalue().rstrip("\n").endswith(f"] {expected}")
 
@@ -95,7 +95,7 @@ def test_console_handler_leaves_no_custom_attributes_on_the_record(console_outpu
     record = _record()
     before = set(record.__dict__)
 
-    RichConsoleHandler().emit(record)
+    _RichConsoleHandler().emit(record)
 
     assert set(record.__dict__) - before <= {"message"}
 
@@ -107,13 +107,13 @@ def test_console_handler_includes_the_traceback(console_output):
         record = _record()
         record.exc_info = sys.exc_info()
 
-    RichConsoleHandler().emit(record)
+    _RichConsoleHandler().emit(record)
 
     assert "ValueError: boom" in console_output.getvalue()
 
 
 def test_lifecycle_filter_drops_only_records_of_runs_the_view_shows():
-    lifecycle_filter = LifecycleFilter(lambda session_id: session_id == "shown")
+    lifecycle_filter = _LifecycleFilter(lambda session_id: session_id == "shown")
 
     shown = _record(lifecycle_logger_name, session_id="shown")
     assert lifecycle_filter.filter(shown) is False
@@ -142,7 +142,7 @@ def test_lifecycle_records_still_reach_other_handlers(console_output, monkeypatc
 def test_the_console_prints_lifecycle_records_only_for_runs_the_view_is_not_showing(
     console_output, monkeypatch
 ):
-    monkeypatch.setattr(run_view, "console", config.console)
+    monkeypatch.setattr(run_view, "_console", config._console)
     detach_logging_handlers()
     enable_logging(level="INFO")
 
@@ -189,7 +189,7 @@ def test_console_writes_ansi_to_stdout_in_a_notebook(monkeypatch):
 def test_run_view_level_is_none_until_the_console_is_enabled():
     detach_logging_handlers()
 
-    assert run_view_level() is None
+    assert _run_view_level() is None
 
 
 def test_run_view_level_prefers_the_thread_level():
@@ -197,13 +197,13 @@ def test_run_view_level_prefers_the_thread_level():
     enable_logging(level="INFO")
     token = _module_logging_level.set(logging.DEBUG)
     try:
-        assert run_view_level() == logging.DEBUG
+        assert _run_view_level() == logging.DEBUG
     finally:
         _module_logging_level.reset(token)
 
     token = _module_logging_level.set(None)
     try:
-        assert run_view_level() == logging.INFO
+        assert _run_view_level() == logging.INFO
     finally:
         _module_logging_level.reset(token)
     detach_logging_handlers()
@@ -216,7 +216,7 @@ def test_run_view_level_is_none_once_the_console_handler_is_removed():
 
     rt_logger.handlers.clear()
 
-    assert run_view_level() is None
+    assert _run_view_level() is None
 
 
 # ================= ThreadAwareFilter Tests =================
@@ -345,7 +345,7 @@ def test_enable_logging_adds_real_handlers():
     enable_logging(level="INFO")
 
     console_handlers = [
-        h for h in rt_logger.handlers if isinstance(h, RichConsoleHandler)
+        h for h in rt_logger.handlers if isinstance(h, _RichConsoleHandler)
     ]
     assert len(console_handlers) == 1, (
         "enable_logging() should add railtracks' console handler"

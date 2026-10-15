@@ -19,7 +19,7 @@ from rich.text import Text
 
 from railtracks.observability import Event
 
-from .config import console, elapsed_text, run_view_level
+from .config import _console, _elapsed_text, _run_view_level
 
 _MAX_VALUE_CHARS = 120
 
@@ -103,7 +103,7 @@ class RunView:
                 "middleware_name"
             ]
         elif event.event_type == "session.started":
-            level = run_view_level()
+            level = _run_view_level()
             if level is None:
                 return
             self._runs[event.scope_id] = _Run(
@@ -124,15 +124,15 @@ class RunView:
         _track(run, event)
         line = _render(run, event)
         if line is not None and line.level >= run.level:
-            prefix = elapsed_text(event.stamp.timestamp())
+            prefix = _elapsed_text(event.stamp.timestamp())
             prefix.append("  " * line.depth)
             branch = _branch(run, line.within)
             if branch is not None:
                 prefix.append(f"{branch.name} › ", "dim")
-            console.print(prefix + line.text, soft_wrap=True)
+            _console.print(prefix + line.text, soft_wrap=True)
             pad = " " * (len(prefix.plain) + 2)
             for detail in line.detail:
-                console.print(Text(pad) + detail, soft_wrap=True)
+                _console.print(Text(pad) + detail, soft_wrap=True)
 
         if event.event_type == "session.completed":
             self._runs.pop(event.scope_id, None)
