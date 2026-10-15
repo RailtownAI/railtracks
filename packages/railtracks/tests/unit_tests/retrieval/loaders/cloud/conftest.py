@@ -9,13 +9,55 @@ from unittest.mock import MagicMock
 
 import pytest
 
+
+def _as_bytes(body: str | bytes, encoding: str) -> bytes:
+    return body if isinstance(body, bytes) else body.encode(encoding)
+
+
+def make_pdf(*pages: str) -> bytes:
+    """Build a minimal valid PDF with one line of Helvetica text per page."""
+    count = len(pages)
+    kids = " ".join(f"{4 + 2 * i} 0 R" for i in range(count))
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        f"<< /Type /Pages /Kids [{kids}] /Count {count} >>".encode(),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    for i, text in enumerate(pages):
+        objects.append(
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            f"/Resources << /Font << /F1 3 0 R >> >> /Contents {5 + 2 * i} 0 R >>".encode()
+        )
+        stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode()
+        objects.append(
+            b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream)
+        )
+
+    out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n%s\nendobj\n" % (number, body)
+    xref_offset = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    for offset in offsets:
+        out += b"%010d 00000 n \n" % offset
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref_offset,
+    )
+    return bytes(out)
+
+
 # ---------------------------------------------------------------------------
 # S3 helpers
 # ---------------------------------------------------------------------------
 
 
-def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMock:
-    """Return a mock boto3 S3 client pre-loaded with *objects* (key -> text)."""
+def make_s3_client(
+    objects: dict[str, str | bytes], encoding: str = "utf-8"
+) -> MagicMock:
+    """Return a mock boto3 S3 client pre-loaded with *objects* (key -> text or bytes)."""
     client = MagicMock()
 
     paginator = MagicMock()
@@ -24,8 +66,8 @@ def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMoc
     client.get_paginator.return_value = paginator
 
     def _get_object(Bucket: str, Key: str, **_: Any) -> dict[str, Any]:  # noqa: N803
-        text = objects[Key]
-        return {"Body": MagicMock(read=MagicMock(return_value=text.encode(encoding)))}
+        body = _as_bytes(objects[Key], encoding)
+        return {"Body": MagicMock(read=MagicMock(return_value=body))}
 
     client.get_object.side_effect = _get_object
     return client
@@ -37,9 +79,9 @@ def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMoc
 
 
 def make_container_client_for_loading(
-    blobs: dict[str, str], encoding: str = "utf-8"
+    blobs: dict[str, str | bytes], encoding: str = "utf-8"
 ) -> MagicMock:
-    """Mock ContainerClient pre-loaded with *blobs* (name -> text)."""
+    """Mock ContainerClient pre-loaded with *blobs* (name -> text or bytes)."""
     container_client = MagicMock()
     blob_items = []
     for name in blobs:
@@ -50,9 +92,8 @@ def make_container_client_for_loading(
 
     def _get_blob_client(blob_name: str) -> MagicMock:
         blob_client = MagicMock()
-        text = blobs.get(blob_name, "")
-        blob_client.download_blob.return_value.readall.return_value = text.encode(
-            encoding
+        blob_client.download_blob.return_value.readall.return_value = _as_bytes(
+            blobs.get(blob_name, ""), encoding
         )
         return blob_client
 
@@ -92,9 +133,9 @@ def patch_azure(container_client: MagicMock):
 
 
 def make_gcs_client_for_loading(
-    objects: dict[str, str], encoding: str = "utf-8"
+    objects: dict[str, str | bytes], encoding: str = "utf-8"
 ) -> MagicMock:
-    """Mock google.cloud.storage.Client pre-loaded with *objects*."""
+    """Mock google.cloud.storage.Client pre-loaded with *objects* (name -> text or bytes)."""
     client = MagicMock()
 
     blob_items = []
@@ -109,7 +150,9 @@ def make_gcs_client_for_loading(
 
         def _blob(name: str) -> MagicMock:
             b = MagicMock()
-            b.download_as_bytes.return_value = objects.get(name, "").encode(encoding)
+            b.download_as_bytes.return_value = _as_bytes(
+                objects.get(name, ""), encoding
+            )
             return b
 
         bucket.blob.side_effect = _blob
