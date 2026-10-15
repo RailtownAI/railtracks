@@ -275,6 +275,19 @@ def test_long_values_are_truncated(output, level):
     assert len(done) < 200
 
 
+def test_a_failed_run_ends_on_one_truncated_line(output, level):
+    # RT errors with notes span several lines, starting with a newline
+    error = "\nLLM Error: the model failed\nDetails:\n  " + "x" * 300
+    _feed(RunView(), _started(), _completed(status="failure", error=error))
+
+    closing = _lines(output)[-1]
+    assert closing.startswith(
+        "✗ My Flow failed in 0.500s: LLM Error: the model failed Details: "
+    )
+    assert closing.endswith("…")
+    assert len(_lines(output)) == 2
+
+
 @pytest.mark.parametrize(
     ("fatal", "end_on_error", "marked"),
     [(True, False, True), (False, True, True), (False, False, False)],

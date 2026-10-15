@@ -230,7 +230,8 @@ def _session_started(run: _Run, payload: dict[str, Any]) -> _Line:
 def _session_completed(run: _Run, payload: dict[str, Any]) -> _Line:
     duration = f" in {payload['duration_seconds']:.3f}s"
     if payload["status"] == "failure":
-        text = Text(f"✗ {run.label} failed{duration}: {payload['error']}", "bold red")
+        error = _truncate(payload["error"])
+        text = Text(f"✗ {run.label} failed{duration}: {error}", "bold red")
         return _Line(logging.CRITICAL if payload["fatal"] else logging.ERROR, 0, text)
     text = Text(f"✓ {run.label}{duration}", "bold green")
     detail = []
@@ -448,7 +449,7 @@ def _display(value: Any) -> str:
 
 
 def _truncate(value: str) -> str:
-    value = value.replace("\n", " ")
+    value = value.strip().replace("\n", " ")
     if len(value) <= _MAX_VALUE_CHARS:
         return value
     return f"{value[: _MAX_VALUE_CHARS - 1]}…"
