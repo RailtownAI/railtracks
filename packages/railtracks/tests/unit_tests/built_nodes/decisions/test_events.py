@@ -98,14 +98,14 @@ async def test_failure_paired_with_invocation(make_model, writer):
     node = rt.decision_node("Triage Ticket", model=model, schema=Triage)
 
     with rt.Session(flow_name="decisions", end_on_error=False):
-        with pytest.raises(rt.exceptions.DecisionServerError):
+        with pytest.raises(rt.exceptions.DecisionModelError):
             await rt.call(node, "Help!")
 
     invocation, failure = _decision_events(writer)
     assert failure.event_type == "decision.failure"
     assert failure.payload["decision_id"] == invocation.payload["decision_id"]
     # the event records the model's own error, before the node translates it
-    assert failure.payload["exception_name"] == "DecisionProviderServerError"
+    assert failure.payload["exception_name"] == "DecisionProviderError"
     assert failure.payload["parent_node_id"] == _node_id(writer, "Triage Ticket")
 
 

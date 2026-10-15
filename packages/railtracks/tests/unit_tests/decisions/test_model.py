@@ -10,13 +10,9 @@ import pytest
 from railtracks.decisions import (
     DecisionAnswers,
     DecisionProviderAuthenticationError,
-    DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
     DecisionProviderRefusalError,
-    DecisionProviderRequestError,
-    DecisionProviderResponseError,
-    DecisionProviderServerError,
     DecisionProviderTimeoutError,
     DecisionResponse,
     SchemaDefinitionError,
@@ -188,26 +184,26 @@ class TestErrorMapping:
                 ),
                 DecisionProviderAuthenticationError,
             ),
-            (_connection(), DecisionProviderConnectionError),
-            (_server(), DecisionProviderServerError),
+            (_connection(), DecisionProviderError),
+            (_server(), DecisionProviderError),
             (
                 litellm.ServiceUnavailableError(
                     message="overloaded", llm_provider=_PROVIDER, model=_MODEL
                 ),
-                DecisionProviderServerError,
+                DecisionProviderError,
             ),
             (
                 litellm.BadGatewayError(
                     message="bad gateway", llm_provider=_PROVIDER, model=_MODEL
                 ),
-                DecisionProviderServerError,
+                DecisionProviderError,
             ),
-            (_bad_request(), DecisionProviderRequestError),
+            (_bad_request(), DecisionProviderError),
             (
                 litellm.NotFoundError(
                     message="model_not_found", model=_MODEL, llm_provider=_PROVIDER
                 ),
-                DecisionProviderRequestError,
+                DecisionProviderError,
             ),
             (
                 litellm.APIError(
@@ -216,7 +212,7 @@ class TestErrorMapping:
                     llm_provider=_PROVIDER,
                     model=_MODEL,
                 ),
-                DecisionProviderServerError,
+                DecisionProviderError,
             ),
             (
                 litellm.APIError(
@@ -225,7 +221,7 @@ class TestErrorMapping:
                     llm_provider=_PROVIDER,
                     model=_MODEL,
                 ),
-                DecisionProviderRequestError,
+                DecisionProviderError,
             ),
             (
                 # no status to classify by: still a provider error, not a TypeError
@@ -241,7 +237,7 @@ class TestErrorMapping:
                 litellm.APIResponseValidationError(
                     message="bad body", llm_provider=_PROVIDER, model=_MODEL
                 ),
-                DecisionProviderResponseError,
+                DecisionProviderError,
             ),
         ],
         ids=[
@@ -274,15 +270,14 @@ class TestErrorMapping:
         with pytest.raises(DecisionProviderTimeoutError):
             await model.aask("Help!", Triage)
 
-    async def test_request_error_keeps_litellm_message_as_body(self, make_model):
-        model, _ = make_model(_bad_request("Choice values must be unique" + "x" * 900))
-        with pytest.raises(DecisionProviderRequestError) as info:
+    async def test_other_errors_keep_the_litellm_message_in_the_reason(
+        self, make_model
+    ):
+        model, _ = make_model(_bad_request("Choice values must be unique"))
+        with pytest.raises(DecisionProviderError) as info:
             await model.aask("Help!", Triage)
+        assert type(info.value) is DecisionProviderError
         assert "Choice values must be unique" in info.value.reason
-        assert info.value.body.startswith(
-            "litellm.BadRequestError: Choice values must be unique"
-        )
-        assert len(info.value.body) <= 500
 
     async def test_other_exceptions_propagate_unchanged(self, make_model):
         boom = RuntimeError("not a litellm error")
@@ -294,11 +289,8 @@ class TestErrorMapping:
     def test_family(self):
         for error in (
             DecisionProviderAuthenticationError,
-            DecisionProviderConnectionError,
             DecisionProviderRateLimitError,
-            DecisionProviderRequestError,
-            DecisionProviderResponseError,
-            DecisionProviderServerError,
+            DecisionProviderRefusalError,
             DecisionProviderTimeoutError,
         ):
             assert issubclass(error, DecisionProviderError)
@@ -355,10 +347,20 @@ class TestRetries:
         model, fake = make_model(
             _server(), retry_approach=FixedRetry(max_tries=3, delay=0.0)
         )
-        with pytest.raises(DecisionProviderServerError) as info:
+        with pytest.raises(DecisionProviderError) as info:
             await model.aask("Help!", Triage)
+        assert type(info.value) is DecisionProviderError
         assert len(fake.calls) == 3
         assert any("3 attempts" in note for note in info.value.notes)
+
+    async def test_exhausted_retries_classify_the_last_error(self, make_model):
+        model, fake = make_model(
+            _server(), _rate_limit(), retry_approach=FixedRetry(max_tries=2, delay=0.0)
+        )
+        with pytest.raises(DecisionProviderRateLimitError) as info:
+            await model.aask("Help!", Triage)
+        assert len(fake.calls) == 2
+        assert any("2 attempts" in note for note in info.value.notes)
 
     async def test_exhausted_retries_keep_the_litellm_root_cause(self, make_model):
         root = _timeout()
@@ -401,20 +403,20 @@ class TestRetries:
         assert len(fake.calls) == 1
 
     @pytest.mark.parametrize("api_base", ["not-a-url", "ftp://x.example", "https://"])
-    async def test_malformed_api_base_is_a_request_error(self, make_model, api_base):
+    async def test_malformed_api_base_fails_before_the_call(self, make_model, api_base):
         model, fake = make_model(
             api_base=api_base, retry_approach=FixedRetry(max_tries=3, delay=0.0)
         )
-        with pytest.raises(DecisionProviderRequestError, match="api_base"):
+        with pytest.raises(DecisionProviderError, match="api_base"):
             await model.aask("Help!", Triage)
         assert fake.calls == []
 
-    async def test_malformed_api_base_from_the_env_is_a_request_error(
+    async def test_malformed_api_base_from_the_env_fails_before_the_call(
         self, make_model, monkeypatch
     ):
         monkeypatch.setenv("TYPESAFE_API_BASE", "api.typesafe.ai")
         model, fake = make_model(retry_approach=FixedRetry(max_tries=3, delay=0.0))
-        with pytest.raises(DecisionProviderRequestError, match="TYPESAFE_API_BASE"):
+        with pytest.raises(DecisionProviderError, match="TYPESAFE_API_BASE"):
             await model.aask("Help!", Triage)
         assert fake.calls == []
 

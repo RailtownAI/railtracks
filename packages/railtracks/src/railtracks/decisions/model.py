@@ -1,8 +1,9 @@
 """The vendor-neutral System One model client base.
 
-``DecisionModel.aask`` times the call, retries transient failures and prices the
-result. It records nothing: emitting ``decision.*`` events is the job of the
-``decision_node`` invoker, just as only ``ModelInvoker`` records chat-model calls.
+``DecisionModel.aask`` times the call and prices the result; each transport retries
+its own transient failures. It records nothing: emitting ``decision.*`` events is the
+job of the ``decision_node`` invoker, just as only ``ModelInvoker`` records chat-model
+calls.
 """
 
 from __future__ import annotations
@@ -10,28 +11,14 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 
-from railtracks.llm.retries import RetryApproach, RetryError
+from railtracks.llm.retries import RetryApproach
 
-from ._exceptions import (
-    DecisionProviderConnectionError,
-    DecisionProviderError,
-    DecisionProviderRateLimitError,
-    DecisionProviderServerError,
-    DecisionProviderTimeoutError,
-)
 from .pricing import decision_cost
 from .response import DecisionResponse
 from .schema import DecisionAnswers, DecisionSchema
 from .state import DecisionInput
-
-RETRYABLE_ERRORS: tuple[type[DecisionProviderError], ...] = (
-    DecisionProviderRateLimitError,
-    DecisionProviderTimeoutError,
-    DecisionProviderConnectionError,
-    DecisionProviderServerError,
-)
 
 
 @dataclass(frozen=True)
@@ -71,7 +58,8 @@ class DecisionModel(ABC):
     async def _send(
         self, state: DecisionInput, schema: DecisionSchema
     ) -> DecisionReply:
-        """Make one request, raising a ``DecisionProviderError`` on failure."""
+        """Make one request, retried per ``retry_approach``, raising a
+        ``DecisionProviderError`` on failure."""
 
     @abstractmethod
     def _pricing_keys(self) -> list[str]:
@@ -97,10 +85,11 @@ class DecisionModel(ABC):
 
         Raises:
             DecisionProviderRefusalError: If the model declines any question.
-            DecisionProviderError: If the call fails otherwise; the subclass says why.
+            DecisionProviderError: If the call fails otherwise; a subclass for a
+                timeout, rate limit or rejected key.
         """
         start = time.perf_counter()
-        reply = await self._send_with_retries(state, schema)
+        reply = await self._send(state, schema)
         latency = time.perf_counter() - start
         return DecisionResponse(
             structured=reply.structured,
@@ -120,22 +109,3 @@ class DecisionModel(ABC):
             ),
             raw=reply.raw,
         )
-
-    async def _send_with_retries(
-        self, state: DecisionInput, schema: DecisionSchema
-    ) -> DecisionReply:
-        if self.retry_approach is None:
-            return await self._send(state, schema)
-        try:
-            return await self.retry_approach.acall_with_retry(
-                lambda: self._send(state, schema), retry_on=RETRYABLE_ERRORS
-            )
-        except RetryError as e:
-            attempts = len(e.exception_list)
-            # retry_on admits only RETRYABLE_ERRORS, so every entry is one of ours
-            last = cast(DecisionProviderError, e.exception_list[-1])
-        # Raise the last provider error itself, outside the except block: chaining it
-        # to the RetryError (whose own cause is this error) would make a cycle and hide
-        # the litellm root cause, which `last.__cause__` still holds.
-        last.notes.append(f"Gave up after {attempts} attempts.")
-        raise last

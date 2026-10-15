@@ -32,41 +32,23 @@ class _NotedError(Exception):
 
 
 class DecisionProviderError(_NotedError):
-    """A call to a decision model failed. Raised only by direct model calls."""
+    """A call to a decision model failed. Raised only by direct model calls.
+
+    Raised as is for a failure no subclass covers: a dropped connection, a 5xx or
+    other 4xx status, a malformed ``api_base`` or a response that could not be parsed.
+    """
 
 
 class DecisionProviderTimeoutError(DecisionProviderError):
     """The model did not answer in time. Usually transient."""
 
 
-class DecisionProviderConnectionError(DecisionProviderError):
-    """The server could not be reached, or dropped the connection. Usually transient."""
-
-
 class DecisionProviderRateLimitError(DecisionProviderError):
     """The host rejected the call for rate or quota reasons. Worth backing off."""
 
 
-class DecisionProviderServerError(DecisionProviderError):
-    """The host failed with a 5xx status. Usually transient."""
-
-
 class DecisionProviderAuthenticationError(DecisionProviderError):
     """The API key is missing or was rejected. Retrying will not help."""
-
-
-class DecisionProviderRequestError(DecisionProviderError):
-    """The request was rejected or could not be sent: a 4xx other than auth or rate
-    limits, a host limit exceeded, or a malformed ``api_base``. Retrying will not help.
-    """
-
-    def __init__(self, reason: str, body: str = "", notes: list[str] | None = None):
-        super().__init__(reason, notes=notes)
-        self.body = body
-
-
-class DecisionProviderResponseError(DecisionProviderError):
-    """The host's response could not be parsed into answers."""
 
 
 class DecisionProviderRefusalError(DecisionProviderError):

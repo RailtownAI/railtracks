@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from .._exceptions import DecisionProviderRefusalError, DecisionProviderResponseError
+from .._exceptions import DecisionProviderError, DecisionProviderRefusalError
 from ..model import DecisionReply
 from ..schema import (
     ChoiceQuestion,
@@ -83,8 +83,8 @@ def to_input(state: DecisionInput) -> str:
 # ================= Response =================
 
 
-def _malformed(field: str, problem: str = "missing") -> DecisionProviderResponseError:
-    return DecisionProviderResponseError(
+def _malformed(field: str, problem: str = "missing") -> DecisionProviderError:
+    return DecisionProviderError(
         f"Malformed decision response: {problem} field {field!r}"
     )
 
@@ -157,7 +157,7 @@ def parse_response(response: object, schema: DecisionSchema) -> DecisionReply:
     Raises:
         DecisionProviderRefusalError: If the model declined any question; carries the
             answers it did give.
-        DecisionProviderResponseError: If the response is not an object, or an answer
+        DecisionProviderError: If the response is not an object, or an answer
             for one of ``schema``'s questions is missing or malformed. The message
             names the field.
     """

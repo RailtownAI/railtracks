@@ -53,8 +53,8 @@ Decision nodes are recorded: each request emits `decision.*` events with its ans
 | Where | Raised | Catch |
 |---|---|---|
 | Defining a schema wrongly (an empty schema, 300 Choice values, 1 Score level, two questions with one name) | when the question or schema is created | `rt.decisions.SchemaDefinitionError` |
-| A direct `model.aask(...)` call fails | at call time | `rt.decisions.DecisionProviderError` and its subclasses (`...TimeoutError`, `...RateLimitError`, `...AuthenticationError`, `...ConnectionError`, `...ServerError`, `...RequestError`, ...) |
+| A direct `model.aask(...)` call fails | at call time | `rt.decisions.DecisionProviderError`, or its subclass `...TimeoutError`, `...RateLimitError` or `...AuthenticationError` |
 | A `decision_node` call fails | at call time | `rt.exceptions.DecisionModelError` and its subclasses, with the provider error as `__cause__` |
 | The model declines a question (OpenAI can) | at call time | `rt.decisions.DecisionProviderRefusalError` (direct) / `rt.exceptions.DecisionRefusalError` (node); `.refused` names the questions, `.answers` holds the ones it did answer |
 
-litellm's exceptions are mapped to these classes, so you never need to catch a litellm type. Rate limits, timeouts, dropped connections and 5xx responses are retried when the model has a `retry_approach` (see the model in `s1_demo.py`); a rejected key, a refusal and other 4xx responses are not.
+litellm's exceptions are mapped to these classes, so you never need to catch a litellm type. A dropped connection, any other 4xx or 5xx status, a malformed `api_base` and an unparseable response all raise the base class. Rate limits, timeouts, dropped connections and 500 and 503 responses are retried when the model has a `retry_approach` (see the model in `s1_demo.py`); a rejected key, a refusal and other 4xx responses are not.

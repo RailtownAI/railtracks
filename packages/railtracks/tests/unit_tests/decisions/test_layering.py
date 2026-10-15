@@ -14,12 +14,9 @@ import pytest
 import railtracks.decisions
 from railtracks.decisions import (
     DecisionProviderAuthenticationError,
-    DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
-    DecisionProviderRequestError,
-    DecisionProviderResponseError,
-    DecisionProviderServerError,
+    DecisionProviderRefusalError,
     DecisionProviderTimeoutError,
     SchemaDefinitionError,
 )
@@ -111,12 +108,9 @@ def test_decisions_package_never_raises_rterror(module_path: pathlib.Path):
     [
         DecisionProviderError,
         DecisionProviderTimeoutError,
-        DecisionProviderConnectionError,
         DecisionProviderRateLimitError,
-        DecisionProviderServerError,
         DecisionProviderAuthenticationError,
-        DecisionProviderRequestError,
-        DecisionProviderResponseError,
+        DecisionProviderRefusalError,
         SchemaDefinitionError,
     ],
 )

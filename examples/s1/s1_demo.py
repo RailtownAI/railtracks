@@ -33,7 +33,7 @@ import railtracks as rt
 
 jev = rt.decisions.OpenRouterAI(
     model_name="typesafe/jev-1.13",  # reads OPENROUTER_API_KEY
-    # optional: retries rate limits, timeouts, dropped connections and 5xx; not 4xx
+    # optional: retries rate limits, timeouts, dropped connections, 500 and 503
     retry_approach=rt.llm.retries.ExponentialRetry(max_tries=3),
 )
 # The same schema works on every vendor; swap the model above for one of these:

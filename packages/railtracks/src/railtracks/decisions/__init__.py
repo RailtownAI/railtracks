@@ -4,13 +4,9 @@ __all__ = [
     "DecisionAnswer",
     "DecisionAnswers",
     "DecisionProviderAuthenticationError",
-    "DecisionProviderConnectionError",
     "DecisionProviderError",
     "DecisionProviderRateLimitError",
     "DecisionProviderRefusalError",
-    "DecisionProviderRequestError",
-    "DecisionProviderResponseError",
-    "DecisionProviderServerError",
     "DecisionProviderTimeoutError",
     "DecisionModel",
     "DecisionResponse",
@@ -29,13 +25,9 @@ __all__ = [
 
 from ._exceptions import (
     DecisionProviderAuthenticationError,
-    DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
     DecisionProviderRefusalError,
-    DecisionProviderRequestError,
-    DecisionProviderResponseError,
-    DecisionProviderServerError,
     DecisionProviderTimeoutError,
     SchemaDefinitionError,
 )

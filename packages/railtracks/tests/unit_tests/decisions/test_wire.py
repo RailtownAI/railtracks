@@ -7,8 +7,8 @@ import pytest
 from railtracks.decisions import (
     Choice,
     ChoiceAnswer,
+    DecisionProviderError,
     DecisionProviderRefusalError,
-    DecisionProviderResponseError,
     DecisionSchema,
     PredicateAnswer,
     Score,
@@ -211,11 +211,9 @@ class TestParseResponse:
     def test_malformed_response_names_the_field(self, mutate, field):
         body = copy.deepcopy(TRIAGE_BODY)
         mutate(body)
-        with pytest.raises(
-            DecisionProviderResponseError, match=field.replace(".", r"\.")
-        ):
+        with pytest.raises(DecisionProviderError, match=field.replace(".", r"\.")):
             parse_response(body, Triage)
 
     def test_non_object_body_rejected(self):
-        with pytest.raises(DecisionProviderResponseError, match="<body>"):
+        with pytest.raises(DecisionProviderError, match="<body>"):
             parse_response(["not", "an", "object"], Triage)

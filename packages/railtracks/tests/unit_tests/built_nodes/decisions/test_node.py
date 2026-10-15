@@ -9,21 +9,14 @@ import railtracks.context.central as central
 from railtracks.built_nodes.decisions import DecisionResponse
 from railtracks.decisions import (
     DecisionProviderAuthenticationError,
-    DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
-    DecisionProviderRequestError,
-    DecisionProviderResponseError,
-    DecisionProviderServerError,
     DecisionProviderTimeoutError,
 )
 from railtracks.exceptions import (
     DecisionAuthenticationError,
     DecisionModelError,
     DecisionRateLimitError,
-    DecisionRequestError,
-    DecisionResponseError,
-    DecisionServerError,
     DecisionTimeoutError,
     NodeCreationError,
 )
@@ -162,7 +155,7 @@ async def test_call_batch_preserves_order_and_returns_exceptions(monkeypatch):
         results = await rt.call_batch(node, ["a", "b", "c"])
 
     assert isinstance(results[0], DecisionResponse)
-    assert isinstance(results[1], DecisionServerError)
+    assert type(results[1]) is DecisionModelError
     assert isinstance(results[2], DecisionResponse)
 
 
@@ -194,20 +187,20 @@ async def test_call_batch_preserves_order_and_returns_exceptions(monkeypatch):
             litellm.APIConnectionError(
                 message="refused", llm_provider="typesafe", model=_MODEL
             ),
-            DecisionTimeoutError,
-            DecisionProviderConnectionError,
+            DecisionModelError,
+            DecisionProviderError,
         ),
         (
             litellm.ServiceUnavailableError(
                 message="down", llm_provider="typesafe", model=_MODEL
             ),
-            DecisionServerError,
-            DecisionProviderServerError,
+            DecisionModelError,
+            DecisionProviderError,
         ),
         (
             {"model": "jev-1.13.0", "answers": []},
-            DecisionResponseError,
-            DecisionProviderResponseError,
+            DecisionModelError,
+            DecisionProviderError,
         ),
     ],
     ids=["auth", "rate-limit", "timeout", "connection", "server", "malformed"],
@@ -221,13 +214,13 @@ def test_provider_errors_become_decision_errors_at_the_node(
     with pytest.raises(node_error) as info:
         rt.Flow(name="decisions", entry_point=node).invoke("Help!")
 
-    assert isinstance(info.value, DecisionModelError)
+    assert type(info.value) is node_error
     assert type(info.value.__cause__) is provider_error
     assert isinstance(info.value.__cause__, DecisionProviderError)
     assert info.value.reason == info.value.__cause__.reason
 
 
-def test_request_error_keeps_body_and_notes(make_model):
+def test_request_error_keeps_message_and_notes(make_model):
     model, _ = make_model(
         litellm.BadRequestError(
             message='{"detail": "bad state"}', model=_MODEL, llm_provider="typesafe"
@@ -235,11 +228,12 @@ def test_request_error_keeps_body_and_notes(make_model):
     )
     node = rt.decision_node(model=model, schema=Triage)
 
-    with pytest.raises(DecisionRequestError) as info:
+    with pytest.raises(DecisionModelError) as info:
         rt.Flow(name="decisions", entry_point=node).invoke("Help!")
 
-    assert info.value.body == 'litellm.BadRequestError: {"detail": "bad state"}'
-    assert isinstance(info.value.__cause__, DecisionProviderRequestError)
+    assert type(info.value) is DecisionModelError
+    assert '{"detail": "bad state"}' in info.value.reason
+    assert type(info.value.__cause__) is DecisionProviderError
     assert info.value.notes == info.value.__cause__.notes
 
 

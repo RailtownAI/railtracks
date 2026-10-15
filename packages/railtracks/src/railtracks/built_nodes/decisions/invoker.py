@@ -13,13 +13,9 @@ from railtracks.context.central import get_current_scope, is_context_active
 from railtracks.decisions import (
     DecisionModel,
     DecisionProviderAuthenticationError,
-    DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
     DecisionProviderRefusalError,
-    DecisionProviderRequestError,
-    DecisionProviderResponseError,
-    DecisionProviderServerError,
     DecisionProviderTimeoutError,
     DecisionResponse,
     DecisionSchema,
@@ -37,32 +33,21 @@ from railtracks.exceptions import (
     DecisionModelError,
     DecisionRateLimitError,
     DecisionRefusalError,
-    DecisionRequestError,
-    DecisionResponseError,
-    DecisionServerError,
     DecisionTimeoutError,
 )
 
-# Ordered most-specific first. Request and refusal errors are handled apart: they carry
-# a body and the refused question names.
+# Any other DecisionProviderError becomes a plain DecisionModelError.
 _PROVIDER_TO_NODE_ERROR: tuple[
     tuple[type[DecisionProviderError], type[DecisionModelError]], ...
 ] = (
     (DecisionProviderAuthenticationError, DecisionAuthenticationError),
     (DecisionProviderRateLimitError, DecisionRateLimitError),
     (DecisionProviderTimeoutError, DecisionTimeoutError),
-    (DecisionProviderConnectionError, DecisionTimeoutError),
-    (DecisionProviderServerError, DecisionServerError),
-    (DecisionProviderResponseError, DecisionResponseError),
 )
 
 
 def _node_error_for(error: DecisionProviderError) -> DecisionModelError:
     """The node-terminating error a failed decision call surfaces as."""
-    if isinstance(error, DecisionProviderRequestError):
-        return DecisionRequestError(
-            error.reason, body=error.body, notes=list(error.notes)
-        )
     if isinstance(error, DecisionProviderRefusalError):
         return DecisionRefusalError(
             error.reason,

@@ -2,7 +2,8 @@
 
 The counterpart of ``llm/models/_litellm_wrapper.py``: litellm owns the provider's URL,
 key lookup and wire translation; this base sends the OpenAI-shape request (``_wire``),
-maps litellm's exceptions to ``DecisionProviderError`` and reads usage, model and cost.
+retries litellm's transient exceptions, maps the one it ends on to
+``DecisionProviderError`` and reads usage, model and cost.
 A provider subclass only sets class attributes.
 """
 
@@ -14,16 +15,12 @@ from urllib.parse import urlsplit
 
 import litellm
 
-from railtracks.llm.retries import RetryApproach
+from railtracks.llm.retries import RetryApproach, RetryError
 
 from .._exceptions import (
     DecisionProviderAuthenticationError,
-    DecisionProviderConnectionError,
     DecisionProviderError,
     DecisionProviderRateLimitError,
-    DecisionProviderRequestError,
-    DecisionProviderResponseError,
-    DecisionProviderServerError,
     DecisionProviderTimeoutError,
 )
 from ..model import DecisionModel, DecisionReply
@@ -32,13 +29,12 @@ from ..state import DecisionInput
 from ._client_cleanup import close_client_on_loop_shutdown
 from ._wire import describe_questions, parse_response, questions_to_wire, to_input
 
-_MAX_ERROR_BODY = 500
-
 # litellm prints a "Give Feedback / Get Help" banner on every mapped error without it
 litellm.suppress_debug_info = True
 
-# Checked in order. litellm.Timeout comes first: it is an openai.APIConnectionError
-# (though not a litellm.APIConnectionError), and timeouts are not provider-tagged.
+# Checked in order; any other litellm exception is a plain DecisionProviderError.
+# litellm.Timeout comes first: it is an openai.APIConnectionError (though not a
+# litellm.APIConnectionError), and timeouts are not provider-tagged.
 _LITELLM_ERRORS: tuple[
     tuple[tuple[type[Exception], ...], type[DecisionProviderError]], ...
 ] = (
@@ -48,23 +44,19 @@ _LITELLM_ERRORS: tuple[
         (litellm.AuthenticationError, litellm.PermissionDeniedError),
         DecisionProviderAuthenticationError,
     ),
-    ((litellm.APIConnectionError,), DecisionProviderConnectionError),
     (
         (
-            litellm.InternalServerError,
-            litellm.ServiceUnavailableError,
+            litellm.APIConnectionError,
+            litellm.APIError,
+            litellm.APIResponseValidationError,
             litellm.BadGatewayError,
-        ),
-        DecisionProviderServerError,
-    ),
-    ((litellm.APIResponseValidationError,), DecisionProviderResponseError),
-    (
-        (
             litellm.BadRequestError,
+            litellm.InternalServerError,
             litellm.NotFoundError,
+            litellm.ServiceUnavailableError,
             litellm.UnprocessableEntityError,
         ),
-        DecisionProviderRequestError,
+        DecisionProviderError,
     ),
 )
 
@@ -115,9 +107,9 @@ class LiteLLMDecisionModel(DecisionModel):
             api_base: The server's base URL. Defaults to the ``api_base_env`` variable,
                 then the provider's ``default_api_base``.
             timeout: Seconds to wait for each request.
-            retry_approach: Retry strategy for rate limits, timeouts, connection
-                failures and 5xx errors. None (the default) makes one attempt, as for
-                LLM providers.
+            retry_approach: Retry strategy for litellm's transient errors (rate
+                limits, timeouts, connection failures, 500 and 503). None (the
+                default) makes one attempt, as for LLM providers.
         """
         super().__init__(model_name, retry_approach=retry_approach)
         self._api_key = api_key
@@ -132,7 +124,7 @@ class LiteLLMDecisionModel(DecisionModel):
         )
 
     def _check_api_base(self) -> None:
-        """Raise ``DecisionProviderRequestError`` unless ``api_base`` is an http(s) URL.
+        """Raise ``DecisionProviderError`` unless ``api_base`` is an http(s) URL.
 
         litellm reports a malformed base as a connection error, which would be retried.
         """
@@ -145,7 +137,7 @@ class LiteLLMDecisionModel(DecisionModel):
             if self._api_base
             else f"the {self.api_base_env} environment variable"
         )
-        raise DecisionProviderRequestError(
+        raise DecisionProviderError(
             f"Malformed api_base {api_base!r} for {self.litellm_model}.",
             notes=[f"Set {source} to an http:// or https:// URL."],
         )
@@ -167,8 +159,9 @@ class LiteLLMDecisionModel(DecisionModel):
     ) -> DecisionReply:
         self._check_api_base()
         await close_client_on_loop_shutdown(self.provider_prefix)
-        try:
-            response = await litellm.adecisions(
+
+        async def adecisions() -> Any:
+            return await litellm.adecisions(
                 model=self.litellm_model,
                 input=to_input(state),
                 questions=questions_to_wire(schema),
@@ -176,11 +169,21 @@ class LiteLLMDecisionModel(DecisionModel):
                 api_base=self._api_base,
                 timeout=self._timeout,
             )
+
+        try:
+            if self.retry_approach is None:
+                response = await adecisions()
+            else:
+                response = await self.retry_approach.acall_with_retry(adecisions)
         except Exception as e:
-            error = self._provider_error(e)
+            # classify once, by the attempt the retries ended on
+            failure = e.exception_list[-1] if isinstance(e, RetryError) else e
+            error = self._provider_error(failure)
             if error is None:
                 raise
-            raise error from e
+            if isinstance(e, RetryError):
+                error.notes.append(f"Gave up after {len(e.exception_list)} attempts.")
+            raise error from failure
 
         reply = parse_response(response, schema)
         hidden = getattr(response, "_hidden_params", None) or {}
@@ -200,31 +203,13 @@ class LiteLLMDecisionModel(DecisionModel):
 
     def _provider_error(self, error: Exception) -> DecisionProviderError | None:
         """The ``DecisionProviderError`` for a litellm exception; None for any other."""
-        target: type[DecisionProviderError] | None = None
         for litellm_types, provider_type in _LITELLM_ERRORS:
             if isinstance(error, litellm_types):
-                target = provider_type
-                break
-        if target is None and isinstance(error, litellm.APIError):
-            status = error.status_code
-            if not isinstance(status, int):
-                target = DecisionProviderError
-            elif status >= 500:
-                target = DecisionProviderServerError
-            else:
-                target = DecisionProviderRequestError
-        if target is None:
-            return None
-
-        reason = f"Decision request to {self.litellm_model} failed: {error!r}"
-        if target is DecisionProviderRequestError:
-            message = getattr(error, "message", None) or repr(error)
-            return DecisionProviderRequestError(
-                reason, body=str(message)[:_MAX_ERROR_BODY]
-            )
-        if target is DecisionProviderAuthenticationError:
-            return DecisionProviderAuthenticationError(reason, notes=self._key_notes())
-        return target(reason)
+                reason = f"Decision request to {self.litellm_model} failed: {error!r}"
+                if provider_type is DecisionProviderAuthenticationError:
+                    return provider_type(reason, notes=self._key_notes())
+                return provider_type(reason)
+        return None
 
     def _key_notes(self) -> list[str]:
         """Debugging notes for a missing key, or for a key the provider rejected."""
