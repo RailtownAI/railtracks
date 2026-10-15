@@ -98,7 +98,9 @@ Railtracks supports six logging levels aligned with the standard Python logging 
 
 !!! tip "Console Handler"
 
-    Once you call `enable_logging()`, a console handler is added and logs are printed to the terminal.
+    Once you call `enable_logging()`, a console handler is added and logs are printed to the terminal, along with the [run view](#run-view). The run view only prints to the console: it isn't written to `log_file` or passed to other handlers, which get the log records instead, node creation, completion, and failure included.
+
+    On Windows, when output is redirected to a file or pipe (including most CI runners), set `PYTHONUTF8=1` so the run view's symbols (`▶`, `✓`, `✗`) don't print as escapes such as `\u25b6`. An interactive terminal needs nothing.
 
 !!! tip "File Handler"
 
@@ -108,8 +110,14 @@ Railtracks supports six logging levels aligned with the standard Python logging 
     --8<-- "docs/scripts/_logging.py:logging_to_file"
     ```
 
+    The file is appended to and never rotated or capped. To rotate it, attach a [`RotatingFileHandler`](https://docs.python.org/3/library/logging.handlers.html#rotatingfilehandler) to `RT` yourself instead of passing `log_file`, after calling `enable_logging()` so the console stays on (see [Enabling logging](#enabling-logging)):
+
+    ```python
+    --8<-- "docs/scripts/_logging.py:logging_rotating_file"
+    ```
+
 !!! warning "File Handler logging level"
-    Currently the logs outputted to the File Handler will be at `INFO` level. If you'd like us to support customizing this parameter, please open an issue at [railtracks/issues](https://github.com/RailtownAI/railtracks/issues)
+    The file handler records `INFO` and above, even when you pass `level="DEBUG"`; the level only changes the console. If you'd like us to support customizing this parameter, please open an issue at [railtracks/issues](https://github.com/RailtownAI/railtracks/issues)
 
 !!! tip "Custom Handlers"
 
