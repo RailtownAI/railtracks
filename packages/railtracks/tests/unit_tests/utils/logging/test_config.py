@@ -6,8 +6,9 @@ import tempfile
 from unittest.mock import patch
 
 import pytest
+import railtracks as rt
 from railtracks.observability import configure
-from railtracks.utils.logging import config, setup
+from railtracks.utils.logging import config, run_view, setup
 from railtracks.utils.logging.config import (
     LifecycleFilter,
     RichConsoleHandler,
@@ -110,15 +111,19 @@ def test_console_handler_includes_the_traceback(console_output):
     assert "ValueError: boom" in console_output.getvalue()
 
 
-def test_lifecycle_filter_drops_only_marked_records():
-    lifecycle_filter = LifecycleFilter()
+def test_lifecycle_filter_drops_only_records_of_runs_the_view_shows():
+    lifecycle_filter = LifecycleFilter(lambda session_id: session_id == "shown")
 
-    assert lifecycle_filter.filter(_record(lifecycle_logger_name)) is False
-    assert lifecycle_filter.filter(_record()) is True
+    shown = _record(lifecycle_logger_name, session_id="shown")
+    assert lifecycle_filter.filter(shown) is False
+    assert lifecycle_filter.filter(_record(lifecycle_logger_name, session_id="other"))
+    assert lifecycle_filter.filter(_record(lifecycle_logger_name))
+    assert lifecycle_filter.filter(_record(session_id="shown"))
 
 
-def test_lifecycle_records_still_reach_other_handlers(console_output):
+def test_lifecycle_records_still_reach_other_handlers(console_output, monkeypatch):
     """The filter sits on railtracks' console handler, not the logger."""
+    monkeypatch.setattr(setup._run_view, "is_showing", lambda session_id: True)
     detach_logging_handlers()
     enable_logging(level="INFO")
     captured: list[logging.LogRecord] = []
@@ -130,6 +135,35 @@ def test_lifecycle_records_still_reach_other_handlers(console_output):
 
     assert [r.getMessage() for r in captured] == ["A CREATED B"]
     assert console_output.getvalue() == ""
+    detach_logging_handlers()
+
+
+def test_the_console_prints_lifecycle_records_only_for_runs_the_view_is_not_showing(
+    console_output, monkeypatch
+):
+    monkeypatch.setattr(run_view, "console", config.console)
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+
+    def boom(text: str) -> str:
+        """Fail.
+
+        Args:
+            text: The text.
+        """
+        raise ValueError("bad")
+
+    with pytest.raises(ValueError):
+        rt.Flow(name="Boom Flow", entry_point=rt.function_node(boom)).invoke("x")
+    # e.g. a task still running after its run ended
+    logging.getLogger(lifecycle_logger_name).error(
+        "late FAILED", extra={"session_id": "ended"}
+    )
+
+    output = console_output.getvalue()
+    assert "✗ boom failed: ValueError: bad" in output
+    assert "boom FAILED" not in output
+    assert "late FAILED" in output
     detach_logging_handlers()
 
 

@@ -46,7 +46,7 @@ In a Jupyter notebook the run view prints into the cell's output as one block, a
 
 Failures print at `DEBUG` through `ERROR`, marked `(fatal)` when they stop the run, and `CRITICAL` prints only the fatal ones. The lines of your code the exception came through are indented under each failure (railtracks and standard-library frames are left out; `DEBUG` shows them all). A node that its middleware retries shows a `↻ <NODE> retrying after <ERROR>` line, and its final outcome is what the `✓` or `✗` line reports. Each run uses the level of the thread it started in, so calling `enable_logging(level=...)` in a worker thread changes what that thread's runs print.
 
-The run view replaces the console lines for node creation, completion, and failure (`<PARENT> CREATED <CHILD>`, `<NODE> DONE`, `<NODE> FAILED`). Those records are still emitted on the `RT.lifecycle` logger and still reach your file handler and any handler you attach yourself, failures with their full traceback; configure that logger like any other, for example `logging.getLogger("RT.lifecycle").setLevel(logging.WARNING)` to keep only failures.
+For the runs it shows, the run view replaces the console lines for node creation, completion, and failure (`<PARENT> CREATED <CHILD>`, `<NODE> DONE`, `<NODE> FAILED`); a node still running after its run has ended prints them as before. Those records are still emitted on the `RT.lifecycle` logger and still reach your file handler and any handler you attach yourself, failures with their full traceback; configure that logger like any other, for example `logging.getLogger("RT.lifecycle").setLevel(logging.WARNING)` to keep only failures.
 
 ## Configuring Logging
 
@@ -163,7 +163,7 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 
 ## Log Message Examples
 
-Each example shows a record as `<LOGGER> : <LEVEL> - <MESSAGE>`, with the logger name as `name_style="short"` prints it. The console uses that layout for `DEBUG`, `WARNING`, `ERROR`, and `CRITICAL` records and prints `INFO` records as dim notes (`· <MESSAGE>`). Records about nodes starting, finishing, and failing come from the `RT.lifecycle` logger and reach the file handler and your own handlers, failures with their full traceback; the console shows them through the run view instead.
+Each example shows a record as `<LOGGER> : <LEVEL> - <MESSAGE>`, with the logger name as `name_style="short"` prints it. The console uses that layout for `DEBUG`, `WARNING`, `ERROR`, and `CRITICAL` records and prints `INFO` records as dim notes (`· <MESSAGE>`). Records about nodes starting, finishing, and failing come from the `RT.lifecycle` logger and reach the file handler and your own handlers, failures with their full traceback; the console shows them through the run view instead, while that run is in it.
 
 ??? note "DEBUG Messages"
     | Type            | Example |

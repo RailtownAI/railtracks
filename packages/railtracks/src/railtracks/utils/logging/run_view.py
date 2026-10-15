@@ -92,6 +92,10 @@ class RunView:
         self._runs: dict[str, _Run] = {}
         self._middleware_names: dict[str, str] = {}
 
+    def is_showing(self, session_id: str | None) -> bool:
+        """Whether the run in ``session_id`` is being printed right now."""
+        return session_id in self._runs
+
     def record(self, event: Event) -> None:
         payload = event.payload
         if event.event_type == "middleware.creation":

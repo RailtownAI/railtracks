@@ -3,7 +3,7 @@ import os
 import re
 import time
 from contextvars import ContextVar
-from typing import Dict, Literal
+from typing import Callable, Dict, Literal
 
 from rich.console import Console
 from rich.text import Text
@@ -32,7 +32,8 @@ str_to_log_level: Dict[str, int] = {
 rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
 
-# node creation, completion, and failure records; the run view prints these instead
+# node creation, completion, and failure records; the run view prints these for the runs
+# it shows
 lifecycle_logger_name = f"{rt_logger_name}.lifecycle"
 
 _file_format_string = (
@@ -146,10 +147,17 @@ class ThreadAwareFilter(logging.Filter):
 
 
 class LifecycleFilter(logging.Filter):
-    """Drops records from the lifecycle logger, which the run view already prints."""
+    """Drops lifecycle records for runs the run view is printing, so the console shows
+    each node once. A run it isn't printing keeps them, so its failures still show."""
+
+    def __init__(self, run_view_shows: Callable[[str | None], bool]) -> None:
+        super().__init__()
+        self._run_view_shows = run_view_shows
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return record.name != lifecycle_logger_name
+        if record.name != lifecycle_logger_name:
+            return True
+        return not self._run_view_shows(getattr(record, "session_id", None))
 
 
 class RichConsoleHandler(logging.Handler):
@@ -198,10 +206,12 @@ class RichConsoleHandler(logging.Handler):
 
 
 def _console_handler(
-    name_style: LoggerNameDisplay, run_view_level: int
+    name_style: LoggerNameDisplay,
+    run_view_level: int,
+    run_view_shows: Callable[[str | None], bool],
 ) -> RichConsoleHandler:
     handler = RichConsoleHandler(name_style=name_style, run_view_level=run_view_level)
-    handler.addFilter(LifecycleFilter())
+    handler.addFilter(LifecycleFilter(run_view_shows))
     return handler
 
 

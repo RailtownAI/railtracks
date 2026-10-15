@@ -68,7 +68,7 @@ def initialize_module_logging(
         if isinstance(h, logging.NullHandler):
             logger.removeHandler(h)
 
-    console_handler = _console_handler(name_style, env_level_int)
+    console_handler = _console_handler(name_style, env_level_int, _run_view.is_showing)
     console_handler.addFilter(ThreadAwareFilter())
     logger.addHandler(console_handler)
     add_inline_listener(_run_view.record)
