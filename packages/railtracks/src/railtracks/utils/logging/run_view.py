@@ -399,13 +399,13 @@ def _exception(payload: dict[str, Any]) -> str:
 def _traceback_lines(frames: list[dict[str, Any]], *, full: bool) -> list[Text]:
     """Where the exception was raised: each frame and its source line.
 
-    Leaves out railtracks and standard-library frames unless ``full`` is set or nothing
-    else is left.
+    Leaves out railtracks and standard-library frames unless ``full`` is set. When no
+    other frame is left, as for a provider error, keeps only the innermost one.
     """
     if not full:
         frames = [
             frame for frame in frames if not _is_internal(frame["file"])
-        ] or frames
+        ] or frames[-1:]
     lines = []
     for frame in frames:
         location = f"{_display_path(frame['file'])}:{frame['line']}"

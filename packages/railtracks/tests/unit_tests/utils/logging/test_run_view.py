@@ -381,6 +381,24 @@ def test_failure_shows_only_the_frames_outside_railtracks_and_the_stdlib(output,
     ]
 
 
+def test_a_failure_with_no_user_frames_shows_only_where_it_was_raised(output, level):
+    frames = _frames(
+        (os.path.join(run_view._RAILTRACKS_DIR, "nodes", "nodes.py"), "await body()"),
+        (os.path.join(run_view._RAILTRACKS_DIR, "llm", "model.py"), "raise LLMError()"),
+    )
+    _feed(
+        RunView(),
+        _started(),
+        _node_started(ENTRY, "Entry", caller=None),
+        _node_failed(ENTRY, frames=frames),
+    )
+
+    lines = _lines(output)
+    assert sum("in fn" in line for line in lines) == 1
+    assert lines[-2].endswith("model.py:2 in fn2")
+    assert lines[-1].strip() == "raise LLMError()"
+
+
 def test_a_notebook_cell_frame_shows_as_cell(output, level):
     frames = _frames(
         ("/var/folders/7v/T/ipykernel_11286/1101257469.py", "raise ValueError('bad')")
