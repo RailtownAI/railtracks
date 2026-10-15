@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import BaseModel
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
-from railtracks.llm import MessageHistory, UserMessage
+from railtracks.llm import MessageHistory, ToolMessage, ToolResponse, UserMessage
+from railtracks.llm.content import ToolCall, ToolCalls
 from railtracks.llm.message import AssistantMessage
 from railtracks.prebuilt.guardrails import InputLengthGuard, OutputLengthGuard
 
@@ -160,3 +162,95 @@ class TestOutputLengthGuard:
     def test_custom_name(self):
         guard = OutputLengthGuard(max_chars=100, name="my-output-guard")
         assert guard.name == "my-output-guard"
+
+
+# ---------------------------------------------------------------------------
+# Non-string content (regression: #1689)
+# ---------------------------------------------------------------------------
+
+
+class _Structured(BaseModel):
+    """A structured-output assistant reply."""
+
+    answer: str
+    score: int
+
+
+def _tool_history() -> MessageHistory:
+    return MessageHistory(
+        [
+            UserMessage("What is the weather?"),
+            ToolMessage(ToolResponse(identifier="1", name="weather", result="15C")),
+        ]
+    )
+
+
+class TestNonStringContent:
+    """Length guards must measure tool and structured content, not raise (#1689)."""
+
+    def test_input_guard_counts_a_tool_response(self):
+        guard = InputLengthGuard(max_chars=1000)
+        event = LLMGuardrailEvent(
+            phase=LLMGuardrailPhase.INPUT, messages=_tool_history()
+        )
+        decision = guard(event)
+        assert decision.action == GuardrailAction.ALLOW
+        assert decision.meta["total_chars"] > 0
+
+    def test_input_guard_counts_a_tool_call_turn(self):
+        guard = InputLengthGuard(max_chars=1000)
+        calls = ToolCalls(
+            [ToolCall(identifier="1", name="weather", arguments={"city": "Paris"})],
+            text="Let me look that up.",
+        )
+        history = MessageHistory([UserMessage("hi"), AssistantMessage(calls)])
+        decision = guard(
+            LLMGuardrailEvent(phase=LLMGuardrailPhase.INPUT, messages=history)
+        )
+        assert decision.action == GuardrailAction.ALLOW
+        assert decision.meta["total_chars"] >= len("Let me look that up.")
+
+    def test_input_guard_counts_a_structured_output(self):
+        guard = InputLengthGuard(max_chars=1000)
+        history = MessageHistory(
+            [UserMessage("hi"), AssistantMessage(_Structured(answer="ok", score=3))]
+        )
+        decision = guard(
+            LLMGuardrailEvent(phase=LLMGuardrailPhase.INPUT, messages=history)
+        )
+        assert decision.action == GuardrailAction.ALLOW
+
+    def test_input_guard_still_blocks_an_oversized_tool_history(self):
+        guard = InputLengthGuard(max_chars=10)
+        event = LLMGuardrailEvent(
+            phase=LLMGuardrailPhase.INPUT, messages=_tool_history()
+        )
+        decision = guard(event)
+        assert decision.action == GuardrailAction.BLOCK
+
+    def test_output_guard_counts_a_structured_reply(self):
+        guard = OutputLengthGuard(max_chars=1000)
+        event = LLMGuardrailEvent(
+            phase=LLMGuardrailPhase.OUTPUT,
+            messages=MessageHistory([UserMessage("hi")]),
+            output_message=AssistantMessage(_Structured(answer="ok", score=3)),
+        )
+        decision = guard(event)
+        assert decision.action == GuardrailAction.ALLOW
+        assert decision.meta["total_chars"] > 0
+
+    def test_output_guard_counts_a_tool_call_turn(self):
+        guard = OutputLengthGuard(max_chars=1000)
+        event = LLMGuardrailEvent(
+            phase=LLMGuardrailPhase.OUTPUT,
+            messages=MessageHistory([UserMessage("hi")]),
+            output_message=AssistantMessage(
+                ToolCalls(
+                    [ToolCall(identifier="1", name="weather", arguments={})],
+                    text="Looking it up.",
+                )
+            ),
+        )
+        decision = guard(event)
+        assert decision.action == GuardrailAction.ALLOW
+        assert decision.meta["total_chars"] >= len("Looking it up.")

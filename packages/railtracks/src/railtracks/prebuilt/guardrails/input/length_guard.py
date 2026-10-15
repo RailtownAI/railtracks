@@ -5,6 +5,7 @@ from __future__ import annotations
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
 from railtracks.guardrails.llm.concrete import InputGuard
+from railtracks.prebuilt.guardrails._content import content_length
 
 
 class InputLengthGuard(InputGuard):
@@ -34,7 +35,7 @@ class InputLengthGuard(InputGuard):
         self.max_chars = max_chars
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        total_chars = sum(len(m.content or "") for m in event.messages)
+        total_chars = sum(content_length(m.content) for m in event.messages)
         if total_chars > self.max_chars:
             return GuardrailDecision.block(
                 reason=(

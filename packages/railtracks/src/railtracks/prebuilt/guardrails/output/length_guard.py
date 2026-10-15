@@ -5,6 +5,7 @@ from __future__ import annotations
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
 from railtracks.guardrails.llm.concrete import OutputGuard
+from railtracks.prebuilt.guardrails._content import content_length
 
 
 class OutputLengthGuard(OutputGuard):
@@ -34,8 +35,8 @@ class OutputLengthGuard(OutputGuard):
         if event.output_message is None:
             return GuardrailDecision.allow(reason="No output message to evaluate.")
 
-        content = event.output_message.content or ""
-        total_chars = len(content)
+        content = event.output_message.content
+        total_chars = content_length(content)
         if total_chars > self.max_chars:
             return GuardrailDecision.block(
                 reason=(
