@@ -228,6 +228,24 @@ def test_setup_file_handler_with_custom_level(tmp_path):
     rt_logger.handlers.clear()
 
 
+def test_setup_file_handler_writes_non_ascii_as_utf8(tmp_path):
+    """Test that the log file keeps non-ASCII text whatever the locale encoding."""
+    log_file = tmp_path / "test.log"
+    setup_file_handler(file_name=log_file)
+    file_handler = rt_logger.handlers[-1]
+    record = logging.makeLogRecord(
+        {"msg": "tool output: 你好 😀", "levelno": logging.INFO, "levelname": "INFO"}
+    )
+    record.relative_seconds = "0.000"
+
+    file_handler.emit(record)
+    file_handler.close()
+    rt_logger.handlers.clear()
+
+    assert file_handler.encoding == "utf-8"
+    assert "tool output: 你好 😀".encode("utf-8") in log_file.read_bytes()
+
+
 # ================= detach_logging_handlers Tests =================
 
 
