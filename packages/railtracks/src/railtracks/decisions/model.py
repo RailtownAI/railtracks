@@ -87,9 +87,8 @@ class DecisionModel(ABC):
         """Answer every question in ``schema`` about ``state`` in one request.
 
         Args:
-            state: What to judge: text, a JSON object or array (sent as JSON text), a
-                ``DecisionState`` with image attachments, or a list of user messages.
-                Images are accepted only where the provider takes them (OpenAI).
+            state: What to judge: text, or a JSON object or array (sent as JSON
+                text).
             schema: The ``DecisionSchema`` holding the questions.
 
         Returns:

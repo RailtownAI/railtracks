@@ -2,7 +2,7 @@
 
 System One models read a piece of text and answer typed questions about it with calibrated probabilities instead of prose: a yes/no (`Predicate`), a pick from named values (`Choice`), or a level on a rubric (`Score`). One request answers every question in a single forward pass. In railtracks the models live in `rt.decisions`, the way chat models live in `rt.llm`, and `rt.decision_node` turns a model plus a schema into a node, the way `rt.agent_node` does for an LLM.
 
-`s1_demo.py` is the one example. It triages a support inbox: one ticket through a Flow, a whole inbox routed on the probabilities (confident tickets go to a team queue, unclear ones to a person), the decision as an agent's tool, and a direct `aask` call with a JSON state. It runs Jev through OpenRouter; TypeSafe and OpenAI are commented one-line swaps at the top, and an image example for OpenAI's `gpt-6-luna` is commented at the end.
+`s1_demo.py` is the one example. It triages a support inbox: one ticket through a Flow, a whole inbox routed on the probabilities (confident tickets go to a team queue, unclear ones to a person), the decision as an agent's tool, and a direct `aask` call with a JSON state. It runs Jev through OpenRouter; TypeSafe and OpenAI are commented one-line swaps at the top.
 
 ## Vendors
 
@@ -12,7 +12,7 @@ Every vendor answers the same `rt.decisions.DecisionSchema`, so switching is a o
 |---|---|---|---|
 | `TypeSafeAI` | TypeSafe's Jev (`jev-latest`) | `TYPESAFE_API_KEY` (required) | `TYPESAFE_API_BASE` overrides the URL; text and JSON input only |
 | `OpenRouterAI` | System One models on OpenRouter (`typesafe/jev-1.13`) | `OPENROUTER_API_KEY` (required) | `OPENROUTER_API_BASE` overrides the URL; text and JSON input only |
-| `OpenAIDecisions` | OpenAI's Decisions API (`gpt-6-luna`, public beta) | `OPENAI_API_KEY` (required) | `OPENAI_BASE_URL` overrides the URL; also accepts images; bills input tokens only |
+| `OpenAIDecisions` | OpenAI's Decisions API (`gpt-6-luna`, public beta) | `OPENAI_API_KEY` (required) | `OPENAI_BASE_URL` overrides the URL; text and JSON input only; bills input tokens only |
 
 Each class also takes `api_key=`, `api_base=`, `timeout=` (seconds, default 30) and `retry_approach=`.
 
@@ -34,20 +34,9 @@ triage = rt.decisions.DecisionSchema(predicate=[is_urgent], choice=[department])
 
 Names must be unique within a schema; a question object can be shared by several schemas. On a response, `result.structured[is_urgent]` is typed as that question's answer (`PredicateAnswer` here); `result.structured["is_urgent"]` also works, untyped. `str(result)` is the one-line summary an agent reads (`is_urgent: yes 0.99 | department: technical 1.00 | frustration: 2.0/2`).
 
-## Images
-
-OpenAI's `gpt-6-luna` also judges images. Pass a `rt.decisions.DecisionState` instead of a string:
-
-```python
-state = rt.decisions.DecisionState(text="Which animal is this?", attachments=["images/cat.jpg"])
-result = flow.invoke(state)
-```
-
-Attachments are local paths (sent as base64 data URLs), http(s) URLs (fetched by the provider) or data URIs; PNG, JPEG, GIF and WebP. Session records keep the paths and URLs, never the base64. TypeSafe and OpenRouter accept text only and reject a state with attachments before sending anything (`DecisionProviderRequestError`).
-
 ## How routing works
 
-Every call goes through `litellm.adecisions`, the way chat models go through litellm's completion API. railtracks always sends OpenAI's request shape (`input` plus a list of named `questions`) with the model as `"<vendor>/<model>"` (`typesafe/jev-latest`, `openrouter/typesafe/jev-1.13`, `openai/gpt-6-luna`); litellm translates it to each vendor's own API, reads the key and base URL from the environment variables above, and returns OpenAI's response shape, which railtracks parses into your schema. The result's `cost` is litellm's price for the call. Images are only accepted by OpenAI; a System One vendor rejects them before anything is sent.
+Every call goes through `litellm.adecisions`, the way chat models go through litellm's completion API. railtracks always sends OpenAI's request shape (`input` plus a list of named `questions`) with the model as `"<vendor>/<model>"` (`typesafe/jev-latest`, `openrouter/typesafe/jev-1.13`, `openai/gpt-6-luna`); litellm translates it to each vendor's own API, reads the key and base URL from the environment variables above, and returns OpenAI's response shape, which railtracks parses into your schema. The result's `cost` is litellm's price for the call.
 
 ## Running it
 

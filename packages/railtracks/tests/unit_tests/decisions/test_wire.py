@@ -107,24 +107,17 @@ class TestRequest:
         state = {"subject": "Duplicate charge", "body": "Charged twice"}
         assert to_input(state) == json.dumps(state)
 
-    def test_user_messages_pass_through(self):
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": "Inspect this photo."},
-                    {"type": "input_image", "image_url": "data:image/png;base64,AAAA"},
-                ],
-            }
-        ]
-        assert to_input(messages) is messages
-
     @pytest.mark.parametrize(
         "state",
-        [[{"sku": 1}, {"sku": 2}], [], [{"role": "assistant", "content": "hi"}]],
-        ids=["records", "empty", "assistant-message"],
+        [
+            [{"sku": 1}, {"sku": 2}],
+            [],
+            [{"role": "user", "content": "Is this urgent?"}],
+        ],
+        ids=["records", "empty", "user-message-shaped"],
     )
-    def test_json_array_that_is_not_user_messages_becomes_text(self, state):
+    def test_json_array_becomes_text(self, state):
+        # a list is data to judge, never chat messages: it is always sent as JSON text
         assert to_input(state) == json.dumps(state)
 
 

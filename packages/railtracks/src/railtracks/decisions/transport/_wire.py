@@ -1,9 +1,9 @@
 """``DecisionSchema`` to and from the OpenAI-shape request ``litellm.adecisions`` takes.
 
 rt always sends the OpenAI shape (``input`` plus a list of named ``questions``), for
-every provider: litellm translates it per provider, keeps refusals (the System One
-``state`` shape drops them) and accepts images where the provider does. Shapes follow
-``litellm.types.decisions`` (1.104.2) and
+every provider: litellm translates it per provider and keeps refusals (the System One
+``state`` shape drops them). The input is always text: other JSON is sent as JSON text.
+Shapes follow ``litellm.types.decisions`` (1.104.2) and
 https://developers.openai.com/api/docs/guides/decisions.
 """
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, TypeGuard
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
@@ -25,7 +25,7 @@ from ..schema import (
     DecisionSchema,
     ScoreQuestion,
 )
-from ..state import DecisionInput, DecisionState
+from ..state import DecisionInput
 
 # ================= Request =================
 
@@ -73,22 +73,9 @@ def questions_to_wire(schema: DecisionSchema) -> list[dict[str, Any]]:
     return list(describe_questions(schema).values())
 
 
-def is_user_messages(state: DecisionInput) -> TypeGuard[list[Any]]:
-    """Whether ``state`` is already OpenAI ``input`` messages (for text and images)."""
-    return (
-        isinstance(state, list)
-        and bool(state)
-        and all(isinstance(m, dict) and m.get("role") == "user" for m in state)
-    )
-
-
-def to_input(state: DecisionInput) -> str | list[Any]:
-    """The ``input`` argument: text as is, user messages as is, other JSON as JSON text."""
+def to_input(state: DecisionInput) -> str:
+    """The ``input`` argument: text as is, any other JSON as JSON text."""
     if isinstance(state, str):
-        return state
-    if isinstance(state, DecisionState):
-        return state.to_input()
-    if is_user_messages(state):
         return state
     return json.dumps(state)
 

@@ -24,7 +24,7 @@ from railtracks.decisions import (
     DecisionResponse,
     DecisionSchema,
 )
-from railtracks.decisions.state import DecisionInput, DecisionState
+from railtracks.decisions.state import DecisionInput
 from railtracks.events._resolve import has_enclosing_node
 from railtracks.events.decision import (
     DecisionFailureEvent,
@@ -83,8 +83,7 @@ async def invoke_decision(
 
     Args:
         model: The decision model to ask.
-        state: What to judge: text, a JSON object or array, a ``DecisionState``, or
-            user messages.
+        state: What to judge: text, or a JSON object or array.
         schema: The schema holding the questions.
 
     Returns:
@@ -104,8 +103,7 @@ async def invoke_decision(
                 decision_id=decision_id,
                 model_name=model.model_name,
                 api_base=model.api_base,
-                # attachments are recorded as given, never as base64
-                state=state.encode() if isinstance(state, DecisionState) else state,
+                state=state,
                 questions=model.describe_questions(schema),
             )
         )

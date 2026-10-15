@@ -13,8 +13,7 @@ class OpenAIDecisions(LiteLLMDecisionModel):
     Calls ``litellm.adecisions`` with ``openai/<model_name>``. litellm reads the key
     from ``litellm.api_key``, then ``litellm.openai_key``, then ``OPENAI_API_KEY`` (one
     is required), and the base URL from ``litellm.api_base``, then ``OPENAI_BASE_URL``,
-    then ``OPENAI_API_BASE``. The input can be text, other JSON (sent as JSON text),
-    or a list of user messages with ``input_text`` and ``input_image`` parts. Guide:
+    then ``OPENAI_API_BASE``. Text and JSON input only. Guide:
     https://developers.openai.com/api/docs/guides/decisions.
 
     Pricing counts input tokens only: the API bills input tokens alone, while

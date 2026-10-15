@@ -2,6 +2,7 @@
 provider name."""
 
 import copy
+import json
 
 import litellm
 import pytest
@@ -250,16 +251,8 @@ class TestOpenAIDecisions:
         resp = await model.aask("x", Triage)
         assert resp.cost == pytest.approx(296 * 1e-07)
 
-    async def test_image_messages_passed_through(self, make_model):
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": "Inspect this photo."},
-                    {"type": "input_image", "image_url": "data:image/png;base64,AAAA"},
-                ],
-            }
-        ]
+    async def test_json_array_sent_as_json_text(self, make_model):
+        state = [{"role": "user", "content": "Is this urgent?"}]
         model, fake = make_model(cls=OpenAIDecisions, model_name="gpt-6-luna")
-        await model.aask(messages, Triage)
-        assert fake.last["input"] == messages
+        await model.aask(state, Triage)
+        assert fake.last["input"] == json.dumps(state)

@@ -7,10 +7,7 @@ $0.00002 to $0.00004. A vendor's tests are skipped when its key (OPENROUTER_API_
 OPENAI_API_KEY) is unset.
 """
 
-import base64
 import os
-import struct
-import zlib
 from dataclasses import dataclass
 
 import litellm
@@ -21,7 +18,6 @@ from railtracks.decisions import (
     Choice,
     DecisionModel,
     DecisionSchema,
-    DecisionState,
     Predicate,
     Score,
 )
@@ -196,38 +192,3 @@ async def test_rejected_key_is_an_auth_error_and_not_retried(vendor, monkeypatch
         await model.aask(OUTAGE, Triage)
 
     assert len(calls) == 1
-
-
-def _solid_png(rgb: tuple[int, int, int], size: int = 16) -> bytes:
-    """A tiny solid-colour PNG, built in memory so the test needs no fixture file."""
-    rows = b"".join(b"\x00" + bytes(rgb) * size for _ in range(size))
-
-    def chunk(tag: bytes, data: bytes) -> bytes:
-        crc = struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-        return struct.pack(">I", len(data)) + tag + data + crc
-
-    header = struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)
-    return (
-        b"\x89PNG\r\n\x1a\n"
-        + chunk(b"IHDR", header)
-        + chunk(b"IDAT", zlib.compress(rows))
-        + chunk(b"IEND", b"")
-    )
-
-
-is_red = Predicate(name="is_red", instructions="The image is a solid red square")
-colour = Choice(
-    name="colour",
-    instructions="The main colour of the image",
-    choices=["red", "green", "blue"],
-)
-Colour = DecisionSchema(predicate=[is_red], choice=[colour])
-
-
-@pytest.mark.parametrize("vendor", [_param(OPENAI)])
-async def test_image_input(vendor):
-    image = base64.b64encode(_solid_png((0, 0, 255))).decode("ascii")
-    state = DecisionState(text="Look at this image.", attachments=image)
-    resp = await _model(vendor).aask(state, Colour)
-    assert resp.structured[colour].choice == "blue"
-    assert resp.structured[is_red].probability < 0.5

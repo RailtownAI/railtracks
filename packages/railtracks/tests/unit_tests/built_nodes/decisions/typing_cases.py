@@ -13,7 +13,6 @@ from railtracks.decisions import (
     DecisionAnswer,
     DecisionAnswers,
     DecisionSchema,
-    DecisionState,
     PredicateAnswer,
     ScoreAnswer,
 )
@@ -82,7 +81,7 @@ async def direct_call() -> None:
     assert_type(resp.cost, float | None)
 
     await jev.aask({"subject": "Duplicate charge"}, triage)
-    await jev.aask(DecisionState(text="x", attachments=["a.png"]), triage)
+    await jev.aask([{"sku": 1}, {"sku": 2}], triage)
     await jev.aask("x", DecisionSchema)  # type: ignore[arg-type]
 
 
@@ -94,7 +93,7 @@ async def node_calls() -> None:
 
     await rt.call(triage_ticket, state="I was charged twice")
     await rt.call(triage_ticket, {"subject": "Duplicate charge"})
-    await rt.call(triage_ticket, DecisionState(attachments="cat.png"))
+    await rt.call(triage_ticket, [{"sku": 1}, {"sku": 2}])
 
     flow = rt.Flow(name="Ticket Triage", entry_point=triage_ticket)
     assert_type(flow.invoke("x").structured[is_urgent], PredicateAnswer)

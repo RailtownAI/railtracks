@@ -3,8 +3,8 @@ railtracks.
 
 Like ``llm`` (see ``tests/unit_tests/llm/test_exceptions.py``), ``railtracks.decisions``
 (the model layer, not the ``built_nodes.decisions`` node) is self-contained: it imports
-nothing from the surrounding ``railtracks`` package except ``railtracks.llm.retries``
-and the attachment encoding helpers, and it raises only its own error roots.
+nothing from the surrounding ``railtracks`` package except ``railtracks.llm.retries``,
+and it raises only its own error roots.
 """
 
 import ast
@@ -27,13 +27,10 @@ from railtracks.exceptions._base import RTError
 
 DECISIONS_ROOT = pathlib.Path(railtracks.decisions.__file__).parent
 
-# Sideways dependencies shared with chat models: retry strategies, and the
-# self-contained helpers that turn attachments into data URLs.
+# The one sideways dependency shared with chat models: retry strategies.
 ALLOWED_PREFIXES = (
     "railtracks.decisions",
     "railtracks.llm.retries",
-    "railtracks.llm.encoding",
-    "railtracks.llm.attachment_formats",
 )
 
 MODULES = sorted(DECISIONS_ROOT.rglob("*.py"))

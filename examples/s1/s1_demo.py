@@ -9,12 +9,12 @@ This example triages support tickets. It covers every S1 vendor railtracks suppo
 switching is one line:
 
 1. the model   -> `rt.decisions.TypeSafeAI` (Jev), `OpenRouterAI` or `OpenAIDecisions`
-                  (gpt-6-luna, which also judges images: see the end of the file)
+                  (gpt-6-luna)
 2. the schema  -> named question objects grouped in a `DecisionSchema`; every
                   vendor answers the same schema
 3. the node    -> `rt.decision_node`, the S1 counterpart of `rt.agent_node`
 4. using it    -> as a Flow, routing an inbox on the probabilities, as an agent's
-                  tool, as a direct call, and with images
+                  tool, and as a direct call
 
 Decision nodes record each request (`decision.*` events), so `railtracks viz` shows it
 with its answers, latency and cost.
@@ -153,24 +153,5 @@ if __name__ == "__main__":
     ticket = {"subject": "Duplicate charge", "body": TICKETS[0]}
     print(asyncio.run(jev.aask(ticket, triage)))
 
-    # Images: OpenAI's gpt-6-luna also judges pictures (TypeSafe and OpenRouter take
-    # text only and reject attachments before sending anything). Pass a DecisionState
-    # with local paths, URLs or data URIs (PNG, JPEG, GIF, WebP):
-    #
-    # luna = rt.decisions.OpenAIDecisions(model_name="gpt-6-luna")
-    # big_cat = rt.decisions.Predicate(
-    #     name="big_cat", instructions="The animal is a big cat (lion, tiger, ...)"
-    # )
-    # Classify = rt.decision_node(
-    #     "Classify Photo",
-    #     model=luna,
-    #     schema=rt.decisions.DecisionSchema(predicate=[big_cat]),
-    # )
-    # photo = rt.decisions.DecisionState(
-    #     text="A photo of an animal.", attachments="path/to/tiger.jpg"
-    # )
-    # result = rt.Flow(name="Photo", entry_point=Classify).invoke(photo)
-    # print(result.structured[big_cat].probability)  # 1.0 for a tiger
-    #
     # OpenAI may decline a question: a node then raises DecisionRefusalError, with
     # .refused naming the declined questions and .answers holding the rest.
