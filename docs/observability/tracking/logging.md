@@ -60,6 +60,8 @@ Call `enable_logging()` once at application startup. The library never calls it 
 
 You can set the level and an optional log file path. If you omit them, Railtracks reads `RT_LOG_LEVEL` and `RT_LOG_FILE` from the environment (see below).
 
+If the `RT` logger already has a handler when you call `enable_logging()`, such as one you attached yourself or one from an earlier `enable_logging()` call, Railtracks leaves that setup alone: it sets the level but adds neither its console (so no [run view](#run-view)) nor the log file. Your handler still receives every record, node creation, completion, and failure included. To get the run view alongside your own handler, call `enable_logging()` first and attach your handler after.
+
 ### Console logger name
 
 Loggers use dotted names (often from `__name__`), e.g. `RT.railtracks._session`. The **terminal** line can show either a short label or the full name, controlled by `name_style` on `enable_logging()`:
