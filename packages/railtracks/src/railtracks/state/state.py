@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, ParamSpec, Tuple, TypeVar
 from ..context.central import restore_scope
 from ..events.node import NodeCreation
 from ..events.send import emit
+from ..exceptions._base import is_fatal
 from ..execution.coordinator import Coordinator
 from ..execution.task import Task
 from ..pubsub.messages import (
@@ -373,7 +374,7 @@ class RTState:
             exception=exception,
         )
 
-        if self.executor_config.end_on_error or getattr(exception, "fatal", False):
+        if self.executor_config.end_on_error or is_fatal(exception):
             lifecycle_logger.critical(
                 node_exception_action.to_logging_msg(), exc_info=exception
             )

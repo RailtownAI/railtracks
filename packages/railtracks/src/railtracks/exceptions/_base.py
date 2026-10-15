@@ -25,6 +25,12 @@ class RTError(Exception):
         return f"{color_code}{text}{cls.RESET}"
 
 
+def is_fatal(exc: BaseException) -> bool:
+    """Whether ``exc`` stops the whole run on its own. Only railtracks errors can, so
+    another library's ``fatal`` attribute is never mistaken for this flag."""
+    return isinstance(exc, RTError) and exc.fatal
+
+
 def _stderr_is_terminal() -> bool:
     try:
         return sys.stderr.isatty()

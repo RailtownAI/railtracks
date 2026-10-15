@@ -2,7 +2,7 @@ import io
 import sys
 
 import pytest
-from railtracks.exceptions._base import RTError, _stderr_is_terminal
+from railtracks.exceptions._base import RTError, _stderr_is_terminal, is_fatal
 from railtracks.exceptions.errors import (
     ContextError,
     FatalError,
@@ -210,6 +210,23 @@ def test_fatalerror_is_rcerror():
 )
 def test_fatal_marks_only_errors_that_stop_the_run(exc, expected):
     assert exc.fatal is expected
+    assert is_fatal(exc) is expected
+
+
+class _FlaggedLibraryError(Exception):
+    fatal = True
+
+
+class _FatalMethodLibraryError(Exception):
+    def fatal(self) -> bool:
+        return False
+
+
+@pytest.mark.parametrize(
+    "exc", [_FlaggedLibraryError(), _FatalMethodLibraryError(), ValueError()]
+)
+def test_only_railtracks_errors_can_be_fatal(exc):
+    assert is_fatal(exc) is False
 
 
 # =========== END FatalError tests =================

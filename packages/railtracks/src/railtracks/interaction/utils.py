@@ -21,6 +21,7 @@ from railtracks.events.context import (
 )
 from railtracks.events.send import emit
 from railtracks.events.session import SessionCompleted, SessionStarted, format_error
+from railtracks.exceptions._base import is_fatal
 from railtracks.observability.configure import ensure_started, shutdown
 from railtracks.pubsub.messages import (
     FatalFailure,
@@ -118,7 +119,7 @@ async def end_top_level(start_time: float, error: BaseException | None) -> None:
             error=None if error is None else format_error(error),
             duration_seconds=time.perf_counter() - start_time,
             fatal=error is not None
-            and (get_local_config().end_on_error or getattr(error, "fatal", False)),
+            and (get_local_config().end_on_error or is_fatal(error)),
         )
     )
     await shutdown()

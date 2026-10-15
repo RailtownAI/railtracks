@@ -18,6 +18,7 @@ from railtracks.events._base import (
 )
 from railtracks.events._resolve import node_parent, node_spatial_parent
 from railtracks.events.session import format_error, strip_ansi
+from railtracks.exceptions._base import is_fatal
 
 
 class Frame(TypedDict):
@@ -58,7 +59,7 @@ def failure_details(exc: BaseException) -> dict[str, Any]:
             )
             for frame in trace.stack
         ],
-        "fatal": getattr(exc, "fatal", False),
+        "fatal": is_fatal(exc),
     }
 
 
