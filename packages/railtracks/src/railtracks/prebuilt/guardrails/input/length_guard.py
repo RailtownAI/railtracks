@@ -5,6 +5,7 @@ from __future__ import annotations
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
 from railtracks.guardrails.llm.concrete import InputGuard
+from railtracks.prebuilt.guardrails._length import message_char_count
 
 
 class InputLengthGuard(InputGuard):
@@ -12,6 +13,10 @@ class InputLengthGuard(InputGuard):
 
     Character counting is used as the simplest, dependency-free unit.  A future
     implementation may add word- or token-based counting via an optional parameter.
+
+    Content that is not a plain string (tool responses, tool-call turns,
+    structured pydantic models) is counted via
+    :func:`~railtracks.prebuilt.guardrails._length.message_char_count`.
 
     Example::
 
@@ -34,7 +39,7 @@ class InputLengthGuard(InputGuard):
         self.max_chars = max_chars
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        total_chars = sum(len(m.content or "") for m in event.messages)
+        total_chars = sum(message_char_count(m.content) for m in event.messages)
         if total_chars > self.max_chars:
             return GuardrailDecision.block(
                 reason=(

@@ -26,10 +26,6 @@ class RequestCompletionMessage(ABC):
     The base class for all messages on the request completion system.
     """
 
-    def log_message(self) -> str:
-        """Converts the message to a string ready to be logged."""
-        return repr(self)
-
 
 ### Request Finished Messages ########
 # TODO add generic typing for all these types
@@ -84,9 +80,6 @@ class RequestSuccess(RequestFinishedBase):
     def __repr__(self):
         return f"{self.__class__.__name__}(request_id={self.request_id}, node_state={self.node_state}, result={self.result})"
 
-    def log_message(self) -> str:
-        return f"{self.node_state.node.name()} DONE with result {self.result}"
-
 
 class RequestFailure(RequestFinishedBase):
     """
@@ -110,12 +103,6 @@ class RequestFailure(RequestFinishedBase):
             f"node_state={self.node_state}, error={self.error})"
         )
 
-    def log_message(self) -> str:
-        node_name = (
-            self.node_state.node.name() if self.node_state is not None else "<unknown>"
-        )
-        return f"{node_name} FAILED with error {self.error}"
-
 
 class RequestCreationFailure(RequestFinishedBase):
     """
@@ -128,9 +115,6 @@ class RequestCreationFailure(RequestFinishedBase):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(request_id={self.request_id}, error={self.error})"
-
-    def log_message(self) -> str:
-        return f"Request creation FAILED with error {self.error}"
 
 
 ####### Request Creation Messages ########

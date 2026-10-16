@@ -100,7 +100,7 @@ from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_serve
 from .state.info import ExecutionInfo
 from .utils.config import ExecutorConfig
 from .utils.deprecation import warn_pending_change
-from .utils.logging.config import enable_logging
+from .utils.logging.setup import enable_logging
 
 load_dotenv()
 

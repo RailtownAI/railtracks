@@ -1,4 +1,6 @@
 import base64
+import http.client
+import math
 import os
 import re
 from pathlib import Path
@@ -8,7 +10,20 @@ from urllib.parse import urlparse
 
 from .attachment_formats import detect_attachment_mime_from_bytes
 
+DEFAULT_MAX_DOWNLOAD_MB = 32.0
+_READ_CHUNK_BYTES = 64 * 1024
 _URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
+
+
+def validate_max_mb(max_mb: float, *, name: str = "max_mb") -> None:
+    """Raise a `ValueError` unless `max_mb` is a positive, finite number.
+
+    Args:
+        max_mb: The download size limit, in megabytes.
+        name: The parameter name shown in the error message.
+    """
+    if not 0 < max_mb < math.inf:
+        raise ValueError(f"{name} must be a positive, finite number, got {max_mb!r}.")
 
 
 def _normalize_base64(s: str) -> str:
@@ -131,20 +146,69 @@ def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
     raise ValueError(f"Could not determine image source type for: {path}")
 
 
-def encode(path: str, *, timeout: float = 10.0) -> str:
+def _download_capped(path: str, *, timeout: float, max_mb: float) -> bytes:
+    """Download a URL body in chunks, stopping once it passes `max_mb`.
+
+    Args:
+        path: The URL to download.
+        timeout: Per-request timeout in seconds.
+        max_mb: Largest body accepted, in megabytes.
+
+    Returns:
+        bytes: The complete body.
+
+    Raises:
+        ValueError: If the server returns an HTTP error, the body exceeds
+            `max_mb`, or the body ends before its declared `Content-Length`
+            or final chunk.
+    """
+    max_bytes = int(max_mb * 1024 * 1024)
+    chunks: list[bytes] = []
+    total = 0
+    try:
+        with request.urlopen(path, timeout=timeout) as url:
+            while chunk := url.read(_READ_CHUNK_BYTES):
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ValueError(
+                        f"Download from {path!r} exceeds the {max_mb} MB limit."
+                    )
+                chunks.append(chunk)
+            # Bytes still owed under Content-Length; None when the server sent none.
+            missing = getattr(url, "length", None)
+    except error.HTTPError as e:
+        raise ValueError(f"Failed to encode URL: {path}. Error: {e!r}") from e
+    except http.client.IncompleteRead as e:
+        raise ValueError(f"Download from {path!r} ended early: {e!r}") from e
+    if isinstance(missing, int) and missing > 0:
+        raise ValueError(
+            f"Download from {path!r} ended {missing} bytes short of its Content-Length."
+        )
+    return b"".join(chunks)
+
+
+def encode(
+    path: str, *, timeout: float = 10.0, max_mb: float = DEFAULT_MAX_DOWNLOAD_MB
+) -> str:
     """Encodes image/audio located at path to a Base64 string.
 
     Args:
         path: The path to the local file or URL to encode.
         timeout: Per-request timeout in seconds for URL fetches.
+        max_mb: Largest body accepted from a URL, in megabytes. Must be positive
+            and finite. The body is read in chunks and the download stops as soon
+            as it passes the limit. Local files are not limited.
 
     Returns:
         str: Base64 encoded string
 
     Raises:
         FileNotFoundError: If the file doesn't exist.
-        ValueError: If the path is not a local file.
+        ValueError: If `max_mb` is not positive and finite, the path is not a
+            local file, a URL body exceeds `max_mb`, or a URL body ends before
+            its declared `Content-Length` or final chunk.
     """
+    validate_max_mb(max_mb)
     source_type = detect_source(path)
 
     encoding = ""
@@ -159,11 +223,8 @@ def encode(path: str, *, timeout: float = 10.0) -> str:
             with open(path, "rb") as image_file:
                 encoding = base64.b64encode(image_file.read()).decode("utf-8")
         case "url":
-            try:
-                with request.urlopen(path, timeout=timeout) as url:
-                    encoding = base64.b64encode(url.read()).decode("utf-8")
-            except error.HTTPError as e:
-                raise ValueError(f"Failed to encode URL: {path}. Error: {e}")
+            data = _download_capped(path, timeout=timeout, max_mb=max_mb)
+            encoding = base64.b64encode(data).decode("utf-8")
         case "data_uri":
             raise ValueError("Data is already in byte64 encoded format.")
         case _:
