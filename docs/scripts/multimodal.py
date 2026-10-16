@@ -69,8 +69,9 @@ message_history = rt.llm.MessageHistory(
 
 # --8<-- [start: pdf_timeout]
 # Per-request timeout (seconds) for the HEAD probe and PDF download.
-# Defaults to 10; raise it for large PDFs over slow links. Only applies
-# when trust_urls=True.
+# Defaults to 10; raise it for large PDFs over slow links. The download
+# stops at attachment_max_mb (defaults to 32). Both only apply when
+# trust_urls=True.
 message_history = rt.llm.MessageHistory(
     [
         rt.llm.UserMessage(
@@ -78,6 +79,7 @@ message_history = rt.llm.MessageHistory(
             attachment="https://internal.example.com/large-report.pdf",
             trust_urls=True,
             attachment_timeout=60,
+            attachment_max_mb=64,
         )
     ]
 )
