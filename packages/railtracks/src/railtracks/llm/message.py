@@ -13,7 +13,13 @@ from urllib.parse import urlparse
 
 from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .context_injection_utils import ValueDict, fill_template
-from .encoding import detect_source, encode, ensure_data_uri
+from .encoding import (
+    DEFAULT_MAX_DOWNLOAD_MB,
+    detect_source,
+    encode,
+    ensure_data_uri,
+    validate_max_mb,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +89,7 @@ class Attachment:
         url: str,
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
+        attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
     ):
         """
         A simple class that represents an attachment to a message.
@@ -96,16 +103,21 @@ class Attachment:
                 enable both (a) HEAD-probing unknown-extension URLs and (b)
                 downloading PDF URLs into the prompt. Only safe for
                 developer-controlled URLs; end-user-supplied URLs are an SSRF
-                surface once their bytes are fetched in-process.
+                surface once their bytes are fetched in-process. It does not
+                cover downloads litellm makes itself for some providers.
             attachment_timeout: Per-request timeout in seconds for the HEAD
                 probe and the in-process PDF download. Defaults to 10. Only
                 applies when `trust_urls=True`.
+            attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
+                Must be positive and finite. Defaults to 32. Only applies when
+                `trust_urls=True`.
 
         Raises:
             TypeError: If `url` is not a string.
-            ValueError: If a local file has an unsupported extension, a URL's
-                extension names an audio, video, text or Office document type,
-                or a `.pdf` URL is passed while `trust_urls` is False.
+            ValueError: If `attachment_max_mb` is not positive and finite, a
+                local file has an unsupported extension, a URL's extension
+                names an audio, video, text or Office document type, or a
+                `.pdf` URL is passed while `trust_urls` is False.
         """
         self.url = url
         self.file_extension = None
@@ -118,12 +130,18 @@ class Attachment:
             raise TypeError(
                 f"The url parameter must be a string representing a file path or URL, but got {type(url)}"
             )
+        validate_max_mb(attachment_max_mb, name="attachment_max_mb")
 
         match detect_source(url):
             case "local":
                 self._init_local(url)
             case "url":
-                self._init_url(url, trust_urls=trust_urls, timeout=attachment_timeout)
+                self._init_url(
+                    url,
+                    trust_urls=trust_urls,
+                    timeout=attachment_timeout,
+                    max_mb=attachment_max_mb,
+                )
             case "data_uri":
                 self._init_data_uri(url)
 
@@ -140,7 +158,9 @@ class Attachment:
         self.filename = os.path.basename(url) or None
         self.type = "local"
 
-    def _init_url(self, url: str, *, trust_urls: bool, timeout: float) -> None:
+    def _init_url(
+        self, url: str, *, trust_urls: bool, timeout: float, max_mb: float
+    ) -> None:
         url_path = urlparse(self.url).path
         _, file_extension = os.path.splitext(url_path)
         file_extension = file_extension.lower()
@@ -181,9 +201,8 @@ class Attachment:
                     "when the URL is developer-controlled; otherwise download the PDF "
                     "first and pass a local file path or base64/data-URI payload."
                 )
-            self.encoding = (
-                f"data:{self.mime_type};base64,{encode(url, timeout=timeout)}"
-            )
+            encoded = encode(url, timeout=timeout, max_mb=max_mb)
+            self.encoding = f"data:{self.mime_type};base64,{encoded}"
         self.type = "url"
 
     def _init_data_uri(self, url: str) -> None:
@@ -317,6 +336,9 @@ class UserMessage(_StringOnlyContent[Role.user]):
                     and the in-process PDF download. Defaults to 10. Only
                     applies when `trust_urls=True`. Raise this for large PDFs
                     over slow links.
+        attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
+                    Must be positive and finite. Defaults to 32. Only applies
+                    when `trust_urls=True`.
     """
 
     def __init__(
@@ -325,6 +347,7 @@ class UserMessage(_StringOnlyContent[Role.user]):
         attachment: str | list[str] | None = None,
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
+        attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
     ):
         if attachment is not None:
             if isinstance(attachment, list):
@@ -333,6 +356,7 @@ class UserMessage(_StringOnlyContent[Role.user]):
                         att,
                         trust_urls=trust_urls,
                         attachment_timeout=attachment_timeout,
+                        attachment_max_mb=attachment_max_mb,
                     )
                     for att in attachment
                 ]
@@ -342,6 +366,7 @@ class UserMessage(_StringOnlyContent[Role.user]):
                         attachment,
                         trust_urls=trust_urls,
                         attachment_timeout=attachment_timeout,
+                        attachment_max_mb=attachment_max_mb,
                     )
                 ]
 
