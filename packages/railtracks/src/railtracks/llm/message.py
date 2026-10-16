@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import os
 import re
 from copy import deepcopy
@@ -33,6 +34,21 @@ _EXTENSION_MIME_MAP = {
     ".webp": "image/webp",
     ".pdf": "application/pdf",
 }
+
+# Dynamic endpoints that can serve any type; mimetypes may map them to text/* or XML.
+_SERVER_SCRIPT_EXTENSIONS = frozenset(
+    {".asp", ".aspx", ".ashx", ".cgi", ".jsp", ".php", ".pl", ".py"}
+)
+
+# MIME types that no image endpoint serves.
+_NON_IMAGE_MIME_PREFIXES = (
+    "audio/",
+    "video/",
+    "text/",
+    "application/msword",
+    "application/vnd.ms-",
+    "application/vnd.openxmlformats-officedocument.",
+)
 
 
 def _modality_for_mime(mime_type: str) -> str:
@@ -95,6 +111,13 @@ class Attachment:
             attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
                 Must be positive and finite. Defaults to 32. Only applies when
                 `trust_urls=True`.
+
+        Raises:
+            TypeError: If `url` is not a string.
+            ValueError: If `attachment_max_mb` is not positive and finite, a
+                local file has an unsupported extension, a URL's extension
+                names an audio, video, text or Office document type, or a
+                `.pdf` URL is passed while `trust_urls` is False.
         """
         self.url = url
         self.file_extension = None
@@ -142,8 +165,18 @@ class Attachment:
         _, file_extension = os.path.splitext(url_path)
         file_extension = file_extension.lower()
         probed_filename: str | None = None
+        guessed_mime = (
+            None
+            if file_extension in _SERVER_SCRIPT_EXTENSIONS
+            else mimetypes.guess_type(url_path)[0]
+        )
         if file_extension in _EXTENSION_MIME_MAP:
             self.mime_type = _EXTENSION_MIME_MAP[file_extension]
+        elif guessed_mime and guessed_mime.startswith(_NON_IMAGE_MIME_PREFIXES):
+            raise ValueError(
+                f"Unsupported attachment format: {file_extension} ({guessed_mime}) in URL "
+                f"{self.url!r}. Supported formats: {', '.join(_EXTENSION_MIME_MAP.keys())}."
+            )
         elif trust_urls:
             # No usable extension (e.g. https://arxiv.org/pdf/1706.03762);
             # HEAD-probe to figure out what we're actually being handed.

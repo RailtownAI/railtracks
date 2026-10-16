@@ -433,6 +433,98 @@ class TestAttachment:
         assert attachment.mime_type is None
         assert attachment.encoding is None
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://example.com/call.mp3",
+            "https://example.com/clip.mp4",
+            "https://example.com/voice.wav",
+            "https://example.com/report.docx",
+            "https://example.com/notes.txt",
+            "https://example.com/CALL.MP3",
+            "https://example.com/call.mp3?token=abc",
+        ],
+    )
+    def test_url_with_non_image_extension_raises(self, url):
+        """A URL whose extension names a non-image type must not be sent as an image."""
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            Attachment(url)
+
+    def test_url_with_non_image_extension_raises_without_probe(self, monkeypatch):
+        """The extension already rules the URL out, so trust_urls must not fetch it."""
+        from railtracks.llm import message as message_module
+
+        def boom_urlopen(req, timeout=None):
+            raise AssertionError("no request expected for a non-image extension")
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", boom_urlopen)
+
+        with pytest.raises(ValueError, match="audio/mpeg"):
+            Attachment("https://example.com/call.mp3", trust_urls=True)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://cdn.example.com/abc123",
+            "https://example.com/thumb.php?id=3",
+            "https://example.com/GetImage.ashx?id=1",
+            "https://example.com/img.pl?id=3",
+            "https://example.com/cgi-bin/chart.cgi",
+            "https://example.com/photo.svg",
+        ],
+    )
+    def test_url_without_non_image_extension_still_passes_as_image(self, url):
+        attachment = Attachment(url)
+        assert attachment.modality == "image"
+        assert attachment.encoding is None
+
+    @pytest.mark.parametrize("ext", [".php", ".aspx", ".ashx", ".pl", ".py"])
+    def test_server_script_url_ignores_mimetypes_guess(self, monkeypatch, ext):
+        """Platform tables can map script extensions to text/*; they must still pass."""
+        from railtracks.llm import message as message_module
+
+        monkeypatch.setattr(
+            message_module.mimetypes,
+            "guess_type",
+            lambda path: ("text/plain", None),
+        )
+
+        attachment = Attachment(f"https://example.com/img{ext}?id=3")
+        assert attachment.modality == "image"
+
+    def test_server_script_url_is_probed_when_trusted(self, monkeypatch):
+        """A script endpoint serving a PDF is classified by the HEAD probe."""
+        from railtracks.llm import message as message_module
+
+        class _FakeResp:
+            headers = {"Content-Type": "application/pdf"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_urlopen(req, timeout=None):
+            assert req.get_method() == "HEAD"
+            return _FakeResp()
+
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
+            return "JVBERi0="
+
+        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "encode", fake_encode)
+
+        attachment = Attachment(
+            "https://example.com/cgi-bin/download.pl?id=5", trust_urls=True
+        )
+        assert attachment.modality == "document"
+        assert attachment.mime_type == "application/pdf"
+
+    def test_user_message_rejects_non_image_url(self):
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            UserMessage("Summarize this", attachment="https://example.com/call.mp3")
+
     def test_user_message_threads_trust_urls(self, monkeypatch):
         """UserMessage(trust_urls=True) must propagate to every Attachment it builds."""
         from railtracks.llm import message as message_module
