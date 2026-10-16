@@ -17,9 +17,14 @@ SessionStatus = Literal["success", "failure"]
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
+def strip_ansi(text: str) -> str:
+    """Removes terminal colour codes, which RT errors add to their text."""
+    return _ANSI_ESCAPE.sub("", text)
+
+
 def format_error(error: BaseException) -> str:
     """Stringify an exception for an event payload."""
-    return _ANSI_ESCAPE.sub("", str(error))
+    return strip_ansi(str(error))
 
 
 @dataclass(kw_only=True)
@@ -56,11 +61,13 @@ class SessionStarted(SessionEventFamilyBase):
 @dataclass(kw_only=True)
 class SessionCompleted(SessionEventFamilyBase):
     """A top-level run has finished, successfully or otherwise. `error` is a
-    stringified exception and is only set when `status` is `"failure"`."""
+    stringified exception and is only set when `status` is `"failure"`; `fatal` marks a
+    failure that stopped the run, from a fatal error or a run with `end_on_error`."""
 
     status: SessionStatus
     error: str | None
     duration_seconds: float
+    fatal: bool = False
 
     def event_type(self) -> str:
         return "session.completed"

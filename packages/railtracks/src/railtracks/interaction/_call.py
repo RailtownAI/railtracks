@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -14,32 +13,23 @@ from uuid import uuid4
 
 from railtracks.context.central import (
     activate_publisher,
-    get_current_scope,
     get_local_config,
-    get_parent_id,
     get_publisher,
-    get_run_id,
-    get_session_identity,
     is_context_active,
     is_context_present,
 )
-from railtracks.events.context import (
-    ContextCompletion,
-    ContextCreation,
-    emit_snapshot,
-)
-from railtracks.events.send import emit
-from railtracks.events.session import SessionCompleted, SessionStarted, format_error
 from railtracks.exceptions import GlobalTimeOutError
 from railtracks.nodes.utils import extract_node_from_function
-from railtracks.observability.configure import ensure_started, shutdown
-from railtracks.pubsub.messages import (
-    FatalFailure,
-    RequestCompletionMessage,
-    RequestCreation,
-    RequestFinishedBase,
-)
+from railtracks.pubsub.messages import RequestCompletionMessage
 from railtracks.pubsub.utils import output_mapping
+
+from .utils import (
+    begin_top_level,
+    end_top_level,
+    regular_message_filter,
+    request_creation,
+    top_level_message_filter,
+)
 
 if TYPE_CHECKING:
     from railtracks.built_nodes.function.base import RTFunction
@@ -119,61 +109,13 @@ async def call(
     return result
 
 
-def _regular_message_filter(request_id: str):
-    """
-    Returns a filter function that checks if the message matches the request ID.
-    """
-
-    def filter_func(item: RequestCompletionMessage) -> bool:
-        if isinstance(item, RequestFinishedBase):
-            return item.request_id == request_id
-        return False
-
-    return filter_func
-
-
-def _top_level_message_filter(request_id: str):
-    """
-    Returns a filter function that checks if the message matches the request ID.
-    """
-
-    def message_filter(item: RequestCompletionMessage) -> bool:
-        # we want to filter and collect the message that matches this request_id
-        matches_request_id = (
-            isinstance(item, RequestFinishedBase) and item.request_id == request_id
-        )
-        fatal_failure = isinstance(item, FatalFailure)
-
-        return matches_request_id or fatal_failure
-
-    return message_filter
-
-
 async def _start(
     node: type[Node[_P, _TOutput]],
     args,
     kwargs,
 ):
-    await ensure_started()
     await activate_publisher()
-
-    config = get_local_config()
-    identity = get_session_identity()
-
-    await emit(
-        SessionStarted(
-            session_id=identity.session_id,
-            flow_name=identity.flow_name,
-            flow_id=identity.flow_id,
-            session_name=identity.session_name,
-            entry_point_name=node.name() if hasattr(node, "name") else "Unknown",
-            timeout=config.timeout,
-            end_on_error=config.end_on_error,
-            save_state=config.save_state,
-        )
-    )
-    await emit_snapshot(ContextCreation)
-    start_time = time.perf_counter()
+    start_time = await begin_top_level(node)
 
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
     #  exception. It should be handled differently then the global timeout exception.
@@ -187,9 +129,9 @@ async def _start(
             timeout_exception_flag["value"] = True
             raise error
 
-    timeout = config.timeout
+    timeout = get_local_config().timeout
     fut = _execute(
-        node, args=args, kwargs=kwargs, message_filter=_top_level_message_filter
+        node, args=args, kwargs=kwargs, message_filter=top_level_message_filter
     )
 
     error: BaseException | None = None
@@ -208,16 +150,7 @@ async def _start(
         error = e
         raise
     finally:
-        await emit_snapshot(ContextCompletion)
-        await emit(
-            SessionCompleted(
-                session_id=identity.session_id,
-                status="success" if error is None else "failure",
-                error=None if error is None else format_error(error),
-                duration_seconds=time.perf_counter() - start_time,
-            )
-        )
-        await shutdown()
+        await end_top_level(start_time, error)
 
     return result
 
@@ -231,7 +164,7 @@ async def _run(
     Executes the given Node set up using the provided arguments and keyword arguments.
     """
     return await _execute(
-        node, args=args, kwargs=kwargs, message_filter=_regular_message_filter
+        node, args=args, kwargs=kwargs, message_filter=regular_message_filter
     )
 
 
@@ -254,17 +187,6 @@ async def _execute(
     # I am actually a bit worried about this logic and I think there is a chance of a bug popping up here.
     f = publisher.listener(message_filter(request_id), output_mapping)
 
-    await publisher.publish(
-        RequestCreation(
-            current_node_id=get_parent_id(),
-            current_run_id=get_run_id(),
-            current_scope=get_current_scope(),
-            new_request_id=request_id,
-            running_mode="async",
-            new_node_type=node,
-            args=args,
-            kwargs=kwargs,
-        )
-    )
+    await publisher.publish(request_creation(request_id, node, args, kwargs))
 
     return await f

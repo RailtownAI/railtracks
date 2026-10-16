@@ -8,7 +8,11 @@ Only `node.creation` carries the node's name/id; the running events identify the
 through the resolved `parent` (which, for a node event, is the node itself).
 """
 
+import asyncio
+
+import pytest
 import railtracks as rt
+from railtracks.exceptions import GlobalTimeOutError
 from railtracks.observability import Event, configure_writers
 
 
@@ -120,3 +124,22 @@ async def test_failure_emits_node_failure_and_no_response():
 
     failure = [e for e in writer.events if e.event_type == "node.failure"][0]
     assert "kaboom" in failure.payload["exception_message"]
+
+
+async def test_a_cancelled_node_reports_no_outcome():
+    writer = _Collecting()
+    configure_writers([writer])
+
+    @rt.function_node
+    async def cut_off(x: int) -> int:
+        """Is cancelled."""
+        raise asyncio.CancelledError
+
+    # the cancelled node never completes its request, so the run ends on its timeout
+    with rt.Session(flow_name="events-test", timeout=0.2):
+        with pytest.raises(GlobalTimeOutError):
+            await rt.call(cut_off, 1)
+
+    ids = _ids_by_name(writer.events)
+    lifecycle = _lifecycle(writer.events, name="cut_off", node_id=ids["cut_off"])
+    assert lifecycle == ["node.creation", "node.invocation"]

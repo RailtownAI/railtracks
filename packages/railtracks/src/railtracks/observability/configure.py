@@ -5,13 +5,10 @@ from __future__ import annotations
 from typing import Callable
 
 from ..utils.config import _disable_events
-from ..utils.logging.create import get_rt_logger
 from .models import Event
 from .observer import Observer
 from .writers.base import Writer
 from .writers.jsonl import JsonlWriter
-
-logger = get_rt_logger(__name__)
 
 observer: Observer = Observer()
 
