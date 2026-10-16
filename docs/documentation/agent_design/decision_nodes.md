@@ -111,7 +111,16 @@ A `DecisionRefusalError` keeps the answers the model did give: `.refused` names 
 --8<-- "docs/scripts/documentation/decision_nodes.py:errors"
 ```
 
-With a `retry_approach`, rate limits, timeouts, dropped connections and 500 and 503 responses are retried before the error is raised. A rejected key, a refusal and other 4xx responses are not. Only litellm's API errors are mapped to these classes; any other litellm exception, such as a budget or guardrail error from litellm itself, propagates unchanged.
+Only litellm's API errors are mapped to these classes; any other litellm exception, such as a budget or guardrail error from litellm itself, propagates unchanged.
+
+### Retrying
+Set `retry_approach=` on the model, as shown in [Choosing a Model](#choosing-a-model). Rate limits, timeouts, dropped connections and 500 and 503 responses are then retried inside the call, before the node raises anything. A rejected key, a refusal and other 4xx responses are not retried.
+
+`middleware=[Retry()]` with its defaults does **not** retry a decision node. `Retry`'s default `retry_on` lists litellm's raw exceptions, and by the time an error leaves the node it has already become a `DecisionTimeoutError` or `DecisionRateLimitError`. To retry at the node level instead, name the node's errors:
+
+```python
+--8<-- "docs/scripts/documentation/decision_nodes.py:retry_node"
+```
 
 ??? note "Calling the model directly"
     Outside a node you can call the model yourself with `await model.aask(state, schema)`, as you would call an LLM's `achat`. A direct call raises the model-layer errors instead: `rt.decisions.DecisionProviderError` and its `DecisionProviderTimeoutError`, `DecisionProviderRateLimitError`, `DecisionProviderAuthenticationError` and `DecisionProviderRefusalError` subclasses. It is also not recorded.
@@ -141,7 +150,7 @@ Each request made by a decision node is recorded as `decision.*` events, so `rai
 
 ## Limitations
 - **Text only.** The input is a string, or a JSON object or array sent as JSON text. Images and other attachments are not supported yet.
-- **No model middleware.** A decision node makes no LLM call, so passing model-only middleware (`pre_llm`, `post_llm` or `wrap_llm` middleware, an LLM guardrail, or `ContextInjection`) raises `NodeCreationError`. Node middleware works: your own `rt.wrap_node` and `rt.post_node` middleware, and prebuilt middleware that works in either slot, such as `Retry`, `MaxCalls` and `Timeout`, which then wraps the whole node call.
+- **No model middleware.** A decision node makes no LLM call, so passing model-only middleware (`pre_llm`, `post_llm` or `wrap_llm` middleware, an LLM guardrail, or `ContextInjection`) raises `NodeCreationError`. Node middleware works: your own `rt.wrap_node` and `rt.post_node` middleware, and prebuilt middleware that works in either slot, such as `Retry`, `MaxCalls` and `Timeout`, which then wraps the whole node call. Only `decision_node` checks this: `rt.couple` on an already-built decision node accepts model middleware without complaint, so it is silently ignored under `model_middleware=` and fails only when the node runs under `middleware=`.
 
 ```python
 --8<-- "docs/scripts/documentation/decision_nodes.py:node_middleware"

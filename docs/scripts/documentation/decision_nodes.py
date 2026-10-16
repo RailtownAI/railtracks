@@ -151,6 +151,24 @@ async def safe_triage(ticket: str) -> str:
 # --8<-- [end: errors]
 
 
+# --8<-- [start: retry_node]
+RetriedTriage = rt.decision_node(
+    "Triage Ticket",
+    model=jev,
+    schema=triage,
+    # the node raises Decision*Error, not litellm's errors, so name them
+    middleware=[
+        rt.prebuilt.middleware.Retry(
+            retry_on=(
+                rt.exceptions.DecisionTimeoutError,
+                rt.exceptions.DecisionRateLimitError,
+            )
+        )
+    ],
+)
+# --8<-- [end: retry_node]
+
+
 # --8<-- [start: direct]
 async def ask_directly(ticket: str) -> None:
     try:
