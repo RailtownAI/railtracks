@@ -24,7 +24,7 @@ def mock_dependencies(monkeypatch):
     m_get_global_config.return_value.precedence_overwritten.return_value.payload_callback = None
 
     monkeypatch.setattr("railtracks._session.get_global_config", m_get_global_config)
-    monkeypatch.setattr("railtracks._session.RTPublisher", m_rt_publisher)
+    monkeypatch.setattr("railtracks._session.Publisher", m_rt_publisher)
     monkeypatch.setattr("railtracks._session.ExecutionInfo", m_execution_info)
     monkeypatch.setattr("railtracks._session.Coordinator", m_coordinator)
     monkeypatch.setattr("railtracks._session.RTState", m_rt_state)
@@ -33,7 +33,7 @@ def mock_dependencies(monkeypatch):
 
     return {
         "get_global_config": m_get_global_config,
-        "RTPublisher": m_rt_publisher,
+        "Publisher": m_rt_publisher,
         "ExecutionInfo": m_execution_info,
         "Coordinator": m_coordinator,
         "RTState": m_rt_state,

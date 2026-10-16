@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
-from ..utils.logging.create import get_rt_logger
 from . import configure
 from .models import Event
 from .observer import Observer
 
-logger = get_rt_logger(__name__)
+# a plain logger under RT, so observability doesn't depend on railtracks' logging
+logger = logging.getLogger(f"RT.{__name__}")
 
 
 async def publish_event(event: Event) -> None:
