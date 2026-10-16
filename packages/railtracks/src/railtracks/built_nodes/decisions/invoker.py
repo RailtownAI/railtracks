@@ -21,7 +21,7 @@ from railtracks.decisions import (
     DecisionSchema,
 )
 from railtracks.decisions.state import DecisionInput
-from railtracks.decisions.transport._wire import describe_questions
+from railtracks.decisions.transport import describe_questions
 from railtracks.events._resolve import has_enclosing_node
 from railtracks.events.decision import (
     DecisionFailureEvent,
