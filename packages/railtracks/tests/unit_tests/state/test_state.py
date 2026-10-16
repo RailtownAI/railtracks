@@ -2,6 +2,8 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from railtracks.exceptions import NodeInvocationError
+from railtracks.pubsub.messages import FatalFailure
 from railtracks.state.request import Failure
 from railtracks.state.state import RTState
 from railtracks.utils.profiling import Stamp
@@ -212,12 +214,20 @@ async def test__handle_failed_request_fatal_and_config(
     output = await state._handle_failed_request("name", "rid", exc)
     assert isinstance(output, type(Failure(exc)))
 
-    # NodeInvocationError.fatal
-    class FatalNodeError(Exception):
+    # a railtracks error flagged fatal stops the run without end_on_error
+    dummy_executor_config.end_on_error = False
+    state.publisher.publish.reset_mock()
+    fatal = NodeInvocationError("bad config", fatal=True)
+    await state._handle_failed_request("name", "rid", fatal)
+    assert isinstance(state.publisher.publish.call_args.args[0], FatalFailure)
+
+    # another library's `fatal` attribute is not that flag
+    class LibraryError(Exception):
         fatal = True
 
-    output = await state._handle_failed_request("name", "rid", FatalNodeError())
-    assert isinstance(output, type(Failure(exc)))
+    state.publisher.publish.reset_mock()
+    await state._handle_failed_request("name", "rid", LibraryError())
+    state.publisher.publish.assert_not_called()
 
 
 @pytest.mark.asyncio

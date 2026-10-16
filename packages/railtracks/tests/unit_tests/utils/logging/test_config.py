@@ -1,67 +1,56 @@
+import io
 import logging
 import os
+import re
+import sys
 import tempfile
 from unittest.mock import patch
 
 import pytest
+import railtracks as rt
+from railtracks.observability import configure
+from railtracks.utils.logging import config, run_view, setup
 from railtracks.utils.logging.config import (
-    ColorfulFormatter,
     ThreadAwareFilter,
-    _default_format_string,
+    _LifecycleFilter,
     _module_logging_level,
+    _RichConsoleHandler,
+    _run_view_level,
     _short_suffix_label,
     detach_logging_handlers,
-    enable_logging,
-    initialize_module_logging,
-    prepare_logger,
+    lifecycle_logger_name,
     rt_logger,
     setup_file_handler,
 )
+from railtracks.utils.logging.setup import enable_logging, initialize_module_logging
+from rich.console import Console
 
-# ================= ColorfulFormatter Tests =================
+# ================= RichConsoleHandler Tests =================
 
 
-def test_colorful_formatter_adds_relative_seconds():
-    """Test that the formatter adds relative_seconds attribute to log records."""
-    formatter = ColorfulFormatter()
+def _record(
+    name: str = "RT.railtracks.state.state", level: int = logging.INFO, **extra
+) -> logging.LogRecord:
     record = logging.LogRecord(
-        name="test",
-        level=logging.INFO,
+        name=name,
+        level=level,
         pathname="",
         lineno=0,
-        msg="test message",
-        args=(),
+        msg="hello %s",
+        args=("world",),
         exc_info=None,
     )
-    record.relativeCreated = 1234.567
-
-    formatter.format(record)
-
-    assert hasattr(record, "relative_seconds")
-    assert record.relative_seconds == "1.235"  # type: ignore
+    record.__dict__.update(extra)
+    return record
 
 
-def test_colorful_formatter_restores_original_msg():
-    """Test that formatter restores original msg and args after formatting."""
-    formatter = ColorfulFormatter()
-    original_msg = "test message with %s and %s keywords"
-    original_args = ("CREATED", "DONE")
-    record = logging.LogRecord(
-        name="test",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg=original_msg,
-        args=original_args,
-        exc_info=None,
+@pytest.fixture
+def console_output(monkeypatch) -> io.StringIO:
+    buffer = io.StringIO()
+    monkeypatch.setattr(
+        config, "_console", Console(file=buffer, width=200, color_system=None)
     )
-    record.relativeCreated = 1000.0
-
-    formatter.format(record)
-
-    # Verify original values are restored
-    assert record.msg == original_msg
-    assert record.args == original_args
+    return buffer
 
 
 def test_short_suffix_label_strips_leading_underscores():
@@ -69,79 +58,165 @@ def test_short_suffix_label_strips_leading_underscores():
     assert _short_suffix_label("state") == "State"
 
 
-def test_colorful_formatter_short_display_name_underscore_module():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
-    record = logging.LogRecord(
-        name="RT.railtracks._session",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
+@pytest.mark.parametrize(
+    ("name", "name_style", "level", "expected"),
+    [
+        (
+            "RT.railtracks._session",
+            "short",
+            logging.WARNING,
+            "RT.Session  : WARNING  - hello world",
+        ),
+        (
+            "RT.railtracks.state.state",
+            "short",
+            logging.ERROR,
+            "RT.State    : ERROR    - hello world",
+        ),
+        ("RT", "short", logging.DEBUG, "RT          : DEBUG    - hello world"),
+        (
+            "RT.railtracks.state.state",
+            "full",
+            logging.WARNING,
+            "RT.railtracks.state.state: WARNING  - hello world",
+        ),
+        ("RT.railtracks._session", "short", logging.INFO, "· hello world"),
+        ("RT.railtracks.state.state", "full", logging.INFO, "· hello world"),
+    ],
+)
+def test_console_handler_line_layout(console_output, name, name_style, level, expected):
+    _RichConsoleHandler(name_style=name_style).emit(_record(name, level))
+
+    assert console_output.getvalue().rstrip("\n").endswith(f"] {expected}")
+
+
+def test_console_handler_leaves_no_custom_attributes_on_the_record(console_output):
+    """Handlers further up the tree (e.g. a log shipper on root) see the record as logged."""
+    record = _record()
+    before = set(record.__dict__)
+
+    _RichConsoleHandler().emit(record)
+
+    assert set(record.__dict__) - before <= {"message"}
+
+
+def test_console_handler_includes_the_traceback(console_output):
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        record = _record()
+        record.exc_info = sys.exc_info()
+
+    _RichConsoleHandler().emit(record)
+
+    assert "ValueError: boom" in console_output.getvalue()
+
+
+def test_lifecycle_filter_drops_only_records_of_runs_the_view_shows():
+    lifecycle_filter = _LifecycleFilter(lambda session_id: session_id == "shown")
+
+    shown = _record(lifecycle_logger_name, session_id="shown")
+    assert lifecycle_filter.filter(shown) is False
+    assert lifecycle_filter.filter(_record(lifecycle_logger_name, session_id="other"))
+    assert lifecycle_filter.filter(_record(lifecycle_logger_name))
+    assert lifecycle_filter.filter(_record(session_id="shown"))
+
+
+def test_lifecycle_records_still_reach_other_handlers(console_output, monkeypatch):
+    """The filter sits on railtracks' console handler, not the logger."""
+    monkeypatch.setattr(setup._run_view, "is_showing", lambda session_id: True)
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+    captured: list[logging.LogRecord] = []
+    other = logging.Handler()
+    other.emit = captured.append
+    rt_logger.addHandler(other)
+
+    logging.getLogger(lifecycle_logger_name).info("A CREATED B")
+
+    assert [r.getMessage() for r in captured] == ["A CREATED B"]
+    assert console_output.getvalue() == ""
+    detach_logging_handlers()
+
+
+def test_the_console_prints_lifecycle_records_only_for_runs_the_view_is_not_showing(
+    console_output, monkeypatch
+):
+    monkeypatch.setattr(run_view, "_console", config._console)
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+
+    def boom(text: str) -> str:
+        """Fail.
+
+        Args:
+            text: The text.
+        """
+        raise ValueError("bad")
+
+    with pytest.raises(ValueError):
+        rt.Flow(name="Boom Flow", entry_point=rt.function_node(boom)).invoke("x")
+    # e.g. a task still running after its run ended
+    logging.getLogger(lifecycle_logger_name).error(
+        "late FAILED", extra={"session_id": "ended"}
     )
-    record.relativeCreated = 1000.0
 
-    out = formatter.format(record)
-
-    assert "RT.Session" in out
-    assert "_session" not in out
-
-
-def test_colorful_formatter_short_display_name_rt_capitalized_suffix():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
-    record = logging.LogRecord(
-        name="RT.railtracks.state.state",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
-    )
-    record.relativeCreated = 1000.0
-
-    out = formatter.format(record)
-
-    assert "RT.State" in out
-    assert "railtracks.state.state" not in out
+    output = console_output.getvalue()
+    assert "✗ boom failed: ValueError: bad" in output
+    assert "boom FAILED" not in output
+    assert "late FAILED" in output
+    detach_logging_handlers()
 
 
-def test_colorful_formatter_full_display_name_preserves_dotted_name():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="full")
-    record = logging.LogRecord(
-        name="RT.railtracks.state.state",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
-    )
-    record.relativeCreated = 1000.0
-
-    out = formatter.format(record)
-
-    assert "RT.railtracks.state.state" in out
+def test_console_writes_to_stderr_in_a_terminal():
+    assert config._make_console().stderr is True
 
 
-def test_colorful_formatter_short_display_name_root_rt():
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style="short")
-    record = logging.LogRecord(
-        name="RT",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="hello",
-        args=(),
-        exc_info=None,
-    )
-    record.relativeCreated = 1000.0
+def test_console_writes_ansi_to_stdout_in_a_notebook(monkeypatch):
+    """Rich would send each line as its own HTML output; one ANSI stream reads as a block."""
+    monkeypatch.setattr("rich.console._is_jupyter", lambda: True)
 
-    out = formatter.format(record)
+    notebook_console = config._make_console()
 
-    assert "RT          :" in out
-    assert "RT." not in out.split(":")[0]
+    assert notebook_console.is_jupyter is False
+    assert notebook_console.is_terminal is True
+    assert notebook_console.file is sys.stdout
+
+
+# ================= run_view_level Tests =================
+
+
+def test_run_view_level_is_none_until_the_console_is_enabled():
+    detach_logging_handlers()
+
+    assert _run_view_level() is None
+
+
+def test_run_view_level_prefers_the_thread_level():
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+    token = _module_logging_level.set(logging.DEBUG)
+    try:
+        assert _run_view_level() == logging.DEBUG
+    finally:
+        _module_logging_level.reset(token)
+
+    token = _module_logging_level.set(None)
+    try:
+        assert _run_view_level() == logging.INFO
+    finally:
+        _module_logging_level.reset(token)
+    detach_logging_handlers()
+
+
+def test_run_view_level_is_none_once_the_console_handler_is_removed():
+    """Someone swapping railtracks' console for their own handler turns the view off."""
+    detach_logging_handlers()
+    enable_logging(level="INFO")
+
+    rt_logger.handlers.clear()
+
+    assert _run_view_level() is None
 
 
 # ================= ThreadAwareFilter Tests =================
@@ -228,6 +303,24 @@ def test_setup_file_handler_with_custom_level(tmp_path):
     rt_logger.handlers.clear()
 
 
+def test_the_log_file_is_utf8_and_labels_its_columns(tmp_path):
+    log_file = tmp_path / "test.log"
+    setup_file_handler(file_name=log_file)
+    # not the platform default, which is cp1252 on Windows
+    assert rt_logger.handlers[-1].encoding == "utf-8"
+    token = _module_logging_level.set(logging.INFO)
+    try:
+        rt_logger.error("cannot handle 'x ✓ é 中文'")
+    finally:
+        _module_logging_level.reset(token)
+        for handler in rt_logger.handlers:
+            handler.close()
+        rt_logger.handlers.clear()
+
+    line = log_file.read_text(encoding="utf-8")
+    assert re.search(r" - \d+ms - ERROR - RT - cannot handle 'x ✓ é 中文'\n$", line)
+
+
 # ================= detach_logging_handlers Tests =================
 
 
@@ -242,96 +335,33 @@ def test_detach_logging_handlers_clears_all_handlers():
     assert len(rt_logger.handlers) == 0
 
 
-# ================= prepare_logger Tests =================
-
-
-def test_prepare_logger_debug_sets_debug_level():
-    """Test that DEBUG setting configures DEBUG level."""
-    prepare_logger(setting="DEBUG")
-
-    # Check that console handler has DEBUG level
-    assert any(
-        h.level == logging.DEBUG
-        for h in rt_logger.handlers
-        if isinstance(h, logging.StreamHandler)
-    )
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_info_sets_info_level():
-    """Test that INFO setting configures INFO level."""
-    prepare_logger(setting="INFO")
-
-    # Check that console handler has INFO level
-    assert any(
-        h.level == logging.INFO
-        for h in rt_logger.handlers
-        if isinstance(h, logging.StreamHandler)
-    )
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_warning_sets_warning_level():
-    """Test that WARNING setting configures WARNING level."""
-    prepare_logger(setting="WARNING")
-
-    # Check that console handler has WARNING level
-    assert any(
-        h.level == logging.WARNING
-        for h in rt_logger.handlers
-        if isinstance(h, logging.StreamHandler)
-    )
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_none_adds_filter():
-    """Test that NONE setting adds a filter that blocks all messages."""
-    prepare_logger(setting="NONE")
-
-    # Check that handlers exist with a filter
-    assert len(rt_logger.handlers) > 0
-    # Clean up
-    detach_logging_handlers()
-
-
-def test_prepare_logger_invalid_setting_raises_error():
-    """Test that invalid setting raises ValueError."""
-    with pytest.raises(ValueError, match="Invalid log level setting"):
-        prepare_logger(setting="INVALID")  # type: ignore
-
-
-def test_prepare_logger_clears_existing_handlers():
-    """Test that prepare_logger clears handlers before adding new ones."""
-    # Add a handler
-    rt_logger.addHandler(logging.NullHandler())
-
-    prepare_logger(setting="INFO")
-
-    # Should have exactly the handlers added by prepare_logger, not additional ones
-    assert len(rt_logger.handlers) <= 2  # Console handler + optional file handler
-    # Clean up
-    detach_logging_handlers()
-
-
 # ================= enable_logging Tests =================
 
 
 def test_enable_logging_adds_real_handlers():
-    """Test that enable_logging() (opt-in API) adds real handlers (e.g. StreamHandler)."""
+    """Test that enable_logging() (opt-in API) adds railtracks' console handler."""
     detach_logging_handlers()
 
     enable_logging(level="INFO")
 
-    stream_handlers = [
-        h for h in rt_logger.handlers if isinstance(h, logging.StreamHandler)
+    console_handlers = [
+        h for h in rt_logger.handlers if isinstance(h, _RichConsoleHandler)
     ]
-    assert len(stream_handlers) >= 1, (
-        "enable_logging() should add at least one StreamHandler"
+    assert len(console_handlers) == 1, (
+        "enable_logging() should add railtracks' console handler"
     )
 
+    detach_logging_handlers()
+
+
+def test_enable_logging_registers_the_run_view(monkeypatch):
+    """Logging registers its own run view with observability; core doesn't wire it."""
+    monkeypatch.setattr(configure, "_inline_listeners", [])
+    detach_logging_handlers()
+
+    enable_logging(level="INFO")
+
+    assert configure.inline_listeners() == [setup._run_view.record]
     detach_logging_handlers()
 
 

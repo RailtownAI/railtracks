@@ -10,6 +10,7 @@ from typing import Any, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.events.node import (
     NodeDestruction,
+    failure_details,
 )
 from railtracks.events.send import emit
 from railtracks.llm.middleware import ModelMiddleware
@@ -166,17 +167,28 @@ class Node(ABC, Generic[_P, _TOutput]):
 
         # reassigned per-call since Node.safe_copy() means __init__'s closure can go stale
         self.middleware.get_scope_manager = lambda: self._scope_manager
-        result: _TOutput | None = None
         start_time = time.perf_counter()
         try:
             result = await self.middleware.run(body, *args, **kwargs)
-            return result
-        finally:
-            destruction_event = NodeDestruction(
+        # a cancelled node, cut off as the loop shuts down, has no outcome to report
+        except Exception as error:
+            await emit(
+                NodeDestruction(
+                    response=None,
+                    duration_seconds=time.perf_counter() - start_time,
+                    status="failure",
+                    **failure_details(error),
+                )
+            )
+            raise
+        await emit(
+            NodeDestruction(
                 response=result,
                 duration_seconds=time.perf_counter() - start_time,
+                status="success",
             )
-            await emit(destruction_event)
+        )
+        return result
 
     @classmethod
     def extend_middleware(
