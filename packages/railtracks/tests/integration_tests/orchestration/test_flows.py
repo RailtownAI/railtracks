@@ -1,4 +1,5 @@
 import asyncio
+import threading
 
 import pytest
 import railtracks as rt
@@ -244,3 +245,72 @@ def test_flow_equality_hash_changes_with_name():
     second = Flow(name="flow-b", entry_point=echo)
 
     assert first.equality_hash() != second.equality_hash()
+
+
+# ---------------------------------------------------------------------------
+# Regression: context objects must not be deep-copied (issue #1675)
+# ---------------------------------------------------------------------------
+
+
+@rt.function_node
+def identity_check(key: str) -> bool:
+    """Return True if rt.context holds the exact same object that was stored."""
+    return rt.context.get(key) is _CONTEXT_SENTINEL
+
+
+_CONTEXT_SENTINEL: dict = {}
+
+
+def test_flow_invoke_passes_non_copyable_context_object():
+    """A threading.Lock in context must not cause a TypeError on invoke."""
+    lock = threading.Lock()
+    flow = Flow(name="lock-ctx-flow", entry_point=echo, context={"lock": lock})
+    # Should not raise TypeError: cannot pickle '_thread.lock' object
+    result = flow.invoke("ok")
+    assert result == "ok"
+
+
+def test_flow_invoke_context_value_is_same_object_not_clone():
+    """The run must see the caller's exact object, not a clone of it."""
+    global _CONTEXT_SENTINEL
+    _CONTEXT_SENTINEL = {}
+    flow = Flow(
+        name="identity-flow",
+        entry_point=identity_check,
+        context={"key": _CONTEXT_SENTINEL},
+    )
+    assert flow.invoke("key") is True
+
+
+def test_flow_update_context_non_copyable_object():
+    """update_context must not raise for a Flow whose context holds a lock."""
+    lock = threading.Lock()
+    flow = Flow(name="lock-update-flow", entry_point=echo, context={"lock": lock})
+    # Should not raise TypeError
+    updated = flow.update_context({"extra": 1})
+    assert updated._context["lock"] is lock
+    assert updated._context["extra"] == 1
+
+
+def test_flow_update_context_does_not_modify_original():
+    """update_context must leave the original Flow unchanged."""
+    flow = Flow(name="orig-flow", entry_point=echo, context={"a": 1})
+    _ = flow.update_context({"a": 99, "b": 2})
+    assert flow._context == {"a": 1}
+
+
+def test_flow_context_mutations_isolated_between_runs():
+    """rt.context.put inside a run must not bleed into the next run via flow._context."""
+
+    @rt.function_node
+    async def mutate_and_snapshot():
+        rt.context.put("transient2", "value")
+        return rt.context.get("transient2")
+
+    flow = Flow(name="mutation-isolation-flow", entry_point=mutate_and_snapshot)
+    flow.invoke()
+    # The second run starts with a fresh copy of the original context dict.
+    result = flow.invoke()
+    assert result == "value"  # still works in the second run
+    # And the key was not leaked into flow._context
+    assert "transient2" not in flow._context
