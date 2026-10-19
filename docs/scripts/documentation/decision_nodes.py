@@ -185,7 +185,7 @@ async def ask_directly(ticket: str) -> None:
 # --8<-- [start: cost]
 def report_cost(ticket: str) -> None:
     result = triage_flow.invoke(ticket)
-    # jev-1.13.0 via typesafe: 312 input tokens, 0.39s, $1.764e-05
+    # jev-1.13.0 via typesafe: 420 input tokens, 0.39s, $1.764e-05
     print(
         f"{result.model_name} via {result.provider}: "
         f"{result.input_tokens} input tokens, {result.latency:.2f}s, ${result.cost}"

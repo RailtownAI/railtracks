@@ -122,6 +122,8 @@ Set `retry_approach=` on the model, as shown in [Choosing a Model](#choosing-a-m
 --8<-- "docs/scripts/documentation/decision_nodes.py:retry_node"
 ```
 
+Once every attempt fails, `Retry` raises `rt.llm.RetryError`, with each attempt's error in `.exception_list`. That is not a `DecisionModelError`, so catch it separately. Use `retry_approach=` on the model if you want the node to keep raising a `DecisionModelError` subclass after the retries run out.
+
 ??? note "Calling the model directly"
     Outside a node you can call the model yourself with `await model.aask(state, schema)`, as you would call an LLM's `achat`. A direct call raises the model-layer errors instead: `rt.decisions.DecisionProviderError` and its `DecisionProviderTimeoutError`, `DecisionProviderRateLimitError`, `DecisionProviderAuthenticationError` and `DecisionProviderRefusalError` subclasses. It is also not recorded.
     ```python
