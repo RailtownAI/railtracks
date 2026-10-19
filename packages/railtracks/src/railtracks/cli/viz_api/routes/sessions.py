@@ -203,9 +203,15 @@ async def get_node_detail(
         inputs = _tool_input_messages(name, tool) if tool else []
         tool_output = tool["response"] if tool else None
         output = None
-        model_name = None
-        model_provider = None
-        totals = {"input_tokens": 0, "output_tokens": 0, "total_cost": 0.0}
+        # a decision node (or a tool that called a decision model) has a cost
+        decision = queries.get_decision_details(q.con, session_id, node_id)
+        model_name = decision["model_name"] if decision else None
+        model_provider = decision["provider"] if decision else None
+        totals = {
+            "input_tokens": decision["input_tokens"] if decision else 0,
+            "output_tokens": decision["output_tokens"] if decision else 0,
+            "total_cost": decision["total_cost"] if decision else 0.0,
+        }
     else:
         inputs = []
         output = None

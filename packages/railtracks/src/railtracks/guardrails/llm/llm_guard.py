@@ -13,6 +13,7 @@ from railtracks.guardrails.core.interfaces import BaseGuardrail
 from railtracks.guardrails.core.trace import GuardrailTrace
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, UserMessage
+from railtracks.llm.middleware import ModelOnlyMiddleware
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.utils.logging.create import get_rt_logger
@@ -27,6 +28,7 @@ class BaseLLMGuardrail(
     BaseGuardrail[
         [MessageHistory, type[BaseModel] | None, list[Tool] | None], Response
     ],
+    ModelOnlyMiddleware,
     Generic[_TValue],
 ):
     """Abstract base class for guardrails that run on LLM input or output.
