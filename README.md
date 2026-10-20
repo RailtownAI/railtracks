@@ -245,7 +245,7 @@ Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [
 
 ## Decision Models
 
-For classify, route and grade steps, `rt.decision_node` asks a System One decision model a schema of questions and returns calibrated probabilities in one fast call, instead of generating text:
+For classify, route and grade steps, `rt.decision_node` asks a decision model a schema of questions and returns calibrated probabilities in one fast call, instead of generating text:
 
 ```python
 is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message is urgent")

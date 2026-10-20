@@ -1,5 +1,5 @@
 # Decision Nodes
-A **decision node** asks a System One (S1) decision model a fixed set of questions about a piece of text and returns calibrated probabilities instead of generated text. One request answers every question in a single forward pass, typically in well under a second.
+A **decision node** asks a decision model a fixed set of questions about a piece of text and returns calibrated probabilities instead of generated text. One request answers every question, typically in well under a second.
 
 Decision models live in `rt.decisions`, the way chat models live in `rt.llm`, and `rt.decision_node` turns a model plus a schema into a node, the way [`rt.agent_node`](overview.md#agent-node) does for an LLM.
 
@@ -41,7 +41,7 @@ Every model answers any `DecisionSchema`, so switching providers is a one-line c
 | Class | Serves | Key | Base URL override |
 |---|---|---|---|
 | `TypeSafeDecisions` | TypeSafe's Jev models (`jev-latest`) | `TYPESAFE_API_KEY` | `TYPESAFE_API_BASE` |
-| `OpenRouterDecisions` | S1 models on OpenRouter (`typesafe/jev-1.13`) | `OPENROUTER_API_KEY` | `OPENROUTER_API_BASE` |
+| `OpenRouterDecisions` | Decision models on OpenRouter (`typesafe/jev-1.13`) | `OPENROUTER_API_KEY` | `OPENROUTER_API_BASE` |
 | `OpenAIDecisions` | OpenAI's Decisions API (`gpt-6-luna`, public beta) | `OPENAI_API_KEY` | `OPENAI_BASE_URL`, then `OPENAI_API_BASE` |
 
 Each class also takes `api_key=` and `api_base=` to skip the environment, `timeout=` (seconds per request, default 30) and `retry_approach=`. With no `retry_approach` a model makes one attempt, as chat models do.

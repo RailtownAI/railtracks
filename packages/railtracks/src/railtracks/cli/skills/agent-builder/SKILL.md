@@ -109,7 +109,7 @@ print(result.content.field1)  # .content is an Output instance
 ```
 
 ### Decision Node (Classify, Route, Grade)
-When the output is a judgment you act on in code (yes/no, one of a fixed set of labels, a level on a rubric), use `rt.decision_node` with a System One decision model instead of an LLM. One request answers every question with calibrated probabilities. Input is text, or a JSON object or array; no images.
+When the output is a judgment you act on in code (yes/no, one of a fixed set of labels, a level on a rubric), use `rt.decision_node` with a decision model instead of an LLM. One request answers every question with calibrated probabilities. Input is text, or a JSON object or array; no images.
 ```python
 is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message is urgent")
 team = rt.decisions.Choice(
