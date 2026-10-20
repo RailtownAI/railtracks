@@ -95,7 +95,7 @@ The CLI ships inside the SDK at `packages/railtracks/src/railtracks/cli/`:
 ```bash
 railtracks init          # create .railtracks/ and download the visualizer UI
 railtracks update        # update the visualizer UI
-railtracks viz           # start the visualizer server, blocking (requires railtracks[visual])
+railtracks viz --beta    # start the current visualizer server, blocking (requires railtracks[visual]); plain `viz` serves the legacy UI
 railtracks add --list    # list the bundled coding-assistant skills
 railtracks add claude:agent-builder    # install a bundled skill for an assistant
 railtracks agents-md     # upsert the managed Railtracks block into AGENTS.md and import it from CLAUDE.md
