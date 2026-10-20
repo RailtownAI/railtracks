@@ -20,4 +20,4 @@ The following metrics are collected **per LLM call**, broken down by model name,
 Aggregated (mean) values are calculated across runs for each `(model_name, model_provider, call_index)` group, making it straightforward to compare cost and speed across agent versions or model providers.
 
 !!! note "Decision nodes are not included"
-    Only LLM calls are counted. Requests made by a [decision node](../../documentation/agent_design/decision_nodes.md) are not, so their cost is missing from `TokenCost` here, although the session totals in `railtracks viz` include it.
+    Only LLM calls are counted. Requests made by a [decision node](../../documentation/agent_design/decision_nodes.md) are not, so their cost is missing from `TokenCost` here, although the session totals in [`railtracks viz --beta`](../../observability/agenthub/local_v2.md) include it.

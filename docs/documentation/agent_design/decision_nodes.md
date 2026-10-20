@@ -139,7 +139,7 @@ Every `DecisionResponse` carries `model_name` (as the provider reports it), `pro
 
 `cost` is litellm's price for the call, and `None` when litellm can't price the model. `OpenAIDecisions` prices input tokens only, since the Decisions API bills input tokens alone.
 
-Each request made by a decision node is recorded as `decision.*` events, so `railtracks viz` shows it under the node with its answers, tokens, latency and cost, and includes its cost in the session totals:
+Each request made by a decision node is recorded as `decision.*` events, so [`railtracks viz --beta`](../../observability/agenthub/local_v2.md) shows it under the node with its answers, tokens, latency and cost, and includes its cost in the session totals:
 
 | Event | Recorded |
 |---|---|
