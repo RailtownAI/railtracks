@@ -74,7 +74,7 @@ Five parts. Take the ones your problem needs, wire them together in plain Python
 | **Tool surface** | What the agent can actually do | `rt.function_node`, `rt.ToolManifest` for agents-as-tools, `rt.connect_mcp` for MCP servers |
 | **Context** | What the model sees on this turn | `system_message`, `rt.context`, todo and key-value memory toolsets, retrieval |
 | **Controls** | What it's allowed to do, and how much of it | `MaxCalls`, `Timeout`, `Retry`, `Lock`, human-in-the-loop verifiers, guardrails |
-| **Record** | What happened, and whether you can replay it | Session state, `railtracks viz`, `rt.evaluations.evaluate` |
+| **Record** | What happened, and whether you can replay it | Session state, `railtracks viz --beta`, `rt.evaluations.evaluate` |
 
 The shapes this usually takes:
 
@@ -242,6 +242,23 @@ rt.llm.OllamaLLM("llama3")
 ```
 
 Works with **OpenAI**, **Anthropic**, **Google**, **Azure**, and more. See the [full provider list](https://docs.railtracks.org/integrations/llms/providers/).
+
+## Decision Models
+
+For classify, route and grade steps, `rt.decision_node` asks a decision model a schema of questions and returns calibrated probabilities in one fast call, instead of generating text:
+
+```python
+is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message is urgent")
+schema = rt.decisions.DecisionSchema(predicate=[is_urgent])
+Triage = rt.decision_node(
+    "Triage", model=rt.decisions.TypeSafeDecisions("jev-latest"), schema=schema
+)
+
+result = rt.Flow(name="Triage", entry_point=Triage).invoke("Checkout is down!")
+print(result.structured[is_urgent].probability)  # 0.97
+```
+
+Works with **TypeSafe**, **OpenRouter** and **OpenAI**, and the node drops into an agent's `tool_nodes` like any other tool. See [Decision Nodes](https://docs.railtracks.org/documentation/agent_design/decision_nodes/).
 
 ## Contributing
 

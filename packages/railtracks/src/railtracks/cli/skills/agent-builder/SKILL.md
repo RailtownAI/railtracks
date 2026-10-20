@@ -108,6 +108,25 @@ result = flow.invoke("user query here")
 print(result.content.field1)  # .content is an Output instance
 ```
 
+### Decision Node (Classify, Route, Grade)
+When the output is a judgment you act on in code (yes/no, one of a fixed set of labels, a level on a rubric), use `rt.decision_node` with a decision model instead of an LLM. One request answers every question with calibrated probabilities. Input is text, or a JSON object or array; no images.
+```python
+is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message is urgent")
+team = rt.decisions.Choice(
+    name="team", instructions="Which team should handle this", choices=["billing", "technical"]
+)
+schema = rt.decisions.DecisionSchema(predicate=[is_urgent], choice=[team])
+
+# or OpenRouterDecisions("typesafe/jev-1.13") / OpenAIDecisions("gpt-6-luna")
+Triage = rt.decision_node(
+    "Triage", model=rt.decisions.TypeSafeDecisions("jev-latest"), schema=schema
+)
+result = rt.Flow(name="Triage", entry_point=Triage).invoke("Checkout is down!")
+if result.structured[is_urgent].probability >= 0.8:  # typed PredicateAnswer
+    print(result.structured[team].choice)
+```
+It's also a tool: pass it in an agent's `tool_nodes`. Failures raise `rt.exceptions.DecisionModelError`. Only node middleware (`rt.wrap_node`, `rt.post_node`) works; model middleware such as `pre_llm` raises `NodeCreationError`. Docs: https://docs.railtracks.org/documentation/agent_design/decision_nodes/
+
 ### Multi-Agent Workflow
 ```python
 @rt.function_node
