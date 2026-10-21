@@ -5,7 +5,11 @@ from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.loaders.cloud._common import infer_document_type
+from railtracks.retrieval.loaders.cloud._common import (
+    decode_object,
+    infer_document_type,
+)
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document
 
 
@@ -26,9 +30,13 @@ class AzureBlobLoader(BaseDocumentLoader):
     """Document loader for Azure Blob Storage.
 
     Fetches blobs from a container and yields them as :class:`Document`
-    instances with UTF-8 decoded content and source metadata. Listing is
+    instances with decoded content and source metadata. Listing is
     recursive — any blob whose name starts with ``prefix`` is loaded,
     including subfolders.
+
+    ``.pdf`` blobs are parsed with ``pypdf`` (``pip install railtracks[pdf]``)
+    instead of being decoded as text. A blob that cannot be downloaded or
+    decoded is yielded as a ``LoadFailure`` and the remaining blobs still load.
 
     Authentication defaults to ``DefaultAzureCredential``, which resolves
     credentials from environment variables, managed identity, the Azure CLI,
@@ -47,7 +55,7 @@ class AzureBlobLoader(BaseDocumentLoader):
             ignored.
         credential: Azure credential used for authentication. Defaults to
             ``DefaultAzureCredential()`` when ``None``.
-        encoding: Text encoding used to decode blob bytes. Defaults to ``"utf-8"``.
+        encoding: Text encoding used to decode non-PDF blob bytes. Defaults to ``"utf-8"``.
 
     Raises:
         ImportError: If ``azure-storage-blob`` or ``azure-identity`` are not installed.
@@ -97,14 +105,17 @@ class AzureBlobLoader(BaseDocumentLoader):
             kwargs["name_starts_with"] = self._prefix
         return [blob.name for blob in self._container_client.list_blobs(**kwargs)]
 
+    def _source(self, blob_name: str) -> str:
+        return f"{self._account_url}/{self._container_name}/{blob_name}"
+
     def _fetch_document(self, blob_name: str) -> Document:
         blob_client = self._container_client.get_blob_client(blob_name)
         data = blob_client.download_blob().readall()
-        content = data.decode(self._encoding)
+        content = decode_object(blob_name, data, self._encoding)
         return Document(
             content=content,
             type=infer_document_type(blob_name),
-            source=f"{self._account_url}/{self._container_name}/{blob_name}",
+            source=self._source(blob_name),
             metadata={
                 "account_url": self._account_url,
                 "container": self._container_name,
@@ -112,11 +123,15 @@ class AzureBlobLoader(BaseDocumentLoader):
             },
         )
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def _stream_object(self, name: str) -> AsyncGenerator[Document, None]:
+        yield await asyncio.to_thread(self._fetch_document, name)
+
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         """Stream documents one at a time as each blob is downloaded.
 
         Yields:
-            Document: The next loaded document.
+            Document | LoadFailure: The next loaded document, or a
+            `LoadFailure` for a blob that could not be read.
         """
         if self._keys is not None:
             names = self._keys
@@ -124,4 +139,7 @@ class AzureBlobLoader(BaseDocumentLoader):
             names = await asyncio.to_thread(self._list_keys)
 
         for name in names:
-            yield await asyncio.to_thread(self._fetch_document, name)
+            async for item in self._isolate_source(
+                self._source(name), self._stream_object(name)
+            ):
+                yield item

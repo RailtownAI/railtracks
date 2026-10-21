@@ -9,13 +9,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
+
+def _to_bytes(body: str | bytes, encoding: str) -> bytes:
+    return body if isinstance(body, bytes) else body.encode(encoding)
+
+
 # ---------------------------------------------------------------------------
 # S3 helpers
 # ---------------------------------------------------------------------------
 
 
-def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMock:
-    """Return a mock boto3 S3 client pre-loaded with *objects* (key -> text)."""
+def make_s3_client(
+    objects: dict[str, str | bytes], encoding: str = "utf-8"
+) -> MagicMock:
+    """Return a mock boto3 S3 client pre-loaded with *objects* (key -> text or bytes)."""
     client = MagicMock()
 
     paginator = MagicMock()
@@ -24,8 +31,8 @@ def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMoc
     client.get_paginator.return_value = paginator
 
     def _get_object(Bucket: str, Key: str, **_: Any) -> dict[str, Any]:  # noqa: N803
-        text = objects[Key]
-        return {"Body": MagicMock(read=MagicMock(return_value=text.encode(encoding)))}
+        body = _to_bytes(objects[Key], encoding)
+        return {"Body": MagicMock(read=MagicMock(return_value=body))}
 
     client.get_object.side_effect = _get_object
     return client
@@ -37,9 +44,9 @@ def make_s3_client(objects: dict[str, str], encoding: str = "utf-8") -> MagicMoc
 
 
 def make_container_client_for_loading(
-    blobs: dict[str, str], encoding: str = "utf-8"
+    blobs: dict[str, str | bytes], encoding: str = "utf-8"
 ) -> MagicMock:
-    """Mock ContainerClient pre-loaded with *blobs* (name -> text)."""
+    """Mock ContainerClient pre-loaded with *blobs* (name -> text or bytes)."""
     container_client = MagicMock()
     blob_items = []
     for name in blobs:
@@ -50,9 +57,8 @@ def make_container_client_for_loading(
 
     def _get_blob_client(blob_name: str) -> MagicMock:
         blob_client = MagicMock()
-        text = blobs.get(blob_name, "")
-        blob_client.download_blob.return_value.readall.return_value = text.encode(
-            encoding
+        blob_client.download_blob.return_value.readall.return_value = _to_bytes(
+            blobs.get(blob_name, ""), encoding
         )
         return blob_client
 
@@ -92,7 +98,7 @@ def patch_azure(container_client: MagicMock):
 
 
 def make_gcs_client_for_loading(
-    objects: dict[str, str], encoding: str = "utf-8"
+    objects: dict[str, str | bytes], encoding: str = "utf-8"
 ) -> MagicMock:
     """Mock google.cloud.storage.Client pre-loaded with *objects*."""
     client = MagicMock()
@@ -109,7 +115,9 @@ def make_gcs_client_for_loading(
 
         def _blob(name: str) -> MagicMock:
             b = MagicMock()
-            b.download_as_bytes.return_value = objects.get(name, "").encode(encoding)
+            b.download_as_bytes.return_value = _to_bytes(
+                objects.get(name, ""), encoding
+            )
             return b
 
         bucket.blob.side_effect = _blob
