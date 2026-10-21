@@ -6,6 +6,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
 
 from .conftest import make_s3_client
@@ -200,3 +201,57 @@ class TestS3LoaderAsync:
         docs = [doc async for doc in loader.astream()]
         assert len(docs) == 2
         assert all(isinstance(d, Document) for d in docs)
+
+
+def _pdf_reader(page_texts: list[str]) -> MagicMock:
+    reader = MagicMock()
+    reader.pages = [
+        MagicMock(extract_text=MagicMock(return_value=t)) for t in page_texts
+    ]
+    return reader
+
+
+class TestS3LoaderUnreadableObjects:
+    async def test_binary_object_yields_load_failure_and_rest_load(self) -> None:
+        from railtracks.retrieval.loaders.cloud.s3 import S3Loader
+
+        objects = {
+            "a.txt": "alpha",
+            "image.png": b"\x89PNG\r\n\x1a\n\xff",
+            "c.txt": "c",
+        }
+        with patch("boto3.client", return_value=make_s3_client(objects)):
+            loader = S3Loader("my-bucket", keys=list(objects))
+
+        items = [item async for item in loader.astream()]
+
+        assert [type(i) for i in items] == [Document, LoadFailure, Document]
+        assert items[1].source == "s3://my-bucket/image.png"
+        assert isinstance(items[1].error, UnicodeDecodeError)
+
+    def test_pdf_object_is_parsed_not_decoded(self) -> None:
+        from railtracks.retrieval.loaders.cloud.s3 import S3Loader
+
+        client = make_s3_client({"report.pdf": b"%PDF-1.7 \xe2\xe3\xcf\xd3"})
+        with patch("boto3.client", return_value=client):
+            loader = S3Loader("my-bucket", keys=["report.pdf"])
+
+        with patch("pypdf.PdfReader", return_value=_pdf_reader(["one", "two"])):
+            (doc,) = loader.load()
+
+        assert doc.content == "one\n\ntwo"
+        assert doc.type == DocumentType.PDF
+
+    async def test_pdf_object_without_pypdf_yields_load_failure(self) -> None:
+        from railtracks.retrieval.loaders.cloud.s3 import S3Loader
+
+        client = make_s3_client({"report.pdf": b"%PDF-1.7"})
+        with patch("boto3.client", return_value=client):
+            loader = S3Loader("my-bucket", keys=["report.pdf"])
+
+        with patch.dict(sys.modules, {"pypdf": None}):
+            (item,) = [item async for item in loader.astream()]
+
+        assert isinstance(item, LoadFailure)
+        assert isinstance(item.error, ImportError)
+        assert "railtracks[pdf]" in str(item.error)

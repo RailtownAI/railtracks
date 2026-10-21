@@ -24,7 +24,9 @@ from railtracks.retrieval import (
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
 from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
+from railtracks.retrieval.loaders import TextLoader
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.loaders.sanitizing import (
     Sanitizer,
     SanitizingLoader,
@@ -41,10 +43,10 @@ from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBacken
 
 
 class _ListLoader(BaseDocumentLoader):
-    def __init__(self, docs: list[Document]) -> None:
+    def __init__(self, docs: list[Document | LoadFailure]) -> None:
         self._docs = docs
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         for doc in self._docs:
             yield doc
 
@@ -827,3 +829,235 @@ async def test_sanitizer_errors_propagate():
     loader = SanitizingLoader(inner, _Boom())
     with pytest.raises(RuntimeError, match="redaction failure"):
         [_ async for _ in loader.astream()]
+
+
+# ---------------------------------------------------------------------------
+# Per-document error isolation
+# ---------------------------------------------------------------------------
+
+
+class _FailOnWordChunker(_OneChunkPerWordChunker):
+    """Raises for any document containing ``word``."""
+
+    def __init__(self, word: str) -> None:
+        self._word = word
+
+    def chunk(self, document: Document) -> list[Chunk]:
+        if self._word in document.content.split():
+            raise RuntimeError(f"cannot chunk {document.source!r}")
+        return super().chunk(document)
+
+
+class _FailOnWordStore(VectorStore):
+    """Raises on ``write`` for any chunk whose content is ``word``."""
+
+    def __init__(self, word: str) -> None:
+        super().__init__(InMemoryBackend())
+        self._word = word
+
+    async def write(self, entry: StoreEntry) -> str:
+        if entry.content == self._word:
+            raise ConnectionError("store unavailable")
+        return await super().write(entry)
+
+
+class _RaisingLoader(BaseDocumentLoader):
+    """Yields ``docs`` and then raises out of its own stream."""
+
+    def __init__(self, docs: list[Document]) -> None:
+        self._docs = docs
+
+    async def astream(self) -> AsyncGenerator[Document, None]:
+        for doc in self._docs:
+            yield doc
+        raise RuntimeError("listing failed")
+
+
+async def test_load_failure_becomes_documentfailed_and_run_continues():
+    runtime, store, _ = _runtime()
+    error = UnicodeDecodeError("utf-8", b"\xe9", 0, 1, "invalid continuation byte")
+    loader = _ListLoader(
+        [
+            Document(content="alpha", source="a.txt"),
+            LoadFailure(source="b.txt", error=error),
+            Document(content="gamma", source="c.txt"),
+        ]
+    )
+
+    events = [e async for e in runtime.ingest(loader)]
+
+    failed = [e for e in events if isinstance(e, DocumentFailed)]
+    assert len(failed) == 1
+    assert failed[0].stage == "load"
+    assert failed[0].document_id is None
+    assert failed[0].source == "b.txt"
+    assert failed[0].errors == [error]
+    assert await store.count() == 2
+
+
+async def test_load_failure_counts_in_stats_but_not_as_loaded():
+    runtime, _, _ = _runtime()
+    loader = _ListLoader(
+        [
+            Document(content="alpha"),
+            LoadFailure(source="bad.txt", error=ValueError("bad")),
+        ]
+    )
+
+    stats = await runtime.ingest_all(loader)
+
+    assert stats.documents_loaded == 1
+    assert stats.documents_failed == 1
+    assert stats.failed_documents[0].source == "bad.txt"
+
+
+async def test_on_error_raise_reraises_load_failure():
+    runtime = RetrievalRuntime(
+        _OneChunkPerWordChunker(), _FakeEmbedder(), _store(), on_error="raise"
+    )
+    error = ValueError("bad file")
+    loader = _ListLoader(
+        [
+            Document(content="alpha"),
+            LoadFailure(source="bad.txt", error=error),
+            Document(content="gamma"),
+        ]
+    )
+
+    with pytest.raises(ValueError, match="bad file"):
+        await runtime.ingest_all(loader)
+    assert await runtime.store.count() == 1
+
+
+async def test_chunker_error_is_reported_with_chunk_stage():
+    store = _store()
+    runtime = RetrievalRuntime(_FailOnWordChunker("poison"), _FakeEmbedder(), store)
+    bad = Document(content="poison pill", source="bad.txt")
+    loader = _ListLoader([bad, Document(content="alpha beta", source="ok.txt")])
+
+    stats = await runtime.ingest_all(loader)
+
+    assert stats.documents_failed == 1
+    failed = stats.failed_documents[0]
+    assert failed.stage == "chunk"
+    assert failed.document_id == bad.id
+    assert isinstance(failed.errors[0], RuntimeError)
+    assert await store.count() == 2
+
+
+async def test_store_error_is_reported_with_store_stage():
+    store = _FailOnWordStore("poison")
+    runtime = RetrievalRuntime(_OneChunkPerWordChunker(), _FakeEmbedder(), store)
+    loader = _ListLoader([Document(content="poison"), Document(content="alpha")])
+
+    stats = await runtime.ingest_all(loader)
+
+    assert stats.documents_failed == 1
+    assert stats.failed_documents[0].stage == "store"
+    assert isinstance(stats.failed_documents[0].errors[0], ConnectionError)
+    assert await store.count() == 1
+
+
+async def test_embedding_batch_failure_is_reported_with_embed_stage():
+    runtime, _, _ = _runtime(embedder=_FakeEmbedder(fail_on_texts={"bad"}))
+
+    stats = await runtime.ingest_all(_ListLoader([Document(content="good bad")]))
+
+    assert stats.failed_documents[0].stage == "embed"
+
+
+async def test_documentfailed_keeps_batch_errors_when_store_then_raises():
+    store = _FailOnWordStore("gamma")
+    runtime = RetrievalRuntime(
+        _OneChunkPerWordChunker(),
+        _FakeEmbedder(fail_on_texts={"alpha"}),
+        store,
+        batch_size=2,
+    )
+    # Batch 1 ("alpha beta") fails to embed; batch 2 ("gamma delta") hits the store error.
+    stats = await runtime.ingest_all(
+        _ListLoader([Document(content="alpha beta gamma delta")])
+    )
+
+    (failed,) = stats.failed_documents
+    assert failed.stage == "store"
+    assert [type(e) for e in failed.errors] == [RuntimeError, ConnectionError]
+
+
+async def test_on_error_raise_reraises_chunker_error():
+    runtime = RetrievalRuntime(
+        _FailOnWordChunker("poison"), _FakeEmbedder(), _store(), on_error="raise"
+    )
+
+    with pytest.raises(RuntimeError, match="cannot chunk"):
+        await runtime.ingest_all(_ListLoader([Document(content="poison")]))
+
+
+async def test_model_mismatch_raises_even_when_skipping():
+    store = _store()
+    runtime_v1, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v1"))
+    await runtime_v1.ingest_all(_ListLoader([Document(content="alpha")]))
+    runtime_v2, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v2"))
+    assert runtime_v2.on_error == "skip"
+
+    with pytest.raises(EmbeddingModelMismatchError):
+        await runtime_v2.ingest_all(_ListLoader([Document(content="beta")]))
+
+
+async def test_error_raised_out_of_loader_stream_propagates():
+    runtime, store, _ = _runtime()
+
+    with pytest.raises(RuntimeError, match="listing failed"):
+        await runtime.ingest_all(_RaisingLoader([Document(content="alpha")]))
+    assert await store.count() == 1
+
+
+async def test_on_ingest_callback_errors_propagate():
+    def _callback(event: object) -> None:
+        raise RuntimeError("callback bug")
+
+    runtime = RetrievalRuntime(
+        _OneChunkPerWordChunker(), _FakeEmbedder(), _store(), on_ingest=_callback
+    )
+
+    with pytest.raises(RuntimeError, match="callback bug"):
+        await runtime.ingest_all(_ListLoader([Document(content="alpha")]))
+
+
+def test_invalid_on_error_raises():
+    with pytest.raises(ValueError, match="on_error"):
+        RetrievalRuntime(
+            _OneChunkPerWordChunker(),
+            _FakeEmbedder(),
+            _store(),
+            on_error="ignore",  # type: ignore[arg-type]
+        )
+
+
+async def test_directory_with_one_undecodable_file_ingests_the_rest(tmp_path):
+    (tmp_path / "a.txt").write_text("first file", encoding="utf-8")
+    (tmp_path / "b.txt").write_bytes("caf\xe9".encode("latin-1"))
+    (tmp_path / "c.txt").write_text("third file", encoding="utf-8")
+    runtime, store, _ = _runtime()
+
+    stats = await runtime.ingest_all(TextLoader(str(tmp_path)))
+
+    assert stats.documents_loaded == 2
+    assert stats.documents_failed == 1
+    (failed,) = stats.failed_documents
+    assert failed.stage == "load"
+    assert failed.source == str(tmp_path / "b.txt")
+    assert isinstance(failed.errors[0], UnicodeDecodeError)
+    assert await store.count() == 4
+
+
+async def test_sanitizing_loader_passes_load_failures_through():
+    failure = LoadFailure(source="bad.txt", error=ValueError("bad"))
+    inner = _ListLoader([failure, Document(content="hello")])
+    loader = SanitizingLoader(inner, _UpperSanitizer())
+
+    items = [item async for item in loader.astream()]
+
+    assert items[0] is failure
+    assert isinstance(items[1], Document)
+    assert items[1].content == "HELLO"

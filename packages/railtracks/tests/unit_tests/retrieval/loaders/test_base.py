@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
 
 
@@ -95,3 +96,49 @@ class TestBaseDocumentLoaderLoad:
         loader = ConcreteLoader(docs)
         result = loader.load()
         assert result == docs
+
+
+class _FailingSourceLoader(BaseDocumentLoader):
+    """Reads three sources; the middle one yields one document then raises."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def _read(self, name: str) -> AsyncGenerator[Document, None]:
+        yield _make_doc(f"{name}-1")
+        if name == "bad":
+            raise OSError("disk read failed")
+        yield _make_doc(f"{name}-2")
+
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
+        try:
+            for name in ("first", "bad", "last"):
+                async for item in self._isolate_source(name, self._read(name)):
+                    yield item
+        finally:
+            self.closed = True
+
+
+class TestSourceIsolation:
+    """Tests for _isolate_source and how aload/load treat LoadFailure."""
+
+    async def test_failing_source_yields_load_failure_and_stream_continues(self):
+        items = [item async for item in _FailingSourceLoader().astream()]
+
+        contents = [i.content for i in items if isinstance(i, Document)]
+        failures = [i for i in items if isinstance(i, LoadFailure)]
+        assert contents == ["first-1", "first-2", "bad-1", "last-1", "last-2"]
+        assert len(failures) == 1
+        assert failures[0].source == "bad"
+        assert isinstance(failures[0].error, OSError)
+
+    async def test_aload_raises_first_load_failure_error(self):
+        loader = _FailingSourceLoader()
+
+        with pytest.raises(OSError, match="disk read failed"):
+            await loader.aload()
+        assert loader.closed
+
+    def test_load_raises_first_load_failure_error(self):
+        with pytest.raises(OSError, match="disk read failed"):
+            _FailingSourceLoader().load()

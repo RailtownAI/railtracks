@@ -6,6 +6,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document
 
 from .conftest import make_gcs_client_for_loading, patch_gcs
@@ -131,3 +132,17 @@ class TestGCSLoaderAsync:
         docs = await loader.aload()
         assert len(docs) == 1
         assert docs[0].content == "hello"
+
+
+class TestGCSLoaderUnreadableObjects:
+    async def test_binary_object_yields_load_failure_and_rest_load(self) -> None:
+        from railtracks.retrieval.loaders.cloud.gcs import GCSLoader
+
+        objects = {"a.txt": "alpha", "blob.bin": b"\xff\xfe\x00", "c.txt": "c"}
+        with patch_gcs(make_gcs_client_for_loading(objects)):
+            loader = GCSLoader(BUCKET, keys=list(objects))
+
+        items = [item async for item in loader.astream()]
+
+        assert [type(i) for i in items] == [Document, LoadFailure, Document]
+        assert items[1].source == f"gs://{BUCKET}/blob.bin"

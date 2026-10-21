@@ -6,6 +6,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document
 
 from .conftest import make_container_client_for_loading, patch_azure
@@ -139,3 +140,17 @@ class TestAzureBlobLoaderAsync:
         docs = await loader.aload()
         assert len(docs) == 1
         assert docs[0].content == "hello"
+
+
+class TestAzureBlobLoaderUnreadableBlobs:
+    async def test_binary_blob_yields_load_failure_and_rest_load(self) -> None:
+        from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
+
+        blobs = {"a.txt": "alpha", "blob.bin": b"\xff\xfe\x00", "c.txt": "c"}
+        with patch_azure(make_container_client_for_loading(blobs)):
+            loader = AzureBlobLoader(ACCOUNT_URL, CONTAINER, keys=list(blobs))
+
+        items = [item async for item in loader.astream()]
+
+        assert [type(i) for i in items] == [Document, LoadFailure, Document]
+        assert items[1].source == f"{ACCOUNT_URL}/{CONTAINER}/blob.bin"
