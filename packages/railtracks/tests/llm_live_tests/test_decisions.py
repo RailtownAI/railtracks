@@ -163,7 +163,7 @@ async def test_call_batch_preserves_order(vendor):
     node = rt.decision_node(model=_model(vendor), schema=Triage)
 
     with rt.Session(flow_name="Live Batch"):
-        results = await rt.call_batch(node, [BILLING, OUTAGE])
+        results = await rt.call_batch(node, [BILLING, OUTAGE], return_exceptions=False)
 
     assert [r.structured[department].choice for r in results] == [
         "billing",
