@@ -24,6 +24,7 @@ from typing import Protocol, Union, runtime_checkable
 
 from ..models import Document
 from .base import BaseDocumentLoader
+from .models import LoadFailure
 
 
 @runtime_checkable
@@ -41,14 +42,18 @@ class Sanitizer(Protocol):
 
 class SanitizingLoader(BaseDocumentLoader):
     """Wraps an inner loader and runs every yielded document through a
-    caller-supplied ``Sanitizer``."""
+    caller-supplied ``Sanitizer``. ``LoadFailure`` items from the inner
+    loader are passed through unchanged."""
 
     def __init__(self, inner: BaseDocumentLoader, sanitizer: Sanitizer) -> None:
         self._inner = inner
         self._sanitizer = sanitizer
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         async for doc in self._inner.astream():
+            if isinstance(doc, LoadFailure):
+                yield doc
+                continue
             result = self._sanitizer.sanitize(doc)
             if inspect.isawaitable(result):
                 result = await result
