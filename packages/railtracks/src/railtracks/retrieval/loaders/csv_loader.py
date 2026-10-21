@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
 
 
@@ -137,7 +138,7 @@ class CSVLoader(BaseDocumentLoader):
         for doc in await asyncio.to_thread(lambda: list(_iter_rows())):
             yield doc
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         """Stream documents one at a time as each CSV row is read.
 
         For a directory, files are streamed in sorted order. Within each
@@ -145,7 +146,8 @@ class CSVLoader(BaseDocumentLoader):
         in memory.
 
         Yields:
-            Document: The next row as a document.
+            Document | LoadFailure: The next row as a document, or a
+            `LoadFailure` for a file that could not be read.
 
         Raises:
             FileNotFoundError: If the path does not exist.
@@ -155,8 +157,10 @@ class CSVLoader(BaseDocumentLoader):
         if self._path.is_dir():
             for path in sorted(self._path.rglob("*.csv")):
                 if path.is_file():
-                    async for doc in self._stream_file(path):
-                        yield doc
+                    async for item in self._isolate_source(
+                        str(path), self._stream_file(path)
+                    ):
+                        yield item
             return
 
         if not self._path.is_file():
@@ -166,5 +170,7 @@ class CSVLoader(BaseDocumentLoader):
                 f"CSVLoader expects a .csv file, got {self._path.suffix!r}"
             )
 
-        async for doc in self._stream_file(self._path):
-            yield doc
+        async for item in self._isolate_source(
+            str(self._path), self._stream_file(self._path)
+        ):
+            yield item

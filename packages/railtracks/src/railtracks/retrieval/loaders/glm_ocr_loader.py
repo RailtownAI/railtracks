@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from railtracks.retrieval.loaders.base_ocr import BaseOCRLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType, OCRResult
 
 try:
@@ -217,7 +218,7 @@ class GLMOCRLoader(BaseOCRLoader):
             async for doc in self._stream_image(path):
                 yield doc
 
-    async def _stream_dir(self) -> AsyncGenerator[Document, None]:
+    async def _stream_dir(self) -> AsyncGenerator[Document | LoadFailure, None]:
         """Stream Documents from a directory of image and PDF files."""
         paths = sorted(
             p
@@ -228,9 +229,14 @@ class GLMOCRLoader(BaseOCRLoader):
             page_texts: list[str] = []
             all_json_results: list = []
             for path in paths:
-                async for doc in self._stream_file(path):
-                    page_texts.append(doc.content)
-                    all_json_results.append(doc.metadata.get("json_result"))
+                async for item in self._isolate_source(
+                    str(path), self._stream_file(path)
+                ):
+                    if isinstance(item, LoadFailure):
+                        yield item
+                        continue
+                    page_texts.append(item.content)
+                    all_json_results.append(item.metadata.get("json_result"))
             if page_texts:
                 yield Document(
                     content="\n\n".join(page_texts),
@@ -240,17 +246,18 @@ class GLMOCRLoader(BaseOCRLoader):
                 )
             return
         for path in paths:
-            async for doc in self._stream_file(path):
-                yield doc
+            async for item in self._isolate_source(str(path), self._stream_file(path)):
+                yield item
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         """Stream Documents from image and PDF files using GLM-OCR.
 
         If initialised with a directory, iterates all supported image and PDF
         files in sorted order (recursively).
 
         Yields:
-            Document: The next extracted document.
+            Document | LoadFailure: The next extracted document, or a
+            `LoadFailure` for a file that could not be read.
 
         Raises:
             FileNotFoundError: If the path does not exist.
@@ -258,14 +265,17 @@ class GLMOCRLoader(BaseOCRLoader):
                 extension.
         """
         if self._path.is_dir():
-            async for doc in self._stream_dir():
-                yield doc
+            async for item in self._stream_dir():
+                yield item
             return
         if not self._path.is_file():
             raise FileNotFoundError(f"File not found: {self._path}")
+        source = str(self._path)
         if self._is_pdf:
-            async for doc in self._stream_pdf(self._path):
-                yield doc
+            async for item in self._isolate_source(
+                source, self._stream_pdf(self._path)
+            ):
+                yield item
             return
         if self._path.suffix.lower() not in _SUPPORTED_IMAGE_SUFFIXES:
             raise ValueError(
@@ -273,5 +283,5 @@ class GLMOCRLoader(BaseOCRLoader):
                 f"({', '.join(sorted(_SUPPORTED_SUFFIXES))}), "
                 f"got {self._path.suffix!r}"
             )
-        async for doc in self._stream_image(self._path):
-            yield doc
+        async for item in self._isolate_source(source, self._stream_image(self._path)):
+            yield item
