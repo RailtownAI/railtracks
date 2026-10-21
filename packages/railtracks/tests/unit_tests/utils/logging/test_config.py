@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 import railtracks as rt
-from railtracks.observability import configure
+from railtracks.observability import Observer, configure
 from railtracks.utils.logging import config, run_view, setup
 from railtracks.utils.logging.config import (
     ThreadAwareFilter,
@@ -356,7 +356,7 @@ def test_enable_logging_adds_real_handlers():
 
 def test_enable_logging_registers_the_run_view(monkeypatch):
     """Logging registers its own run view with observability; core doesn't wire it."""
-    monkeypatch.setattr(configure, "_inline_listeners", [])
+    monkeypatch.setattr(configure, "observer", Observer())
     detach_logging_handlers()
 
     enable_logging(level="INFO")
