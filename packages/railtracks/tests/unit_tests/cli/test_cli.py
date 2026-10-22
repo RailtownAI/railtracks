@@ -357,6 +357,19 @@ class TestFastAPIEndpoints(unittest.TestCase):
         self.assertEqual(single.json(), {"error": "Invalid JSON"})
         self.assertIn(partial.name, mock_print_error.call_args.args[0])
 
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_session_does_not_report_valid_json_as_invalid(self, mock_print_error):
+        """Test /api/sessions/{guid} keeps 400 for read errors, not response errors"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        (sessions_dir / "surrogate-guid.json").write_text('{"text": "cut \\ud83d"}')
+        (sessions_dir / "nan-guid.json").write_text('{"score": NaN}')
+
+        for guid in ("surrogate-guid", "nan-guid"):
+            response = self.client.get(f"/api/sessions/{guid}")
+            self.assertEqual(response.status_code, 500)
+            self.assertEqual(response.json(), {"error": "Internal Server Error"})
+
     def test_get_session_rejects_glob_metacharacters(self):
         sessions_dir = Path(".railtracks/data/sessions")
         sessions_dir.mkdir(parents=True)

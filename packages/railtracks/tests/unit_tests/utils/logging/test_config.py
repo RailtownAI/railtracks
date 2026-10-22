@@ -321,6 +321,22 @@ def test_the_log_file_is_utf8_and_labels_its_columns(tmp_path):
     assert re.search(r" - \d+ms - ERROR - RT - cannot handle 'x ✓ é 中文'\n$", line)
 
 
+def test_the_log_file_keeps_a_line_with_an_unpaired_surrogate(tmp_path):
+    log_file = tmp_path / "test.log"
+    setup_file_handler(file_name=log_file)
+    token = _module_logging_level.set(logging.INFO)
+    try:
+        rt_logger.error("cut \ud83d")
+    finally:
+        _module_logging_level.reset(token)
+        for handler in rt_logger.handlers:
+            handler.close()
+        rt_logger.handlers.clear()
+
+    line = log_file.read_text(encoding="utf-8")
+    assert re.search(r" - ERROR - RT - cut \\ud83d\n$", line)
+
+
 # ================= detach_logging_handlers Tests =================
 
 
