@@ -12,6 +12,7 @@ from .attachment_formats import detect_attachment_mime_from_bytes
 
 DEFAULT_MAX_DOWNLOAD_MB = 32.0
 _READ_CHUNK_BYTES = 64 * 1024
+_URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
 
 
 def validate_max_mb(max_mb: float, *, name: str = "max_mb") -> None:
@@ -23,6 +24,19 @@ def validate_max_mb(max_mb: float, *, name: str = "max_mb") -> None:
     """
     if not 0 < max_mb < math.inf:
         raise ValueError(f"{name} must be a positive, finite number, got {max_mb!r}.")
+
+
+def _normalize_base64(s: str) -> str:
+    """Convert base64 text to the standard alphabet with no whitespace and full padding.
+
+    Args:
+        s: Base64 text, possibly line-wrapped, unpadded, or URL-safe.
+
+    Returns:
+        Standard-alphabet base64 with a length that is a multiple of 4.
+    """
+    s = "".join(s.split()).translate(_URLSAFE_TO_STANDARD)
+    return s + "=" * (-len(s) % 4)
 
 
 def _is_base64_attachment(s: str) -> bool:
@@ -40,10 +54,8 @@ def _is_base64_attachment(s: str) -> bool:
     try:
         decoded = base64.b64decode(s_stripped, validate=True)
     except Exception:
-        # try tolerant decode with padding
         try:
-            padding = "=" * ((4 - len(s_stripped) % 4) % 4)
-            decoded = base64.b64decode(s_stripped + padding)
+            decoded = base64.b64decode(_normalize_base64(s_stripped))
         except Exception:
             return False
 
@@ -84,8 +96,10 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
     try:
         decoded = base64.b64decode(s, validate=True)
     except Exception as e:
+        # The returned URI carries s, so it must be the normalized form.
+        s = _normalize_base64(s)
         try:
-            decoded = base64.b64decode(s + ("=" * ((4 - len(s) % 4) % 4)))
+            decoded = base64.b64decode(s)
         except Exception:
             raise ValueError("Provided string is not valid base64 or a data URI") from e
 
