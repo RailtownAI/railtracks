@@ -176,6 +176,7 @@ class TestAttachment:
             (".gif", "gif"),
             (".webp", "webp"),
             (".PNG", "png"),
+            (".avif", "avif"),
         ],
     )
     def test_local_file_formats(self, tmp_path, extension, mime_type):
@@ -543,6 +544,31 @@ class TestAttachment:
     def test_invalid_type(self):
         with pytest.raises(TypeError, match="url parameter must be a string"):
             Attachment(123)  # type: ignore
+
+    def test_local_avif_consistent_with_base64(self, tmp_path):
+        """Local .avif files should be handled the same way as base64 AVIF."""
+        import base64 as _b64
+
+        # AVIF magic bytes: 4-byte size + "ftyp" + "avif" brand
+        avif_bytes = b"\x00\x00\x00\x1cftypavif\x00\x00\x00\x00mif1miaf" + b"\x00" * 32
+
+        # Local file path
+        avif_file = tmp_path / "photo.avif"
+        avif_file.write_bytes(avif_bytes)
+
+        # Base64 AVIF (this already works since #1623)
+        b64 = _b64.b64encode(avif_bytes).decode("utf-8")
+        base64_attachment = Attachment(b64)
+        assert base64_attachment.type == "data_uri"
+        assert base64_attachment.modality == "image"
+        assert base64_attachment.mime_type == "image/avif"
+
+        # Local AVIF (this should also work)
+        local_attachment = Attachment(str(avif_file))
+        assert local_attachment.type == "local"
+        assert local_attachment.modality == "image"
+        assert local_attachment.mime_type == "image/avif"
+        assert local_attachment.filename == "photo.avif"
 
 
 # =================================== END Attachment Tests ==================================
