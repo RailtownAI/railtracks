@@ -432,6 +432,8 @@ When the built-ins don't cover your source (a database table, an
 internal API, a message queue), subclass `BaseDocumentLoader` and
 implement `astream()`. `aload()` and `load()` come for free.
 
+If your loader reads many independent sources (files, objects, pages of an API), wrap each one in `self._isolate_source(source, documents)` so a failing source is yielded as a `LoadFailure` and the loader moves on to the next, the way the built-in loaders do.
+
 ```python
 --8<-- "docs/scripts/retrieval/ingestion_example.py:custom_loader"
 ```
