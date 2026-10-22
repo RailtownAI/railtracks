@@ -74,8 +74,11 @@ Given the LLM powering your agent, you can pass image inputs to your multimodal 
 ```
 The `attachment` parameter can be a single `str` or a `list[str]`. We currently support the following:
 
-- Both file and web URLs of the following types: `jpeg`, `png`, `gif`, and `webp`
+- Both file and web URLs of the following types: `avif`, `jpeg`, `png`, `gif`, and `webp`
 - `byte64` encoded string of the image
+
+!!! note "AVIF provider support varies"
+    AVIF is accepted for local files and base64 payloads. However, OpenAI, Anthropic, and Gemini do not officially list AVIF among their supported formats. Some OpenAI-compatible servers (such as PIL-based ones) do support it. The provider may reject AVIF attachments at request time.
 
 A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names an audio, video, text or Office document file (such as `.mp3`, `.mp4` or `.docx`) raises a `ValueError`, since those formats are not supported as attachments yet. With `trust_urls=True`, such a URL is HEAD-probed first and accepted when the server reports an image or PDF, for example a thumbnail service that renders a frame from a `.mp4` path.
 

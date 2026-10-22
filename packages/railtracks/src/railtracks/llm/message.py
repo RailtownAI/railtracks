@@ -26,6 +26,7 @@ _T = TypeVar("_T", bound=Content)
 
 
 _EXTENSION_MIME_MAP = {
+    ".avif": "image/avif",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".png": "image/png",
