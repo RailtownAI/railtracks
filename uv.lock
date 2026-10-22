@@ -4486,6 +4486,7 @@ all = [
     { name = "tavily-python" },
     { name = "tiktoken" },
     { name = "trafilatura" },
+    { name = "turbovec" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 apple = [
@@ -4545,6 +4546,7 @@ retrieval = [
     { name = "scikit-learn", version = "1.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "sqlalchemy" },
     { name = "tiktoken" },
+    { name = "turbovec" },
 ]
 retrieval-core = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -4565,9 +4567,13 @@ stores-all = [
     { name = "asyncpg" },
     { name = "chromadb" },
     { name = "pgvector" },
+    { name = "turbovec" },
 ]
 stores-chroma = [
     { name = "chromadb" },
+]
+stores-turbovec = [
+    { name = "turbovec" },
 ]
 stores-vector = [
     { name = "asyncpg" },
@@ -4634,6 +4640,7 @@ requires-dist = [
     { name = "railtracks", extras = ["sql"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-all"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-chroma"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
+    { name = "railtracks", extras = ["stores-turbovec"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-vector"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["tiktok"], marker = "extra == 'retrieval-core'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["visual"], marker = "extra == 'all'", editable = "packages/railtracks" },
@@ -4644,9 +4651,10 @@ requires-dist = [
     { name = "tavily-python", marker = "extra == 'websearch'", specifier = ">=0.5.0" },
     { name = "tiktoken", marker = "extra == 'tiktok'", specifier = ">=0.10.0,<=0.12.0" },
     { name = "trafilatura", marker = "extra == 'websearch'", specifier = ">=1.8.0" },
+    { name = "turbovec", marker = "extra == 'stores-turbovec'", specifier = ">=1.1.2" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'visual'", specifier = ">=0.24.0" },
 ]
-provides-extras = ["all", "apple", "aws", "azure-blob", "chroma", "gcp", "glm", "huggingface", "ocr", "pdf", "portkey", "retrieval", "retrieval-core", "semantic", "sql", "stores-all", "stores-chroma", "stores-vector", "tiktok", "visual", "websearch"]
+provides-extras = ["all", "apple", "aws", "azure-blob", "chroma", "gcp", "glm", "huggingface", "ocr", "pdf", "portkey", "retrieval", "retrieval-core", "semantic", "sql", "stores-all", "stores-chroma", "stores-turbovec", "stores-vector", "tiktok", "visual", "websearch"]
 
 [[package]]
 name = "railtracks-workspace"
@@ -5638,6 +5646,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a3/96/737133a93e73e967f9c888e6cfb1f2c31b2083d27263edb19fd65a9aca02/trafilatura-2.2.0.tar.gz", hash = "sha256:8c2cabb84066465228d03183fb698ce0b1245b81c58140b8ae0de57fddf3aae7", size = 314748, upload-time = "2026-07-31T16:06:49.444Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c3/01/af18878398102a5a5afa0811f4f8f2a8a94a60cc16e8e9cf54bc95f96808/trafilatura-2.2.0-py3-none-any.whl", hash = "sha256:ac43592a6201264dfc4f9c361cbe3eb3fea96e54437010a159d5e7365360ed98", size = 151906, upload-time = "2026-07-31T16:06:46.485Z" },
+]
+
+[[package]]
+name = "turbovec"
+version = "1.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/c7/cbd2978b6cabdadb2ca3541c6ad0c84d541c38ae08868e25770ef7e2fa0e/turbovec-1.1.2.tar.gz", hash = "sha256:dee50114e3b22f5361513300498d9a3b8be6a085a6803407b530e1bfeb285a1d", size = 751245, upload-time = "2026-10-06T20:55:08.102Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/21/66/1fcac15968f09b9d0b78a8186cb95f318c2573f869e13b1d0787ea43662b/turbovec-1.1.2-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:eacbb632cceb32e78ab56ebba38fdab3758a741cb959ea9ae5405d2bdd84fab8", size = 776101, upload-time = "2026-10-06T20:55:01.761Z" },
+    { url = "https://files.pythonhosted.org/packages/05/ef/13c5b250cc2fdfa64f5a2f499855ee9dfd17b31b486fd8d9784803a69b64/turbovec-1.1.2-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:97e97a965a983e5f00e625781131427c540834daf683cc0f9965f894aa901d4c", size = 813214, upload-time = "2026-10-06T20:55:03.43Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/bd/3e3f0174fcd918812f5fb7b82821a04e081b68b55817f42f8894f0812ae3/turbovec-1.1.2-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ea1404b82277fa1e93d64edba4bce6dcbb328a4e911bda104168d8ed36205a5c", size = 832757, upload-time = "2026-10-06T20:55:04.995Z" },
+    { url = "https://files.pythonhosted.org/packages/96/05/72688dbd3e63c293c78787a727327919a3a6f22b853d11fbc8656ad2217d/turbovec-1.1.2-cp39-abi3-win_amd64.whl", hash = "sha256:b9f8457e08d64d6dedc403c1f05f0280c1653a4ab11bf225c71f4352a7d2677c", size = 728694, upload-time = "2026-10-06T20:55:06.48Z" },
 ]
 
 [[package]]
