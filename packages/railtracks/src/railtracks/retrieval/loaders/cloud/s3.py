@@ -1,19 +1,12 @@
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
-from railtracks.retrieval.loaders._pdf_options import (
-    BreakdownStrategy,
-    validate_breakdown_strategy,
-)
-from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.loaders.cloud._common import stream_object_documents
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
+from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
 
 
-class S3Loader(BaseDocumentLoader):
+class S3Loader(ObjectStoreLoader):
     """Document loader for AWS S3.
 
     Fetches objects from an S3 bucket and yields them as :class:`Document`
@@ -23,8 +16,9 @@ class S3Loader(BaseDocumentLoader):
 
     Text objects are decoded with ``encoding``. PDFs are parsed with the same
     logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
-    ``pdf_breakdown_strategy``. Any other object that is not valid text is
-    skipped with a warning.
+    ``pdf_breakdown_strategy``. A ``.txt``, ``.md``, ``.csv``, ``.json`` or
+    ``.jsonl`` object that is not valid text raises; any other object that is
+    not valid text, such as an image, is skipped with a warning.
 
     Credentials follow boto3's standard resolution chain: environment variables
     (``AWS_ACCESS_KEY_ID`` / ``AWS_SECRET_ACCESS_KEY``), ``~/.aws/credentials``,
@@ -89,14 +83,13 @@ class S3Loader(BaseDocumentLoader):
                 "Install it via `pip install railtracks[aws]` or `uv add railtracks[aws]`."
             )
 
-        self._bucket = bucket
-        self._prefix = prefix
-        self._keys = list(keys) if keys is not None else None
-        self._encoding = encoding
-        validate_breakdown_strategy(
-            pdf_breakdown_strategy, name="pdf_breakdown_strategy"
+        super().__init__(
+            prefix=prefix,
+            keys=keys,
+            encoding=encoding,
+            pdf_breakdown_strategy=pdf_breakdown_strategy,
         )
-        self._pdf_breakdown_strategy = pdf_breakdown_strategy
+        self._bucket = bucket
         self._client = boto3.client(
             "s3",
             region_name=region_name,
@@ -125,25 +118,8 @@ class S3Loader(BaseDocumentLoader):
         response = self._client.get_object(Bucket=self._bucket, Key=key)
         return response["Body"].read()
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
-        """Stream documents one at a time as each S3 object is fetched.
+    def _source(self, key: str) -> str:
+        return f"s3://{self._bucket}/{key}"
 
-        Yields:
-            Document: The next loaded document.
-        """
-        if self._keys is not None:
-            keys = self._keys
-        else:
-            keys = await asyncio.to_thread(self._list_keys)
-
-        for key in keys:
-            data = await asyncio.to_thread(self._fetch_bytes, key)
-            async for doc in stream_object_documents(
-                data,
-                key=key,
-                source=f"s3://{self._bucket}/{key}",
-                metadata={"bucket": self._bucket, "key": key},
-                encoding=self._encoding,
-                pdf_breakdown_strategy=self._pdf_breakdown_strategy,
-            ):
-                yield doc
+    def _metadata(self, key: str) -> dict[str, str]:
+        return {"bucket": self._bucket, "key": key}

@@ -4,7 +4,7 @@ import asyncio
 import io
 from collections.abc import AsyncGenerator, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from railtracks.retrieval.loaders._pdf_options import (
     BreakdownStrategy,
@@ -52,58 +52,41 @@ async def stream_pdf(
     total_pages = len(reader.pages)
     base_metadata = dict(metadata or {})
 
-    if breakdown_strategy == "document":
-        content = "\n\n".join(page.extract_text() or "" for page in reader.pages)
-        yield Document(
+    def make_document(content: str, **position: int) -> Document:
+        return Document(
             content=content,
             type=DocumentType.PDF,
             source=source,
             metadata={
                 **base_metadata,
+                **position,
                 "total_pages": total_pages,
                 "file_type": ".pdf",
             },
         )
+
+    if breakdown_strategy == "document":
+        page_texts = [
+            await asyncio.to_thread(page.extract_text) or "" for page in reader.pages
+        ]
+        yield make_document("\n\n".join(page_texts))
         return
 
+    extraction_mode: Literal["plain", "layout"] = (
+        "layout" if breakdown_strategy == "paragraph" else "plain"
+    )
     for page_number, page in enumerate(reader.pages, start=1):
-        extraction_kwargs = (
-            {"extraction_mode": "layout"} if breakdown_strategy == "paragraph" else {}
+        text = await asyncio.to_thread(
+            page.extract_text, extraction_mode=extraction_mode
         )
-        text = await asyncio.to_thread(page.extract_text, **extraction_kwargs)
         if not text or not text.strip():
             continue
-        if breakdown_strategy == "paragraph":
-            paragraph_number = 0
-            for paragraph in text.split("\n\n"):
-                content = paragraph.strip()
-                if not content:
-                    continue
-                paragraph_number += 1
-                yield Document(
-                    content=content,
-                    type=DocumentType.PDF,
-                    source=source,
-                    metadata={
-                        **base_metadata,
-                        "page": page_number,
-                        "paragraph": paragraph_number,
-                        "total_pages": total_pages,
-                        "file_type": ".pdf",
-                    },
-                )
+        if breakdown_strategy == "page":
+            yield make_document(text, page=page_number)
             continue
-        yield Document(
-            content=text,
-            type=DocumentType.PDF,
-            source=source,
-            metadata={
-                **base_metadata,
-                "page": page_number,
-                "total_pages": total_pages,
-                "file_type": ".pdf",
-            },
-        )
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        for paragraph_number, paragraph in enumerate(paragraphs, start=1):
+            yield make_document(paragraph, page=page_number, paragraph=paragraph_number)
 
 
 class PyPDFLoader(BaseDocumentLoader):
@@ -145,7 +128,7 @@ class PyPDFLoader(BaseDocumentLoader):
     ) -> None:
         self._path = Path(file_path)
         validate_breakdown_strategy(breakdown_strategy)
-        self._breakdown_strategy = breakdown_strategy
+        self._breakdown_strategy: BreakdownStrategy = breakdown_strategy
 
     async def _stream_file(self, path: Path) -> AsyncGenerator[Document, None]:
         """Stream documents from a single PDF file.

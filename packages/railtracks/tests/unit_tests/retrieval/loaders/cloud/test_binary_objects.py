@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
@@ -110,6 +112,23 @@ class TestPdfObjects:
         assert doc.metadata["total_pages"] == 2
         assert "page" not in doc.metadata
 
+    def test_paragraph_strategy_numbers_paragraphs_per_page(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        objects = {"report.pdf": make_pdf("First page", "Second page")}
+        with make_loader(objects, pdf_breakdown_strategy="paragraph") as loader:
+            docs = loader.load()
+
+        assert [d.content for d in docs] == ["First page", "Second page"]
+        assert [(d.metadata["page"], d.metadata["paragraph"]) for d in docs] == [
+            (1, 1),
+            (2, 1),
+        ]
+        assert all(provider_metadata.items() <= d.metadata.items() for d in docs)
+
     def test_invalid_breakdown_strategy_raises(
         self,
         make_loader: LoaderFactory,
@@ -159,6 +178,31 @@ class TestNonTextObjects:
         warnings = [r.getMessage() for r in caplog.records]
         assert any(f"{source_prefix}logo.png" in m for m in warnings)
 
+    def test_known_text_extension_that_does_not_decode_raises(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        objects: dict[str, str | bytes] = {"notes.txt": "café".encode("latin-1")}
+        with make_loader(objects) as loader:
+            with pytest.raises(
+                ValueError, match=rf"{re.escape(source_prefix)}notes\.txt.*encoding="
+            ):
+                loader.load()
+
+    def test_custom_encoding_decodes_known_text_extension(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        objects: dict[str, str | bytes] = {"notes.txt": "café".encode("latin-1")}
+        with make_loader(objects, encoding="latin-1") as loader:
+            (doc,) = loader.load()
+
+        assert doc.content == "café"
+
 
 @LOADERS
 class TestPdfExtraMissing:
@@ -168,19 +212,34 @@ class TestPdfExtraMissing:
         source_prefix: str,
         provider_metadata: dict[str, str],
     ) -> None:
-        with patch.dict(sys.modules, {"railtracks.retrieval.loaders.pdf_loader": None}):
+        with patch.dict(sys.modules, {"pypdf": None}):
             with make_loader({"notes.txt": "hello"}) as loader:
                 (doc,) = loader.load()
 
         assert doc.content == "hello"
 
-    def test_pdf_without_pypdf_raises_install_hint(
+    def test_pdf_without_pypdf_raises_before_any_document(
         self,
         make_loader: LoaderFactory,
         source_prefix: str,
         provider_metadata: dict[str, str],
     ) -> None:
-        with patch.dict(sys.modules, {"railtracks.retrieval.loaders.pdf_loader": None}):
-            with make_loader({"report.pdf": make_pdf("text")}) as loader:
-                with pytest.raises(ImportError, match=r"railtracks\[pdf\]"):
-                    loader.load()
+        objects: dict[str, str | bytes] = {
+            "a.txt": "before",
+            "report.pdf": make_pdf("text"),
+        }
+        yielded: list[str] = []
+
+        async def consume(loader: BaseDocumentLoader) -> None:
+            async for doc in loader.astream():
+                yielded.append(doc.content)
+
+        with patch.dict(sys.modules, {"pypdf": None}):
+            with make_loader(objects) as loader:
+                with pytest.raises(
+                    ImportError,
+                    match=rf"{re.escape(source_prefix)}report\.pdf.*railtracks\[pdf\]",
+                ):
+                    asyncio.run(consume(loader))
+
+        assert yielded == []

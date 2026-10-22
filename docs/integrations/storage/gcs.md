@@ -68,11 +68,11 @@ Pass explicit `credentials` to override ADC.
 
 ## PDFs and other binary objects
 
-Objects whose name ends in `.pdf` are parsed with the same logic as [`PyPDFLoader`](../../retrieval/components/ingestion/methods.md#pypdfloader), which needs the `pdf` extra (`pip install railtracks[pdf]`). Without it, text objects still load, and the first PDF raises an `ImportError` naming the extra.
+Objects whose name ends in `.pdf`, in any case (`REPORT.PDF` too), are parsed with the same logic as [`PyPDFLoader`](../../retrieval/components/ingestion/methods.md#pypdfloader), which needs the `pdf` extra (`pip install railtracks[pdf]`). Without it, text-only loads still work, and a load that includes a PDF raises an `ImportError` naming the extra before any object is downloaded.
 
 By default each non-empty page becomes its own `Document`, with `page`, `total_pages` and `file_type` added to the metadata above. Pass `pdf_breakdown_strategy="paragraph"` or `"document"` to split PDFs the way `PyPDFLoader` does.
 
-Any other object that is not valid text in `encoding`, such as an image or a Word file, is skipped with a warning instead of stopping the load.
+An object named `.txt`, `.md`, `.markdown`, `.csv`, `.json` or `.jsonl` that is not valid text in `encoding` raises a `ValueError`, since that usually means `encoding` is wrong. Any other object that is not valid text, such as an image or a Word file, is skipped with a warning instead of stopping the load.
 
 ## Document fields
 
@@ -84,3 +84,7 @@ Each returned `Document` carries:
 | `Document.type` | Inferred from file extension; defaults to `TEXT` |
 | `metadata["bucket"]` | GCS bucket name |
 | `metadata["name"]` | Object name (path within the bucket) |
+| `metadata["page"]` | PDFs only: 1-based page number (`page` and `paragraph` strategies) |
+| `metadata["paragraph"]` | PDFs only: 1-based paragraph number within the page (`paragraph` strategy) |
+| `metadata["total_pages"]` | PDFs only: number of pages in the PDF |
+| `metadata["file_type"]` | PDFs only: `.pdf` |
