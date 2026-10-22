@@ -8,17 +8,23 @@ from ...models import Event
 from ...storage import resolve_events_dir
 from ._serialize import RTObserverEncoder
 
+_SESSION_COMPLETED = "session.completed"
+
 
 class JsonlWriter:
     def __init__(self, directory: Path | None = None):
-        """Write events to ``directory`` or the shared visualizer event store."""
+        """Write events to ``directory`` or the shared visualizer event store.
+
+        A session's file is closed once its ``session.completed`` is written, and
+        reopened in append mode if more events arrive for it.
+        """
         self._directory = directory if directory is not None else resolve_events_dir()
         self._files: dict[str, TextIO] = {}
 
-    async def start(self) -> None:
+    def start(self) -> None:
         self._directory.mkdir(parents=True, exist_ok=True)
 
-    async def write(self, event: Event) -> None:
+    def write(self, event: Event) -> None:
         handle = self._files.get(event.scope_id)
         if handle is None:
             _check_safe_scope_id(event.scope_id)
@@ -28,8 +34,10 @@ class JsonlWriter:
             self._files[event.scope_id] = handle
         handle.write(_serialize(event) + "\n")
         handle.flush()
+        if event.event_type == _SESSION_COMPLETED:
+            self._files.pop(event.scope_id).close()
 
-    async def shutdown(self) -> None:
+    def shutdown(self) -> None:
         for handle in self._files.values():
             handle.flush()
             handle.close()

@@ -20,13 +20,13 @@ class _Collecting:
     def __init__(self):
         self.events: list[Event] = []
 
-    async def start(self):
+    def start(self):
         pass
 
-    async def write(self, event: Event):
+    def write(self, event: Event):
         self.events.append(event)
 
-    async def shutdown(self):
+    def shutdown(self):
         pass
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 from typing import Callable
 
 from ..utils.config import _disable_events
@@ -10,63 +11,45 @@ from .observer import Observer
 from .writers.base import Writer
 from .writers.jsonl import JsonlWriter
 
-observer: Observer = Observer()
 
-# Called synchronously before the event reaches the Observer's per-writer queues
-_inline_listeners: list[Callable[[Event], None]] = []
+def _default_writers() -> list[Writer]:
+    """A `JsonlWriter`, unless `RAILTRACKS_DISABLE_EVENTS` is set."""
+    return [] if _disable_events() else [JsonlWriter()]
+
+
+observer: Observer = Observer(default_writers=_default_writers)
 
 
 def configure_writers(writers: list[Writer]) -> None:
-    """Set the writers to register on the singleton Observer on first start().
+    """Replace the writers on the process-wide Observer.
 
-    Delegates to `observer.configure_writers`. Must be called before the
-    observer has started; raises `RuntimeError` otherwise.
+    Safe to call at any time; the writers it replaces are shut down. With none configured,
+    the first event starts a `JsonlWriter`, unless `RAILTRACKS_DISABLE_EVENTS` is set.
     """
     observer.configure_writers(writers)
 
 
 def add_inline_listener(listener: Callable[[Event], None]) -> bool:
     """Register a synchronous listener, unless it is already registered."""
-    if listener in _inline_listeners:
-        return False
-    _inline_listeners.append(listener)
-    return True
+    return observer.add_listener(listener)
 
 
 def inline_listeners() -> list[Callable[[Event], None]]:
-    return list(_inline_listeners)
+    return observer.listeners
 
 
-async def ensure_started() -> Observer:
-    """Start the singleton observer if not already started, return it.
+def shutdown() -> None:
+    """Shut down the process-wide Observer's writers.
 
-    Auto-registers a default `JsonlWriter` when no writers have been configured
-    and `RAILTRACKS_DISABLE_EVENTS` is unset.
+    Runs at interpreter exit. Safe to call more than once.
     """
-    if (
-        not observer._running
-        and not observer._pending_writers
-        and not _disable_events()
-    ):
-        observer.configure_writers([JsonlWriter()])
-    await observer.start()
-    return observer
-
-
-async def shutdown() -> None:
-    """Drain per-writer queues and stop the singleton Observer's consumer tasks.
-
-    Safe to call when the observer isn't running.
-    """
-    await observer.shutdown()
+    observer.shutdown()
 
 
 def reset_for_tests() -> None:
-    """Clear singleton state. For test isolation only.
-
-    Swaps in a fresh `Observer` so consumer tasks from a previous test's event
-    loop don't leak into the next one.
-    """
+    """Swap in a fresh Observer, with no writers or listeners. For test isolation only."""
     global observer
-    observer = Observer()
-    _inline_listeners.clear()
+    observer = Observer(default_writers=_default_writers)
+
+
+atexit.register(shutdown)
