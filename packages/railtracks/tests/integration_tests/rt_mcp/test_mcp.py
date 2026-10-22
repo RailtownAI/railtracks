@@ -28,7 +28,7 @@ def install_mcp_server_time():
                 "pip",
                 "install",
                 "--no-cache-dir",
-                "mcp>=1.9.0",
+                "mcp>=1.23.0,<2",  # match railtracks' mcp<2 bound so pip cannot upgrade mcp mid-run
                 "mcp_server_time",
             ]
         )

@@ -21,6 +21,10 @@ Then start a new session or run `/reload-plugins`.
 
 These are the same skills `railtracks add claude:<skill>` installs. The plugin follows the `main` branch and works in every project, before Railtracks is installed. `railtracks add` writes the skills into one project, matched to the Railtracks version installed there, so you can commit them for your team.
 
+## What this plugin contains
+
+This plugin contains only skills: Markdown instructions that Claude loads when relevant. It runs no hooks, scripts, or MCP servers, and it doesn't collect, store, or send data anywhere.
+
 ## Updating
 
 ```bash

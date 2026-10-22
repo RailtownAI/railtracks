@@ -5,12 +5,17 @@ from __future__ import annotations
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
 from railtracks.guardrails.llm.concrete import OutputGuard
+from railtracks.prebuilt.guardrails._length import message_char_count
 
 
 class OutputLengthGuard(OutputGuard):
     """Blocks LLM output that exceeds ``max_chars`` characters.
 
     Inspects ``event.output_message`` (the assistant reply produced this turn).
+
+    Content that is not a plain string (tool-call turns, structured pydantic
+    models) is counted via
+    :func:`~railtracks.prebuilt.guardrails._length.message_char_count`.
 
     Example::
 
@@ -20,6 +25,8 @@ class OutputLengthGuard(OutputGuard):
         max_chars: Maximum number of characters allowed in the assistant reply.
             Defaults to ``2048``.
         name: Optional display name for the guardrail instance.
+        fail_open: Whether to allow the response to continue when this guard raises
+            an unexpected exception.
     """
 
     def __init__(
@@ -34,8 +41,7 @@ class OutputLengthGuard(OutputGuard):
         if event.output_message is None:
             return GuardrailDecision.allow(reason="No output message to evaluate.")
 
-        content = event.output_message.content or ""
-        total_chars = len(content)
+        total_chars = message_char_count(event.output_message.content)
         if total_chars > self.max_chars:
             return GuardrailDecision.block(
                 reason=(
