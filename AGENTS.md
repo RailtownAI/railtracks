@@ -95,7 +95,7 @@ The CLI ships inside the SDK at `packages/railtracks/src/railtracks/cli/`:
 ```bash
 railtracks init          # create .railtracks/ and download the visualizer UI
 railtracks update        # update the visualizer UI
-railtracks viz           # start the visualizer server, blocking (requires railtracks[visual])
+railtracks viz --beta    # start the current visualizer server, blocking (requires railtracks[visual]); plain `viz` serves the legacy UI
 railtracks add --list    # list the bundled coding-assistant skills
 railtracks add claude:agent-builder    # install a bundled skill for an assistant
 railtracks agents-md     # upsert the managed Railtracks block into AGENTS.md and import it from CLAUDE.md
@@ -116,15 +116,16 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - **Harness**: not a class, the assembled whole (loop + tool surface + context + controls + record). The page mapping each part to the primitive that covers it is `docs/documentation/harness/overview.md` ([Agent Harness](https://docs.railtracks.org/documentation/harness/overview/)), with runnable versions in `examples/harness/`. Use it as the framing when someone asks "how do I build an agent that does X".
 - **Tool** (`rt.function_node`): `built_nodes/function/node.py`. [Function Tools](https://docs.railtracks.org/documentation/agent_design/tools/function_tools/).
 - **Agent** (`rt.agent_node`): `built_nodes/llm/node.py`; always a single dynamically built node, no separate class per `tool_nodes`/`output_schema` combination. Passing both raises `NodeCreationError`. [Agent Design](https://docs.railtracks.org/documentation/agent_design/overview/).
+- **Decision node** (`rt.decision_node`): `built_nodes/decisions/node.py`; asks a decision model (`rt.decisions`) a `DecisionSchema` of questions and returns calibrated probabilities instead of text. [Decision Nodes](https://docs.railtracks.org/documentation/agent_design/decision_nodes/).
 - **Flow**: `orchestration/flow.py`. [Flows](https://docs.railtracks.org/documentation/invocation/flows/).
 - **`rt.call(...)`**: `interaction/_call.py`, alongside `call_batch`/`astream`/`broadcast`/`couple`. [Call](https://docs.railtracks.org/documentation/invocation/call/).
-- **Agent-as-tool**: `rt.ToolManifest(...)` in `nodes/manifest.py`. [Agents as Tools](https://docs.railtracks.org/documentation/agent_design/tools/agents_as_tools/).
+- **Agent-as-tool**: pass the agent in `tool_nodes`. Without `manifest=`, its tool is generated from its name and `system_message` in `built_nodes/llm/_agent_tool.py`. `rt.ToolManifest(...)` (`nodes/manifest.py`) overrides it. [Agents as Tools](https://docs.railtracks.org/documentation/agent_design/tools/agents_as_tools/).
 - **Middleware**: `middleware/chain.py` (see "Things to avoid" below for the `middleware=`/`model_middleware=` gotcha). Use `pre_llm`/`post_llm`/`post_node` in new code; `before_llm`/`after_llm`/`after_node` are deprecated aliases kept only for compatibility. [Middleware](https://docs.railtracks.org/documentation/agent_design/middleware/overview/).
 - **Human-in-the-loop verifier**: `rt.prebuilt.middleware.pre_verifier`/`post_verifier` (`prebuilt/middleware/pre_verifier.py`/`post_verifier.py`); `Verdict`/`VerifierRejectedError` are in `middleware/verdict.py`. There is no top-level `rt.verifier`; don't generate code that uses one. [Human in the Loop](https://docs.railtracks.org/observability/human_in_the_loop/hil/).
 
 ### Package layout under `src/railtracks/`
 - `nodes/`: base `Node` class, `ToolManifest`, tool-callable protocol.
-- `built_nodes/`: node factories, `llm/` (`agent_node`, node builder, model-call middleware) and `function/` (`function_node`, `RTFunction`).
+- `built_nodes/`: node factories, `llm/` (`agent_node`, node builder, model-call middleware), `function/` (`function_node`, `RTFunction`) and `decisions/` (`decision_node`, plus the invoker that records `decision.*` events and turns model errors into `DecisionModelError`).
 - `orchestration/`: `Flow`, `FlowConnection`.
 - `execution/`: coordinator/execution-strategy/task running the request graph.
 - `interaction/`: `rt.call`, `call_batch`, `astream`, `broadcast`, `couple` (in-node calls to other nodes/agents).
@@ -133,6 +134,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - `state/`: execution state/forest tracking, session info.
 - `context/`: `rt.context` get/put/update/delete (run-scoped context vars).
 - `llm/`: model abstractions (`ModelBase`, provider clients: `AnthropicLLM`, `OpenAILLM`, `GeminiLLM`, `OpenAICompatibleProvider`, etc.), messages, tool schemas.
+- `decisions/`: decision models, the counterpart of `llm/`: questions (`Predicate`/`Choice`/`Score`), `DecisionSchema`, typed answers, `DecisionResponse`, the providers (`TypeSafeDecisions`, `OpenRouterDecisions`, `OpenAIDecisions`, all through `litellm.adecisions`) and their errors (`DecisionProviderError`, `SchemaDefinitionError`). It is self-contained: from the rest of railtracks it may import only `railtracks.llm.retries`, it never raises an `RTError`, and it records no events; `tests/unit_tests/decisions/test_layering.py` enforces this. Node concerns belong in `built_nodes/decisions/`.
 - `rt_mcp/`: MCP client/server integration (`connect_mcp`, `create_mcp_server`).
 - `exceptions/`: the `RTError` hierarchy (`NodeCreationError`, `NodeInvocationError`, `LLMError`, `GlobalTimeOutError`, `ContextError`, `FatalError`, `VisualExtraRequiredError`).
 - `guardrails/`: `input_guard`/`output_guard`, guardrail decisions/traces.

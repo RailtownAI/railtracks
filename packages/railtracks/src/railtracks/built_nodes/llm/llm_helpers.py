@@ -1,6 +1,7 @@
 import asyncio
 from copy import deepcopy
 from typing import (
+    Callable,
     Literal,
     Protocol,
     TypeVar,
@@ -266,32 +267,54 @@ def get_node_from_name(tool_name: str, tool_nodes: list[type[Node]]) -> type[Nod
 
 def llm_prepare_called_as_tool_factory(
     params: list[Parameter],
-):
-    def prepare_called_as_tool(**kwargs):
-        """
-        Prepare a message history for a tool call with the given parameters.
+) -> Callable[..., MessageHistory]:
+    """
+    Build the function that turns a tool call's arguments into an agent's input.
 
-        This method creates a coherent instruction message from tool parameters instead of
-        multiple separate messages.
+    Args:
+        params: The parameters the agent declares as a tool.
+
+    Returns:
+        A function taking the tool call's arguments as keyword arguments.
+    """
+
+    def prepare_called_as_tool(**kwargs: object) -> MessageHistory:
+        """
+        Format a tool call's arguments into a single instruction message.
+
+        Optional parameters the caller left out are skipped, and arguments that match no
+        parameter are ignored.
 
         Args:
-            tool_parameters: Dictionary of parameter names to values
-            tool_params: Iterable of Parameter objects defining the tool parameters
+            **kwargs: The tool call's arguments, by parameter name.
 
         Returns:
-            MessageHistory object with a single UserMessage containing the formatted parameters
-        """
-        # If no parameters, return empty message history
-        if not kwargs:
-            return MessageHistory([])
+            A message history holding one UserMessage with the formatted arguments.
 
-        # Create a single, coherent instruction instead of multiple separate messages
+        Raises:
+            TypeError: If a required parameter is missing from the arguments.
+        """
+        missing = [p.name for p in params if p.required and p.name not in kwargs]
+        if missing:
+            raise TypeError(f"Missing required tool argument(s): {missing}")
+
+        provided = [p for p in params if p.name in kwargs]
+        if not provided:
+            return MessageHistory(
+                [
+                    UserMessage(
+                        "You are being called as a tool without any parameters.\n\n"
+                        "Please execute your function."
+                    )
+                ]
+            )
+
         instruction_parts = [
             "You are being called as a tool with the following parameters:",
             "",
         ]
 
-        for param in params:
+        for param in provided:
             value = kwargs[param.name]
             # Format the parameter appropriately based on its type
             if param.param_type == "array" and isinstance(value, list):

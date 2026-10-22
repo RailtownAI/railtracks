@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from enum import Enum
 
-from ..utils.logging.create import get_rt_logger
 from .models import Event
 from .writers.base import Writer
 
-logger = get_rt_logger(__name__)  # for now, we can make another logger later
+# a plain logger under RT, so observability doesn't depend on railtracks' logging
+logger = logging.getLogger(f"RT.{__name__}")
 
 
 class QueuePolicy(Enum):

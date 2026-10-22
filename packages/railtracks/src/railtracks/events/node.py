@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from traceback import TracebackException
+from typing import Any, Literal, TypedDict
+
+from typing_extensions import Self
 
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry
@@ -14,6 +17,50 @@ from railtracks.events._base import (
     ParentEventBase,
 )
 from railtracks.events._resolve import node_parent, node_spatial_parent
+from railtracks.events.session import format_error, strip_ansi
+from railtracks.exceptions._base import is_fatal
+
+
+class Frame(TypedDict):
+    """One frame of a failure's traceback."""
+
+    file: str
+    line: int | None
+    function: str
+    source: str
+
+
+def failure_details(exc: BaseException) -> dict[str, Any]:
+    """The failure fields node events carry for an exception.
+
+    `traceback` is the full formatted text, chained exceptions included; `frames` holds
+    only the frames of ``exc`` itself, outermost first. `fatal` marks an exception that
+    stops the whole run on its own; a run started with `end_on_error` stops on any
+    failure.
+
+    Args:
+        exc: The exception the node raised.
+
+    Returns:
+        ``exception_name``, ``exception_message``, ``traceback``, ``frames``, and
+        ``fatal``.
+    """
+    trace = TracebackException.from_exception(exc)
+    return {
+        "exception_name": type(exc).__name__,
+        "exception_message": format_error(exc),
+        "traceback": strip_ansi("".join(trace.format())),
+        "frames": [
+            Frame(
+                file=frame.filename,
+                line=frame.lineno,
+                function=frame.name,
+                source=frame.line or "",
+            )
+            for frame in trace.stack
+        ],
+        "fatal": is_fatal(exc),
+    }
 
 
 @dataclass(kw_only=True)
@@ -54,6 +101,17 @@ class NodeInvocation(NodeEventBase):
 
 @dataclass(kw_only=True)
 class NodeFailure(NodeEventBase, FailureMixin):
+    """One run of the node's body raised. This is inside the node's middleware, which
+    may still retry or recover; `node.destruction` carries the final outcome."""
+
+    traceback: str = ""
+    frames: list[Frame] = field(default_factory=list)
+    fatal: bool = False
+
+    @classmethod
+    def from_exception(cls, exc: Exception, **kwargs) -> Self:
+        return cls(**failure_details(exc), **kwargs)
+
     def event_type(self) -> str:
         return "node.failure"
 
@@ -70,10 +128,17 @@ class NodeResponse(NodeEventBase):
 
 @dataclass(kw_only=True)
 class NodeDestruction(NodeEventBase):
-    """The final response, outside the node's middleware."""
+    """The node's final outcome, outside its middleware. The failure fields are set when
+    `status` is `"failure"` and left None when it is `"success"`."""
 
     response: Any
     duration_seconds: float
+    status: Literal["success", "failure"]
+    exception_name: str | None = None
+    exception_message: str | None = None
+    traceback: str | None = None
+    frames: list[Frame] | None = None
+    fatal: bool = False
 
     def event_type(self) -> str:
         return "node.destruction"

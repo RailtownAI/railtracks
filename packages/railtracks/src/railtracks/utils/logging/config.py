@@ -1,10 +1,12 @@
 import logging
 import os
 import re
+import time
 from contextvars import ContextVar
-from typing import Dict, Literal
+from typing import Callable, Dict, Literal
 
-from colorama import Fore, init
+from rich.console import Console
+from rich.text import Text
 
 AllowableLogLevels = Literal[
     "DEBUG",
@@ -30,13 +32,28 @@ str_to_log_level: Dict[str, int] = {
 rt_logger_name = "RT"
 rt_logger = logging.getLogger(rt_logger_name)
 
-_default_format_string = "%(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(rt_display_name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
-
+# node creation, completion, and failure records; the run view prints these for the runs
+# it shows
+lifecycle_logger_name = f"{rt_logger_name}.lifecycle"
 
 _file_format_string = (
-    "%(asctime)s - %(relative_seconds)s - %(levelname)ss - %(name)s - %(message)s"
+    "%(asctime)s - %(relativeCreated)dms - %(levelname)s - %(name)s - %(message)s"
 )
-# _file_format_string = "[%(asctime)] %(timestamp_color)s[+%(relative_seconds)-7ss] %(level_color)s%(name)-12s: %(levelname)-8s - %(message)s%(default_color)s"
+
+
+def _make_console() -> Console:
+    """Terminal output goes to stderr. In a notebook, rich would send every line as
+    its own HTML output, so it writes ANSI text to stdout instead; Jupyter merges
+    that into one block (stderr would be tinted like an error)."""
+    terminal = Console(stderr=True)
+    if terminal.is_jupyter:
+        return Console(force_jupyter=False, force_terminal=True)
+    return terminal
+
+
+# Shared by the console handler and the run view so their lines interleave on one clock
+_console = _make_console()
+_start_time = time.time()
 
 # log levels are ints hence the type hints
 _module_logging_level: ContextVar[int | None] = ContextVar(
@@ -47,8 +64,33 @@ _module_logging_file: ContextVar[str | os.PathLike | None] = ContextVar(
     "module_logging_file", default=None
 )
 
-# Initialize colorama
-init(autoreset=True)
+
+def _elapsed_text(timestamp: float) -> Text:
+    """The ``[+seconds]`` prefix that starts every console line.
+
+    Args:
+        timestamp: A ``time.time()``-style timestamp.
+
+    Returns:
+        The prefix, styled, measured from when railtracks was imported.
+    """
+    return Text().append(f"[+{timestamp - _start_time:7.3f}s] ", "bright_black")
+
+
+def _run_view_level() -> int | None:
+    """The level the run view prints at for a run starting in the current context.
+
+    Returns:
+        The thread's own level if one was set, else the level railtracks' console was
+        enabled with, or None when railtracks' console handler is not attached.
+    """
+    console_handler = next(
+        (h for h in rt_logger.handlers if isinstance(h, _RichConsoleHandler)), None
+    )
+    if console_handler is None:
+        return None
+    thread_level = _module_logging_level.get()
+    return thread_level if thread_level is not None else console_handler.enabled_level
 
 
 def _short_suffix_label(segment: str) -> str:
@@ -104,85 +146,73 @@ class ThreadAwareFilter(logging.Filter):
         )
 
 
-class ColorfulFormatter(logging.Formatter):
+class _LifecycleFilter(logging.Filter):
+    """Drops lifecycle records for runs the run view is printing, so the console shows
+    each node once. A run it isn't printing keeps them, so its failures still show."""
+
+    def __init__(self, run_view_shows: Callable[[str | None], bool]) -> None:
+        super().__init__()
+        self._run_view_shows = run_view_shows
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name != lifecycle_logger_name:
+            return True
+        return not self._run_view_shows(getattr(record, "session_id", None))
+
+
+class _RichConsoleHandler(logging.Handler):
+    """Writes RT log records to the shared rich console, coloured by level.
+
+    INFO records print as dim notes in the run view's style; other levels keep the
+    logger name and level label. The record is formatted with a plain
+    ``logging.Formatter``, so nothing beyond the standard attributes is written onto it
+    for handlers further up the tree to pick up.
     """
-    A simple formatter that can be used to format log messages with colours based on the log level and specific keywords.
-    """
+
+    _LEVEL_STYLES = {
+        logging.DEBUG: "cyan",
+        logging.WARNING: "yellow",
+        logging.ERROR: "bright_red",
+        logging.CRITICAL: "bold red",
+    }
 
     def __init__(
         self,
-        fmt=None,
-        datefmt=None,
         *,
         name_style: LoggerNameDisplay = "short",
-    ):
-        super().__init__(fmt, datefmt)
+        enabled_level: int = logging.INFO,
+    ) -> None:
+        super().__init__()
         self.name_style: LoggerNameDisplay = name_style
-        self.level_colors = {
-            logging.DEBUG: Fore.CYAN,
-            logging.INFO: Fore.WHITE,  # White for logger.info
-            logging.WARNING: Fore.YELLOW,
-            logging.ERROR: Fore.LIGHTRED_EX,  # Red for logger.exception or logger.error
-            logging.CRITICAL: Fore.RED,
-        }
-        self.keyword_colors = {
-            "FAILED": Fore.RED,
-            "WARNING": Fore.YELLOW,
-            "CREATED": Fore.GREEN,
-            "DONE": Fore.BLUE,
-        }
-        self.timestamp_color = Fore.LIGHTBLACK_EX
-        self.default_color = Fore.WHITE
+        # what the run view prints for runs in threads that set no level of their own
+        self.enabled_level = enabled_level
 
-        # precompute the regex patterns
-        self.keyword_patterns = {
-            keyword: re.compile(rf"(?i)\b({keyword})\b")
-            for keyword in self.keyword_colors.keys()
-        }
-
-    def format(self, record: logging.LogRecord) -> str:
-        """
-        Format the log record with colors for console output.
-
-        Creates a temporary copy of attributes to avoid mutating the original record.
-        """
-        level_color = self.level_colors.get(record.levelno, self.default_color)
-
-        # Get the formatted message (doesn't modify record)
-        message = record.getMessage()
-
-        colored_message = message
-        for keyword, color in self.keyword_colors.items():
-            colored_message = self.keyword_patterns[keyword].sub(
-                f"{color}\\1{level_color}",
-                colored_message,
-            )
-
-        record.rt_display_name = _console_display_name(
-            record.name,
-            name_style=self.name_style,
-            rt_prefix=rt_logger_name,
-        )
-
-        record.timestamp_color = self.timestamp_color
-        record.level_color = level_color
-        record.default_color = self.default_color
-        record.relative_seconds = f"{record.relativeCreated / 1000:.3f}"
-
-        original_msg = record.msg
-        original_args = record.args
-
-        record.msg = colored_message
-        record.args = ()
-
+    def emit(self, record: logging.LogRecord) -> None:
         try:
-            result = super().format(record)
-        finally:
-            # ALWAYS restore, even if formatting fails
-            record.msg = original_msg
-            record.args = original_args
+            line = _elapsed_text(record.created)
+            if record.levelno == logging.INFO:
+                line.append(f"· {self.format(record)}", style="dim")
+            else:
+                display_name = _console_display_name(
+                    record.name, name_style=self.name_style, rt_prefix=rt_logger_name
+                )
+                line.append(
+                    f"{display_name:<12}: {record.levelname:<8} - {self.format(record)}",
+                    style=self._LEVEL_STYLES.get(record.levelno, "default"),
+                )
+            _console.print(line, soft_wrap=True)
+        except Exception:
+            self.handleError(record)
 
-        return result
+
+def _console_handler(
+    name_style: LoggerNameDisplay,
+    enabled_level: int,
+    run_view_shows: Callable[[str | None], bool],
+) -> _RichConsoleHandler:
+    handler = _RichConsoleHandler(name_style=name_style, enabled_level=enabled_level)
+    handler.addFilter(_LifecycleFilter(run_view_shows))
+    return handler
 
 
 # TODO Complete the file integration.
@@ -215,135 +245,9 @@ def setup_file_handler(
     logger.addHandler(file_handler)
 
 
-def prepare_logger(
-    *,
-    setting: AllowableLogLevels | None,
-    path: str | os.PathLike | None = None,
-    name_style: LoggerNameDisplay = "short",
-):
-    """
-    Prepares the logger based on the setting and optionally sets up the file handler if a path is provided.
-    """
-    detach_logging_handlers()
-    if path is not None:
-        setup_file_handler(file_name=path, file_logging_level=logging.INFO)
-
-    console_handler = logging.StreamHandler()
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style=name_style)
-    console_handler.setFormatter(formatter)
-
-    logger = logging.getLogger(rt_logger_name)
-
-    match setting:
-        case "DEBUG":
-            console_handler.setLevel(logging.DEBUG)
-        case "INFO":
-            console_handler.setLevel(logging.INFO)
-        case "WARNING":
-            console_handler.setLevel(logging.WARNING)
-        case "ERROR":
-            console_handler.setLevel(logging.ERROR)
-        case "CRITICAL":
-            console_handler.setLevel(logging.CRITICAL)
-        case "NONE":
-            console_handler.addFilter(lambda x: False)
-        case None:
-            pass
-        case _:
-            raise ValueError("Invalid log level setting")
-
-    logger.addHandler(console_handler)
-
-
 def detach_logging_handlers():
     """
     Shuts down the logging system and detaches all logging handlers.
     """
     # Get the root logger
     rt_logger.handlers.clear()
-
-
-def initialize_module_logging(
-    level: AllowableLogLevels | None = None,
-    log_file: str | os.PathLike | None = None,
-    *,
-    name_style: LoggerNameDisplay = "short",
-) -> None:
-    """
-    Initialize module-level logging (internal). Use enable_logging() for the public API.
-
-    When level/log_file are None, reads from environment variables:
-    - RT_LOG_LEVEL: Sets the logging level
-    - RT_LOG_FILE: Optional path to a log file
-
-    If not set, defaults to INFO level with no log file.
-
-    This sets up shared handlers once with a ThreadAwareFilter that checks
-    each thread's ContextVar to determine what should be logged.
-    """
-
-    env_level_str = (
-        level if level is not None else os.getenv("RT_LOG_LEVEL", "INFO")
-    ).upper()
-    env_log_file = (
-        log_file if log_file is not None else os.getenv("RT_LOG_FILE") or None
-    )
-
-    env_level_int = str_to_log_level.get(env_level_str, str_to_log_level["INFO"])
-
-    _module_logging_level.set(env_level_int)
-    _module_logging_file.set(env_log_file)
-
-    logger = logging.getLogger(rt_logger_name)
-    logger.setLevel(env_level_str)
-
-    # Only skip if there are real handlers (app or user already configured).
-    # NullHandler is added by the library so "No handlers" is never raised.
-    non_null_handlers = [
-        h for h in logger.handlers if not isinstance(h, logging.NullHandler)
-    ]
-    if non_null_handlers:
-        return
-
-    for h in list(logger.handlers):
-        if isinstance(h, logging.NullHandler):
-            logger.removeHandler(h)
-
-    console_handler = logging.StreamHandler()
-    console_handler.addFilter(ThreadAwareFilter())
-    formatter = ColorfulFormatter(fmt=_default_format_string, name_style=name_style)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    # Set up file handler if specified
-    if env_log_file is not None:
-        setup_file_handler(file_name=env_log_file, file_logging_level=logging.INFO)
-
-
-def enable_logging(
-    level: AllowableLogLevels = "INFO",
-    log_file: str | os.PathLike | None = None,
-    *,
-    name_style: LoggerNameDisplay = "short",
-) -> None:
-    """
-    Opt-in helper to enable Railtracks logging. Call this explicitly from your
-    application entry point (CLI, main.py, server startup); the library never
-    calls it automatically.
-
-    Uses the given level and log_file; when None, reads RT_LOG_LEVEL and
-    RT_LOG_FILE from the environment. Sets up console output (and optional file)
-    with a ThreadAwareFilter for per-thread level control.
-
-    Args:
-        level: Logging level (default "INFO"). Overridden by RT_LOG_LEVEL when None.
-        log_file: Optional path for a log file. Overridden by RT_LOG_FILE when None.
-        name_style: Console column for logger name: ``full`` (dotted name) or
-            ``short`` (``RT.<Label>``: last segment with leading non-letters stripped,
-            then capitalized). Default ``short``.
-    """
-    initialize_module_logging(
-        level=level,
-        log_file=log_file,
-        name_style=name_style,
-    )

@@ -108,6 +108,25 @@ result = flow.invoke("user query here")
 print(result.content.field1)  # .content is an Output instance
 ```
 
+### Decision Node (Classify, Route, Grade)
+When the output is a judgment you act on in code (yes/no, one of a fixed set of labels, a level on a rubric), use `rt.decision_node` with a decision model instead of an LLM. One request answers every question with calibrated probabilities. Input is text, or a JSON object or array; no images.
+```python
+is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message is urgent")
+team = rt.decisions.Choice(
+    name="team", instructions="Which team should handle this", choices=["billing", "technical"]
+)
+schema = rt.decisions.DecisionSchema(predicate=[is_urgent], choice=[team])
+
+# or OpenRouterDecisions("typesafe/jev-1.13") / OpenAIDecisions("gpt-6-luna")
+Triage = rt.decision_node(
+    "Triage", model=rt.decisions.TypeSafeDecisions("jev-latest"), schema=schema
+)
+result = rt.Flow(name="Triage", entry_point=Triage).invoke("Checkout is down!")
+if result.structured[is_urgent].probability >= 0.8:  # typed PredicateAnswer
+    print(result.structured[team].choice)
+```
+It's also a tool: pass it in an agent's `tool_nodes`. Failures raise `rt.exceptions.DecisionModelError`. Only node middleware (`rt.wrap_node`, `rt.post_node`) works; model middleware such as `pre_llm` raises `NodeCreationError`. Docs: https://docs.railtracks.org/documentation/agent_design/decision_nodes/
+
 ### Multi-Agent Workflow
 ```python
 @rt.function_node
@@ -148,7 +167,23 @@ async def main():
 
 ### Agent Used as a Tool by Another Agent (Multi-Agent Orchestration)
 
-To expose an agent as a callable tool for another agent, pass a `rt.ToolManifest` to `agent_node`. The manifest defines how the agent appears in the tool list of its caller — its description and parameters. Without a manifest, railtracks won't know how to present the agent as a tool.
+An agent with a `system_message` can be passed straight into another agent's `tool_nodes`. Without a `manifest=`, railtracks names the tool after the agent (characters outside `[a-zA-Z0-9_-]` become `_`), builds the description from the agent's name and full system message, and gives it one required string parameter, `request`, which the sub-agent receives as its user message. An agent with neither `system_message` nor `manifest=` raises `NodeCreationError` when used as a tool. `{placeholders}` in the system message are never filled in the description, because `ContextInjection` fills messages only; pass a manifest when the sub-agent's system message is templated.
+```python
+SubAgent = rt.agent_node(
+    "Sub Agent",
+    tool_nodes=[tool_a],
+    llm=llm,
+    system_message="You do X for a given topic.",
+)
+Orchestrator = rt.agent_node(
+    "Orchestrator",
+    tool_nodes=[SubAgent],  # the orchestrator calls Sub_Agent(request=...)
+    llm=llm,
+    system_message="You are an orchestrator. Delegate to sub-agents as needed.",
+)
+```
+
+Pass `rt.ToolManifest` to `agent_node` when the caller needs a shorter description than the system message, named parameters, or a description that does not reveal the prompt. A manifest without `parameters` keeps its description and takes `request`. A manifest with a blank description raises `NodeCreationError`.
 ```python
 from railtracks.llm import Parameter
 
@@ -201,7 +236,7 @@ railtracks viz --beta
 ## Rules
 - Pass `llm=` to every `rt.agent_node(...)`; it's required.
 - Add guardrails with `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]`.
-- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, …) from `railtracks.prebuilt.guardrails`.
+- Import prebuilt guards (`BlockTextInputGuard`, `PIIRedactConfig`, `ScopeGuard`, …) from `railtracks.prebuilt.guardrails`.
 - Stream with `rt.astream(...)`.
 - Run agents through `rt.Flow(...)`.
 - Give each agent one entry point: a `Flow`, or `await rt.call()` inside another node.
