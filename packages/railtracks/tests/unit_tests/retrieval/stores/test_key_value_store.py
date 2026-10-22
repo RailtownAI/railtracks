@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from railtracks.retrieval.stores.key_value import (
     InMemoryKeyValueStore,
@@ -109,6 +110,22 @@ async def test_snapshot_persists_across_instances(tmp_path):
     reloaded = InMemoryKeyValueStore(snapshot_path=path)
     assert await reloaded.get("salary") == "80k/year"
     assert await reloaded.items() == {"salary": "80k/year", "goal": "buy a house"}
+
+
+async def test_snapshot_keeps_non_ascii_text_readable(tmp_path):
+    path = tmp_path / "memory.json"
+
+    await InMemoryKeyValueStore(snapshot_path=path).set("goal", "买房子 🏠")
+
+    assert "买房子 🏠".encode("utf-8") in path.read_bytes()
+    assert await InMemoryKeyValueStore(snapshot_path=path).get("goal") == "买房子 🏠"
+
+
+async def test_snapshot_reads_ascii_escaped_files(tmp_path):
+    path = tmp_path / "memory.json"
+    path.write_bytes(json.dumps({"goal": "买房子 🏠"}).encode("ascii"))
+
+    assert await InMemoryKeyValueStore(snapshot_path=path).get("goal") == "买房子 🏠"
 
 
 async def test_snapshot_reflects_delete_and_clear(tmp_path):
