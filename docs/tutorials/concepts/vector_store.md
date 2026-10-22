@@ -59,3 +59,7 @@ Vector stores power:
 - **Retrieval-Augmented Generation (RAG)** — Provide relevant context to LLMs
 - **Deduplication** — Identify similar or duplicate content
 - **Classification** — Group content by semantic similarity
+
+## Local TurboQuant Backend
+
+`TurbovecBackend` is an optional local-only backend for compressed cosine search. Install it with `pip install 'railtracks[stores-turbovec]'`; it requires vectors with a positive dimension divisible by eight. The backend normalizes vectors internally and stores metadata in a JSON sidecar because Turbovec indexes vectors only. Metadata filters are converted to an allowlist before search, so filtered searches do not post-filter a smaller result set. Keep the `snapshot_path` manifest and its referenced files together when backing up or moving an index. The backend uses TurboQuant's uncalibrated index by default; callers that need TurboQuant calibration should make their first ingest batch representative of the corpus.
