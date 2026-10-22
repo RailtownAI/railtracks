@@ -5,7 +5,7 @@ inputs:
   python-version:
     description: 'Python version to use'
     required: false
-    default: '3.10'
+    default: '3.11'
   extras:
     description: 'Comma-separated extras to install (e.g. "all", "all,retrieval")'
     required: false
