@@ -540,6 +540,19 @@ async def test_retrieve_returns_chunks_ranked():
 # ---------------------------------------------------------------------------
 
 
+async def test_retrieve_exposes_query_embedding_metrics():
+    """Query embed metrics (including cost) must surface on RetrievalResult."""
+    runtime, _, embedder = _runtime()
+    doc = Document(content="alpha beta")
+    async for _ in runtime.ingest(_ListLoader([doc])):
+        pass
+
+    result = await runtime.retrieve("alpha", top_k=1)
+    assert result.embedding_metrics is not None
+    assert result.embedding_metrics.model == embedder._model
+    assert result.embedding_metrics.vector_count == 1
+
+
 async def test_unchanged_document_is_skipped_on_reingest():
     store = _store()
     runtime, _, _ = _runtime(store=store)

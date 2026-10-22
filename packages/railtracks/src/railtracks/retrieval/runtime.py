@@ -520,7 +520,11 @@ class RetrievalRuntime:
             )
             for hit in store_hits
         ]
-        result = RetrievalResult(query=query, chunks=chunks)
+        result = RetrievalResult(
+            query=query,
+            chunks=chunks,
+            embedding_metrics=text_result.metrics,
+        )
         if self._on_retrieve is not None:
             self._on_retrieve(query, result)
         return result
