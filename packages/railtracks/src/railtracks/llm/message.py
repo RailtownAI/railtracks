@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import mimetypes
 import os
 import re
 from copy import deepcopy
@@ -35,19 +34,12 @@ _EXTENSION_MIME_MAP = {
     ".pdf": "application/pdf",
 }
 
-# Dynamic endpoints that can serve any type; mimetypes may map them to text/* or XML.
-_SERVER_SCRIPT_EXTENSIONS = frozenset(
-    {".asp", ".aspx", ".ashx", ".cgi", ".jsp", ".php", ".pl", ".py"}
-)
-
-# MIME types that no image endpoint serves.
-_NON_IMAGE_MIME_PREFIXES = (
-    "audio/",
-    "video/",
-    "text/",
-    "application/msword",
-    "application/vnd.ms-",
-    "application/vnd.openxmlformats-officedocument.",
+# URLs ending in these raise unless a trust_urls HEAD probe reports an image or PDF.
+_NON_IMAGE_EXTENSIONS = frozenset(
+    (".aac", ".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav")  # audio
+    + (".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm", ".wmv")  # video
+    + (".csv", ".htm", ".html", ".md", ".txt")  # text
+    + (".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx")  # Office
 )
 
 
@@ -116,8 +108,9 @@ class Attachment:
             TypeError: If `url` is not a string.
             ValueError: If `attachment_max_mb` is not positive and finite, a
                 local file has an unsupported extension, a URL's extension
-                names an audio, video, text or Office document type, or a
-                `.pdf` URL is passed while `trust_urls` is False.
+                names an audio, video, text or Office document type and no
+                HEAD probe reports an image or PDF, or a `.pdf` URL is passed
+                while `trust_urls` is False.
         """
         self.url = url
         self.file_extension = None
@@ -165,20 +158,10 @@ class Attachment:
         _, file_extension = os.path.splitext(url_path)
         file_extension = file_extension.lower()
         probed_filename: str | None = None
-        guessed_mime = (
-            None
-            if file_extension in _SERVER_SCRIPT_EXTENSIONS
-            else mimetypes.guess_type(url_path)[0]
-        )
         if file_extension in _EXTENSION_MIME_MAP:
             self.mime_type = _EXTENSION_MIME_MAP[file_extension]
-        elif guessed_mime and guessed_mime.startswith(_NON_IMAGE_MIME_PREFIXES):
-            raise ValueError(
-                f"Unsupported attachment format: {file_extension} ({guessed_mime}) in URL "
-                f"{self.url!r}. Supported formats: {', '.join(_EXTENSION_MIME_MAP.keys())}."
-            )
         elif trust_urls:
-            # No usable extension (e.g. https://arxiv.org/pdf/1706.03762);
+            # No image or PDF extension (e.g. https://arxiv.org/pdf/1706.03762);
             # HEAD-probe to figure out what we're actually being handed.
             # Skipped when trust_urls=False so we never touch unknown URLs
             # from the railtracks process.
@@ -187,6 +170,11 @@ class Attachment:
                 probed_ct and probed_ct.startswith("image/")
             ):
                 self.mime_type = probed_ct
+        if self.mime_type is None and file_extension in _NON_IMAGE_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported attachment format: {file_extension} in URL {self.url!r}. "
+                f"Supported formats: {', '.join(_EXTENSION_MIME_MAP)}."
+            )
         if self.mime_type:
             self.modality = _modality_for_mime(self.mime_type)
         self.filename = probed_filename or os.path.basename(url_path) or None
@@ -325,10 +313,13 @@ class UserMessage(_StringOnlyContent[Role.user]):
         attachment: The file attachment(s) for the user message. Can be a single string or a list of strings,
                     containing file paths, URLs, or data URIs. Defaults to None.
         trust_urls: Allow in-process fetch for URL attachments. Defaults to False.
-                    When False, `.pdf` URLs raise and unknown-extension URLs are
-                    handed to the provider unprobed (as `image_url`). When True,
-                    `.pdf` URLs are downloaded and embedded as base64, and
-                    unknown-extension URLs are HEAD-probed to detect PDFs.
+                    When False, `.pdf` URLs and URLs whose extension names an
+                    audio, video, text or Office document type raise, and other
+                    unknown-extension URLs are handed to the provider unprobed
+                    (as `image_url`). When True, `.pdf` URLs are downloaded and
+                    embedded as base64, and every other URL without an image
+                    extension is HEAD-probed; one with a non-image extension
+                    raises unless the probe reports an image or PDF.
                     Set True only when every URL in `attachment` is
                     developer-controlled — end-user-supplied URLs are an SSRF
                     surface once their bytes are fetched in-process.
@@ -339,6 +330,10 @@ class UserMessage(_StringOnlyContent[Role.user]):
         attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
                     Must be positive and finite. Defaults to 32. Only applies
                     when `trust_urls=True`.
+
+    Raises:
+        ValueError: If an attachment is rejected, for the reasons listed on
+            `Attachment.__init__`.
     """
 
     def __init__(

@@ -440,6 +440,8 @@ class TestAttachment:
             "https://example.com/clip.mp4",
             "https://example.com/voice.wav",
             "https://example.com/report.docx",
+            "https://example.com/sheet.xlsx",
+            "https://example.com/memo.m4a",
             "https://example.com/notes.txt",
             "https://example.com/CALL.MP3",
             "https://example.com/call.mp3?token=abc",
@@ -450,18 +452,6 @@ class TestAttachment:
         with pytest.raises(ValueError, match="Unsupported attachment format"):
             Attachment(url)
 
-    def test_url_with_non_image_extension_raises_without_probe(self, monkeypatch):
-        """The extension already rules the URL out, so trust_urls must not fetch it."""
-        from railtracks.llm import message as message_module
-
-        def boom_urlopen(req, timeout=None):
-            raise AssertionError("no request expected for a non-image extension")
-
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", boom_urlopen)
-
-        with pytest.raises(ValueError, match="audio/mpeg"):
-            Attachment("https://example.com/call.mp3", trust_urls=True)
-
     @pytest.mark.parametrize(
         "url",
         [
@@ -469,7 +459,6 @@ class TestAttachment:
             "https://example.com/thumb.php?id=3",
             "https://example.com/GetImage.ashx?id=1",
             "https://example.com/img.pl?id=3",
-            "https://example.com/cgi-bin/chart.cgi",
             "https://example.com/photo.svg",
         ],
     )
@@ -478,48 +467,38 @@ class TestAttachment:
         assert attachment.modality == "image"
         assert attachment.encoding is None
 
-    @pytest.mark.parametrize("ext", [".php", ".aspx", ".ashx", ".pl", ".py"])
-    def test_server_script_url_ignores_mimetypes_guess(self, monkeypatch, ext):
-        """Platform tables can map script extensions to text/*; they must still pass."""
+    def test_trusted_non_image_extension_accepted_when_probe_reports_image(
+        self, monkeypatch
+    ):
+        """A video path rendered as a thumbnail is classified by its Content-Type."""
         from railtracks.llm import message as message_module
 
         monkeypatch.setattr(
-            message_module.mimetypes,
-            "guess_type",
-            lambda path: ("text/plain", None),
+            message_module,
+            "_probe_url_metadata",
+            lambda url, *, timeout: ("image/jpeg", None),
         )
-
-        attachment = Attachment(f"https://example.com/img{ext}?id=3")
-        assert attachment.modality == "image"
-
-    def test_server_script_url_is_probed_when_trusted(self, monkeypatch):
-        """A script endpoint serving a PDF is classified by the HEAD probe."""
-        from railtracks.llm import message as message_module
-
-        class _FakeResp:
-            headers = {"Content-Type": "application/pdf"}
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                return False
-
-        def fake_urlopen(req, timeout=None):
-            assert req.get_method() == "HEAD"
-            return _FakeResp()
-
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
-            return "JVBERi0="
-
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
-        monkeypatch.setattr(message_module, "encode", fake_encode)
 
         attachment = Attachment(
-            "https://example.com/cgi-bin/download.pl?id=5", trust_urls=True
+            "https://example.com/clip.mp4?video-thumbnail=auto", trust_urls=True
         )
-        assert attachment.modality == "document"
-        assert attachment.mime_type == "application/pdf"
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/jpeg"
+
+    @pytest.mark.parametrize("probed_ct", ["audio/mpeg", None])
+    def test_trusted_non_image_extension_raises_when_probe_disagrees(
+        self, monkeypatch, probed_ct
+    ):
+        from railtracks.llm import message as message_module
+
+        monkeypatch.setattr(
+            message_module,
+            "_probe_url_metadata",
+            lambda url, *, timeout: (probed_ct, None),
+        )
+
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            Attachment("https://example.com/call.mp3", trust_urls=True)
 
     def test_user_message_rejects_non_image_url(self):
         with pytest.raises(ValueError, match="Unsupported attachment format"):

@@ -77,7 +77,7 @@ The `attachment` parameter can be a single `str` or a `list[str]`. We currently 
 - Both file and web URLs of the following types: `jpeg`, `png`, `gif`, and `webp`
 - `byte64` encoded string of the image
 
-A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names an audio, video, text or Office document file (such as `.mp3`, `.mp4` or `.docx`) raises a `ValueError`, since those formats are not supported as attachments yet.
+A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names an audio, video, text or Office document file (such as `.mp3`, `.mp4` or `.docx`) raises a `ValueError`, since those formats are not supported as attachments yet. With `trust_urls=True`, such a URL is HEAD-probed first and accepted when the server reports an image or PDF, for example a thumbnail service that renders a frame from a `.mp4` path.
 
 ---
 ## PDF documents
