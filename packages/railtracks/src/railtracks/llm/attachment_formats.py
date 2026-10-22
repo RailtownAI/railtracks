@@ -35,6 +35,7 @@ def _convert_yaml_to_python(formats: dict[str, Any]) -> tuple[list, list]:
 
     offset_formats = [
         (
+            item.get("fixed_offset", 0),
             item["offset_start"],
             item["offset_end"],
             item["fixed_bytes"].encode("utf-8"),
@@ -65,9 +66,16 @@ def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
         if b.startswith(magic_bytes):
             return mime_type
 
-    for start, end, fixed_bytes, variable_bytes, mime_type in OFFSET_FORMATS:
-        if b.startswith(fixed_bytes):
-            if len(b) > end and b[start:end] in variable_bytes:
+    for (
+        fixed_offset,
+        start,
+        end,
+        fixed_bytes,
+        variable_bytes,
+        mime_type,
+    ) in OFFSET_FORMATS:
+        if b.startswith(fixed_bytes, fixed_offset):
+            if len(b) >= end and b[start:end] in variable_bytes:
                 return mime_type
 
     # SVG/XML detection is content-based, not magic-byte-based.
