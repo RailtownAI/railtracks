@@ -465,13 +465,12 @@ async def test_create_with_llm_observe_appends_observe_as_the_innermost_middlewa
 
     chain = invoker._middleware.middleware
     assert len(chain) == 2
-    # user middleware is deep-copied (see below), but the shape/name is preserved
-    assert chain[0].name == tracer.name
+    assert chain[0] is tracer
     # the built-in observation middleware itself is not copied — same singleton instance
     assert chain[1] is _llm_observe
 
 
-def test_create_with_llm_observe_deep_copies_caller_middleware_list(monkeypatch):
+def test_create_with_llm_observe_shallow_copies_caller_middleware_list(monkeypatch):
     @wrap_llm
     async def tracer(call, message_history, schema, tools):
         return await call(message_history, schema, tools)
@@ -479,10 +478,9 @@ def test_create_with_llm_observe_deep_copies_caller_middleware_list(monkeypatch)
     middleware_list = [tracer]
     invoker = ModelInvoker.create_with_llm_observe(_StubModel(), middleware_list)
 
-    # a fresh (deep-copied) middleware object was stored, not the caller's original
+    # the same middleware instance is used (shallow copy, not deep copy)
     chain = invoker._middleware.middleware
-    assert chain[0] is not tracer
-    assert chain[0].name == tracer.name
+    assert chain[0] is tracer
 
     # mutating the caller's list after construction must not leak into the invoker
     middleware_list.append(tracer)
@@ -526,3 +524,57 @@ async def test_llm_observe_propagates_exceptions_from_the_core_call(
 
 def test_model_invoker_has_no_extend_middleware_method():
     assert not hasattr(ModelInvoker, "extend_middleware")
+
+
+# ---------------------------------------------------------------------------
+# Regression: model_middleware must not be deep-copied (issue #1675)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_with_llm_observe_preserves_stateful_middleware(monkeypatch):
+    """A counting middleware must accumulate state across multiple invoke calls."""
+    monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
+
+    class Counter:
+        def __init__(self):
+            self.calls = 0
+
+    counter = Counter()
+
+    @wrap_llm
+    async def counting(call, message_history, schema, tools):
+        counter.calls += 1
+        return await call(message_history, schema, tools)
+
+    model = _StubModel()
+    invoker = ModelInvoker.create_with_llm_observe(model, [counting])
+
+    await invoker.invoke(MessageHistory([UserMessage("a")]))
+    await invoker.invoke(MessageHistory([UserMessage("b")]))
+
+    assert counter.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_create_with_llm_observe_non_copyable_middleware_does_not_crash(
+    monkeypatch,
+):
+    """Middleware that holds a threading.Lock must not raise TypeError on creation."""
+    import threading
+
+    monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
+
+    lock = threading.Lock()
+
+    @wrap_llm
+    async def locking(call, message_history, schema, tools):
+        with lock:
+            pass
+        return await call(message_history, schema, tools)
+
+    model = _StubModel()
+    # Should not raise TypeError: cannot pickle '_thread.lock' object
+    invoker = ModelInvoker.create_with_llm_observe(model, [locking])
+    result = await invoker.invoke(MessageHistory([UserMessage("hi")]))
+    assert result is not None
