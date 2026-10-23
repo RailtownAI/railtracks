@@ -5,13 +5,16 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 import pytest
+from railtracks.llm import attachment_formats
 from railtracks.llm.attachment_formats import (
     detect_attachment_mime_from_bytes,
     detect_image_mime_from_bytes,
+    detect_mime_from_extension,
 )
 from railtracks.llm.encoding import (
     _READ_CHUNK_BYTES,
     _is_base64_attachment,
+    decode_data_uri,
     detect_source,
     encode,
     ensure_data_uri,
@@ -341,3 +344,91 @@ class TestDetectAttachmentMime:
     )
     def test_misplaced_or_truncated_headers_are_not_detected(self, data):
         assert detect_attachment_mime_from_bytes(data) is None
+
+    @pytest.mark.parametrize(
+        "data,mime_type",
+        [
+            (b"ID3\x04\x00\x00\x00\x00\x00\x00", "audio/mpeg"),
+            (b"\xff\xfb\x90\x64\x00", "audio/mpeg"),
+            (b"\xff\xf3\x48\xc4\x00", "audio/mpeg"),
+            (b"RIFF\x24\x00\x00\x00WAVEfmt ", "audio/wav"),
+            (b"OggS\x00\x02\x00\x00", "audio/ogg"),
+            (b"fLaC\x00\x00\x00\x22", "audio/flac"),
+            (b"\x00\x00\x00\x20ftypM4A \x00\x00\x00\x00", "audio/mp4"),
+            (b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00", "video/mp4"),
+            (b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00", "video/mp4"),
+            (b"\x00\x00\x00\x14ftypqt  \x00\x00\x00\x00", "video/quicktime"),
+            (b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81", "video/webm"),
+            (b"RIFF\x24\x00\x00\x00AVI LIST", "video/x-msvideo"),
+            (b"BM\x36\x00\x0c\x00\x00\x00\x00\x00\x36\x00", "image/bmp"),
+        ],
+    )
+    def test_audio_video_and_bmp_detected(self, data, mime_type):
+        assert detect_attachment_mime_from_bytes(data) == mime_type
+
+    @pytest.mark.parametrize(
+        "data",
+        [b"BMW sales notes", b'<?xml version="1.0"?><invoice/>'],
+        ids=["text_starting_with_BM", "plain_xml"],
+    )
+    def test_lookalike_text_is_not_detected(self, data):
+        assert detect_attachment_mime_from_bytes(data) is None
+
+    def test_svg_after_xml_declaration_detected(self):
+        svg = b'<?xml version="1.0"?>\n<!-- logo -->\n<svg xmlns="http://www.w3.org/2000/svg"/>'
+        assert detect_attachment_mime_from_bytes(svg) == "image/svg+xml"
+
+
+class TestDetectMimeFromExtension:
+    def test_every_listed_extension_gives_its_row_type(self):
+        """A file's name and its contents must give the same MIME type."""
+        formats = attachment_formats._formats
+        for section in ("prefix_formats", "offset_formats", "extension_formats"):
+            for row in formats[section]:
+                for extension in row.get("extensions", []):
+                    mime_type = detect_mime_from_extension(f"x{extension}")
+                    assert mime_type == row["mime_type"], extension
+
+    @pytest.mark.parametrize(
+        "name,mime_type",
+        [
+            ("chart.PNG", "image/png"),
+            ("dir.v2/clip.webp", "image/webp"),
+            ("/a/b/voice.wav", "audio/wav"),
+            ("notes.txt", "text/plain"),
+            ("archive.tar.gz", None),
+            ("no_extension", None),
+            ("dir.v2/no_extension", None),
+            ("data.unknownext", None),
+        ],
+    )
+    def test_lookup(self, name, mime_type):
+        assert detect_mime_from_extension(name) == mime_type
+
+
+class TestDecodeDataUri:
+    def test_any_media_type_header_is_accepted(self):
+        data = b"RIFF\x24\x00\x00\x00WAVEfmt "
+        uri = "data:audio/wav;base64," + base64.b64encode(data).decode("utf-8")
+        assert decode_data_uri(uri) == ("audio/wav", data)
+
+    def test_mime_type_is_lowercased(self):
+        assert decode_data_uri("data:Image/PNG;base64,iVBORw0KGgo=") == (
+            "image/png",
+            b"\x89PNG\r\n\x1a\n",
+        )
+
+    def test_plain_base64_type_comes_from_magic_bytes(self):
+        data = b"OggS\x00\x02\x00\x00"
+        assert decode_data_uri(base64.b64encode(data).decode("utf-8")) == (
+            "audio/ogg",
+            data,
+        )
+
+    @pytest.mark.parametrize(
+        "uri",
+        ["data:image;base64,AAAA", "data:image/png,AAAA", "data:image/png;base64,**"],
+    )
+    def test_malformed_input_raises(self, uri):
+        with pytest.raises(ValueError):
+            decode_data_uri(uri)

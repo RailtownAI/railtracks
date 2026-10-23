@@ -190,10 +190,18 @@ class TestAttachment:
         assert f"data:image/{mime_type};base64," in attachment.encoding
 
     def test_unsupported_format(self, tmp_path):
-        file = tmp_path / "test.txt"
+        file = tmp_path / "test.xyz"
         file.write_bytes(b"fake data")
         with pytest.raises(ValueError, match="Unsupported attachment format"):
             Attachment(str(file))
+
+    def test_local_text_file_is_a_file_attachment(self, tmp_path):
+        file = tmp_path / "notes.txt"
+        file.write_bytes(b"BMW sales notes")  # starts like a BMP signature
+
+        attachment = Attachment(str(file))
+        assert attachment.modality == "file"
+        assert attachment.mime_type == "text/plain"
 
     def test_local_pdf(self, tmp_path):
         pdf_file = tmp_path / "doc.pdf"
@@ -275,8 +283,8 @@ class TestAttachment:
         assert attachment.filename == "photo.png"
 
     def test_attachment_limits_thread_to_probe_and_encode(self, monkeypatch):
-        """attachment_timeout must reach the HEAD probe and encode(), and
-        attachment_max_mb must reach encode()."""
+        """attachment_timeout must reach the HEAD probe and the download, and
+        attachment_max_mb must reach the download."""
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
@@ -298,15 +306,13 @@ class TestAttachment:
             seen["probe_timeout"] = timeout
             return _FakeResp()
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
-            import base64 as _b64
-
+        def fake_load_bytes(path, *, timeout=10.0, max_mb=32.0):
             seen["encode_timeout"] = timeout
             seen["encode_max_mb"] = max_mb
-            return _b64.b64encode(pdf_bytes).decode("utf-8")
+            return pdf_bytes
 
         monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
-        monkeypatch.setattr(message_module, "encode", fake_encode)
+        monkeypatch.setattr(message_module, "load_bytes", fake_load_bytes)
 
         UserMessage(
             content="Summarize.",
@@ -331,13 +337,11 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
-            import base64 as _b64
-
+        def fake_load_bytes(path, *, timeout=10.0, max_mb=32.0):
             assert path == "https://example.com/docs/report.pdf?sig=xyz"
-            return _b64.b64encode(pdf_bytes).decode("utf-8")
+            return pdf_bytes
 
-        monkeypatch.setattr(message_module, "encode", fake_encode)
+        monkeypatch.setattr(message_module, "load_bytes", fake_load_bytes)
 
         attachment = Attachment(
             "https://example.com/docs/report.pdf?sig=xyz", trust_urls=True
@@ -352,14 +356,14 @@ class TestAttachment:
     def test_pdf_url_without_trust_urls_raises(self, monkeypatch):
         """
         A .pdf URL without trust_urls=True must refuse to fetch — that's the
-        whole point of the gate. encode() must not be called.
+        whole point of the gate. load_bytes() must not be called.
         """
         from railtracks.llm import message as message_module
 
-        def boom_encode(path, *, timeout=10.0):
-            raise AssertionError(f"encode() must not be called for {path!r}")
+        def boom_load_bytes(path, *, timeout=10.0, max_mb=32.0):
+            raise AssertionError(f"load_bytes() must not be called for {path!r}")
 
-        monkeypatch.setattr(message_module, "encode", boom_encode)
+        monkeypatch.setattr(message_module, "load_bytes", boom_load_bytes)
 
         with pytest.raises(ValueError, match="trust_urls=True"):
             Attachment("https://example.com/docs/report.pdf")
@@ -390,13 +394,11 @@ class TestAttachment:
             assert req.get_method() == "HEAD"
             return _FakeResp()
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
-            import base64 as _b64
-
-            return _b64.b64encode(pdf_bytes).decode("utf-8")
+        def fake_load_bytes(path, *, timeout=10.0, max_mb=32.0):
+            return pdf_bytes
 
         monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
-        monkeypatch.setattr(message_module, "encode", fake_encode)
+        monkeypatch.setattr(message_module, "load_bytes", fake_load_bytes)
 
         attachment = Attachment("https://arxiv.org/pdf/1706.03762", trust_urls=True)
         assert attachment.modality == "document"
@@ -444,21 +446,44 @@ class TestAttachment:
     @pytest.mark.parametrize(
         "url",
         [
-            "https://example.com/call.mp3",
-            "https://example.com/clip.mp4",
-            "https://example.com/voice.wav",
             "https://example.com/report.docx",
             "https://example.com/sheet.xlsx",
-            "https://example.com/memo.m4a",
             "https://example.com/notes.txt",
-            "https://example.com/CALL.MP3",
-            "https://example.com/call.mp3?token=abc",
+            "https://example.com/NOTES.TXT",
+            "https://example.com/page.html?token=abc",
         ],
     )
-    def test_url_with_non_image_extension_raises(self, url):
-        """A URL whose extension names a non-image type must not be sent as an image."""
+    def test_url_with_document_extension_raises(self, url):
+        """A URL whose extension names a text or Office type must not be sent as an image."""
         with pytest.raises(ValueError, match="Unsupported attachment format"):
             Attachment(url)
+
+    @pytest.mark.parametrize(
+        "url,modality,mime_type",
+        [
+            ("https://example.com/call.mp3", "audio", "audio/mpeg"),
+            ("https://example.com/CALL.MP3", "audio", "audio/mpeg"),
+            ("https://example.com/call.mp3?token=abc", "audio", "audio/mpeg"),
+            ("https://example.com/voice.wav", "audio", "audio/wav"),
+            ("https://example.com/memo.m4a", "audio", "audio/mp4"),
+            ("https://example.com/clip.mp4", "video", "video/mp4"),
+        ],
+    )
+    def test_url_with_audio_or_video_extension(self, url, modality, mime_type):
+        attachment = Attachment(url)
+        assert attachment.modality == modality
+        assert attachment.mime_type == mime_type
+        assert attachment.encoding is None
+
+    @pytest.mark.parametrize(
+        "extension",
+        [".aac", ".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"]
+        + [".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm", ".wmv"],
+    )
+    def test_audio_and_video_urls_are_never_sent_as_images(self, extension):
+        """Every Python version must type these, or they fall back to `image_url`."""
+        attachment = Attachment(f"https://example.com/media{extension}")
+        assert attachment.modality in ("audio", "video")
 
     @pytest.mark.parametrize(
         "url",
@@ -493,8 +518,8 @@ class TestAttachment:
         assert attachment.modality == "image"
         assert attachment.mime_type == "image/jpeg"
 
-    @pytest.mark.parametrize("probed_ct", ["audio/mpeg", None])
-    def test_trusted_non_image_extension_raises_when_probe_disagrees(
+    @pytest.mark.parametrize("probed_ct", ["text/html", None])
+    def test_trusted_audio_extension_kept_when_probe_reports_no_media(
         self, monkeypatch, probed_ct
     ):
         from railtracks.llm import message as message_module
@@ -505,12 +530,13 @@ class TestAttachment:
             lambda url, *, timeout: (probed_ct, None),
         )
 
-        with pytest.raises(ValueError, match="Unsupported attachment format"):
-            Attachment("https://example.com/call.mp3", trust_urls=True)
+        attachment = Attachment("https://example.com/call.mp3", trust_urls=True)
+        assert attachment.modality == "audio"
+        assert attachment.mime_type == "audio/mpeg"
 
-    def test_user_message_rejects_non_image_url(self):
+    def test_user_message_rejects_document_url(self):
         with pytest.raises(ValueError, match="Unsupported attachment format"):
-            UserMessage("Summarize this", attachment="https://example.com/call.mp3")
+            UserMessage("Summarize this", attachment="https://example.com/memo.docx")
 
     def test_user_message_threads_trust_urls(self, monkeypatch):
         """UserMessage(trust_urls=True) must propagate to every Attachment it builds."""
@@ -518,12 +544,10 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
-            import base64 as _b64
+        def fake_load_bytes(path, *, timeout=10.0, max_mb=32.0):
+            return pdf_bytes
 
-            return _b64.b64encode(pdf_bytes).decode("utf-8")
-
-        monkeypatch.setattr(message_module, "encode", fake_encode)
+        monkeypatch.setattr(message_module, "load_bytes", fake_load_bytes)
 
         # Without trust_urls the PDF URL is rejected.
         with pytest.raises(ValueError, match="trust_urls=True"):
@@ -551,6 +575,172 @@ class TestAttachment:
     def test_invalid_type(self):
         with pytest.raises(TypeError, match="url parameter must be a string"):
             Attachment(123)  # type: ignore
+
+
+_PNG = b"\x89PNG\r\n\x1a\n" + bytes(range(32))
+_WAV = b"RIFF\x24\x00\x00\x00WAVEfmt " + bytes(16)
+_MP4 = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00"
+
+
+class TestAttachmentContent:
+    @pytest.mark.parametrize(
+        "data,kwargs,mime_type,modality",
+        [
+            (_PNG, {}, "image/png", "image"),
+            (_WAV, {}, "audio/wav", "audio"),
+            (_MP4, {}, "video/mp4", "video"),
+            (b"%PDF-1.7\n", {}, "application/pdf", "document"),
+            (b"col,val\n", {"filename": "data.csv"}, "text/csv", "file"),
+            (b"anything", {"mime_type": "Audio/OGG"}, "audio/ogg", "audio"),
+            (_PNG, {"mime_type": "image/jpeg"}, "image/jpeg", "image"),
+        ],
+        ids=["magic", "wav", "mp4", "pdf", "filename", "explicit", "explicit_wins"],
+    )
+    def test_from_bytes_detects_type(self, data, kwargs, mime_type, modality):
+        attachment = Attachment.from_bytes(data, **kwargs)
+        assert attachment.type == "data_uri"
+        assert attachment.url == "..."
+        assert attachment.mime_type == mime_type
+        assert attachment.modality == modality
+        assert attachment.data == data
+        assert attachment.size == len(data)
+        assert attachment.filename == kwargs.get("filename")
+
+    def test_from_bytes_rejects_unknown_type(self):
+        with pytest.raises(ValueError, match="pass mime_type"):
+            Attachment.from_bytes(b"no magic here")
+
+    def test_from_bytes_rejects_empty_data(self):
+        with pytest.raises(ValueError, match="empty"):
+            Attachment.from_bytes(b"", mime_type="image/png")
+
+    def test_from_bytes_rejects_non_bytes(self):
+        with pytest.raises(TypeError, match="must be bytes"):
+            Attachment.from_bytes("iVBORw0KGgo=")  # type: ignore[arg-type]
+
+    def test_sha256_is_stable_across_sources(self, tmp_path):
+        import base64 as _b64
+        import hashlib
+
+        image_file = tmp_path / "chart.png"
+        image_file.write_bytes(_PNG)
+        b64 = _b64.b64encode(_PNG).decode("utf-8")
+
+        attachments = [
+            Attachment(str(image_file)),
+            Attachment.from_bytes(_PNG),
+            Attachment(f"data:image/png;base64,{b64}"),
+            Attachment(b64),
+            Attachment(b64.rstrip("=")),
+        ]
+
+        assert {a.sha256 for a in attachments} == {hashlib.sha256(_PNG).hexdigest()}
+        assert all(a.size == len(_PNG) for a in attachments)
+        assert all(a == attachments[0] for a in attachments)
+        assert len(set(attachments)) == 1
+
+    def test_local_magic_bytes_win_over_extension(self, tmp_path):
+        mislabeled = tmp_path / "photo.png"
+        mislabeled.write_bytes(b"\xff\xd8\xff\xe0" + bytes(16))
+        assert Attachment(str(mislabeled)).mime_type == "image/jpeg"
+
+    def test_local_file_is_read_once(self, tmp_path):
+        image_file = tmp_path / "chart.png"
+        image_file.write_bytes(_PNG)
+        attachment = Attachment(str(image_file))
+        image_file.write_bytes(b"\xff\xd8\xff" + bytes(8))
+
+        assert attachment.data == _PNG
+        assert attachment.encoding == Attachment.from_bytes(_PNG).encoding
+
+    def test_local_empty_file_raises(self, tmp_path):
+        empty = tmp_path / "empty.png"
+        empty.write_bytes(b"")
+        with pytest.raises(ValueError, match="empty"):
+            Attachment(str(empty))
+
+    def test_data_uri_with_invalid_payload_raises(self):
+        with pytest.raises(ValueError, match="not valid base64"):
+            Attachment("data:image/png;base64,***")
+
+    def test_url_attachment_has_no_bytes(self):
+        attachment = Attachment("https://example.com/image.png")
+        assert attachment.data is None
+        assert attachment.size is None
+        assert attachment.sha256 is None
+
+    def test_equality(self):
+        jpeg = b"\xff\xd8\xff\xe0" + bytes(16)
+        assert Attachment.from_bytes(_PNG) != Attachment.from_bytes(jpeg)
+        assert Attachment.from_bytes(_PNG) != Attachment.from_bytes(
+            _PNG, mime_type="image/x-png"
+        )
+        assert Attachment("https://example.com/a.png") == Attachment(
+            "https://example.com/a.png"
+        )
+        assert Attachment("https://example.com/a.png") != Attachment(
+            "https://example.com/b.png"
+        )
+        assert Attachment.from_bytes(_PNG) != _PNG
+
+    def test_deepcopy_keeps_identity_and_shares_bytes(self):
+        attachment = Attachment.from_bytes(_PNG, filename="chart.png")
+        copied = deepcopy(attachment)
+
+        assert copied == attachment
+        assert copied.sha256 == attachment.sha256
+        assert copied.data is attachment.data
+
+    def test_repr_has_no_payload(self):
+        attachment = Attachment.from_bytes(_PNG, filename="chart.png")
+        assert repr(attachment) == (
+            f"Attachment(type='data_uri', mime_type='image/png', "
+            f"filename='chart.png', size={len(_PNG)})"
+        )
+        assert repr(Attachment("https://example.com/a.png")) == (
+            "Attachment(type='url', mime_type='image/png', "
+            "url='https://example.com/a.png', filename='a.png')"
+        )
+
+    def test_from_url_with_explicit_type_skips_probe(self, monkeypatch):
+        from railtracks.llm import message as message_module
+
+        def boom_probe(url, *, timeout):
+            raise AssertionError("an explicit mime_type must skip the HEAD probe")
+
+        monkeypatch.setattr(message_module, "_probe_url_metadata", boom_probe)
+
+        attachment = Attachment.from_url(
+            "https://cdn.example.com/abc123",
+            mime_type="audio/mpeg",
+            filename="call.mp3",
+            trust_urls=True,
+        )
+        assert attachment.type == "url"
+        assert attachment.modality == "audio"
+        assert attachment.filename == "call.mp3"
+        assert attachment.encoding is None
+
+    def test_from_url_pdf_still_requires_trust_urls(self):
+        with pytest.raises(ValueError, match="trust_urls=True"):
+            Attachment.from_url(
+                "https://cdn.example.com/abc123", mime_type="application/pdf"
+            )
+
+    def test_from_url_explicit_type_allows_document_extension(self):
+        attachment = Attachment.from_url(
+            "https://example.com/notes.txt", mime_type="text/plain"
+        )
+        assert attachment.modality == "file"
+
+    def test_from_url_rejects_non_url(self, tmp_path):
+        with pytest.raises(ValueError, match="Not a URL"):
+            Attachment.from_url(str(tmp_path / "image.png"))
+
+    def test_exported_from_railtracks_llm(self):
+        import railtracks.llm as llm
+
+        assert llm.Attachment is Attachment
 
 
 # =================================== END Attachment Tests ==================================
@@ -610,6 +800,45 @@ class TestUserMessageAttachments:
         assert message.attachment[0].type == "local"
         assert message.attachment[1].type == "url"
         assert message.attachment[2].type == "data_uri"
+
+    def test_accepts_attachment_objects(self):
+        audio = Attachment.from_bytes(_WAV, filename="call.wav")
+
+        single = UserMessage("Transcribe", attachment=audio)
+        mixed = UserMessage("Compare", attachment=("https://example.com/a.png", audio))
+
+        assert single.attachment == [audio]
+        assert single.attachment[0] is audio
+        assert mixed.attachment is not None
+        assert [a.type for a in mixed.attachment] == ["url", "data_uri"]
+        assert mixed.attachment[1] is audio
+
+    def test_encode_keeps_the_session_record_shape(self, tmp_path):
+        """The session JSON reads `encode()`; new sources must keep its shape and stay payload-free."""
+        image_file = tmp_path / "chart.png"
+        image_file.write_bytes(_PNG)
+        message = UserMessage(
+            "Compare",
+            attachment=[
+                str(image_file),
+                "https://example.com/a.png",
+                Attachment.from_bytes(_WAV, filename="call.wav"),
+            ],
+        )
+
+        assert message.encode() == {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Compare"},
+                {"modality": "image", "type": "local", "info": str(image_file)},
+                {
+                    "modality": "image",
+                    "type": "url",
+                    "info": "https://example.com/a.png",
+                },
+                {"modality": "audio", "type": "data_uri", "info": "..."},
+            ],
+        }
 
 
 # =================================== END UserMessage Attachments Tests ==================================

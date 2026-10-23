@@ -72,12 +72,12 @@ Given the LLM powering your agent, you can pass image inputs to your multimodal 
 ```python
 --8<-- "docs/scripts/multimodal.py:public_url"
 ```
-The `attachment` parameter can be a single `str` or a `list[str]`. We currently support the following:
+The `attachment` parameter takes a file path, URL, base64 string or data URI, an [`Attachment`](#the-attachment-object), or a list of them. We currently support the following:
 
-- Both file and web URLs of the following types: `jpeg`, `png`, `gif`, `webp`, and `avif` (OpenAI, Anthropic and Gemini do not accept `avif`, but some OpenAI-compatible servers do)
-- `byte64` encoded string of the image
+- Both file and web URLs of images, such as `jpeg`, `png`, `gif`, `webp` and `avif`. Most providers accept only the first four: OpenAI, Anthropic and Gemini reject `avif`, but some OpenAI-compatible servers accept it.
+- A base64 string or data URI of the image
 
-A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names an audio, video, text or Office document file (such as `.mp3`, `.mp4` or `.docx`) raises a `ValueError`, since those formats are not supported as attachments yet. With `trust_urls=True`, such a URL is HEAD-probed first and accepted when the server reports an image or PDF, for example a thumbnail service that renders a frame from a `.mp4` path.
+A local file's type is read from its first bytes, then from its extension, so a JPEG saved as `.png` is still sent as `image/jpeg`. A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names a text or Office document file (such as `.txt` or `.docx`) raises a `ValueError`. With `trust_urls=True`, a URL without an image or PDF extension is HEAD-probed first, and the type the server reports wins, for example a thumbnail service that renders a frame from a `.mp4` path.
 
 ---
 ## PDF documents
@@ -112,3 +112,35 @@ Both settings only apply when `trust_urls=True`. With `trust_urls=False`, Railtr
 
 !!! warning "Some image URLs are downloaded in your process anyway"
     `trust_urls` controls only the downloads Railtracks makes. Some providers can't take an image by URL, so litellm, which Railtracks uses to call providers, downloads the image in your process before sending the request, whatever `trust_urls` is set to. If image URLs come from end users, download and check them yourself and pass a local file or data URI instead.
+
+---
+## The `Attachment` object
+Every attachment becomes an `rt.llm.Attachment`. Build one yourself when you already have the bytes in memory, or when a URL has no extension to tell its type:
+
+```python
+--8<-- "docs/scripts/multimodal.py:attachment_object"
+```
+
+| Constructor | Use it for |
+|---|---|
+| `Attachment(source)` | A file path, URL, base64 string or data URI, exactly as `attachment=` takes them |
+| `Attachment.from_bytes(data, mime_type=None, filename=None)` | Bytes already in memory, such as a screenshot or a generated chart |
+| `Attachment.from_url(url, mime_type=None, filename=None, trust_urls=False, ...)` | A URL whose type you know; `mime_type` skips the extension check and the HEAD probe |
+
+The MIME type comes from, in order: the `mime_type` you pass, the content's first bytes, then the file extension. `from_bytes` raises a `ValueError` when none of them identify the type.
+
+Each attachment exposes:
+
+| Attribute | Meaning |
+|---|---|
+| `modality` | `"image"`, `"audio"`, `"video"`, `"document"` (a PDF) or `"file"` (any other type) |
+| `mime_type` | For example `"image/png"`; `None` for a URL of unknown type, which is sent as an image |
+| `filename` | The file name, when one is known |
+| `size` | Size in bytes; `None` for a URL that is passed to the provider as is |
+| `sha256` | Hex SHA-256 of the bytes, the same whichever way they were loaded; `None` for such URLs |
+| `data` | The raw bytes; `None` for such URLs |
+
+A local file, base64 string or data URI is read once when the attachment is created and kept as raw bytes, so changing the file afterwards does not change the attachment. The base64 that providers need is built from those bytes on each request. Two attachments are equal when they hold the same bytes (or the same URL) and MIME type.
+
+!!! note "Audio, video and other files"
+    `Attachment` can hold audio, video and other files, and audio or video URLs are accepted. Sending them to a model is not supported yet: a request that includes one raises `AttachmentNotSupportedError` rather than sending the file as an image.

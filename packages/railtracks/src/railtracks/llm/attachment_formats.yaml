@@ -1,24 +1,54 @@
-# Attachment format magic byte patterns and MIME type mappings (images + documents).
+# Attachment formats: magic byte patterns, file extensions and their MIME types.
 # Magic bytes are base64-encoded to preserve exact byte values where needed.
+# `extensions` map a file name to the same MIME type its bytes produce; names not
+# listed here fall back to Python's `mimetypes`.
 prefix_formats:
   - magic_bytes_b64: "iVBORw0KGgo="  # \x89PNG\r\n\x1a\n
     mime_type: "image/png"
+    extensions: [".png"]
   - magic_bytes_b64: "/9j/"  # \xff\xd8\xff
     mime_type: "image/jpeg"
+    extensions: [".jpg", ".jpeg", ".jpe"]
   - magic_bytes: "GIF87a"
     mime_type: "image/gif"
+    extensions: [".gif"]
   - magic_bytes: "GIF89a"
     mime_type: "image/gif"
-  - magic_bytes: "BM"
-    mime_type: "image/bmp"
   - magic_bytes_b64: "AAAB"  # \x00\x00\x01\x00
     mime_type: "image/x-icon"
+    extensions: [".ico"]
   - magic_bytes: "%PDF"
     mime_type: "application/pdf"
+    extensions: [".pdf"]
+  - magic_bytes: "ID3"  # MP3 with an ID3v2 tag
+    mime_type: "audio/mpeg"
+    extensions: [".mp3"]
+  - magic_bytes_b64: "//s="  # \xff\xfb, MPEG-1 Layer III frame sync
+    mime_type: "audio/mpeg"
+  - magic_bytes_b64: "//M="  # \xff\xf3, MPEG-2 Layer III frame sync
+    mime_type: "audio/mpeg"
+  - magic_bytes_b64: "//I="  # \xff\xf2, MPEG-2 Layer III frame sync
+    mime_type: "audio/mpeg"
+  - magic_bytes: "OggS"
+    mime_type: "audio/ogg"
+    extensions: [".ogg", ".oga"]
+  - magic_bytes: "fLaC"
+    mime_type: "audio/flac"
+    extensions: [".flac"]
+  - magic_bytes_b64: "GkXfow=="  # \x1a\x45\xdf\xa3, EBML header (Matroska shares it)
+    mime_type: "video/webm"
+    extensions: [".webm"]
 
 # fixed_bytes must appear at fixed_offset (default 0); one of variable_bytes must
 # fill [offset_start, offset_end).
 offset_formats:
+  - name: "BMP"
+    offset_start: 6  # reserved header fields, always zero
+    offset_end: 10
+    fixed_bytes: "BM"
+    variable_bytes: ["\0\0\0\0"]
+    mime_type: "image/bmp"
+    extensions: [".bmp"]
   - name: "AVIF"
     fixed_offset: 4  # ISO-BMFF: 4-byte box size, then "ftyp", then the brand
     offset_start: 8
@@ -26,9 +56,56 @@ offset_formats:
     fixed_bytes: "ftyp"
     variable_bytes: ["avif", "avis"]
     mime_type: "image/avif"
+    extensions: [".avif"]
+  - name: "M4A"
+    fixed_offset: 4
+    offset_start: 8
+    offset_end: 12
+    fixed_bytes: "ftyp"
+    variable_bytes: ["M4A "]
+    mime_type: "audio/mp4"
+    extensions: [".m4a"]
+  - name: "QuickTime"
+    fixed_offset: 4
+    offset_start: 8
+    offset_end: 12
+    fixed_bytes: "ftyp"
+    variable_bytes: ["qt  "]
+    mime_type: "video/quicktime"
+    extensions: [".mov"]
+  - name: "MP4"
+    fixed_offset: 4
+    offset_start: 8
+    offset_end: 12
+    fixed_bytes: "ftyp"
+    variable_bytes: ["isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "dash", "M4V "]
+    mime_type: "video/mp4"
+    extensions: [".mp4", ".m4v"]
   - name: "WebP"
     offset_start: 8
     offset_end: 12
     fixed_bytes: "RIFF"
     variable_bytes: ["WEBP"]
     mime_type: "image/webp"
+    extensions: [".webp"]
+  - name: "WAV"
+    offset_start: 8
+    offset_end: 12
+    fixed_bytes: "RIFF"
+    variable_bytes: ["WAVE"]
+    mime_type: "audio/wav"
+    extensions: [".wav"]
+  - name: "AVI"
+    offset_start: 8
+    offset_end: 12
+    fixed_bytes: "RIFF"
+    variable_bytes: ["AVI "]
+    mime_type: "video/x-msvideo"
+    extensions: [".avi"]
+
+# Types told apart by extension only, where `mimetypes` lacks them on older Pythons.
+extension_formats:
+  - mime_type: "video/x-matroska"
+    extensions: [".mkv"]
+  - mime_type: "video/x-ms-wmv"
+    extensions: [".wmv"]

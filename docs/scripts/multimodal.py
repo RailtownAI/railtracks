@@ -85,6 +85,24 @@ message_history = rt.llm.MessageHistory(
 )
 # --8<-- [end: pdf_timeout]
 
+# --8<-- [start: attachment_object]
+# The type is detected from the bytes; pass mime_type= when it can't be.
+chart = rt.llm.Attachment.from_bytes(img_bytes, filename="random.png")
+# A URL without an extension, typed up front so no HEAD probe is needed.
+thumbnail = rt.llm.Attachment.from_url(
+    "https://cdn.example.com/thumbnails/8f3a2c", mime_type="image/webp"
+)
+
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Do these two images show the same chart?",
+            attachment=[chart, thumbnail],
+        )
+    ]
+)
+# --8<-- [end: attachment_object]
+
 # --8<-- [start: combined]
 message_history = rt.llm.MessageHistory(
     [
