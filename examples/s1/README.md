@@ -1,0 +1,60 @@
+# System One (S1) decision examples
+
+System One models read a piece of text and answer typed questions about it with calibrated probabilities instead of prose: a yes/no (`Predicate`), a pick from named values (`Choice`), or a level on a rubric (`Score`). One request answers every question in a single forward pass. In railtracks the models live in `rt.decisions`, the way chat models live in `rt.llm`, and `rt.decision_node` turns a model plus a schema into a node, the way `rt.agent_node` does for an LLM.
+
+`s1_demo.py` is the one example. It triages a support inbox: one ticket through a Flow, a whole inbox routed on the probabilities (confident tickets go to a team queue, unclear ones to a person), the decision as an agent's tool, and a direct `aask` call with a JSON state. It runs Jev through OpenRouter; TypeSafe and OpenAI are commented one-line swaps at the top.
+
+## Vendors
+
+Every vendor answers the same `rt.decisions.DecisionSchema`, so switching is a one-line change.
+
+| Class | Serves | Key | Notes |
+|---|---|---|---|
+| `TypeSafeDecisions` | TypeSafe's Jev (`jev-latest`) | `TYPESAFE_API_KEY` (required) | `TYPESAFE_API_BASE` overrides the URL; text and JSON input only |
+| `OpenRouterDecisions` | System One models on OpenRouter (`typesafe/jev-1.13`) | `OPENROUTER_API_KEY` (required) | `OPENROUTER_API_BASE` overrides the URL; text and JSON input only |
+| `OpenAIDecisions` | OpenAI's Decisions API (`gpt-6-luna`, public beta) | `OPENAI_API_KEY` (required) | `OPENAI_BASE_URL` overrides the URL; text and JSON input only; bills input tokens only |
+
+Each class also takes `api_key=`, `api_base=`, `timeout=` (seconds, default 30) and `retry_approach=`.
+
+## The schema
+
+Create each question as an object with a `name`, then group them in a `DecisionSchema` by kind:
+
+```python
+is_urgent = rt.decisions.Predicate(name="is_urgent", instructions="The message conveys urgency")
+department = rt.decisions.Choice(name="department", instructions="Which team", choices=["billing", "technical"])
+triage = rt.decisions.DecisionSchema(predicate=[is_urgent], choice=[department])
+```
+
+| Question | Created as | Answer | Read |
+|---|---|---|---|
+| Yes/no | `rt.decisions.Predicate(name=, instructions=)` | `PredicateAnswer` | `.probability` |
+| One of several values | `rt.decisions.Choice(name=, instructions=, choices={value: description} or [values])`, 2 to 255 values | `ChoiceAnswer` | `.choice`, `.confidence`, `.probabilities[value]` |
+| A level on an ordered rubric | `rt.decisions.Score(name=, instructions=, levels={label: criteria} or [labels])`, 2 to 10 levels | `ScoreAnswer` | `.score` (expected level index), `.confidence`, `.probabilities[index]`, `.legend[index]` |
+
+Names must be unique within a schema; a question object can be shared by several schemas. On a response, `result.structured[is_urgent]` is typed as that question's answer (`PredicateAnswer` here); `result.structured["is_urgent"]` also works, untyped. `str(result)` is the one-line summary an agent reads (`is_urgent: yes 0.99 | department: technical 1.00 | frustration: 2.0/2`).
+
+## How routing works
+
+Every call goes through `litellm.adecisions`, the way chat models go through litellm's completion API. railtracks always sends OpenAI's request shape (`input` plus a list of named `questions`) with the model as `"<vendor>/<model>"` (`typesafe/jev-latest`, `openrouter/typesafe/jev-1.13`, `openai/gpt-6-luna`); litellm translates it to each vendor's own API, reads the key and base URL from the environment variables above, and returns OpenAI's response shape, which railtracks parses into your schema. The result's `cost` is litellm's price for the call, or None when litellm can't price it.
+
+## Running it
+
+```bash
+uv run python examples/s1/s1_demo.py
+```
+
+It needs the chosen vendor's key in your environment (see the table), plus `OPENAI_API_KEY` for the agent. It imports without keys or network, so you can read the objects it builds in a REPL first.
+
+Decision nodes are recorded: each request emits `decision.*` events with its answers, tokens, latency and cost, so `railtracks viz` shows them and includes their cost in the session totals. Calling `model.aask(...)` directly outside a node is not recorded, the same as calling an LLM directly.
+
+## Errors
+
+| Where | Raised | Catch |
+|---|---|---|
+| Defining a schema wrongly (an empty schema, 300 Choice values, 1 Score level, two questions with one name) | when the question or schema is created | `rt.decisions.SchemaDefinitionError` |
+| A direct `model.aask(...)` call fails | at call time | `rt.decisions.DecisionProviderError`, or its subclass `...TimeoutError`, `...RateLimitError` or `...AuthenticationError` |
+| A `decision_node` call fails | at call time | `rt.exceptions.DecisionModelError` and its subclasses, with the provider error as `__cause__` |
+| The model declines a question (OpenAI can) | at call time | `rt.decisions.DecisionProviderRefusalError` (direct) / `rt.exceptions.DecisionRefusalError` (node); `.refused` names the questions, `.answers` holds the ones it did answer |
+
+litellm's API errors (connection, status and response errors) are mapped to these classes; any other litellm exception, such as a budget or guardrail error from litellm itself, propagates unchanged. A dropped connection, any other 4xx or 5xx status and an unparseable response all raise the base class. Rate limits, timeouts, dropped connections and 500 and 503 responses are retried when the model has a `retry_approach` (see the model in `s1_demo.py`); a rejected key, a refusal and other 4xx responses are not.

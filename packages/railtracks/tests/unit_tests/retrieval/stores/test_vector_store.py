@@ -308,6 +308,19 @@ async def test_snapshot_persists_across_instances(tmp_path: Path):
     assert results[0].entry.id == entry.id
 
 
+async def test_snapshot_keeps_non_ascii_text_readable(tmp_path: Path):
+    path = tmp_path / "store.json"
+
+    await VectorStore(InMemoryBackend(snapshot_path=path)).write(
+        _make_entry(content="你好 😀")
+    )
+
+    assert "你好 😀".encode("utf-8") in path.read_bytes()
+    reloaded = VectorStore(InMemoryBackend(snapshot_path=path))
+    results = await reloaded.read(_make_query())
+    assert results[0].entry.content == "你好 😀"
+
+
 async def test_snapshot_reflects_deletes(tmp_path: Path):
     path = tmp_path / "store.json"
 

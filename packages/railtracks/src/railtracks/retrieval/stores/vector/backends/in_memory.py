@@ -35,7 +35,7 @@ class InMemoryBackend:
         self._snapshot_path = Path(snapshot_path) if snapshot_path is not None else None
 
         if self._snapshot_path is not None and self._snapshot_path.exists():
-            data = json.loads(self._snapshot_path.read_text())
+            data = json.loads(self._snapshot_path.read_text(encoding="utf-8"))
             self._vectors = data.get("vectors", {})
             self._payloads = data.get("payloads", {})
 
@@ -152,8 +152,15 @@ class InMemoryBackend:
         """
         if self._snapshot_path is None:
             return
-        payload = json.dumps({"vectors": self._vectors, "payloads": self._payloads})
-        await asyncio.to_thread(self._snapshot_path.write_text, payload)
+        payload = json.dumps(
+            {"vectors": self._vectors, "payloads": self._payloads}, ensure_ascii=False
+        )
+        await asyncio.to_thread(
+            self._snapshot_path.write_text,
+            payload,
+            encoding="utf-8",
+            errors="backslashreplace",
+        )
 
 
 def _matches_filters(payload: dict, filters: dict) -> bool:

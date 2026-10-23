@@ -1,0 +1,328 @@
+"""decision_node: a Tool node over model.aask, usable from Flow, call_batch and agents."""
+
+import json
+
+import litellm
+import pytest
+import railtracks as rt
+import railtracks.context.central as central
+from railtracks.built_nodes.decisions import DecisionResponse
+from railtracks.decisions import (
+    DecisionProviderAuthenticationError,
+    DecisionProviderError,
+    DecisionProviderRateLimitError,
+    DecisionProviderTimeoutError,
+)
+from railtracks.exceptions import (
+    DecisionAuthenticationError,
+    DecisionModelError,
+    DecisionRateLimitError,
+    DecisionTimeoutError,
+    NodeCreationError,
+)
+from railtracks.guardrails import GuardrailDecision
+from railtracks.llm import ToolCall
+from railtracks.observability import Event, configure, configure_writers
+from railtracks.prebuilt.middleware import ContextInjection, MaxCalls, Retry
+from railtracks.utils.json.encoder import RTJSONEncoder
+
+from .conftest import Triage, respond
+
+
+@pytest.fixture(autouse=True)
+def _clean_observability():
+    central.delete_globals()
+    configure.reset_for_tests()
+    yield
+    central.delete_globals()
+    configure.reset_for_tests()
+
+
+class _Collecting:
+    def __init__(self):
+        self.events: list[Event] = []
+
+    async def start(self):
+        pass
+
+    async def write(self, event: Event):
+        self.events.append(event)
+
+    async def shutdown(self):
+        pass
+
+
+_MODEL = "typesafe/jev-latest"
+
+
+async def _passthrough_llm(llm_call, history, schema, tools):
+    return await llm_call(history, schema, tools)
+
+
+def _failing_on(state: str):
+    """An ``adecisions`` stand-in that answers every request except the one whose input
+    is ``state``."""
+
+    async def adecisions(**kwargs):
+        if kwargs["input"] == state:
+            raise litellm.InternalServerError(
+                message="boom", llm_provider="typesafe", model=_MODEL
+            )
+        return respond()
+
+    return adecisions
+
+
+# ================= Construction =================
+
+
+class TestConstruction:
+    def test_tool_node_named_like_agent_node(self, make_model):
+        model, _ = make_model()
+        node = rt.decision_node("Triage Ticket", model=model, schema=Triage)
+
+        assert node.name() == "Triage Ticket"
+        assert node.type() == "Tool"
+        tool = node.tool_info()
+        assert tool.name == "Triage_Ticket"
+        [param] = tool.parameters
+        assert param.name == "state"
+        assert param.required
+
+    def test_name_defaults_to_decision(self, make_model):
+        model, _ = make_model()
+        assert rt.decision_node(model=model, schema=Triage).name() == "Decision"
+
+    def test_default_detail_lists_each_question(self, make_model):
+        model, _ = make_model()
+        detail = rt.decision_node(model=model, schema=Triage).tool_info().detail
+        for name, instructions in [
+            ("is_urgent", "The message conveys urgency"),
+            ("department", "Which team should handle this"),
+            ("frustration", "How frustrated the customer is"),
+        ]:
+            assert f"{name}: {instructions}" in detail
+
+    def test_custom_description(self, make_model):
+        model, _ = make_model()
+        node = rt.decision_node(model=model, schema=Triage, description="Triage it.")
+        assert node.tool_info().detail == "Triage it."
+
+    @pytest.mark.parametrize("name", ["", "   "])
+    def test_blank_name_rejected(self, make_model, name):
+        model, _ = make_model()
+        with pytest.raises(NodeCreationError, match="name"):
+            rt.decision_node(name, model=model, schema=Triage)
+
+    @pytest.mark.parametrize(
+        "schema", [str, dict, "Triage", rt.decisions.DecisionSchema]
+    )
+    def test_non_schema_rejected(self, make_model, schema):
+        model, _ = make_model()
+        with pytest.raises(NodeCreationError, match="needs a DecisionSchema"):
+            rt.decision_node(model=model, schema=schema)
+
+    def test_non_model_rejected(self):
+        with pytest.raises(NodeCreationError, match="decision model"):
+            rt.decision_node(model=object(), schema=Triage)
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            lambda: rt.pre_llm(lambda history, schema, tools: (history, schema, tools)),
+            lambda: rt.post_llm(lambda response: response),
+            lambda: rt.wrap_llm(_passthrough_llm),
+            lambda: ContextInjection(),
+            lambda: rt.input_guard(lambda event: GuardrailDecision.allow()),
+        ],
+        ids=["pre_llm", "post_llm", "wrap_llm", "context_injection", "input_guard"],
+    )
+    def test_model_middleware_rejected(self, make_model, build):
+        model, _ = make_model()
+        node_middleware = rt.post_node(lambda response: response)
+        with pytest.raises(NodeCreationError, match="model middleware") as exc:
+            rt.decision_node(
+                model=model, schema=Triage, middleware=[node_middleware, build()]
+            )
+        assert any("wrap_node" in note for note in exc.value.notes)
+
+    def test_node_middleware_runs(self, make_model):
+        model, _ = make_model()
+        seen = []
+
+        @rt.wrap_node
+        async def record(call, state):
+            seen.append(state)
+            return await call(state)
+
+        node = rt.decision_node(
+            model=model,
+            schema=Triage,
+            middleware=[record, rt.post_node(lambda r: seen.append(r) or r)],
+        )
+        result = rt.Flow(name="Ticket Triage", entry_point=node).invoke("Help!")
+
+        assert seen == ["Help!", result]
+
+    def test_slot_agnostic_middleware_accepted(self, make_model):
+        model, _ = make_model()
+        node = rt.decision_node(
+            model=model, schema=Triage, middleware=[Retry(2), MaxCalls(5)]
+        )
+        result = rt.Flow(name="Ticket Triage", entry_point=node).invoke("Help!")
+
+        assert isinstance(result, DecisionResponse)
+
+
+# ================= Invocation =================
+
+
+def test_flow_invoke_returns_the_decision_response(make_model):
+    model, fake = make_model()
+    node = rt.decision_node("Triage Ticket", model=model, schema=Triage)
+
+    result = rt.Flow(name="Ticket Triage", entry_point=node).invoke("Help!")
+
+    assert isinstance(result, DecisionResponse)
+    assert result.structured["department"].choice == "technical"
+    assert fake.last["input"] == "Help!"
+
+
+async def test_call_passes_json_state_through(make_model):
+    model, fake = make_model()
+    node = rt.decision_node(model=model, schema=Triage)
+
+    with rt.Session(flow_name="decisions"):
+        result = await rt.call(node, {"subject": "Duplicate charge"})
+
+    assert result.structured["is_urgent"].probability == 0.93
+    assert fake.last["input"] == json.dumps({"subject": "Duplicate charge"})
+
+
+async def test_call_batch_preserves_order_and_returns_exceptions(monkeypatch):
+    monkeypatch.setattr(litellm, "adecisions", _failing_on("b"))
+    model = rt.decisions.TypeSafeDecisions("jev-latest", api_key="k")
+    node = rt.decision_node(model=model, schema=Triage)
+
+    with rt.Session(flow_name="decisions", end_on_error=False):
+        results = await rt.call_batch(node, ["a", "b", "c"])
+
+    assert isinstance(results[0], DecisionResponse)
+    assert type(results[1]) is DecisionModelError
+    assert isinstance(results[2], DecisionResponse)
+
+
+@pytest.mark.parametrize(
+    "failure, node_error, provider_error",
+    [
+        (
+            litellm.AuthenticationError(
+                message="no", llm_provider="typesafe", model=_MODEL
+            ),
+            DecisionAuthenticationError,
+            DecisionProviderAuthenticationError,
+        ),
+        (
+            litellm.RateLimitError(
+                message="slow", llm_provider="typesafe", model=_MODEL
+            ),
+            DecisionRateLimitError,
+            DecisionProviderRateLimitError,
+        ),
+        (
+            litellm.Timeout(
+                message="slow", model="default-model-name", llm_provider="x"
+            ),
+            DecisionTimeoutError,
+            DecisionProviderTimeoutError,
+        ),
+        (
+            litellm.APIConnectionError(
+                message="refused", llm_provider="typesafe", model=_MODEL
+            ),
+            DecisionModelError,
+            DecisionProviderError,
+        ),
+        (
+            litellm.ServiceUnavailableError(
+                message="down", llm_provider="typesafe", model=_MODEL
+            ),
+            DecisionModelError,
+            DecisionProviderError,
+        ),
+        (
+            {"model": "jev-1.13.0", "answers": []},
+            DecisionModelError,
+            DecisionProviderError,
+        ),
+    ],
+    ids=["auth", "rate-limit", "timeout", "connection", "server", "malformed"],
+)
+def test_provider_errors_become_decision_errors_at_the_node(
+    make_model, failure, node_error, provider_error
+):
+    model, _ = make_model(failure)
+    node = rt.decision_node(model=model, schema=Triage)
+
+    with pytest.raises(node_error) as info:
+        rt.Flow(name="decisions", entry_point=node).invoke("Help!")
+
+    assert type(info.value) is node_error
+    assert type(info.value.__cause__) is provider_error
+    assert isinstance(info.value.__cause__, DecisionProviderError)
+    assert info.value.reason == info.value.__cause__.reason
+
+
+def test_request_error_keeps_message_and_notes(make_model):
+    model, _ = make_model(
+        litellm.BadRequestError(
+            message='{"detail": "bad state"}', model=_MODEL, llm_provider="typesafe"
+        )
+    )
+    node = rt.decision_node(model=model, schema=Triage)
+
+    with pytest.raises(DecisionModelError) as info:
+        rt.Flow(name="decisions", entry_point=node).invoke("Help!")
+
+    assert type(info.value) is DecisionModelError
+    assert '{"detail": "bad state"}' in info.value.reason
+    assert type(info.value.__cause__) is DecisionProviderError
+    assert info.value.notes == info.value.__cause__.notes
+
+
+def test_agent_reads_the_compact_str(make_model, mock_llm):
+    model, fake = make_model()
+    node = rt.decision_node("Triage Ticket", model=model, schema=Triage)
+    llm = mock_llm(
+        requested_tool_calls=[
+            ToolCall(
+                name="Triage_Ticket",
+                identifier="tc_1",
+                arguments={"state": "Our checkout is down!"},
+            )
+        ]
+    )
+    agent = rt.agent_node("Support Agent", llm=llm, tool_nodes=[node])
+
+    result = rt.Flow(name="Support", entry_point=agent).invoke("Triage this")
+
+    assert fake.last["input"] == "Our checkout is down!"
+    assert (
+        "is_urgent: yes 0.93 | department: technical 0.88 | frustration: 1.7/2"
+        in result.text
+    )
+
+
+async def test_node_response_event_stores_the_structured_dict(make_model):
+    writer = _Collecting()
+    configure_writers([writer])
+    model, _ = make_model()
+    node = rt.decision_node("Triage Ticket", model=model, schema=Triage)
+
+    with rt.Session(flow_name="decisions"):
+        await rt.call(node, "Help!")
+
+    [event] = [e for e in writer.events if e.event_type == "node.response"]
+    encoded = json.loads(json.dumps(event.payload["response"], cls=RTJSONEncoder))
+    assert encoded["structured"]["department"]["choice"] == "technical"
+    assert encoded["model_name"] == "jev-1.13.0"

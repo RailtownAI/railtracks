@@ -16,7 +16,7 @@ authors = [
 readme = "README.md"
 license = { file = "LICENSE" }
 dynamic = ["version", "description"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = [
     "agent",
     "agent-harness",
@@ -34,7 +34,6 @@ keywords = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -53,7 +52,7 @@ classifiers = [
 ]
 dependencies = [
     "colorama >= 0.4.6",
-    "litellm >= 1.101.0, <= 1.102.1",
+    "litellm >= 1.104.3, < 1.106",
     "mcp >= 1.23.0, <2",
     "pydantic >= 2.11, <3",
     "python-dotenv >= 1.0.0",

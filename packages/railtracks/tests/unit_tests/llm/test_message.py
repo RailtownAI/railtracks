@@ -266,8 +266,9 @@ class TestAttachment:
         assert attachment.mime_type == "image/png"
         assert attachment.filename == "photo.png"
 
-    def test_attachment_timeout_threads_to_probe_and_encode(self, monkeypatch):
-        """attachment_timeout must reach both the HEAD probe and encode()."""
+    def test_attachment_limits_thread_to_probe_and_encode(self, monkeypatch):
+        """attachment_timeout must reach the HEAD probe and encode(), and
+        attachment_max_mb must reach encode()."""
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
@@ -289,10 +290,11 @@ class TestAttachment:
             seen["probe_timeout"] = timeout
             return _FakeResp()
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             seen["encode_timeout"] = timeout
+            seen["encode_max_mb"] = max_mb
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
         monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
@@ -303,16 +305,25 @@ class TestAttachment:
             attachment="https://example.com/no-ext",
             trust_urls=True,
             attachment_timeout=42.0,
+            attachment_max_mb=5.0,
         )
         assert seen["probe_timeout"] == 42.0
         assert seen["encode_timeout"] == 42.0
+        assert seen["encode_max_mb"] == 5.0
+
+    @pytest.mark.parametrize("max_mb", [0, -1, float("inf"), float("nan")])
+    def test_attachment_max_mb_must_be_positive_and_finite(self, max_mb):
+        with pytest.raises(ValueError, match="attachment_max_mb"):
+            Attachment(
+                "https://example.com/doc.pdf", trust_urls=True, attachment_max_mb=max_mb
+            )
 
     def test_url_pdf_is_fetched_and_encoded(self, monkeypatch):
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             assert path == "https://example.com/docs/report.pdf?sig=xyz"
@@ -371,7 +382,7 @@ class TestAttachment:
             assert req.get_method() == "HEAD"
             return _FakeResp()
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")
@@ -422,13 +433,84 @@ class TestAttachment:
         assert attachment.mime_type is None
         assert attachment.encoding is None
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://example.com/call.mp3",
+            "https://example.com/clip.mp4",
+            "https://example.com/voice.wav",
+            "https://example.com/report.docx",
+            "https://example.com/sheet.xlsx",
+            "https://example.com/memo.m4a",
+            "https://example.com/notes.txt",
+            "https://example.com/CALL.MP3",
+            "https://example.com/call.mp3?token=abc",
+        ],
+    )
+    def test_url_with_non_image_extension_raises(self, url):
+        """A URL whose extension names a non-image type must not be sent as an image."""
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            Attachment(url)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://cdn.example.com/abc123",
+            "https://example.com/thumb.php?id=3",
+            "https://example.com/GetImage.ashx?id=1",
+            "https://example.com/img.pl?id=3",
+            "https://example.com/photo.svg",
+        ],
+    )
+    def test_url_without_non_image_extension_still_passes_as_image(self, url):
+        attachment = Attachment(url)
+        assert attachment.modality == "image"
+        assert attachment.encoding is None
+
+    def test_trusted_non_image_extension_accepted_when_probe_reports_image(
+        self, monkeypatch
+    ):
+        """A video path rendered as a thumbnail is classified by its Content-Type."""
+        from railtracks.llm import message as message_module
+
+        monkeypatch.setattr(
+            message_module,
+            "_probe_url_metadata",
+            lambda url, *, timeout: ("image/jpeg", None),
+        )
+
+        attachment = Attachment(
+            "https://example.com/clip.mp4?video-thumbnail=auto", trust_urls=True
+        )
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/jpeg"
+
+    @pytest.mark.parametrize("probed_ct", ["audio/mpeg", None])
+    def test_trusted_non_image_extension_raises_when_probe_disagrees(
+        self, monkeypatch, probed_ct
+    ):
+        from railtracks.llm import message as message_module
+
+        monkeypatch.setattr(
+            message_module,
+            "_probe_url_metadata",
+            lambda url, *, timeout: (probed_ct, None),
+        )
+
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            Attachment("https://example.com/call.mp3", trust_urls=True)
+
+    def test_user_message_rejects_non_image_url(self):
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            UserMessage("Summarize this", attachment="https://example.com/call.mp3")
+
     def test_user_message_threads_trust_urls(self, monkeypatch):
         """UserMessage(trust_urls=True) must propagate to every Attachment it builds."""
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")

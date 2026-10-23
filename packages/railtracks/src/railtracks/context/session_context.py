@@ -9,7 +9,8 @@ from railtracks.context.scope_link import ScopeLink
 from railtracks.utils.config import ExecutorConfig
 
 if TYPE_CHECKING:
-    from railtracks.pubsub.publisher import RTPublisher
+    from railtracks.pubsub.messages import RequestCompletionMessage
+    from railtracks.utils.publisher import Publisher
 
 
 class ScopeKind(Enum):
@@ -43,7 +44,7 @@ class SessionContext:
         *,
         session_id: str,
         run_id: str | None = None,
-        publisher: RTPublisher | None = None,
+        publisher: Publisher[RequestCompletionMessage] | None = None,
         scope: ScopeLink[ScopeEntry] | None = None,
         executor_config: ExecutorConfig,
         flow_name: str | None = None,
@@ -52,7 +53,7 @@ class SessionContext:
         stream_queue: asyncio.Queue[Any] | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
-        self._publisher: RTPublisher | None = publisher
+        self._publisher: Publisher[RequestCompletionMessage] | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
         self._executor_config: ExecutorConfig = executor_config
@@ -125,7 +126,7 @@ class SessionContext:
         return self._publisher
 
     @publisher.setter
-    def publisher(self, value: RTPublisher):
+    def publisher(self, value: Publisher[RequestCompletionMessage]):
         self._publisher = value
 
     @property

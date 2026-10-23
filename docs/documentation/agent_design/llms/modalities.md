@@ -77,6 +77,8 @@ The `attachment` parameter can be a single `str` or a `list[str]`. We currently 
 - Both file and web URLs of the following types: `jpeg`, `png`, `gif`, and `webp`
 - `byte64` encoded string of the image
 
+A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names an audio, video, text or Office document file (such as `.mp3`, `.mp4` or `.docx`) raises a `ValueError`, since those formats are not supported as attachments yet. With `trust_urls=True`, such a URL is HEAD-probed first and accepted when the server reports an image or PDF, for example a thumbnail service that renders a frame from a `.mp4` path.
+
 ---
 ## PDF documents
 PDF input works through the same `attachment` parameter. The provider must natively support PDF input (currently OpenAI's `gpt-5.x` family and Anthropic's Claude models via the `file` content block); other providers will reject the request.
@@ -92,18 +94,21 @@ Supported PDF sources:
 - HTTPS URLs ending in `.pdf` — **only with `trust_urls=True`** (see below)
 
 !!! warning "URL PDFs require `trust_urls=True`"
-    Unlike image URLs (which the provider fetches), PDFs are passed to the provider inline as base64. That means railtracks downloads the URL **in-process** before the call. End-user-supplied URLs are an SSRF surface once their bytes are fetched on your server and embedded in the prompt, so this path is opt-in:
+    Unlike most image URLs (which the provider fetches), PDFs are passed to the provider inline as base64. That means railtracks downloads the URL **in-process** before the call. End-user-supplied URLs are an SSRF surface once their bytes are fetched on your server and embedded in the prompt, so this path is opt-in:
 
     ```python
     --8<-- "docs/scripts/multimodal.py:pdf_url"
     ```
 
-### Tuning the fetch timeout
+### Tuning the fetch timeout and size limit
 
-The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links:
+The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links. The download stops once it passes `attachment_max_mb` (32 MB by default) and raises a `ValueError`, so a very large or never-ending response cannot exhaust memory:
 
 ```python
 --8<-- "docs/scripts/multimodal.py:pdf_timeout"
 ```
 
-Only applies when `trust_urls=True` — local files, data URIs, and image URLs do not perform any in-process network I/O.
+Both settings only apply when `trust_urls=True`. With `trust_urls=False`, Railtracks itself makes no network requests. With `trust_urls=True`, it makes none for local files, data URIs and image URLs with a recognized extension.
+
+!!! warning "Some image URLs are downloaded in your process anyway"
+    `trust_urls` controls only the downloads Railtracks makes. Some providers can't take an image by URL, so litellm, which Railtracks uses to call providers, downloads the image in your process before sending the request, whatever `trust_urls` is set to. If image URLs come from end users, download and check them yourself and pass a local file or data URI instead.

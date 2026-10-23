@@ -81,15 +81,32 @@ def node_parent(scope: ScopeLink[ScopeEntry] | None):
     return NodeParent(node_id=node_link.value.id)
 
 
-def llm_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
-    """Parent of an LLM event — the enclosing node (+ intervening middleware)."""
+def has_enclosing_node(scope: ScopeLink[ScopeEntry] | None) -> bool:
+    """Whether the scope chain is inside a node (so an enclosing-node event can resolve)."""
+    return (
+        scope is not None
+        and scope.find_link(lambda e: e.kind in _NODE_KINDS) is not None
+    )
+
+
+def enclosing_node_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
+    """The nearest enclosing node, skipping intervening middleware.
+
+    Unlike `node_spatial_parent`, which gives a running node's caller, this is the node
+    an event happened inside (used by LLM and decision events).
+    """
     node_link = (
         scope.find_link(lambda e: e.kind in _NODE_KINDS) if scope is not None else None
     )
     assert node_link is not None, (
-        "Expected a node scope entry for LLM spatial parent resolution"
+        "Expected a node scope entry for enclosing-node spatial parent resolution"
     )
     return NodeSpatialParent(node_id=node_link.value.id)
+
+
+def llm_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
+    """Parent of an LLM event — the enclosing node (+ intervening middleware)."""
+    return enclosing_node_spatial_parent(scope)
 
 
 def llm_parent(scope: ScopeLink[ScopeEntry] | None):
