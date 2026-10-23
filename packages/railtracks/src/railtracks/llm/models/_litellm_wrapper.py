@@ -56,6 +56,7 @@ from ._hyperparameter_support import (
     is_hyperparameter_supported,
 )
 from ._model_exception_base import (
+    AttachmentNotSupportedError,
     ModelError,
     MutuallyExclusiveHyperparametersError,
     UnsupportedHyperparameterError,
@@ -1093,12 +1094,19 @@ class LiteLLMWrapper(ModelBase, ABC):
                         },
                     }
                 )
-            else:
+            elif msg_attachment.modality == "image":
                 content_list.append(
                     {
                         "type": "image_url",
                         "image_url": {"url": url},
                     }
+                )
+            else:
+                raise AttachmentNotSupportedError(
+                    self._model_name,
+                    msg_attachment.mime_type,
+                    f"Railtracks cannot send {msg_attachment.modality} attachments "
+                    "to providers yet; only images and PDFs are supported.",
                 )
 
         return content_list

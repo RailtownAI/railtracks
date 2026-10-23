@@ -1,6 +1,9 @@
-"""Attachment format magic byte patterns and MIME type detection (images + documents)."""
+"""Attachment format detection: MIME types from magic bytes or from a file extension."""
 
 import base64
+import functools
+import mimetypes
+import os
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +21,13 @@ def _load_attachment_formats() -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def _convert_yaml_to_python(formats: dict[str, Any]) -> tuple[list, list]:
+def _convert_yaml_to_python(
+    formats: dict[str, Any],
+) -> tuple[
+    list[tuple[bytes, str]],
+    list[tuple[int, int, int, bytes, set[bytes], str]],
+    dict[str, str],
+]:
     """Convert YAML format definitions to Python data structures."""
     prefix_formats = []
     for item in formats.get("prefix_formats", []):
@@ -45,19 +54,34 @@ def _convert_yaml_to_python(formats: dict[str, Any]) -> tuple[list, list]:
         for item in formats.get("offset_formats", [])
     ]
 
-    return prefix_formats, offset_formats
+    extension_formats = {
+        extension: item["mime_type"]
+        for section in ("prefix_formats", "offset_formats", "extension_formats")
+        for item in formats.get(section, [])
+        for extension in item.get("extensions", [])
+    }
+
+    return prefix_formats, offset_formats, extension_formats
 
 
 # Load formats at module initialization
 _formats = _load_attachment_formats()
-PREFIX_FORMATS, OFFSET_FORMATS = _convert_yaml_to_python(_formats)
+PREFIX_FORMATS, OFFSET_FORMATS, EXTENSION_FORMATS = _convert_yaml_to_python(_formats)
+
+
+@functools.cache
+def _stdlib_mimetypes() -> mimetypes.MimeTypes:
+    # A fresh instance holds only Python's built-in table, not the OS registry,
+    # so lookups give the same answer on every machine.
+    return mimetypes.MimeTypes()
 
 
 def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
     """Return MIME type for supported attachment formats by inspecting magic bytes.
 
-    Covers images and documents declared in `attachment_formats.yaml`. Add a new
-    format by appending a row there; no code changes needed.
+    Covers the images, documents, audio and video declared in
+    `attachment_formats.yaml`. Add a new format by appending a row there; no code
+    changes needed.
     """
     if not b:
         return None
@@ -78,12 +102,32 @@ def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
             if len(b) >= end and b[start:end] in variable_bytes:
                 return mime_type
 
-    # SVG/XML detection is content-based, not magic-byte-based.
-    head = b[:256].lower()
-    if b"<svg" in head or head.lstrip().startswith(b"<?xml"):
+    # SVG detection is content-based, not magic-byte-based.
+    if b"<svg" in b[:1024].lower():
         return "image/svg+xml"
 
     return None
+
+
+def detect_mime_from_extension(name: str) -> str | None:
+    """Return the MIME type for a file name, path or URL path by its extension.
+
+    Extensions listed in `attachment_formats.yaml` win, so a name and its magic
+    bytes agree on every Python version; Python's `mimetypes` covers the rest.
+
+    Args:
+        name: A file name, path or URL path.
+
+    Returns:
+        The MIME type, or None when the extension is missing or unknown.
+    """
+    extension = os.path.splitext(name)[1].lower()
+    if not extension:
+        return None
+    return (
+        EXTENSION_FORMATS.get(extension)
+        or _stdlib_mimetypes().guess_type(f"file{extension}")[0]
+    )
 
 
 def detect_image_mime_from_bytes(b: bytes) -> str | None:

@@ -14,14 +14,17 @@ from litellm.exceptions import ImageFetchError
 from litellm.litellm_core_utils.prompt_templates.image_handling import (
     convert_url_to_base64,
 )
+from railtracks.llm import attachment_formats
 from railtracks.llm import encoding as encoding_module
 from railtracks.llm.attachment_formats import (
     detect_attachment_mime_from_bytes,
     detect_image_mime_from_bytes,
+    detect_mime_from_extension,
 )
 from railtracks.llm.encoding import (
     _READ_CHUNK_BYTES,
     _is_base64_attachment,
+    decode_data_uri,
     detect_source,
     encode,
     ensure_data_uri,

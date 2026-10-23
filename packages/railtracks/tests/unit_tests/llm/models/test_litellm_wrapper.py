@@ -17,7 +17,13 @@ from litellm.types.utils import (
     Usage,
 )
 from pydantic import BaseModel
-from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
+from railtracks.llm import (
+    AssistantMessage,
+    Attachment,
+    AttachmentNotSupportedError,
+    ToolCalls,
+    UserMessage,
+)
 from railtracks.llm._exceptions import (
     ProviderAuthenticationError,
     ProviderRateLimitError,
@@ -302,6 +308,37 @@ class TestHelpers:
 
         file_block = litellm_message["content"][1]
         assert file_block["type"] == "file"
+
+    def test_to_litellm_message_attachment_from_bytes(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+        message = UserMessage("View this.", attachment=Attachment.from_bytes(png))
+
+        image_block = wrapper._to_litellm_message(message)["content"][1]
+
+        assert image_block == {
+            "type": "image_url",
+            "image_url": {"url": "data:image/png;base64,iVBORw0KGgoAAAAAAAAAAA=="},
+        }
+
+    @pytest.mark.parametrize(
+        "attachment",
+        [
+            Attachment.from_bytes(b"ID3\x04\x00", filename="call.mp3"),
+            Attachment("https://example.com/clip.mp4"),
+            Attachment.from_bytes(b"plain text", mime_type="text/plain"),
+        ],
+        ids=["audio", "video", "file"],
+    )
+    def test_to_litellm_message_rejects_modalities_not_wired_yet(
+        self, mock_litellm_wrapper, attachment
+    ):
+        """Audio, video and other files must not be sent as `image_url` parts."""
+        wrapper = mock_litellm_wrapper()
+        message = UserMessage("Transcribe this.", attachment=attachment)
+
+        with pytest.raises(AttachmentNotSupportedError, match="cannot send"):
+            wrapper._to_litellm_message(message)
 
     def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
         """
