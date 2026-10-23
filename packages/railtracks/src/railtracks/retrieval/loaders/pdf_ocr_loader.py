@@ -190,12 +190,14 @@ class PyPDFOCRLoader(BaseOCRLoader):
                 text, used_ocr = await self._resolve_page_text(reader, pdf, page_index)
                 if not text or not text.strip():
                     continue
+                page_number = page_index + 1
                 yield Document(
                     content=text,
                     type=DocumentType.PDF,
-                    source=source,
+                    source=f"{source}#page={page_number}",
                     metadata={
-                        "page": page_index + 1,
+                        "path": source,
+                        "page": page_number,
                         "total_pages": total_pages,
                         "file_type": ".pdf",
                         "ocr": used_ocr,

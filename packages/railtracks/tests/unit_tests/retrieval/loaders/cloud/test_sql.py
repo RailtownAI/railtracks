@@ -93,7 +93,44 @@ class TestSQLLoaderLoad:
 
     def test_source_column_maps_to_document_source(self, loader) -> None:
         sources = {d.source for d in loader.load()}
-        assert sources == {"First Doc", "Second Doc", "Third Doc"}
+        assert sources == {
+            "documents#First Doc",
+            "documents#Second Doc",
+            "documents#Third Doc",
+        }
+
+    def test_id_column_is_namespaced_by_table(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        loader = SQLLoader(
+            "",
+            table_or_query="documents",
+            content_column="body",
+            id_column="id",
+            engine=populated_engine,
+        )
+        sources = {d.source for d in loader.load()}
+        assert sources == {"documents#doc-1", "documents#doc-2", "documents#doc-3"}
+        assert len({d.id for d in loader.load()}) == 3
+
+    def test_rows_without_id_column_get_distinct_row_index_sources(
+        self, populated_engine
+    ) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        loader = SQLLoader(
+            "",
+            table_or_query="documents",
+            content_column="body",
+            engine=populated_engine,
+        )
+        docs = loader.load()
+        assert [d.source for d in docs] == [
+            "documents#0",
+            "documents#1",
+            "documents#2",
+        ]
+        assert len({d.id for d in docs}) == 3
 
     def test_document_type_is_text(self, loader) -> None:
         for doc in loader.load():
