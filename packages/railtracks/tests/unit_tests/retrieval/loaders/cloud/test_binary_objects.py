@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from pypdf.errors import PdfReadError
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.models import DocumentType
 
@@ -60,6 +61,14 @@ def _azure_loader(
         from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
 
         yield AzureBlobLoader(ACCOUNT_URL, CONTAINER, keys=list(objects), **kwargs)
+
+
+@contextmanager
+def _without_pypdf() -> Iterator[None]:
+    """Hide `pypdf` and evict any cached `pdf_loader`, restoring both on exit."""
+    with patch.dict(sys.modules, {"pypdf": None}):
+        sys.modules.pop("railtracks.retrieval.loaders.pdf_loader", None)
+        yield
 
 
 LOADERS = pytest.mark.parametrize(
@@ -160,6 +169,31 @@ class TestPdfObjects:
             DocumentType.MARKDOWN,
         ]
 
+    def test_uppercase_pdf_extension_is_parsed(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        objects = {"REPORT.PDF": make_pdf("Shouted")}
+        with make_loader(objects) as loader:
+            (doc,) = loader.load()
+
+        assert doc.content == "Shouted"
+        assert doc.type == DocumentType.PDF
+
+    def test_corrupt_pdf_raises(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        # Pins today's behaviour; containing one document's failure is #1654.
+        objects: dict[str, str | bytes] = {"broken.pdf": b"not a pdf"}
+        with make_loader(objects) as loader:
+            with pytest.raises(PdfReadError):
+                loader.load()
+
 
 @LOADERS
 class TestNonTextObjects:
@@ -212,7 +246,7 @@ class TestPdfExtraMissing:
         source_prefix: str,
         provider_metadata: dict[str, str],
     ) -> None:
-        with patch.dict(sys.modules, {"pypdf": None}):
+        with _without_pypdf():
             with make_loader({"notes.txt": "hello"}) as loader:
                 (doc,) = loader.load()
 
@@ -234,7 +268,7 @@ class TestPdfExtraMissing:
             async for doc in loader.astream():
                 yielded.append(doc.content)
 
-        with patch.dict(sys.modules, {"pypdf": None}):
+        with _without_pypdf():
             with make_loader(objects) as loader:
                 with pytest.raises(
                     ImportError,
