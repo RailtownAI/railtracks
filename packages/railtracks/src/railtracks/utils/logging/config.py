@@ -228,7 +228,10 @@ def setup_file_handler(
             Accepts standard logging levels (DEBUG, INFO, WARNING, ERROR, CRITICAL).
             Defaults to logging.INFO.
     """
-    file_handler = logging.FileHandler(file_name, encoding="utf-8")
+    # Unpaired surrogates cannot be encoded; keep them as \u escapes
+    file_handler = logging.FileHandler(
+        file_name, encoding="utf-8", errors="backslashreplace"
+    )
     file_handler.setLevel(file_logging_level)
     file_handler.addFilter(ThreadAwareFilter())
 
