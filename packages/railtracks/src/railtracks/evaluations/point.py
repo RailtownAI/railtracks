@@ -161,9 +161,9 @@ def load_session(path: str | Path) -> dict:
         raise FileNotFoundError(f"Session file not found: {path}")
 
     try:
-        with open(path, "r") as f:
+        with open(path, encoding="utf-8") as f:
             session_data = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (ValueError, OSError) as e:
         raise ValueError(f"Error loading session file: {path}. Details: {e}")
     return session_data
 

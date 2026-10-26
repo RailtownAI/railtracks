@@ -98,6 +98,33 @@ def test_each_line_round_trips_to_original_event(tmp_path: Path):
     assert _parse_line(lines[0]) == original
 
 
+def test_non_ascii_payload_is_stored_as_readable_utf8(tmp_path: Path):
+    writer = JsonlWriter(tmp_path)
+    writer.start()
+    original = _make_session_event(SCOPE_SESSION, payload={"text": "你好 😀"})
+    try:
+        writer.write(original)
+    finally:
+        writer.shutdown()
+
+    raw = (tmp_path / "id-1.jsonl").read_bytes()
+    assert "你好 😀".encode("utf-8") in raw
+    assert _parse_line(raw.decode("utf-8")) == original
+
+
+def test_lone_surrogate_in_payload_is_written_not_raised(tmp_path: Path):
+    writer = JsonlWriter(tmp_path)
+    writer.start()
+    original = _make_session_event(SCOPE_SESSION, payload={"text": "cut \ud83d"})
+    try:
+        writer.write(original)
+    finally:
+        writer.shutdown()
+
+    raw = (tmp_path / "id-1.jsonl").read_bytes()
+    assert _parse_line(raw.decode("utf-8")) == original
+
+
 def test_append_across_writer_lifecycles(tmp_path: Path):
     first = JsonlWriter(tmp_path)
     first.start()

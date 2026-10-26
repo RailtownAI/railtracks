@@ -21,7 +21,7 @@ Root
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.11 or higher
 - [Optional] A package manager like `pip` or `poetry`. We use `uv` for development environment management, but you can also use `venv` or `conda` if you prefer.
 
 ### Installing code and dependencies
