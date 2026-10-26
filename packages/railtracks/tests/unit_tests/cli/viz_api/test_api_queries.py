@@ -1219,3 +1219,147 @@ def test_tool_node_detail_and_graph_show_decision_cost(
         assert node["model_provider"] == "TypeSafe"
         # decision latency (9.0) is nested inside the node, never added to it
         assert node["latency_seconds"] != pytest.approx(9.0)
+
+
+_CALLED_SESSION = "22222222-3333-4444-5555-666666666666"
+_CALLER_NODE = "caller-node"
+_CALLED_NODE = "called-node"
+_EARLIER_NODE = "earlier-node"
+
+
+def _middleware_called_node_events(
+    session_id: str, *, band: str, blocked: bool = False
+) -> list[dict[str, object]]:
+    """A node that a middleware called, inside the node that middleware wrapped.
+
+    ``band="node"`` is a ``@wrap_node`` that names its node directly;
+    ``band="llm"`` is an input guard that names only the model call, whose
+    ``llm.*`` events name the node — and with ``blocked=True`` there are no
+    ``llm.*`` events, as when the guard blocks before ``llm.invocation`` fires.
+
+    ``earlier-node`` ran and returned under the caller before the middleware
+    started, so "the latest node invocation before the middleware" would name it
+    and only the containment fallback names the caller.
+    """
+    stamps = (f"2026-01-01T00:00:{second:02d}+00:00" for second in range(60))
+
+    def event(event_type: str, payload: dict[str, object]) -> dict[str, object]:
+        return _event(
+            f"{event_type}-{len(events)}",
+            event_type,
+            session_id,
+            payload,
+            stamp=next(stamps),
+        )
+
+    def node(event_type: str, node_id: str, **spatial: object) -> dict[str, object]:
+        return event(
+            event_type,
+            {"parent_type": "node", "parent_node_id": node_id, **spatial},
+        )
+
+    if band == "node":
+        middleware_parent: dict[str, object] = {
+            "spatial_parent_type": "node_and_middleware",
+            "spatial_parent_node_id": _CALLER_NODE,
+        }
+    else:
+        middleware_parent = {
+            "spatial_parent_type": "llm_and_middleware",
+            "spatial_parent_llm_invoke_id": "llm-call",
+        }
+    middleware = {
+        **middleware_parent,
+        "parent_type": "middleware",
+        "parent_middleware_type_id": "middleware-type",
+        "parent_middleware_invoke_id": "middleware-call",
+    }
+    from_caller = {
+        "spatial_parent_type": "node",
+        "spatial_parent_node_id": _CALLER_NODE,
+    }
+    from_middleware = {
+        "spatial_parent_type": "middleware",
+        "spatial_parent_middleware_invoke_id": "middleware-call",
+    }
+    model_call = {
+        "spatial_parent_type": "node",
+        "spatial_parent_node_id": _CALLER_NODE,
+        "parent_type": "llm",
+        "parent_llm_type_id": "llm-type",
+        "parent_llm_invoke_id": "llm-call",
+    }
+
+    events: list[dict[str, object]] = []
+    events.append(event("session.started", {"session_id": session_id}))
+    for node_id in (_CALLER_NODE, _EARLIER_NODE, _CALLED_NODE):
+        events.append(
+            event(
+                "node.creation",
+                {"node_id": node_id, "name": node_id, "node_type": "Agent"},
+            )
+        )
+    events.append(
+        node(
+            "node.invocation",
+            _CALLER_NODE,
+            spatial_parent_type="node",
+            spatial_parent_node_id=None,
+        )
+    )
+    events.append(node("node.invocation", _EARLIER_NODE, **from_caller))
+    events.append(node("node.destruction", _EARLIER_NODE, **from_caller))
+    events.append(
+        event(
+            "middleware.creation",
+            {"middleware_type_id": "middleware-type", "middleware_name": "judge"},
+        )
+    )
+    events.append(event("middleware.invocation", middleware))
+    events.append(node("node.invocation", _CALLED_NODE, **from_middleware))
+    events.append(node("node.destruction", _CALLED_NODE, **from_middleware))
+    events.append(event("middleware.response", middleware))
+    if band == "llm" and not blocked:
+        events.append(event("llm.invocation", model_call))
+        events.append(event("llm.response", model_call))
+    events.append(
+        node(
+            "node.destruction",
+            _CALLER_NODE,
+            spatial_parent_type="node",
+            spatial_parent_node_id=None,
+        )
+    )
+    return events
+
+
+@pytest.mark.parametrize(
+    ("band", "blocked"),
+    [("node", False), ("llm", False), ("llm", True)],
+    ids=["node-band", "llm-band", "llm-band-blocked"],
+)
+def test_node_called_by_middleware_nests_under_the_node_it_ran_for(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, band: str, blocked: bool
+) -> None:
+    _write_events(
+        tmp_path,
+        _CALLED_SESSION,
+        *_middleware_called_node_events(_CALLED_SESSION, band=band, blocked=blocked),
+    )
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    client = TestClient(app)
+
+    tree = client.get(f"/api/v2/sessions/{_CALLED_SESSION}").json()["tree"]
+    edges = client.get(f"/api/v2/sessions/{_CALLED_SESSION}/graph").json()["edges"]
+
+    [root] = tree
+    assert root["node_id"] == _CALLER_NODE
+    assert [child["node_id"] for child in root["children"]] == [
+        _EARLIER_NODE,
+        _CALLED_NODE,
+    ]
+    assert {edge["target"]: edge["source"] for edge in edges} == {
+        _CALLER_NODE: None,
+        _EARLIER_NODE: _CALLER_NODE,
+        _CALLED_NODE: _CALLER_NODE,
+    }
