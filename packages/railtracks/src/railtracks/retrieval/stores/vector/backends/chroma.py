@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import math
-from typing import Any
+from typing import TYPE_CHECKING
 
 from typing_extensions import Self
 
 from ..metric import DistanceMetric
+
+if TYPE_CHECKING:
+    from chromadb import Collection
+    from chromadb.api.types import Include, PyEmbeddings
 
 
 def _to_chroma_where(filters: dict) -> dict:
@@ -24,7 +28,7 @@ _GET_PAGE_SIZE = 300
 
 
 def _get_paged(
-    collection: Any, where: dict | None, limit: int | None, include: list[str]
+    collection: Collection, where: dict | None, limit: int | None, include: Include
 ) -> tuple[list, list]:
     """Offset-paged ``collection.get`` capped at ``_GET_PAGE_SIZE`` per request.
 
@@ -67,7 +71,7 @@ def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
 _CHROMA_DEFAULT_SPACE = "l2"
 
 
-def _collection_space(collection: Any) -> str:
+def _collection_space(collection: Collection) -> str:
     """Return the distance space a Chroma collection was created with.
 
     Reads the raw ``configuration_json`` instead of ``collection.configuration``:
@@ -81,10 +85,10 @@ def _collection_space(collection: Any) -> str:
         if space:
             return space
     metadata = collection.metadata or {}
-    return metadata.get("hnsw:space", _CHROMA_DEFAULT_SPACE)
+    return str(metadata.get("hnsw:space", _CHROMA_DEFAULT_SPACE))
 
 
-def _check_space(collection: Any, metric: DistanceMetric, name: str) -> None:
+def _check_space(collection: Collection, metric: DistanceMetric, name: str) -> None:
     """Raise if the collection's distance space doesn't match ``metric``.
 
     A collection's space is fixed at creation, and ``get_or_create_collection``
@@ -106,20 +110,21 @@ class _ChromaBase:
 
     _NOT_INITIALIZED: str = "Chroma backend is not initialized"
     _metric: DistanceMetric
-    _collection: Any
+    _collection: Collection | None
 
-    def _require_initialized(self) -> None:
+    def _initialized_collection(self) -> Collection:
         if self._collection is None:
             raise RuntimeError(self._NOT_INITIALIZED)
+        return self._collection
 
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
         content = payload.get("content")
+        embeddings: PyEmbeddings = [vector]
         await asyncio.to_thread(
             collection.upsert,
             ids=[id],
-            embeddings=[vector],
+            embeddings=embeddings,
             documents=[content] if content is not None else None,
             metadatas=[payload],
         )
@@ -127,8 +132,7 @@ class _ChromaBase:
     async def search(
         self, vector: list[float], top_k: int, filters: dict
     ) -> list[tuple[str, float, dict]]:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
 
         count = await asyncio.to_thread(collection.count)
         if count == 0:
@@ -136,40 +140,42 @@ class _ChromaBase:
 
         n_results = min(top_k, count)
         where = _to_chroma_where(filters) if filters else None
+        query_embeddings: PyEmbeddings = [vector]
 
         results = await asyncio.to_thread(
             collection.query,
-            query_embeddings=[vector],
+            query_embeddings=query_embeddings,
             n_results=n_results,
             where=where,
             include=["metadatas", "distances"],
         )
 
+        distances = results["distances"]
+        metadatas = results["metadatas"]
+        assert distances is not None and metadatas is not None  # requested in include
+
         hits: list[tuple[str, float, dict]] = []
         for id_, distance, metadata in zip(
             results["ids"][0],
-            results["distances"][0],
-            results["metadatas"][0],
+            distances[0],
+            metadatas[0],
         ):
             hits.append((id_, _chroma_to_score(self._metric, distance), dict(metadata)))
         return hits
 
     async def delete(self, id: str) -> None:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
         await asyncio.to_thread(collection.delete, ids=[id])
 
     async def delete_where(self, filters: dict) -> None:
-        self._require_initialized()
+        collection = self._initialized_collection()
         if not filters:
             return
-        collection = self._collection
         where = _to_chroma_where(filters)
         await asyncio.to_thread(collection.delete, where=where)
 
     async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
         where = _to_chroma_where(filters) if filters else None
         ids, metadatas = await asyncio.to_thread(
             _get_paged, collection, where, limit, ["metadatas"]
@@ -180,8 +186,7 @@ class _ChromaBase:
         ]
 
     async def count(self, filters: dict) -> int:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
         if not filters:
             return await asyncio.to_thread(collection.count)
         ids, _ = await asyncio.to_thread(
