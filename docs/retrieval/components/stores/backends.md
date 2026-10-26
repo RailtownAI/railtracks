@@ -140,6 +140,8 @@ changed later**. Pick at create time:
 | `L2` | `l2` | `1 / (1 + sqrt(distance))` |
 | `IP` | `ip` | `1 - distance` |
 
+If the collection already exists, its space must match `metric`: `initialize()` raises a `ValueError` otherwise, since converting its distances with another metric's formula would return wrong scores. Pass the matching `DistanceMetric`, or use a new collection name.
+
 | Property | Value |
 |---|---|
 | Install | `pip install "railtracks[stores-chroma]"` |
@@ -180,19 +182,17 @@ and passed as `vector` on every write and search, exactly like the local
 
 ### Distance metric
 
-For Cloud collections, `metric` controls the **score conversion formula
-only** — the `hnsw:space` is managed server-side and cannot be set at
-collection creation time.
+Works the same as for `ChromaBackend`: `metric` sets the collection's distance space when the collection is created, and the space cannot be changed later. A Cloud collection that already exists must use the same space as `metric`, or `initialize()` raises a `ValueError`. Collections created without an explicit space default to `l2`.
 
 ```python
 --8<-- "docs/scripts/retrieval/store.py:chroma_cloud_metric"
 ```
 
-| `DistanceMetric` | Score formula |
-|---|---|
-| `COSINE` (default) | `1 - distance` |
-| `L2` | `1 / (1 + sqrt(distance))` |
-| `IP` | `1 - distance` |
+| `DistanceMetric` | Chroma space | Score formula |
+|---|---|---|
+| `COSINE` (default) | `cosine` | `1 - distance` |
+| `L2` | `l2` | `1 / (1 + sqrt(distance))` |
+| `IP` | `ip` | `1 - distance` |
 
 | Property | Value |
 |---|---|

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import builtins
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
@@ -16,6 +16,7 @@ from railtracks.retrieval.stores.vector.backends.chroma import (
     ChromaBackend,
     ChromaCloudBackend,
     _chroma_to_score,
+    _collection_space,
     _to_chroma_where,
 )
 from railtracks.retrieval.stores.vector.base import VectorStore
@@ -100,6 +101,15 @@ def _make_collection(count: int = 1) -> MagicMock:
     return col
 
 
+def _space_collection(space: str = "cosine", index: str = "hnsw") -> MagicMock:
+    """A mocked collection as returned by get_or_create_collection, whose raw
+    configuration reports ``space`` for the given index type."""
+    col = MagicMock()
+    col.configuration_json = {index: {"space": space}}
+    col.metadata = None
+    return col
+
+
 def _injected_backend(collection: MagicMock) -> ChromaBackend:
     backend = ChromaBackend("test")
     backend._collection = collection
@@ -131,7 +141,7 @@ def _make_entry(
 
 async def test_initialize_uses_ephemeral_client_by_default():
     mock_chroma = MagicMock()
-    mock_collection = MagicMock()
+    mock_collection = _space_collection()
     mock_chroma.EphemeralClient.return_value.get_or_create_collection.return_value = (
         mock_collection
     )
@@ -150,7 +160,7 @@ async def test_initialize_uses_ephemeral_client_by_default():
 async def test_initialize_passes_metric_space_to_collection():
     mock_chroma = MagicMock()
     mock_chroma.EphemeralClient.return_value.get_or_create_collection.return_value = (
-        MagicMock()
+        _space_collection("l2")
     )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
@@ -165,7 +175,7 @@ async def test_initialize_passes_metric_space_to_collection():
 async def test_initialize_uses_persistent_client_when_path_given():
     mock_chroma = MagicMock()
     mock_chroma.PersistentClient.return_value.get_or_create_collection.return_value = (
-        MagicMock()
+        _space_collection()
     )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
@@ -178,7 +188,7 @@ async def test_initialize_uses_persistent_client_when_path_given():
 async def test_initialize_uses_http_client_when_host_port_given():
     mock_chroma = MagicMock()
     mock_chroma.HttpClient.return_value.get_or_create_collection.return_value = (
-        MagicMock()
+        _space_collection()
     )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
@@ -186,6 +196,66 @@ async def test_initialize_uses_http_client_when_host_port_given():
         await backend.initialize()
 
     mock_chroma.HttpClient.assert_called_once_with(host="localhost", port=8000)
+
+
+# ---------------------------------------------------------------------------
+# initialize — collection distance space must match metric (#1665)
+# ---------------------------------------------------------------------------
+
+
+async def test_initialize_raises_when_existing_collection_space_differs():
+    mock_chroma = MagicMock()
+    mock_chroma.EphemeralClient.return_value.get_or_create_collection.return_value = (
+        _space_collection("l2")
+    )
+
+    backend = ChromaBackend("col")  # cosine by default
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        with pytest.raises(ValueError, match="'col' uses the 'l2' distance space"):
+            await backend.initialize()
+
+    assert backend._collection is None
+
+
+def test_collection_space_reads_spann_config():
+    col = _space_collection("cosine", index="spann")
+    assert _collection_space(col) == "cosine"
+
+
+def test_collection_space_reads_hnsw_config():
+    col = _space_collection("ip", index="hnsw")
+    assert _collection_space(col) == "ip"
+
+
+def test_collection_space_prefers_configured_index_over_empty_one():
+    col = MagicMock()
+    col.configuration_json = {"hnsw": None, "spann": {"space": "cosine"}}
+    col.metadata = None
+    assert _collection_space(col) == "cosine"
+
+
+def test_collection_space_falls_back_to_metadata():
+    col = MagicMock()
+    col.configuration_json = {}
+    col.metadata = {"hnsw:space": "cosine"}
+    assert _collection_space(col) == "cosine"
+
+
+def test_collection_space_defaults_to_l2():
+    col = MagicMock()
+    col.configuration_json = None
+    col.metadata = None
+    assert _collection_space(col) == "l2"
+
+
+def test_collection_space_never_reads_parsed_configuration():
+    # collection.configuration rebuilds the stored embedding function and
+    # raises for some Cloud collections; only the raw JSON may be read.
+    col = _space_collection("cosine", index="spann")
+    type(col).configuration = PropertyMock(
+        side_effect=ValueError("Could not build embedding function")
+    )
+    assert _collection_space(col) == "cosine"
 
 
 # ---------------------------------------------------------------------------
@@ -459,7 +529,7 @@ async def test_cloud_initialize_raises_import_error_without_chromadb():
 
 async def test_cloud_initialize_uses_cloud_client():
     mock_chroma = MagicMock()
-    mock_collection = MagicMock()
+    mock_collection = _space_collection()
     mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
         mock_collection
     )
@@ -482,29 +552,46 @@ async def test_cloud_initialize_uses_cloud_client():
     assert backend._collection is mock_collection
 
 
-async def test_cloud_initialize_calls_get_or_create_without_metadata():
+async def test_cloud_initialize_sets_metric_space_on_collection():
     mock_chroma = MagicMock()
     mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
-        MagicMock()
+        _space_collection("l2", index="spann")
     )
 
     backend = ChromaCloudBackend(
-        "my-collection", api_key="chk-key", tenant="my-tenant", database="my-db"
+        "my-collection",
+        api_key="chk-key",
+        tenant="my-tenant",
+        database="my-db",
+        metric=DistanceMetric.L2,
     )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
         await backend.initialize()
 
-    # hnsw:space is not set — the index space is managed server-side for Cloud collections.
     mock_chroma.CloudClient.return_value.get_or_create_collection.assert_called_once_with(
-        "my-collection"
+        "my-collection", metadata={"hnsw:space": "l2"}
     )
+
+
+async def test_cloud_initialize_raises_when_existing_collection_space_differs():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
+        _space_collection("l2", index="spann")
+    )
+
+    backend = _cloud_backend(collection=None)  # cosine by default
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        with pytest.raises(ValueError, match="uses the 'l2' distance space"):
+            await backend.initialize()
+
+    assert backend._collection is None
 
 
 async def test_cloud_initialize_does_not_call_ephemeral_or_http_client():
     mock_chroma = MagicMock()
     mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
-        MagicMock()
+        _space_collection()
     )
 
     backend = ChromaCloudBackend("col", api_key="k", tenant="t", database="d")
@@ -525,7 +612,7 @@ async def test_cloud_initialize_does_not_call_ephemeral_or_http_client():
 async def test_cloud_create_factory_returns_initialized_backend():
     mock_chroma = MagicMock()
     mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
-        MagicMock()
+        _space_collection()
     )
 
     with patch.dict("sys.modules", {"chromadb": mock_chroma}):
@@ -610,3 +697,38 @@ async def test_unfiltered_count_uses_collection_count():
 
     assert await backend.count({}) == 42
     collection.get.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Real chromadb — distance space round-trip (#1665). Skipped without chromadb.
+# ---------------------------------------------------------------------------
+
+
+async def test_real_chroma_new_collection_gets_metric_space(tmp_path):
+    pytest.importorskip("chromadb")
+    backend = await ChromaBackend.create("col", path=str(tmp_path))
+
+    await backend.upsert("a", [1.0, 0.0], {"k": 1})
+    await backend.upsert("b", [0.0, 1.0], {"k": 2})
+    hits = await backend.search([1.0, 0.0], 2, {})
+
+    assert _collection_space(backend._collection) == "cosine"
+    scores = {id_: score for id_, score, _ in hits}
+    assert scores["a"] == pytest.approx(1.0)
+    assert scores["b"] == pytest.approx(0.0)  # orthogonal, not -1.0 as under l2
+
+
+async def test_real_chroma_existing_collection_with_other_space_raises(tmp_path):
+    chromadb = pytest.importorskip("chromadb")
+    chromadb.PersistentClient(path=str(tmp_path)).get_or_create_collection(
+        "col", metadata={"hnsw:space": "l2"}
+    )
+
+    with pytest.raises(ValueError, match="'col' uses the 'l2' distance space"):
+        await ChromaBackend.create("col", path=str(tmp_path))
+
+    # The matching metric opens it fine.
+    backend = await ChromaBackend.create(
+        "col", path=str(tmp_path), metric=DistanceMetric.L2
+    )
+    assert backend._collection is not None

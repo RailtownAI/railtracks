@@ -63,6 +63,44 @@ def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
     return 1.0 - distance  # COSINE and IP share the same formula
 
 
+# Chroma's space when a collection is created without one, locally and on Cloud.
+_CHROMA_DEFAULT_SPACE = "l2"
+
+
+def _collection_space(collection: Any) -> str:
+    """Return the distance space a Chroma collection was created with.
+
+    Reads the raw ``configuration_json`` instead of ``collection.configuration``:
+    the latter rebuilds the collection's stored embedding function and raises
+    for some Cloud collections (e.g. a ``chroma-cloud-qwen`` config saved
+    without a ``task``), even though railtracks never uses that function.
+    """
+    config = collection.configuration_json or {}
+    for index in ("spann", "hnsw"):  # Cloud collections use SPANN, local use HNSW
+        space = (config.get(index) or {}).get("space")
+        if space:
+            return space
+    metadata = collection.metadata or {}
+    return metadata.get("hnsw:space", _CHROMA_DEFAULT_SPACE)
+
+
+def _check_space(collection: Any, metric: DistanceMetric, name: str) -> None:
+    """Raise if the collection's distance space doesn't match ``metric``.
+
+    A collection's space is fixed at creation, and ``get_or_create_collection``
+    silently keeps an existing collection's space. Converting its distances
+    with another metric's formula would return wrong scores.
+    """
+    space = _collection_space(collection)
+    if space != metric.value:
+        raise ValueError(
+            f"Chroma collection {name!r} uses the {space!r} distance space, but "
+            f"the backend was configured with metric={metric.value!r}. A "
+            "collection's space is fixed at creation: pass the matching "
+            "DistanceMetric, or use a new collection name."
+        )
+
+
 class _ChromaBase:
     """Shared Chroma I/O operations. Subclasses supply __init__ and initialize()."""
 
@@ -190,7 +228,9 @@ class ChromaBackend(_ChromaBase):
             port: Port of the remote Chroma server. Requires ``host``.
             metric: Distance metric used for similarity search. Sets the
                 ``hnsw:space`` metadata on the collection at creation time and
-                cannot be changed afterwards. Defaults to cosine.
+                cannot be changed afterwards. ``initialize()`` raises
+                ``ValueError`` if an existing collection uses a different
+                space. Defaults to cosine.
         """
         self._collection_name = collection_name
         self._path = path
@@ -238,7 +278,9 @@ class ChromaBackend(_ChromaBase):
                 metadata={"hnsw:space": metric.value},
             )
 
-        self._collection = await asyncio.to_thread(_setup)
+        collection = await asyncio.to_thread(_setup)
+        _check_space(collection, metric, self._collection_name)
+        self._collection = collection
 
 
 class ChromaCloudBackend(_ChromaBase):
@@ -274,9 +316,11 @@ class ChromaCloudBackend(_ChromaBase):
             api_key: Chroma Cloud API key (``chk-...``).
             tenant: Chroma Cloud tenant ID.
             database: Chroma Cloud database name.
-            metric: Distance metric used for score conversion. Unlike local
-                backends, this does **not** set ``hnsw:space`` — the index
-                space is managed server-side. Defaults to cosine.
+            metric: Distance metric used for similarity search. Sets the
+                collection's distance space at creation time and cannot be
+                changed afterwards. ``initialize()`` raises ``ValueError`` if
+                an existing collection uses a different space. Defaults to
+                cosine.
         """
         self._collection_name = collection_name
         self._api_key = api_key
@@ -320,6 +364,7 @@ class ChromaCloudBackend(_ChromaBase):
         tenant = self._tenant
         database = self._database
         collection_name = self._collection_name
+        metric = self._metric
 
         def _setup():
             client = chromadb.CloudClient(
@@ -327,6 +372,12 @@ class ChromaCloudBackend(_ChromaBase):
                 tenant=tenant,
                 database=database,
             )
-            return client.get_or_create_collection(collection_name)
+            # Cloud maps hnsw:space onto its SPANN index's space.
+            return client.get_or_create_collection(
+                collection_name,
+                metadata={"hnsw:space": metric.value},
+            )
 
-        self._collection = await asyncio.to_thread(_setup)
+        collection = await asyncio.to_thread(_setup)
+        _check_space(collection, metric, collection_name)
+        self._collection = collection
