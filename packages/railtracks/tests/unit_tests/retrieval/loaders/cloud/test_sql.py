@@ -126,9 +126,36 @@ class TestSQLLoaderLoad:
         )
         docs = loader.load()
         assert [d.source for d in docs] == [
-            "documents#0",
+            "documents#row=0",
+            "documents#row=1",
+            "documents#row=2",
+        ]
+        assert len({d.id for d in docs}) == 3
+
+    def test_null_id_fallback_does_not_collide_with_real_id_value(self) -> None:
+        """Index fallback uses row=N so it cannot collide with id column value N."""
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        from .conftest import make_sqlite_engine
+
+        rows = [
+            {"id": None, "body": "null-id row at index 0"},
+            {"id": 1, "body": "real id=1"},
+            {"id": None, "body": "null-id row at index 2"},
+        ]
+        engine = make_sqlite_engine(rows, table="documents")
+        loader = SQLLoader(
+            "",
+            table_or_query="documents",
+            content_column="body",
+            id_column="id",
+            engine=engine,
+        )
+        docs = loader.load()
+        assert [d.source for d in docs] == [
+            "documents#row=0",
             "documents#1",
-            "documents#2",
+            "documents#row=2",
         ]
         assert len({d.id for d in docs}) == 3
 

@@ -55,12 +55,14 @@ class PyPDFOCRLoader(BaseOCRLoader):
     Breakdown strategies:
 
     - `page` *(default)*: one `Document` per page, yielded as each page is
-      extracted. `metadata` includes `page` (1-based), `total_pages`,
-      `file_type`, and `ocr` (bool indicating whether OCR was used for that
-      page). Empty pages are skipped.
-    - `document`: entire PDF as one `Document`, with pages joined by `\\n\\n`.
-      `metadata` includes `total_pages`, `file_type`, and `ocr_pages`
-      (sorted list of 1-based page numbers that required OCR).
+      extracted. `source` is ``path#page=N``. `metadata` includes `path`
+      (plain file path), `page` (1-based), `total_pages`, `file_type`, and
+      `ocr` (bool indicating whether OCR was used for that page). Empty
+      pages are skipped.
+    - `document`: entire PDF as one `Document`, with pages joined by `\n\n`.
+      `source` is the plain file path. `metadata` includes `path`,
+      `total_pages`, `file_type`, and `ocr_pages` (sorted list of 1-based
+      page numbers that required OCR).
 
     Requires:
         - ``pip install "railtracks[ocr]"`` (Python libraries)
@@ -179,6 +181,7 @@ class PyPDFOCRLoader(BaseOCRLoader):
                     type=DocumentType.PDF,
                     source=source,
                     metadata={
+                        "path": source,
                         "total_pages": total_pages,
                         "file_type": ".pdf",
                         "ocr_pages": ocr_pages,

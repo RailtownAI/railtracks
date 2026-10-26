@@ -8,7 +8,9 @@ inject failures.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -21,6 +23,7 @@ from railtracks.retrieval import (
     EmbeddingModelMismatchError,
     RetrievalRuntime,
 )
+from railtracks.retrieval.chunking import IdentityChunker
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
 from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
@@ -834,10 +837,20 @@ async def test_sanitizer_errors_propagate():
 # ---------------------------------------------------------------------------
 
 
+def _make_pdf_reader(page_texts: list[str]) -> MagicMock:
+    """Build a mock PdfReader with pages that return the given texts."""
+    reader = MagicMock()
+    pages = []
+    for text in page_texts:
+        page = MagicMock()
+        page.extract_text.return_value = text
+        pages.append(page)
+    reader.pages = pages
+    return reader
+
+
 async def test_ingest_keeps_all_pages_when_sources_are_unique():
     """Pages that share a PDF path but use distinct sources all land in the store."""
-    from railtracks.retrieval.chunking import IdentityChunker
-
     store = _store()
     embedder = _FakeEmbedder()
     runtime = RetrievalRuntime(IdentityChunker(), embedder, store)
@@ -858,12 +871,74 @@ async def test_ingest_keeps_all_pages_when_sources_are_unique():
     assert await store.count() == 3
 
 
-async def test_ingest_shared_source_still_overwrites_and_warns(caplog):
-    """Same source → same Document.id → delete-before-write keeps only the last page."""
-    import logging
+async def test_ingest_pypdf_loader_through_runtime_keeps_all_pages(tmp_path):
+    """#1648 acceptance: real PyPDFLoader → RetrievalRuntime keeps every page.
 
-    from railtracks.retrieval.chunking import IdentityChunker
+    Documents are produced by ``PyPDFLoader`` (PdfReader patched the same way
+    as ``test_pdf_loader.py``), not hand-built with ``#page=`` already set.
+    """
+    from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
 
+    pdf = tmp_path / "report.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    reader = _make_pdf_reader(["page 1 text", "page 2 text", "page 3 text"])
+    store = _store()
+    runtime = RetrievalRuntime(IdentityChunker(), _FakeEmbedder(), store)
+
+    with patch(
+        "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+    ):
+        stats = await runtime.ingest_all(
+            PyPDFLoader(str(pdf), breakdown_strategy="page")
+        )
+    assert stats.chunks_embedded == 3
+    assert await store.count() == 3
+
+    with patch(
+        "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+    ):
+        stats2 = await runtime.ingest_all(
+            PyPDFLoader(str(pdf), breakdown_strategy="page")
+        )
+    assert stats2.documents_skipped == 3
+    assert await store.count() == 3
+
+
+async def test_ingest_keeps_pages_with_identical_text(tmp_path):
+    """Pages 1 and 3 can share text; skip matching is by source, not content."""
+    from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
+
+    pdf = tmp_path / "report.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    # Identical text on pages 1 and 3 must still produce three store entries.
+    reader = _make_pdf_reader(["same text", "middle page", "same text"])
+    store = _store()
+    runtime = RetrievalRuntime(IdentityChunker(), _FakeEmbedder(), store)
+
+    with patch(
+        "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+    ):
+        stats = await runtime.ingest_all(
+            PyPDFLoader(str(pdf), breakdown_strategy="page")
+        )
+    assert stats.chunks_embedded == 3
+    assert await store.count() == 3
+
+    with patch(
+        "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+    ):
+        stats2 = await runtime.ingest_all(
+            PyPDFLoader(str(pdf), breakdown_strategy="page")
+        )
+    assert stats2.documents_skipped == 3
+    assert await store.count() == 3
+
+
+async def test_ingest_shared_source_still_overwrites_and_warns_once(caplog):
+    """Same source → same Document.id → delete-before-write keeps only the last page.
+
+    Duplicate-id warnings fire once per duplicated id, not once per document.
+    """
     store = _store()
     runtime = RetrievalRuntime(IdentityChunker(), _FakeEmbedder(), store)
     pages = [
@@ -874,4 +949,5 @@ async def test_ingest_shared_source_still_overwrites_and_warns(caplog):
         stats = await runtime.ingest_all(_ListLoader(pages))
     assert stats.chunks_embedded == 3
     assert await store.count() == 1
-    assert any("duplicate Document.id" in r.message for r in caplog.records)
+    dup_warnings = [r for r in caplog.records if "duplicate Document.id" in r.message]
+    assert len(dup_warnings) == 1

@@ -40,7 +40,9 @@ class LangChainLoaderAdapter(BaseDocumentLoader):
     - ``metadata`` is shallow-copied. If the caller did not pass ``source``,
       ``metadata["source"]`` is popped and used as :attr:`Document.source`.
       Otherwise the explicit ``source`` argument wins and metadata is left
-      untouched.
+      untouched. In either case, when ``metadata`` still contains ``page``,
+      ``#page=N`` is appended to the chosen source so multi-page LangChain
+      PDF loaders keep a unique :attr:`Document.id` per page.
     - :attr:`Document.type` comes from the caller-supplied ``document_type``.
 
     Args:

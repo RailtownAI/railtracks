@@ -185,6 +185,7 @@ class TestPyPDFLoaderDocumentStrategy:
         ):
             docs = await PyPDFLoader(str(pdf), breakdown_strategy="document").aload()
         assert "page" not in docs[0].metadata
+        assert docs[0].metadata["path"] == str(pdf)
 
 
 class TestPyPDFLoaderParagraphStrategy:
