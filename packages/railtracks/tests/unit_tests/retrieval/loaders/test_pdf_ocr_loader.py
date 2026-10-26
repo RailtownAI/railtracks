@@ -395,3 +395,40 @@ class TestPyPDFOCRLoaderDirectory:
                 str(tmp_path), breakdown_strategy="document"
             ).aload()
         assert len(docs) == 1
+
+
+class TestPyPDFOCRLoaderUniqueSources:
+    """Regression for #1648: page-mode source must be unique per page."""
+
+    async def test_page_strategy_sources_are_unique_and_stable(self, tmp_path):
+        pdf = tmp_path / "report.pdf"
+        pdf.touch()
+        reader = _make_reader(["page 1 text", "page 2 text", "page 3 text"])
+        pdfium = _make_pdfium(page_count=3)
+        reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
+        with reader_patch, pdfium_patch:
+            docs = await PyPDFOCRLoader(str(pdf), breakdown_strategy="page").aload()
+        assert [d.source for d in docs] == [
+            f"{pdf}#page=1",
+            f"{pdf}#page=2",
+            f"{pdf}#page=3",
+        ]
+        assert len({d.id for d in docs}) == 3
+        assert all(d.metadata["path"] == str(pdf) for d in docs)
+
+        reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
+        with reader_patch, pdfium_patch:
+            again = await PyPDFOCRLoader(str(pdf), breakdown_strategy="page").aload()
+        assert [d.id for d in again] == [d.id for d in docs]
+
+    async def test_document_strategy_includes_path_metadata(self, tmp_path):
+        pdf = tmp_path / "report.pdf"
+        pdf.touch()
+        reader = _make_reader(["one", "two"])
+        pdfium = _make_pdfium(page_count=2)
+        reader_patch, pdfium_patch = _patch_pdf_backends(reader, pdfium)
+        with reader_patch, pdfium_patch:
+            docs = await PyPDFOCRLoader(str(pdf), breakdown_strategy="document").aload()
+        assert len(docs) == 1
+        assert docs[0].source == str(pdf)
+        assert docs[0].metadata["path"] == str(pdf)

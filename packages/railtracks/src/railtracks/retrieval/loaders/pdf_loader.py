@@ -29,14 +29,17 @@ class PyPDFLoader(BaseDocumentLoader):
     Breakdown strategies:
 
     - `page` *(default)*: one `Document` per page, yielded as each page is
-      extracted. `metadata` includes `page` (1-based), `total_pages`, and
-      `file_type`. Empty pages are skipped.
+      extracted. `source` is ``path#page=N``. `metadata` includes `path`
+      (plain file path), `page` (1-based), `total_pages`, and `file_type`.
+      Empty pages are skipped.
     - `paragraph`: one `Document` per non-empty paragraph on each page.
-      Paragraphs are separated by ``\\n\\n``. `metadata` includes `page`
+      Paragraphs are separated by ``\n\n``. `source` is
+      ``path#page=N&paragraph=M``. `metadata` includes `path`, `page`
       (1-based), `paragraph` (1-based within the page), `total_pages`, and
       `file_type`.
-    - `document`: entire PDF as one `Document`, with pages joined by ``\\n\\n``.
-      `metadata` includes `total_pages` and `file_type`.
+    - `document`: entire PDF as one `Document`, with pages joined by ``\n\n``.
+      `source` is the plain file path. `metadata` includes `path`,
+      `total_pages`, and `file_type`.
 
     Requires: ``pip install "railtracks[pdf]"``
 
@@ -88,7 +91,11 @@ class PyPDFLoader(BaseDocumentLoader):
                 content=content,
                 type=DocumentType.PDF,
                 source=source,
-                metadata={"total_pages": total_pages, "file_type": ".pdf"},
+                metadata={
+                    "path": source,
+                    "total_pages": total_pages,
+                    "file_type": ".pdf",
+                },
             )
             return
 
@@ -111,8 +118,11 @@ class PyPDFLoader(BaseDocumentLoader):
                     yield Document(
                         content=content,
                         type=DocumentType.PDF,
-                        source=source,
+                        # Unique per paragraph so Document.id (uuid5 of source)
+                        # does not collide across pages/paragraphs of one file.
+                        source=f"{source}#page={page_number}&paragraph={paragraph_number}",
                         metadata={
+                            "path": source,
                             "page": page_number,
                             "paragraph": paragraph_number,
                             "total_pages": total_pages,
@@ -123,8 +133,11 @@ class PyPDFLoader(BaseDocumentLoader):
             yield Document(
                 content=text,
                 type=DocumentType.PDF,
-                source=source,
+                # Unique per page so Document.id does not collide; plain path
+                # stays in metadata["path"] for filtering/display.
+                source=f"{source}#page={page_number}",
                 metadata={
+                    "path": source,
                     "page": page_number,
                     "total_pages": total_pages,
                     "file_type": ".pdf",

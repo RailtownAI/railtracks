@@ -245,7 +245,22 @@ class RetrievalRuntime:
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
+        seen_document_ids: set[UUID] = set()
+        warned_duplicate_ids: set[UUID] = set()
         async for doc in loader.astream():
+            if doc.id in seen_document_ids:
+                # One warning per duplicated id (not per repeated document),
+                # so a loader that reuses one source for 10k docs logs once.
+                if doc.id not in warned_duplicate_ids:
+                    warned_duplicate_ids.add(doc.id)
+                    logger.warning(
+                        "Ingest saw duplicate Document.id %s (source=%r); later "
+                        "documents with this id overwrite earlier ones in the store.",
+                        doc.id,
+                        doc.source,
+                    )
+            else:
+                seen_document_ids.add(doc.id)
             async for event in self._ingest_document(doc, stats, scope):
                 yield event
 
