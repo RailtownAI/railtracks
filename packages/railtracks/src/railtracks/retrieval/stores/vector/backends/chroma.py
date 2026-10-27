@@ -150,19 +150,15 @@ class _ChromaBase:
         self, vector: list[float], top_k: int, filters: dict
     ) -> list[tuple[str, float, dict]]:
         collection = self._initialized_collection()
-
-        count = await asyncio.to_thread(collection.count)
-        if count == 0:
-            return []
-
-        n_results = min(top_k, count)
         where = _to_chroma_where(filters) if filters else None
         query_embeddings: PyEmbeddings = [vector]
 
+        # Chroma caps n_results at the number of matches itself, so no
+        # count() round trip is needed first.
         results = await asyncio.to_thread(
             collection.query,
             query_embeddings=query_embeddings,
-            n_results=n_results,
+            n_results=top_k,
             where=where,
             include=["metadatas", "documents", "distances"],
         )

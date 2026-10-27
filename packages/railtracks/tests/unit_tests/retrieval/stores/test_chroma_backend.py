@@ -312,18 +312,21 @@ async def test_upsert_omits_metadatas_when_payload_is_only_content():
 # ---------------------------------------------------------------------------
 
 
-async def test_search_returns_empty_when_collection_is_empty():
-    col = _make_collection(count=0)
+async def test_search_returns_empty_when_nothing_matches():
+    col = _make_collection()
+    col.query.return_value = {
+        "ids": [[]],
+        "distances": [[]],
+        "metadatas": [[]],
+        "documents": [[]],
+    }
     backend = _injected_backend(col)
 
-    result = await backend.search([1.0, 0.0], 5, {})
-
-    assert result == []
-    col.query.assert_not_called()
+    assert await backend.search([1.0, 0.0], 5, {}) == []
 
 
-async def test_search_caps_n_results_to_collection_count():
-    col = _make_collection(count=3)
+async def test_search_passes_top_k_without_counting():
+    col = _make_collection()
     col.query.return_value = {
         "ids": [["a", "b", "c"]],
         "distances": [[0.1, 0.2, 0.3]],
@@ -335,7 +338,8 @@ async def test_search_caps_n_results_to_collection_count():
     await backend.search([1.0, 0.0], top_k=10, filters={})
 
     _, call_kwargs = col.query.call_args
-    assert call_kwargs["n_results"] == 3
+    assert call_kwargs["n_results"] == 10
+    col.count.assert_not_called()
 
 
 async def test_search_converts_distance_to_score():
@@ -800,3 +804,16 @@ async def test_real_chroma_content_stored_once_and_round_trips(tmp_path):
     assert await backend.list_where({"k": 1}, 10) == [
         ("a", {"k": 1, "content": "hello"})
     ]
+
+
+async def test_real_chroma_search_handles_empty_and_oversized_top_k(tmp_path):
+    pytest.importorskip("chromadb")
+    backend = await ChromaBackend.create("col", path=str(tmp_path))
+
+    assert await backend.search([1.0, 0.0], 5, {}) == []
+
+    await backend.upsert("a", [1.0, 0.0], {"k": 1})
+    await backend.upsert("b", [0.0, 1.0], {"k": 2})
+    assert len(await backend.search([1.0, 0.0], 10, {})) == 2
+    assert [h[0] for h in await backend.search([1.0, 0.0], 10, {"k": 2})] == ["b"]
+    assert await backend.search([1.0, 0.0], 10, {"k": 3}) == []
