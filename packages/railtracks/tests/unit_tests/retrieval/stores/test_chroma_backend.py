@@ -277,19 +277,33 @@ async def test_upsert_calls_collection_with_correct_args():
     )
 
 
-async def test_upsert_passes_documents_when_content_in_payload():
+async def test_upsert_stores_content_only_as_document():
     col = _make_collection()
     backend = _injected_backend(col)
+    payload = {"content": "hello world", "scope_user_id": "alice"}
 
-    await backend.upsert(
-        "entry-1", [0.1, 0.2], {"content": "hello world", "scope_user_id": "alice"}
-    )
+    await backend.upsert("entry-1", [0.1, 0.2], payload)
 
     col.upsert.assert_called_once_with(
         ids=["entry-1"],
         embeddings=[[0.1, 0.2]],
         documents=["hello world"],
-        metadatas=[{"content": "hello world", "scope_user_id": "alice"}],
+        metadatas=[{"scope_user_id": "alice"}],
+    )
+    assert payload == {"content": "hello world", "scope_user_id": "alice"}
+
+
+async def test_upsert_omits_metadatas_when_payload_is_only_content():
+    col = _make_collection()
+    backend = _injected_backend(col)
+
+    await backend.upsert("entry-1", [0.1, 0.2], {"content": "hello world"})
+
+    col.upsert.assert_called_once_with(
+        ids=["entry-1"],
+        embeddings=[[0.1, 0.2]],
+        documents=["hello world"],
+        metadatas=None,
     )
 
 
@@ -314,6 +328,7 @@ async def test_search_caps_n_results_to_collection_count():
         "ids": [["a", "b", "c"]],
         "distances": [[0.1, 0.2, 0.3]],
         "metadatas": [[{"k": "v1"}, {"k": "v2"}, {"k": "v3"}]],
+        "documents": [[None, None, None]],
     }
     backend = _injected_backend(col)
 
@@ -329,6 +344,7 @@ async def test_search_converts_distance_to_score():
         "ids": [["a", "b"]],
         "distances": [[0.1, 0.4]],
         "metadatas": [[{"scope_user_id": "alice"}, {"scope_user_id": "alice"}]],
+        "documents": [[None, None]],
     }
     backend = _injected_backend(col)
 
@@ -345,6 +361,7 @@ async def test_search_passes_where_filter():
         "ids": [["a"]],
         "distances": [[0.0]],
         "metadatas": [[{"scope_user_id": "alice"}]],
+        "documents": [[None]],
     }
     backend = _injected_backend(col)
 
@@ -352,6 +369,25 @@ async def test_search_passes_where_filter():
 
     _, call_kwargs = col.query.call_args
     assert call_kwargs["where"] == {"scope_user_id": {"$eq": "alice"}}
+
+
+async def test_search_restores_content_from_documents():
+    col = _make_collection(count=1)
+    col.query.return_value = {
+        "ids": [["a"]],
+        "distances": [[0.0]],
+        "metadatas": [[{"scope_user_id": "alice"}]],
+        "documents": [["hello world"]],
+    }
+    backend = _injected_backend(col)
+
+    hits = await backend.search([1.0, 0.0], top_k=5, filters={})
+
+    assert hits == [
+        ("a", pytest.approx(1.0), {"scope_user_id": "alice", "content": "hello world"})
+    ]
+    _, call_kwargs = col.query.call_args
+    assert "documents" in call_kwargs["include"]
 
 
 def test_chroma_to_score_cosine():
@@ -373,7 +409,12 @@ def test_chroma_to_score_ip():
 
 async def test_search_passes_no_where_when_filters_empty():
     col = _make_collection(count=1)
-    col.query.return_value = {"ids": [["a"]], "distances": [[0.0]], "metadatas": [[{}]]}
+    col.query.return_value = {
+        "ids": [["a"]],
+        "distances": [[0.0]],
+        "metadatas": [[{}]],
+        "documents": [[None]],
+    }
     backend = _injected_backend(col)
 
     await backend.search([1.0, 0.0], top_k=5, filters={})
@@ -430,19 +471,25 @@ async def test_vector_store_write_read_via_chroma():
 
     from railtracks.retrieval.stores.vector.base import _entry_to_payload
 
-    payload = _entry_to_payload(entry)
-
     col = MagicMock()
     col.count.return_value = 1
-    col.query.return_value = {
-        "ids": [[str(entry.id)]],
-        "distances": [[0.05]],
-        "metadatas": [[payload]],
-    }
 
     store = VectorStore(_injected_backend(col))
     write_id = await store.write(entry)
     assert write_id == str(entry.id)
+
+    # Serve back exactly what was written to Chroma.
+    stored = col.upsert.call_args.kwargs
+    assert "content" not in stored["metadatas"][0]
+    assert stored["metadatas"][0] == {
+        k: v for k, v in _entry_to_payload(entry).items() if k != "content"
+    }
+    col.query.return_value = {
+        "ids": [stored["ids"]],
+        "distances": [[0.05]],
+        "metadatas": [stored["metadatas"]],
+        "documents": [stored["documents"]],
+    }
 
     results = await store.read(
         StoreQuery(
@@ -637,6 +684,7 @@ def _paging_collection(total: int) -> MagicMock:
     Chroma Cloud per-request limit quota, mirroring the error from #1180."""
     ids = [f"id-{i}" for i in range(total)]
     metadatas = [{"i": i} for i in range(total)]
+    documents = [f"doc-{i}" for i in range(total)]
 
     def fake_get(where=None, limit=None, offset=0, include=None):
         if limit is not None and limit > 300:
@@ -649,6 +697,9 @@ def _paging_collection(total: int) -> MagicMock:
             "ids": ids[offset:end],
             "metadatas": (
                 metadatas[offset:end] if include and "metadatas" in include else None
+            ),
+            "documents": (
+                documents[offset:end] if include and "documents" in include else None
             ),
         }
 
@@ -664,8 +715,8 @@ async def test_list_where_pages_large_limits_under_cloud_cap():
     rows = await backend.list_where({"source_path": "doc"}, limit=1056)
 
     assert len(rows) == 1056
-    assert rows[0] == ("id-0", {"i": 0})
-    assert rows[-1] == ("id-1055", {"i": 1055})
+    assert rows[0] == ("id-0", {"i": 0, "content": "doc-0"})
+    assert rows[-1] == ("id-1055", {"i": 1055, "content": "doc-1055"})
     # Every underlying get stayed at or under the per-request cap.
     assert all(c.kwargs["limit"] <= 300 for c in collection.get.call_args_list)
 
@@ -732,3 +783,20 @@ async def test_real_chroma_existing_collection_with_other_space_raises(tmp_path)
         "col", path=str(tmp_path), metric=DistanceMetric.L2
     )
     assert backend._collection is not None
+
+
+async def test_real_chroma_content_stored_once_and_round_trips(tmp_path):
+    pytest.importorskip("chromadb")
+    backend = await ChromaBackend.create("col", path=str(tmp_path))
+
+    await backend.upsert("a", [1.0, 0.0], {"content": "hello", "k": 1})
+
+    raw = backend._collection.get(ids=["a"], include=["metadatas", "documents"])
+    assert raw["documents"] == ["hello"]
+    assert raw["metadatas"] == [{"k": 1}]
+
+    hits = await backend.search([1.0, 0.0], 1, {})
+    assert hits[0][2] == {"k": 1, "content": "hello"}
+    assert await backend.list_where({"k": 1}, 10) == [
+        ("a", {"k": 1, "content": "hello"})
+    ]

@@ -124,6 +124,8 @@ Chroma stores text alongside each vector as a *Document*. Both Chroma
 backends map `StoreEntry.content` (equivalently, `Chunk.content`) to this
 field automatically — you don't need to set it separately. This is what
 Chroma displays in its UI and what server-side embedding functions receive.
+The content is stored only as the Document, not repeated in the entry's
+metadata; it is read back from the Document on search and listing.
 
 ### Distance metric
 

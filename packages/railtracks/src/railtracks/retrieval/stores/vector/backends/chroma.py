@@ -29,15 +29,16 @@ _GET_PAGE_SIZE = 300
 
 def _get_paged(
     collection: Collection, where: dict | None, limit: int | None, include: Include
-) -> tuple[list, list]:
+) -> tuple[list, list, list]:
     """Offset-paged ``collection.get`` capped at ``_GET_PAGE_SIZE`` per request.
 
     Synchronous — run via ``asyncio.to_thread``. ``limit=None`` reads to
-    exhaustion. Returns ``(ids, metadatas)``; ``metadatas`` is empty when not
-    requested via ``include``.
+    exhaustion. Returns ``(ids, metadatas, documents)``; ``metadatas`` and
+    ``documents`` are empty when not requested via ``include``.
     """
     ids: list = []
     metadatas: list = []
+    documents: list = []
     offset = 0
     while True:
         page = (
@@ -48,10 +49,23 @@ def _get_paged(
         result = collection.get(where=where, limit=page, offset=offset, include=include)
         ids.extend(result["ids"])
         metadatas.extend(result.get("metadatas") or [])
+        documents.extend(result.get("documents") or [])
         if len(result["ids"]) < page:
             break
         offset += len(result["ids"])
-    return ids, metadatas
+    return ids, metadatas, documents
+
+
+def _to_payload(metadata: dict | None, document: str | None) -> dict:
+    """Rebuild a backend payload from a Chroma metadata dict and document.
+
+    ``upsert`` keeps ``content`` only in the Chroma document, so it is restored
+    into the payload here.
+    """
+    payload = dict(metadata) if metadata is not None else {}
+    if document is not None:
+        payload["content"] = document
+    return payload
 
 
 def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
@@ -119,6 +133,9 @@ class _ChromaBase:
 
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
         collection = self._initialized_collection()
+        # Content lives only in the Chroma document (shown and searched by the
+        # Chroma dashboard), not duplicated in metadata (https://github.com/RailtownAI/railtracks/issues/1186).
+        metadata = {k: v for k, v in payload.items() if k != "content"}
         content = payload.get("content")
         embeddings: PyEmbeddings = [vector]
         await asyncio.to_thread(
@@ -126,7 +143,7 @@ class _ChromaBase:
             ids=[id],
             embeddings=embeddings,
             documents=[content] if content is not None else None,
-            metadatas=[payload],
+            metadatas=[metadata] if metadata else None,
         )
 
     async def search(
@@ -147,20 +164,29 @@ class _ChromaBase:
             query_embeddings=query_embeddings,
             n_results=n_results,
             where=where,
-            include=["metadatas", "distances"],
+            include=["metadatas", "documents", "distances"],
         )
 
         distances = results["distances"]
         metadatas = results["metadatas"]
-        assert distances is not None and metadatas is not None  # requested in include
+        documents = results["documents"]
+        # all requested in include
+        assert distances is not None and metadatas is not None and documents is not None
 
         hits: list[tuple[str, float, dict]] = []
-        for id_, distance, metadata in zip(
+        for id_, distance, metadata, document in zip(
             results["ids"][0],
             distances[0],
             metadatas[0],
+            documents[0],
         ):
-            hits.append((id_, _chroma_to_score(self._metric, distance), dict(metadata)))
+            hits.append(
+                (
+                    id_,
+                    _chroma_to_score(self._metric, distance),
+                    _to_payload(metadata, document),
+                )
+            )
         return hits
 
     async def delete(self, id: str) -> None:
@@ -177,19 +203,19 @@ class _ChromaBase:
     async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]:
         collection = self._initialized_collection()
         where = _to_chroma_where(filters) if filters else None
-        ids, metadatas = await asyncio.to_thread(
-            _get_paged, collection, where, limit, ["metadatas"]
+        ids, metadatas, documents = await asyncio.to_thread(
+            _get_paged, collection, where, limit, ["metadatas", "documents"]
         )
         return [
-            (id_, dict(metadata) if metadata is not None else {})
-            for id_, metadata in zip(ids, metadatas)
+            (id_, _to_payload(metadata, document))
+            for id_, metadata, document in zip(ids, metadatas, documents)
         ]
 
     async def count(self, filters: dict) -> int:
         collection = self._initialized_collection()
         if not filters:
             return await asyncio.to_thread(collection.count)
-        ids, _ = await asyncio.to_thread(
+        ids, _, _ = await asyncio.to_thread(
             _get_paged, collection, _to_chroma_where(filters), None, []
         )
         return len(ids)
