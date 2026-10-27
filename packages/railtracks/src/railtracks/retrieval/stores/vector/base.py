@@ -39,6 +39,25 @@ class VectorBackend(Protocol):
 # ---------------------------------------------------------------------------
 
 
+def _is_scalar(value: object) -> bool:
+    return isinstance(value, (str, int, float, bool)) or value is None
+
+
+def _decode_chunk_metadata(payload: dict) -> dict:
+    """Rebuild ``chunk_metadata`` from the JSON blob and the spread scalars.
+
+    Payloads written before scalars were dropped from the blob have no
+    ``chunk_metadata_keys`` and keep everything in the blob.
+    """
+    chunk_metadata = (
+        json.loads(payload["chunk_metadata"]) if "chunk_metadata" in payload else {}
+    )
+    for k in json.loads(payload.get("chunk_metadata_keys", "[]")):
+        # Chroma drops None-valued metadata keys on write.
+        chunk_metadata[k] = payload.get(k)
+    return chunk_metadata
+
+
 def _encode_provenance(entry: StoreEntry) -> dict:
     out: dict = {}
     if entry.parent_chunk_id is not None:
@@ -46,13 +65,16 @@ def _encode_provenance(entry: StoreEntry) -> dict:
     if entry.chunk_offsets is not None:
         out["chunk_offsets"] = json.dumps(list(entry.chunk_offsets))
     if entry.chunk_metadata:
-        # JSON-encoded for clean roundtrip back into chunk_metadata.
-        out["chunk_metadata"] = json.dumps(entry.chunk_metadata)
-        # Also spread scalar values at top level so they are filterable
-        # via `metadata_filters` / `find` with a flat equality dict.
-        for k, v in entry.chunk_metadata.items():
-            if isinstance(v, (str, int, float, bool)) or v is None:
-                out[k] = v
+        # Scalars are spread at the top level so they are filterable via
+        # `metadata_filters` / `find`, and their keys recorded for the read
+        # back. Only non-scalars go in the JSON blob, so nothing is stored twice.
+        scalars = {k: v for k, v in entry.chunk_metadata.items() if _is_scalar(v)}
+        rest = {k: v for k, v in entry.chunk_metadata.items() if k not in scalars}
+        if scalars:
+            out.update(scalars)
+            out["chunk_metadata_keys"] = json.dumps(list(scalars))
+        if rest:
+            out["chunk_metadata"] = json.dumps(rest)
     if entry.embedding_version is not None:
         out["embedding_version"] = entry.embedding_version
     return out
@@ -111,9 +133,7 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
     parent_chunk_id_raw = payload.get("parent_chunk_id")
     parent_chunk_id = UUID(parent_chunk_id_raw) if parent_chunk_id_raw else None
 
-    chunk_metadata = (
-        json.loads(payload["chunk_metadata"]) if "chunk_metadata" in payload else {}
-    )
+    chunk_metadata = _decode_chunk_metadata(payload)
 
     entities: list[Entity] | None = None
     if "entities" in payload:

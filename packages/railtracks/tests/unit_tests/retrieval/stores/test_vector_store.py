@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -14,7 +16,11 @@ from railtracks.retrieval.stores.models import (
 )
 from railtracks.retrieval.stores.protocol import Store
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
-from railtracks.retrieval.stores.vector.base import VectorStore
+from railtracks.retrieval.stores.vector.base import (
+    VectorStore,
+    _entry_to_payload,
+    _payload_to_entry,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -357,3 +363,68 @@ async def test_pgvector_import_error():
     with patch("builtins.__import__", side_effect=mock_import):
         with pytest.raises(ImportError, match="railtracks\\[stores-vector\\]"):
             await backend.initialize()
+
+
+# ---------------------------------------------------------------------------
+# chunk_metadata payload encoding — scalars are not stored twice
+# ---------------------------------------------------------------------------
+
+
+def _metadata_entry(chunk_metadata: dict) -> StoreEntry:
+    return replace(_make_entry(), chunk_metadata=chunk_metadata)
+
+
+def test_payload_spreads_scalars_and_blobs_only_non_scalars():
+    entry = _metadata_entry({"page": 3, "lang": "en", "tags": ["a", "b"]})
+
+    payload = _entry_to_payload(entry)
+
+    assert payload["page"] == 3
+    assert payload["lang"] == "en"
+    assert "tags" not in payload
+    assert json.loads(payload["chunk_metadata"]) == {"tags": ["a", "b"]}
+    assert json.loads(payload["chunk_metadata_keys"]) == ["page", "lang"]
+
+
+def test_payload_with_only_scalars_has_no_blob():
+    payload = _entry_to_payload(_metadata_entry({"page": 3}))
+
+    assert "chunk_metadata" not in payload
+
+
+@pytest.mark.parametrize(
+    "chunk_metadata",
+    [
+        {"page": 3, "lang": "en", "flag": False, "none": None},
+        {"tags": ["a"], "nested": {"x": 1}},
+        {"page": 3, "tags": ["a"]},
+        {},
+    ],
+)
+def test_chunk_metadata_round_trips(chunk_metadata):
+    entry = _metadata_entry(chunk_metadata)
+
+    got = _payload_to_entry(str(entry.id), _entry_to_payload(entry))
+
+    assert got.chunk_metadata == chunk_metadata
+
+
+def test_none_scalar_round_trips_when_backend_drops_the_key():
+    entry = _metadata_entry({"page": None, "lang": "en"})
+    payload = _entry_to_payload(entry)
+    del payload["page"]  # Chroma drops None-valued metadata keys
+
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.chunk_metadata == {"page": None, "lang": "en"}
+
+
+def test_legacy_payload_with_full_blob_still_decodes():
+    entry = _metadata_entry({})
+    payload = _entry_to_payload(entry)
+    payload["chunk_metadata"] = json.dumps({"page": 3, "tags": ["a"]})
+    payload["page"] = 3
+
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.chunk_metadata == {"page": 3, "tags": ["a"]}
