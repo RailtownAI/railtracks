@@ -77,7 +77,7 @@ The `attachment` parameter takes a file path, URL, base64 string or data URI, an
 - Both file and web URLs of images, such as `jpeg`, `png`, `gif`, `webp` and `avif`. Most providers accept only the first four: OpenAI, Anthropic and Gemini reject `avif`, but some OpenAI-compatible servers accept it.
 - A base64 string or data URI of the image
 
-A local file's type is read from its first bytes, then from its extension, so a JPEG saved as `.png` is still sent as `image/jpeg`. A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names a text or Office document file (such as `.txt` or `.docx`) raises a `ValueError`. With `trust_urls=True`, a URL without an image or PDF extension is HEAD-probed first, and the type the server reports wins, for example a thumbnail service that renders a frame from a `.mp4` path.
+A local file's type is read from its first bytes, then from its extension, so a JPEG saved as `.png` is still sent as `image/jpeg`. A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names a text or Office document file (such as `.txt` or `.docx`) raises a `ValueError`. With `trust_urls=True`, a URL without an image or PDF extension is HEAD-probed first, and an image, PDF, audio or video type the server reports wins, for example a thumbnail service that renders a frame from a `.mp4` path.
 
 ---
 ## PDF documents
@@ -89,7 +89,7 @@ PDF input works through the same `attachment` parameter. The provider must nativ
 
 Supported PDF sources:
 
-- Local file paths ending in `.pdf`
+- Local PDF files (the type is read from the file, so the extension does not matter)
 - Base64-encoded PDF payloads or full `data:application/pdf;base64,...` URIs
 - HTTPS URLs ending in `.pdf` — **only with `trust_urls=True`** (see below)
 
@@ -127,7 +127,7 @@ Every attachment becomes an `rt.llm.Attachment`. Build one yourself when you alr
 | `Attachment.from_bytes(data, mime_type=None, filename=None)` | Bytes already in memory, such as a screenshot or a generated chart |
 | `Attachment.from_url(url, mime_type=None, filename=None, trust_urls=False, ...)` | A URL whose type you know; `mime_type` skips the extension check and the HEAD probe |
 
-The MIME type comes from, in order: the `mime_type` you pass, the content's first bytes, then the file extension. `from_bytes` raises a `ValueError` when none of them identify the type.
+For files and bytes, the MIME type comes from, in order: the `mime_type` you pass, the content's first bytes, then the file extension. `from_bytes` raises a `ValueError` when none of them identify the type. For URLs it comes from the `mime_type` you pass, then an image or PDF extension, then the HEAD probe when `trust_urls=True`, then an audio or video extension.
 
 Each attachment exposes:
 
@@ -143,4 +143,4 @@ Each attachment exposes:
 A local file, base64 string or data URI is read once when the attachment is created and kept as raw bytes, so changing the file afterwards does not change the attachment. The base64 that providers need is built from those bytes on each request. Two attachments are equal when they hold the same bytes (or the same URL) and MIME type.
 
 !!! note "Audio, video and other files"
-    `Attachment` can hold audio, video and other files, and audio or video URLs are accepted. Sending them to a model is not supported yet: a request that includes one raises `AttachmentNotSupportedError` rather than sending the file as an image.
+    `Attachment` can hold audio and video from any source, and other files (text, Office documents and so on) through `from_bytes` or `from_url` with an explicit `mime_type`. A path, URL or base64 string of another file type raises a `ValueError`. Sending them to a model is not supported yet: a request that includes one raises `AttachmentNotSupportedError` rather than sending the file as an image.

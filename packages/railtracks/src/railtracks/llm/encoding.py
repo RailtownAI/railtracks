@@ -10,6 +10,9 @@ from urllib.parse import urlparse
 
 from .attachment_formats import detect_attachment_mime_from_bytes
 
+AttachmentSource = Literal["local", "url", "data_uri"]
+"""Where an attachment came from; `data_uri` covers every inline payload, raw bytes included."""
+
 DEFAULT_MAX_DOWNLOAD_MB = 32.0
 _READ_CHUNK_BYTES = 64 * 1024
 _URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
@@ -133,7 +136,7 @@ def ensure_data_uri(base64_or_data_uri: str) -> str:
     return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
 
 
-def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
+def detect_source(path: str) -> AttachmentSource:
     """Detects whether the image path is a local file, URL, or data URI/base64.
 
     Args:

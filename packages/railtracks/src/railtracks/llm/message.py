@@ -5,6 +5,7 @@ import hashlib
 import logging
 import os
 import re
+import warnings
 from collections.abc import Sequence
 from copy import deepcopy
 from enum import Enum
@@ -13,14 +14,12 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import urlparse
 
-from .attachment_formats import (
-    detect_attachment_mime_from_bytes,
-    detect_mime_from_extension,
-)
+from .attachment_formats import detect_mime, detect_mime_from_extension
 from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .context_injection_utils import ValueDict, fill_template
 from .encoding import (
     DEFAULT_MAX_DOWNLOAD_MB,
+    AttachmentSource,
     decode_data_uri,
     detect_source,
     load_bytes,
@@ -34,8 +33,7 @@ _T = TypeVar("_T", bound=Content)
 Modality = Literal["image", "audio", "video", "document", "file"]
 """What an attachment holds. `document` is a PDF; `file` is any other non-media type."""
 
-AttachmentSource = Literal["local", "url", "data_uri"]
-"""Where an attachment came from; `data_uri` covers every inline payload, raw bytes included."""
+_MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
 
 _MEDIA_MODALITIES: dict[str, Modality] = {
     "image": "image",
@@ -54,6 +52,16 @@ def _modality_for_mime(mime_type: str) -> Modality:
     if mime_type == "application/pdf":
         return "document"
     return _MEDIA_MODALITIES.get(mime_type.split("/", 1)[0], "file")
+
+
+def _validate_mime_type(mime_type: str) -> str:
+    """Return `mime_type` lowercased, or raise a `ValueError` unless it is a bare `type/subtype`."""
+    normalized = mime_type.strip().lower()
+    if not _MIME_TYPE.fullmatch(normalized):
+        raise ValueError(
+            f"mime_type must be a bare 'type/subtype' such as 'image/png', got {mime_type!r}."
+        )
+    return normalized
 
 
 def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | None]:
@@ -86,25 +94,13 @@ class Attachment:
     with `Attachment.from_url`. Local files and inline payloads are read once and
     kept as raw bytes; the base64 a provider needs is built from them on each send.
 
-    The MIME type comes from, in order: an explicit `mime_type`, the content's
-    magic bytes, then the file extension. Two attachments are equal when they hold
-    the same bytes (or, for a URL that is not fetched, the same URL) and MIME type.
-
-    Attributes:
-        url: The path or URL given, or `"..."` for inline data.
-        type: Where the attachment came from: `"local"`, `"url"` or `"data_uri"`.
-        mime_type: The MIME type, or None for a URL whose type is unknown.
-        filename: The file name, when one is known.
-        size: The size in bytes, or None when only the URL is held.
-        sha256: Hex SHA-256 of the bytes, or None when only the URL is held.
+    For files and bytes, the MIME type comes from an explicit `mime_type`, then
+    the content's magic bytes, then the file extension. Paths, URLs and base64
+    strings must hold an image, PDF, audio or video; other files need
+    `from_bytes` or `from_url` with an explicit `mime_type`. Attachments are
+    read-only, and two are equal when they hold the same bytes (or, for a URL
+    that is not fetched, the same URL) and MIME type.
     """
-
-    url: str
-    type: AttachmentSource
-    mime_type: str | None
-    filename: str | None
-    size: int | None
-    sha256: str | None
 
     def __init__(
         self,
@@ -138,10 +134,10 @@ class Attachment:
             TypeError: If `url` is not a string.
             FileNotFoundError: If a local file does not exist.
             ValueError: If `attachment_max_mb` is not positive and finite, a
-                local file is empty or its type cannot be detected, a data URI
-                or base64 payload is malformed, a URL's extension names a text
-                or Office document type, or a PDF URL is passed while
-                `trust_urls` is False.
+                local file is empty, a local file or base64 payload is not an
+                image, PDF, audio or video file, a data URI or base64 payload is
+                malformed, a URL's extension names a text or Office document
+                type, or a PDF URL is passed while `trust_urls` is False.
         """
         if not isinstance(url, str):
             raise TypeError(
@@ -152,16 +148,9 @@ class Attachment:
         match detect_source(url):
             case "local":
                 data = load_bytes(url)
-                mime_type = detect_attachment_mime_from_bytes(
-                    data
-                ) or detect_mime_from_extension(url)
-                if mime_type is None:
-                    raise ValueError(
-                        f"Unsupported attachment format: cannot tell the type of {url!r} "
-                        "from its contents or extension. Use Attachment.from_bytes "
-                        "with an explicit mime_type."
-                    )
-                self._set(url, "local", mime_type, os.path.basename(url) or None, data)
+                self._set(
+                    url, "local", detect_mime(data, url), os.path.basename(url), data
+                )
             case "url":
                 self._init_url(
                     url,
@@ -175,14 +164,23 @@ class Attachment:
                 mime_type, data = decode_data_uri(url)
                 self._set("...", "data_uri", mime_type, None, data)
 
+        if self._type != "url" and (self._mime_type is None or self.modality == "file"):
+            source = url if self._type == "local" else "base64 data"
+            raise ValueError(
+                f"Unsupported attachment format: {self._mime_type or 'unknown type'} "
+                f"in {source!r}. Paths and base64 strings must be an image, PDF, "
+                "audio or video file; use Attachment.from_bytes with an explicit "
+                "mime_type for other files."
+            )
+
     @classmethod
     def from_bytes(
         cls,
-        data: bytes,
+        data: bytes | bytearray | memoryview,
         mime_type: str | None = None,
         filename: str | None = None,
     ) -> Attachment:
-        """Create an attachment from raw bytes.
+        """Create an attachment from raw bytes, of any file type.
 
         Args:
             data: The file content.
@@ -194,23 +192,24 @@ class Attachment:
             The attachment, with `type` `"data_uri"`.
 
         Raises:
-            TypeError: If `data` is not bytes.
-            ValueError: If `data` is empty, or `mime_type` is omitted and cannot
-                be detected.
+            TypeError: If `data` is not bytes-like.
+            ValueError: If `data` is empty, `mime_type` is not a bare
+                `type/subtype`, or `mime_type` is omitted and cannot be detected.
         """
-        if not isinstance(data, bytes):
+        if not isinstance(data, (bytes, bytearray, memoryview)):
             raise TypeError(f"data must be bytes, but got {type(data)}")
-        if mime_type is None:
-            mime_type = detect_attachment_mime_from_bytes(data) or (
-                detect_mime_from_extension(filename) if filename else None
-            )
+        data = bytes(data)
+        if mime_type is not None:
+            mime_type = _validate_mime_type(mime_type)
+        else:
+            mime_type = detect_mime(data, filename)
             if mime_type is None:
                 raise ValueError(
                     "Cannot detect the attachment's MIME type from its bytes"
                     f"{' or file name' if filename else ''}; pass mime_type."
                 )
         attachment = cls.__new__(cls)
-        attachment._set("...", "data_uri", mime_type.lower(), filename, data)
+        attachment._set("...", "data_uri", mime_type, filename, data)
         return attachment
 
     @classmethod
@@ -246,10 +245,11 @@ class Attachment:
             The attachment, with `type` `"url"`.
 
         Raises:
-            ValueError: If `url` is not a URL, `attachment_max_mb` is not
-                positive and finite, the URL's extension names a text or Office
-                document type and no `mime_type` is given, or the attachment is a
-                PDF and `trust_urls` is False.
+            ValueError: If `url` is not a URL, `mime_type` is not a bare
+                `type/subtype`, `attachment_max_mb` is not positive and finite,
+                the URL's extension names a text or Office document type and no
+                `mime_type` is given, or the attachment is a PDF and `trust_urls`
+                is False.
         """
         if detect_source(url) != "url":
             raise ValueError(f"Not a URL: {url!r}")
@@ -257,7 +257,7 @@ class Attachment:
         attachment = cls.__new__(cls)
         attachment._init_url(
             url,
-            mime_type=mime_type.lower() if mime_type else None,
+            mime_type=_validate_mime_type(mime_type) if mime_type is not None else None,
             filename=filename,
             trust_urls=trust_urls,
             timeout=attachment_timeout,
@@ -331,22 +331,62 @@ class Attachment:
     ) -> None:
         if data is not None and not data:
             raise ValueError(f"Attachment {filename or url!r} is empty.")
-        self.url = url
-        self.type = source
-        self.mime_type = mime_type
-        self.filename = filename
+        self._url = url
+        self._type: AttachmentSource = source
+        self._mime_type = mime_type
+        self._filename = filename or None
         self._data = data
-        # Computed here rather than on first read: histories are deep-copied on
-        # every model call, and a lazily cached hash would be redone per copy.
-        self.size = None if data is None else len(data)
-        self.sha256 = None if data is None else hashlib.sha256(data).hexdigest()
+        # Computed with the bytes: histories are deep-copied on every model call,
+        # so a hash cached on first read would be redone for each earlier copy.
+        self._sha256 = None if data is None else hashlib.sha256(data).hexdigest()
+
+    @property
+    def url(self) -> str:
+        """The path or URL given, or `"..."` for inline data."""
+        return self._url
+
+    @property
+    def type(self) -> AttachmentSource:
+        """Where the attachment came from: `"local"`, `"url"` or `"data_uri"` (any inline data)."""
+        return self._type
+
+    @property
+    def mime_type(self) -> str | None:
+        """The MIME type, or None for a URL whose type is unknown."""
+        return self._mime_type
+
+    @property
+    def filename(self) -> str | None:
+        """The file name, when one is known."""
+        return self._filename
+
+    @property
+    def size(self) -> int | None:
+        """The size in bytes, or None when only the URL is held."""
+        return None if self._data is None else len(self._data)
+
+    @property
+    def sha256(self) -> str | None:
+        """Hex SHA-256 of the bytes, the same for every source, or None when only the URL is held."""
+        return self._sha256
 
     @property
     def modality(self) -> Modality:
         """What the attachment holds, from its MIME type; a URL of unknown type counts as an image."""
-        if self.mime_type is None:
+        if self._mime_type is None:
             return "image"
-        return _modality_for_mime(self.mime_type)
+        return _modality_for_mime(self._mime_type)
+
+    @property
+    def file_extension(self) -> None:
+        """Always None. Deprecated: read `filename` or `mime_type` instead."""
+        warnings.warn(
+            "Attachment.file_extension is always None and will be removed; "
+            "read filename or mime_type instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return None
 
     @property
     def data(self) -> bytes | None:
@@ -493,10 +533,11 @@ class UserMessage(_StringOnlyContent[Role.user]):
         trust_urls: Allow in-process fetch for URL attachments. Defaults to False.
                     When False, `.pdf` URLs and URLs whose extension names a
                     text or Office document type raise, and other
-                    unknown-extension URLs are handed to the provider unprobed
-                    (as `image_url`). When True, `.pdf` URLs are downloaded and
-                    embedded as base64, and every other URL without an image
-                    or PDF extension is HEAD-probed, and the reported type wins.
+                    URLs without an image, PDF, audio or video extension are
+                    handed to the provider unprobed (as `image_url`). When True,
+                    `.pdf` URLs are downloaded and embedded as base64, and every
+                    other URL without an image or PDF extension is HEAD-probed;
+                    an image, PDF, audio or video type it reports wins.
                     Set True only when every URL in `attachment` is
                     developer-controlled — end-user-supplied URLs are an SSRF
                     surface once their bytes are fetched in-process.

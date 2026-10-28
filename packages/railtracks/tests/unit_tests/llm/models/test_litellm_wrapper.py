@@ -321,6 +321,30 @@ class TestHelpers:
             "image_url": {"url": "data:image/png;base64,iVBORw0KGgoAAAAAAAAAAA=="},
         }
 
+    def test_to_litellm_message_encodes_each_attachment_once(
+        self, mock_litellm_wrapper, monkeypatch
+    ):
+        """The whole history is re-sent each turn, so base64 is built once per part."""
+        import base64 as _b64
+
+        calls = []
+        real_b64encode = _b64.b64encode
+
+        def counting_b64encode(data):
+            calls.append(len(data))
+            return real_b64encode(data)
+
+        monkeypatch.setattr(_b64, "b64encode", counting_b64encode)
+        wrapper = mock_litellm_wrapper(model_name="gpt-4o")
+        message = UserMessage(
+            "Summarize.",
+            attachment=Attachment.from_bytes(b"%PDF-1.7\n" + bytes(64)),
+        )
+
+        wrapper._to_litellm_message(message)
+
+        assert len(calls) == 1
+
     @pytest.mark.parametrize(
         "attachment",
         [

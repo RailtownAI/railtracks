@@ -9,6 +9,7 @@ from railtracks.llm import attachment_formats
 from railtracks.llm.attachment_formats import (
     detect_attachment_mime_from_bytes,
     detect_image_mime_from_bytes,
+    detect_mime,
     detect_mime_from_extension,
 )
 from railtracks.llm.encoding import (
@@ -349,8 +350,7 @@ class TestDetectAttachmentMime:
         "data,mime_type",
         [
             (b"ID3\x04\x00\x00\x00\x00\x00\x00", "audio/mpeg"),
-            (b"\xff\xfb\x90\x64\x00", "audio/mpeg"),
-            (b"\xff\xf3\x48\xc4\x00", "audio/mpeg"),
+            (b"ID3\x03\x00\x00\x00\x00\x00\x00", "audio/mpeg"),
             (b"RIFF\x24\x00\x00\x00WAVEfmt ", "audio/wav"),
             (b"OggS\x00\x02\x00\x00", "audio/ogg"),
             (b"fLaC\x00\x00\x00\x22", "audio/flac"),
@@ -368,15 +368,54 @@ class TestDetectAttachmentMime:
 
     @pytest.mark.parametrize(
         "data",
-        [b"BMW sales notes", b'<?xml version="1.0"?><invoice/>'],
-        ids=["text_starting_with_BM", "plain_xml"],
+        [
+            b"BMW sales notes",
+            b"ID3 tag notes",
+            b"\xff\xfb\x90\x64\x00",
+            b'<?xml version="1.0"?><invoice/>',
+            b'# Logo\n<svg xmlns="http://www.w3.org/2000/svg"/>',
+            b"<!DOCTYPE html><html><body><svg/></body></html>",
+        ],
+        ids=[
+            "text_starting_with_BM",
+            "text_starting_with_ID3",
+            "bare_mp3_frame_sync",
+            "plain_xml",
+            "markdown_with_inline_svg",
+            "html_with_inline_svg",
+        ],
     )
-    def test_lookalike_text_is_not_detected(self, data):
+    def test_lookalike_content_is_not_detected(self, data):
         assert detect_attachment_mime_from_bytes(data) is None
 
-    def test_svg_after_xml_declaration_detected(self):
-        svg = b'<?xml version="1.0"?>\n<!-- logo -->\n<svg xmlns="http://www.w3.org/2000/svg"/>'
+    @pytest.mark.parametrize(
+        "svg",
+        [
+            b'<?xml version="1.0"?>\n<!-- logo -->\n<svg xmlns="http://www.w3.org/2000/svg"/>',
+            b'  <svg xmlns="http://www.w3.org/2000/svg"/>',
+            b'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "x"><svg/>',
+        ],
+    )
+    def test_svg_detected(self, svg):
         assert detect_attachment_mime_from_bytes(svg) == "image/svg+xml"
+
+
+class TestDetectMime:
+    @pytest.mark.parametrize(
+        "data,name,mime_type",
+        [
+            (b"OggS\x00\x02\x00\x00", "clip.ogv", "video/ogg"),
+            (b"OggS\x00\x02\x00\x00", "voice.ogg", "audio/ogg"),
+            (b"OggS\x00\x02\x00\x00", None, "audio/ogg"),
+            (b"\x1a\x45\xdf\xa3\x9f\x42", "movie.mkv", "video/x-matroska"),
+            (b"\x1a\x45\xdf\xa3\x9f\x42", "notes.txt", "video/webm"),
+            (b"\x89PNG\r\n\x1a\n", "clip.mp4", "image/png"),
+            (b"plain text", "notes.txt", "text/plain"),
+            (b"plain text", None, None),
+        ],
+    )
+    def test_magic_bytes_then_name(self, data, name, mime_type):
+        assert detect_mime(data, name) == mime_type
 
 
 class TestDetectMimeFromExtension:
