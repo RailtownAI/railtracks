@@ -3,6 +3,7 @@ import warnings
 from pathlib import Path
 
 _DIRNAME = ".railtracks"
+_GITIGNORE_CONTENT = "# Created by railtracks automatically.\n*\n"
 
 
 def resolve_railtracks_home() -> Path:
@@ -32,3 +33,26 @@ def resolve_railtracks_home() -> Path:
         stacklevel=2,
     )
     return fallback
+
+
+def ensure_gitignore(path: Path) -> bool:
+    """Keep the .railtracks directory that holds ``path`` out of git.
+
+    Writes a ``.gitignore`` containing ``*`` into the nearest .railtracks directory
+    among ``path`` and its parents, unless one is already there. Does nothing when
+    ``path`` is not inside a .railtracks directory.
+
+    Args:
+        path: The .railtracks directory itself, or a directory inside it.
+
+    Returns:
+        True if this call wrote the ``.gitignore``.
+    """
+    for directory in [path, *path.parents]:
+        if directory.name == _DIRNAME:
+            gitignore = directory / ".gitignore"
+            if gitignore.exists():
+                return False
+            gitignore.write_text(_GITIGNORE_CONTENT)
+            return True
+    return False
