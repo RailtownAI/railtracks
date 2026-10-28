@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import math
-from typing import TYPE_CHECKING
+import warnings
+from typing import TYPE_CHECKING, NamedTuple
 
 from typing_extensions import Self
 
@@ -21,23 +22,33 @@ def _to_chroma_where(filters: dict) -> dict:
     return {"$and": conditions}
 
 
-# Chroma Cloud enforces a per-request quota on the ``limit`` value of a get()
-# (rejects anything above 300 with "Quota exceeded: 'Limit value'"). All bulk
-# reads page at this size so no single request ever asks for more.
-_GET_PAGE_SIZE = 300
+# Chroma Cloud caps the results of a single request at 300: a get() ``limit``
+# or a query() ``n_results`` above it is rejected with "Quota exceeded".
+# Issue: https://github.com/RailtownAI/railtracks/issues/1180
+_CLOUD_MAX_RESULTS = 300
+
+# All bulk reads page at this size so no single request ever asks for more.
+_GET_PAGE_SIZE = _CLOUD_MAX_RESULTS
+
+
+class _GetPage(NamedTuple):
+    ids: list
+    metadatas: list
+    documents: list
 
 
 def _get_paged(
     collection: Collection, where: dict | None, limit: int | None, include: Include
-) -> tuple[list, list]:
+) -> _GetPage:
     """Offset-paged ``collection.get`` capped at ``_GET_PAGE_SIZE`` per request.
 
     Synchronous — run via ``asyncio.to_thread``. ``limit=None`` reads to
-    exhaustion. Returns ``(ids, metadatas)``; ``metadatas`` is empty when not
-    requested via ``include``.
+    exhaustion. ``metadatas`` and ``documents`` are empty when not requested
+    via ``include``.
     """
     ids: list = []
     metadatas: list = []
+    documents: list = []
     offset = 0
     while True:
         page = (
@@ -48,10 +59,23 @@ def _get_paged(
         result = collection.get(where=where, limit=page, offset=offset, include=include)
         ids.extend(result["ids"])
         metadatas.extend(result.get("metadatas") or [])
+        documents.extend(result.get("documents") or [])
         if len(result["ids"]) < page:
             break
         offset += len(result["ids"])
-    return ids, metadatas
+    return _GetPage(ids, metadatas, documents)
+
+
+def _to_payload(metadata: dict | None, document: str | None) -> dict:
+    """Rebuild a backend payload from a Chroma metadata dict and document.
+
+    ``upsert`` keeps ``content`` only in the Chroma document, so it is restored
+    into the payload here.
+    """
+    payload = dict(metadata) if metadata is not None else {}
+    if document is not None:
+        payload["content"] = document
+    return payload
 
 
 def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
@@ -109,6 +133,8 @@ class _ChromaBase:
     """Shared Chroma I/O operations. Subclasses supply __init__ and initialize()."""
 
     _NOT_INITIALIZED: str = "Chroma backend is not initialized"
+    # Per-request cap on query() n_results; None when the server has no quota.
+    _max_results: int | None = None
     _metric: DistanceMetric
     _collection: Collection | None
 
@@ -119,6 +145,9 @@ class _ChromaBase:
 
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
         collection = self._initialized_collection()
+        # Content lives only in the Chroma document (shown and searched by the
+        # Chroma dashboard), not duplicated in metadata (https://github.com/RailtownAI/railtracks/issues/1186).
+        metadata = {k: v for k, v in payload.items() if k != "content"}
         content = payload.get("content")
         embeddings: PyEmbeddings = [vector]
         await asyncio.to_thread(
@@ -126,41 +155,57 @@ class _ChromaBase:
             ids=[id],
             embeddings=embeddings,
             documents=[content] if content is not None else None,
-            metadatas=[payload],
+            metadatas=[metadata] if metadata else None,
         )
 
     async def search(
         self, vector: list[float], top_k: int, filters: dict
     ) -> list[tuple[str, float, dict]]:
         collection = self._initialized_collection()
-
-        count = await asyncio.to_thread(collection.count)
-        if count == 0:
-            return []
-
-        n_results = min(top_k, count)
         where = _to_chroma_where(filters) if filters else None
         query_embeddings: PyEmbeddings = [vector]
 
+        # Chroma caps n_results at the number of matches itself, so only a
+        # per-query quota needs a cap here.
+        n_results = top_k
+        if self._max_results is not None and top_k > self._max_results:
+            warnings.warn(
+                f"top_k={top_k} exceeds this backend's max_results="
+                f"{self._max_results} (its per-query result limit); returning "
+                f"at most {self._max_results} results. Raise max_results if the "
+                "limit was increased.",
+                UserWarning,
+                stacklevel=2,
+            )
+            n_results = self._max_results
         results = await asyncio.to_thread(
             collection.query,
             query_embeddings=query_embeddings,
             n_results=n_results,
             where=where,
-            include=["metadatas", "distances"],
+            include=["metadatas", "documents", "distances"],
         )
 
         distances = results["distances"]
         metadatas = results["metadatas"]
-        assert distances is not None and metadatas is not None  # requested in include
+        documents = results["documents"]
+        # all requested in include
+        assert distances is not None and metadatas is not None and documents is not None
 
         hits: list[tuple[str, float, dict]] = []
-        for id_, distance, metadata in zip(
+        for id_, distance, metadata, document in zip(
             results["ids"][0],
             distances[0],
             metadatas[0],
+            documents[0],
         ):
-            hits.append((id_, _chroma_to_score(self._metric, distance), dict(metadata)))
+            hits.append(
+                (
+                    id_,
+                    _chroma_to_score(self._metric, distance),
+                    _to_payload(metadata, document),
+                )
+            )
         return hits
 
     async def delete(self, id: str) -> None:
@@ -177,22 +222,22 @@ class _ChromaBase:
     async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]:
         collection = self._initialized_collection()
         where = _to_chroma_where(filters) if filters else None
-        ids, metadatas = await asyncio.to_thread(
-            _get_paged, collection, where, limit, ["metadatas"]
+        page = await asyncio.to_thread(
+            _get_paged, collection, where, limit, ["metadatas", "documents"]
         )
         return [
-            (id_, dict(metadata) if metadata is not None else {})
-            for id_, metadata in zip(ids, metadatas)
+            (id_, _to_payload(metadata, document))
+            for id_, metadata, document in zip(page.ids, page.metadatas, page.documents)
         ]
 
     async def count(self, filters: dict) -> int:
         collection = self._initialized_collection()
         if not filters:
             return await asyncio.to_thread(collection.count)
-        ids, _ = await asyncio.to_thread(
+        page = await asyncio.to_thread(
             _get_paged, collection, _to_chroma_where(filters), None, []
         )
-        return len(ids)
+        return len(page.ids)
 
 
 class ChromaBackend(_ChromaBase):
@@ -313,6 +358,7 @@ class ChromaCloudBackend(_ChromaBase):
         tenant: str,
         database: str,
         metric: DistanceMetric = DistanceMetric.COSINE,
+        max_results: int | None = _CLOUD_MAX_RESULTS,
     ) -> None:
         """
         Args:
@@ -326,12 +372,22 @@ class ChromaCloudBackend(_ChromaBase):
                 changed afterwards. ``initialize()`` raises ``ValueError`` if
                 an existing collection uses a different space. Defaults to
                 cosine.
+            max_results: Most results a single search asks Chroma Cloud for.
+                A larger ``top_k`` is capped to it with a warning. Defaults to
+                300, Chroma Cloud's per-query quota; raise it if your quota was
+                raised, or pass ``None`` to never cap.
+
+        Raises:
+            ValueError: If ``max_results`` is not positive.
         """
+        if max_results is not None and max_results < 1:
+            raise ValueError(f"max_results must be positive, got {max_results}")
         self._collection_name = collection_name
         self._api_key = api_key
         self._tenant = tenant
         self._database = database
         self._metric = metric
+        self._max_results = max_results
         self._collection = None
 
     @classmethod
@@ -343,6 +399,7 @@ class ChromaCloudBackend(_ChromaBase):
         tenant: str,
         database: str,
         metric: DistanceMetric = DistanceMetric.COSINE,
+        max_results: int | None = _CLOUD_MAX_RESULTS,
     ) -> Self:
         """Create and initialize a ChromaCloudBackend in one step."""
         backend = cls(
@@ -351,6 +408,7 @@ class ChromaCloudBackend(_ChromaBase):
             tenant=tenant,
             database=database,
             metric=metric,
+            max_results=max_results,
         )
         await backend.initialize()
         return backend
