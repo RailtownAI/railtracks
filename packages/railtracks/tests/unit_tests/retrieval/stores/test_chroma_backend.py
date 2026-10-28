@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+import warnings
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
 
@@ -342,6 +343,27 @@ async def test_search_passes_top_k_without_counting():
     col.count.assert_not_called()
 
 
+def _empty_query_collection(count: int) -> MagicMock:
+    col = _make_collection(count=count)
+    col.query.return_value = {
+        "ids": [[]],
+        "distances": [[]],
+        "metadatas": [[]],
+        "documents": [[]],
+    }
+    return col
+
+
+async def test_local_search_never_counts_even_for_large_top_k():
+    col = _empty_query_collection(count=50)
+    backend = _injected_backend(col)
+
+    await backend.search([1.0, 0.0], top_k=1000, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 1000
+    col.count.assert_not_called()
+
+
 async def test_search_converts_distance_to_score():
     col = _make_collection(count=2)
     col.query.return_value = {
@@ -526,6 +548,67 @@ def _cloud_backend(collection: MagicMock | None = None) -> ChromaCloudBackend:
 
 
 # ---------------------------------------------------------------------------
+# ChromaCloudBackend — n_results quota
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_search_caps_large_top_k_with_warning():
+    col = _empty_query_collection(count=500)
+    backend = _cloud_backend(col)
+
+    with pytest.warns(UserWarning, match="top_k=400 exceeds this backend's"):
+        await backend.search([1.0, 0.0], top_k=400, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 300
+    col.count.assert_not_called()
+
+
+async def test_cloud_search_within_quota_is_not_capped():
+    col = _empty_query_collection(count=50)
+    backend = _cloud_backend(col)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        await backend.search([1.0, 0.0], top_k=300, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 300
+    col.count.assert_not_called()
+
+
+async def test_cloud_search_uses_raised_max_results():
+    col = _empty_query_collection(count=5000)
+    backend = ChromaCloudBackend(
+        "c", api_key="k", tenant="t", database="d", max_results=1000
+    )
+    backend._collection = col
+
+    with pytest.warns(UserWarning):
+        await backend.search([1.0, 0.0], top_k=2000, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 1000
+
+
+async def test_cloud_search_max_results_none_never_caps():
+    col = _empty_query_collection(count=5000)
+    backend = ChromaCloudBackend(
+        "c", api_key="k", tenant="t", database="d", max_results=None
+    )
+    backend._collection = col
+
+    await backend.search([1.0, 0.0], top_k=2000, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 2000
+
+
+@pytest.mark.parametrize("max_results", [0, -1])
+def test_cloud_rejects_non_positive_max_results(max_results):
+    with pytest.raises(ValueError, match="max_results must be positive"):
+        ChromaCloudBackend(
+            "c", api_key="k", tenant="t", database="d", max_results=max_results
+        )
+
+
+# ---------------------------------------------------------------------------
 # ChromaCloudBackend — not-initialized guard
 # ---------------------------------------------------------------------------
 
@@ -676,6 +759,24 @@ async def test_cloud_create_factory_returns_initialized_backend():
 
     assert isinstance(backend, ChromaCloudBackend)
     assert backend._collection is not None
+
+
+async def test_cloud_create_factory_passes_max_results():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
+        _space_collection()
+    )
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = await ChromaCloudBackend.create(
+            "my-collection",
+            api_key="chk-key",
+            tenant="my-tenant",
+            database="my-db",
+            max_results=1000,
+        )
+
+    assert backend._max_results == 1000
 
 
 # ---------------------------------------------------------------------------

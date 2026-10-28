@@ -428,3 +428,20 @@ def test_legacy_payload_with_full_blob_still_decodes():
     got = _payload_to_entry(str(entry.id), payload)
 
     assert got.chunk_metadata == {"page": 3, "tags": ["a"]}
+
+
+@pytest.mark.parametrize(
+    "key", ["summary", "content", "document_id", "chunk_metadata_keys", "scope_x"]
+)
+def test_chunk_metadata_key_colliding_with_entry_field_round_trips(key):
+    entry = _metadata_entry({key: "from-metadata", "page": 3})
+
+    payload = _entry_to_payload(entry)
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.chunk_metadata == {key: "from-metadata", "page": 3}
+    assert payload.get(key) != "from-metadata"
+    assert got.content == entry.content
+    assert got.summary == entry.summary
+    assert got.document_id == entry.document_id
+    assert got.scope == entry.scope
