@@ -39,35 +39,10 @@ class VectorBackend(Protocol):
 # ---------------------------------------------------------------------------
 
 
-# Top-level payload keys written from StoreEntry fields. A chunk_metadata key
-# with one of these names (or a scope_* name) is kept in the JSON blob instead
-# of being spread, so neither value overwrites the other.
-_RESERVED_PAYLOAD_KEYS = frozenset(
-    {
-        "content",
-        "chunk_id",
-        "document_id",
-        "chunk_index",
-        "embedding_model",
-        "created_at",
-        "parent_chunk_id",
-        "chunk_offsets",
-        "chunk_metadata",
-        "chunk_metadata_keys",
-        "embedding_version",
-        "abstract",
-        "summary",
-        "valid_from",
-        "valid_until",
-        "entities",
-    }
-)
-
-
-def _is_spreadable(key: str, value: object) -> bool:
-    if key in _RESERVED_PAYLOAD_KEYS or key.startswith("scope_"):
-        return False
-    return _is_scalar(value)
+# Keys ``_encode_chunk_metadata`` writes itself; a chunk_metadata key with one
+# of these names stays in the blob so it never collides with these structural
+# keys. Every other reserved key is derived from the payload at encode time.
+_CHUNK_METADATA_KEYS = ("chunk_metadata", "chunk_metadata_keys")
 
 
 def _is_scalar(value: object) -> bool:
@@ -95,21 +70,41 @@ def _encode_provenance(entry: StoreEntry) -> dict:
         out["parent_chunk_id"] = str(entry.parent_chunk_id)
     if entry.chunk_offsets is not None:
         out["chunk_offsets"] = json.dumps(list(entry.chunk_offsets))
-    if entry.chunk_metadata:
-        # Scalars are spread at the top level so they are filterable via
-        # `metadata_filters` / `find`, and their keys recorded for the read
-        # back. Only the rest goes in the JSON blob, so nothing is stored twice.
-        scalars = {
-            k: v for k, v in entry.chunk_metadata.items() if _is_spreadable(k, v)
-        }
-        rest = {k: v for k, v in entry.chunk_metadata.items() if k not in scalars}
-        if scalars:
-            out.update(scalars)
-            out["chunk_metadata_keys"] = json.dumps(list(scalars))
-        if rest:
-            out["chunk_metadata"] = json.dumps(rest)
     if entry.embedding_version is not None:
         out["embedding_version"] = entry.embedding_version
+    return out
+
+
+def _encode_chunk_metadata(entry: StoreEntry, reserved: set[str]) -> dict:
+    """Encode ``chunk_metadata`` into payload keys, skipping ``reserved`` names.
+
+    Scalars are spread at the top level so they are filterable via
+    ``metadata_filters`` / ``find``, with their keys recorded in
+    ``chunk_metadata_keys`` for the read back. A key that collides with an
+    already-written payload key (an entry field or a structural blob key) or
+    falls in the ``scope_*`` namespace stays in the JSON blob instead, so
+    neither value overwrites the other. Non-scalars also go in the blob, so
+    nothing is stored twice. This runs last in ``_entry_to_payload`` so
+    ``reserved`` can just be the keys the entry fields already produced — no
+    hand-kept list to drift. ``scope_*`` is the one exception: it is a reserved
+    *namespace* (``_payload_to_entry`` rebuilds ``scope`` from every ``scope_*``
+    key), so it is excluded by prefix regardless of which labels the entry set.
+    """
+    if not entry.chunk_metadata:
+        return {}
+    reserved = reserved | set(_CHUNK_METADATA_KEYS)
+    out: dict = {}
+    scalars = {
+        k: v
+        for k, v in entry.chunk_metadata.items()
+        if _is_scalar(v) and k not in reserved and not k.startswith("scope_")
+    }
+    rest = {k: v for k, v in entry.chunk_metadata.items() if k not in scalars}
+    if scalars:
+        out.update(scalars)
+        out["chunk_metadata_keys"] = json.dumps(list(scalars))
+    if rest:
+        out["chunk_metadata"] = json.dumps(rest)
     return out
 
 
@@ -151,6 +146,9 @@ def _entry_to_payload(entry: StoreEntry) -> dict:
     }
     payload.update(_encode_provenance(entry))
     payload.update(_encode_enrichment(entry))
+    # Spread chunk_metadata last so it can skip the keys the fields above
+    # already claimed, keeping those collisions in the blob.
+    payload.update(_encode_chunk_metadata(entry, reserved=set(payload)))
     return payload
 
 
