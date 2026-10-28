@@ -196,6 +196,10 @@ Works the same as for `ChromaBackend`: `metric` sets the collection's distance s
 | `L2` | `l2` | `1 / (1 + sqrt(distance))` |
 | `IP` | `ip` | `1 - distance` |
 
+### Result limit
+
+Chroma Cloud rejects a query that asks for more than 300 results, its default per-query quota. `ChromaCloudBackend` caps each search at `max_results` (300 by default): a larger `top_k` returns at most `max_results` results and emits a `UserWarning`. If Chroma has raised your account's quota, pass the new limit as `max_results`, or `max_results=None` to never cap.
+
 | Property | Value |
 |---|---|
 | Install | `pip install "railtracks[stores-chroma]"` |
