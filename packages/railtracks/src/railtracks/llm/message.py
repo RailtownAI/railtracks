@@ -5,7 +5,7 @@ import os
 import re
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Callable, Generic, Protocol, TypeVar, cast
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import urlparse
@@ -14,9 +14,11 @@ from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .context_injection_utils import ValueDict, fill_template
 from .encoding import (
     DEFAULT_MAX_DOWNLOAD_MB,
+    decode_data_uri,
     detect_source,
     encode,
     ensure_data_uri,
+    media_sha256,
     validate_max_mb,
 )
 
@@ -41,6 +43,19 @@ _NON_IMAGE_EXTENSIONS = frozenset(
     + (".csv", ".htm", ".html", ".md", ".txt")  # text
     + (".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx")  # Office
 )
+
+# Attachment.type -> the `source` of its record, which also names the reference key.
+_RECORD_SOURCES = {"local": "path", "url": "url", "data_uri": "inline"}
+
+
+class MediaSink(Protocol):
+    """Where `record()` stores media bytes, keyed by their hash.
+
+    The same shape as `railtracks.utils.json.recordable.MediaSink`, declared here
+    because the llm package does not import the rest of railtracks.
+    """
+
+    def save(self, sha256: str, size: int, data: Callable[[], bytes]) -> None: ...
 
 
 def _modality_for_mime(mime_type: str) -> str:
@@ -118,6 +133,8 @@ class Attachment:
         self.mime_type: str | None = None
         self.modality = "image"
         self.filename: str | None = None
+        self.sha256: str | None = None
+        self.size: int | None = None
 
         if not isinstance(url, str):
             raise TypeError(
@@ -137,6 +154,15 @@ class Attachment:
                 )
             case "data_uri":
                 self._init_data_uri(url)
+
+        if self.encoding is not None:
+            try:
+                data = decode_data_uri(self.encoding)
+            except ValueError:
+                # A malformed payload is left for the provider to reject.
+                return
+            self.sha256 = media_sha256(data)
+            self.size = len(data)
 
     def _init_local(self, url: str) -> None:
         _, file_extension = os.path.splitext(url)
@@ -203,6 +229,41 @@ class Attachment:
         self.mime_type = header[len("data:") :].split(";", 1)[0].lower()
         self.modality = _modality_for_mime(self.mime_type)
         self.type = "data_uri"
+
+    def record(self, media: MediaSink | None) -> dict[str, Any]:
+        """Describe this attachment for the event record, without its bytes.
+
+        Args:
+            media: Where to store the bytes under their hash, or None to store
+                nothing.
+
+        Returns:
+            The media part: `type` (the modality), `mime_type`, `filename`,
+            `source` (`path`, `url` or `inline`), the path or URL under a key
+            named after `source`, `sha256` and `size` of the bytes (None when
+            the attachment holds none, as with a plain image URL).
+        """
+        source = _RECORD_SOURCES[self.type]
+        part: dict[str, Any] = {
+            "type": self.modality,
+            "mime_type": self.mime_type,
+            "filename": self.filename,
+            "source": source,
+        }
+        if source != "inline":
+            part[source] = self.url
+        part["sha256"] = self.sha256
+        part["size"] = self.size
+
+        encoding = self.encoding
+        if (
+            media is not None
+            and self.sha256 is not None
+            and self.size is not None
+            and encoding is not None
+        ):
+            media.save(self.sha256, self.size, lambda: decode_data_uri(encoding))
+        return part
 
 
 class Role(str, Enum):
@@ -396,6 +457,30 @@ class UserMessage(_StringOnlyContent[Role.user]):
             }
 
         return super().encode()
+
+    def record(self, media: MediaSink | None) -> dict[str, Any]:
+        """Describe this message for the event record.
+
+        Matches `encode()` except that each attachment is a media part from
+        `Attachment.record`.
+
+        Args:
+            media: Where to store attachment bytes under their hash, or None to
+                store nothing.
+
+        Returns:
+            The message, with its text and media parts as `content` when it has
+            attachments.
+        """
+        if self.attachment is None:
+            return self.encode()
+        return {
+            "role": self.role.value,
+            "content": [
+                {"type": "text", "text": self.content},
+                *(attachment.record(media) for attachment in self.attachment),
+            ],
+        }
 
 
 class SystemMessage(_StringOnlyContent[Role.system]):

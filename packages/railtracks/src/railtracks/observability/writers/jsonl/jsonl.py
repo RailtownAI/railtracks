@@ -5,14 +5,29 @@ from pathlib import Path
 from typing import TextIO
 
 from ...models import Event
-from ...storage import resolve_events_dir
+from ...storage import MEDIA_SUBDIR, resolve_events_dir
+from ._media import MediaStore, save_media_max_bytes
 from ._serialize import RTObserverEncoder
 
 
 class JsonlWriter:
-    def __init__(self, directory: Path | None = None):
-        """Write events to ``directory`` or the shared visualizer event store."""
+    def __init__(
+        self, directory: Path | None = None, media_directory: Path | None = None
+    ):
+        """Write events to ``directory`` or the shared visualizer event store.
+
+        Media in the events is recorded as metadata and a content hash, and its
+        bytes are saved once per hash to ``media_directory``, by default a
+        ``media`` folder inside the events directory. ``RAILTRACKS_MEDIA_MAX_MB``
+        caps the size saved: unset saves everything, ``0`` saves nothing.
+        """
         self._directory = directory if directory is not None else resolve_events_dir()
+        self._media = MediaStore(
+            media_directory
+            if media_directory is not None
+            else self._directory / MEDIA_SUBDIR,
+            save_media_max_bytes(),
+        )
         self._files: dict[str, TextIO] = {}
 
     async def start(self) -> None:
@@ -27,7 +42,7 @@ class JsonlWriter:
                 "a", encoding="utf-8", errors="backslashreplace"
             )
             self._files[event.scope_id] = handle
-        handle.write(_serialize(event) + "\n")
+        handle.write(_serialize(event, self._media) + "\n")
         handle.flush()
 
     async def shutdown(self) -> None:
@@ -37,8 +52,8 @@ class JsonlWriter:
         self._files.clear()
 
 
-def _serialize(event: Event) -> str:
-    return json.dumps(event, cls=RTObserverEncoder, ensure_ascii=False)
+def _serialize(event: Event, media: MediaStore) -> str:
+    return json.dumps(event, cls=RTObserverEncoder, ensure_ascii=False, media=media)
 
 
 _UNSAFE_SCOPE_ID_CHARS = frozenset("/\\\0")

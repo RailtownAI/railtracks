@@ -9,6 +9,7 @@ from railtracks.paths import resolve_railtracks_home
 
 EVENTS_DIR_ENV = "RAILTRACKS_EVENTS_DIR"
 EVENTS_SUBDIR = Path("data/events")
+MEDIA_SUBDIR = Path("media")
 
 
 def resolve_events_dir() -> Path:
@@ -22,3 +23,11 @@ def resolve_events_dir() -> Path:
     if override:
         return Path(override).expanduser().resolve()
     return resolve_railtracks_home() / EVENTS_SUBDIR
+
+
+def resolve_media_dir() -> Path:
+    """Return the folder that media in the event store is saved to, by content hash.
+
+    It sits inside the events folder, so it follows ``RAILTRACKS_EVENTS_DIR``.
+    """
+    return resolve_events_dir() / MEDIA_SUBDIR
