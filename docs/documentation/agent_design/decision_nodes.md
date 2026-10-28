@@ -116,13 +116,7 @@ Only litellm's API errors are mapped to these classes; any other litellm excepti
 ### Retrying
 Set `retry_approach=` on the model, as shown in [Choosing a Model](#choosing-a-model). Rate limits, timeouts, dropped connections and 500 and 503 responses are then retried inside the call, before the node raises anything. A rejected key, a refusal and other 4xx responses are not retried.
 
-`middleware=[Retry()]` with its defaults does **not** retry a decision node. `Retry`'s default `retry_on` lists litellm's raw exceptions, and by the time an error leaves the node it has already become a `DecisionTimeoutError` or `DecisionRateLimitError`. To retry at the node level instead, name the node's errors:
-
-```python
---8<-- "docs/scripts/documentation/decision_nodes.py:retry_node"
-```
-
-Once every attempt fails, `Retry` raises `rt.llm.RetryError`, with each attempt's error in `.exception_list`. That is not a `DecisionModelError`, so catch it separately. Use `retry_approach=` on the model if you want the node to keep raising a `DecisionModelError` subclass after the retries run out.
+To retry the whole node, pass `middleware=[rt.prebuilt.middleware.Retry()]` to `rt.decision_node`. Its defaults retry `DecisionTimeoutError` and `DecisionRateLimitError`. If all attempts fail, the last `DecisionModelError` subclass is re-raised, with a `rt.llm.RetryError` cause whose `.exception_list` holds every attempt's error.
 
 ??? note "Calling the model directly"
     Outside a node you can call the model yourself with `await model.aask(state, schema)`, as you would call an LLM's `achat`. A direct call raises the model-layer errors instead: `rt.decisions.DecisionProviderError` and its `DecisionProviderTimeoutError`, `DecisionProviderRateLimitError`, `DecisionProviderAuthenticationError` and `DecisionProviderRefusalError` subclasses. It is also not recorded.

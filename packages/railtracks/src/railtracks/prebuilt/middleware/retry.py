@@ -4,7 +4,14 @@ from typing import Any
 
 from typing_extensions import Never
 
+from railtracks.exceptions import (
+    DecisionModelError,
+    DecisionRateLimitError,
+    DecisionTimeoutError,
+)
+from railtracks.llm import RetryError
 from railtracks.llm.retries import ExponentialRetry, RetryApproach
+from railtracks.llm.retries.base import _RETRYABLE_EXCEPTIONS
 from railtracks.middleware.core import Middleware
 
 
@@ -34,9 +41,14 @@ class Retry(Middleware[Any, Any, Never]):
         approach: Backoff strategy; defaults to
             :class:`~railtracks.llm.retries.ExponentialRetry` with ``max_tries``.
         retry_on: Exception types worth retrying. Defaults to the transient LLM
-            provider errors (rate limits, timeouts, connection failures) — pass
-            your own tuple (e.g. ``(Exception,)``) for node-level use. Anything
-            not in the tuple propagates immediately.
+            provider errors (rate limits, timeouts, connection failures) and
+            decision-node timeouts and rate limits. Pass your own tuple to replace
+            these defaults. Anything not in the tuple propagates immediately.
+
+    Raises:
+        DecisionModelError: Retries exhausted with a decision-node error; the last
+            error is re-raised with the ``RetryError`` as its cause.
+        RetryError: Retries exhausted with any other retryable error.
     """
 
     def __init__(
@@ -49,10 +61,21 @@ class Retry(Middleware[Any, Any, Never]):
         self._approach = (
             approach if approach is not None else ExponentialRetry(max_tries=max_tries)
         )
-        self._retry_on = retry_on
+        self._retry_on = (
+            retry_on
+            if retry_on is not None
+            else (*_RETRYABLE_EXCEPTIONS, DecisionTimeoutError, DecisionRateLimitError)
+        )
         super().__init__(self._middleware_fn)
 
     async def _middleware_fn(self, call, *args, **kwargs):
-        return await self._approach.acall_with_retry(
-            lambda: call(*args, **kwargs), retry_on=self._retry_on
-        )
+        try:
+            return await self._approach.acall_with_retry(
+                lambda: call(*args, **kwargs), retry_on=self._retry_on
+            )
+        except RetryError as e:
+            if e.exception_list and isinstance(
+                e.exception_list[-1], DecisionModelError
+            ):
+                raise e.exception_list[-1] from e
+            raise

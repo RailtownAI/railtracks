@@ -2,7 +2,7 @@
 
 `Retry` re-runs the wrapped call when it raises a transient error, using a configurable backoff schedule. It is **slot-agnostic**: attach it as node middleware to retry a whole node, as model middleware to retry a single model call, or both.
 
-By default `Retry` only retries the transient LLM provider errors (rate limits, timeouts, connection failures). For node-level use, pass your own `retry_on` tuple.
+By default `Retry` retries transient LLM provider errors (rate limits, timeouts, connection failures), plus `DecisionTimeoutError` and `DecisionRateLimitError` from decision nodes. Pass your own `retry_on` tuple to replace these defaults. If retries run out, the last decision-node error is re-raised with a `RetryError` cause containing every attempt's error in `.exception_list`. Other failures raise `RetryError`.
 
 ## Usage
 
