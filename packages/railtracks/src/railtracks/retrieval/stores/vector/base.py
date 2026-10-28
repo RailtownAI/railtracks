@@ -39,6 +39,37 @@ class VectorBackend(Protocol):
 # ---------------------------------------------------------------------------
 
 
+# Top-level payload keys written from StoreEntry fields. A chunk_metadata key
+# with one of these names (or a scope_* name) is kept in the JSON blob instead
+# of being spread, so neither value overwrites the other.
+_RESERVED_PAYLOAD_KEYS = frozenset(
+    {
+        "content",
+        "chunk_id",
+        "document_id",
+        "chunk_index",
+        "embedding_model",
+        "created_at",
+        "parent_chunk_id",
+        "chunk_offsets",
+        "chunk_metadata",
+        "chunk_metadata_keys",
+        "embedding_version",
+        "abstract",
+        "summary",
+        "valid_from",
+        "valid_until",
+        "entities",
+    }
+)
+
+
+def _is_spreadable(key: str, value: object) -> bool:
+    if key in _RESERVED_PAYLOAD_KEYS or key.startswith("scope_"):
+        return False
+    return _is_scalar(value)
+
+
 def _is_scalar(value: object) -> bool:
     return isinstance(value, (str, int, float, bool)) or value is None
 
@@ -67,8 +98,10 @@ def _encode_provenance(entry: StoreEntry) -> dict:
     if entry.chunk_metadata:
         # Scalars are spread at the top level so they are filterable via
         # `metadata_filters` / `find`, and their keys recorded for the read
-        # back. Only non-scalars go in the JSON blob, so nothing is stored twice.
-        scalars = {k: v for k, v in entry.chunk_metadata.items() if _is_scalar(v)}
+        # back. Only the rest goes in the JSON blob, so nothing is stored twice.
+        scalars = {
+            k: v for k, v in entry.chunk_metadata.items() if _is_spreadable(k, v)
+        }
         rest = {k: v for k, v in entry.chunk_metadata.items() if k not in scalars}
         if scalars:
             out.update(scalars)
