@@ -10,7 +10,7 @@ from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
     get_message,
 )
-from railtracks.paths import resolve_railtracks_home
+from railtracks.paths import ensure_gitignore, resolve_railtracks_home
 
 from .context.central import (
     ContextVarScopeManager,
@@ -187,6 +187,7 @@ class Session:
                 sessions_dir.mkdir(
                     parents=True, exist_ok=True
                 )  # Creates directory structure if doesn't exist, skips otherwise.
+                ensure_gitignore(sessions_dir)
 
                 # Try to create file path with name, fallback to identifier only if there's an issue
                 if self.flow_name is not None:
