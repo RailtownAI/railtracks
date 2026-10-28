@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+from dataclasses import fields, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from railtracks.retrieval.stores.models import (
+    Entity,
     StoreEntry,
     StoreQuery,
     StoreScope,
@@ -17,6 +19,7 @@ from railtracks.retrieval.stores.models import (
 from railtracks.retrieval.stores.protocol import Store
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
 from railtracks.retrieval.stores.vector.base import (
+    _RESERVED_PAYLOAD_KEYS,
     VectorStore,
     _entry_to_payload,
     _payload_to_entry,
@@ -445,3 +448,97 @@ def test_chunk_metadata_key_colliding_with_entry_field_round_trips(key):
     assert got.summary == entry.summary
     assert got.document_id == entry.document_id
     assert got.scope == entry.scope
+
+
+# ---------------------------------------------------------------------------
+# _RESERVED_PAYLOAD_KEYS stays in sync with StoreEntry and the payload
+# ---------------------------------------------------------------------------
+
+# StoreEntry fields that are never written as a top-level payload key of their
+# own: the id is the backend's row id, the backend owns the vector, and scope
+# is spread as scope_* keys.
+_UNWRITTEN_ENTRY_FIELDS = {"id", "vector", "scope"}
+
+
+def _fully_populated_entry() -> StoreEntry:
+    chunk_id = uuid4()
+    return StoreEntry(
+        id=uuid4(),
+        content="text",
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        embedding_version="v1",
+        chunk_id=chunk_id,
+        document_id=uuid4(),
+        chunk_index=2,
+        parent_chunk_id=uuid4(),
+        chunk_offsets=(0, 4),
+        chunk_metadata={"page": 3, "tags": ["a"]},
+        abstract="abs",
+        summary="sum",
+        scope=StoreScope(labels={"user_id": "alice"}),
+        entities=[Entity(name="n", type="t", source_chunk_id=chunk_id)],
+        valid_from=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        valid_until=datetime(2026, 12, 31, tzinfo=timezone.utc),
+    )
+
+
+def test_reserved_payload_keys_cover_every_store_entry_field():
+    # Adding a StoreEntry field fails here until it is either reserved or
+    # listed in _UNWRITTEN_ENTRY_FIELDS.
+    entry_fields = {f.name for f in fields(StoreEntry)}
+    assert _UNWRITTEN_ENTRY_FIELDS <= entry_fields
+    assert _RESERVED_PAYLOAD_KEYS == (entry_fields - _UNWRITTEN_ENTRY_FIELDS) | {
+        "chunk_metadata_keys"
+    }
+
+
+def test_payload_writes_exactly_the_reserved_keys():
+    # A fully populated entry writes every reserved key and nothing else,
+    # apart from scope_* labels and the spread chunk_metadata scalars.
+    entry = _fully_populated_entry()
+
+    payload = _entry_to_payload(entry)
+
+    written = {k for k in payload if not k.startswith("scope_") and k not in {"page"}}
+    assert written == _RESERVED_PAYLOAD_KEYS
+
+
+# Built from StoreEntry rather than _RESERVED_PAYLOAD_KEYS, so a key dropped
+# from that list still gets a case here.
+_ENTRY_FIELD_KEYS = sorted(
+    {f.name for f in fields(StoreEntry)} - _UNWRITTEN_ENTRY_FIELDS
+    | {"chunk_metadata_keys", "scope_x"}
+)
+
+
+@pytest.mark.parametrize("key", _ENTRY_FIELD_KEYS)
+def test_reserved_key_in_metadata_round_trips_when_fields_are_unset(key):
+    # Optional fields left unset still keep their names out of the spread, so
+    # metadata can't fill an unset field or break its decoding on read.
+    entry = StoreEntry(
+        id=uuid4(),
+        content="text",
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        chunk_metadata={key: "from-metadata"},
+    )
+
+    got = _payload_to_entry(str(entry.id), _entry_to_payload(entry))
+
+    assert got.chunk_metadata == {key: "from-metadata"}
+    assert got.content == entry.content
+    for name in (
+        "parent_chunk_id",
+        "chunk_offsets",
+        "embedding_version",
+        "abstract",
+        "summary",
+        "entities",
+        "valid_from",
+        "valid_until",
+    ):
+        assert getattr(got, name) is None, name
+    assert not got.scope.labels
