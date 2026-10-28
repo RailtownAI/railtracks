@@ -67,12 +67,18 @@ def _convert_yaml_to_python(
 # Load formats at module initialization
 _formats = _load_attachment_formats()
 PREFIX_FORMATS, OFFSET_FORMATS, EXTENSION_FORMATS = _convert_yaml_to_python(_formats)
+CONTAINER_FORMATS = frozenset(
+    item["mime_type"]
+    for section in ("prefix_formats", "offset_formats")
+    for item in _formats.get(section, [])
+    if item.get("container")
+)
 
 
 @functools.cache
 def _stdlib_mimetypes() -> mimetypes.MimeTypes:
     # A fresh instance holds only Python's built-in table, not the OS registry,
-    # so lookups give the same answer on every machine.
+    # so lookups match on every machine running the same Python version.
     return mimetypes.MimeTypes()
 
 
@@ -102,11 +108,36 @@ def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
             if len(b) >= end and b[start:end] in variable_bytes:
                 return mime_type
 
-    # SVG detection is content-based, not magic-byte-based.
-    if b"<svg" in b[:1024].lower():
+    # SVG has no magic bytes; it must open the document, after an optional XML
+    # declaration, comment or doctype, so HTML or Markdown with an inline <svg> is not one.
+    head = b[:1024].lstrip().lower()
+    if head.startswith((b"<svg", b"<?xml", b"<!--", b"<!doctype svg")) and (
+        b"<svg" in head
+    ):
         return "image/svg+xml"
 
     return None
+
+
+def detect_mime(data: bytes, name: str | None = None) -> str | None:
+    """Return the MIME type of file content, from its magic bytes, then its name.
+
+    A container that can hold audio or video (Ogg, Matroska, MP4) takes the type
+    its extension names when that is audio or video, so `clip.ogv` is video.
+
+    Args:
+        data: The file content.
+        name: The file name or path, if known.
+
+    Returns:
+        The MIME type, or None when neither the bytes nor the name identify it.
+    """
+    magic = detect_attachment_mime_from_bytes(data)
+    named = detect_mime_from_extension(name) if name else None
+    if magic in CONTAINER_FORMATS and named:
+        if named.split("/", 1)[0] in ("audio", "video"):
+            return named
+    return magic or named
 
 
 def detect_mime_from_extension(name: str) -> str | None:

@@ -190,18 +190,60 @@ class TestAttachment:
         assert f"data:image/{mime_type};base64," in attachment.encoding
 
     def test_unsupported_format(self, tmp_path):
-        file = tmp_path / "test.xyz"
+        file = tmp_path / "test.txt"
         file.write_bytes(b"fake data")
         with pytest.raises(ValueError, match="Unsupported attachment format"):
             Attachment(str(file))
 
-    def test_local_text_file_is_a_file_attachment(self, tmp_path):
-        file = tmp_path / "notes.txt"
-        file.write_bytes(b"BMW sales notes")  # starts like a BMP signature
+    @pytest.mark.parametrize(
+        "name,content",
+        [
+            ("notes.txt", b"BMW sales notes"),  # starts like a BMP header
+            ("tags.txt", b"ID3 tag notes"),  # starts like an MP3 header
+            ("README.md", b'# Logo\n<svg xmlns="http://www.w3.org/2000/svg"/>'),
+            ("page.html", b"<!DOCTYPE html><html><body><svg/></body></html>"),
+            ("config.json", b'{"api_key": "secret"}'),
+            ("no_extension", b"plain text"),
+        ],
+    )
+    def test_local_non_media_file_raises(self, tmp_path, name, content):
+        """Paths stay limited to media; other files need an explicit from_bytes."""
+        file = tmp_path / name
+        file.write_bytes(content)
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            Attachment(str(file))
 
-        attachment = Attachment(str(file))
-        assert attachment.modality == "file"
-        assert attachment.mime_type == "text/plain"
+    def test_non_media_data_uri_raises(self):
+        with pytest.raises(ValueError, match="Unsupported attachment format"):
+            Attachment("data:text/plain;base64,aGVsbG8=")
+
+    @pytest.mark.parametrize(
+        "name,content,mime_type",
+        [
+            ("movie.mkv", b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81", "video/x-matroska"),
+            ("song.mka", b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81", "audio/x-matroska"),
+            ("clip.ogv", b"OggS\x00\x02\x00\x00", "video/ogg"),
+            ("clip.webm", b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81", "video/webm"),
+            ("voice.m4a", b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00", "audio/mp4"),
+            ("mislabeled.png", b"OggS\x00\x02\x00\x00", "audio/ogg"),
+        ],
+    )
+    def test_container_takes_its_audio_or_video_extension(
+        self, tmp_path, name, content, mime_type
+    ):
+        """Ogg, Matroska and MP4 hold audio or video, so a media extension decides."""
+        file = tmp_path / name
+        file.write_bytes(content)
+        assert Attachment(str(file)).mime_type == mime_type
+        assert Attachment.from_bytes(content, filename=name).mime_type == mime_type
+
+    @pytest.mark.parametrize(
+        "path",
+        ["//server/share/photo", "//NAS/photos/IMG0001", "//usr/share/sounds/beep"],
+    )
+    def test_slash_slash_path_is_not_read_as_base64(self, path):
+        with pytest.raises(FileNotFoundError):
+            Attachment(path)
 
     def test_local_pdf(self, tmp_path):
         pdf_file = tmp_path / "doc.pdf"
@@ -477,8 +519,8 @@ class TestAttachment:
 
     @pytest.mark.parametrize(
         "extension",
-        [".aac", ".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"]
-        + [".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm", ".wmv"],
+        [".aac", ".flac", ".m4a", ".mka", ".mp3", ".ogg", ".opus", ".wav", ".weba"]
+        + [".avi", ".m4v", ".mkv", ".mov", ".mp4", ".ogv", ".webm", ".wmv"],
     )
     def test_audio_and_video_urls_are_never_sent_as_images(self, extension):
         """Every Python version must type these, or they fall back to `image_url`."""
@@ -617,6 +659,41 @@ class TestAttachmentContent:
     def test_from_bytes_rejects_non_bytes(self):
         with pytest.raises(TypeError, match="must be bytes"):
             Attachment.from_bytes("iVBORw0KGgo=")  # type: ignore[arg-type]
+
+    @pytest.mark.parametrize("wrap", [bytearray, memoryview])
+    def test_from_bytes_accepts_bytes_like(self, wrap):
+        attachment = Attachment.from_bytes(wrap(_PNG))
+        assert attachment.data == _PNG
+        assert isinstance(attachment.data, bytes)
+
+    @pytest.mark.parametrize(
+        "mime_type", ["png", "", "image/png; charset=binary", "image/"]
+    )
+    def test_explicit_mime_type_must_be_type_slash_subtype(self, mime_type):
+        with pytest.raises(ValueError, match="type/subtype"):
+            Attachment.from_bytes(_PNG, mime_type=mime_type)
+        with pytest.raises(ValueError, match="type/subtype"):
+            Attachment.from_url("https://example.com/a", mime_type=mime_type)
+
+    def test_explicit_mime_type_is_normalized(self):
+        assert Attachment.from_bytes(_PNG, mime_type=" Image/PNG ").mime_type == (
+            "image/png"
+        )
+
+    def test_attachment_is_read_only(self):
+        attachment = Attachment.from_bytes(_PNG)
+        for name in ("url", "type", "mime_type", "filename", "size", "sha256"):
+            with pytest.raises(AttributeError):
+                setattr(attachment, name, None)
+
+    def test_file_extension_is_deprecated(self):
+        with pytest.warns(DeprecationWarning, match="file_extension"):
+            assert Attachment.from_bytes(_PNG).file_extension is None
+
+    def test_from_bytes_can_hold_any_file_type(self):
+        attachment = Attachment.from_bytes(b'{"a": 1}', filename="data.json")
+        assert attachment.mime_type == "application/json"
+        assert attachment.modality == "file"
 
     def test_sha256_is_stable_across_sources(self, tmp_path):
         import base64 as _b64

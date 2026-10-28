@@ -2,6 +2,8 @@
 # Magic bytes are base64-encoded to preserve exact byte values where needed.
 # `extensions` map a file name to the same MIME type its bytes produce; names not
 # listed here fall back to Python's `mimetypes`.
+# `container: true` marks formats that can hold either audio or video; for those,
+# an audio or video extension decides the type (an Ogg file named .ogv is video).
 prefix_formats:
   - magic_bytes_b64: "iVBORw0KGgo="  # \x89PNG\r\n\x1a\n
     mime_type: "image/png"
@@ -20,28 +22,28 @@ prefix_formats:
   - magic_bytes: "%PDF"
     mime_type: "application/pdf"
     extensions: [".pdf"]
-  - magic_bytes: "ID3"  # MP3 with an ID3v2 tag
-    mime_type: "audio/mpeg"
-    extensions: [".mp3"]
-  - magic_bytes_b64: "//s="  # \xff\xfb, MPEG-1 Layer III frame sync
-    mime_type: "audio/mpeg"
-  - magic_bytes_b64: "//M="  # \xff\xf3, MPEG-2 Layer III frame sync
-    mime_type: "audio/mpeg"
-  - magic_bytes_b64: "//I="  # \xff\xf2, MPEG-2 Layer III frame sync
-    mime_type: "audio/mpeg"
   - magic_bytes: "OggS"
     mime_type: "audio/ogg"
     extensions: [".ogg", ".oga"]
+    container: true
   - magic_bytes: "fLaC"
     mime_type: "audio/flac"
     extensions: [".flac"]
   - magic_bytes_b64: "GkXfow=="  # \x1a\x45\xdf\xa3, EBML header (Matroska shares it)
     mime_type: "video/webm"
     extensions: [".webm"]
+    container: true
 
 # fixed_bytes must appear at fixed_offset (default 0); one of variable_bytes must
 # fill [offset_start, offset_end).
 offset_formats:
+  - name: "MP3"
+    offset_start: 3  # ID3v2 major version, so text starting "ID3" is not audio
+    offset_end: 4
+    fixed_bytes: "ID3"
+    variable_bytes: ["\x02", "\x03", "\x04"]
+    mime_type: "audio/mpeg"
+    extensions: [".mp3"]
   - name: "BMP"
     offset_start: 6  # reserved header fields, always zero
     offset_end: 10
@@ -81,6 +83,7 @@ offset_formats:
     variable_bytes: ["isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "dash", "M4V "]
     mime_type: "video/mp4"
     extensions: [".mp4", ".m4v"]
+    container: true
   - name: "WebP"
     offset_start: 8
     offset_end: 12
@@ -103,9 +106,15 @@ offset_formats:
     mime_type: "video/x-msvideo"
     extensions: [".avi"]
 
-# Types told apart by extension only, where `mimetypes` lacks them on older Pythons.
+# Types told apart by extension only, where `mimetypes` lacks them on some Pythons.
 extension_formats:
   - mime_type: "video/x-matroska"
     extensions: [".mkv"]
+  - mime_type: "audio/x-matroska"
+    extensions: [".mka"]
+  - mime_type: "audio/webm"
+    extensions: [".weba"]
+  - mime_type: "video/ogg"
+    extensions: [".ogv"]
   - mime_type: "video/x-ms-wmv"
     extensions: [".wmv"]

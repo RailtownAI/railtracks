@@ -1062,11 +1062,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         content_list: List[Dict[str, Any]] = [{"type": "text", "text": text}]
 
         for msg_attachment in attachments:
-            url = (
-                msg_attachment.encoding
-                if msg_attachment.encoding is not None
-                else msg_attachment.url
-            )
+            url = msg_attachment.encoding or msg_attachment.url
             if msg_attachment.modality == "document":
                 # Only trust litellm's PDF-support check when the model is in
                 # litellm's capability catalog. Custom deployment names (Azure
