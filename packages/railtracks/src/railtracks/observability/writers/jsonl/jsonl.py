@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import TextIO
 
+from railtracks.paths import ensure_gitignore
+
 from ...models import Event
 from ...storage import resolve_events_dir
 from ._serialize import RTObserverEncoder
@@ -23,6 +25,7 @@ class JsonlWriter:
 
     def start(self) -> None:
         self._directory.mkdir(parents=True, exist_ok=True)
+        ensure_gitignore(self._directory)
 
     def write(self, event: Event) -> None:
         handle = self._files.get(event.scope_id)

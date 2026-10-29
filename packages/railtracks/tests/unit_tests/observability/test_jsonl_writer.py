@@ -54,6 +54,28 @@ def test_default_directory_matches_visualizer_store(
     assert (tmp_path / "default.jsonl").exists()
 
 
+def test_start_writes_railtracks_gitignore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.delenv(EVENTS_DIR_ENV, raising=False)
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+    writer = JsonlWriter()
+
+    writer.start()
+    writer.shutdown()
+
+    assert (tmp_path / ".railtracks" / ".gitignore").exists()
+
+
+def test_start_leaves_directory_outside_railtracks_alone(tmp_path: Path):
+    writer = JsonlWriter(tmp_path / "events")
+
+    writer.start()
+    writer.shutdown()
+
+    assert not list(tmp_path.rglob(".gitignore"))
+
+
 def test_write_creates_per_scope_id_files(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
     writer.start()
