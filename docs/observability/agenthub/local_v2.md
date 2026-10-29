@@ -217,6 +217,23 @@ railtracks viz --beta
 export RAILTRACKS_CONTEXT_EVENTS=1
 ```
 
+### Choose how much media is saved
+
+Events record an attachment's metadata and the SHA-256 of its bytes, never the bytes themselves. The bytes are saved once per hash to `.railtracks/data/events/media/<sha256>`, however many events mention them. The file has no extension; the media part's `mime_type` gives the type. If there's no file for a hash, its bytes weren't saved, for example because they were over the size limit set below. The media folder sits inside the events folder, so it moves with `RAILTRACKS_EVENTS_DIR`.
+
+Set `RAILTRACKS_MEDIA_MAX_MB` to cap the size of the files saved: leave it unset to save everything, set `0` to save none, or set a number of megabytes (1 MB is 1024 × 1024 bytes) to save files up to that size.
+
+```bash title="Save attachments up to 20 MB"
+export RAILTRACKS_MEDIA_MAX_MB=20
+```
+
+!!! warning "Saved media can hold sensitive files"
+    By default, every attachment sent to a model is copied into the media folder, so it can hold files like scanned IDs, medical records or screenshots with passwords on them. Image URLs are the exception: Railtracks never downloads them, so only the URL is recorded.
+
+    The copies stay until you delete them, even after the original files are gone. Deleting a session's events doesn't delete its media either, because sessions that sent the same bytes share one file. To remove all saved media, delete the `media` folder. To stop saving media, set `RAILTRACKS_MEDIA_MAX_MB=0`.
+
+    Railtracks puts a `.gitignore` inside `.railtracks` that keeps the whole folder, saved media included, out of git. If `RAILTRACKS_EVENTS_DIR` points outside `.railtracks`, keep that folder out of git yourself.
+
 ### Deployed environments with no writable disk
 
 Set `RAILTRACKS_DISABLE_EVENTS=True` on hosts where Railtracks can't (or

@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import http.client
 import math
 import os
@@ -37,6 +38,37 @@ def _normalize_base64(s: str) -> str:
     """
     s = "".join(s.split()).translate(_URLSAFE_TO_STANDARD)
     return s + "=" * (-len(s) % 4)
+
+
+def decode_data_uri(data_uri: str) -> bytes:
+    """Return the bytes carried by a base64 data URI.
+
+    Args:
+        data_uri: A `data:<mime>;base64,<payload>` string. The payload may be
+            line-wrapped, unpadded, or URL-safe.
+
+    Returns:
+        The decoded payload.
+
+    Raises:
+        ValueError: If `data_uri` has no payload or the payload is not base64.
+    """
+    _, sep, payload = data_uri.partition(",")
+    if not sep:
+        raise ValueError("Data URI has no comma separating header and payload.")
+    return base64.b64decode(_normalize_base64(payload))
+
+
+def media_sha256(data: bytes) -> str:
+    """Return the content hash media is recorded and stored under.
+
+    Args:
+        data: The raw media bytes, never their base64 or data-URI text.
+
+    Returns:
+        The hex SHA-256 digest of `data`.
+    """
+    return hashlib.sha256(data).hexdigest()
 
 
 def _is_base64_attachment(s: str) -> bool:
