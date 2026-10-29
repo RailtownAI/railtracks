@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 import threading
 
 import pytest
@@ -248,69 +249,122 @@ def test_flow_equality_hash_changes_with_name():
 
 
 # ---------------------------------------------------------------------------
-# Regression: context objects must not be deep-copied (issue #1675)
+# Regression: context values are shared, not deep-copied (issue #1675)
 # ---------------------------------------------------------------------------
 
 
-@rt.function_node
-def identity_check(key: str) -> bool:
-    """Return True if rt.context holds the exact same object that was stored."""
-    return rt.context.get(key) is _CONTEXT_SENTINEL
-
-
-_CONTEXT_SENTINEL: dict = {}
-
-
-def test_flow_invoke_passes_non_copyable_context_object():
-    """A threading.Lock in context must not cause a TypeError on invoke."""
-    lock = threading.Lock()
-    flow = Flow(name="lock-ctx-flow", entry_point=echo, context={"lock": lock})
-    # Should not raise TypeError: cannot pickle '_thread.lock' object
-    result = flow.invoke("ok")
-    assert result == "ok"
-
-
-def test_flow_invoke_context_value_is_same_object_not_clone():
-    """The run must see the caller's exact object, not a clone of it."""
-    global _CONTEXT_SENTINEL
-    _CONTEXT_SENTINEL = {}
-    flow = Flow(
-        name="identity-flow",
-        entry_point=identity_check,
-        context={"key": _CONTEXT_SENTINEL},
-    )
-    assert flow.invoke("key") is True
-
-
-def test_flow_update_context_non_copyable_object():
-    """update_context must not raise for a Flow whose context holds a lock."""
-    lock = threading.Lock()
-    flow = Flow(name="lock-update-flow", entry_point=echo, context={"lock": lock})
-    # Should not raise TypeError
-    updated = flow.update_context({"extra": 1})
-    assert updated._context["lock"] is lock
-    assert updated._context["extra"] == 1
-
-
-def test_flow_update_context_does_not_modify_original():
-    """update_context must leave the original Flow unchanged."""
-    flow = Flow(name="orig-flow", entry_point=echo, context={"a": 1})
-    _ = flow.update_context({"a": 99, "b": 2})
-    assert flow._context == {"a": 1}
-
-
-def test_flow_context_mutations_isolated_between_runs():
-    """rt.context.put inside a run must not bleed into the next run via flow._context."""
+@pytest.mark.parametrize(
+    "make_resource",
+    [threading.Lock, lambda: sqlite3.connect(":memory:")],
+    ids=["threading.Lock", "sqlite3.Connection"],
+)
+def test_flow_invoke_passes_non_copyable_context_value_by_reference(make_resource):
+    resource = make_resource()
 
     @rt.function_node
-    async def mutate_and_snapshot():
-        rt.context.put("transient2", "value")
-        return rt.context.get("transient2")
+    def holds_caller_object() -> bool:
+        return rt.context.get("resource") is resource
 
-    flow = Flow(name="mutation-isolation-flow", entry_point=mutate_and_snapshot)
-    flow.invoke()
-    # The second run starts with a fresh copy of the original context dict.
-    result = flow.invoke()
-    assert result == "value"  # still works in the second run
-    # And the key was not leaked into flow._context
-    assert "transient2" not in flow._context
+    flow = Flow(
+        name="resource-flow",
+        entry_point=holds_caller_object,
+        context={"resource": resource},
+    )
+    assert flow.invoke() is True
+    assert flow.invoke() is True
+
+    if isinstance(resource, sqlite3.Connection):
+        resource.close()
+
+
+def test_flow_context_values_are_shared_across_runs():
+    """A run's writes into a nested value reach the caller's object and the next run."""
+    cache: dict[str, int] = {}
+
+    @rt.function_node
+    def count_hit() -> int:
+        hits = rt.context.get("cache")
+        hits["n"] = hits.get("n", 0) + 1
+        return hits["n"]
+
+    flow = Flow(
+        name="shared-cache-flow", entry_point=count_hit, context={"cache": cache}
+    )
+    assert flow.invoke() == 1
+    assert flow.invoke() == 2
+    assert cache == {"n": 2}
+
+
+def test_flow_context_put_and_delete_stay_in_their_run():
+    @rt.function_node
+    async def put_delete_snapshot():
+        before = {k: rt.context.get(k) for k in rt.context.keys()}
+        rt.context.put("transient", "value")
+        rt.context.delete("seed")
+        return before
+
+    flow = Flow(
+        name="put-delete-flow",
+        entry_point=put_delete_snapshot,
+        context={"seed": "s"},
+    )
+    assert flow.invoke() == {"seed": "s"}
+    assert flow.invoke() == {"seed": "s"}
+    assert flow._context == {"seed": "s"}
+
+
+def test_flow_concurrent_runs_keep_their_own_top_level_keys():
+    @rt.function_node
+    async def put_then_read(value: str) -> str:
+        rt.context.put("owner", value)
+        await asyncio.sleep(0.01)
+        return rt.context.get("owner")
+
+    flow = Flow(
+        name="concurrent-put-flow",
+        entry_point=put_then_read,
+        context={"owner": "flow"},
+    )
+
+    async def run_both() -> list[str]:
+        return await asyncio.gather(flow.ainvoke("a"), flow.ainvoke("b"))
+
+    assert asyncio.run(run_both()) == ["a", "b"]
+    assert flow._context == {"owner": "flow"}
+
+
+def test_flow_update_context_keeps_non_copyable_values_by_reference():
+    lock = threading.Lock()
+    flow = Flow(
+        name="lock-update-flow",
+        entry_point=context_snapshot,
+        context={"lock": lock, "a": 1},
+    )
+
+    updated = flow.update_context({"a": 2, "b": 3})
+
+    assert updated.invoke() == {"lock": lock, "a": 2, "b": 3}
+    assert flow.invoke() == {"lock": lock, "a": 1}
+
+
+def test_flow_update_context_returns_an_independent_flow():
+    extra = {"a": 99, "b": 2}
+    flow = Flow(name="orig-flow", entry_point=echo, context={"a": 1})
+
+    updated = flow.update_context(extra)
+    extra["b"] = 3
+
+    assert flow._context == {"a": 1}
+    assert updated._context == {"a": 99, "b": 2}
+    assert updated._context is not flow._context
+    assert updated.entry_point is flow.entry_point
+    assert updated.name == flow.name
+
+
+def test_flow_update_context_on_a_flow_without_context():
+    flow = Flow(name="empty-context-flow", entry_point=context_snapshot)
+
+    updated = flow.update_context({"a": 1})
+
+    assert updated.invoke() == {"a": 1}
+    assert flow.invoke() == {}

@@ -5,6 +5,8 @@ ModelInvoker itself — the shared choke point for the middleware chain
 """
 
 import asyncio
+import sqlite3
+import threading
 
 import pytest
 import railtracks.context.central as central
@@ -22,6 +24,7 @@ from railtracks.llm.message import AssistantMessage, Message, Role, UserMessage
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
 from railtracks.llm.tools.tool import Tool
+from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 from railtracks.utils.config import ExecutorConfig
 
 
@@ -532,49 +535,36 @@ def test_model_invoker_has_no_extend_middleware_method():
 
 
 @pytest.mark.asyncio
-async def test_create_with_llm_observe_preserves_stateful_middleware(monkeypatch):
-    """A counting middleware must accumulate state across multiple invoke calls."""
-    monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
-
-    class Counter:
-        def __init__(self):
-            self.calls = 0
-
-    counter = Counter()
-
-    @wrap_llm
-    async def counting(call, message_history, schema, tools):
-        counter.calls += 1
-        return await call(message_history, schema, tools)
-
-    model = _StubModel()
-    invoker = ModelInvoker.create_with_llm_observe(model, [counting])
-
-    await invoker.invoke(MessageHistory([UserMessage("a")]))
-    await invoker.invoke(MessageHistory([UserMessage("b")]))
-
-    assert counter.calls == 2
-
-
-@pytest.mark.asyncio
-async def test_create_with_llm_observe_non_copyable_middleware_does_not_crash(
+async def test_create_with_llm_observe_shares_middleware_state_across_invokers(
     monkeypatch,
 ):
-    """Middleware that holds a threading.Lock must not raise TypeError on creation."""
-    import threading
-
+    """Each agent invocation builds its own invoker, so state must carry over between them."""
     monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
+    budget = MaxCalls(1)
 
-    lock = threading.Lock()
+    first = ModelInvoker.create_with_llm_observe(_StubModel(), [budget])
+    await first.invoke(MessageHistory([UserMessage("a")]))
+    assert budget.call_count == 1
 
+    second = ModelInvoker.create_with_llm_observe(_StubModel(), [budget])
+    with pytest.raises(MaxCallsExceededError):
+        await second.invoke(MessageHistory([UserMessage("b")]))
+
+
+@pytest.mark.parametrize(
+    "resource",
+    [threading.Lock(), sqlite3.connect(":memory:", check_same_thread=False)],
+    ids=["threading.Lock", "sqlite3.Connection"],
+)
+def test_create_with_llm_observe_accepts_middleware_holding_a_non_copyable_resource(
+    resource,
+):
     @wrap_llm
-    async def locking(call, message_history, schema, tools):
-        with lock:
-            pass
+    async def holder(call, message_history, schema, tools):
         return await call(message_history, schema, tools)
 
-    model = _StubModel()
-    # Should not raise TypeError: cannot pickle '_thread.lock' object
-    invoker = ModelInvoker.create_with_llm_observe(model, [locking])
-    result = await invoker.invoke(MessageHistory([UserMessage("hi")]))
-    assert result is not None
+    holder.resource = resource
+    invoker = ModelInvoker.create_with_llm_observe(_StubModel(), [holder])
+
+    assert invoker._middleware.middleware[0] is holder
+    assert invoker._middleware.middleware[0].resource is resource
