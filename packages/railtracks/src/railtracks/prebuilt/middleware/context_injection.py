@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from copy import deepcopy
+from copy import copy
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
@@ -49,5 +49,5 @@ class ContextInjection(ModelOnlyMiddleware):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
-        filled = inject_context(deepcopy(message_history))
+        filled = inject_context(MessageHistory([copy(m) for m in message_history]))
         return await call(filled, schema, tools)
