@@ -46,6 +46,14 @@ Root
    ```
    If you only need a specific extra (e.g. `visual`, `integrations`, `chroma`), replace `all` with the relevant extra name. See `packages/railtracks/pyproject.toml` for the full list.
 
+4. **Set up API keys (optional)**
+
+   Only needed for running examples or live LLM tests. Copy the template and uncomment the keys for the providers you use:
+   ```bash
+   cp .env.example .env
+   ```
+   `.env` is git-ignored; never commit real keys.
+
 
 ## Development Workflow
 
