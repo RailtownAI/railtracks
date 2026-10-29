@@ -102,7 +102,10 @@ class Observer:
 
     @property
     def is_observing(self) -> bool:
-        """Whether a published event would reach at least one writer."""
+        """Whether a published event would reach at least one writer.
+
+        Starts the writers if no event has been published yet, as the first event would.
+        """
         self._ensure_started()
         return not self._closed and bool(self._writers)
 
