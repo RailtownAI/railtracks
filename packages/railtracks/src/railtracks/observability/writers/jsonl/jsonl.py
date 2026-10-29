@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import TextIO
 
+from railtracks.paths import ensure_gitignore
+
 from ...models import Event
 from ...storage import resolve_events_dir
 from ._serialize import RTObserverEncoder
@@ -17,13 +19,15 @@ class JsonlWriter:
 
     async def start(self) -> None:
         self._directory.mkdir(parents=True, exist_ok=True)
+        ensure_gitignore(self._directory)
 
     async def write(self, event: Event) -> None:
         handle = self._files.get(event.scope_id)
         if handle is None:
             _check_safe_scope_id(event.scope_id)
+            # Unpaired surrogates cannot be encoded; keep them as \u escapes
             handle = (self._directory / f"{event.scope_id}.jsonl").open(
-                "a", encoding="utf-8"
+                "a", encoding="utf-8", errors="backslashreplace"
             )
             self._files[event.scope_id] = handle
         handle.write(_serialize(event) + "\n")
@@ -37,7 +41,7 @@ class JsonlWriter:
 
 
 def _serialize(event: Event) -> str:
-    return json.dumps(event, cls=RTObserverEncoder)
+    return json.dumps(event, cls=RTObserverEncoder, ensure_ascii=False)
 
 
 _UNSAFE_SCOPE_ID_CHARS = frozenset("/\\\0")

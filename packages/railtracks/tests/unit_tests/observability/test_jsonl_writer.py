@@ -54,6 +54,28 @@ async def test_default_directory_matches_visualizer_store(
     assert (tmp_path / "default.jsonl").exists()
 
 
+async def test_start_writes_railtracks_gitignore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.delenv(EVENTS_DIR_ENV, raising=False)
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+    writer = JsonlWriter()
+
+    await writer.start()
+    await writer.shutdown()
+
+    assert (tmp_path / ".railtracks" / ".gitignore").exists()
+
+
+async def test_start_leaves_directory_outside_railtracks_alone(tmp_path: Path):
+    writer = JsonlWriter(tmp_path / "events")
+
+    await writer.start()
+    await writer.shutdown()
+
+    assert not list(tmp_path.rglob(".gitignore"))
+
+
 async def test_write_creates_per_scope_id_files(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
     await writer.start()
@@ -96,6 +118,33 @@ async def test_each_line_round_trips_to_original_event(tmp_path: Path):
     lines = (tmp_path / "id-1.jsonl").read_text().splitlines()
     assert len(lines) == 1
     assert _parse_line(lines[0]) == original
+
+
+async def test_non_ascii_payload_is_stored_as_readable_utf8(tmp_path: Path):
+    writer = JsonlWriter(tmp_path)
+    await writer.start()
+    original = _make_session_event(SCOPE_SESSION, payload={"text": "你好 😀"})
+    try:
+        await writer.write(original)
+    finally:
+        await writer.shutdown()
+
+    raw = (tmp_path / "id-1.jsonl").read_bytes()
+    assert "你好 😀".encode("utf-8") in raw
+    assert _parse_line(raw.decode("utf-8")) == original
+
+
+async def test_lone_surrogate_in_payload_is_written_not_raised(tmp_path: Path):
+    writer = JsonlWriter(tmp_path)
+    await writer.start()
+    original = _make_session_event(SCOPE_SESSION, payload={"text": "cut \ud83d"})
+    try:
+        await writer.write(original)
+    finally:
+        await writer.shutdown()
+
+    raw = (tmp_path / "id-1.jsonl").read_bytes()
+    assert _parse_line(raw.decode("utf-8")) == original
 
 
 async def test_append_across_writer_lifecycles(tmp_path: Path):

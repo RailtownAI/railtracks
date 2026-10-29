@@ -1,29 +1,26 @@
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
-from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.loaders.cloud._common import (
-    decode_object,
-    infer_document_type,
-)
-from railtracks.retrieval.loaders.models import LoadFailure
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
+from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
 
 
-class GCSLoader(BaseDocumentLoader):
+class GCSLoader(ObjectStoreLoader):
     """Document loader for Google Cloud Storage (GCS).
 
     Fetches objects from a GCS bucket and yields them as :class:`Document`
-    instances with decoded content and source metadata. Listing is
-    recursive — any object whose name starts with ``prefix`` is loaded,
+    instances with source metadata. Listing is recursive — any object
+    whose name starts with ``prefix`` is loaded,
     including subfolders.
 
-    ``.pdf`` objects are parsed with ``pypdf`` (``pip install railtracks[pdf]``)
-    instead of being decoded as text. An object that cannot be downloaded or
-    decoded is yielded as a ``LoadFailure`` and the remaining objects still load.
+    Text objects are decoded with ``encoding``. PDFs are parsed with the same
+    logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
+    ``pdf_breakdown_strategy``. A object that cannot be downloaded or parsed,
+    including a ``.txt``, ``.md``, ``.csv``, ``.json`` or ``.jsonl`` object that
+    is not valid text, is yielded as a ``LoadFailure`` and the remaining
+    objects still load. Any other object that is not valid text, such as an
+    image, is skipped with a warning.
 
     Authentication uses **Application Default Credentials (ADC)** by default,
     which resolves credentials from the following sources (in order):
@@ -45,10 +42,14 @@ class GCSLoader(BaseDocumentLoader):
             ignored.
         project: Google Cloud project ID. Inferred from ADC when ``None``.
         credentials: Explicit Google credential object. Defaults to ADC.
-        encoding: Text encoding used to decode non-PDF object bytes. Defaults to ``"utf-8"``.
+        encoding: Text encoding used to decode object bytes. Defaults to ``"utf-8"``.
+        pdf_breakdown_strategy: How to split each PDF into ``Document`` objects,
+            as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
+            ``"document"``.
 
     Raises:
         ImportError: If ``google-cloud-storage`` is not installed.
+        ValueError: If ``pdf_breakdown_strategy`` is not a known strategy.
     """
 
     def __init__(
@@ -60,6 +61,7 @@ class GCSLoader(BaseDocumentLoader):
         project: Optional[str] = None,
         credentials: Optional[Any] = None,
         encoding: str = "utf-8",
+        pdf_breakdown_strategy: BreakdownStrategy = "page",
     ) -> None:
         try:
             from google.cloud import storage  # type: ignore[import]
@@ -69,10 +71,13 @@ class GCSLoader(BaseDocumentLoader):
                 "Install it via `pip install railtracks[gcp]` or `uv add railtracks[gcp]`."
             )
 
+        super().__init__(
+            prefix=prefix,
+            keys=keys,
+            encoding=encoding,
+            pdf_breakdown_strategy=pdf_breakdown_strategy,
+        )
         self._bucket_name = bucket_name
-        self._prefix = prefix
-        self._keys = list(keys) if keys is not None else None
-        self._encoding = encoding
         self._client = storage.Client(project=project, credentials=credentials)
 
     def __repr__(self) -> str:
@@ -86,40 +91,12 @@ class GCSLoader(BaseDocumentLoader):
             blob.name for blob in self._client.list_blobs(self._bucket_name, **kwargs)
         ]
 
-    def _source(self, name: str) -> str:
-        return f"gs://{self._bucket_name}/{name}"
-
-    def _fetch_document(self, name: str) -> Document:
+    def _fetch_bytes(self, key: str) -> bytes:
         bucket = self._client.bucket(self._bucket_name)
-        blob = bucket.blob(name)
-        content = decode_object(name, blob.download_as_bytes(), self._encoding)
-        return Document(
-            content=content,
-            type=infer_document_type(name),
-            source=self._source(name),
-            metadata={
-                "bucket": self._bucket_name,
-                "name": name,
-            },
-        )
+        return bucket.blob(key).download_as_bytes()
 
-    async def _stream_object(self, name: str) -> AsyncGenerator[Document, None]:
-        yield await asyncio.to_thread(self._fetch_document, name)
+    def _source(self, key: str) -> str:
+        return f"gs://{self._bucket_name}/{key}"
 
-    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
-        """Stream documents one at a time as each GCS object is downloaded.
-
-        Yields:
-            Document | LoadFailure: The next loaded document, or a
-            `LoadFailure` for an object that could not be read.
-        """
-        if self._keys is not None:
-            names = self._keys
-        else:
-            names = await asyncio.to_thread(self._list_keys)
-
-        for name in names:
-            async for item in self._isolate_source(
-                self._source(name), self._stream_object(name)
-            ):
-                yield item
+    def _metadata(self, key: str) -> dict[str, str]:
+        return {"bucket": self._bucket_name, "name": key}

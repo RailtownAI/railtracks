@@ -5,8 +5,9 @@ import tempfile
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
+from railtracks.retrieval.loaders._pdf_options import validate_breakdown_strategy
 from railtracks.retrieval.loaders.base_ocr import BaseOCRLoader
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType, OCRResult
@@ -143,11 +144,9 @@ class GLMOCRLoader(BaseOCRLoader):
         self._path = Path(file_path)
         if endpoint is not None and not endpoint:
             raise ValueError("endpoint must be a non-empty string or None")
-        if breakdown_strategy not in ("page", "document"):
-            raise ValueError(
-                f"breakdown_strategy must be 'page' or 'document', "
-                f"got {breakdown_strategy!r}"
-            )
+        validate_breakdown_strategy(
+            breakdown_strategy, allowed=get_args(BreakdownStrategy)
+        )
         self._endpoint = endpoint
         self._breakdown_strategy = breakdown_strategy
         self._is_pdf = self._path.suffix.lower() == ".pdf"

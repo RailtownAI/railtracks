@@ -121,51 +121,43 @@ class TestCreateRailtracksDir(unittest.TestCase):
 
     @patch("railtracks.cli.print_status")
     @patch("railtracks.cli.print_success")
-    def test_create_railtracks_dir_gitignore_new(self, mock_success, mock_status):
-        """Test creating .gitignore with .railtracks entry"""
+    def test_create_railtracks_dir_writes_inner_gitignore(
+        self, mock_success, mock_status
+    ):
+        """Test that .railtracks gets its own .gitignore that ignores everything"""
         create_railtracks_dir()
 
-        # Should create .gitignore
-        gitignore_path = Path(".gitignore")
-        self.assertTrue(gitignore_path.exists())
-
-        # Should contain .railtracks
-        with open(gitignore_path) as f:
-            content = f.read()
-        self.assertIn(".railtracks", content)
+        lines = Path(".railtracks/.gitignore").read_text().splitlines()
+        self.assertIn("*", lines)
 
     @patch("railtracks.cli.print_status")
     @patch("railtracks.cli.print_success")
-    def test_create_railtracks_dir_gitignore_existing(self, mock_success, mock_status):
-        """Test adding .railtracks to existing .gitignore"""
-        # Create existing .gitignore
-        gitignore_path = Path(".gitignore")
-        with open(gitignore_path, "w") as f:
-            f.write("*.pyc\n__pycache__/\n")
+    def test_create_railtracks_dir_existing_gets_gitignore(
+        self, mock_success, mock_status
+    ):
+        """Test that an existing .railtracks without a .gitignore gets one"""
+        Path(".railtracks").mkdir()
 
         create_railtracks_dir()
 
-        # Should contain both old and new entries
-        with open(gitignore_path) as f:
-            content = f.read()
-        self.assertIn("*.pyc", content)
-        self.assertIn(".railtracks", content)
+        self.assertTrue(Path(".railtracks/.gitignore").exists())
 
     @patch("railtracks.cli.print_status")
-    def test_create_railtracks_dir_gitignore_already_present(self, mock_status):
-        """Test when .railtracks is already in .gitignore"""
-        # Create .gitignore with .railtracks already present
-        gitignore_path = Path(".gitignore")
-        with open(gitignore_path, "w") as f:
-            f.write("*.pyc\n.railtracks\n__pycache__/\n")
+    @patch("railtracks.cli.print_success")
+    def test_create_railtracks_dir_leaves_project_gitignore_alone(
+        self, mock_success, mock_status
+    ):
+        """Test that the project's own .gitignore is not created or edited"""
+        create_railtracks_dir()
+        self.assertFalse(Path(".gitignore").exists())
 
-        original_content = gitignore_path.read_text()
+        project_gitignore = Path(".gitignore")
+        project_gitignore.write_text("*.pyc\n")
+        shutil.rmtree(".railtracks")
 
         create_railtracks_dir()
 
-        # Content should be unchanged
-        new_content = gitignore_path.read_text()
-        self.assertEqual(original_content, new_content)
+        self.assertEqual(project_gitignore.read_text(), "*.pyc\n")
 
 
 class TestFastAPIEndpoints(unittest.TestCase):
@@ -319,6 +311,56 @@ class TestFastAPIEndpoints(unittest.TestCase):
         logged_error = mock_print_error.call_args.args[0]
         self.assertIn(invalid_file.name, logged_error)
         self.assertIn("line 1 column", logged_error)
+
+    def test_get_sessions_serves_utf8_session_files(self):
+        """Test /api/sessions endpoints return non-ASCII text stored as UTF-8"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        session_data = {"session_id": "utf8-guid", "flow_name": "你好 😀 café"}
+        (sessions_dir / "utf8-guid.json").write_bytes(
+            json.dumps(session_data, ensure_ascii=False).encode("utf-8")
+        )
+
+        self.assertEqual(self.client.get("/api/sessions").json(), [session_data])
+        self.assertEqual(
+            self.client.get("/api/sessions/utf8-guid").json(), session_data
+        )
+
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_sessions_skips_file_cut_mid_character(self, mock_print_error):
+        """Test /api/sessions skips a file read while its UTF-8 is half written"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+
+        complete = {"session_id": "complete", "flow_name": "done"}
+        with open(sessions_dir / "complete.json", "w") as f:
+            json.dump(complete, f)
+        raw = json.dumps({"flow_name": "你好"}, ensure_ascii=False).encode("utf-8")
+        partial = sessions_dir / "partial-guid.json"
+        partial.write_bytes(raw[: raw.index("你".encode("utf-8")) + 1])
+
+        listing = self.client.get("/api/sessions")
+        single = self.client.get("/api/sessions/partial-guid")
+
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json(), [complete])
+        self.assertEqual(single.status_code, 400)
+        self.assertEqual(single.json(), {"error": "Invalid JSON"})
+        self.assertIn(partial.name, mock_print_error.call_args.args[0])
+
+    @patch("railtracks.cli.viz_server.print_error")
+    def test_get_session_does_not_report_valid_json_as_invalid(self, mock_print_error):
+        """Test /api/sessions/{guid} keeps 400 for read errors, not response errors"""
+        sessions_dir = Path(".railtracks/data/sessions")
+        sessions_dir.mkdir(parents=True)
+        (sessions_dir / "surrogate-guid.json").write_text('{"text": "cut \\ud83d"}')
+        (sessions_dir / "nan-guid.json").write_text('{"score": NaN}')
+
+        for guid in ("surrogate-guid", "nan-guid"):
+            response = self.client.get(f"/api/sessions/{guid}")
+            self.assertEqual(response.status_code, 500)
+            self.assertEqual(response.json(), {"error": "Internal Server Error"})
 
     def test_get_session_rejects_glob_metacharacters(self):
         sessions_dir = Path(".railtracks/data/sessions")

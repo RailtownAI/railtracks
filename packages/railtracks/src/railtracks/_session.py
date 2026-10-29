@@ -10,7 +10,7 @@ from railtracks.exceptions.messages.exception_messages import (
     ExceptionMessageKey,
     get_message,
 )
-from railtracks.paths import resolve_railtracks_home
+from railtracks.paths import ensure_gitignore, resolve_railtracks_home
 
 from .context.central import (
     ContextVarScopeManager,
@@ -187,6 +187,7 @@ class Session:
                 sessions_dir.mkdir(
                     parents=True, exist_ok=True
                 )  # Creates directory structure if doesn't exist, skips otherwise.
+                ensure_gitignore(sessions_dir)
 
                 # Try to create file path with name, fallback to identifier only if there's an issue
                 if self.flow_name is not None:
@@ -211,8 +212,11 @@ class Session:
 
                 logger.info("Saving run data to %s" % file_path)
 
-                content = json.dumps(self.payload())
-                file_path.write_text(content)
+                content = json.dumps(self.payload(), ensure_ascii=False)
+                # Unpaired surrogates cannot be encoded; keep them as \u escapes
+                file_path.write_text(
+                    content, encoding="utf-8", errors="backslashreplace"
+                )
 
             except OSError as exc:
                 logger.warning(

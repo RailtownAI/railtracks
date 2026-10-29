@@ -2,19 +2,28 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import fields, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from railtracks.retrieval.stores.models import (
+    Entity,
     StoreEntry,
     StoreQuery,
     StoreScope,
 )
 from railtracks.retrieval.stores.protocol import Store
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
-from railtracks.retrieval.stores.vector.base import VectorStore
+from railtracks.retrieval.stores.vector.base import (
+    _RESERVED_PAYLOAD_KEYS,
+    VectorStore,
+    _entry_to_payload,
+    _payload_to_entry,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -308,6 +317,19 @@ async def test_snapshot_persists_across_instances(tmp_path: Path):
     assert results[0].entry.id == entry.id
 
 
+async def test_snapshot_keeps_non_ascii_text_readable(tmp_path: Path):
+    path = tmp_path / "store.json"
+
+    await VectorStore(InMemoryBackend(snapshot_path=path)).write(
+        _make_entry(content="你好 😀")
+    )
+
+    assert "你好 😀".encode("utf-8") in path.read_bytes()
+    reloaded = VectorStore(InMemoryBackend(snapshot_path=path))
+    results = await reloaded.read(_make_query())
+    assert results[0].entry.content == "你好 😀"
+
+
 async def test_snapshot_reflects_deletes(tmp_path: Path):
     path = tmp_path / "store.json"
 
@@ -344,3 +366,179 @@ async def test_pgvector_import_error():
     with patch("builtins.__import__", side_effect=mock_import):
         with pytest.raises(ImportError, match="railtracks\\[stores-vector\\]"):
             await backend.initialize()
+
+
+# ---------------------------------------------------------------------------
+# chunk_metadata payload encoding — scalars are not stored twice
+# ---------------------------------------------------------------------------
+
+
+def _metadata_entry(chunk_metadata: dict) -> StoreEntry:
+    return replace(_make_entry(), chunk_metadata=chunk_metadata)
+
+
+def test_payload_spreads_scalars_and_blobs_only_non_scalars():
+    entry = _metadata_entry({"page": 3, "lang": "en", "tags": ["a", "b"]})
+
+    payload = _entry_to_payload(entry)
+
+    assert payload["page"] == 3
+    assert payload["lang"] == "en"
+    assert "tags" not in payload
+    assert json.loads(payload["chunk_metadata"]) == {"tags": ["a", "b"]}
+    assert json.loads(payload["chunk_metadata_keys"]) == ["page", "lang"]
+
+
+def test_payload_with_only_scalars_has_no_blob():
+    payload = _entry_to_payload(_metadata_entry({"page": 3}))
+
+    assert "chunk_metadata" not in payload
+
+
+@pytest.mark.parametrize(
+    "chunk_metadata",
+    [
+        {"page": 3, "lang": "en", "flag": False, "none": None},
+        {"tags": ["a"], "nested": {"x": 1}},
+        {"page": 3, "tags": ["a"]},
+        {},
+    ],
+)
+def test_chunk_metadata_round_trips(chunk_metadata):
+    entry = _metadata_entry(chunk_metadata)
+
+    got = _payload_to_entry(str(entry.id), _entry_to_payload(entry))
+
+    assert got.chunk_metadata == chunk_metadata
+
+
+def test_none_scalar_round_trips_when_backend_drops_the_key():
+    entry = _metadata_entry({"page": None, "lang": "en"})
+    payload = _entry_to_payload(entry)
+    del payload["page"]  # Chroma drops None-valued metadata keys
+
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.chunk_metadata == {"page": None, "lang": "en"}
+
+
+def test_legacy_payload_with_full_blob_still_decodes():
+    entry = _metadata_entry({})
+    payload = _entry_to_payload(entry)
+    payload["chunk_metadata"] = json.dumps({"page": 3, "tags": ["a"]})
+    payload["page"] = 3
+
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.chunk_metadata == {"page": 3, "tags": ["a"]}
+
+
+@pytest.mark.parametrize(
+    "key", ["summary", "content", "document_id", "chunk_metadata_keys", "scope_x"]
+)
+def test_chunk_metadata_key_colliding_with_entry_field_round_trips(key):
+    entry = _metadata_entry({key: "from-metadata", "page": 3})
+
+    payload = _entry_to_payload(entry)
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.chunk_metadata == {key: "from-metadata", "page": 3}
+    assert payload.get(key) != "from-metadata"
+    assert got.content == entry.content
+    assert got.summary == entry.summary
+    assert got.document_id == entry.document_id
+    assert got.scope == entry.scope
+
+
+# ---------------------------------------------------------------------------
+# _RESERVED_PAYLOAD_KEYS stays in sync with StoreEntry and the payload
+# ---------------------------------------------------------------------------
+
+# StoreEntry fields that are never written as a top-level payload key of their
+# own: the id is the backend's row id, the backend owns the vector, and scope
+# is spread as scope_* keys.
+_UNWRITTEN_ENTRY_FIELDS = {"id", "vector", "scope"}
+
+
+def _fully_populated_entry() -> StoreEntry:
+    chunk_id = uuid4()
+    return StoreEntry(
+        id=uuid4(),
+        content="text",
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        embedding_version="v1",
+        chunk_id=chunk_id,
+        document_id=uuid4(),
+        chunk_index=2,
+        parent_chunk_id=uuid4(),
+        chunk_offsets=(0, 4),
+        chunk_metadata={"page": 3, "tags": ["a"]},
+        abstract="abs",
+        summary="sum",
+        scope=StoreScope(labels={"user_id": "alice"}),
+        entities=[Entity(name="n", type="t", source_chunk_id=chunk_id)],
+        valid_from=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        valid_until=datetime(2026, 12, 31, tzinfo=timezone.utc),
+    )
+
+
+def test_reserved_payload_keys_cover_every_store_entry_field():
+    # Adding a StoreEntry field fails here until it is either reserved or
+    # listed in _UNWRITTEN_ENTRY_FIELDS.
+    entry_fields = {f.name for f in fields(StoreEntry)}
+    assert _UNWRITTEN_ENTRY_FIELDS <= entry_fields
+    assert _RESERVED_PAYLOAD_KEYS == (entry_fields - _UNWRITTEN_ENTRY_FIELDS) | {
+        "chunk_metadata_keys"
+    }
+
+
+def test_payload_writes_exactly_the_reserved_keys():
+    # A fully populated entry writes every reserved key and nothing else,
+    # apart from scope_* labels and the spread chunk_metadata scalars.
+    entry = _fully_populated_entry()
+
+    payload = _entry_to_payload(entry)
+
+    written = {k for k in payload if not k.startswith("scope_") and k not in {"page"}}
+    assert written == _RESERVED_PAYLOAD_KEYS
+
+
+# Built from StoreEntry rather than _RESERVED_PAYLOAD_KEYS, so a key dropped
+# from that list still gets a case here.
+_ENTRY_FIELD_KEYS = sorted(
+    {f.name for f in fields(StoreEntry)} - _UNWRITTEN_ENTRY_FIELDS
+    | {"chunk_metadata_keys", "scope_x"}
+)
+
+
+@pytest.mark.parametrize("key", _ENTRY_FIELD_KEYS)
+def test_reserved_key_in_metadata_round_trips_when_fields_are_unset(key):
+    # Optional fields left unset still keep their names out of the spread, so
+    # metadata can't fill an unset field or break its decoding on read.
+    entry = StoreEntry(
+        id=uuid4(),
+        content="text",
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        chunk_metadata={key: "from-metadata"},
+    )
+
+    got = _payload_to_entry(str(entry.id), _entry_to_payload(entry))
+
+    assert got.chunk_metadata == {key: "from-metadata"}
+    assert got.content == entry.content
+    for name in (
+        "parent_chunk_id",
+        "chunk_offsets",
+        "embedding_version",
+        "abstract",
+        "summary",
+        "entities",
+        "valid_from",
+        "valid_until",
+    ):
+        assert getattr(got, name) is None, name
+    assert not got.scope.labels
