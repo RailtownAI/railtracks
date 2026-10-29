@@ -41,7 +41,9 @@ def inline_listeners() -> list[Callable[[Event], None]]:
 def shutdown() -> None:
     """Shut down the process-wide Observer's writers.
 
-    Runs at interpreter exit. Safe to call more than once.
+    This stops recording for every run in the process, not just the caller's: later events
+    are ignored, and the Observer can't be restarted. It runs automatically at interpreter
+    exit, so there's normally no need to call it. Safe to call more than once.
     """
     observer.shutdown()
 

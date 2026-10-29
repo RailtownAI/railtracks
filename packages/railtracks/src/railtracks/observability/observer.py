@@ -123,7 +123,10 @@ class Observer:
             sink(event)
 
     def shutdown(self) -> None:
-        """Shut down every writer; later events are ignored. Safe to call more than once."""
+        """Shut down every writer. Safe to call more than once.
+
+        Later events are ignored, and the Observer can't be started again.
+        """
         with self._lock:
             if self._closed:
                 return
