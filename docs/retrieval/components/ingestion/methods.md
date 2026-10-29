@@ -322,7 +322,7 @@ For example, the `passages` column in `ms_marco` is structured. The
 remain visible in the extracted text, including `is_selected` flags and raw URLs. For retrieval focused on passage content, use a custom extractor that selects only `passage_text`. Extractors apply only to content fields;
 `metadata_columns` stay as their original Python values.
 
-Extraction failures stop loading and raise a `ValueError` naming the content column or key, zero-based row or object index, and source; the original exception is preserved as the cause. They do not currently produce per-document recovery events. For `JSONLoader(content_keys="*")`, the reported key is `"*"` because the extractor receives the entire filtered object.
+An extraction failure raises a `ValueError` naming the content column or key, zero-based row or object index, and source; the original exception is preserved as the cause. `JSONLoader.astream()` yields it as a `LoadFailure` for that file (objects before it are kept, the rest of the file is skipped) and moves on to the next file, while `load()` and `aload()` raise it. The Hugging Face loader reads a single stream that can't resume, so there the error still stops loading. For `JSONLoader(content_keys="*")`, the reported key is `"*"` because the extractor receives the entire filtered object.
 
 ---
 # LangChain Loaders
