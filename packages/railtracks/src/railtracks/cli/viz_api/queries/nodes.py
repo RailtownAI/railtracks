@@ -26,7 +26,10 @@ def list_session_node_rows(
     node's own id sits under ``parent_node_id``, not ``node_id``.
 
     Tree parent is ``node.invocation.spatial_parent_node_id`` — a null value
-    marks a root. ``failed`` is true when any ``node.failure`` event was seen.
+    marks a root. A node whose own middleware raised before it ran (a blocking
+    ``@wrap_node`` guard, a declined ``pre_verifier``) emits no ``node.invocation``,
+    so its parent comes from ``node.destruction``, which fires outside the
+    middleware. ``failed`` is true when any ``node.failure`` event was seen.
     """
     sql = """
     WITH creation AS (
@@ -44,6 +47,7 @@ def list_session_node_rows(
     ),
     destruction AS (
       SELECT parent_node_id                     AS node_id,
+             MAX(spatial_parent_node_id)        AS parent_node_id,
              MAX(duration_seconds)              AS duration_seconds,
              MAX(timestamp)                     AS ended_at
       FROM node
@@ -58,7 +62,7 @@ def list_session_node_rows(
     SELECT c.node_id,
            c.name,
            c.node_type,
-           i.parent_node_id,
+           COALESCE(i.parent_node_id, d.parent_node_id) AS parent_node_id,
            d.duration_seconds,
            EPOCH(c.created_at)              AS created_at,
            EPOCH(i.started_at)              AS started_at,
