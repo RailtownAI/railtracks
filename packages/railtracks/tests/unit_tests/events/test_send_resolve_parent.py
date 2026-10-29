@@ -46,12 +46,9 @@ from railtracks.utils.config import ExecutorConfig
 
 @pytest.fixture(autouse=True)
 def _clean_state():
-    """Every test gets a fresh scope + a started (zero-writer) observer.
+    """Every test gets a fresh scope and a fresh, zero-writer observer.
 
-    `pipe()` always calls through to `publish_event`, which raises unless the
-    process-wide Observer singleton has been started -- see
-    `observability/observer.py::Observer.publish`. Zero writers is enough;
-    we only care about the mutation `_resolve_parent` performs on the event.
+    We only care about the mutation `_resolve_parent` performs on the event.
     """
     central.delete_globals()
     configure.reset_for_tests()
@@ -70,8 +67,7 @@ def _register(session_id: str = "s1") -> None:
 
 
 async def _pipe(event):
-    """Start the observer (idempotent, zero writers) and pipe `event`."""
-    await configure.ensure_started()
+    """Pipe `event` through the zero-writer observer."""
     await pipe(event)
     return event
 

@@ -197,6 +197,19 @@ def test_session_saves_data(tmp_path, monkeypatch):
         assert "session_id" in content, "'session_id' key missing from saved data"
 
 
+def test_session_save_writes_railtracks_gitignore(
+    allow_persistence, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+
+    with patch.object(Session, "info", new_callable=PropertyMock) as mock_info:
+        mock_info.return_value.graph_serialization.return_value = {}
+
+        Session(name="gitignore", save_state=True).__exit__(None, None, None)
+
+    assert (tmp_path / ".railtracks" / ".gitignore").exists()
+
+
 def test_session_not_saves_data(tmp_path, monkeypatch):
     """Test that session does not save data when save_state=False."""
     monkeypatch.chdir(tmp_path)

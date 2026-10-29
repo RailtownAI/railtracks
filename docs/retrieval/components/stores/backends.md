@@ -124,6 +124,8 @@ Chroma stores text alongside each vector as a *Document*. Both Chroma
 backends map `StoreEntry.content` (equivalently, `Chunk.content`) to this
 field automatically — you don't need to set it separately. This is what
 Chroma displays in its UI and what server-side embedding functions receive.
+The content is stored only as the Document, not repeated in the entry's
+metadata; it is read back from the Document on search and listing.
 
 ### Distance metric
 
@@ -193,6 +195,10 @@ Works the same as for `ChromaBackend`: `metric` sets the collection's distance s
 | `COSINE` (default) | `cosine` | `1 - distance` |
 | `L2` | `l2` | `1 / (1 + sqrt(distance))` |
 | `IP` | `ip` | `1 - distance` |
+
+### Result limit
+
+Chroma Cloud rejects a query that asks for more than 300 results, its default per-query quota. `ChromaCloudBackend` caps each search at `max_results` (300 by default): a larger `top_k` returns at most `max_results` results and emits a `UserWarning`. If Chroma has raised your account's quota, pass the new limit as `max_results`, or `max_results=None` to never cap.
 
 | Property | Value |
 |---|---|
