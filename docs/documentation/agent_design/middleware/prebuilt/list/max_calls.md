@@ -43,7 +43,7 @@ ToolB = rt.function_node(func_b, middleware=[shared_budget])
 
 Calls to either `ToolA` or `ToolB` accumulate against the same budget of 5.
 
-A single instance may be shared by `function_node` and `agent_node` alike; both keep the instance you pass rather than a copy of it, so `call_count` and `reset()` on your handle act on the budget the nodes are actually spending.
+A single instance may be shared by `function_node` and `agent_node` alike, in either the `middleware` or the `model_middleware` slot, and `rt.couple` carries it over to the node it returns. All of them keep the instance you pass rather than a copy of it, so `call_count` and `reset()` on your handle act on the budget the nodes are actually spending.
 
 ### Inspecting and Resetting
 

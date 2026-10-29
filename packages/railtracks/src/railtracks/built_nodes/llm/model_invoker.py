@@ -136,9 +136,9 @@ class ModelInvoker:
     sees/transforms the request before one placed later, and sees the final
     ``Response`` after it on the way back out.
 
-    Accepts a bare list of :class:`Middleware`. The caller's input is never mutated —
-    a fresh copy is taken so system middleware (e.g. context injection) stays
-    independent per node.
+    Accepts a bare list of :class:`Middleware`. The caller's list is copied, so it is
+    never mutated, but the middleware instances in it are shared: a ``MaxCalls``
+    budget or ``Lock`` keeps its state across every invoker built from it.
     """
 
     def __init__(
@@ -164,7 +164,7 @@ class ModelInvoker:
         """
         Creates a new :class:`ModelInvoker` with the given model and middleware, inserting the obersvation middleware as the last element run.
         """
-        unwrapped_middleware = deepcopy(middleware) if middleware is not None else []
+        unwrapped_middleware = list(middleware) if middleware is not None else []
         return cls(
             model,
             [*unwrapped_middleware, _llm_observe],
