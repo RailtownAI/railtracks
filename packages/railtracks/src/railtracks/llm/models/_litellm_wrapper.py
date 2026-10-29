@@ -56,6 +56,7 @@ from ._hyperparameter_support import (
     is_hyperparameter_supported,
 )
 from ._model_exception_base import (
+    AttachmentNotSupportedError,
     ModelError,
     MutuallyExclusiveHyperparametersError,
     UnsupportedHyperparameterError,
@@ -1061,11 +1062,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         content_list: List[Dict[str, Any]] = [{"type": "text", "text": text}]
 
         for msg_attachment in attachments:
-            url = (
-                msg_attachment.encoding
-                if msg_attachment.encoding is not None
-                else msg_attachment.url
-            )
+            url = msg_attachment.encoding or msg_attachment.url
             if msg_attachment.modality == "document":
                 # Only trust litellm's PDF-support check when the model is in
                 # litellm's capability catalog. Custom deployment names (Azure
@@ -1093,12 +1090,19 @@ class LiteLLMWrapper(ModelBase, ABC):
                         },
                     }
                 )
-            else:
+            elif msg_attachment.modality == "image":
                 content_list.append(
                     {
                         "type": "image_url",
                         "image_url": {"url": url},
                     }
+                )
+            else:
+                raise AttachmentNotSupportedError(
+                    self._model_name,
+                    msg_attachment.mime_type,
+                    f"Railtracks cannot send {msg_attachment.modality} attachments "
+                    "to providers yet; only images and PDFs are supported.",
                 )
 
         return content_list

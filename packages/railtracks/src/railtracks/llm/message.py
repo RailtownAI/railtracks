@@ -1,22 +1,28 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import logging
 import os
 import re
+import warnings
+from collections.abc import Sequence
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, Literal, TypeVar, cast
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import urlparse
 
+from .attachment_formats import detect_mime, detect_mime_from_extension
 from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .context_injection_utils import ValueDict, fill_template
 from .encoding import (
     DEFAULT_MAX_DOWNLOAD_MB,
+    AttachmentSource,
+    decode_data_uri,
     detect_source,
-    encode,
-    ensure_data_uri,
+    load_bytes,
     validate_max_mb,
 )
 
@@ -24,30 +30,38 @@ logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T", bound=Content)
 
+Modality = Literal["image", "audio", "video", "document", "file"]
+"""What an attachment holds. `document` is a PDF; `file` is any other non-media type."""
 
-_EXTENSION_MIME_MAP = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".gif": "image/gif",
-    ".webp": "image/webp",
-    ".avif": "image/avif",
-    ".pdf": "application/pdf",
+_MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
+
+_MEDIA_MODALITIES: dict[str, Modality] = {
+    "image": "image",
+    "audio": "audio",
+    "video": "video",
 }
 
-# URLs ending in these raise unless a trust_urls HEAD probe reports an image or PDF.
-_NON_IMAGE_EXTENSIONS = frozenset(
-    (".aac", ".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav")  # audio
-    + (".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm", ".wmv")  # video
-    + (".csv", ".htm", ".html", ".md", ".txt")  # text
+# URLs ending in these raise: providers cannot take them as attachments by URL.
+_UNSUPPORTED_URL_EXTENSIONS = frozenset(
+    (".csv", ".htm", ".html", ".md", ".txt")  # text
     + (".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx")  # Office
 )
 
 
-def _modality_for_mime(mime_type: str) -> str:
+def _modality_for_mime(mime_type: str) -> Modality:
     if mime_type == "application/pdf":
         return "document"
-    return "image"
+    return _MEDIA_MODALITIES.get(mime_type.split("/", 1)[0], "file")
+
+
+def _validate_mime_type(mime_type: str) -> str:
+    """Return `mime_type` lowercased, or raise a `ValueError` unless it is a bare `type/subtype`."""
+    normalized = mime_type.strip().lower()
+    if not _MIME_TYPE.fullmatch(normalized):
+        raise ValueError(
+            f"mime_type must be a bare 'type/subtype' such as 'image/png', got {mime_type!r}."
+        )
+    return normalized
 
 
 def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | None]:
@@ -73,8 +87,19 @@ def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | 
 
 
 class Attachment:
-    """
-    A simple class that represents an attachment to a message.
+    """A file attached to a message: an image, audio, video, PDF or other file.
+
+    Build one from a path, URL or base64 payload with `Attachment(...)`, from raw
+    bytes with `Attachment.from_bytes`, or from a URL whose type you already know
+    with `Attachment.from_url`. Local files and inline payloads are read once and
+    kept as raw bytes; the base64 a provider needs is built from them on each send.
+
+    For files and bytes, the MIME type comes from an explicit `mime_type`, then
+    the content's magic bytes, then the file extension. Paths, URLs and base64
+    strings must hold an image, PDF, audio or video; other files need
+    `from_bytes` or `from_url` with an explicit `mime_type`. Attachments are
+    read-only, and two are equal when they hold the same bytes (or, for a URL
+    that is not fetched, the same URL) and MIME type.
     """
 
     def __init__(
@@ -85,7 +110,7 @@ class Attachment:
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
     ):
         """
-        A simple class that represents an attachment to a message.
+        Create an attachment from a file path, URL, or base64/data-URI payload.
 
         Args:
             url: A file path, URL, or base64/data-URI payload.
@@ -93,9 +118,9 @@ class Attachment:
                 False (default), `.pdf` URLs raise instead of being downloaded,
                 and URLs with no recognized extension are passed through to the
                 provider as an `image_url` without a HEAD probe. Set True to
-                enable both (a) HEAD-probing unknown-extension URLs and (b)
-                downloading PDF URLs into the prompt. Only safe for
-                developer-controlled URLs; end-user-supplied URLs are an SSRF
+                enable both (a) HEAD-probing URLs without an image or PDF
+                extension and (b) downloading PDF URLs into the prompt. Only safe
+                for developer-controlled URLs; end-user-supplied URLs are an SSRF
                 surface once their bytes are fetched in-process. It does not
                 cover downloads litellm makes itself for some providers.
             attachment_timeout: Per-request timeout in seconds for the HEAD
@@ -107,19 +132,13 @@ class Attachment:
 
         Raises:
             TypeError: If `url` is not a string.
+            FileNotFoundError: If a local file does not exist.
             ValueError: If `attachment_max_mb` is not positive and finite, a
-                local file has an unsupported extension, a URL's extension
-                names an audio, video, text or Office document type and no
-                HEAD probe reports an image or PDF, or a `.pdf` URL is passed
-                while `trust_urls` is False.
+                local file is empty, a local file or base64 payload is not an
+                image, PDF, audio or video file, a data URI or base64 payload is
+                malformed, a URL's extension names a text or Office document
+                type, or a PDF URL is passed while `trust_urls` is False.
         """
-        self.url = url
-        self.file_extension = None
-        self.encoding = None
-        self.mime_type: str | None = None
-        self.modality = "image"
-        self.filename: str | None = None
-
         if not isinstance(url, str):
             raise TypeError(
                 f"The url parameter must be a string representing a file path or URL, but got {type(url)}"
@@ -128,82 +147,280 @@ class Attachment:
 
         match detect_source(url):
             case "local":
-                self._init_local(url)
+                data = load_bytes(url)
+                self._set(
+                    url, "local", detect_mime(data, url), os.path.basename(url), data
+                )
             case "url":
                 self._init_url(
                     url,
+                    mime_type=None,
+                    filename=None,
                     trust_urls=trust_urls,
                     timeout=attachment_timeout,
                     max_mb=attachment_max_mb,
                 )
             case "data_uri":
-                self._init_data_uri(url)
+                mime_type, data = decode_data_uri(url)
+                self._set("...", "data_uri", mime_type, None, data)
 
-    def _init_local(self, url: str) -> None:
-        _, file_extension = os.path.splitext(url)
-        file_extension = file_extension.lower()
-        if file_extension not in _EXTENSION_MIME_MAP:
+        if self._type != "url" and (self._mime_type is None or self.modality == "file"):
+            source = url if self._type == "local" else "base64 data"
             raise ValueError(
-                f"Unsupported attachment format: {file_extension}. Supported formats: {', '.join(_EXTENSION_MIME_MAP.keys())}"
+                f"Unsupported attachment format: {self._mime_type or 'unknown type'} "
+                f"in {source!r}. Paths and base64 strings must be an image, PDF, "
+                "audio or video file; use Attachment.from_bytes with an explicit "
+                "mime_type for other files."
             )
-        self.mime_type = _EXTENSION_MIME_MAP[file_extension]
-        self.modality = _modality_for_mime(self.mime_type)
-        self.encoding = f"data:{self.mime_type};base64,{encode(url)}"
-        self.filename = os.path.basename(url) or None
-        self.type = "local"
+
+    @classmethod
+    def from_bytes(
+        cls,
+        data: bytes | bytearray | memoryview,
+        mime_type: str | None = None,
+        filename: str | None = None,
+    ) -> Attachment:
+        """Create an attachment from raw bytes, of any file type.
+
+        Args:
+            data: The file content.
+            mime_type: The MIME type, e.g. `"audio/wav"`. Detected from the magic
+                bytes, then from `filename`'s extension, when omitted.
+            filename: The file name sent to providers that take one.
+
+        Returns:
+            The attachment, with `type` `"data_uri"`.
+
+        Raises:
+            TypeError: If `data` is not bytes-like.
+            ValueError: If `data` is empty, `mime_type` is not a bare
+                `type/subtype`, or `mime_type` is omitted and cannot be detected.
+        """
+        if not isinstance(data, (bytes, bytearray, memoryview)):
+            raise TypeError(f"data must be bytes, but got {type(data)}")
+        data = bytes(data)
+        if mime_type is not None:
+            mime_type = _validate_mime_type(mime_type)
+        else:
+            mime_type = detect_mime(data, filename)
+            if mime_type is None:
+                raise ValueError(
+                    "Cannot detect the attachment's MIME type from its bytes"
+                    f"{' or file name' if filename else ''}; pass mime_type."
+                )
+        attachment = cls.__new__(cls)
+        attachment._set("...", "data_uri", mime_type, filename, data)
+        return attachment
+
+    @classmethod
+    def from_url(
+        cls,
+        url: str,
+        mime_type: str | None = None,
+        filename: str | None = None,
+        trust_urls: bool = False,
+        attachment_timeout: float = 10.0,
+        attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
+    ) -> Attachment:
+        """Create an attachment from a URL, optionally declaring its type.
+
+        Image, audio and video URLs are passed to the provider as they are. A PDF
+        is downloaded in-process (capped at `attachment_max_mb`), and only with
+        `trust_urls=True`, as for `Attachment(url)`.
+
+        Args:
+            url: An `http`, `https`, `ftp` or `ftps` URL.
+            mime_type: The MIME type. Skips the extension check and the HEAD
+                probe, which helps for URLs without an extension.
+            filename: The file name sent to providers that take one. Defaults to
+                the last segment of the URL path.
+            trust_urls: Allow in-process network I/O for this URL. See
+                `Attachment.__init__`.
+            attachment_timeout: Per-request timeout in seconds for the HEAD
+                probe and the PDF download.
+            attachment_max_mb: Largest PDF accepted, in megabytes. Must be
+                positive and finite.
+
+        Returns:
+            The attachment, with `type` `"url"`.
+
+        Raises:
+            ValueError: If `url` is not a URL, `mime_type` is not a bare
+                `type/subtype`, `attachment_max_mb` is not positive and finite,
+                the URL's extension names a text or Office document type and no
+                `mime_type` is given, or the attachment is a PDF and `trust_urls`
+                is False.
+        """
+        if detect_source(url) != "url":
+            raise ValueError(f"Not a URL: {url!r}")
+        validate_max_mb(attachment_max_mb, name="attachment_max_mb")
+        attachment = cls.__new__(cls)
+        attachment._init_url(
+            url,
+            mime_type=_validate_mime_type(mime_type) if mime_type is not None else None,
+            filename=filename,
+            trust_urls=trust_urls,
+            timeout=attachment_timeout,
+            max_mb=attachment_max_mb,
+        )
+        return attachment
 
     def _init_url(
-        self, url: str, *, trust_urls: bool, timeout: float, max_mb: float
+        self,
+        url: str,
+        *,
+        mime_type: str | None,
+        filename: str | None,
+        trust_urls: bool,
+        timeout: float,
+        max_mb: float,
     ) -> None:
-        url_path = urlparse(self.url).path
-        _, file_extension = os.path.splitext(url_path)
-        file_extension = file_extension.lower()
+        url_path = urlparse(url).path
+        # `.php` or `.pl` can serve an image, so only a media extension is trusted.
+        extension_mime = detect_mime_from_extension(url_path)
+        if extension_mime and _modality_for_mime(extension_mime) == "file":
+            extension_mime = None
         probed_filename: str | None = None
-        if file_extension in _EXTENSION_MIME_MAP:
-            self.mime_type = _EXTENSION_MIME_MAP[file_extension]
-        elif trust_urls:
-            # No image or PDF extension (e.g. https://arxiv.org/pdf/1706.03762);
-            # HEAD-probe to figure out what we're actually being handed.
-            # Skipped when trust_urls=False so we never touch unknown URLs
-            # from the railtracks process.
-            probed_ct, probed_filename = _probe_url_metadata(self.url, timeout=timeout)
-            if probed_ct == "application/pdf" or (
-                probed_ct and probed_ct.startswith("image/")
-            ):
-                self.mime_type = probed_ct
-        if self.mime_type is None and file_extension in _NON_IMAGE_EXTENSIONS:
-            raise ValueError(
-                f"Unsupported attachment format: {file_extension} in URL {self.url!r}. "
-                f"Supported formats: {', '.join(_EXTENSION_MIME_MAP)}."
-            )
-        if self.mime_type:
-            self.modality = _modality_for_mime(self.mime_type)
-        self.filename = probed_filename or os.path.basename(url_path) or None
-        # Provider file blocks need base64; image_url blocks accept the URL as-is.
-        if self.modality == "document":
+        if mime_type is None and extension_mime is not None:
+            if _modality_for_mime(extension_mime) in ("image", "document"):
+                mime_type = extension_mime
+        if mime_type is None and trust_urls:
+            # The server knows best for a URL without an image or PDF extension
+            # (e.g. https://arxiv.org/pdf/1706.03762, or a thumbnail served from a
+            # video path). Skipped unless trusted, so unknown URLs are never
+            # touched from the railtracks process.
+            probed_ct, probed_filename = _probe_url_metadata(url, timeout=timeout)
+            if probed_ct and _modality_for_mime(probed_ct) != "file":
+                mime_type = probed_ct
+        mime_type = mime_type or extension_mime
+        if mime_type is None:
+            extension = os.path.splitext(url_path)[1].lower()
+            if extension in _UNSUPPORTED_URL_EXTENSIONS:
+                raise ValueError(
+                    f"Unsupported attachment format: {extension} in URL {url!r}. "
+                    "URL attachments must be an image, PDF, audio or video file."
+                )
+        data: bytes | None = None
+        # Provider file blocks need the bytes; other URLs are sent as they are.
+        if mime_type is not None and _modality_for_mime(mime_type) == "document":
             if not trust_urls:
                 raise ValueError(
-                    f"PDF URL attachments require trust_urls=True: {self.url!r}. "
+                    f"PDF URL attachments require trust_urls=True: {url!r}. "
                     "Constructing this attachment would fetch the URL in-process and "
                     "embed its bytes into the LLM prompt, which is an SSRF/exfiltration "
                     "surface for end-user-supplied URLs. Pass trust_urls=True only "
                     "when the URL is developer-controlled; otherwise download the PDF "
                     "first and pass a local file path or base64/data-URI payload."
                 )
-            encoded = encode(url, timeout=timeout, max_mb=max_mb)
-            self.encoding = f"data:{self.mime_type};base64,{encoded}"
-        self.type = "url"
+            data = load_bytes(url, timeout=timeout, max_mb=max_mb)
+        self._set(
+            url,
+            "url",
+            mime_type,
+            filename or probed_filename or os.path.basename(url_path) or None,
+            data,
+        )
 
-    def _init_data_uri(self, url: str) -> None:
-        self.url = "..."
-        self.encoding = ensure_data_uri(url)  # dynamically add header if needed
-        # Parse the header we just produced to populate mime_type / modality.
-        # `_validate_data_uri_header` accepts mixed case (re.I), so lowercase
-        # the mime before classification — `_modality_for_mime` matches exactly.
-        header = self.encoding.split(",", 1)[0]  # "data:<mime>;base64"
-        self.mime_type = header[len("data:") :].split(";", 1)[0].lower()
-        self.modality = _modality_for_mime(self.mime_type)
-        self.type = "data_uri"
+    def _set(
+        self,
+        url: str,
+        source: AttachmentSource,
+        mime_type: str | None,
+        filename: str | None,
+        data: bytes | None,
+    ) -> None:
+        if data is not None and not data:
+            raise ValueError(f"Attachment {filename or url!r} is empty.")
+        self._url = url
+        self._type: AttachmentSource = source
+        self._mime_type = mime_type
+        self._filename = filename or None
+        self._data = data
+        # Computed with the bytes: histories are deep-copied on every model call,
+        # so a hash cached on first read would be redone for each earlier copy.
+        self._sha256 = None if data is None else hashlib.sha256(data).hexdigest()
+
+    @property
+    def url(self) -> str:
+        """The path or URL given, or `"..."` for inline data."""
+        return self._url
+
+    @property
+    def type(self) -> AttachmentSource:
+        """Where the attachment came from: `"local"`, `"url"` or `"data_uri"` (any inline data)."""
+        return self._type
+
+    @property
+    def mime_type(self) -> str | None:
+        """The MIME type, or None for a URL whose type is unknown."""
+        return self._mime_type
+
+    @property
+    def filename(self) -> str | None:
+        """The file name, when one is known."""
+        return self._filename
+
+    @property
+    def size(self) -> int | None:
+        """The size in bytes, or None when only the URL is held."""
+        return None if self._data is None else len(self._data)
+
+    @property
+    def sha256(self) -> str | None:
+        """Hex SHA-256 of the bytes, the same for every source, or None when only the URL is held."""
+        return self._sha256
+
+    @property
+    def modality(self) -> Modality:
+        """What the attachment holds, from its MIME type; a URL of unknown type counts as an image."""
+        if self._mime_type is None:
+            return "image"
+        return _modality_for_mime(self._mime_type)
+
+    @property
+    def file_extension(self) -> None:
+        """Always None. Deprecated: read `filename` or `mime_type` instead."""
+        warnings.warn(
+            "Attachment.file_extension is always None and will be removed; "
+            "read filename or mime_type instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return None
+
+    @property
+    def data(self) -> bytes | None:
+        """The raw bytes, or None for a URL that is passed to the provider as is."""
+        return self._data
+
+    @property
+    def encoding(self) -> str | None:
+        """The bytes as a base64 data URI, built on each read, or None when only the URL is held."""
+        if self._data is None:
+            return None
+        payload = base64.b64encode(self._data).decode("ascii")
+        return f"data:{self.mime_type};base64,{payload}"
+
+    def _identity(self) -> tuple[str, str | None]:
+        return (self.sha256 or self.url, self.mime_type)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Attachment):
+            return NotImplemented
+        return self._identity() == other._identity()
+
+    def __hash__(self) -> int:
+        return hash(self._identity())
+
+    def __repr__(self) -> str:
+        fields = [f"type={self.type!r}", f"mime_type={self.mime_type!r}"]
+        if self.type == "url":
+            fields.append(f"url={self.url!r}")
+        if self.filename is not None:
+            fields.append(f"filename={self.filename!r}")
+        if self.size is not None:
+            fields.append(f"size={self.size}")
+        return f"Attachment({', '.join(fields)})"
 
 
 class Role(str, Enum):
@@ -311,19 +528,21 @@ class UserMessage(_StringOnlyContent[Role.user]):
 
     Args:
         content: The content of the user message.
-        attachment: The file attachment(s) for the user message. Can be a single string or a list of strings,
-                    containing file paths, URLs, or data URIs. Defaults to None.
+        attachment: The file attachment(s) for the user message: a file path, URL,
+                    data URI or `Attachment`, or a list of them. Defaults to None.
         trust_urls: Allow in-process fetch for URL attachments. Defaults to False.
-                    When False, `.pdf` URLs and URLs whose extension names an
-                    audio, video, text or Office document type raise, and other
-                    unknown-extension URLs are handed to the provider unprobed
-                    (as `image_url`). When True, `.pdf` URLs are downloaded and
-                    embedded as base64, and every other URL without an image
-                    extension is HEAD-probed; one with a non-image extension
-                    raises unless the probe reports an image or PDF.
+                    When False, `.pdf` URLs and URLs whose extension names a
+                    text or Office document type raise, and other
+                    URLs without an image, PDF, audio or video extension are
+                    handed to the provider unprobed (as `image_url`). When True,
+                    `.pdf` URLs are downloaded and embedded as base64, and every
+                    other URL without an image or PDF extension is HEAD-probed;
+                    an image, PDF, audio or video type it reports wins.
                     Set True only when every URL in `attachment` is
                     developer-controlled — end-user-supplied URLs are an SSRF
                     surface once their bytes are fetched in-process.
+                    `trust_urls`, `attachment_timeout` and `attachment_max_mb`
+                    do not apply to `Attachment` objects, which are already built.
         attachment_timeout: Per-request timeout in seconds for the HEAD probe
                     and the in-process PDF download. Defaults to 10. Only
                     applies when `trust_urls=True`. Raise this for large PDFs
@@ -340,31 +559,28 @@ class UserMessage(_StringOnlyContent[Role.user]):
     def __init__(
         self,
         content: str | None = None,
-        attachment: str | list[str] | None = None,
+        attachment: str | Attachment | Sequence[str | Attachment] | None = None,
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
     ):
         if attachment is not None:
-            if isinstance(attachment, list):
-                self.attachment = [
-                    Attachment(
-                        att,
-                        trust_urls=trust_urls,
-                        attachment_timeout=attachment_timeout,
-                        attachment_max_mb=attachment_max_mb,
-                    )
-                    for att in attachment
-                ]
-            else:
-                self.attachment = [
-                    Attachment(
-                        attachment,
-                        trust_urls=trust_urls,
-                        attachment_timeout=attachment_timeout,
-                        attachment_max_mb=attachment_max_mb,
-                    )
-                ]
+            items = (
+                [attachment]
+                if isinstance(attachment, (str, Attachment))
+                else list(attachment)
+            )
+            self.attachment = [
+                item
+                if isinstance(item, Attachment)
+                else Attachment(
+                    item,
+                    trust_urls=trust_urls,
+                    attachment_timeout=attachment_timeout,
+                    attachment_max_mb=attachment_max_mb,
+                )
+                for item in items
+            ]
 
             if content is None:
                 logger.warning(
