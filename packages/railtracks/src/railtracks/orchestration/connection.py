@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import contextvars
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, List, ParamSpec, TypeVar
 
@@ -70,7 +69,7 @@ class FlowConnection(Generic[_P, _TOutput]):
         self._in_flight = True
         try:
             with Session(
-                context=deepcopy(flow._context),
+                context=dict(flow._context),
                 flow_name=flow.name,
                 flow_id=flow.equality_hash(),
                 name=None,

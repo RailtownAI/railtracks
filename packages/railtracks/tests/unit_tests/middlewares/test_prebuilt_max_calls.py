@@ -6,6 +6,7 @@ import asyncio
 
 import pytest
 import railtracks as rt
+from railtracks.exceptions import LLMError
 from railtracks.middleware import Middleware
 from railtracks.prebuilt.middleware.lock import Lock
 from railtracks.prebuilt.middleware.max_calls import (
@@ -216,6 +217,68 @@ def test_agent_node_middleware_slot_enforces_limit(mock_llm):
     flow = rt.Flow("agent-node-slot", entry_point=driver)
     results = flow.invoke(n=3)
     assert results == ["hello", "hello", "MaxCallsExceededError"]
+
+
+def test_agent_model_middleware_slot_enforces_limit_across_invocations(mock_llm):
+    """Each agent invocation builds a new model invoker; the budget must not reset with it."""
+    budget = MaxCalls(2, custom_message="model limit hit")
+    agent = rt.agent_node(
+        "Agent", llm=mock_llm(custom_response="hello"), model_middleware=[budget]
+    )
+
+    @rt.function_node
+    async def driver(n: int) -> list[str]:
+        out = []
+        for i in range(n):
+            try:
+                res = await rt.call(agent, user_input=f"query {i}")
+                out.append(res.content)
+            except LLMError as e:
+                # model middleware errors surface as LLMError, chained from the original
+                out.append(type(e.__cause__).__name__)
+        return out
+
+    flow = rt.Flow("agent-model-slot", entry_point=driver)
+    assert flow.invoke(n=3) == ["hello", "hello", "MaxCallsExceededError"]
+    assert budget.call_count == 2
+
+
+def test_agents_share_one_model_middleware_budget(mock_llm):
+    shared = MaxCalls(2, custom_message="shared model cap hit")
+    agent_a = rt.agent_node(
+        "AgentA", llm=mock_llm(custom_response="a"), model_middleware=[shared]
+    )
+    agent_b = rt.agent_node(
+        "AgentB", llm=mock_llm(custom_response="b"), model_middleware=[shared]
+    )
+
+    @rt.function_node
+    async def driver() -> list[str]:
+        out = []
+        for agent in (agent_a, agent_b, agent_a):
+            try:
+                res = await rt.call(agent, user_input="hi")
+                out.append(res.content)
+            except LLMError as e:
+                # model middleware errors surface as LLMError, chained from the original
+                out.append(type(e.__cause__).__name__)
+        return out
+
+    flow = rt.Flow("shared-model-budget", entry_point=driver)
+    assert flow.invoke() == ["a", "b", "MaxCallsExceededError"]
+    # A new run is a new session, so the budget starts fresh.
+    assert flow.invoke() == ["a", "b", "MaxCallsExceededError"]
+
+
+def test_agent_model_middleware_lock_runs_without_copying(mock_llm):
+    shared_lock = Lock()
+    agent = rt.agent_node(
+        "Agent", llm=mock_llm(custom_response="hello"), model_middleware=[shared_lock]
+    )
+
+    flow = rt.Flow("agent-model-lock", entry_point=agent)
+    assert flow.invoke(user_input="hi").content == "hello"
+    assert agent._user_model_middleware[0] is shared_lock
 
 
 def test_lock_middleware_shared_across_nodes_preserves_reference():

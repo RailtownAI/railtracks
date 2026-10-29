@@ -5,6 +5,8 @@ ModelInvoker itself — the shared choke point for the middleware chain
 """
 
 import asyncio
+import sqlite3
+import threading
 
 import pytest
 import railtracks.context.central as central
@@ -22,6 +24,7 @@ from railtracks.llm.message import AssistantMessage, Message, Role, UserMessage
 from railtracks.llm.providers import ModelProvider
 from railtracks.llm.response import MessageInfo, Response
 from railtracks.llm.tools.tool import Tool
+from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 from railtracks.utils.config import ExecutorConfig
 
 
@@ -465,13 +468,12 @@ async def test_create_with_llm_observe_appends_observe_as_the_innermost_middlewa
 
     chain = invoker._middleware.middleware
     assert len(chain) == 2
-    # user middleware is deep-copied (see below), but the shape/name is preserved
-    assert chain[0].name == tracer.name
+    assert chain[0] is tracer
     # the built-in observation middleware itself is not copied — same singleton instance
     assert chain[1] is _llm_observe
 
 
-def test_create_with_llm_observe_deep_copies_caller_middleware_list(monkeypatch):
+def test_create_with_llm_observe_shallow_copies_caller_middleware_list(monkeypatch):
     @wrap_llm
     async def tracer(call, message_history, schema, tools):
         return await call(message_history, schema, tools)
@@ -479,10 +481,9 @@ def test_create_with_llm_observe_deep_copies_caller_middleware_list(monkeypatch)
     middleware_list = [tracer]
     invoker = ModelInvoker.create_with_llm_observe(_StubModel(), middleware_list)
 
-    # a fresh (deep-copied) middleware object was stored, not the caller's original
+    # the same middleware instance is used (shallow copy, not deep copy)
     chain = invoker._middleware.middleware
-    assert chain[0] is not tracer
-    assert chain[0].name == tracer.name
+    assert chain[0] is tracer
 
     # mutating the caller's list after construction must not leak into the invoker
     middleware_list.append(tracer)
@@ -526,3 +527,44 @@ async def test_llm_observe_propagates_exceptions_from_the_core_call(
 
 def test_model_invoker_has_no_extend_middleware_method():
     assert not hasattr(ModelInvoker, "extend_middleware")
+
+
+# ---------------------------------------------------------------------------
+# Regression: model_middleware must not be deep-copied (issue #1675)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_with_llm_observe_shares_middleware_state_across_invokers(
+    monkeypatch,
+):
+    """Each agent invocation builds its own invoker, so state must carry over between them."""
+    monkeypatch.setattr(model_invoker_module, "get_stream_queue", lambda: None)
+    budget = MaxCalls(1)
+
+    first = ModelInvoker.create_with_llm_observe(_StubModel(), [budget])
+    await first.invoke(MessageHistory([UserMessage("a")]))
+    assert budget.call_count == 1
+
+    second = ModelInvoker.create_with_llm_observe(_StubModel(), [budget])
+    with pytest.raises(MaxCallsExceededError):
+        await second.invoke(MessageHistory([UserMessage("b")]))
+
+
+@pytest.mark.parametrize(
+    "resource",
+    [threading.Lock(), sqlite3.connect(":memory:", check_same_thread=False)],
+    ids=["threading.Lock", "sqlite3.Connection"],
+)
+def test_create_with_llm_observe_accepts_middleware_holding_a_non_copyable_resource(
+    resource,
+):
+    @wrap_llm
+    async def holder(call, message_history, schema, tools):
+        return await call(message_history, schema, tools)
+
+    holder.resource = resource
+    invoker = ModelInvoker.create_with_llm_observe(_StubModel(), [holder])
+
+    assert invoker._middleware.middleware[0] is holder
+    assert invoker._middleware.middleware[0].resource is resource
