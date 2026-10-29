@@ -6,10 +6,9 @@ import re
 from copy import deepcopy
 from enum import Enum
 from typing import Any, Generic, TypeVar, cast
-from urllib import error as urllib_error
-from urllib import request as urllib_request
 from urllib.parse import urlparse
 
+from ._url_fetch import BlockedURLError, fetch, redact_url
 from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .context_injection_utils import ValueDict, fill_template
 from .encoding import (
@@ -58,18 +57,17 @@ def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | 
     suffix; filename comes from Content-Disposition if present.
     """
     try:
-        req = urllib_request.Request(url, method="HEAD")
-        with urllib_request.urlopen(req, timeout=timeout) as resp:
-            ct = (
-                resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
-                or None
-            )
-            cd = resp.headers.get("Content-Disposition", "")
-            m = re.search(r'filename\*?=(?:[^\'\"]*\'\')?"?([^";]+)"?', cd)
-            fname = m.group(1).strip() if m else None
-            return ct, fname
-    except (urllib_error.URLError, OSError, ValueError):
+        resp = fetch(url, method="HEAD", timeout=timeout)
+    except BlockedURLError as e:
+        logger.warning("Skipped the HEAD probe for an attachment URL: %s", e)
         return None, None
+    except (OSError, ValueError):
+        return None, None
+    ct = resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() or None
+    cd = resp.headers.get("Content-Disposition", "")
+    m = re.search(r'filename\*?=(?:[^\'\"]*\'\')?"?([^";]+)"?', cd)
+    fname = m.group(1).strip() if m else None
+    return ct, fname
 
 
 class Attachment:
@@ -96,11 +94,15 @@ class Attachment:
                 enable both (a) HEAD-probing unknown-extension URLs and (b)
                 downloading PDF URLs into the prompt. Only safe for
                 developer-controlled URLs; end-user-supplied URLs are an SSRF
-                surface once their bytes are fetched in-process. It does not
-                cover downloads litellm makes itself for some providers.
-            attachment_timeout: Per-request timeout in seconds for the HEAD
-                probe and the in-process PDF download. Defaults to 10. Only
-                applies when `trust_urls=True`.
+                surface once their bytes are fetched in-process. The fetch
+                takes only `http`/`https` URLs, refuses hosts with non-public
+                addresses (also after redirects) and ignores proxy settings.
+                It does not cover downloads litellm makes itself for some
+                providers.
+            attachment_timeout: Timeout in seconds for each connection and
+                each read of the HEAD probe and the in-process PDF download,
+                not for the whole fetch. Defaults to 10. Only applies when
+                `trust_urls=True`.
             attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
                 Must be positive and finite. Defaults to 32. Only applies when
                 `trust_urls=True`.
@@ -173,7 +175,7 @@ class Attachment:
                 self.mime_type = probed_ct
         if self.mime_type is None and file_extension in _NON_IMAGE_EXTENSIONS:
             raise ValueError(
-                f"Unsupported attachment format: {file_extension} in URL {self.url!r}. "
+                f"Unsupported attachment format: {file_extension} in URL {redact_url(self.url)!r}. "
                 f"Supported formats: {', '.join(_EXTENSION_MIME_MAP)}."
             )
         if self.mime_type:
@@ -183,7 +185,7 @@ class Attachment:
         if self.modality == "document":
             if not trust_urls:
                 raise ValueError(
-                    f"PDF URL attachments require trust_urls=True: {self.url!r}. "
+                    f"PDF URL attachments require trust_urls=True: {redact_url(self.url)!r}. "
                     "Constructing this attachment would fetch the URL in-process and "
                     "embed its bytes into the LLM prompt, which is an SSRF/exfiltration "
                     "surface for end-user-supplied URLs. Pass trust_urls=True only "
@@ -323,11 +325,14 @@ class UserMessage(_StringOnlyContent[Role.user]):
                     raises unless the probe reports an image or PDF.
                     Set True only when every URL in `attachment` is
                     developer-controlled — end-user-supplied URLs are an SSRF
-                    surface once their bytes are fetched in-process.
-        attachment_timeout: Per-request timeout in seconds for the HEAD probe
-                    and the in-process PDF download. Defaults to 10. Only
-                    applies when `trust_urls=True`. Raise this for large PDFs
-                    over slow links.
+                    surface once their bytes are fetched in-process. The fetch
+                    takes only `http`/`https` URLs, refuses hosts with
+                    non-public addresses (also after redirects) and ignores
+                    proxy settings.
+        attachment_timeout: Timeout in seconds for each connection and each
+                    read of the HEAD probe and the in-process PDF download, not
+                    for the whole fetch. Defaults to 10. Only applies when
+                    `trust_urls=True`. Raise this for slow servers.
         attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
                     Must be positive and finite. Defaults to 32. Only applies
                     when `trust_urls=True`.

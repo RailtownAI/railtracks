@@ -116,20 +116,13 @@ def test_user_message_with_invalid_data_uri_header():
 
 
 def test_user_message_with_url(monkeypatch):
-    # Patch urlopen to return PNG bytes
+    # Image URLs go to the provider as-is, so nothing may be fetched.
     import railtracks.llm.encoding as encoding_mod
 
-    class DummyResponse:
-        def __enter__(self):
-            return self
+    def boom_fetch(url, **kwargs):
+        raise AssertionError(f"image URL {url!r} must not be fetched")
 
-        def __exit__(self, *a):
-            return False
-
-        def read(self):
-            return b"\x89PNG\r\n\x1a\n123456"
-
-    monkeypatch.setattr(encoding_mod.request, "urlopen", lambda url: DummyResponse())
+    monkeypatch.setattr(encoding_mod, "fetch", boom_fetch)
     msg = UserMessage(content="desc", attachment="https://example.com/img.png")
     att = msg.attachment[0]
     assert att.type == "url"
