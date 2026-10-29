@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from railtracks.observability import (
     SCOPE_SESSION,
     Event,
@@ -27,6 +28,17 @@ class _FakeWriter:
         self.shutdowns += 1
 
 
+class _AsyncWriter:
+    async def start(self) -> None:
+        pass
+
+    async def write(self, event: Event) -> None:
+        pass
+
+    async def shutdown(self) -> None:
+        pass
+
+
 def _event() -> Event:
     return Event(event_type="test.event", scope_type=SCOPE_SESSION, scope_id="s1")
 
@@ -48,6 +60,14 @@ def test_second_call_replaces_first():
     configure_writers([a])
     configure_writers([b])
     assert configure.observer._pending == [b]
+
+
+def test_rejects_an_async_writer_and_keeps_the_current_ones():
+    current: Writer = _FakeWriter()
+    configure_writers([current])
+    with pytest.raises(TypeError, match=r"_AsyncWriter\.start is async"):
+        configure_writers([_AsyncWriter()])
+    assert configure.observer._pending == [current]
 
 
 def test_replacing_writers_after_the_first_event_shuts_down_the_old_ones():

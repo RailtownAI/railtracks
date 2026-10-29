@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import threading
 from collections.abc import Callable
@@ -64,7 +65,12 @@ class Observer:
 
         Args:
             writers: The writers to deliver events to.
+
+        Raises:
+            TypeError: If a writer's `start`, `write` or `shutdown` is async.
         """
+        for writer in writers:
+            _check_sync(writer)
         with self._lock:
             if not self._started:
                 self._pending = list(writers)
@@ -137,6 +143,15 @@ class Observer:
                 writers = self._default_writers()
             self._writers = _start_writers(writers)
             self._started = True
+
+
+def _check_sync(writer: Writer) -> None:
+    for method in ("start", "write", "shutdown"):
+        if inspect.iscoroutinefunction(getattr(writer, method, None)):
+            raise TypeError(
+                f"{type(writer).__name__}.{method} is async; "
+                "observability writers must be synchronous"
+            )
 
 
 def _start_writers(writers: list[Writer]) -> tuple[_Sink, ...]:
