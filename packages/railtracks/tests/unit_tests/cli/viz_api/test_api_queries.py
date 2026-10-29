@@ -1224,11 +1224,12 @@ def test_tool_node_detail_and_graph_show_decision_cost(
 _BLOCKED_SESSION = "33333333-4444-5555-6666-777777777777"
 
 
-def test_node_blocked_by_its_own_middleware_nests_under_its_caller(
+def test_node_blocked_by_its_own_middleware_nests_under_its_caller_as_failed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A ``@wrap_node`` guard on ``worker`` asks ``judge``, then raises before
-    ``worker`` runs, so only ``worker``'s ``node.destruction`` names its caller."""
+    ``worker`` runs, so only ``worker``'s ``node.destruction`` names its caller
+    and its failure."""
 
     def node_event(
         event_type: str, node_id: str, spatial: dict[str, object], **payload: object
@@ -1288,6 +1289,11 @@ def test_node_blocked_by_its_own_middleware_nests_under_its_caller(
         "worker",
         "judge",
     ]
+    assert (orchestrator["failed"], worker["failed"], judge["failed"]) == (
+        True,
+        True,
+        False,
+    )
     assert {edge["target"]: edge["source"] for edge in edges} == {
         "orchestrator": None,
         "worker": "orchestrator",

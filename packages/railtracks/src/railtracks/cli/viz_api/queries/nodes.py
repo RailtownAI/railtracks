@@ -29,7 +29,8 @@ def list_session_node_rows(
     marks a root. A node whose own middleware raised before it ran (a blocking
     ``@wrap_node`` guard, a declined ``pre_verifier``) emits no ``node.invocation``,
     so its parent comes from ``node.destruction``, which fires outside the
-    middleware. ``failed`` is true when any ``node.failure`` event was seen.
+    middleware. ``failed`` is true when any ``node.failure`` was seen or
+    ``node.destruction`` reports a failure, the only failure such a node records.
     """
     sql = """
     WITH creation AS (
@@ -57,7 +58,9 @@ def list_session_node_rows(
     failure AS (
       SELECT DISTINCT parent_node_id AS node_id
       FROM node
-      WHERE event_type = 'node.failure' AND scope_id = ?
+      WHERE scope_id = ?
+        AND (event_type = 'node.failure'
+             OR (event_type = 'node.destruction' AND status = 'failure'))
     )
     SELECT c.node_id,
            c.name,
