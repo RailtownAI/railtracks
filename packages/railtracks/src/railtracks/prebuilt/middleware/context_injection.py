@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
@@ -30,6 +31,9 @@ class ContextInjection(ModelOnlyMiddleware):
     List position matters: place it before (outside) any middleware that must see
     the injected prompt, e.g. an input guard listed after this entry sees the
     filled-in template.
+
+    The placeholders are filled in a copy of the history, so the caller's messages
+    keep their templates and each model call fills them exactly once.
     """
 
     def __init__(self):
@@ -45,5 +49,5 @@ class ContextInjection(ModelOnlyMiddleware):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
-        inject_context(message_history)
-        return await call(message_history, schema, tools)
+        filled = inject_context(deepcopy(message_history))
+        return await call(filled, schema, tools)
