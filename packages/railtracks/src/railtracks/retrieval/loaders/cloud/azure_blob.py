@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
-from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.loaders.cloud._common import infer_document_type
-from railtracks.retrieval.models import Document
+from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
+from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
 
 
 def _ensure_credential(credential: Optional[Any]) -> Any:
@@ -22,13 +19,19 @@ def _ensure_credential(credential: Optional[Any]) -> Any:
     return DefaultAzureCredential()
 
 
-class AzureBlobLoader(BaseDocumentLoader):
+class AzureBlobLoader(ObjectStoreLoader):
     """Document loader for Azure Blob Storage.
 
     Fetches blobs from a container and yields them as :class:`Document`
-    instances with UTF-8 decoded content and source metadata. Listing is
-    recursive — any blob whose name starts with ``prefix`` is loaded,
+    instances with source metadata. Listing is recursive — any blob
+    whose name starts with ``prefix`` is loaded,
     including subfolders.
+
+    Text objects are decoded with ``encoding``. PDFs are parsed with the same
+    logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
+    ``pdf_breakdown_strategy``. A ``.txt``, ``.md``, ``.csv``, ``.json`` or
+    ``.jsonl`` blob that is not valid text raises; any other blob that is not
+    valid text, such as an image, is skipped with a warning.
 
     Authentication defaults to ``DefaultAzureCredential``, which resolves
     credentials from environment variables, managed identity, the Azure CLI,
@@ -48,9 +51,13 @@ class AzureBlobLoader(BaseDocumentLoader):
         credential: Azure credential used for authentication. Defaults to
             ``DefaultAzureCredential()`` when ``None``.
         encoding: Text encoding used to decode blob bytes. Defaults to ``"utf-8"``.
+        pdf_breakdown_strategy: How to split each PDF into ``Document`` objects,
+            as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
+            ``"document"``.
 
     Raises:
         ImportError: If ``azure-storage-blob`` or ``azure-identity`` are not installed.
+        ValueError: If ``pdf_breakdown_strategy`` is not a known strategy.
     """
 
     def __init__(
@@ -62,6 +69,7 @@ class AzureBlobLoader(BaseDocumentLoader):
         keys: Optional[list[str]] = None,
         credential: Optional[Any] = None,
         encoding: str = "utf-8",
+        pdf_breakdown_strategy: BreakdownStrategy = "page",
     ) -> None:
         try:
             from azure.storage.blob import ContainerClient
@@ -73,11 +81,14 @@ class AzureBlobLoader(BaseDocumentLoader):
 
         credential = _ensure_credential(credential)
 
+        super().__init__(
+            prefix=prefix,
+            keys=keys,
+            encoding=encoding,
+            pdf_breakdown_strategy=pdf_breakdown_strategy,
+        )
         self._account_url = account_url.rstrip("/")
         self._container_name = container_name
-        self._prefix = prefix
-        self._keys = list(keys) if keys is not None else None
-        self._encoding = encoding
         self._container_client = ContainerClient(
             account_url=self._account_url,
             container_name=container_name,
@@ -97,31 +108,16 @@ class AzureBlobLoader(BaseDocumentLoader):
             kwargs["name_starts_with"] = self._prefix
         return [blob.name for blob in self._container_client.list_blobs(**kwargs)]
 
-    def _fetch_document(self, blob_name: str) -> Document:
-        blob_client = self._container_client.get_blob_client(blob_name)
-        data = blob_client.download_blob().readall()
-        content = data.decode(self._encoding)
-        return Document(
-            content=content,
-            type=infer_document_type(blob_name),
-            source=f"{self._account_url}/{self._container_name}/{blob_name}",
-            metadata={
-                "account_url": self._account_url,
-                "container": self._container_name,
-                "blob_name": blob_name,
-            },
-        )
+    def _fetch_bytes(self, key: str) -> bytes:
+        blob_client = self._container_client.get_blob_client(key)
+        return blob_client.download_blob().readall()
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
-        """Stream documents one at a time as each blob is downloaded.
+    def _source(self, key: str) -> str:
+        return f"{self._account_url}/{self._container_name}/{key}"
 
-        Yields:
-            Document: The next loaded document.
-        """
-        if self._keys is not None:
-            names = self._keys
-        else:
-            names = await asyncio.to_thread(self._list_keys)
-
-        for name in names:
-            yield await asyncio.to_thread(self._fetch_document, name)
+    def _metadata(self, key: str) -> dict[str, str]:
+        return {
+            "account_url": self._account_url,
+            "container": self._container_name,
+            "blob_name": key,
+        }
