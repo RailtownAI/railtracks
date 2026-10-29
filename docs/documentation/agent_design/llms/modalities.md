@@ -100,9 +100,22 @@ Supported PDF sources:
     --8<-- "docs/scripts/multimodal.py:pdf_url"
     ```
 
+### What Railtracks will fetch
+
+With `trust_urls=True`, the HEAD probe and the PDF download go through one guarded fetch:
+
+- Only `http` and `https` URLs. Other schemes, such as `ftp` or `file`, raise a `ValueError`.
+- Only hosts whose addresses are all public. Loopback, private networks, link-local addresses (including the cloud metadata service at `169.254.169.254`), carrier-grade NAT, multicast and reserved ranges are refused, and so is Azure's `168.63.129.16`.
+- The connection goes to the address that was checked, so a host can't pass the check with one DNS answer and then connect with another. HTTPS certificates are still verified against the hostname.
+- Redirects are followed up to 10 times, and each target is checked the same way.
+- `HTTP_PROXY` and `HTTPS_PROXY` are ignored, since a proxy would resolve the host where Railtracks can't check it.
+- Error messages show the URL without its query string, so signed URLs don't end up in logs.
+
+A refused PDF URL raises a `ValueError`. A refused HEAD probe logs a warning, and the URL is passed to the provider as an image. To attach a file from an internal server, download it yourself and pass a local file or data URI.
+
 ### Tuning the fetch timeout and size limit
 
-The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links. The download stops once it passes `attachment_max_mb` (32 MB by default) and raises a `ValueError`, so a very large or never-ending response cannot exhaust memory:
+The HEAD probe and PDF download share a timeout that defaults to 10 seconds. It applies to each connection and each read, not to the whole fetch, so raise it via `attachment_timeout` for slow servers. The download stops once it passes `attachment_max_mb` (32 MB by default) and raises a `ValueError`, so a very large or never-ending response cannot exhaust memory:
 
 ```python
 --8<-- "docs/scripts/multimodal.py:pdf_timeout"

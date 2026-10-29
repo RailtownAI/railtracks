@@ -1,4 +1,7 @@
+import logging
+import socket
 from copy import deepcopy
+from types import SimpleNamespace
 from typing import List
 
 import pytest
@@ -282,21 +285,14 @@ class TestAttachment:
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
         seen = {}
 
-        class _FakeResp:
-            headers = {
-                "Content-Type": "application/pdf",
-                "Content-Disposition": 'inline; filename="paper.pdf"',
-            }
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                return False
-
-        def fake_urlopen(req, timeout=None):
+        def fake_fetch(url, *, method="GET", timeout, max_mb=None):
             seen["probe_timeout"] = timeout
-            return _FakeResp()
+            return SimpleNamespace(
+                headers={
+                    "Content-Type": "application/pdf",
+                    "Content-Disposition": 'inline; filename="paper.pdf"',
+                }
+            )
 
         def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
@@ -305,7 +301,7 @@ class TestAttachment:
             seen["encode_max_mb"] = max_mb
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "fetch", fake_fetch)
         monkeypatch.setattr(message_module, "encode", fake_encode)
 
         UserMessage(
@@ -374,28 +370,21 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        class _FakeResp:
-            headers = {
-                "Content-Type": "application/pdf",
-                "Content-Disposition": 'inline; filename="1706.03762v7.pdf"',
-            }
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                return False
-
-        def fake_urlopen(req, timeout=None):
-            assert req.get_method() == "HEAD"
-            return _FakeResp()
+        def fake_fetch(url, *, method="GET", timeout, max_mb=None):
+            assert method == "HEAD"
+            return SimpleNamespace(
+                headers={
+                    "Content-Type": "application/pdf",
+                    "Content-Disposition": 'inline; filename="1706.03762v7.pdf"',
+                }
+            )
 
         def fake_encode(path, *, timeout=10.0, max_mb=32.0):
             import base64 as _b64
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "fetch", fake_fetch)
         monkeypatch.setattr(message_module, "encode", fake_encode)
 
         attachment = Attachment("https://arxiv.org/pdf/1706.03762", trust_urls=True)
@@ -413,10 +402,10 @@ class TestAttachment:
         """
         from railtracks.llm import message as message_module
 
-        def boom_urlopen(req, timeout=None):
+        def boom_fetch(url, **kwargs):
             raise AssertionError("HEAD probe must not be issued when trust_urls=False")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", boom_urlopen)
+        monkeypatch.setattr(message_module, "fetch", boom_fetch)
 
         attachment = Attachment("https://arxiv.org/pdf/1706.03762")
         assert attachment.modality == "image"
@@ -425,14 +414,12 @@ class TestAttachment:
 
     def test_url_probe_failure_defaults_to_image(self, monkeypatch):
         """If HEAD fails when trust_urls=True, fall back to image so the provider can try the URL."""
-        from urllib.error import URLError
-
         from railtracks.llm import message as message_module
 
-        def fake_urlopen(req, timeout=None):
-            raise URLError("nope")
+        def fake_fetch(url, **kwargs):
+            raise OSError("nope")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "fetch", fake_fetch)
 
         attachment = Attachment(
             "https://example.com/something-no-extension", trust_urls=True
@@ -440,6 +427,44 @@ class TestAttachment:
         assert attachment.modality == "image"
         assert attachment.mime_type is None
         assert attachment.encoding is None
+
+    def test_url_probe_to_private_address_is_skipped_with_warning(
+        self, monkeypatch, caplog
+    ):
+        """A HEAD probe that resolves to a private address is never sent, and the URL falls back to image."""
+        from railtracks.llm import _url_fetch
+
+        def fake_getaddrinfo(host, port, *args, **kwargs):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port))]
+
+        def boom_connect(addresses, timeout):
+            raise AssertionError("a blocked address must not be connected to")
+
+        monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+        monkeypatch.setattr(_url_fetch, "_connect", boom_connect)
+
+        with caplog.at_level(logging.WARNING, logger="railtracks.llm.message"):
+            attachment = Attachment(
+                "https://intranet.example.com/no-ext?sig=secret", trust_urls=True
+            )
+
+        assert attachment.modality == "image"
+        assert attachment.mime_type is None
+        assert "Skipped the HEAD probe" in caplog.text
+        assert "secret" not in caplog.text
+
+    def test_pdf_url_to_private_address_raises(self, monkeypatch):
+        from railtracks.llm import _url_fetch
+
+        def fake_getaddrinfo(host, port, *args, **kwargs):
+            return [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", port))
+            ]
+
+        monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+
+        with pytest.raises(_url_fetch.BlockedURLError, match="non-public address"):
+            Attachment("http://metadata.example.com/doc.pdf", trust_urls=True)
 
     @pytest.mark.parametrize(
         "url",
