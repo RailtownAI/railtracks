@@ -39,9 +39,14 @@ def node_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
     if parent.value.kind is ScopeKind.NODE_BODY:
         return NodeSpatialParent(node_id=parent.value.id)
 
-    # 3. the node is called by a middleware
+    # 3. the node is called by a middleware, which ran for the nearest node below it
     if parent.value.kind is ScopeKind.MIDDLEWARE:
-        return MiddlewareSpatialParent(middleware_invoke_id=parent.value.id)
+        caller = parent.find_link(lambda e: e.kind in _NODE_KINDS)
+        if caller is None:
+            return MiddlewareSpatialParent(middleware_invoke_id=parent.value.id)
+        return NodeAndMiddlewareSpatialParent(
+            node_id=caller.value.id, middleware_invoke_id=parent.value.id
+        )
 
 
 def context_spatial_parent(scope: ScopeLink[ScopeEntry] | None):
