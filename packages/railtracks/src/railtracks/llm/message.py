@@ -31,6 +31,7 @@ _EXTENSION_MIME_MAP = {
     ".png": "image/png",
     ".gif": "image/gif",
     ".webp": "image/webp",
+    ".avif": "image/avif",
     ".pdf": "application/pdf",
 }
 

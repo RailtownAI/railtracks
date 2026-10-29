@@ -10,7 +10,7 @@ import railtracks as rt
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.llm.retries import FixedRetry
 from railtracks.middleware import wrap_node
-from railtracks.observability import Event, configure
+from railtracks.observability import Event, Observer, configure
 from railtracks.prebuilt.middleware import Retry
 from railtracks.utils.logging import config, run_view
 from railtracks.utils.logging.run_view import RunView
@@ -626,7 +626,9 @@ def console_enabled(monkeypatch, output) -> io.StringIO:
     console_handler = config._RichConsoleHandler(enabled_level=logging.INFO)
     console_handler.setLevel(logging.CRITICAL + 1)
     monkeypatch.setattr(config.rt_logger, "handlers", [console_handler])
-    monkeypatch.setattr(configure, "_inline_listeners", [RunView().record])
+    observer = Observer()
+    observer.add_listener(RunView().record)
+    monkeypatch.setattr(configure, "observer", observer)
     # other tests leave a thread level behind; these runs should use the console's
     token = config._module_logging_level.set(None)
     yield output

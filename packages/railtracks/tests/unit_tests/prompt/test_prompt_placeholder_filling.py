@@ -91,6 +91,51 @@ def test_escaped_fragment_is_not_filled_while_the_template_is(echo_agent, contex
     assert "context-value" not in received
 
 
+def _ping() -> str:
+    """Reply with pong.
+
+    Returns:
+        The word pong.
+    """
+    return "pong"
+
+
+@pytest.mark.parametrize(
+    "content, expected",
+    [
+        (rt.escape_braces("Echo {value}"), "Echo {value}"),
+        ("{nested}", "{value}"),
+    ],
+)
+def test_message_is_filled_once_on_every_model_call(
+    mock_llm, context, content, expected
+):
+    """A tool call sends the same messages to the model again, and they are not filled twice."""
+    received: list[str] = []
+    model = mock_llm(
+        requested_tool_calls=[
+            rt.llm.ToolCall(identifier="1", name="_ping", arguments={})
+        ]
+    )
+    chat_with_tools = model._chat_with_tools
+
+    def recording_chat_with_tools(messages: MessageHistory, tools, **kwargs):
+        received.extend(m.content for m in messages if m.role == Role.user)
+        return chat_with_tools(messages, tools, **kwargs)
+
+    model._chat_with_tools = recording_chat_with_tools
+    agent = rt.agent_node(
+        llm=model,
+        tool_nodes=[rt.function_node(_ping)],
+        model_middleware=[ContextInjection()],
+    )
+
+    flow = rt.Flow("EchoFlow", agent, context={**context, "nested": "{value}"})
+    asyncio.run(flow.ainvoke(MessageHistory([UserMessage(content)])))
+
+    assert received == [expected, expected]
+
+
 def test_bare_key_in_user_input_is_still_filled(echo_agent, context):
     """Filling stays on for user messages. Escaping is what opts a fragment out."""
     assert _send(echo_agent(), "at {time}", context) == "at 12:00"
