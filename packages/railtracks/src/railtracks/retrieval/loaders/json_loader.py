@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from railtracks.retrieval.content_extraction import ContentExtractor, JsonExtractor
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
 
 
@@ -241,7 +242,7 @@ class JSONLoader(BaseDocumentLoader):
         finally:
             await asyncio.to_thread(f.close)
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         """Stream documents one at a time as each JSON object is parsed.
 
         Parses one file at a time, yielding each object as a `Document`
@@ -249,7 +250,8 @@ class JSONLoader(BaseDocumentLoader):
         sorted order.
 
         Yields:
-            Document: The next converted document.
+            Document | LoadFailure: The next converted document, or a
+            `LoadFailure` for a file that could not be read.
 
         Raises:
             FileNotFoundError: If the path does not exist.
@@ -264,8 +266,10 @@ class JSONLoader(BaseDocumentLoader):
                 if p.is_file()
             )
             for path in paths:
-                async for doc in self._stream_file(path):
-                    yield doc
+                async for item in self._isolate_source(
+                    str(path), self._stream_file(path)
+                ):
+                    yield item
             return
 
         if not self._path.is_file():
@@ -275,5 +279,7 @@ class JSONLoader(BaseDocumentLoader):
                 f"JSONLoader expects a .json or .jsonl file, got {self._path.suffix!r}"
             )
 
-        async for doc in self._stream_file(self._path):
-            yield doc
+        async for item in self._isolate_source(
+            str(self._path), self._stream_file(self._path)
+        ):
+            yield item

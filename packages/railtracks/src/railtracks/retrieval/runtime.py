@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 from uuid import UUID
 
 from railtracks.utils.logging.create import get_rt_logger
@@ -14,11 +15,15 @@ from .embedding.base import Embedding
 from .embedding.models import EmbeddingFailure, EmbeddingMetrics, EmbeddingResult
 from .errors import EmbeddingModelMismatchError
 from .loaders.base import BaseDocumentLoader
+from .loaders.models import LoadFailure
 from .models import Chunk, Document, EmbeddedChunk, RetrievalResult, RetrievedChunk
 from .stores.models import StoreEntry, StoreQuery, StoreScope
 from .stores.protocol import Store
 
 logger = get_rt_logger(__name__)
+
+IngestionStage = Literal["load", "chunk", "embed", "store"]
+"""The ingest step a ``DocumentFailed`` happened in."""
 
 
 @dataclass
@@ -43,17 +48,26 @@ class BatchIngested:
 
 @dataclass
 class DocumentFailed:
-    """A document that had at least one failed embedding batch.
+    """A document that could not be fully ingested.
 
-    Note: successful batches for the same document *are* written to the
-    store. ``DocumentFailed`` is an informational signal that the document
-    is now partial — callers may want to retry, delete, or accept the
-    partial state.
+    ``stage`` says where it failed:
+
+    - ``"load"``: the loader could not read the source, so there is no
+      document and ``document_id`` is ``None``.
+    - ``"chunk"``: the chunker raised; nothing was written.
+    - ``"embed"``: at least one embedding batch failed or a chunk exceeded
+      ``max_tokens``. Successful batches *are* written, so the document is
+      now partial.
+    - ``"store"``: a store read or write raised. Batches written before the
+      error stay in the store, so the document may be partial.
+
+    Callers may want to retry, delete, or accept a partial document.
     """
 
-    document_id: UUID
+    document_id: UUID | None
     source: str | None
     errors: list[Exception]
+    stage: IngestionStage
 
 
 @dataclass
@@ -70,6 +84,9 @@ class DocumentSkipped:
 class IngestionStats:
     """Summary of a complete ingest run.
 
+    ``documents_loaded`` counts documents the loader produced; sources the
+    loader could not read count only toward ``documents_failed``.
+
     ``total_metrics`` accumulates per-batch ``EmbeddingMetrics`` (tokens,
     dollar cost, latency, vector count) across every successful batch in
     the run, so callers can read a single total for billing/observability.
@@ -84,6 +101,14 @@ class IngestionStats:
     batch_failures: list[EmbeddingFailure] = field(default_factory=list)
     failed_documents: list[DocumentFailed] = field(default_factory=list)
     total_metrics: EmbeddingMetrics = field(default_factory=EmbeddingMetrics)
+
+
+@dataclass
+class _DocumentProgress:
+    """How far one document got through ingest, and what went wrong."""
+
+    stage: IngestionStage = "store"
+    errors: list[Exception] = field(default_factory=list)
 
 
 def _content_hash(content: str) -> str:
@@ -130,6 +155,16 @@ class RetrievalRuntime:
             Requires ``tokenizer`` (defaults to ``TiktokenTokenizer``).
         tokenizer: Tokenizer used to enforce ``max_tokens``. Defaults to
             ``TiktokenTokenizer`` lazily when ``max_tokens`` is set.
+        on_error: What to do when one document fails to load, chunk, or
+            store. ``"skip"`` (default) reports it as a ``DocumentFailed``
+            and moves on to the next document. ``"raise"`` re-raises the
+            error and ends the run. Failed embedding batches are always
+            reported, not raised. ``EmbeddingModelMismatchError`` and errors
+            raised out of the loader's own stream always propagate, since
+            the run cannot usefully continue past them.
+
+    Raises:
+        ValueError: If ``on_error`` is not ``"skip"`` or ``"raise"``.
     """
 
     def __init__(
@@ -146,7 +181,10 @@ class RetrievalRuntime:
         on_retrieve: Callable[[str, RetrievalResult], None] | None = None,
         max_tokens: int | None = None,
         tokenizer: Tokenizer | None = None,
+        on_error: Literal["skip", "raise"] = "skip",
     ) -> None:
+        if on_error not in ("skip", "raise"):
+            raise ValueError(f"on_error must be 'skip' or 'raise', got {on_error!r}")
         self._chunker = chunker
         self._embedder = embedder
         self._store = store
@@ -154,6 +192,7 @@ class RetrievalRuntime:
         self._on_ingest = on_ingest
         self._on_retrieve = on_retrieve
         self._max_tokens = max_tokens
+        self._on_error = on_error
         if max_tokens is not None and tokenizer is None:
             from .chunking.tokenization import TiktokenTokenizer
 
@@ -185,6 +224,10 @@ class RetrievalRuntime:
     def max_tokens(self) -> int | None:
         return self._max_tokens
 
+    @property
+    def on_error(self) -> Literal["skip", "raise"]:
+        return self._on_error
+
     @staticmethod
     def _resolve_batch_size(batch_size: int | None, embedder: Embedding) -> int:
         bs = batch_size if batch_size is not None else embedder.default_batch_size
@@ -213,10 +256,16 @@ class RetrievalRuntime:
 
         Yields:
             ``BatchIngested`` after each successful batch finishes writing,
-            ``EmbeddingFailure`` for any failed batch, and ``DocumentFailed``
-            once at end-of-document for each document that had any failed
-            batch. Successful batches for a partially-failed document are
-            still written; ``DocumentFailed`` signals the partial state.
+            ``EmbeddingFailure`` for any failed batch, ``DocumentSkipped``
+            for an unchanged document, and ``DocumentFailed`` once for each
+            document that could not be fully ingested (see its ``stage``).
+            Successful batches for a partially-failed document are still
+            written; ``DocumentFailed`` signals the partial state.
+
+        Raises:
+            Exception: Any per-document error when ``on_error="raise"``.
+            EmbeddingModelMismatchError: When the embedder's model differs
+                from the one the store was built with.
         """
         stats = IngestionStats()
         async for event in self._ingest_with_stats(loader, stats, scope):
@@ -245,9 +294,17 @@ class RetrievalRuntime:
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
-        async for doc in loader.astream():
-            async for event in self._ingest_document(doc, stats, scope):
-                yield event
+        async with aclosing(loader.astream()) as stream:
+            async for item in stream:
+                if isinstance(item, LoadFailure):
+                    if self._on_error == "raise":
+                        raise item.error
+                    yield self._record_document_failed(
+                        None, item.source, [item.error], "load", stats
+                    )
+                    continue
+                async for event in self._ingest_document(item, stats, scope):
+                    yield event
 
     async def _ingest_document(
         self, doc: Document, stats: IngestionStats, scope: StoreScope | None
@@ -255,6 +312,30 @@ class RetrievalRuntime:
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
         stats.documents_loaded += 1
+        progress = _DocumentProgress()
+        try:
+            async for event in self._process_document(doc, stats, progress, scope):
+                yield event
+        except EmbeddingModelMismatchError:
+            raise
+        except Exception as exc:
+            if self._on_error == "raise":
+                raise
+            progress.errors.append(exc)
+        if progress.errors:
+            yield self._record_document_failed(
+                doc.id, doc.source, progress.errors, progress.stage, stats
+            )
+
+    async def _process_document(
+        self,
+        doc: Document,
+        stats: IngestionStats,
+        progress: _DocumentProgress,
+        scope: StoreScope | None,
+    ) -> AsyncGenerator[
+        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
+    ]:
         doc.content_hash = _content_hash(doc.content)
 
         await self._ensure_captured_model_seeded()
@@ -264,6 +345,7 @@ class RetrievalRuntime:
             yield DocumentSkipped(document_id=doc.id, source=doc.source)
             return
 
+        progress.stage = "chunk"
         chunks = await self._chunker.achunk(doc)
         stats.chunks_created += len(chunks)
         if not chunks:
@@ -274,14 +356,12 @@ class RetrievalRuntime:
         # Token-size guard: drop oversized chunks before embedding to avoid
         # provider 4xx errors. Each oversize chunk surfaces as an
         # EmbeddingFailure carried into the document's accumulated errors.
-        doc_errors: list[Exception] = []
+        progress.stage = "embed"
         chunks, failures = self._split_oversized(chunks, stats)
         for failure in failures:
-            doc_errors.extend(failure.errors)
+            progress.errors.extend(failure.errors)
             yield failure
         if not chunks:
-            if doc_errors:
-                yield self._record_document_failed(doc, doc_errors, stats)
             return
 
         # Stamp the final (post-token-guard) chunk count onto every chunk so a
@@ -291,11 +371,8 @@ class RetrievalRuntime:
         for chunk in chunks:
             chunk.metadata["doc_chunk_count"] = len(chunks)
 
-        async for event in self._embed_and_store(doc, chunks, stats, doc_errors, scope):
+        async for event in self._embed_and_store(doc, chunks, stats, progress, scope):
             yield event
-
-        if doc_errors:
-            yield self._record_document_failed(doc, doc_errors, stats)
 
     async def _is_complete_duplicate(
         self, doc: Document, scope: StoreScope | None
@@ -369,7 +446,7 @@ class RetrievalRuntime:
         doc: Document,
         chunks: list[Chunk],
         stats: IngestionStats,
-        doc_errors: list[Exception],
+        progress: _DocumentProgress,
         scope: StoreScope | None,
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
@@ -385,6 +462,7 @@ class RetrievalRuntime:
                 # Check model BEFORE delete_where / write — a mismatch here
                 # must not corrupt the store by clearing prior chunks first.
                 self._check_model(batch.metrics.model)
+                progress.stage = "store"
                 if not delete_done:
                     await self._store.delete_where(
                         {
@@ -397,6 +475,7 @@ class RetrievalRuntime:
                     self._capture_model(embedded)
                     entry = StoreEntry.from_chunk(embedded, scope=scope)
                     await self._store.write(entry)
+                progress.stage = "embed"
                 stats.chunks_embedded += len(batch.chunks)
                 stats.total_metrics = stats.total_metrics + batch.metrics
                 yield BatchIngested(
@@ -406,7 +485,7 @@ class RetrievalRuntime:
                     metrics=batch.metrics,
                 )
             else:
-                doc_errors.extend(batch.errors)
+                progress.errors.extend(batch.errors)
                 stats.batches_failed += 1
                 stats.batch_failures.append(batch)
                 yield batch
@@ -459,12 +538,17 @@ class RetrievalRuntime:
 
     @staticmethod
     def _record_document_failed(
-        doc: Document, doc_errors: list[Exception], stats: IngestionStats
+        document_id: UUID | None,
+        source: str | None,
+        errors: list[Exception],
+        stage: IngestionStage,
+        stats: IngestionStats,
     ) -> DocumentFailed:
         failed = DocumentFailed(
-            document_id=doc.id,
-            source=doc.source,
-            errors=doc_errors,
+            document_id=document_id,
+            source=source,
+            errors=errors,
+            stage=stage,
         )
         stats.documents_failed += 1
         stats.failed_documents.append(failed)

@@ -16,6 +16,7 @@ from .content_extraction import (
 )
 from .embedding.models import EmbeddingFailure
 from .errors import EmbeddingModelMismatchError
+from .loaders.models import LoadFailure
 from .models import (
     Chunk,
     Document,
@@ -29,6 +30,7 @@ from .runtime import (
     BatchIngested,
     DocumentFailed,
     DocumentSkipped,
+    IngestionStage,
     IngestionStats,
     RetrievalRuntime,
 )
@@ -45,8 +47,10 @@ __all__ = [
     "EmbeddedChunk",
     "EmbeddingFailure",
     "EmbeddingModelMismatchError",
+    "IngestionStage",
     "IngestionStats",
     "JsonExtractor",
+    "LoadFailure",
     "OCRResult",
     "ProseExtractor",
     "RetrievalResult",

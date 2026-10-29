@@ -12,17 +12,24 @@ from railtracks.retrieval.loaders import TextLoader
 
 async def base_example():
 # --8<-- [start:base]
+    from railtracks.retrieval.loaders import LoadFailure
+
     loader = TextLoader("docs/")
 
     # Sync, returns list[Document]. Fine for tests, small corpora, scripts.
+    # Raises the error of the first file that cannot be read.
     docs = loader.load()
 
     # Async, collects all documents before returning. Same memory profile as load().
     docs = await loader.aload()
 
     # Async, yields one Document at a time. The only mode that streams.
-    async for doc in loader.astream():
-        print(doc.source, doc.type, len(doc.content))
+    # An unreadable file arrives as a LoadFailure and the stream continues.
+    async for item in loader.astream():
+        if isinstance(item, LoadFailure):
+            print("could not read", item.source, repr(item.error))
+            continue
+        print(item.source, item.type, len(item.content))
 # --8<-- [end:base]
 
 
@@ -75,8 +82,8 @@ async def stream(runtime: RetrievalRuntime, loader):
                 print(f"  + doc={did} batch={i} chunks={len(ch)}")
             case EmbeddingFailure(errors=errs):
                 print(f"  ! batch failed: {errs[0]}")
-            case DocumentFailed(document_id=did):
-                print(f"  ! doc {did} ended with failures")
+            case DocumentFailed(source=src, stage=stage, errors=errs):
+                print(f"  ! {src} failed at {stage}: {errs[-1]!r}")
             case DocumentSkipped(source=src):
                 print(f"  ~ skipped (unchanged): {src}")
 # --8<-- [end:streaming]

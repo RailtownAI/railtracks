@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
 
 _SUPPORTED_EXTENSIONS = {".txt", ".md"}
@@ -19,7 +20,8 @@ class TextLoader(BaseDocumentLoader):
 
     Each file is read and yielded individually as soon as it is ready,
     allowing downstream stages to begin processing without waiting for
-    the full corpus to load.
+    the full corpus to load. A file that cannot be read or decoded is
+    yielded as a `LoadFailure`.
 
     Args:
         file_path: Path to a `.txt` or `.md` file, or a directory
@@ -59,7 +61,10 @@ class TextLoader(BaseDocumentLoader):
             },
         )
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def _stream_file(self, path: Path) -> AsyncGenerator[Document, None]:
+        yield await asyncio.to_thread(self._load_file, path)
+
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         """Stream documents one at a time as each file is read.
 
         If initialised with a directory, yields one `Document` per file
@@ -67,7 +72,8 @@ class TextLoader(BaseDocumentLoader):
         `Document`.
 
         Yields:
-            Document: The next loaded document.
+            Document | LoadFailure: The next loaded document, or a
+            `LoadFailure` for a file that could not be read.
 
         Raises:
             FileNotFoundError: If the path does not exist.
@@ -81,7 +87,10 @@ class TextLoader(BaseDocumentLoader):
                 if p.suffix.lower() in _SUPPORTED_EXTENSIONS and p.is_file()
             )
             for path in paths:
-                yield await asyncio.to_thread(self._load_file, path)
+                async for item in self._isolate_source(
+                    str(path), self._stream_file(path)
+                ):
+                    yield item
             return
 
         if self._path.suffix.lower() not in _SUPPORTED_EXTENSIONS:
@@ -92,4 +101,7 @@ class TextLoader(BaseDocumentLoader):
         if not self._path.is_file():
             raise FileNotFoundError(f"File not found: {self._path}")
 
-        yield await asyncio.to_thread(self._load_file, self._path)
+        async for item in self._isolate_source(
+            str(self._path), self._stream_file(self._path)
+        ):
+            yield item

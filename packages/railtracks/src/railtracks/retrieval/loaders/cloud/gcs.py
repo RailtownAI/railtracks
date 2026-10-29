@@ -16,9 +16,11 @@ class GCSLoader(ObjectStoreLoader):
 
     Text objects are decoded with ``encoding``. PDFs are parsed with the same
     logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
-    ``pdf_breakdown_strategy``. A ``.txt``, ``.md``, ``.csv``, ``.json`` or
-    ``.jsonl`` object that is not valid text raises; any other object that is
-    not valid text, such as an image, is skipped with a warning.
+    ``pdf_breakdown_strategy``. A object that cannot be downloaded or parsed,
+    including a ``.txt``, ``.md``, ``.csv``, ``.json`` or ``.jsonl`` object that
+    is not valid text, is yielded as a ``LoadFailure`` and the remaining
+    objects still load. Any other object that is not valid text, such as an
+    image, is skipped with a warning.
 
     Authentication uses **Application Default Credentials (ADC)** by default,
     which resolves credentials from the following sources (in order):

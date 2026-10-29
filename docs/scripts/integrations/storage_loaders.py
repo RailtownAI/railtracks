@@ -213,8 +213,8 @@ async def create():
                 print(f"  + doc={str(did)[:8]} batch={i} chunks={len(ch)}")
             case EmbeddingFailure(errors=errs):
                 print(f"  ! embedding failed: {errs[0]}")
-            case DocumentFailed(document_id=did):
-                print(f"  ! doc {str(did)[:8]} partially failed")
+            case DocumentFailed(source=src, stage=stage):
+                print(f"  ! {src} failed at {stage}")
             case DocumentSkipped(source=src):
                 print(f"  ~ skipped (unchanged): {src}")
 

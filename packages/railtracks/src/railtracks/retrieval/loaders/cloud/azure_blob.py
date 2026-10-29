@@ -29,9 +29,11 @@ class AzureBlobLoader(ObjectStoreLoader):
 
     Text objects are decoded with ``encoding``. PDFs are parsed with the same
     logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
-    ``pdf_breakdown_strategy``. A ``.txt``, ``.md``, ``.csv``, ``.json`` or
-    ``.jsonl`` blob that is not valid text raises; any other blob that is not
-    valid text, such as an image, is skipped with a warning.
+    ``pdf_breakdown_strategy``. A blob that cannot be downloaded or parsed,
+    including a ``.txt``, ``.md``, ``.csv``, ``.json`` or ``.jsonl`` blob that
+    is not valid text, is yielded as a ``LoadFailure`` and the remaining
+    blobs still load. Any other blob that is not valid text, such as an
+    image, is skipped with a warning.
 
     Authentication defaults to ``DefaultAzureCredential``, which resolves
     credentials from environment variables, managed identity, the Azure CLI,

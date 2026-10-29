@@ -11,6 +11,7 @@ from railtracks.retrieval.loaders._pdf_options import (
     validate_breakdown_strategy,
 )
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
 from railtracks.utils.logging.create import get_rt_logger
 
@@ -45,10 +46,11 @@ class ObjectStoreLoader(BaseDocumentLoader):
     Subclasses list and download objects and say how each one is named;
     this class turns each object into `Document` objects. PDFs (by extension)
     are parsed with the same logic as `PyPDFLoader`. Everything else is
-    decoded as text in `encoding`. An object with a known text extension
-    (`.txt`, `.md`, `.csv`, `.json`, `.jsonl`) that does not decode raises,
-    since that points to a wrong `encoding`. Any other object that does not
-    decode, such as an image, is skipped with a warning.
+    decoded as text in `encoding`. An object that cannot be downloaded or
+    parsed, including one with a known text extension (`.txt`, `.md`, `.csv`,
+    `.json`, `.jsonl`) that does not decode, is yielded as a `LoadFailure` and
+    the remaining objects still load. Any other object that does not decode,
+    such as an image, is skipped with a warning.
 
     Args:
         prefix: Only objects whose key starts with this string are listed.
@@ -93,17 +95,16 @@ class ObjectStoreLoader(BaseDocumentLoader):
     def _metadata(self, key: str) -> dict[str, str]:
         """Return the provider metadata copied into every `Document` from `key`."""
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         """Stream documents one at a time as each object is downloaded.
 
         Yields:
-            Document: The next loaded document.
+            Document | LoadFailure: The next loaded document, or a
+            `LoadFailure` for an object that could not be downloaded or parsed.
 
         Raises:
             ImportError: If any key is a PDF and `pypdf` is not installed.
                 Raised before the first object is downloaded.
-            ValueError: If an object with a known text extension is not valid
-                text in `encoding`.
         """
         if self._keys is not None:
             keys = self._keys
@@ -121,14 +122,14 @@ class ObjectStoreLoader(BaseDocumentLoader):
             )
 
         for key in keys:
-            data = await asyncio.to_thread(self._fetch_bytes, key)
-            async for doc in self._stream_object(key, data):
-                yield doc
+            async for item in self._isolate_source(
+                self._source(key), self._stream_object(key)
+            ):
+                yield item
 
-    async def _stream_object(
-        self, key: str, data: bytes
-    ) -> AsyncGenerator[Document, None]:
-        """Turn one downloaded object into `Document` objects."""
+    async def _stream_object(self, key: str) -> AsyncGenerator[Document, None]:
+        """Download one object and turn it into `Document` objects."""
+        data = await asyncio.to_thread(self._fetch_bytes, key)
         source = self._source(key)
         document_type = infer_document_type(key)
         if document_type is DocumentType.PDF:
