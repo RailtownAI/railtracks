@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ._common import _LLM_CREATION_JOIN_CTE, _NODE_SPAN_CTE, _parse_json, _rows
+from ._common import _LLM_CREATION_JOIN_CTE, _parse_json, _rows
 
 if TYPE_CHECKING:
     from duckdb import DuckDBPyConnection
@@ -25,87 +25,22 @@ def list_session_node_rows(
     ``node_parent(scope)``, which returns the *current* node's id — so the
     node's own id sits under ``parent_node_id``, not ``node_id``.
 
-    ``parent_node_id`` is the node that called this one; a null value marks a
-    root. ``failed`` is true when any ``node.failure`` event was seen.
-
-    **A node called from inside a middleware names the middleware, not a node.**
-    Its ``node.invocation`` carries ``spatial_parent_type = 'middleware'`` and
-    only ``spatial_parent_middleware_invoke_id``, so reading
-    ``spatial_parent_node_id`` alone makes every such node a root: an input guard
-    that asks a judge agent draws the judge beside the flow instead of under the
-    agent it guarded. The middleware's own events name what it ran for, so the
-    caller is one or two hops away (``caller``):
-
-    - a node-band middleware (``@wrap_node`` and kin) names its node directly;
-    - an LLM-band one (guards, ``@pre_llm`` and kin) names only the model call,
-      and that call's ``llm.*`` events name the node;
-    - a guard that *blocks* runs before ``llm.invocation`` fires, so its model
-      call has no ``llm.*`` events and the second hop finds nothing. There the
-      caller is the innermost node open when the middleware ran
-      (:data:`_NODE_SPAN_CTE`), the rule the guardrail markers use for the same
-      gap — so a blocked agent's shield and the judge that blocked it land on the
-      same node.
-
-    No further walking is needed: a middleware event always names a node or a
-    model call, never only an enclosing middleware (``middleware_spatial_parent``).
+    Tree parent is ``node.invocation.spatial_parent_node_id`` — a null value
+    marks a root. ``failed`` is true when any ``node.failure`` event was seen.
     """
-    sql = f"""
-    WITH {_NODE_SPAN_CTE},
-    creation AS (
+    sql = """
+    WITH creation AS (
       SELECT node_id, name, node_type, timestamp AS created_at
       FROM node
       WHERE event_type = 'node.creation' AND scope_id = ?
     ),
     invocation AS (
-      SELECT parent_node_id                           AS node_id,
-             MAX(spatial_parent_node_id)              AS parent_node_id,
-             MAX(spatial_parent_middleware_invoke_id) AS middleware_invoke_id,
-             MIN(timestamp)                           AS started_at
+      SELECT parent_node_id                     AS node_id,
+             MAX(spatial_parent_node_id)        AS parent_node_id,
+             MIN(timestamp)                     AS started_at
       FROM node
       WHERE event_type = 'node.invocation' AND scope_id = ?
       GROUP BY parent_node_id
-    ),
-    -- The middleware invocations that called a node. Grouped by the join key:
-    -- one invocation emits several events (generic and specialised pairs).
-    calling_middleware AS (
-      SELECT parent_middleware_invoke_id       AS middleware_invoke_id,
-             MAX(spatial_parent_node_id)       AS node_id,
-             MAX(spatial_parent_llm_invoke_id) AS llm_invoke_id,
-             MIN(timestamp)                    AS invoked_at
-      FROM middleware
-      WHERE scope_id = ?
-        AND parent_middleware_invoke_id IN (SELECT middleware_invoke_id FROM invocation)
-      GROUP BY parent_middleware_invoke_id
-    ),
-    model_call AS (
-      SELECT parent_llm_invoke_id        AS llm_invoke_id,
-             MAX(spatial_parent_node_id) AS node_id
-      FROM llm
-      WHERE scope_id = ?
-        AND parent_llm_invoke_id IN (SELECT llm_invoke_id FROM calling_middleware)
-      GROUP BY parent_llm_invoke_id
-    ),
-    -- Only consulted when the hop through the model call found nothing, which
-    -- is the blocked case. `depth = 1` is the node a call stack would name.
-    enclosing AS (
-      SELECT m.middleware_invoke_id,
-             s.node_id,
-             ROW_NUMBER() OVER (
-               PARTITION BY m.middleware_invoke_id ORDER BY s.opened_at DESC
-             ) AS depth
-      FROM calling_middleware m
-      JOIN node_spans s
-        ON s.scope_id = ?
-       AND m.invoked_at >= s.opened_at
-       AND (s.closed_at IS NULL OR m.invoked_at <= s.closed_at)
-    ),
-    caller AS (
-      SELECT m.middleware_invoke_id,
-             COALESCE(m.node_id, mc.node_id, e.node_id) AS node_id
-      FROM calling_middleware m
-      LEFT JOIN model_call mc USING (llm_invoke_id)
-      LEFT JOIN enclosing e
-        ON e.middleware_invoke_id = m.middleware_invoke_id AND e.depth = 1
     ),
     destruction AS (
       SELECT parent_node_id                     AS node_id,
@@ -123,7 +58,7 @@ def list_session_node_rows(
     SELECT c.node_id,
            c.name,
            c.node_type,
-           COALESCE(i.parent_node_id, ca.node_id) AS parent_node_id,
+           i.parent_node_id,
            d.duration_seconds,
            EPOCH(c.created_at)              AS created_at,
            EPOCH(i.started_at)              AS started_at,
@@ -131,7 +66,6 @@ def list_session_node_rows(
            (f.node_id IS NOT NULL)          AS failed
     FROM creation c
     LEFT JOIN invocation  i USING (node_id)
-    LEFT JOIN caller     ca ON ca.middleware_invoke_id = i.middleware_invoke_id
     LEFT JOIN destruction d USING (node_id)
     LEFT JOIN failure     f USING (node_id)
     ORDER BY created_at ASC
@@ -139,7 +73,7 @@ def list_session_node_rows(
     return _rows(
         con,
         sql,
-        (session_id,) * 7,
+        (session_id, session_id, session_id, session_id),
         label=f"list_session_node_rows({session_id[:8]})",
     )
 

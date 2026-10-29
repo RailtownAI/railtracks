@@ -180,10 +180,9 @@ def _build_tree(
 ) -> list[TreeNode]:
     """Parent nodes and their descendants into a nested list of ``TreeNode``.
 
-    Only Agent and Tool nodes appear in the tree. A node's parent is the node
-    that called it, through a middleware when one made the call (see
-    ``list_session_node_rows``); nulls, or references to excluded nodes, become
-    tree roots.
+    Only Agent and Tool nodes appear in the tree. A node's parent is the value
+    of ``spatial_parent_node_id`` on its invocation; nulls, or references to
+    excluded nodes, become tree roots.
 
     Iterative to avoid Python's recursion limit on a deep session.
     """

@@ -18,6 +18,7 @@ coverage in `test_resolve.py`.
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import ExitStack
 
 import pytest
@@ -35,6 +36,7 @@ from railtracks.events.middleware import (
     MiddlewareInvocationEvent,
     MiddlewareParent,
 )
+from railtracks.events.node import NodeInvocation
 from railtracks.events.send import pipe
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.providers import ModelProvider
@@ -186,6 +188,41 @@ async def test_parent_middleware_does_not_cross_the_llm_boundary():
     )
     assert event.parent == MiddlewareParent(
         middleware_type_id="model-mw-B", middleware_invoke_id=b_call_id
+    )
+
+
+# ---------------------------------------------------------------------------
+# Node events for a node called from a middleware
+# ---------------------------------------------------------------------------
+
+
+async def test_concurrent_guards_each_record_the_agent_they_ran_for():
+    """Two agents run at once, each with a guard that calls a judge. Each task has its
+    own scope chain, so each judge records its own agent however the two interleave.
+    """
+    _register()
+    mgr = ContextVarScopeManager()
+
+    async def guarded_agent(agent_id: str, judge_id: str):
+        with mgr.enter_node(agent_id), mgr.enter_node_body():
+            with (
+                mgr.enter_llm_call("model-x"),
+                mgr.enter_middleware("guard") as call_id,
+            ):
+                await asyncio.sleep(0)
+                with mgr.enter_node(judge_id):
+                    event = await _pipe(NodeInvocation(args=(), kwargs={}))
+        return event, call_id
+
+    (judge_a, guard_a), (judge_b, guard_b) = await asyncio.gather(
+        guarded_agent("agent-A", "judge-A"), guarded_agent("agent-B", "judge-B")
+    )
+
+    assert judge_a.spatial_parent == NodeAndMiddlewareSpatialParent(
+        node_id="agent-A", middleware_invoke_id=guard_a
+    )
+    assert judge_b.spatial_parent == NodeAndMiddlewareSpatialParent(
+        node_id="agent-B", middleware_invoke_id=guard_b
     )
 
 

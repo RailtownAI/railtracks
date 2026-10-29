@@ -12,6 +12,7 @@ from railtracks.events._base import (
     CreationEventBase,
     FailureMixin,
     MiddlewareSpatialParent,
+    NodeAndMiddlewareSpatialParent,
     NodeParent,
     NodeSpatialParent,
     ParentEventBase,
@@ -65,7 +66,10 @@ def failure_details(exc: BaseException) -> dict[str, Any]:
 
 @dataclass(kw_only=True)
 class NodeEventBase(
-    ParentEventBase[NodeSpatialParent | MiddlewareSpatialParent, NodeParent]
+    ParentEventBase[
+        NodeSpatialParent | NodeAndMiddlewareSpatialParent | MiddlewareSpatialParent,
+        NodeParent,
+    ]
 ):
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
         return node_spatial_parent(scope)
