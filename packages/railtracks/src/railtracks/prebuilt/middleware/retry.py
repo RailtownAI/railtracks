@@ -5,11 +5,9 @@ from typing import Any
 from typing_extensions import Never
 
 from railtracks.exceptions import (
-    DecisionModelError,
     DecisionRateLimitError,
     DecisionTimeoutError,
 )
-from railtracks.llm import RetryError
 from railtracks.llm.retries import ExponentialRetry, RetryApproach
 from railtracks.llm.retries.base import _RETRYABLE_EXCEPTIONS
 from railtracks.middleware.core import Middleware
@@ -46,9 +44,10 @@ class Retry(Middleware[Any, Any, Never]):
             these defaults. Anything not in the tuple propagates immediately.
 
     Raises:
-        DecisionModelError: Retries exhausted with a decision-node error; the last
-            error is re-raised with the ``RetryError`` as its cause.
-        RetryError: Retries exhausted with any other retryable error.
+        RetryError: All attempts failed with retryable errors. A decision node
+            translates this to a fresh ``DecisionModelError`` subclass, preserving
+            the last attempt's provider cause and adding an exhaustion note.
+        Exception: Non-retryable errors propagate immediately.
     """
 
     def __init__(
@@ -69,13 +68,6 @@ class Retry(Middleware[Any, Any, Never]):
         super().__init__(self._middleware_fn)
 
     async def _middleware_fn(self, call, *args, **kwargs):
-        try:
-            return await self._approach.acall_with_retry(
-                lambda: call(*args, **kwargs), retry_on=self._retry_on
-            )
-        except RetryError as e:
-            if e.exception_list and isinstance(
-                e.exception_list[-1], DecisionModelError
-            ):
-                raise e.exception_list[-1] from e
-            raise
+        return await self._approach.acall_with_retry(
+            lambda: call(*args, **kwargs), retry_on=self._retry_on
+        )

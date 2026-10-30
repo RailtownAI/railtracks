@@ -8,6 +8,7 @@ models emit nothing and raise ``DecisionProviderError``; here a node's request g
 from __future__ import annotations
 
 import uuid
+from typing import Awaitable, Callable
 
 from railtracks.context.central import get_current_scope, is_context_active
 from railtracks.decisions import (
@@ -36,6 +37,34 @@ from railtracks.exceptions import (
     DecisionRefusalError,
     DecisionTimeoutError,
 )
+from railtracks.llm import RetryError
+from railtracks.middleware.core import wrap_node
+
+
+@wrap_node
+async def preserve_decision_retry_error(
+    call: Callable[[str], Awaitable[DecisionResponse]], state: str
+) -> DecisionResponse:
+    """Keep exhausted retries typed as decision errors at the decision-node boundary."""
+    try:
+        return await call(state)
+    except RetryError as e:
+        last = e.exception_list[-1] if e.exception_list else None
+        if not isinstance(last, DecisionModelError):
+            raise
+        notes = [*last.notes, f"Gave up after {len(e.exception_list)} attempts."]
+        if isinstance(last, DecisionRefusalError):
+            error: DecisionModelError = type(last)(
+                last.reason,
+                refused=last.refused,
+                answers=last.answers,
+                notes=notes,
+                fatal=last.fatal,
+            )
+        else:
+            error = type(last)(last.reason, notes=notes, fatal=last.fatal)
+        raise error from last.__cause__
+
 
 # Any other DecisionProviderError becomes a plain DecisionModelError.
 _PROVIDER_TO_NODE_ERROR: tuple[

@@ -11,6 +11,11 @@ from unittest.mock import AsyncMock
 import litellm
 import pytest
 import railtracks as rt
+from railtracks.decisions import (
+    DecisionProviderRateLimitError,
+    DecisionProviderRefusalError,
+    DecisionProviderTimeoutError,
+)
 from railtracks.exceptions import (
     DecisionAuthenticationError,
     DecisionModelError,
@@ -180,11 +185,30 @@ async def test_decision_node_exhaustion_preserves_last_error(
 
     assert type(exc.value) is node_error
     assert provider_call.await_count == 3
-    history = exc.value.__cause__
+    cause = exc.value.__cause__
+    provider_type = (
+        DecisionProviderTimeoutError
+        if node_error is DecisionTimeoutError
+        else DecisionProviderRateLimitError
+    )
+    assert type(cause) is provider_type
+    assert type(cause.__cause__) is provider_error
+    history = exc.value.__context__
     assert isinstance(history, RetryError)
     assert len(history.exception_list) == 3
     assert all(type(error) is node_error for error in history.exception_list)
-    assert exc.value is history.exception_list[-1]
+    last = history.exception_list[-1]
+    assert exc.value is not last
+    assert last.__cause__ is cause
+    assert last.notes == []
+    assert exc.value.notes == ["Gave up after 3 attempts."]
+    assert "Gave up after 3 attempts." in str(exc.value)
+    seen = set()
+    error = exc.value
+    while error is not None:
+        assert id(error) not in seen, f"Cause cycle at {error!r}"
+        seen.add(id(error))
+        error = error.__cause__
     assert "attempt 2" in exc.value.reason
 
 
@@ -230,3 +254,108 @@ async def test_agent_node_exhaustion_still_raises_retry_error(mock_llm):
 
     assert len(exc.value.exception_list) == 3
     assert all(isinstance(error, LLMError) for error in exc.value.exception_list)
+
+
+async def test_function_node_exhaustion_keeps_retry_error(decision_model):
+    model, provider_call = decision_model
+    provider_call.side_effect = litellm.Timeout(
+        message="timed out", llm_provider="typesafe", model="jev-latest"
+    )
+    decision = rt.decision_node(model=model, schema=Triage)
+    forward = _forwarding_node(decision, _no_sleep_retry(retry_on=(Exception,)))
+
+    with pytest.raises(RetryError) as exc:
+        await rt.Flow(name="Retry function", entry_point=forward).ainvoke("Help!")
+
+    assert provider_call.await_count == 3
+    assert len(exc.value.exception_list) == 3
+    assert all(
+        isinstance(error, DecisionTimeoutError) for error in exc.value.exception_list
+    )
+
+
+def _forwarding_node(decision, retry):
+    @rt.function_node(middleware=[retry])
+    async def forward(state: str) -> rt.decisions.DecisionResponse:
+        """Ask a decision node about the supplied text.
+
+        Args:
+            state: The text to judge.
+
+        Returns:
+            The decision node's answers.
+        """
+        return await rt.call(decision, state)
+
+    return forward
+
+
+@pytest.mark.parametrize("provider_error", [litellm.Timeout, litellm.RateLimitError])
+@pytest.mark.parametrize("outer_layer", ["model", "function"])
+async def test_stacked_retry_layers_multiply_attempts(
+    decision_model, provider_error, outer_layer
+):
+    model, provider_call = decision_model
+    provider_call.side_effect = provider_error(
+        message="transient", llm_provider="typesafe", model="jev-latest"
+    )
+    if outer_layer == "model":
+        model.retry_approach = FixedRetry(max_tries=3, delay=0.0)
+    decision = rt.decision_node(
+        model=model, schema=Triage, middleware=[_no_sleep_retry()]
+    )
+    entry = (
+        _forwarding_node(decision, _no_sleep_retry())
+        if outer_layer == "function"
+        else decision
+    )
+    expected_error = RetryError if outer_layer == "function" else DecisionModelError
+
+    with pytest.raises(expected_error):
+        await rt.Flow(name="Stacked retries", entry_point=entry).ainvoke("Help!")
+
+    assert provider_call.await_count == 9
+
+
+async def test_two_retries_on_one_decision_node_do_not_retry_retry_error(
+    decision_model,
+):
+    model, provider_call = decision_model
+    provider_call.side_effect = litellm.Timeout(
+        message="timed out", llm_provider="typesafe", model="jev-latest"
+    )
+    node = rt.decision_node(
+        model=model,
+        schema=Triage,
+        middleware=[_no_sleep_retry(), _no_sleep_retry()],
+    )
+
+    with pytest.raises(DecisionTimeoutError):
+        await rt.Flow(name="Two retries", entry_point=node).ainvoke("Help!")
+
+    assert provider_call.await_count == 3
+
+
+async def test_custom_retry_preserves_refusal_details_and_notes(decision_model):
+    model, provider_call = decision_model
+    provider_call.side_effect = DecisionProviderRefusalError(
+        "declined", refused=["is_urgent"], answers={}, notes=["original note"]
+    )
+    node = rt.decision_node(
+        model=model, schema=Triage, middleware=[_no_sleep_retry(retry_on=(Exception,))]
+    )
+
+    with pytest.raises(DecisionRefusalError) as exc:
+        await rt.Flow(name="Retry refusal", entry_point=node).ainvoke("Help!")
+
+    history = exc.value.__context__
+    assert isinstance(history, RetryError)
+    last = history.exception_list[-1]
+    assert exc.value is not last
+    assert exc.value.refused == last.refused == ["is_urgent"]
+    assert exc.value.refused is not last.refused
+    assert exc.value.answers == last.answers == {}
+    assert exc.value.answers is not last.answers
+    assert exc.value.notes == ["original note", "Gave up after 3 attempts."]
+    assert last.notes == ["original note"]
+    assert exc.value.__cause__ is last.__cause__
