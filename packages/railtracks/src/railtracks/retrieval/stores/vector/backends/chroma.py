@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import math
-from typing import Any
+import warnings
+from typing import TYPE_CHECKING, NamedTuple
 
 from typing_extensions import Self
 
 from ..metric import DistanceMetric
+
+if TYPE_CHECKING:
+    from chromadb import Collection
+    from chromadb.api.types import Include, PyEmbeddings
 
 
 def _to_chroma_where(filters: dict) -> dict:
@@ -17,23 +22,33 @@ def _to_chroma_where(filters: dict) -> dict:
     return {"$and": conditions}
 
 
-# Chroma Cloud enforces a per-request quota on the ``limit`` value of a get()
-# (rejects anything above 300 with "Quota exceeded: 'Limit value'"). All bulk
-# reads page at this size so no single request ever asks for more.
-_GET_PAGE_SIZE = 300
+# Chroma Cloud caps the results of a single request at 300: a get() ``limit``
+# or a query() ``n_results`` above it is rejected with "Quota exceeded".
+# Issue: https://github.com/RailtownAI/railtracks/issues/1180
+_CLOUD_MAX_RESULTS = 300
+
+# All bulk reads page at this size so no single request ever asks for more.
+_GET_PAGE_SIZE = _CLOUD_MAX_RESULTS
+
+
+class _GetPage(NamedTuple):
+    ids: list
+    metadatas: list
+    documents: list
 
 
 def _get_paged(
-    collection: Any, where: dict | None, limit: int | None, include: list[str]
-) -> tuple[list, list]:
+    collection: Collection, where: dict | None, limit: int | None, include: Include
+) -> _GetPage:
     """Offset-paged ``collection.get`` capped at ``_GET_PAGE_SIZE`` per request.
 
     Synchronous — run via ``asyncio.to_thread``. ``limit=None`` reads to
-    exhaustion. Returns ``(ids, metadatas)``; ``metadatas`` is empty when not
-    requested via ``include``.
+    exhaustion. ``metadatas`` and ``documents`` are empty when not requested
+    via ``include``.
     """
     ids: list = []
     metadatas: list = []
+    documents: list = []
     offset = 0
     while True:
         page = (
@@ -44,10 +59,23 @@ def _get_paged(
         result = collection.get(where=where, limit=page, offset=offset, include=include)
         ids.extend(result["ids"])
         metadatas.extend(result.get("metadatas") or [])
+        documents.extend(result.get("documents") or [])
         if len(result["ids"]) < page:
             break
         offset += len(result["ids"])
-    return ids, metadatas
+    return _GetPage(ids, metadatas, documents)
+
+
+def _to_payload(metadata: dict | None, document: str | None) -> dict:
+    """Rebuild a backend payload from a Chroma metadata dict and document.
+
+    ``upsert`` keeps ``content`` only in the Chroma document, so it is restored
+    into the payload here.
+    """
+    payload = dict(metadata) if metadata is not None else {}
+    if document is not None:
+        payload["content"] = document
+    return payload
 
 
 def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
@@ -63,93 +91,153 @@ def _chroma_to_score(metric: DistanceMetric, distance: float) -> float:
     return 1.0 - distance  # COSINE and IP share the same formula
 
 
+# Chroma's space when a collection is created without one, locally and on Cloud.
+_CHROMA_DEFAULT_SPACE = "l2"
+
+
+def _collection_space(collection: Collection) -> str:
+    """Return the distance space a Chroma collection was created with.
+
+    Reads the raw ``configuration_json`` instead of ``collection.configuration``:
+    the latter rebuilds the collection's stored embedding function and raises
+    for some Cloud collections (e.g. a ``chroma-cloud-qwen`` config saved
+    without a ``task``), even though railtracks never uses that function.
+    """
+    config = collection.configuration_json or {}
+    for index in ("spann", "hnsw"):  # Cloud collections use SPANN, local use HNSW
+        space = (config.get(index) or {}).get("space")
+        if space:
+            return space
+    metadata = collection.metadata or {}
+    return str(metadata.get("hnsw:space", _CHROMA_DEFAULT_SPACE))
+
+
+def _check_space(collection: Collection, metric: DistanceMetric, name: str) -> None:
+    """Raise if the collection's distance space doesn't match ``metric``.
+
+    A collection's space is fixed at creation, and ``get_or_create_collection``
+    silently keeps an existing collection's space. Converting its distances
+    with another metric's formula would return wrong scores.
+    """
+    space = _collection_space(collection)
+    if space != metric.value:
+        raise ValueError(
+            f"Chroma collection {name!r} uses the {space!r} distance space, but "
+            f"the backend was configured with metric={metric.value!r}. A "
+            "collection's space is fixed at creation: pass the matching "
+            "DistanceMetric, or use a new collection name."
+        )
+
+
 class _ChromaBase:
     """Shared Chroma I/O operations. Subclasses supply __init__ and initialize()."""
 
     _NOT_INITIALIZED: str = "Chroma backend is not initialized"
+    # Per-request cap on query() n_results; None when the server has no quota.
+    _max_results: int | None = None
     _metric: DistanceMetric
-    _collection: Any
+    _collection: Collection | None
 
-    def _require_initialized(self) -> None:
+    def _initialized_collection(self) -> Collection:
         if self._collection is None:
             raise RuntimeError(self._NOT_INITIALIZED)
+        return self._collection
 
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
+        # Content lives only in the Chroma document (shown and searched by the
+        # Chroma dashboard), not duplicated in metadata (https://github.com/RailtownAI/railtracks/issues/1186).
+        metadata = {k: v for k, v in payload.items() if k != "content"}
         content = payload.get("content")
+        embeddings: PyEmbeddings = [vector]
         await asyncio.to_thread(
             collection.upsert,
             ids=[id],
-            embeddings=[vector],
+            embeddings=embeddings,
             documents=[content] if content is not None else None,
-            metadatas=[payload],
+            metadatas=[metadata] if metadata else None,
         )
 
     async def search(
         self, vector: list[float], top_k: int, filters: dict
     ) -> list[tuple[str, float, dict]]:
-        self._require_initialized()
-        collection = self._collection
-
-        count = await asyncio.to_thread(collection.count)
-        if count == 0:
-            return []
-
-        n_results = min(top_k, count)
+        collection = self._initialized_collection()
         where = _to_chroma_where(filters) if filters else None
+        query_embeddings: PyEmbeddings = [vector]
 
+        # Chroma caps n_results at the number of matches itself, so only a
+        # per-query quota needs a cap here.
+        n_results = top_k
+        if self._max_results is not None and top_k > self._max_results:
+            warnings.warn(
+                f"top_k={top_k} exceeds this backend's max_results="
+                f"{self._max_results} (its per-query result limit); returning "
+                f"at most {self._max_results} results. Raise max_results if the "
+                "limit was increased.",
+                UserWarning,
+                stacklevel=2,
+            )
+            n_results = self._max_results
         results = await asyncio.to_thread(
             collection.query,
-            query_embeddings=[vector],
+            query_embeddings=query_embeddings,
             n_results=n_results,
             where=where,
-            include=["metadatas", "distances"],
+            include=["metadatas", "documents", "distances"],
         )
 
+        distances = results["distances"]
+        metadatas = results["metadatas"]
+        documents = results["documents"]
+        # all requested in include
+        assert distances is not None and metadatas is not None and documents is not None
+
         hits: list[tuple[str, float, dict]] = []
-        for id_, distance, metadata in zip(
+        for id_, distance, metadata, document in zip(
             results["ids"][0],
-            results["distances"][0],
-            results["metadatas"][0],
+            distances[0],
+            metadatas[0],
+            documents[0],
         ):
-            hits.append((id_, _chroma_to_score(self._metric, distance), dict(metadata)))
+            hits.append(
+                (
+                    id_,
+                    _chroma_to_score(self._metric, distance),
+                    _to_payload(metadata, document),
+                )
+            )
         return hits
 
     async def delete(self, id: str) -> None:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
         await asyncio.to_thread(collection.delete, ids=[id])
 
     async def delete_where(self, filters: dict) -> None:
-        self._require_initialized()
+        collection = self._initialized_collection()
         if not filters:
             return
-        collection = self._collection
         where = _to_chroma_where(filters)
         await asyncio.to_thread(collection.delete, where=where)
 
     async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
         where = _to_chroma_where(filters) if filters else None
-        ids, metadatas = await asyncio.to_thread(
-            _get_paged, collection, where, limit, ["metadatas"]
+        page = await asyncio.to_thread(
+            _get_paged, collection, where, limit, ["metadatas", "documents"]
         )
         return [
-            (id_, dict(metadata) if metadata is not None else {})
-            for id_, metadata in zip(ids, metadatas)
+            (id_, _to_payload(metadata, document))
+            for id_, metadata, document in zip(page.ids, page.metadatas, page.documents)
         ]
 
     async def count(self, filters: dict) -> int:
-        self._require_initialized()
-        collection = self._collection
+        collection = self._initialized_collection()
         if not filters:
             return await asyncio.to_thread(collection.count)
-        ids, _ = await asyncio.to_thread(
+        page = await asyncio.to_thread(
             _get_paged, collection, _to_chroma_where(filters), None, []
         )
-        return len(ids)
+        return len(page.ids)
 
 
 class ChromaBackend(_ChromaBase):
@@ -190,7 +278,9 @@ class ChromaBackend(_ChromaBase):
             port: Port of the remote Chroma server. Requires ``host``.
             metric: Distance metric used for similarity search. Sets the
                 ``hnsw:space`` metadata on the collection at creation time and
-                cannot be changed afterwards. Defaults to cosine.
+                cannot be changed afterwards. ``initialize()`` raises
+                ``ValueError`` if an existing collection uses a different
+                space. Defaults to cosine.
         """
         self._collection_name = collection_name
         self._path = path
@@ -238,7 +328,9 @@ class ChromaBackend(_ChromaBase):
                 metadata={"hnsw:space": metric.value},
             )
 
-        self._collection = await asyncio.to_thread(_setup)
+        collection = await asyncio.to_thread(_setup)
+        _check_space(collection, metric, self._collection_name)
+        self._collection = collection
 
 
 class ChromaCloudBackend(_ChromaBase):
@@ -266,6 +358,7 @@ class ChromaCloudBackend(_ChromaBase):
         tenant: str,
         database: str,
         metric: DistanceMetric = DistanceMetric.COSINE,
+        max_results: int | None = _CLOUD_MAX_RESULTS,
     ) -> None:
         """
         Args:
@@ -274,15 +367,27 @@ class ChromaCloudBackend(_ChromaBase):
             api_key: Chroma Cloud API key (``chk-...``).
             tenant: Chroma Cloud tenant ID.
             database: Chroma Cloud database name.
-            metric: Distance metric used for score conversion. Unlike local
-                backends, this does **not** set ``hnsw:space`` — the index
-                space is managed server-side. Defaults to cosine.
+            metric: Distance metric used for similarity search. Sets the
+                collection's distance space at creation time and cannot be
+                changed afterwards. ``initialize()`` raises ``ValueError`` if
+                an existing collection uses a different space. Defaults to
+                cosine.
+            max_results: Most results a single search asks Chroma Cloud for.
+                A larger ``top_k`` is capped to it with a warning. Defaults to
+                300, Chroma Cloud's per-query quota; raise it if your quota was
+                raised, or pass ``None`` to never cap.
+
+        Raises:
+            ValueError: If ``max_results`` is not positive.
         """
+        if max_results is not None and max_results < 1:
+            raise ValueError(f"max_results must be positive, got {max_results}")
         self._collection_name = collection_name
         self._api_key = api_key
         self._tenant = tenant
         self._database = database
         self._metric = metric
+        self._max_results = max_results
         self._collection = None
 
     @classmethod
@@ -294,6 +399,7 @@ class ChromaCloudBackend(_ChromaBase):
         tenant: str,
         database: str,
         metric: DistanceMetric = DistanceMetric.COSINE,
+        max_results: int | None = _CLOUD_MAX_RESULTS,
     ) -> Self:
         """Create and initialize a ChromaCloudBackend in one step."""
         backend = cls(
@@ -302,6 +408,7 @@ class ChromaCloudBackend(_ChromaBase):
             tenant=tenant,
             database=database,
             metric=metric,
+            max_results=max_results,
         )
         await backend.initialize()
         return backend
@@ -320,6 +427,7 @@ class ChromaCloudBackend(_ChromaBase):
         tenant = self._tenant
         database = self._database
         collection_name = self._collection_name
+        metric = self._metric
 
         def _setup():
             client = chromadb.CloudClient(
@@ -327,6 +435,12 @@ class ChromaCloudBackend(_ChromaBase):
                 tenant=tenant,
                 database=database,
             )
-            return client.get_or_create_collection(collection_name)
+            # Cloud maps hnsw:space onto its SPANN index's space.
+            return client.get_or_create_collection(
+                collection_name,
+                metadata={"hnsw:space": metric.value},
+            )
 
-        self._collection = await asyncio.to_thread(_setup)
+        collection = await asyncio.to_thread(_setup)
+        _check_space(collection, metric, collection_name)
+        self._collection = collection

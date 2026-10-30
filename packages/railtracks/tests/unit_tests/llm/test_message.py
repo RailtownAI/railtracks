@@ -175,6 +175,7 @@ class TestAttachment:
             (".png", "png"),
             (".gif", "gif"),
             (".webp", "webp"),
+            (".avif", "avif"),
             (".PNG", "png"),
         ],
     )
@@ -256,6 +257,13 @@ class TestAttachment:
         assert attachment.mime_type == "image/png"
         assert attachment.filename == "image.png"
         # Image URLs are passed to the provider as-is; no fetch at construction.
+        assert attachment.encoding is None
+
+    def test_url_avif(self):
+        attachment = Attachment("https://example.com/photo.avif")
+        assert attachment.type == "url"
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/avif"
         assert attachment.encoding is None
 
     def test_url_with_query_string(self):

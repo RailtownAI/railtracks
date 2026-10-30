@@ -121,51 +121,43 @@ class TestCreateRailtracksDir(unittest.TestCase):
 
     @patch("railtracks.cli.print_status")
     @patch("railtracks.cli.print_success")
-    def test_create_railtracks_dir_gitignore_new(self, mock_success, mock_status):
-        """Test creating .gitignore with .railtracks entry"""
+    def test_create_railtracks_dir_writes_inner_gitignore(
+        self, mock_success, mock_status
+    ):
+        """Test that .railtracks gets its own .gitignore that ignores everything"""
         create_railtracks_dir()
 
-        # Should create .gitignore
-        gitignore_path = Path(".gitignore")
-        self.assertTrue(gitignore_path.exists())
-
-        # Should contain .railtracks
-        with open(gitignore_path) as f:
-            content = f.read()
-        self.assertIn(".railtracks", content)
+        lines = Path(".railtracks/.gitignore").read_text().splitlines()
+        self.assertIn("*", lines)
 
     @patch("railtracks.cli.print_status")
     @patch("railtracks.cli.print_success")
-    def test_create_railtracks_dir_gitignore_existing(self, mock_success, mock_status):
-        """Test adding .railtracks to existing .gitignore"""
-        # Create existing .gitignore
-        gitignore_path = Path(".gitignore")
-        with open(gitignore_path, "w") as f:
-            f.write("*.pyc\n__pycache__/\n")
+    def test_create_railtracks_dir_existing_gets_gitignore(
+        self, mock_success, mock_status
+    ):
+        """Test that an existing .railtracks without a .gitignore gets one"""
+        Path(".railtracks").mkdir()
 
         create_railtracks_dir()
 
-        # Should contain both old and new entries
-        with open(gitignore_path) as f:
-            content = f.read()
-        self.assertIn("*.pyc", content)
-        self.assertIn(".railtracks", content)
+        self.assertTrue(Path(".railtracks/.gitignore").exists())
 
     @patch("railtracks.cli.print_status")
-    def test_create_railtracks_dir_gitignore_already_present(self, mock_status):
-        """Test when .railtracks is already in .gitignore"""
-        # Create .gitignore with .railtracks already present
-        gitignore_path = Path(".gitignore")
-        with open(gitignore_path, "w") as f:
-            f.write("*.pyc\n.railtracks\n__pycache__/\n")
+    @patch("railtracks.cli.print_success")
+    def test_create_railtracks_dir_leaves_project_gitignore_alone(
+        self, mock_success, mock_status
+    ):
+        """Test that the project's own .gitignore is not created or edited"""
+        create_railtracks_dir()
+        self.assertFalse(Path(".gitignore").exists())
 
-        original_content = gitignore_path.read_text()
+        project_gitignore = Path(".gitignore")
+        project_gitignore.write_text("*.pyc\n")
+        shutil.rmtree(".railtracks")
 
         create_railtracks_dir()
 
-        # Content should be unchanged
-        new_content = gitignore_path.read_text()
-        self.assertEqual(original_content, new_content)
+        self.assertEqual(project_gitignore.read_text(), "*.pyc\n")
 
 
 class TestFastAPIEndpoints(unittest.TestCase):
