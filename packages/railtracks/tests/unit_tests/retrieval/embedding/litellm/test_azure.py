@@ -47,3 +47,19 @@ async def test_azure_embedding_passes_dimensions():
         )
         await emb.aembed(["x"])
     assert mock.call_args.kwargs["dimensions"] == 512
+
+
+@pytest.mark.asyncio
+async def test_azure_embedding_stores_base_model_for_cost_mapping():
+    with patch(
+        "litellm.aembedding", new=AsyncMock(return_value=_fake_response([[0.1]]))
+    ) as mock:
+        emb = AzureEmbedding(
+            deployment="my-deploy",
+            api_base="https://my.openai.azure.com",
+            api_version="2024-02-01",
+            base_model="azure/text-embedding-3-small",
+        )
+        await emb.aembed(["x"])
+    assert emb._kwargs["base_model"] == "azure/text-embedding-3-small"
+    assert "base_model" not in mock.call_args.kwargs
