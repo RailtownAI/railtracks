@@ -42,6 +42,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 - Use a guard, not hand-rolled middleware, whenever the logic is a content-policy decision (PII/secrets detection, profanity, jailbreak checks, redaction). You get for free: structured `GuardrailTrace` records (`rail_name`, `phase`, `action`, `reason`), `fail_open=` to decide whether a guard's own bug blocks or passes traffic, and consistent block semantics other tooling can rely on.
 - To keep a domain-specific agent from answering off-topic requests, use the prebuilt `ScopeGuard(scope=..., model=..., sensitivity=...)` from `railtracks.prebuilt.guardrails`; a judge model labels the request before the agent's own model runs.
 - Use plain middleware for everything that isn't a pass/block decision on content: retries, timing, logging, context injection, auth/telemetry.
+- Use `railtracks.prebuilt.middleware.ToolOutputSummarizer(summarizer=...)` in `model_middleware=` for oversized text tool results; it caches by tool-call identifier per agent invocation, preserves originals in returned history, and records summary model calls as nodes. Place it before guards that should see summaries.
 
 ### 3. Ordering & composition
 - Two different things happen depending on middleware shape — know which one you're ordering:

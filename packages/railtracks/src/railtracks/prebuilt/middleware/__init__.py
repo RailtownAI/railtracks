@@ -13,6 +13,9 @@ from railtracks.prebuilt.middleware.post_verifier import post_verifier
 from railtracks.prebuilt.middleware.pre_verifier import pre_verifier
 from railtracks.prebuilt.middleware.retry import Retry
 from railtracks.prebuilt.middleware.timeout import Timeout
+from railtracks.prebuilt.middleware.tool_output_summarizer import (
+    ToolOutputSummarizer,
+)
 
 __all__ = [
     "ContextInjection",
@@ -24,4 +27,5 @@ __all__ = [
     "MaxCallsExceededError",
     "Retry",
     "Timeout",
+    "ToolOutputSummarizer",
 ]

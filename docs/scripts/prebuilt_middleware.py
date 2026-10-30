@@ -6,6 +6,43 @@ pages by MkDocs. Type-checked in CI via scripts/docs_validation.sh.
 
 from __future__ import annotations
 
+# --8<-- [start: tool_output_summarizer]
+import railtracks as rt
+from railtracks.built_nodes._types import ModelSource
+from railtracks.prebuilt.middleware import ToolOutputSummarizer
+
+
+@rt.function_node
+def search_notes(query: str) -> str:
+    """Search the example notes.
+
+    Args:
+        query: Text to find in the notes.
+
+    Returns:
+        Matching notes, including their identifiers.
+    """
+    notes = ["note-1: Railtracks agents can use model middleware."]
+    return "\n".join(note for note in notes if query.casefold() in note.casefold())
+
+
+def researcher(agent_model: ModelSource, summary_model: ModelSource):
+    """Supply your configured models or no-argument model factories."""
+    return rt.agent_node(
+        "Researcher",
+        llm=agent_model,
+        tool_nodes=[search_notes],
+        model_middleware=[
+            ToolOutputSummarizer(
+                summarizer=summary_model,
+                max_chars=4_000,
+                summary_max_chars=1_000,
+                input_max_chars=20_000,
+            )
+        ],
+    )
+# --8<-- [end: tool_output_summarizer]
+
 # --8<-- [start: retry]
 import railtracks as rt
 from railtracks.prebuilt.middleware import Retry
