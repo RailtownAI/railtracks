@@ -8,7 +8,6 @@ models emit nothing and raise ``DecisionProviderError``; here a node's request g
 from __future__ import annotations
 
 import uuid
-from typing import Awaitable, Callable
 
 from railtracks.context.central import get_current_scope, is_context_active
 from railtracks.decisions import (
@@ -37,34 +36,6 @@ from railtracks.exceptions import (
     DecisionRefusalError,
     DecisionTimeoutError,
 )
-from railtracks.llm import RetryError
-from railtracks.middleware.core import wrap_node
-
-
-@wrap_node
-async def preserve_decision_retry_error(
-    call: Callable[[str], Awaitable[DecisionResponse]], state: str
-) -> DecisionResponse:
-    """Keep exhausted retries typed as decision errors at the decision-node boundary."""
-    try:
-        return await call(state)
-    except RetryError as e:
-        last = e.exception_list[-1] if e.exception_list else None
-        if not isinstance(last, DecisionModelError):
-            raise
-        notes = [*last.notes, f"Gave up after {len(e.exception_list)} attempts."]
-        if isinstance(last, DecisionRefusalError):
-            error: DecisionModelError = type(last)(
-                last.reason,
-                refused=last.refused,
-                answers=last.answers,
-                notes=notes,
-                fatal=last.fatal,
-            )
-        else:
-            error = type(last)(last.reason, notes=notes, fatal=last.fatal)
-        raise error from last.__cause__
-
 
 # Any other DecisionProviderError becomes a plain DecisionModelError.
 _PROVIDER_TO_NODE_ERROR: tuple[
@@ -78,17 +49,27 @@ _PROVIDER_TO_NODE_ERROR: tuple[
 
 def _node_error_for(error: DecisionProviderError) -> DecisionModelError:
     """The node-terminating error a failed decision call surfaces as."""
+    node_error: DecisionModelError
     if isinstance(error, DecisionProviderRefusalError):
-        return DecisionRefusalError(
+        node_error = DecisionRefusalError(
             error.reason,
             refused=error.refused,
             answers=error.answers,
             notes=list(error.notes),
         )
-    for provider_type, node_type in _PROVIDER_TO_NODE_ERROR:
-        if isinstance(error, provider_type):
-            return node_type(error.reason, notes=list(error.notes))
-    return DecisionModelError(error.reason, notes=list(error.notes))
+    else:
+        node_type = next(
+            (
+                node_type
+                for provider_type, node_type in _PROVIDER_TO_NODE_ERROR
+                if isinstance(error, provider_type)
+            ),
+            DecisionModelError,
+        )
+        node_error = node_type(error.reason, notes=list(error.notes))
+    node_error.retry_exhausted = error.retry_exhausted
+    node_error.retry_errors = error.retry_errors
+    return node_error
 
 
 async def invoke_decision(

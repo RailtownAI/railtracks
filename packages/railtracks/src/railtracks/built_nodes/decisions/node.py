@@ -11,7 +11,7 @@ from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 
 from ..function.node_builder import FunctionNodeBuilder
-from .invoker import invoke_decision, preserve_decision_retry_error
+from .invoker import invoke_decision
 
 _P = ParamSpec("_P")
 STATE_DESCRIPTION = "The text to judge."
@@ -85,7 +85,6 @@ def decision_node(
             middleware,
         ),
     )
-    builder._exterior_middleware.append(preserve_decision_retry_error)
     return cast(type[Node[_P, DecisionResponse]], builder.build())
 
 

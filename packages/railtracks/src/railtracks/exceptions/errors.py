@@ -159,7 +159,13 @@ class DecisionModelError(NodeInvocationError):
 
     A `NodeInvocationError`, like `LLMError`, so a failed decision terminates the node
     that made it and callers can catch both kinds of model failure the same way.
+
+    ``retry_exhausted`` marks a spent retry budget; ``retry_errors`` contains the
+    failed attempts. Outer retry layers propagate exhausted errors unchanged.
     """
+
+    retry_exhausted: bool = False
+    retry_errors: tuple[Exception, ...] = ()
 
     def __init__(
         self,

@@ -53,8 +53,12 @@ class ProviderAuthenticationError(ProviderError):
 
 class RetryError(ProviderError):
     """
-    Raised when an error occurs during an LLM call that is being retried.
+    Raised when all retry attempts fail.
+
+    ``retry_exhausted`` prevents an outer retry strategy from retrying this failure.
     """
+
+    retry_exhausted: bool = True
 
     def __init__(
         self,
