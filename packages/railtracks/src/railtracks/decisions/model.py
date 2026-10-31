@@ -205,6 +205,8 @@ class DecisionModel:
             if error is None:
                 raise
             if isinstance(e, RetryError):
+                error.retry_exhausted = True
+                error.retry_errors = tuple(e.exception_list)
                 error.notes.append(f"Gave up after {len(e.exception_list)} attempts.")
             raise error from failure
 

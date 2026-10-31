@@ -1,6 +1,6 @@
 """Tests for retry_approach wiring inside LiteLLMWrapper via real provider classes."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import litellm
 import pytest
@@ -184,3 +184,33 @@ class TestAsyncRetryInWrapper:
                     await llm.achat(message_history)
 
         assert call_count["n"] == 1
+
+
+def test_sync_retry_does_not_restart_an_exhausted_inner_budget():
+    inner = FixedRetry(max_tries=2, delay=0.0)
+    outer = FixedRetry(max_tries=4, delay=0.0)
+    call = Mock(side_effect=_rate_limit_error())
+
+    with pytest.raises(RetryError) as exc:
+        outer.call_with_retry(
+            lambda: inner.call_with_retry(call), retry_on=(Exception,)
+        )
+
+    assert call.call_count == 2
+    assert len(exc.value.exception_list) == 2
+    assert exc.value.retry_exhausted
+
+
+async def test_async_retry_does_not_restart_an_exhausted_inner_budget():
+    inner = FixedRetry(max_tries=2, delay=0.0)
+    outer = FixedRetry(max_tries=4, delay=0.0)
+    call = AsyncMock(side_effect=_rate_limit_error())
+
+    with pytest.raises(RetryError) as exc:
+        await outer.acall_with_retry(
+            lambda: inner.acall_with_retry(call), retry_on=(Exception,)
+        )
+
+    assert call.await_count == 2
+    assert len(exc.value.exception_list) == 2
+    assert exc.value.retry_exhausted

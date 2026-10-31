@@ -355,6 +355,8 @@ class TestRetries:
         assert type(info.value) is DecisionProviderError
         assert len(fake.calls) == 3
         assert any("3 attempts" in note for note in info.value.notes)
+        assert info.value.retry_exhausted
+        assert len(info.value.retry_errors) == 3
 
     async def test_exhausted_retries_classify_the_last_error(self, make_model):
         model, fake = make_model(

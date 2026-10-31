@@ -49,17 +49,27 @@ _PROVIDER_TO_NODE_ERROR: tuple[
 
 def _node_error_for(error: DecisionProviderError) -> DecisionModelError:
     """The node-terminating error a failed decision call surfaces as."""
+    node_error: DecisionModelError
     if isinstance(error, DecisionProviderRefusalError):
-        return DecisionRefusalError(
+        node_error = DecisionRefusalError(
             error.reason,
             refused=error.refused,
             answers=error.answers,
             notes=list(error.notes),
         )
-    for provider_type, node_type in _PROVIDER_TO_NODE_ERROR:
-        if isinstance(error, provider_type):
-            return node_type(error.reason, notes=list(error.notes))
-    return DecisionModelError(error.reason, notes=list(error.notes))
+    else:
+        node_type = next(
+            (
+                node_type
+                for provider_type, node_type in _PROVIDER_TO_NODE_ERROR
+                if isinstance(error, provider_type)
+            ),
+            DecisionModelError,
+        )
+        node_error = node_type(error.reason, notes=list(error.notes))
+    node_error.retry_exhausted = error.retry_exhausted
+    node_error.retry_errors = error.retry_errors
+    return node_error
 
 
 async def invoke_decision(

@@ -36,7 +36,13 @@ class DecisionProviderError(_NotedError):
 
     Raised as is for a failure no subclass covers: a dropped connection, a 5xx or
     other 4xx status or a response that could not be parsed.
+
+    ``retry_exhausted`` marks a spent retry budget; ``retry_errors`` keeps the
+    attempts so outer retry layers can propagate the failure without retrying it.
     """
+
+    retry_exhausted: bool = False
+    retry_errors: tuple[Exception, ...] = ()
 
 
 class DecisionProviderTimeoutError(DecisionProviderError):
