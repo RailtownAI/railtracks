@@ -65,6 +65,7 @@ AzureEmbedding(
     api_base: str,
     api_version: str,
     api_key: str | None = None,
+    model: str | None = None,
 )
 ```
 
@@ -74,6 +75,7 @@ AzureEmbedding(
 | `api_base` | Azure OpenAI endpoint (e.g. `https://my-resource.openai.azure.com`). |
 | `api_version` | Azure API version (e.g. `"2024-02-01"`). |
 | `api_key` | Azure API key. Falls back to `AZURE_API_KEY`. |
+| `model` | The Azure OpenAI model this deployment serves (e.g. `"text-embedding-3-small"`). Only needed for cost tracking when the deployment name is not a model name. |
 
 ```python
 --8<-- "docs/scripts/retrieval/embedding.py:azure"
