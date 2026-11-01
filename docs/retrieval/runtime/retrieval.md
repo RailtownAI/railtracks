@@ -17,6 +17,11 @@ which contains a list of `RetrievedChunk`s
 a `score` in `[0, 1]`, a 0-indexed `rank`, and the original `Chunk` (content
 + metadata + `document_id`).
 
+`RetrievalResult` also exposes `embedding_metrics` (an `EmbeddingMetrics` from
+`railtracks.retrieval`), which records the token count, estimated cost, latency,
+and model name for the query embedding call. It is `None` only when the embedder
+reports no metrics.
+
 The runtime caches the embedder's reported model name on the first
 successful ingest. If a later retrieve uses a runtime whose embedder reports
 a different model, you get `EmbeddingModelMismatchError` signaling corruption of the vector spaces.

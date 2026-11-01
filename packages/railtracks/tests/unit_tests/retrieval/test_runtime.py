@@ -24,7 +24,8 @@ from railtracks.retrieval import (
 )
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
-from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
+from railtracks.retrieval.embedding.models import TextEmbeddings
+from railtracks.retrieval.models import EmbeddingMetrics
 from railtracks.retrieval.loaders import TextLoader
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.loaders.models import LoadFailure
