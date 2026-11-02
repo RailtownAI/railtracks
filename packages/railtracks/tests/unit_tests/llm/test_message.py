@@ -4,6 +4,7 @@ from copy import deepcopy
 from types import SimpleNamespace
 from typing import List
 
+import httpx
 import pytest
 from railtracks.llm import AssistantMessage, SystemMessage, ToolMessage, UserMessage
 from railtracks.llm.content import Stream, ToolCall, ToolCalls, ToolResponse
@@ -432,16 +433,15 @@ class TestAttachment:
         self, monkeypatch, caplog
     ):
         """A HEAD probe that resolves to a private address is never sent, and the URL falls back to image."""
-        from railtracks.llm import _url_fetch
 
         def fake_getaddrinfo(host, port, *args, **kwargs):
             return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port))]
 
-        def boom_connect(addresses, timeout):
+        def boom_send(transport, request):
             raise AssertionError("a blocked address must not be connected to")
 
         monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
-        monkeypatch.setattr(_url_fetch, "_connect", boom_connect)
+        monkeypatch.setattr(httpx.HTTPTransport, "handle_request", boom_send)
 
         with caplog.at_level(logging.WARNING, logger="railtracks.llm.message"):
             attachment = Attachment(

@@ -1,27 +1,29 @@
 """Guarded HTTP fetch for attachment URLs that may come from end users.
 
 Every hop is checked before it is fetched: only `http` and `https`, and only hosts
-whose addresses are all public. The connection goes to the address that was
-checked, so a second DNS answer cannot point it elsewhere, and HTTPS still verifies
-the certificate against the hostname. Redirects are followed by hand, proxy
+whose addresses are all public. The request goes to the address that was checked,
+so a second DNS answer cannot point it elsewhere, and HTTPS still verifies the
+certificate against the hostname. Redirects are followed by hand, proxy
 environment variables are ignored, and URLs in errors carry no query string.
 """
 
 from __future__ import annotations
 
-import http.client
 import ipaddress
 import socket
-import ssl
-from collections.abc import Sequence
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from typing import Literal
-from urllib.parse import quote, urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit
+
+import httpx
 
 MAX_REDIRECTS = 10
 _READ_CHUNK_BYTES = 64 * 1024
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _ALLOWED_SCHEMES = {"http": 80, "https": 443}
+_HEADERS = {"User-Agent": "railtracks", "Accept-Encoding": "identity"}
 # Networks `is_global` lets through on some Python versions or clouds.
 _BLOCKED_NETWORKS = (
     ipaddress.ip_network("168.63.129.16/32"),  # Azure Wire Server
@@ -32,11 +34,6 @@ _BLOCKED_NETWORKS = (
     ipaddress.ip_network("64:ff9b:1::/48"),  # local-use NAT64
 )
 _NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
-# Characters left as-is when re-quoting a request target; `%` keeps existing escapes.
-_TARGET_SAFE_CHARS = "/:@!$&'()*+,;=-._~%?"
-
-_SockAddr = tuple[str, int] | tuple[str, int, int, int] | tuple[int, bytes]
-_Address = tuple[socket.AddressFamily, _SockAddr]
 
 
 class BlockedURLError(ValueError):
@@ -54,7 +51,7 @@ class FetchResponse:
     """
 
     url: str
-    headers: http.client.HTTPMessage
+    headers: httpx.Headers
     body: bytes
 
 
@@ -111,160 +108,84 @@ def is_blocked_address(address: str) -> bool:
     )
 
 
-def _resolve(host: str, port: int, url: str) -> list[_Address]:
+def _resolve(host: str, port: int, url: str) -> list[str]:
     """Resolve `host` and return its addresses, refusing the host if any is blocked."""
-    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-    addresses: list[_Address] = []
-    for family, _, _, _, sockaddr in infos:
-        if not isinstance(sockaddr[0], str) or is_blocked_address(sockaddr[0]):
+    addresses: list[str] = []
+    for *_, sockaddr in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM):
+        address = sockaddr[0]
+        if not isinstance(address, str) or is_blocked_address(address):
             raise BlockedURLError(
                 f"Refused to fetch {redact_url(url)}: {host!r} resolves to a "
-                f"non-public address ({sockaddr[0]})."
+                f"non-public address ({address})."
             )
-        addresses.append((family, sockaddr))
+        if address not in addresses:
+            addresses.append(address)
     if not addresses:
         raise OSError(f"No addresses found for {host!r}.")
     return addresses
 
 
-def _connect(addresses: Sequence[_Address], timeout: float | None) -> socket.socket:
-    """Open a TCP connection to the first of `addresses` that accepts one."""
-    last_error: OSError | None = None
-    for family, sockaddr in addresses:
-        sock = socket.socket(family, socket.SOCK_STREAM)
-        try:
-            sock.settimeout(timeout)
-            sock.connect(sockaddr)
-            return sock
-        except OSError as e:
-            sock.close()
-            last_error = e
-    raise last_error or OSError("No address to connect to.")
-
-
-class _PinnedHTTPConnection(http.client.HTTPConnection):
-    """An `HTTPConnection` that connects to pre-checked addresses instead of resolving `host`."""
-
-    def __init__(
-        self, host: str, port: int, *, addresses: Sequence[_Address], timeout: float
-    ) -> None:
-        super().__init__(host, port, timeout=timeout)
-        self._addresses = addresses
-
-    def connect(self) -> None:
-        self.sock = _connect(self._addresses, self.timeout)
-
-
-class _PinnedHTTPSConnection(http.client.HTTPSConnection):
-    """An `HTTPSConnection` that connects to pre-checked addresses and verifies TLS against `host`."""
-
-    def __init__(
-        self,
-        host: str,
-        port: int,
-        *,
-        addresses: Sequence[_Address],
-        timeout: float,
-        context: ssl.SSLContext,
-    ) -> None:
-        super().__init__(host, port, timeout=timeout, context=context)
-        self._addresses = addresses
-        self._tls_context = context
-
-    def connect(self) -> None:
-        sock = _connect(self._addresses, self.timeout)
-        try:
-            self.sock = self._tls_context.wrap_socket(sock, server_hostname=self.host)
-        except BaseException:
-            sock.close()
-            raise
-
-
-def _open(
-    url: str, method: Literal["GET", "HEAD"], timeout: float
-) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
-    """Check one URL and send a request to it, without following redirects."""
-    parts = urlsplit(url)
-    scheme = parts.scheme.lower()
-    if scheme not in _ALLOWED_SCHEMES:
+def _send(
+    client: httpx.Client, url: str, method: Literal["GET", "HEAD"]
+) -> httpx.Response:
+    """Check one URL and send a request to it over a checked address, without following redirects."""
+    try:
+        target = httpx.URL(url).copy_with(username=None, password=None)
+    except httpx.InvalidURL as e:
+        raise ValueError(f"Invalid URL {redact_url(url)}: {e!r}") from e
+    if target.scheme not in _ALLOWED_SCHEMES:
         raise BlockedURLError(
             f"Refused to fetch {redact_url(url)}: only http and https URLs are fetched."
         )
-    host = parts.hostname
+    host = target.raw_host.decode("ascii")
     if not host:
         raise BlockedURLError(f"Refused to fetch {redact_url(url)}: it has no host.")
-    port = parts.port or _ALLOWED_SCHEMES[scheme]
-    addresses = _resolve(host, port, url)
-    conn: http.client.HTTPConnection
-    if scheme == "https":
-        conn = _PinnedHTTPSConnection(
-            host,
-            port,
-            addresses=addresses,
-            timeout=timeout,
-            context=ssl.create_default_context(),
-        )
-    else:
-        conn = _PinnedHTTPConnection(host, port, addresses=addresses, timeout=timeout)
-    target = quote(parts.path or "/", safe=_TARGET_SAFE_CHARS)
-    if parts.query:
-        target += "?" + quote(parts.query, safe=_TARGET_SAFE_CHARS)
-    try:
-        conn.request(
+    addresses = _resolve(host, target.port or _ALLOWED_SCHEMES[target.scheme], url)
+
+    def request_to(address: str) -> httpx.Request:
+        return client.build_request(
             method,
-            target,
-            headers={"User-Agent": "railtracks", "Accept-Encoding": "identity"},
+            target.copy_with(host=address),
+            headers={"Host": target.netloc.decode("ascii")},
+            extensions={"sni_hostname": host},
         )
-        return conn, conn.getresponse()
-    except http.client.HTTPException as e:
-        conn.close()
+
+    for address in addresses[:-1]:
+        try:
+            return client.send(request_to(address), stream=True)
+        except httpx.ConnectError:
+            continue
+    return client.send(request_to(addresses[-1]), stream=True)
+
+
+@contextmanager
+def _mapped_errors(url: str) -> Iterator[None]:
+    """Re-raise `httpx` errors as the `ValueError` or `OSError` that callers handle."""
+    try:
+        yield
+    except httpx.ProtocolError as e:
         raise ValueError(f"Bad HTTP response from {redact_url(url)}: {e!r}") from e
-    except BaseException:
-        conn.close()
-        raise
+    except httpx.TransportError as e:
+        raise OSError(f"Could not fetch {redact_url(url)}: {e!r}") from e
 
 
-def read_capped(
-    response: http.client.HTTPResponse, *, url: str, max_mb: float
-) -> bytes:
+def _read_capped(response: httpx.Response, *, url: str, max_mb: float) -> bytes:
     """Read a response body in chunks, stopping once it passes `max_mb`.
 
-    Args:
-        response: The response to read.
-        url: The URL the response came from, for error messages.
-        max_mb: Largest body accepted, in megabytes.
-
-    Returns:
-        bytes: The complete body.
-
-    Raises:
-        ValueError: If the body exceeds `max_mb`, is malformed, or ends before
-            its declared `Content-Length` or final chunk.
+    Raw bytes are counted, so a compressed body cannot expand past the cap.
     """
     max_bytes = int(max_mb * 1024 * 1024)
     too_large = f"Download from {redact_url(url)} exceeds the {max_mb} MB limit."
-    declared = response.length
-    if isinstance(declared, int) and declared > max_bytes:
+    declared = response.headers.get("Content-Length")
+    if declared is not None and int(declared) > max_bytes:
         raise ValueError(too_large)
     chunks: list[bytes] = []
     total = 0
-    try:
-        while chunk := response.read(_READ_CHUNK_BYTES):
-            total += len(chunk)
-            if total > max_bytes:
-                raise ValueError(too_large)
-            chunks.append(chunk)
-    except http.client.IncompleteRead as e:
-        raise ValueError(f"Download from {redact_url(url)} ended early: {e!r}") from e
-    except http.client.HTTPException as e:
-        raise ValueError(f"Bad HTTP response from {redact_url(url)}: {e!r}") from e
-    # Bytes still owed under Content-Length; None when the server sent none.
-    missing = response.length
-    if isinstance(missing, int) and missing > 0:
-        raise ValueError(
-            f"Download from {redact_url(url)} ended {missing} bytes short of its "
-            "Content-Length."
-        )
+    for chunk in response.iter_raw(_READ_CHUNK_BYTES):
+        total += len(chunk)
+        if total > max_bytes:
+            raise ValueError(too_large)
+        chunks.append(chunk)
     return b"".join(chunks)
 
 
@@ -289,34 +210,36 @@ def fetch(
     Raises:
         BlockedURLError: If any hop is not `http`/`https` or resolves to a
             non-public address.
-        ValueError: On a malformed response, a non-2xx final status, more than
-            `MAX_REDIRECTS` redirects, a redirect without a `Location`, or a
-            body that is too large or cut short.
-        OSError: If the host cannot be resolved or reached, or a read times out.
+        ValueError: On an invalid URL, a malformed response, a non-2xx final
+            status, more than `MAX_REDIRECTS` redirects, a redirect without a
+            `Location`, or a body that is too large or cut short.
+        OSError: If the host cannot be resolved or reached, the TLS
+            certificate does not verify, or a read times out.
     """
     if method == "GET" and max_mb is None:
         raise ValueError("max_mb is required for a GET fetch.")
-    for _ in range(MAX_REDIRECTS + 1):
-        conn, response = _open(url, method, timeout)
-        try:
-            status = response.status
-            if status in _REDIRECT_STATUSES:
+    with httpx.Client(
+        headers=_HEADERS,
+        timeout=timeout,
+        verify=httpx.create_ssl_context(),
+        trust_env=False,
+    ) as client:
+        for _ in range(MAX_REDIRECTS + 1):
+            with _mapped_errors(url), closing(_send(client, url, method)) as response:
+                status = response.status_code
+                if status not in _REDIRECT_STATUSES:
+                    if not response.is_success:
+                        raise ValueError(f"HTTP {status} from {redact_url(url)}.")
+                    body = (
+                        _read_capped(response, url=url, max_mb=max_mb)
+                        if max_mb is not None and method == "GET"
+                        else b""
+                    )
+                    return FetchResponse(url=url, headers=response.headers, body=body)
                 location = response.headers.get("Location")
                 if not location:
                     raise ValueError(
                         f"Redirect from {redact_url(url)} has no Location header."
                     )
                 url = urljoin(url, location.strip())
-                continue
-            if not 200 <= status < 300:
-                raise ValueError(f"HTTP {status} from {redact_url(url)}.")
-            body = (
-                read_capped(response, url=url, max_mb=max_mb)
-                if max_mb is not None and method == "GET"
-                else b""
-            )
-            return FetchResponse(url=url, headers=response.headers, body=body)
-        finally:
-            response.close()
-            conn.close()
     raise ValueError(f"Stopped after {MAX_REDIRECTS} redirects at {redact_url(url)}.")

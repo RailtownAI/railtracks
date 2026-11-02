@@ -1,28 +1,40 @@
-import http.client
+import datetime
+import gzip
+import ipaddress
 import socket
 import ssl
 import threading
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import cast
 from unittest.mock import Mock
 from urllib.parse import quote, unquote
 
+import httpx
 import pytest
 from railtracks.llm import _url_fetch
 from railtracks.llm._url_fetch import (
     MAX_REDIRECTS,
     BlockedURLError,
-    _PinnedHTTPSConnection,
+    _read_capped,
     fetch,
     is_blocked_address,
-    read_capped,
     redact_url,
 )
 
 _BODY = b"hello"
 _LARGE_BODY = b"x" * 2000
+_GZIP_BODY = gzip.compress(_LARGE_BODY * 50)
 _TINY_MB = 1000 / (1024 * 1024)  # 1000 bytes
+_HOSTS = {
+    "public.test": ["127.0.0.1"],
+    "internal.test": ["10.0.0.1"],
+    "mixed.test": ["127.0.0.1", "10.0.0.1"],
+    "fallback.test": ["127.0.0.2", "127.0.0.1"],
+}
 
 
 class _Server(ThreadingHTTPServer):
@@ -44,31 +56,13 @@ class _Handler(BaseHTTPRequestHandler):
             (self.command, self.path, self.headers.get("Host"))
         )
         path, _, query = self.path.partition("?")
-        if path == "/redirect":
-            self._redirect(unquote(query.removeprefix("to=")))
-        elif path == "/relative":
-            self._redirect("/ok")
-        elif path == "/loop":
-            self._redirect("/loop")
-        elif path == "/no-location":
-            self.send_response(302)
-            self.end_headers()
-        elif path == "/missing":
-            self.send_response(404)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-        elif path == "/garbage":
-            self.wfile.write(b"garbage\r\n\r\n")
-        elif path == "/large":
-            self._ok(_LARGE_BODY, send_body=send_body)
-        elif path == "/stream":
-            # HTTP/1.0 without Content-Length: the body ends when the connection closes.
-            self.send_response(200)
-            self.end_headers()
-            if send_body:
-                self.wfile.write(_LARGE_BODY)
-        else:
-            self._ok(_BODY, send_body=send_body)
+        _ROUTES.get(path, _Handler._default)(self, query, send_body)
+
+    def _default(self, query: str, send_body: bool) -> None:
+        self._ok(_BODY, send_body=send_body)
+
+    def _raw(self, data: bytes) -> None:
+        self.wfile.write(data)
 
     def _ok(self, body: bytes, *, send_body: bool) -> None:
         self.send_response(200)
@@ -78,65 +72,208 @@ class _Handler(BaseHTTPRequestHandler):
         if send_body:
             self.wfile.write(body)
 
-    def _redirect(self, location: str) -> None:
-        self.send_response(302)
-        self.send_header("Location", location)
-        self.send_header("Content-Length", "0")
+    def _status(self, status: int, headers: dict[str, str], body: bytes = b"") -> None:
+        self.send_response(status)
+        for name, value in headers.items():
+            self.send_header(name, value)
         self.end_headers()
+        self.wfile.write(body)
+
+    def _redirect(self, location: str) -> None:
+        self._status(302, {"Location": location, "Content-Length": "0"})
+
+    def _slow(self, send_body: bool) -> None:
+        time.sleep(0.5)
+        self._ok(_BODY, send_body=send_body)
 
 
-@pytest.fixture
-def server() -> Iterator[_Server]:
+_Route = Callable[[_Handler, str, bool], None]
+_ROUTES: dict[str, _Route] = {
+    "/redirect": lambda h, query, _: h._redirect(unquote(query.removeprefix("to="))),
+    "/relative": lambda h, *_: h._redirect("/ok"),
+    "/loop": lambda h, *_: h._redirect("/loop"),
+    "/no-location": lambda h, *_: h._status(302, {}),
+    "/missing": lambda h, *_: h._status(404, {"Content-Length": "0"}),
+    "/garbage": lambda h, *_: h._raw(b"garbage\r\n\r\n"),
+    "/large": lambda h, _, send_body: h._ok(_LARGE_BODY, send_body=send_body),
+    # HTTP/1.0 without Content-Length: the body ends when the connection closes.
+    "/stream": lambda h, _, send_body: h._status(
+        200, {}, _LARGE_BODY if send_body else b""
+    ),
+    "/truncated": lambda h, *_: h._status(
+        200, {"Content-Length": "1000"}, b"%PDF-1.4 cut"
+    ),
+    "/truncated-chunked": lambda h, *_: h._raw(
+        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n64\r\n%PDF-1.4"
+    ),
+    "/gzip": lambda h, *_: h._status(
+        200,
+        {"Content-Encoding": "gzip", "Content-Length": str(len(_GZIP_BODY))},
+        _GZIP_BODY,
+    ),
+    "/slow": lambda h, _, send_body: h._slow(send_body),
+}
+
+
+@contextmanager
+def _serve(tls: ssl.SSLContext | None = None) -> Iterator[_Server]:
     httpd = _Server(("127.0.0.1", 0), _Handler)
     httpd.requests = []
+    if tls is not None:
+        httpd.socket = tls.wrap_socket(httpd.socket, server_side=True)
     thread = threading.Thread(
         target=httpd.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True
     )
     thread.start()
-    yield httpd
-    httpd.shutdown()
-    httpd.server_close()
+    try:
+        yield httpd
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
 
 
 @pytest.fixture
-def resolver(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Fake DNS where `public.test` is the local server, treated as a public address."""
-    hosts = {
-        "public.test": ["127.0.0.1"],
-        "internal.test": ["10.0.0.1"],
-        "mixed.test": ["127.0.0.1", "10.0.0.1"],
-    }
+def server() -> Iterator[_Server]:
+    with _serve() as httpd:
+        yield httpd
+
+
+def _install_dns(
+    monkeypatch: pytest.MonkeyPatch, answer: Callable[[str], list[str]]
+) -> list[str]:
+    """Answer hostname lookups with `answer`, pass IP literals through, and treat loopback as public.
+
+    Returns:
+        The hostnames looked up, in order.
+    """
     lookups: list[str] = []
 
     def fake_getaddrinfo(host, port, *args, **kwargs):
-        lookups.append(host)
-        if host not in hosts:
-            raise socket.gaierror(f"unknown test host {host!r}")
-        return [
-            (socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port))
-            for ip in hosts[host]
-        ]
+        try:
+            ips = [str(ipaddress.ip_address(host))]
+        except ValueError:
+            lookups.append(host)
+            ips = answer(host)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port)) for ip in ips]
 
     real_is_blocked = _url_fetch.is_blocked_address
     monkeypatch.setattr(
         _url_fetch,
         "is_blocked_address",
-        lambda address: address != "127.0.0.1" and real_is_blocked(address),
+        lambda address: not address.startswith("127.") and real_is_blocked(address),
     )
     monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
     return lookups
 
 
 @pytest.fixture
+def resolver(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Fake DNS over `_HOSTS`, where the local test server counts as a public address."""
+
+    def lookup(host: str) -> list[str]:
+        if host not in _HOSTS:
+            raise socket.gaierror(f"unknown test host {host!r}")
+        return _HOSTS[host]
+
+    return _install_dns(monkeypatch, lookup)
+
+
+@pytest.fixture
 def no_connect(monkeypatch: pytest.MonkeyPatch) -> None:
-    def boom_connect(addresses, timeout):
-        raise AssertionError(f"must not connect to {addresses!r}")
+    def boom_send(transport, request):
+        raise AssertionError(f"must not send {request!r}")
 
-    monkeypatch.setattr(_url_fetch, "_connect", boom_connect)
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", boom_send)
 
 
-def _url(server: _Server, path: str, host: str = "public.test") -> str:
-    return f"http://{host}:{server.server_address[1]}{path}"
+def _url(
+    server: _Server, path: str, host: str = "public.test", scheme: str = "http"
+) -> str:
+    return f"{scheme}://{host}:{server.server_address[1]}{path}"
+
+
+def _tls_contexts(
+    tmp_path: Path, cert_hostname: str
+) -> tuple[ssl.SSLContext, ssl.SSLContext]:
+    """Return a server context with a certificate for `cert_hostname` and a client context that trusts its CA."""
+    pytest.importorskip("cryptography")
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    ca_key = ec.generate_private_key(ec.SECP256R1())
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "railtracks test CA")])
+    ca_cert = (
+        x509.CertificateBuilder()
+        .subject_name(ca_name)
+        .issuer_name(ca_name)
+        .public_key(ca_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(days=1))
+        .not_valid_after(now + datetime.timedelta(days=1))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=True,
+                crl_sign=True,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()),
+            critical=False,
+        )
+        .sign(ca_key, hashes.SHA256())
+    )
+    leaf_key = ec.generate_private_key(ec.SECP256R1())
+    leaf_cert = (
+        x509.CertificateBuilder()
+        .subject_name(
+            x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cert_hostname)])
+        )
+        .issuer_name(ca_name)
+        .public_key(leaf_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(days=1))
+        .not_valid_after(now + datetime.timedelta(days=1))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName(cert_hostname)]),
+            critical=False,
+        )
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(
+            x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
+            critical=False,
+        )
+        .sign(ca_key, hashes.SHA256())
+    )
+    ca_file = tmp_path / "ca.pem"
+    ca_file.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
+    cert_file = tmp_path / "cert.pem"
+    cert_file.write_bytes(leaf_cert.public_bytes(serialization.Encoding.PEM))
+    key_file = tmp_path / "key.pem"
+    key_file.write_bytes(
+        leaf_key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.load_cert_chain(cert_file, key_file)
+    return server_context, ssl.create_default_context(cafile=ca_file)
 
 
 class TestIsBlockedAddress:
@@ -255,6 +392,10 @@ class TestRefusedBeforeConnecting:
         with pytest.raises(OSError):
             fetch("http://does-not-exist.invalid/", timeout=1.0, max_mb=1.0)
 
+    def test_invalid_url_is_a_value_error(self):
+        with pytest.raises(ValueError, match="Invalid URL"):
+            fetch("http://example.com:notaport/x", timeout=1.0, max_mb=1.0)
+
     def test_get_requires_max_mb(self):
         with pytest.raises(ValueError, match="max_mb is required"):
             fetch("https://example.com/report.pdf", timeout=1.0)
@@ -281,12 +422,42 @@ class TestFetch:
 
         assert server.requests[0][1] == "/a%20b/%C3%A9.pdf?q=x%20y"
 
+    def test_credentials_in_the_url_are_not_sent(self, server, monkeypatch):
+        sent: list[httpx.Request] = []
+        real_send = httpx.HTTPTransport.handle_request
+
+        def record_send(transport, request):
+            sent.append(request)
+            return real_send(transport, request)
+
+        monkeypatch.setattr(httpx.HTTPTransport, "handle_request", record_send)
+        url = _url(server, "/ok", host="user:pw@public.test")
+
+        assert fetch(url, timeout=5.0, max_mb=1.0).body == _BODY
+        assert "Authorization" not in sent[0].headers
+
     def test_any_blocked_address_refuses_the_host(self, server):
         with pytest.raises(
             BlockedURLError, match=r"non-public address \(10\.0\.0\.1\)"
         ):
             fetch(_url(server, "/ok", host="mixed.test"), timeout=5.0, max_mb=1.0)
         assert server.requests == []
+
+    def test_unreachable_address_falls_back_to_the_next(self, server, monkeypatch):
+        tried: list[str] = []
+        real_send = httpx.HTTPTransport.handle_request
+
+        def flaky_send(transport, request):
+            tried.append(request.url.host)
+            if request.url.host == "127.0.0.2":
+                raise httpx.ConnectError("connection refused")
+            return real_send(transport, request)
+
+        monkeypatch.setattr(httpx.HTTPTransport, "handle_request", flaky_send)
+        url = _url(server, "/ok", host="fallback.test")
+
+        assert fetch(url, timeout=5.0, max_mb=1.0).body == _BODY
+        assert tried == ["127.0.0.2", "127.0.0.1"]
 
     def test_proxy_environment_is_ignored(self, server, monkeypatch):
         for name in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
@@ -304,38 +475,54 @@ class TestFetch:
             fetch(_url(server, "/garbage?sig=secret"), timeout=5.0, max_mb=1.0)
         assert "secret" not in str(excinfo.value)
 
-    def test_https_context_verifies_certificates(self, monkeypatch):
-        contexts: list[ssl.SSLContext] = []
+    def test_read_timeout_is_an_os_error(self, server):
+        with pytest.raises(OSError, match="ReadTimeout"):
+            fetch(_url(server, "/slow"), timeout=0.1, max_mb=1.0)
 
-        def capture_connect(conn: _PinnedHTTPSConnection) -> None:
-            contexts.append(conn._tls_context)
-            raise OSError("stop before the network")
 
-        monkeypatch.setattr(_PinnedHTTPSConnection, "connect", capture_connect)
+@pytest.mark.usefixtures("resolver")
+class TestTls:
+    def test_https_request_is_pinned_with_the_hostname_for_tls(self, monkeypatch):
+        sent: list[httpx.Request] = []
+
+        def capture_send(transport, request):
+            sent.append(request)
+            raise httpx.ConnectError("stop before the network")
+
+        monkeypatch.setattr(httpx.HTTPTransport, "handle_request", capture_send)
         with pytest.raises(OSError, match="stop before the network"):
             fetch("https://public.test/report.pdf", timeout=5.0, max_mb=1.0)
 
-        assert contexts[0].verify_mode == ssl.CERT_REQUIRED
-        assert contexts[0].check_hostname is True
+        assert sent[0].url.host == "127.0.0.1"
+        assert sent[0].headers["Host"] == "public.test"
+        assert sent[0].extensions["sni_hostname"] == "public.test"
+
+    def test_certificate_for_the_hostname_is_accepted(self, tmp_path, monkeypatch):
+        server_context, client_context = _tls_contexts(tmp_path, "public.test")
+        monkeypatch.setattr(httpx, "create_ssl_context", lambda: client_context)
+
+        with _serve(server_context) as httpd:
+            response = fetch(
+                _url(httpd, "/ok", scheme="https"), timeout=5.0, max_mb=1.0
+            )
+
+        assert response.body == _BODY
+
+    def test_certificate_for_another_host_is_refused(self, tmp_path, monkeypatch):
+        server_context, client_context = _tls_contexts(tmp_path, "other.test")
+        monkeypatch.setattr(httpx, "create_ssl_context", lambda: client_context)
+
+        with _serve(server_context) as httpd:
+            with pytest.raises(OSError, match="certificate verify failed"):
+                fetch(_url(httpd, "/ok", scheme="https"), timeout=5.0, max_mb=1.0)
+            assert httpd.requests == []
 
 
 class TestDnsRebinding:
     def test_connects_to_the_checked_address(self, server, monkeypatch):
         """A second DNS answer pointing at a private address is never used."""
-        lookups: list[str] = []
-
-        def rebinding_getaddrinfo(host, port, *args, **kwargs):
-            lookups.append(host)
-            ip = "127.0.0.1" if len(lookups) == 1 else "10.0.0.1"
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port))]
-
-        real_is_blocked = _url_fetch.is_blocked_address
-        monkeypatch.setattr(
-            _url_fetch,
-            "is_blocked_address",
-            lambda address: address != "127.0.0.1" and real_is_blocked(address),
-        )
-        monkeypatch.setattr(socket, "getaddrinfo", rebinding_getaddrinfo)
+        answers = iter([["127.0.0.1"], ["10.0.0.1"]])
+        lookups = _install_dns(monkeypatch, lambda host: next(answers))
 
         response = fetch(
             _url(server, "/ok", host="rebind.test"), timeout=5.0, max_mb=1.0
@@ -343,28 +530,6 @@ class TestDnsRebinding:
 
         assert response.body == _BODY
         assert lookups == ["rebind.test"]
-
-    def test_https_verifies_the_hostname_on_the_pinned_socket(self, monkeypatch):
-        pinned = object()
-        addresses = [(socket.AF_INET, ("93.184.216.34", 443))]
-        connected_to = []
-
-        def fake_connect(addrs, timeout):
-            connected_to.append(addrs)
-            return pinned
-
-        monkeypatch.setattr(_url_fetch, "_connect", fake_connect)
-        context = Mock()
-        conn = _PinnedHTTPSConnection(
-            "example.com", 443, addresses=addresses, timeout=5.0, context=context
-        )
-
-        conn.connect()
-
-        assert connected_to == [addresses]
-        context.wrap_socket.assert_called_once_with(
-            pinned, server_hostname="example.com"
-        )
 
 
 @pytest.mark.usefixtures("resolver")
@@ -412,18 +577,18 @@ class TestRedirects:
 
 
 @pytest.mark.usefixtures("resolver")
-class TestSizeCap:
+class TestBody:
     def test_declared_length_over_the_cap_raises(self, server):
         with pytest.raises(ValueError, match="exceeds the"):
             fetch(_url(server, "/large"), timeout=5.0, max_mb=_TINY_MB)
 
     def test_declared_length_over_the_cap_reads_nothing(self):
-        response = Mock(spec=http.client.HTTPResponse)
-        response.length = 2000
-        response.read.side_effect = AssertionError("body must not be read")
+        response = Mock(spec=httpx.Response)
+        response.headers = httpx.Headers({"Content-Length": "2000"})
+        response.iter_raw.side_effect = AssertionError("body must not be read")
 
         with pytest.raises(ValueError, match="exceeds the"):
-            read_capped(response, url="https://example.com/x.pdf", max_mb=_TINY_MB)
+            _read_capped(response, url="https://example.com/x.pdf", max_mb=_TINY_MB)
 
     def test_undeclared_length_over_the_cap_raises(self, server):
         with pytest.raises(ValueError, match="exceeds the"):
@@ -435,3 +600,19 @@ class TestSizeCap:
             fetch(_url(server, "/stream"), timeout=5.0, max_mb=max_mb).body
             == _LARGE_BODY
         )
+
+    def test_large_cap_does_not_reserve_memory(self, server):
+        body = fetch(_url(server, "/stream"), timeout=5.0, max_mb=1_000_000).body
+
+        assert body == _LARGE_BODY
+
+    def test_compressed_body_is_counted_and_returned_raw(self, server):
+        """Bytes are capped as sent, so a small gzip body cannot inflate past the cap."""
+        body = fetch(_url(server, "/gzip"), timeout=5.0, max_mb=_TINY_MB).body
+
+        assert body == _GZIP_BODY
+
+    @pytest.mark.parametrize("path", ["/truncated", "/truncated-chunked"])
+    def test_truncated_body_raises(self, server, path):
+        with pytest.raises(ValueError, match="Bad HTTP response"):
+            fetch(_url(server, f"{path}?sig=secret"), timeout=5.0, max_mb=1.0)

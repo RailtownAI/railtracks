@@ -106,7 +106,7 @@ With `trust_urls=True`, the HEAD probe and the PDF download go through one guard
 
 - Only `http` and `https` URLs. Other schemes, such as `ftp` or `file`, raise a `ValueError`.
 - Only hosts whose addresses are all public. Loopback, private networks, link-local addresses (including the cloud metadata service at `169.254.169.254`), carrier-grade NAT, multicast and reserved ranges are refused, and so is Azure's `168.63.129.16`.
-- The connection goes to the address that was checked, so a host can't pass the check with one DNS answer and then connect with another. HTTPS certificates are still verified against the hostname.
+- The connection goes to the address that was checked, so a host can't pass the check with one DNS answer and then connect with another. HTTPS certificates are still verified against the hostname, using the `certifi` CA bundle, or `SSL_CERT_FILE` / `SSL_CERT_DIR` when set.
 - Redirects are followed up to 10 times, and each target is checked the same way.
 - `HTTP_PROXY` and `HTTPS_PROXY` are ignored, since a proxy would resolve the host where Railtracks can't check it.
 - Error messages show the URL without its query string, so signed URLs don't end up in logs.
