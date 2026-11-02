@@ -3944,6 +3944,7 @@ name = "railtracks"
 source = { editable = "packages/railtracks" }
 dependencies = [
     { name = "colorama" },
+    { name = "httpx" },
     { name = "litellm" },
     { name = "mcp" },
     { name = "pydantic" },
@@ -3964,7 +3965,6 @@ all = [
     { name = "duckdb" },
     { name = "fastapi" },
     { name = "google-cloud-storage" },
-    { name = "httpx" },
     { name = "numpy" },
     { name = "pdfplumber" },
     { name = "pgvector" },
@@ -4071,7 +4071,6 @@ visual = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 websearch = [
-    { name = "httpx" },
     { name = "tavily-python" },
     { name = "trafilatura" },
 ]
@@ -4092,7 +4091,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'visual'", specifier = ">=0.121.0" },
     { name = "glmocr", marker = "extra == 'glm'", specifier = "~=0.1.1" },
     { name = "google-cloud-storage", marker = "extra == 'gcp'", specifier = ">=2.0.0" },
-    { name = "httpx", marker = "extra == 'websearch'", specifier = ">=0.27.0" },
+    { name = "httpx", specifier = ">=0.27.1" },
     { name = "litellm", specifier = ">=1.104.3,<1.106" },
     { name = "mcp", specifier = ">=1.23.0,<2" },
     { name = "numpy", marker = "extra == 'retrieval-core'", specifier = ">=1.24" },
