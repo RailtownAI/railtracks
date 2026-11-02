@@ -185,8 +185,7 @@ same directory.
 
 ### Customize event writers
 
-To use your own writer set (or add more alongside the default), call
-`configure_writers(...)` before the first flow invocation in your process:
+To use your own writer set (or add more alongside the default), call `configure_writers(...)`. You can call it at any time: the writers it replaces are shut down, and the new ones receive every event after the call.
 
 ```python title="Configure local event storage"
 --8<-- "docs/scripts/observability/events.py:v2-viz"
@@ -196,6 +195,8 @@ To use your own writer set (or add more alongside the default), call
     `configure_writers` replaces the auto-registered default, so if you'd like
     to still have the local event files, you need to pass `JsonlWriter()` as
     well as any new or custom writers.
+
+A custom writer is any object with plain (not `async`) `start()`, `write(event)` and `shutdown()` methods, matching the `Writer` protocol in `railtracks.observability`. Railtracks calls them on the thread that emits each event, one call at a time per writer, so keep `write` quick. `configure_writers` raises a `TypeError` if any of these methods is `async`.
 
 ### Use another event directory
 

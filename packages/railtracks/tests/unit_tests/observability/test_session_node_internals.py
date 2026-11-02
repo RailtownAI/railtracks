@@ -109,9 +109,9 @@ async def test_collecting_does_not_disturb_caller_writers():
     """The collector runs inline, so it neither replaces nor joins the writer set."""
 
     class _Noop:
-        async def start(self): ...
-        async def write(self, event: Event): ...
-        async def shutdown(self): ...
+        def start(self): ...
+        def write(self, event: Event): ...
+        def shutdown(self): ...
 
     mine = _Noop()
     configure_writers([mine])
@@ -119,21 +119,7 @@ async def test_collecting_does_not_disturb_caller_writers():
     with rt.Session(flow_name="internals-test"):
         pass
 
-    assert configure.observer._pending_writers == [mine]
-
-
-def test_collecting_creates_no_consumer_task():
-    """A Writer would bring a queue and a consumer task, and that task binds to the
-    loop that created it — which breaks under a nested MCP loop or across threads."""
-    import asyncio
-
-    async def run_session():
-        with rt.Session(flow_name="internals-test"):
-            pass
-        return [t.get_name() for t in asyncio.all_tasks()]
-
-    task_names = asyncio.run(run_session())
-    assert not [n for n in task_names if n.startswith("observer-consumer:")]
+    assert configure.observer._pending == [mine]
 
 
 async def test_add_inline_listener_is_idempotent():
