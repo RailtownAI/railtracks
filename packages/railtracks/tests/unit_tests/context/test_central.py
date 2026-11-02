@@ -364,3 +364,37 @@ def test_claim_middleware_registration_is_shared_across_scopes():
         assert central.claim_middleware_registration("restored") is True
 
     assert central.claim_middleware_registration("restored") is False
+
+
+def test_get_middleware_run_state_outside_a_session_is_none():
+    central.delete_globals()
+
+    assert central.get_middleware_run_state("mw") is None
+
+
+def test_get_middleware_run_state_is_per_instance_and_per_session():
+    _register("s1")
+    first = central.get_middleware_run_state("mw")
+    assert first == {}
+    first["calls"] = 1
+
+    assert central.get_middleware_run_state("mw") is first
+    assert central.get_middleware_run_state("other") == {}
+
+    # a new session starts every instance from nothing
+    _register("s2")
+    assert central.get_middleware_run_state("mw") == {}
+
+
+def test_get_middleware_run_state_is_shared_across_scopes():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_node("node-1"):
+        with manager.enter_middleware("mw"):
+            captured_scope = central.get_current_scope()
+            central.get_middleware_run_state("mw")["calls"] = 1
+
+    assert central.get_middleware_run_state("mw") == {"calls": 1}
+    with central.restore_scope(captured_scope, None):
+        assert central.get_middleware_run_state("mw") == {"calls": 1}

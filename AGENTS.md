@@ -129,7 +129,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - `orchestration/`: `Flow`, `FlowConnection`.
 - `execution/`: coordinator/execution-strategy/task running the request graph.
 - `interaction/`: `rt.call`, `call_batch`, `astream`, `broadcast`, `couple` (in-node calls to other nodes/agents).
-- `middleware/`: generic node-level `Middleware`/`wrap_node`/`post_node` (`after_node` deprecated shim), plus `Verdict`/`VerifierRejectedError`. The human-in-the-loop gate itself is in `prebuilt/`.
+- `middleware/`: generic node-level `Middleware`/`wrap_node`/`post_node` (`after_node` deprecated shim), `RunLocal` (per-run middleware state, stored on the session), plus `Verdict`/`VerifierRejectedError`. The human-in-the-loop gate itself is in `prebuilt/`.
 - `pubsub/`: internal message bus (request creation/success/failure events).
 - `state/`: execution state/forest tracking, session info.
 - `context/`: `rt.context` get/put/update/delete (run-scoped context vars).

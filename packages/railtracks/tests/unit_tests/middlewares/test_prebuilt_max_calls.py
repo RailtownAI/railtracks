@@ -9,11 +9,7 @@ import railtracks as rt
 from railtracks.exceptions import LLMError
 from railtracks.middleware import Middleware
 from railtracks.prebuilt.middleware.lock import Lock
-from railtracks.prebuilt.middleware.max_calls import (
-    _MAX_TRACKED_SESSIONS,
-    MaxCalls,
-    MaxCallsExceededError,
-)
+from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 
 
 def test_max_calls_is_a_plain_middleware():
@@ -385,8 +381,8 @@ def test_call_count_readable_after_the_run_finishes():
     assert budget.call_count == 0
 
 
-def test_retained_session_counters_are_bounded():
-    """Finished runs' counters are kept for inspection, but not without limit."""
+def test_finished_runs_leave_nothing_on_the_instance():
+    """Each run's counter ends with its run, so a long-lived budget never grows."""
     budget = MaxCalls(1)
 
     @rt.function_node(middleware=[budget])
@@ -397,11 +393,15 @@ def test_retained_session_counters_are_bounded():
     async def driver() -> str:
         return await rt.call(tool)
 
-    for i in range(_MAX_TRACKED_SESSIONS + 10):
+    assert rt.Flow("first-run", entry_point=driver).invoke() == "ok"
+    attributes = set(vars(budget))
+
+    for i in range(100):
         assert rt.Flow(f"run-{i}", entry_point=driver).invoke() == "ok"
 
-    assert len(budget._session_counts) == _MAX_TRACKED_SESSIONS
-    # The most recent run is never the one evicted.
+    assert set(vars(budget)) == attributes
+    assert budget._last_run_state == {"_calls": 1}
+    # The most recent run stays readable.
     assert budget.call_count == 1
 
 

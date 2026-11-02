@@ -176,23 +176,26 @@ class Timeout(Middleware):
 
 
 # --8<-- [start: per_run_state]
-import uuid
+from railtracks.middleware import Middleware, RunLocal
 
 
-def count_calls():
-    """Count the calls a node makes in each run; every run starts from zero."""
-    # one key per instance, so two counters never share a count
-    key = f"count_calls_{uuid.uuid4().hex[:8]}"
+class CountCalls(Middleware):
+    """Count the calls a node makes; every run starts from zero."""
 
-    @rt.wrap_node
-    async def counter(call, *args, **kwargs):
-        rt.context.put(key, rt.context.get(key, 0) + 1)
+    calls = RunLocal(int)
+
+    def __init__(self, label: str):
+        self.label = label  # a plain attribute, the same in every run
+        super().__init__(self._middleware_fn)
+
+    async def _middleware_fn(self, call, *args, **kwargs):
+        self.calls += 1
+        print(f"[{self.label}] call {self.calls} in this run")
         return await call(*args, **kwargs)
 
-    return counter
 
-
+counter = CountCalls("agent")
 CountedAgent = rt.agent_node(
-    name="Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"), middleware=[count_calls()]
+    name="Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"), middleware=[counter]
 )
 # --8<-- [end: per_run_state]

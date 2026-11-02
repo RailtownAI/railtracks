@@ -52,18 +52,11 @@ You can inspect the current call count and reset the counter programmatically:
 ```python
 budget = MaxCalls(max_calls=3)
 
-# Inspect current spend (scoped to the active session)
+# Inspect current spend (scoped to the active run)
 print(budget.call_count)
 
-# Reset counter for the current session
+# Reset the counter that call_count reads
 budget.reset()
-
-# Reset counters for all sessions
-budget.reset_all()
 ```
 
-Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns.
-
-!!! warning "Only the 64 most recent sessions stay readable"
-
-    Finished runs' counters are kept so they can be inspected afterwards, but a single `MaxCalls` retains at most the 64 most recently used sessions and evicts the oldest beyond that. This bounds memory for a long-lived instance; it does not limit how many runs may overlap. Reading `call_count` for a session evicted that long ago reports `0`, so capture the value you care about near the end of the run rather than much later.
+Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns. Each run's counter is a [`RunLocal`](../../custom.md#middleware-state) that lives and ends with its run, so a long-lived `MaxCalls` keeps nothing from runs before the most recent one. `reset_all()` is kept as an alias of `reset()`.

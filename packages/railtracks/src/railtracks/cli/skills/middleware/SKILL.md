@@ -55,10 +55,28 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 - Keep one concern per middleware function. A function that both logs and mutates the prompt makes the ordering question in §3 ambiguous — split it into two so each one has one clear rule for where it belongs in the list.
 
 ### 5. State
-- A middleware instance is shared, never copied: every node it is attached to (both slots), every node `rt.couple` builds from those, and every run, including concurrent runs, call the same object.
-- Keep per-run state in `rt.context` under a key the middleware owns (one key per instance, e.g. a `uuid` suffix), as `ConversationMemory` does. Each run gets its own copy of the context dictionary, so concurrent runs stay apart.
-- Keep only process-wide resources on `self` or in a closure: clients, connection pools, semaphores.
-- For a budget, use `railtracks.prebuilt.middleware.MaxCalls`, which keeps a separate count per session. To serialize calls that share state, put `railtracks.prebuilt.middleware.Lock` outside the middleware that uses it.
+- A middleware instance is shared, never copied: every node it is attached to (both slots), every node `rt.couple` builds from those, and every run, including concurrent runs, call the same object. Plain attributes are therefore shared by all of them.
+- Declare per-run state (counters, budgets, scratch values) as a `RunLocal` field on a `Middleware` subclass, then use it like any attribute. Each run starts from the factory's value and never sees another run's:
+
+```python
+from railtracks.middleware import Middleware, RunLocal
+
+
+class CountCalls(Middleware):
+    calls = RunLocal(int)  # a factory: RunLocal(list), RunLocal(lambda: {"tokens": 0})
+
+    def __init__(self):
+        super().__init__(self._middleware_fn)
+
+    async def _middleware_fn(self, call, *args, **kwargs):
+        self.calls += 1
+        return await call(*args, **kwargs)
+```
+
+- Pass `RunLocal` a factory, never a shared object, so mutable defaults stay per run. Outside a run the field reads the most recent run's value; `del instance.field` resets it.
+- Decorator middleware (`@rt.wrap_node`, `@rt.wrap_llm`, ...) cannot hold a `RunLocal`. Write a `Middleware` subclass when per-run state is needed.
+- Keep only configuration and process-wide resources in plain attributes: clients, connection pools, semaphores.
+- For a call budget, use `railtracks.prebuilt.middleware.MaxCalls` instead of writing one. To serialize calls that share state, put `railtracks.prebuilt.middleware.Lock` outside the middleware that uses it.
 
 ---
 
@@ -147,4 +165,4 @@ Adjusted = rt.couple(
 - Write content allow/block checks as `input_guard`/`output_guard`, so they show up in `GuardrailTrace` with the rest of your rails.
 - Write `wrap_node`/`wrap_llm` functions as `async def`.
 - Put failure-aware logic in `wrap_llm`/`wrap_node`; `post_llm`/`post_node` run only on success.
-- Keep per-run middleware state in `rt.context`, not on `self`; one instance serves every run, including concurrent ones.
+- Declare per-run middleware state as a `RunLocal` field, never a plain attribute; one instance serves every run, including concurrent ones.

@@ -39,23 +39,25 @@ The same middleware attaches to a `function_node` exactly the same way, via `mid
 
 ## Middleware state
 
-A middleware object is shared, never copied. Every node you attach it to (in either slot), every node `rt.couple` builds from those, and every run of every Flow, including runs happening at the same time, call the same instance. Where the middleware keeps its state decides how far that state reaches:
+A middleware object is shared, never copied. Every node you attach it to (in either slot), every node `rt.couple` builds from those, and every run of every Flow, including runs happening at the same time, call the same instance. A plain attribute is therefore shared by all of them, which is what you want for configuration and resources. For state that belongs to one run, such as a counter or a budget, declare a `RunLocal` field: you read and write it like any attribute, but every run gets its own value.
 
-| State kept in | Shared by | Use it for |
+| Declared as | Each run sees | Use it for |
 |---|---|---|
-| The instance (`self.count`) or a closure variable | Every run in the process, including concurrent ones | Process-wide resources: a client, a connection pool, a semaphore |
-| `rt.context`, under a key the middleware owns | One run, since each run gets its own copy of the context dictionary | Per-run counters, budgets, and conversation state |
-
-This counter keeps its count in `rt.context`, so each run starts from zero and concurrent runs never see each other's count:
+| A plain attribute (`self.client = ...`) | The same value as every other run, concurrent ones included | Configuration and resources: a client, a connection pool, a semaphore |
+| A `RunLocal` field (`calls = RunLocal(int)`) | Its own value, starting from the default | Per-run counters, budgets, and scratch state |
 
 ```python
 --8<-- "docs/scripts/middleware.py:per_run_state"
 ```
 
-The prebuilt middleware follow the same split and are good references: [`MaxCalls`](prebuilt/list/max_calls.md) keeps a separate budget per session, [`ConversationMemory`](prebuilt/list/conversation_memory.md) stores its history in `rt.context`, and [`Lock`](prebuilt/list/lock.md) serializes the calls that share it.
+`RunLocal` takes a factory rather than a value (`RunLocal(int)`, `RunLocal(list)`, `RunLocal(lambda: {"tokens": 0})`), so a mutable default is fresh in every run. Within one run, every node the instance is attached to shares the value, so one `CountCalls` on two tools counts both. Outside a run, the field holds the most recent run's value, so `counter.calls` tells you what a run did once `invoke()` returns, and `del counter.calls` resets it. The value lives with the run and ends with it: it is not part of `rt.context` and is never saved.
 
-!!! warning "Instance state is shared across concurrent runs"
-    A per-run value kept on `self` mixes runs together: two runs in flight at once both read and write it, and a run sees whatever the previous one left behind. Keep per-run state in `rt.context`. When runs genuinely need to coordinate on shared state, put a [`Lock`](prebuilt/list/lock.md) outside the middleware that uses it.
+`RunLocal` fields are declared on a class, so decorator-built middleware (`@rt.wrap_node` and the others) has nowhere to put one. When a decorator middleware needs per-run state, write it as a `Middleware` subclass as above.
+
+The prebuilt middleware are good references: [`MaxCalls`](prebuilt/list/max_calls.md) keeps its count in a `RunLocal`, [`ConversationMemory`](prebuilt/list/conversation_memory.md) deliberately keeps its history across runs so a conversation can carry on over several `invoke()` calls, and [`Lock`](prebuilt/list/lock.md) serializes the calls that share it.
+
+!!! warning "Plain attributes are shared across concurrent runs"
+    A per-run value kept in a plain attribute mixes runs together: two runs in flight at once both read and write it, and a run sees whatever the previous one left behind. Declare it as a `RunLocal` instead. When runs genuinely need to coordinate on shared state, put a [`Lock`](prebuilt/list/lock.md) outside the middleware that uses it.
 
 
 
