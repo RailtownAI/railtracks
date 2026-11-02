@@ -272,6 +272,7 @@ def _tls_contexts(
         )
     )
     server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.minimum_version = ssl.TLSVersion.TLSv1_2
     server_context.load_cert_chain(cert_file, key_file)
     return server_context, ssl.create_default_context(cafile=ca_file)
 
