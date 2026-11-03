@@ -12,10 +12,10 @@ from railtracks.middleware.core import Middleware
 class Lock(Middleware[Any, Any, Never]):
     """Serialize concurrent invocations of the wrapped call.
 
-    Reuse one instance across nodes that must not execute concurrently. Calls
-    are serialized within one event loop. Each sync ``flow.invoke()`` gets a
-    fresh loop, so runs on different threads at the same time do not block one
-    another.
+    Reuse one instance across nodes that must not execute concurrently. Only
+    calls on the same event loop are serialized. Each sync ``flow.invoke()``
+    runs on its own loop, so two ``invoke()`` calls running at the same time on
+    different threads are not serialized against each other.
     """
 
     def __init__(self):
