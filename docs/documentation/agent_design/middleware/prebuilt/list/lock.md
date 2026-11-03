@@ -10,3 +10,5 @@ call.
 
 Reuse the same `Lock` instance on every node or model call that must not run at
 the same time. Separate instances do not block one another.
+
+Calls are serialized within one event loop. Each sync `flow.invoke()` gets a fresh loop, so runs on different threads at the same time do not block one another.
