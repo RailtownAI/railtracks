@@ -19,6 +19,7 @@ from railtracks.llm import _url_fetch
 from railtracks.llm._url_fetch import (
     MAX_REDIRECTS,
     BlockedURLError,
+    FetchResponse,
     _read_capped,
     fetch,
     is_blocked_address,
@@ -437,6 +438,24 @@ class TestFetch:
         assert fetch(url, timeout=5.0, max_mb=1.0).body == _BODY
         assert "Authorization" not in sent[0].headers
 
+    @pytest.mark.parametrize(
+        "user_agent,expected", [(None, "railtracks"), ("agent/2.0", "agent/2.0")]
+    )
+    def test_user_agent(self, server, monkeypatch, user_agent, expected):
+        sent: list[httpx.Request] = []
+        real_send = httpx.HTTPTransport.handle_request
+
+        def record_send(transport, request):
+            sent.append(request)
+            return real_send(transport, request)
+
+        monkeypatch.setattr(httpx.HTTPTransport, "handle_request", record_send)
+        kwargs = {} if user_agent is None else {"user_agent": user_agent}
+
+        fetch(_url(server, "/ok"), timeout=5.0, max_mb=1.0, **kwargs)
+
+        assert sent[0].headers["User-Agent"] == expected
+
     def test_any_blocked_address_refuses_the_host(self, server):
         with pytest.raises(
             BlockedURLError, match=r"non-public address \(10\.0\.0\.1\)"
@@ -612,6 +631,28 @@ class TestBody:
         body = fetch(_url(server, "/gzip"), timeout=5.0, max_mb=_TINY_MB).body
 
         assert body == _GZIP_BODY
+
+    @pytest.mark.parametrize(
+        "content_type,body,expected",
+        [
+            ("text/html; charset=windows-1252", "café".encode("cp1252"), "café"),
+            ("text/html", "café".encode("utf-8"), "café"),
+            ("text/html", b"caf\xe9", "caf�"),
+        ],
+    )
+    def test_text_decodes_with_the_declared_charset(self, content_type, body, expected):
+        headers = httpx.Headers({"Content-Type": content_type})
+
+        assert FetchResponse(url="", headers=headers, body=body).text == expected
+
+    def test_text_does_not_decompress_the_body(self):
+        headers = httpx.Headers(
+            {"Content-Type": "text/html", "Content-Encoding": "gzip"}
+        )
+
+        text = FetchResponse(url="", headers=headers, body=_GZIP_BODY).text
+
+        assert len(text) <= len(_GZIP_BODY)
 
     @pytest.mark.parametrize("path", ["/truncated", "/truncated-chunked"])
     def test_truncated_body_raises(self, server, path):

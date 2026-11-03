@@ -12,7 +12,7 @@ pip install "railtracks[websearch]"
 uv pip install "railtracks[websearch]"
 ```
 
-This installs the default search and fetch dependencies (`tavily-python`, `httpx`, and `trafilatura`). Even if you swap in another backend such as `BraveSearch`, the fetch side still relies on the same HTTP/text-extraction packages, so the extra is still required.
+This installs the default search and fetch dependencies (`tavily-python` and `trafilatura`; `httpx` comes with Railtracks itself). Even if you swap in another backend such as `BraveSearch`, the fetch side still relies on `trafilatura` for text extraction, so the extra is still required.
 
 Adding the web search tool to your agent is super easy.
 
@@ -50,7 +50,9 @@ Any object that implements the `SearchBackend` protocol, an async `search(query,
 
 ## Swapping the fetch backend
 
-By default the toolset uses `HttpFetch`, a plain HTTP request paired with `trafilatura` to extract clean text from the page. You can tune it, or swap in your own implementation of the `FetchBackend` protocol, for example to use a headless browser for JavaScript-heavy pages:
+By default the toolset uses `HttpFetch`, a plain HTTP request paired with `trafilatura` to extract clean text from the page. The model picks the URL, so `HttpFetch` uses the same guarded fetch as [attachment URLs](../../llms/modalities.md#what-railtracks-will-fetch): only `http` and `https`, only public addresses (checked again on every redirect), proxy settings ignored, and pages over `max_mb` (10 MB by default) refused. A refused URL comes back to the agent as a failed fetch.
+
+You can tune it, or swap in your own implementation of the `FetchBackend` protocol, for example to use a headless browser for JavaScript-heavy pages:
 
 ```python
 --8<-- "docs/scripts/websearch.py:websearch_fetch_backend"

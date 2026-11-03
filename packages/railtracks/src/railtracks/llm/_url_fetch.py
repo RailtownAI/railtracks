@@ -23,7 +23,7 @@ MAX_REDIRECTS = 10
 _READ_CHUNK_BYTES = 64 * 1024
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _ALLOWED_SCHEMES = {"http": 80, "https": 443}
-_HEADERS = {"User-Agent": "railtracks", "Accept-Encoding": "identity"}
+_DEFAULT_USER_AGENT = "railtracks"
 # Networks `is_global` lets through on some Python versions or clouds.
 _BLOCKED_NETWORKS = (
     ipaddress.ip_network("168.63.129.16/32"),  # Azure Wire Server
@@ -53,6 +53,12 @@ class FetchResponse:
     url: str
     headers: httpx.Headers
     body: bytes
+
+    @property
+    def text(self) -> str:
+        """The body decoded with the `Content-Type` charset, else UTF-8, never decompressed."""
+        content_type = {"Content-Type": self.headers.get("Content-Type", "")}
+        return httpx.Response(200, headers=content_type, content=self.body).text
 
 
 def redact_url(url: str) -> str:
@@ -195,6 +201,7 @@ def fetch(
     method: Literal["GET", "HEAD"] = "GET",
     timeout: float,
     max_mb: float | None = None,
+    user_agent: str = _DEFAULT_USER_AGENT,
 ) -> FetchResponse:
     """Fetch a URL that may come from an end user, guarding every hop.
 
@@ -203,6 +210,7 @@ def fetch(
         method: `GET` to download the body, `HEAD` for the headers only.
         timeout: Timeout in seconds for each connection and socket read.
         max_mb: Largest body accepted, in megabytes. Required for `GET`.
+        user_agent: Sent as the `User-Agent` header.
 
     Returns:
         FetchResponse: The final URL, its headers and its body.
@@ -219,7 +227,7 @@ def fetch(
     if method == "GET" and max_mb is None:
         raise ValueError("max_mb is required for a GET fetch.")
     with httpx.Client(
-        headers=_HEADERS,
+        headers={"User-Agent": user_agent, "Accept-Encoding": "identity"},
         timeout=timeout,
         verify=httpx.create_ssl_context(),
         trust_env=False,
