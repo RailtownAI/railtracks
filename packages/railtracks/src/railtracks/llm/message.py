@@ -49,7 +49,9 @@ def _modality_for_mime(mime_type: str) -> str:
     return "image"
 
 
-def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | None]:
+def _probe_url_metadata(
+    url: str, *, timeout: float, allow_loopback: bool
+) -> tuple[str | None, str | None]:
     """HEAD-probe a URL and return (content_type, filename) or (None, None) on failure.
 
     Used when a URL has no recognized extension (e.g. arxiv.org/pdf/1706.03762
@@ -57,7 +59,7 @@ def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | 
     suffix; filename comes from Content-Disposition if present.
     """
     try:
-        resp = fetch(url, method="HEAD", timeout=timeout)
+        resp = fetch(url, method="HEAD", timeout=timeout, allow_loopback=allow_loopback)
     except BlockedURLError as e:
         logger.warning("Skipped the HEAD probe for an attachment URL: %s", e)
         return None, None
@@ -81,6 +83,7 @@ class Attachment:
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
+        allow_loopback_urls: bool = False,
     ):
         """
         A simple class that represents an attachment to a message.
@@ -105,6 +108,11 @@ class Attachment:
                 `trust_urls=True`.
             attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
                 Must be positive and finite. Defaults to 32. Only applies when
+                `trust_urls=True`.
+            allow_loopback_urls: Also fetch URLs whose host resolves to a
+                loopback address (`localhost`, `127.0.0.0/8`, `::1`), for local
+                testing and demos. Private, link-local and other non-public
+                addresses stay refused. Defaults to False. Only applies when
                 `trust_urls=True`.
 
         Raises:
@@ -137,6 +145,7 @@ class Attachment:
                     trust_urls=trust_urls,
                     timeout=attachment_timeout,
                     max_mb=attachment_max_mb,
+                    allow_loopback=allow_loopback_urls,
                 )
             case "data_uri":
                 self._init_data_uri(url)
@@ -155,7 +164,13 @@ class Attachment:
         self.type = "local"
 
     def _init_url(
-        self, url: str, *, trust_urls: bool, timeout: float, max_mb: float
+        self,
+        url: str,
+        *,
+        trust_urls: bool,
+        timeout: float,
+        max_mb: float,
+        allow_loopback: bool,
     ) -> None:
         url_path = urlparse(self.url).path
         _, file_extension = os.path.splitext(url_path)
@@ -168,7 +183,9 @@ class Attachment:
             # HEAD-probe to figure out what we're actually being handed.
             # Skipped when trust_urls=False so we never touch unknown URLs
             # from the railtracks process.
-            probed_ct, probed_filename = _probe_url_metadata(self.url, timeout=timeout)
+            probed_ct, probed_filename = _probe_url_metadata(
+                self.url, timeout=timeout, allow_loopback=allow_loopback
+            )
             if probed_ct == "application/pdf" or (
                 probed_ct and probed_ct.startswith("image/")
             ):
@@ -192,7 +209,9 @@ class Attachment:
                     "when the URL is developer-controlled; otherwise download the PDF "
                     "first and pass a local file path or base64/data-URI payload."
                 )
-            encoded = encode(url, timeout=timeout, max_mb=max_mb)
+            encoded = encode(
+                url, timeout=timeout, max_mb=max_mb, allow_loopback=allow_loopback
+            )
             self.encoding = f"data:{self.mime_type};base64,{encoded}"
         self.type = "url"
 
@@ -336,6 +355,11 @@ class UserMessage(_StringOnlyContent[Role.user]):
         attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
                     Must be positive and finite. Defaults to 32. Only applies
                     when `trust_urls=True`.
+        allow_loopback_urls: Also fetch URLs whose host resolves to a loopback
+                    address (`localhost`, `127.0.0.0/8`, `::1`), for local
+                    testing and demos. Private, link-local and other non-public
+                    addresses stay refused. Defaults to False. Only applies
+                    when `trust_urls=True`.
 
     Raises:
         ValueError: If an attachment is rejected, for the reasons listed on
@@ -349,27 +373,21 @@ class UserMessage(_StringOnlyContent[Role.user]):
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
+        allow_loopback_urls: bool = False,
     ):
         if attachment is not None:
-            if isinstance(attachment, list):
-                self.attachment = [
-                    Attachment(
-                        att,
-                        trust_urls=trust_urls,
-                        attachment_timeout=attachment_timeout,
-                        attachment_max_mb=attachment_max_mb,
-                    )
-                    for att in attachment
-                ]
-            else:
-                self.attachment = [
-                    Attachment(
-                        attachment,
-                        trust_urls=trust_urls,
-                        attachment_timeout=attachment_timeout,
-                        attachment_max_mb=attachment_max_mb,
-                    )
-                ]
+            self.attachment = [
+                Attachment(
+                    att,
+                    trust_urls=trust_urls,
+                    attachment_timeout=attachment_timeout,
+                    attachment_max_mb=attachment_max_mb,
+                    allow_loopback_urls=allow_loopback_urls,
+                )
+                for att in (
+                    attachment if isinstance(attachment, list) else [attachment]
+                )
+            ]
 
             if content is None:
                 logger.warning(

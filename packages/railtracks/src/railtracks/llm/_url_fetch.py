@@ -75,7 +75,7 @@ def redact_url(url: str) -> str:
     return f"{parts.scheme}://{host}{port}{parts.path}"
 
 
-def is_blocked_address(address: str) -> bool:
+def is_blocked_address(address: str, *, allow_loopback: bool = False) -> bool:
     """Return whether a resolved address must not be fetched from.
 
     Anything that is not globally routable is blocked, as is multicast and the
@@ -84,6 +84,8 @@ def is_blocked_address(address: str) -> bool:
 
     Args:
         address: An IP address as returned by `socket.getaddrinfo`.
+        allow_loopback: Allow loopback addresses (`127.0.0.0/8`, `::1`), for
+            local testing. Every other non-public address stays blocked.
 
     Returns:
         bool: True if the address is blocked.
@@ -94,6 +96,8 @@ def is_blocked_address(address: str) -> bool:
         return True
     if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
         ip = ip.ipv4_mapped
+    if allow_loopback and ip.is_loopback:
+        return False
     candidates: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = [ip]
     if isinstance(ip, ipaddress.IPv6Address):
         if ip.sixtofour is not None:
@@ -108,12 +112,14 @@ def is_blocked_address(address: str) -> bool:
     )
 
 
-def _resolve(host: str, port: int, url: str) -> list[str]:
+def _resolve(host: str, port: int, url: str, *, allow_loopback: bool) -> list[str]:
     """Resolve `host` and return its addresses, refusing the host if any is blocked."""
     addresses: list[str] = []
     for *_, sockaddr in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM):
         address = sockaddr[0]
-        if not isinstance(address, str) or is_blocked_address(address):
+        if not isinstance(address, str) or is_blocked_address(
+            address, allow_loopback=allow_loopback
+        ):
             raise BlockedURLError(
                 f"Refused to fetch {redact_url(url)}: {host!r} resolves to a "
                 f"non-public address ({address})."
@@ -126,7 +132,11 @@ def _resolve(host: str, port: int, url: str) -> list[str]:
 
 
 def _send(
-    client: httpx.Client, url: str, method: Literal["GET", "HEAD"]
+    client: httpx.Client,
+    url: str,
+    method: Literal["GET", "HEAD"],
+    *,
+    allow_loopback: bool,
 ) -> httpx.Response:
     """Check one URL and send a request to it over a checked address, without following redirects."""
     try:
@@ -140,7 +150,8 @@ def _send(
     host = target.raw_host.decode("ascii")
     if not host:
         raise BlockedURLError(f"Refused to fetch {redact_url(url)}: it has no host.")
-    addresses = _resolve(host, target.port or _ALLOWED_SCHEMES[target.scheme], url)
+    port = target.port or _ALLOWED_SCHEMES[target.scheme]
+    addresses = _resolve(host, port, url, allow_loopback=allow_loopback)
 
     def request_to(address: str) -> httpx.Request:
         return client.build_request(
@@ -195,6 +206,7 @@ def fetch(
     method: Literal["GET", "HEAD"] = "GET",
     timeout: float,
     max_mb: float | None = None,
+    allow_loopback: bool = False,
 ) -> FetchResponse:
     """Fetch a URL that may come from an end user, guarding every hop.
 
@@ -203,6 +215,8 @@ def fetch(
         method: `GET` to download the body, `HEAD` for the headers only.
         timeout: Timeout in seconds for each connection and socket read.
         max_mb: Largest body accepted, in megabytes. Required for `GET`.
+        allow_loopback: Allow hosts that resolve to loopback addresses, on
+            every hop. Every other non-public address stays blocked.
 
     Returns:
         FetchResponse: The final URL, its headers and its body.
@@ -225,7 +239,12 @@ def fetch(
         trust_env=False,
     ) as client:
         for _ in range(MAX_REDIRECTS + 1):
-            with _mapped_errors(url), closing(_send(client, url, method)) as response:
+            with (
+                _mapped_errors(url),
+                closing(
+                    _send(client, url, method, allow_loopback=allow_loopback)
+                ) as response,
+            ):
                 status = response.status_code
                 if status not in _REDIRECT_STATUSES:
                     if not response.is_success:

@@ -113,6 +113,12 @@ With `trust_urls=True`, the HEAD probe and the PDF download go through one guard
 
 A refused PDF URL raises a `ValueError`. A refused HEAD probe logs a warning, and the URL is passed to the provider as an image. To attach a file from an internal server, download it yourself and pass a local file or data URI.
 
+For local testing and demos, `allow_loopback_urls=True` also lets the fetch reach your own machine (`localhost`, `127.0.0.0/8`, `::1`). Private networks, link-local addresses and the cloud metadata service stay refused. Leave it off wherever URLs can come from end users, since any service listening on the machine becomes reachable:
+
+```python
+--8<-- "docs/scripts/multimodal.py:pdf_loopback"
+```
+
 ### Tuning the fetch timeout and size limit
 
 The HEAD probe and PDF download share a timeout that defaults to 10 seconds. It applies to each connection and each read, not to the whole fetch, so raise it via `attachment_timeout` for slow servers. The download stops once it passes `attachment_max_mb` (32 MB by default) and raises a `ValueError`, so a very large or never-ending response cannot exhaust memory:

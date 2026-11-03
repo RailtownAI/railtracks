@@ -145,7 +145,11 @@ def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
 
 
 def encode(
-    path: str, *, timeout: float = 10.0, max_mb: float = DEFAULT_MAX_DOWNLOAD_MB
+    path: str,
+    *,
+    timeout: float = 10.0,
+    max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
+    allow_loopback: bool = False,
 ) -> str:
     """Encodes image/audio located at path to a Base64 string.
 
@@ -155,6 +159,7 @@ def encode(
         max_mb: Largest body accepted from a URL, in megabytes. Must be positive
             and finite. The body is read in chunks and the download stops as soon
             as it passes the limit. Local files are not limited.
+        allow_loopback: Allow a URL whose host resolves to a loopback address.
 
     Returns:
         str: Base64 encoded string
@@ -182,7 +187,9 @@ def encode(
             with open(path, "rb") as image_file:
                 encoding = base64.b64encode(image_file.read()).decode("utf-8")
         case "url":
-            data = fetch(path, timeout=timeout, max_mb=max_mb).body
+            data = fetch(
+                path, timeout=timeout, max_mb=max_mb, allow_loopback=allow_loopback
+            ).body
             encoding = base64.b64encode(data).decode("utf-8")
         case "data_uri":
             raise ValueError("Data is already in byte64 encoded format.")

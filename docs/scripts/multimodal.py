@@ -85,6 +85,22 @@ message_history = rt.llm.MessageHistory(
 )
 # --8<-- [end: pdf_timeout]
 
+# --8<-- [start: pdf_loopback]
+# Loopback hosts are refused unless allow_loopback_urls=True, which suits a
+# PDF served from your own machine while testing. Private and link-local
+# addresses stay refused either way.
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Summarize this paper.",
+            attachment="http://localhost:8000/paper.pdf",
+            trust_urls=True,
+            allow_loopback_urls=True,
+        )
+    ]
+)
+# --8<-- [end: pdf_loopback]
+
 # --8<-- [start: combined]
 message_history = rt.llm.MessageHistory(
     [

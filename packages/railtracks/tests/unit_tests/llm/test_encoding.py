@@ -83,7 +83,10 @@ class TestEncode:
 
         assert result == base64.b64encode(image_data).decode("utf-8")
         mock_fetch.assert_called_once_with(
-            "https://example.com/image.png", timeout=3.0, max_mb=2.0
+            "https://example.com/image.png",
+            timeout=3.0,
+            max_mb=2.0,
+            allow_loopback=False,
         )
 
     @pytest.mark.parametrize("max_mb", [0, -1, float("inf"), float("nan")])

@@ -1,3 +1,4 @@
+import base64
 import datetime
 import gzip
 import ipaddress
@@ -24,6 +25,7 @@ from railtracks.llm._url_fetch import (
     is_blocked_address,
     redact_url,
 )
+from railtracks.llm.message import Attachment
 
 _BODY = b"hello"
 _LARGE_BODY = b"x" * 2000
@@ -160,7 +162,7 @@ def _install_dns(
     monkeypatch.setattr(
         _url_fetch,
         "is_blocked_address",
-        lambda address: not address.startswith("127.") and real_is_blocked(address),
+        lambda address, **_: real_is_blocked(address, allow_loopback=True),
     )
     monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
     return lookups
@@ -517,6 +519,56 @@ class TestTls:
             with pytest.raises(OSError, match="certificate verify failed"):
                 fetch(_url(httpd, "/ok", scheme="https"), timeout=5.0, max_mb=1.0)
             assert httpd.requests == []
+
+
+class TestAllowLoopback:
+    @pytest.mark.parametrize(
+        "address", ["127.0.0.1", "127.8.9.10", "::1", "::ffff:127.0.0.1"]
+    )
+    def test_loopback_is_allowed(self, address):
+        assert is_blocked_address(address, allow_loopback=True) is False
+
+    @pytest.mark.parametrize(
+        "address",
+        [
+            "10.0.0.1",
+            "192.168.1.1",
+            "169.254.169.254",
+            "0.0.0.0",
+            "::",
+            "fe80::1",
+            "2002:7f00:1::1",  # 6to4 of 127.0.0.1
+            "64:ff9b::7f00:1",  # NAT64 of 127.0.0.1
+        ],
+    )
+    def test_other_non_public_addresses_stay_blocked(self, address):
+        assert is_blocked_address(address, allow_loopback=True) is True
+
+    def test_loopback_server_is_fetched_only_when_allowed(self, server):
+        url = _url(server, "/ok", host="127.0.0.1")
+        with pytest.raises(BlockedURLError, match="non-public address"):
+            fetch(url, timeout=5.0, max_mb=1.0)
+        assert server.requests == []
+
+        assert fetch(url, timeout=5.0, max_mb=1.0, allow_loopback=True).body == _BODY
+
+    def test_redirect_to_a_private_host_is_still_refused(self, server):
+        target = quote("http://10.0.0.1/latest/meta-data/")
+        url = _url(server, f"/redirect?to={target}", host="127.0.0.1")
+        with pytest.raises(BlockedURLError, match=r"10\.0\.0\.1"):
+            fetch(url, timeout=5.0, max_mb=1.0, allow_loopback=True)
+
+    def test_attachment_downloads_a_loopback_pdf(self, server):
+        url = _url(server, "/report.pdf", host="127.0.0.1")
+        with pytest.raises(BlockedURLError):
+            Attachment(url, trust_urls=True)
+
+        attachment = Attachment(url, trust_urls=True, allow_loopback_urls=True)
+
+        assert attachment.modality == "document"
+        assert attachment.encoding == (
+            "data:application/pdf;base64," + base64.b64encode(_BODY).decode("ascii")
+        )
 
 
 class TestDnsRebinding:

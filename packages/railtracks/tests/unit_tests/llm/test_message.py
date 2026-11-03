@@ -279,15 +279,18 @@ class TestAttachment:
         assert attachment.filename == "photo.png"
 
     def test_attachment_limits_thread_to_probe_and_encode(self, monkeypatch):
-        """attachment_timeout must reach the HEAD probe and encode(), and
-        attachment_max_mb must reach encode()."""
+        """attachment_timeout and allow_loopback_urls must reach the HEAD probe and
+        encode(), and attachment_max_mb must reach encode()."""
         from railtracks.llm import message as message_module
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
         seen = {}
 
-        def fake_fetch(url, *, method="GET", timeout, max_mb=None):
+        def fake_fetch(
+            url, *, method="GET", timeout, max_mb=None, allow_loopback=False
+        ):
             seen["probe_timeout"] = timeout
+            seen["probe_allow_loopback"] = allow_loopback
             return SimpleNamespace(
                 headers={
                     "Content-Type": "application/pdf",
@@ -295,11 +298,12 @@ class TestAttachment:
                 }
             )
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0, allow_loopback=False):
             import base64 as _b64
 
             seen["encode_timeout"] = timeout
             seen["encode_max_mb"] = max_mb
+            seen["encode_allow_loopback"] = allow_loopback
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
         monkeypatch.setattr(message_module, "fetch", fake_fetch)
@@ -311,10 +315,13 @@ class TestAttachment:
             trust_urls=True,
             attachment_timeout=42.0,
             attachment_max_mb=5.0,
+            allow_loopback_urls=True,
         )
         assert seen["probe_timeout"] == 42.0
         assert seen["encode_timeout"] == 42.0
         assert seen["encode_max_mb"] == 5.0
+        assert seen["probe_allow_loopback"] is True
+        assert seen["encode_allow_loopback"] is True
 
     @pytest.mark.parametrize("max_mb", [0, -1, float("inf"), float("nan")])
     def test_attachment_max_mb_must_be_positive_and_finite(self, max_mb):
@@ -328,7 +335,7 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0, allow_loopback=False):
             import base64 as _b64
 
             assert path == "https://example.com/docs/report.pdf?sig=xyz"
@@ -371,7 +378,9 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_fetch(url, *, method="GET", timeout, max_mb=None):
+        def fake_fetch(
+            url, *, method="GET", timeout, max_mb=None, allow_loopback=False
+        ):
             assert method == "HEAD"
             return SimpleNamespace(
                 headers={
@@ -380,7 +389,7 @@ class TestAttachment:
                 }
             )
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0, allow_loopback=False):
             import base64 as _b64
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")
@@ -509,7 +518,7 @@ class TestAttachment:
         monkeypatch.setattr(
             message_module,
             "_probe_url_metadata",
-            lambda url, *, timeout: ("image/jpeg", None),
+            lambda url, *, timeout, allow_loopback: ("image/jpeg", None),
         )
 
         attachment = Attachment(
@@ -527,7 +536,7 @@ class TestAttachment:
         monkeypatch.setattr(
             message_module,
             "_probe_url_metadata",
-            lambda url, *, timeout: (probed_ct, None),
+            lambda url, *, timeout, allow_loopback: (probed_ct, None),
         )
 
         with pytest.raises(ValueError, match="Unsupported attachment format"):
@@ -543,7 +552,7 @@ class TestAttachment:
 
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
-        def fake_encode(path, *, timeout=10.0, max_mb=32.0):
+        def fake_encode(path, *, timeout=10.0, max_mb=32.0, allow_loopback=False):
             import base64 as _b64
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")
