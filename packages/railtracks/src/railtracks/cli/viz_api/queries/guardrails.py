@@ -44,9 +44,9 @@ def list_guardrails_by_node(
 
     The name is one join away: the guard event's ``parent_middleware_type_id``
     names the middleware, and ``middleware.creation`` declares it. That join is
-    global and grouped by the type_id, for the two reasons the middleware CTE
-    documents — a creation event fires per process, and an ungrouped join fans
-    each guard event out once per creation.
+    global and grouped by the type_id, for the reasons the middleware CTE
+    documents: a shared guard gets a creation event in every session it runs in,
+    so an ungrouped join fans each guard event out once per session.
 
     ``meta`` is now the decision's own ``meta`` and nothing else.
     """
