@@ -51,6 +51,7 @@ class SessionContext:
         flow_id: str | None = None,
         session_name: str | None = None,
         stream_queue: asyncio.Queue[Any] | None = None,
+        registered_middleware: set[str] | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
         self._publisher: Publisher[RequestCompletionMessage] | None = publisher
@@ -61,6 +62,18 @@ class SessionContext:
         self._flow_id: str | None = flow_id
         self._session_name: str | None = session_name
         self._stream_queue: asyncio.Queue[Any] | None = stream_queue
+        self._registered_middleware: set[str] = (
+            registered_middleware if registered_middleware is not None else set()
+        )
+
+    @property
+    def registered_middleware(self) -> set[str]:
+        """Type ids of the middleware that have emitted a creation event in this session.
+
+        The same set is passed to every frame derived from this one, so it lives exactly
+        as long as the session does.
+        """
+        return self._registered_middleware
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -170,6 +183,7 @@ class SessionContext:
             flow_id=self._flow_id,
             session_name=self._session_name,
             stream_queue=self._stream_queue,
+            registered_middleware=self._registered_middleware,
         )
 
     @property

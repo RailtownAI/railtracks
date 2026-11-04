@@ -274,6 +274,7 @@ def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
         flow_name=ctx.session_context.flow_name,
         flow_id=ctx.session_context.flow_id,
         session_name=ctx.session_context.session_name,
+        registered_middleware=ctx.session_context.registered_middleware,
     )
     new_ctx = RunnerContextVars(
         session_context=new_session_context,
@@ -284,6 +285,26 @@ def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
         yield
     finally:
         runner_context.reset(token)
+
+
+def claim_middleware_registration(middleware_type_id: str) -> bool:
+    """Record that a middleware is announcing itself in the active session.
+
+    Args:
+        middleware_type_id: The ``type_id`` of the middleware about to emit its creation event.
+
+    Returns:
+        True the first time the id is claimed in this session. False after that, and
+        outside a session, where there is no observer to announce it to.
+    """
+    context = runner_context.get()
+    if context is None:
+        return False
+    registered = context.session_context.registered_middleware
+    if middleware_type_id in registered:
+        return False
+    registered.add(middleware_type_id)
+    return True
 
 
 def get_stream_queue() -> asyncio.Queue[Any] | None:

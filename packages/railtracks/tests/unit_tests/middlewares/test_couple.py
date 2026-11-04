@@ -1,9 +1,14 @@
 """Unit tests for `couple` -- post-hoc middleware attachment."""
 
+import sqlite3
+import threading
+
 import pytest
 import railtracks as rt
 from railtracks.interaction import couple
 from railtracks.middleware import wrap_node
+from railtracks.prebuilt.middleware.lock import Lock
+from railtracks.prebuilt.middleware.max_calls import MaxCalls
 
 
 def _make_node():
@@ -344,3 +349,96 @@ def test_couple_model_middleware_on_rt_function_is_a_documented_no_op():
     fn = _make_node()
     with pytest.raises(ValueError):
         couple(fn, model_middleware=[_model_tracer("m", [])])
+
+
+# ============================ shared instances ============================
+
+
+def test_couple_keeps_existing_middleware_instances(mock_llm):
+    node_mw = _tracer("node", [])
+    model_mw = _model_tracer("model", [])
+    agent_cls = rt.agent_node(
+        "TestAgent",
+        llm=mock_llm(),
+        middleware=[node_mw],
+        model_middleware=[model_mw],
+    )
+
+    new_cls = couple(
+        agent_cls,
+        middleware=[_tracer("outer", [])],
+        model_middleware=[_model_tracer("outer", [])],
+    )
+
+    assert new_cls._user_middleware[1] is node_mw
+    assert new_cls._user_model_middleware[1] is model_mw
+    # the lists are new, so the original never sees the coupled additions
+    assert agent_cls._user_middleware == [node_mw]
+    assert agent_cls._user_model_middleware == [model_mw]
+
+
+def test_couple_on_rt_function_keeps_existing_middleware_instances():
+    lock = Lock()
+
+    @rt.function_node(middleware=[lock])
+    def add(a: int, b: int) -> int:
+        return a + b
+
+    result = couple(add, middleware=[_tracer("outer", [])])
+
+    assert result.node_type._user_middleware[1] is lock
+
+
+@pytest.mark.parametrize(
+    "make_resource",
+    [threading.Lock, lambda: sqlite3.connect(":memory:")],
+    ids=["threading.Lock", "sqlite3.Connection"],
+)
+def test_couple_accepts_middleware_holding_a_non_copyable_resource(
+    mock_llm, make_resource
+):
+    resource = make_resource()
+    node_mw = _tracer("node", [])
+    model_mw = _model_tracer("model", [])
+    node_mw.resource = resource
+    model_mw.resource = resource
+    agent_cls = rt.agent_node(
+        "TestAgent",
+        llm=mock_llm(),
+        middleware=[node_mw],
+        model_middleware=[model_mw],
+    )
+
+    new_cls = couple(
+        agent_cls,
+        middleware=[_tracer("outer", [])],
+        model_middleware=[_model_tracer("outer", [])],
+    )
+
+    assert new_cls._user_middleware[1].resource is resource
+    assert new_cls._user_model_middleware[1].resource is resource
+
+    if isinstance(resource, sqlite3.Connection):
+        resource.close()
+
+
+def test_coupled_agent_spends_the_original_max_calls_budget(mock_llm):
+    budget = MaxCalls(2, custom_message="shared cap hit")
+    agent = rt.agent_node(
+        "Agent", llm=mock_llm(custom_response="hello"), middleware=[budget]
+    )
+    coupled = couple(agent, middleware=[_tracer("outer", [])])
+
+    @rt.function_node
+    async def driver() -> list[str]:
+        out = []
+        for node in (agent, coupled, agent):
+            try:
+                out.append((await rt.call(node, user_input="hi")).content)
+            except Exception as e:
+                out.append(type(e).__name__)
+        return out
+
+    flow = rt.Flow("coupled-budget", entry_point=driver)
+    assert flow.invoke() == ["hello", "hello", "MaxCallsExceededError"]
+    assert budget.call_count == 2

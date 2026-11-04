@@ -93,21 +93,6 @@ class ConversationMemory(Middleware):
             except KeyError:
                 pass
 
-    def __deepcopy__(self, memo: dict) -> ConversationMemory:
-        # ``Node.extend_middleware()`` copies the middleware already attached to a
-        # node when ``rt.couple()`` layers another one on. The history dict is shared
-        # by reference so the handle the caller holds keeps reading what the node
-        # actually spends, rather than diverging from it once the run ends.
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            if k == "_state":
-                setattr(result, k, v)
-            else:
-                setattr(result, k, deepcopy(v, memo))
-        return result
-
     def _extract_user_input(
         self, args: tuple[object, ...], kwargs: dict[str, object]
     ) -> tuple[bool, bool, object | None]:
