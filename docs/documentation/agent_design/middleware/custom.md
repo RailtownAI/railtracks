@@ -37,5 +37,25 @@ The same middleware attaches to a `function_node` exactly the same way, via `mid
 --8<-- "docs/scripts/middleware.py:model_middleware_demo"
 ```
 
+## Middleware state
+
+A middleware object is shared, never copied. Every node you attach it to (in either slot), every node `rt.couple` builds from those, and every run of every Flow, including runs happening at the same time, call the same instance. Where the middleware keeps its state decides how far that state reaches:
+
+| State kept in | Shared by | Use it for |
+|---|---|---|
+| The instance (`self.count`) or a closure variable | Every run in the process, including concurrent ones | Process-wide resources: a client, a connection pool, a semaphore |
+| `rt.context`, under a key the middleware owns | One run, since each run gets its own copy of the context dictionary | Per-run counters, budgets, and conversation state |
+
+This counter keeps its count in `rt.context`, so each run starts from zero and concurrent runs never see each other's count:
+
+```python
+--8<-- "docs/scripts/middleware.py:per_run_state"
+```
+
+The prebuilt middleware follow the same split and are good references: [`MaxCalls`](prebuilt/list/max_calls.md) keeps a separate budget per session, [`ConversationMemory`](prebuilt/list/conversation_memory.md) stores its history in `rt.context`, and [`Lock`](prebuilt/list/lock.md) serializes the calls that share it.
+
+!!! warning "Instance state is shared across concurrent runs"
+    A per-run value kept on `self` mixes runs together: two runs in flight at once both read and write it, and a run sees whatever the previous one left behind. Keep per-run state in `rt.context`. When runs genuinely need to coordinate on shared state, put a [`Lock`](prebuilt/list/lock.md) outside the middleware that uses it.
+
 
 

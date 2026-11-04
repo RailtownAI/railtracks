@@ -60,7 +60,7 @@ async def test_pdf_is_saved_once_across_a_long_tool_loop(tmp_path, mock_llm):
         [rt.llm.UserMessage("summarize", attachment=str(pdf_path))]
     )
     await rt.Flow(name="Media Record", entry_point=agent).ainvoke(history)
-    await configure.shutdown()
+    configure.shutdown()
 
     assert LoopingLLM.calls == MODEL_CALLS
     assert [p.name for p in media_dir.iterdir()] == [pdf_sha256]

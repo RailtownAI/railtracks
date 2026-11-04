@@ -22,7 +22,6 @@ from railtracks.events.context import (
 from railtracks.events.send import emit
 from railtracks.events.session import SessionCompleted, SessionStarted, format_error
 from railtracks.exceptions._base import is_fatal
-from railtracks.observability.configure import ensure_started, shutdown
 from railtracks.pubsub.messages import (
     FatalFailure,
     RequestCompletionMessage,
@@ -87,9 +86,7 @@ def top_level_message_filter(request_id: str):
 
 
 async def begin_top_level(node: type[Node]) -> float:
-    """Starts the observer and announces a top-level request; returns its start time."""
-    await ensure_started()
-
+    """Announces a top-level request; returns its start time."""
     config = get_local_config()
     identity = get_session_identity()
 
@@ -110,7 +107,7 @@ async def begin_top_level(node: type[Node]) -> float:
 
 
 async def end_top_level(start_time: float, error: BaseException | None) -> None:
-    """Announces how a top-level request ended and drains the observer."""
+    """Announces how a top-level request ended."""
     await emit_snapshot(ContextCompletion)
     await emit(
         SessionCompleted(
@@ -122,4 +119,3 @@ async def end_top_level(start_time: float, error: BaseException | None) -> None:
             and (get_local_config().end_on_error or is_fatal(error)),
         )
     )
-    await shutdown()

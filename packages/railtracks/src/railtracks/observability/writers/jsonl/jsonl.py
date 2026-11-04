@@ -4,10 +4,14 @@ import json
 from pathlib import Path
 from typing import TextIO
 
+from railtracks.paths import ensure_gitignore
+
 from ...models import Event
 from ...storage import MEDIA_SUBDIR, resolve_events_dir
 from ._media import MediaStore, save_media_max_bytes
 from ._serialize import RTObserverEncoder
+
+_SESSION_COMPLETED = "session.completed"
 
 
 class JsonlWriter:
@@ -15,6 +19,9 @@ class JsonlWriter:
         self, directory: Path | None = None, media_directory: Path | None = None
     ):
         """Write events to ``directory`` or the shared visualizer event store.
+
+        A session's file is closed once its ``session.completed`` is written, and
+        reopened in append mode if more events arrive for it.
 
         Media in the events is recorded as metadata and a content hash, and its
         bytes are saved once per hash to ``media_directory``, by default a
@@ -30,10 +37,11 @@ class JsonlWriter:
         )
         self._files: dict[str, TextIO] = {}
 
-    async def start(self) -> None:
+    def start(self) -> None:
         self._directory.mkdir(parents=True, exist_ok=True)
+        ensure_gitignore(self._directory)
 
-    async def write(self, event: Event) -> None:
+    def write(self, event: Event) -> None:
         handle = self._files.get(event.scope_id)
         if handle is None:
             _check_safe_scope_id(event.scope_id)
@@ -44,8 +52,10 @@ class JsonlWriter:
             self._files[event.scope_id] = handle
         handle.write(_serialize(event, self._media) + "\n")
         handle.flush()
+        if event.event_type == _SESSION_COMPLETED:
+            self._files.pop(event.scope_id).close()
 
-    async def shutdown(self) -> None:
+    def shutdown(self) -> None:
         for handle in self._files.values():
             handle.flush()
             handle.close()

@@ -1219,3 +1219,83 @@ def test_tool_node_detail_and_graph_show_decision_cost(
         assert node["model_provider"] == "TypeSafe"
         # decision latency (9.0) is nested inside the node, never added to it
         assert node["latency_seconds"] != pytest.approx(9.0)
+
+
+_BLOCKED_SESSION = "33333333-4444-5555-6666-777777777777"
+
+
+def test_node_blocked_by_its_own_middleware_nests_under_its_caller_as_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ``@wrap_node`` guard on ``worker`` asks ``judge``, then raises before
+    ``worker`` runs, so only ``worker``'s ``node.destruction`` names its caller
+    and its failure."""
+
+    def node_event(
+        event_type: str, node_id: str, spatial: dict[str, object], **payload: object
+    ) -> dict[str, object]:
+        return _event(
+            f"{event_type}-{node_id}",
+            event_type,
+            _BLOCKED_SESSION,
+            {"parent_type": "node", "parent_node_id": node_id, **spatial, **payload},
+        )
+
+    root = {"spatial_parent_type": "node", "spatial_parent_node_id": None}
+    from_orchestrator = {
+        "spatial_parent_type": "node",
+        "spatial_parent_node_id": "orchestrator",
+    }
+    from_guard = {
+        "spatial_parent_type": "node_and_middleware",
+        "spatial_parent_node_id": "worker",
+        "spatial_parent_middleware_invoke_id": "guard-call",
+    }
+    _write_events(
+        tmp_path,
+        _BLOCKED_SESSION,
+        _event(
+            "session.started",
+            "session.started",
+            _BLOCKED_SESSION,
+            {"session_id": _BLOCKED_SESSION},
+        ),
+        *(
+            _event(
+                f"node.creation-{node_id}",
+                "node.creation",
+                _BLOCKED_SESSION,
+                {"node_id": node_id, "name": node_id, "node_type": "Agent"},
+            )
+            for node_id in ("orchestrator", "worker", "judge")
+        ),
+        node_event("node.invocation", "orchestrator", root),
+        node_event("node.invocation", "judge", from_guard),
+        node_event("node.destruction", "judge", from_guard, status="success"),
+        node_event("node.destruction", "worker", from_orchestrator, status="failure"),
+        node_event("node.destruction", "orchestrator", root, status="failure"),
+    )
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    client = TestClient(app)
+
+    tree = client.get(f"/api/v2/sessions/{_BLOCKED_SESSION}").json()["tree"]
+    edges = client.get(f"/api/v2/sessions/{_BLOCKED_SESSION}/graph").json()["edges"]
+
+    [orchestrator] = tree
+    [worker] = orchestrator["children"]
+    [judge] = worker["children"]
+    assert [orchestrator["node_id"], worker["node_id"], judge["node_id"]] == [
+        "orchestrator",
+        "worker",
+        "judge",
+    ]
+    assert (orchestrator["failed"], worker["failed"], judge["failed"]) == (
+        True,
+        True,
+        False,
+    )
+    assert {edge["target"]: edge["source"] for edge in edges} == {
+        "orchestrator": None,
+        "worker": "orchestrator",
+        "judge": "worker",
+    }

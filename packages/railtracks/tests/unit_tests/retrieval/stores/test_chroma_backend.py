@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+import warnings
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
 
@@ -277,19 +278,33 @@ async def test_upsert_calls_collection_with_correct_args():
     )
 
 
-async def test_upsert_passes_documents_when_content_in_payload():
+async def test_upsert_stores_content_only_as_document():
     col = _make_collection()
     backend = _injected_backend(col)
+    payload = {"content": "hello world", "scope_user_id": "alice"}
 
-    await backend.upsert(
-        "entry-1", [0.1, 0.2], {"content": "hello world", "scope_user_id": "alice"}
-    )
+    await backend.upsert("entry-1", [0.1, 0.2], payload)
 
     col.upsert.assert_called_once_with(
         ids=["entry-1"],
         embeddings=[[0.1, 0.2]],
         documents=["hello world"],
-        metadatas=[{"content": "hello world", "scope_user_id": "alice"}],
+        metadatas=[{"scope_user_id": "alice"}],
+    )
+    assert payload == {"content": "hello world", "scope_user_id": "alice"}
+
+
+async def test_upsert_omits_metadatas_when_payload_is_only_content():
+    col = _make_collection()
+    backend = _injected_backend(col)
+
+    await backend.upsert("entry-1", [0.1, 0.2], {"content": "hello world"})
+
+    col.upsert.assert_called_once_with(
+        ids=["entry-1"],
+        embeddings=[[0.1, 0.2]],
+        documents=["hello world"],
+        metadatas=None,
     )
 
 
@@ -298,29 +313,55 @@ async def test_upsert_passes_documents_when_content_in_payload():
 # ---------------------------------------------------------------------------
 
 
-async def test_search_returns_empty_when_collection_is_empty():
-    col = _make_collection(count=0)
+async def test_search_returns_empty_when_nothing_matches():
+    col = _make_collection()
+    col.query.return_value = {
+        "ids": [[]],
+        "distances": [[]],
+        "metadatas": [[]],
+        "documents": [[]],
+    }
     backend = _injected_backend(col)
 
-    result = await backend.search([1.0, 0.0], 5, {})
-
-    assert result == []
-    col.query.assert_not_called()
+    assert await backend.search([1.0, 0.0], 5, {}) == []
 
 
-async def test_search_caps_n_results_to_collection_count():
-    col = _make_collection(count=3)
+async def test_search_passes_top_k_without_counting():
+    col = _make_collection()
     col.query.return_value = {
         "ids": [["a", "b", "c"]],
         "distances": [[0.1, 0.2, 0.3]],
         "metadatas": [[{"k": "v1"}, {"k": "v2"}, {"k": "v3"}]],
+        "documents": [[None, None, None]],
     }
     backend = _injected_backend(col)
 
     await backend.search([1.0, 0.0], top_k=10, filters={})
 
     _, call_kwargs = col.query.call_args
-    assert call_kwargs["n_results"] == 3
+    assert call_kwargs["n_results"] == 10
+    col.count.assert_not_called()
+
+
+def _empty_query_collection(count: int) -> MagicMock:
+    col = _make_collection(count=count)
+    col.query.return_value = {
+        "ids": [[]],
+        "distances": [[]],
+        "metadatas": [[]],
+        "documents": [[]],
+    }
+    return col
+
+
+async def test_local_search_never_counts_even_for_large_top_k():
+    col = _empty_query_collection(count=50)
+    backend = _injected_backend(col)
+
+    await backend.search([1.0, 0.0], top_k=1000, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 1000
+    col.count.assert_not_called()
 
 
 async def test_search_converts_distance_to_score():
@@ -329,6 +370,7 @@ async def test_search_converts_distance_to_score():
         "ids": [["a", "b"]],
         "distances": [[0.1, 0.4]],
         "metadatas": [[{"scope_user_id": "alice"}, {"scope_user_id": "alice"}]],
+        "documents": [[None, None]],
     }
     backend = _injected_backend(col)
 
@@ -345,6 +387,7 @@ async def test_search_passes_where_filter():
         "ids": [["a"]],
         "distances": [[0.0]],
         "metadatas": [[{"scope_user_id": "alice"}]],
+        "documents": [[None]],
     }
     backend = _injected_backend(col)
 
@@ -352,6 +395,25 @@ async def test_search_passes_where_filter():
 
     _, call_kwargs = col.query.call_args
     assert call_kwargs["where"] == {"scope_user_id": {"$eq": "alice"}}
+
+
+async def test_search_restores_content_from_documents():
+    col = _make_collection(count=1)
+    col.query.return_value = {
+        "ids": [["a"]],
+        "distances": [[0.0]],
+        "metadatas": [[{"scope_user_id": "alice"}]],
+        "documents": [["hello world"]],
+    }
+    backend = _injected_backend(col)
+
+    hits = await backend.search([1.0, 0.0], top_k=5, filters={})
+
+    assert hits == [
+        ("a", pytest.approx(1.0), {"scope_user_id": "alice", "content": "hello world"})
+    ]
+    _, call_kwargs = col.query.call_args
+    assert "documents" in call_kwargs["include"]
 
 
 def test_chroma_to_score_cosine():
@@ -373,7 +435,12 @@ def test_chroma_to_score_ip():
 
 async def test_search_passes_no_where_when_filters_empty():
     col = _make_collection(count=1)
-    col.query.return_value = {"ids": [["a"]], "distances": [[0.0]], "metadatas": [[{}]]}
+    col.query.return_value = {
+        "ids": [["a"]],
+        "distances": [[0.0]],
+        "metadatas": [[{}]],
+        "documents": [[None]],
+    }
     backend = _injected_backend(col)
 
     await backend.search([1.0, 0.0], top_k=5, filters={})
@@ -430,19 +497,25 @@ async def test_vector_store_write_read_via_chroma():
 
     from railtracks.retrieval.stores.vector.base import _entry_to_payload
 
-    payload = _entry_to_payload(entry)
-
     col = MagicMock()
     col.count.return_value = 1
-    col.query.return_value = {
-        "ids": [[str(entry.id)]],
-        "distances": [[0.05]],
-        "metadatas": [[payload]],
-    }
 
     store = VectorStore(_injected_backend(col))
     write_id = await store.write(entry)
     assert write_id == str(entry.id)
+
+    # Serve back exactly what was written to Chroma.
+    stored = col.upsert.call_args.kwargs
+    assert "content" not in stored["metadatas"][0]
+    assert stored["metadatas"][0] == {
+        k: v for k, v in _entry_to_payload(entry).items() if k != "content"
+    }
+    col.query.return_value = {
+        "ids": [stored["ids"]],
+        "distances": [[0.05]],
+        "metadatas": [stored["metadatas"]],
+        "documents": [stored["documents"]],
+    }
 
     results = await store.read(
         StoreQuery(
@@ -472,6 +545,67 @@ def _cloud_backend(collection: MagicMock | None = None) -> ChromaCloudBackend:
     )
     backend._collection = collection
     return backend
+
+
+# ---------------------------------------------------------------------------
+# ChromaCloudBackend — n_results quota
+# ---------------------------------------------------------------------------
+
+
+async def test_cloud_search_caps_large_top_k_with_warning():
+    col = _empty_query_collection(count=500)
+    backend = _cloud_backend(col)
+
+    with pytest.warns(UserWarning, match="top_k=400 exceeds this backend's"):
+        await backend.search([1.0, 0.0], top_k=400, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 300
+    col.count.assert_not_called()
+
+
+async def test_cloud_search_within_quota_is_not_capped():
+    col = _empty_query_collection(count=50)
+    backend = _cloud_backend(col)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        await backend.search([1.0, 0.0], top_k=300, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 300
+    col.count.assert_not_called()
+
+
+async def test_cloud_search_uses_raised_max_results():
+    col = _empty_query_collection(count=5000)
+    backend = ChromaCloudBackend(
+        "c", api_key="k", tenant="t", database="d", max_results=1000
+    )
+    backend._collection = col
+
+    with pytest.warns(UserWarning):
+        await backend.search([1.0, 0.0], top_k=2000, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 1000
+
+
+async def test_cloud_search_max_results_none_never_caps():
+    col = _empty_query_collection(count=5000)
+    backend = ChromaCloudBackend(
+        "c", api_key="k", tenant="t", database="d", max_results=None
+    )
+    backend._collection = col
+
+    await backend.search([1.0, 0.0], top_k=2000, filters={})
+
+    assert col.query.call_args.kwargs["n_results"] == 2000
+
+
+@pytest.mark.parametrize("max_results", [0, -1])
+def test_cloud_rejects_non_positive_max_results(max_results):
+    with pytest.raises(ValueError, match="max_results must be positive"):
+        ChromaCloudBackend(
+            "c", api_key="k", tenant="t", database="d", max_results=max_results
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -627,6 +761,24 @@ async def test_cloud_create_factory_returns_initialized_backend():
     assert backend._collection is not None
 
 
+async def test_cloud_create_factory_passes_max_results():
+    mock_chroma = MagicMock()
+    mock_chroma.CloudClient.return_value.get_or_create_collection.return_value = (
+        _space_collection()
+    )
+
+    with patch.dict("sys.modules", {"chromadb": mock_chroma}):
+        backend = await ChromaCloudBackend.create(
+            "my-collection",
+            api_key="chk-key",
+            tenant="my-tenant",
+            database="my-db",
+            max_results=1000,
+        )
+
+    assert backend._max_results == 1000
+
+
 # ---------------------------------------------------------------------------
 # Paged get — Chroma Cloud caps the per-request limit value (#1180)
 # ---------------------------------------------------------------------------
@@ -637,6 +789,7 @@ def _paging_collection(total: int) -> MagicMock:
     Chroma Cloud per-request limit quota, mirroring the error from #1180."""
     ids = [f"id-{i}" for i in range(total)]
     metadatas = [{"i": i} for i in range(total)]
+    documents = [f"doc-{i}" for i in range(total)]
 
     def fake_get(where=None, limit=None, offset=0, include=None):
         if limit is not None and limit > 300:
@@ -649,6 +802,9 @@ def _paging_collection(total: int) -> MagicMock:
             "ids": ids[offset:end],
             "metadatas": (
                 metadatas[offset:end] if include and "metadatas" in include else None
+            ),
+            "documents": (
+                documents[offset:end] if include and "documents" in include else None
             ),
         }
 
@@ -664,8 +820,8 @@ async def test_list_where_pages_large_limits_under_cloud_cap():
     rows = await backend.list_where({"source_path": "doc"}, limit=1056)
 
     assert len(rows) == 1056
-    assert rows[0] == ("id-0", {"i": 0})
-    assert rows[-1] == ("id-1055", {"i": 1055})
+    assert rows[0] == ("id-0", {"i": 0, "content": "doc-0"})
+    assert rows[-1] == ("id-1055", {"i": 1055, "content": "doc-1055"})
     # Every underlying get stayed at or under the per-request cap.
     assert all(c.kwargs["limit"] <= 300 for c in collection.get.call_args_list)
 
@@ -732,3 +888,33 @@ async def test_real_chroma_existing_collection_with_other_space_raises(tmp_path)
         "col", path=str(tmp_path), metric=DistanceMetric.L2
     )
     assert backend._collection is not None
+
+
+async def test_real_chroma_content_stored_once_and_round_trips(tmp_path):
+    pytest.importorskip("chromadb")
+    backend = await ChromaBackend.create("col", path=str(tmp_path))
+
+    await backend.upsert("a", [1.0, 0.0], {"content": "hello", "k": 1})
+
+    raw = backend._collection.get(ids=["a"], include=["metadatas", "documents"])
+    assert raw["documents"] == ["hello"]
+    assert raw["metadatas"] == [{"k": 1}]
+
+    hits = await backend.search([1.0, 0.0], 1, {})
+    assert hits[0][2] == {"k": 1, "content": "hello"}
+    assert await backend.list_where({"k": 1}, 10) == [
+        ("a", {"k": 1, "content": "hello"})
+    ]
+
+
+async def test_real_chroma_search_handles_empty_and_oversized_top_k(tmp_path):
+    pytest.importorskip("chromadb")
+    backend = await ChromaBackend.create("col", path=str(tmp_path))
+
+    assert await backend.search([1.0, 0.0], 5, {}) == []
+
+    await backend.upsert("a", [1.0, 0.0], {"k": 1})
+    await backend.upsert("b", [0.0, 1.0], {"k": 2})
+    assert len(await backend.search([1.0, 0.0], 10, {})) == 2
+    assert [h[0] for h in await backend.search([1.0, 0.0], 10, {"k": 2})] == ["b"]
+    assert await backend.search([1.0, 0.0], 10, {"k": 3}) == []

@@ -35,11 +35,8 @@ _KEY_ORDER = ("guard_details", "llm_details", "latency")
 class NodeInternalsCollector:
     """Collects session events and rebuilds ``details.internals`` per node.
 
-    Registered as an *inline* listener rather than a ``Writer``: it holds no async
-    state, and the session document needs every event, so a bounded queue with a
-    drop policy would be the wrong mechanism. Going inline also keeps it clear of
-    the Observer's per-writer consumer tasks, which bind to the loop that created
-    them and misbehave across threads or a nested MCP server loop.
+    Registered as an *inline* listener rather than a ``Writer``, so it keeps getting
+    every event when events are disabled or the writers are replaced.
 
     :meth:`record` only buffers; the fold happens in :meth:`internals_for`, which
     keeps it independent of event ordering; guardrail events, for instance, arrive

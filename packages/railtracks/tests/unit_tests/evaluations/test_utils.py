@@ -153,3 +153,11 @@ def test_save_multiple_results(tmp_path, monkeypatch):
         assert (
             tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json"
         ).exists()
+
+
+def test_save_writes_railtracks_gitignore(tmp_path, monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+
+    save([make_evaluation_result()])
+
+    assert (tmp_path / ".railtracks" / ".gitignore").exists()

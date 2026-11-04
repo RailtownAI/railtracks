@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, get_args
 
+from railtracks.retrieval.loaders._pdf_options import validate_breakdown_strategy
 from railtracks.retrieval.loaders.base_ocr import BaseOCRLoader
 from railtracks.retrieval.models import Document, DocumentType
 
@@ -95,10 +96,9 @@ class PyPDFOCRLoader(BaseOCRLoader):
         language: str = "eng",
     ) -> None:
         self._path = Path(file_path)
-        if breakdown_strategy not in ("page", "document"):
-            raise ValueError(
-                f"breakdown_strategy must be 'page' or 'document', got {breakdown_strategy!r}"
-            )
+        validate_breakdown_strategy(
+            breakdown_strategy, allowed=get_args(BreakdownStrategy)
+        )
         if dpi <= 0:
             raise ValueError(f"dpi must be a positive integer, got {dpi!r}")
         self._breakdown_strategy = breakdown_strategy

@@ -24,7 +24,7 @@ Any node can be an entry point. An [agent node](../agent_design/overview.md#agen
 
 A **run** is one execution of a Flow, started by `invoke` or `ainvoke`. It is the scope Railtracks uses for nearly everything that is not part of an agent's own definition: [context](../advanced/context.md) lives for the length of a run, a Flow's `timeout` applies to the whole run, and per-run budgets such as [`MaxCalls`](../agent_design/middleware/prebuilt/list/max_calls.md) start fresh at the beginning of each one.
 
-Runs of the same Flow never share state. Invoking a Flow twice, or invoking it concurrently, gives each run its own context and its own graph of node invocations.
+Runs of the same Flow never share framework state. Invoking a Flow twice, or invoking it concurrently, gives each run its own context and its own graph of node invocations. Objects you place in the Flow's context are the exception: every run sees the same instance (see [Injecting Context](#injecting-context)).
 
 ## Passing Configuration
 If you want to apply configurations scoped to a specific Flow, you can pass them in during the Flow's creation.
@@ -41,7 +41,7 @@ Sometimes you may want generic context items to be available across all runs of 
 ```
 
 !!! warning
-    The context dictionaries used by Flows are passed by value. If a specific run mutates its context dictionary, those changes will not affect the original context or be passed to other runs.
+    Each run gets its own copy of the Flow's context dictionary, so `rt.context.put` and `rt.context.delete` in one run never change the Flow or other runs. The values themselves are shared by reference, the same as `rt.Session(context=...)`: a database connection or client in the context is the same object in every run, and mutating a shared value (for example, appending to a list) is visible to the caller and to later runs. `flow.update_context(...)` follows the same rule.
 
 ## Inspecting a Run
 `invoke` and `ainvoke` return only the flow's result, so anything a run built up along the way is gone once it finishes. Use `flow.connect()` when you need more than the result. It returns a `FlowConnection`, which you invoke in place of the Flow.

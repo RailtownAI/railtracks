@@ -329,3 +329,38 @@ def test_captured_scope_after_llm_call_carries_no_llm_id():
 
 
 # ============ END ContextVarScopeManager Tests ===============
+
+
+def test_claim_middleware_registration_outside_a_session_claims_nothing():
+    central.delete_globals()
+
+    assert central.claim_middleware_registration("mw") is False
+
+
+def test_claim_middleware_registration_is_once_per_session():
+    _register("s1")
+    assert central.claim_middleware_registration("mw") is True
+    assert central.claim_middleware_registration("mw") is False
+    assert central.claim_middleware_registration("other") is True
+
+    # a new session starts with an empty registry
+    _register("s2")
+    assert central.claim_middleware_registration("mw") is True
+
+
+def test_claim_middleware_registration_is_shared_across_scopes():
+    _register()
+    manager = central.ContextVarScopeManager()
+
+    with manager.enter_node("node-1"):
+        with manager.enter_middleware("mw"):
+            captured_scope = central.get_current_scope()
+            assert central.claim_middleware_registration("mw") is True
+
+    assert central.claim_middleware_registration("mw") is False
+
+    with central.restore_scope(captured_scope, None):
+        assert central.claim_middleware_registration("mw") is False
+        assert central.claim_middleware_registration("restored") is True
+
+    assert central.claim_middleware_registration("restored") is False

@@ -43,13 +43,13 @@ def _llm_event(*attachments: str) -> Event:
     )
 
 
-async def _write(writer: JsonlWriter, *events: Event) -> list[dict]:
-    await writer.start()
+def _write(writer: JsonlWriter, *events: Event) -> list[dict]:
+    writer.start()
     try:
         for event in events:
-            await writer.write(event)
+            writer.write(event)
     finally:
-        await writer.shutdown()
+        writer.shutdown()
     lines = (writer._directory / "session-1.jsonl").read_text().splitlines()
     return [json.loads(line) for line in lines]
 
@@ -59,11 +59,11 @@ def _media_parts(line: dict) -> list[dict]:
     return message["content"][1:]
 
 
-async def test_media_is_saved_once_and_recorded_by_hash(tmp_path: Path, png_path):
+def test_media_is_saved_once_and_recorded_by_hash(tmp_path: Path, png_path):
     media_dir = tmp_path / "media"
     writer = JsonlWriter(tmp_path / "events", media_directory=media_dir)
 
-    lines = await _write(writer, _llm_event(png_path), _llm_event(png_path))
+    lines = _write(writer, _llm_event(png_path), _llm_event(png_path))
 
     assert [p.name for p in media_dir.iterdir()] == [PNG_SHA256]
     assert (media_dir / PNG_SHA256).read_bytes() == PNG_BYTES
@@ -72,43 +72,43 @@ async def test_media_is_saved_once_and_recorded_by_hash(tmp_path: Path, png_path
         assert part["sha256"] == PNG_SHA256
 
 
-async def test_inline_bytes_never_reach_the_jsonl(tmp_path: Path):
+def test_inline_bytes_never_reach_the_jsonl(tmp_path: Path):
     writer = JsonlWriter(tmp_path / "events", media_directory=tmp_path / "media")
 
-    await _write(writer, _llm_event(f"data:image/png;base64,{PNG_B64}"))
+    _write(writer, _llm_event(f"data:image/png;base64,{PNG_B64}"))
 
     text = (tmp_path / "events" / "session-1.jsonl").read_text()
     assert PNG_B64 not in text
     assert PNG_SHA256 in text
 
 
-async def test_existing_media_file_is_not_rewritten(tmp_path: Path, png_path):
+def test_existing_media_file_is_not_rewritten(tmp_path: Path, png_path):
     media_dir = tmp_path / "media"
     media_dir.mkdir()
     existing = media_dir / PNG_SHA256
     existing.write_bytes(b"written by an earlier run")
     writer = JsonlWriter(tmp_path / "events", media_directory=media_dir)
 
-    await _write(writer, _llm_event(png_path))
+    _write(writer, _llm_event(png_path))
 
     assert existing.read_bytes() == b"written by an earlier run"
 
 
-async def test_limit_of_zero_saves_metadata_only(
+def test_limit_of_zero_saves_metadata_only(
     tmp_path: Path, png_path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv(MEDIA_MAX_MB_ENV, "0")
     media_dir = tmp_path / "media"
     writer = JsonlWriter(tmp_path / "events", media_directory=media_dir)
 
-    [line] = await _write(writer, _llm_event(png_path))
+    [line] = _write(writer, _llm_event(png_path))
 
     [part] = _media_parts(line)
     assert part["sha256"] == PNG_SHA256
     assert not media_dir.exists()
 
 
-async def test_limit_saves_media_up_to_the_size(
+def test_limit_saves_media_up_to_the_size(
     tmp_path: Path, png_path, monkeypatch: pytest.MonkeyPatch
 ):
     large = tmp_path / "large.png"
@@ -117,17 +117,15 @@ async def test_limit_saves_media_up_to_the_size(
     media_dir = tmp_path / "media"
     writer = JsonlWriter(tmp_path / "events", media_directory=media_dir)
 
-    await _write(writer, _llm_event(png_path, str(large)))
+    _write(writer, _llm_event(png_path, str(large)))
 
     assert [p.name for p in media_dir.iterdir()] == [PNG_SHA256]
 
 
-async def test_media_is_saved_inside_the_events_dir_by_default(
-    tmp_path: Path, png_path
-):
+def test_media_is_saved_inside_the_events_dir_by_default(tmp_path: Path, png_path):
     writer = JsonlWriter(tmp_path / "events")
 
-    await _write(writer, _llm_event(png_path))
+    _write(writer, _llm_event(png_path))
 
     assert (tmp_path / "events" / "media" / PNG_SHA256).exists()
 

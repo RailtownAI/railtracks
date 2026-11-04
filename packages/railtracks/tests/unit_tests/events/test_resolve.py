@@ -67,13 +67,27 @@ def test_nested_node_resolves_to_caller_node():
     assert node_spatial_parent(scope) == NodeSpatialParent(node_id="A")
 
 
-def test_node_called_directly_from_a_middleware_anchors_on_that_middleware():
-    # B spawned from middleware m on A: the resolver stops at the nearest MIDDLEWARE
-    # entry rather than continuing on to A. That's why NodeEventBase's spatial parent
-    # type is `NodeSpatialParent | MiddlewareSpatialParent` — resolving the rest of
-    # the way to the owning node is left to whoever consumes middleware m's own
-    # parent chain, not to this resolver.
+def test_node_called_from_a_middleware_records_the_middleware_and_its_node():
+    # B spawned from middleware m running inside A's body: m names the call, A the
+    # node it ran for
     scope = chain((N, "A"), (NB, "A"), (MW, "m", "mw-type"), (N, "B"), (NB, "B"))
+    assert node_spatial_parent(scope) == NodeAndMiddlewareSpatialParent(
+        node_id="A", middleware_invoke_id="m"
+    )
+
+
+def test_node_called_from_a_nodes_own_middleware_records_that_node():
+    # J spawned by B's own middleware (bm), which sits between NODE(B) and its body
+    scope = chain(
+        (N, "A"), (NB, "A"), (N, "B"), (MW, "bm", "mw-type"), (N, "J"), (NB, "J")
+    )
+    assert node_spatial_parent(scope) == NodeAndMiddlewareSpatialParent(
+        node_id="B", middleware_invoke_id="bm"
+    )
+
+
+def test_node_called_from_a_middleware_outside_any_node_records_only_the_middleware():
+    scope = chain((LLM, "l", "llm-type"), (MW, "m", "mw-type"), (N, "B"), (NB, "B"))
     assert node_spatial_parent(scope) == MiddlewareSpatialParent(
         middleware_invoke_id="m"
     )
@@ -85,10 +99,9 @@ def test_nodes_own_middleware_does_not_shift_its_enclosing_node():
     assert node_spatial_parent(scope) == NodeSpatialParent(node_id="A")
 
 
-def test_node_called_from_a_model_middleware_anchors_on_that_middleware():
-    # C spawned by a model-middleware while A's LLM call is open: same rule as above
-    # — the resolver anchors on the nearest MIDDLEWARE entry (model-mw), not on the
-    # LLM call or node underneath it.
+def test_node_called_from_a_model_middleware_records_the_node_under_the_llm_call():
+    # C spawned by a model-middleware while A's LLM call is open: the LLM call is
+    # skipped, as it is when a guard blocks before any llm.* event fires
     scope = chain(
         (N, "A"),
         (NB, "A"),
@@ -97,8 +110,8 @@ def test_node_called_from_a_model_middleware_anchors_on_that_middleware():
         (N, "C"),
         (NB, "C"),
     )
-    assert node_spatial_parent(scope) == MiddlewareSpatialParent(
-        middleware_invoke_id="model-mw"
+    assert node_spatial_parent(scope) == NodeAndMiddlewareSpatialParent(
+        node_id="A", middleware_invoke_id="model-mw"
     )
 
 

@@ -74,7 +74,7 @@ Given the LLM powering your agent, you can pass image inputs to your multimodal 
 ```
 The `attachment` parameter can be a single `str` or a `list[str]`. We currently support the following:
 
-- Both file and web URLs of the following types: `jpeg`, `png`, `gif`, and `webp`
+- Both file and web URLs of the following types: `jpeg`, `png`, `gif`, `webp`, and `avif` (OpenAI, Anthropic and Gemini do not accept `avif`, but some OpenAI-compatible servers do)
 - `byte64` encoded string of the image
 
 A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names an audio, video, text or Office document file (such as `.mp3`, `.mp4` or `.docx`) raises a `ValueError`, since those formats are not supported as attachments yet. With `trust_urls=True`, such a URL is HEAD-probed first and accepted when the server reports an image or PDF, for example a thumbnail service that renders a frame from a `.mp4` path.
