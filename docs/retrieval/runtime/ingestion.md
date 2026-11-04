@@ -56,7 +56,7 @@ Failures are surfaced as events, not raised. This results in bulk re-indexing ac
 
 ## Unreadable and failing documents
 
-One bad document never ends the run by default. A file that isn't valid UTF-8, a corrupt or encrypted PDF, or a bucket object with a text extension that doesn't decode is reported as a `DocumentFailed` and the rest of the corpus is still ingested. The same applies when the chunker or a store write raises for one document. Binary objects without a text extension, such as images, are still skipped with a warning.
+One bad document never ends the run by default. A file that isn't valid UTF-8, a corrupt or encrypted PDF, or a bucket object with a text extension that doesn't decode is reported as a `DocumentFailed` and the rest of the corpus is still ingested. The same applies when a sanitizer, the chunker, or a store write raises for one document. Binary objects without a text extension, such as images, are still skipped with a warning.
 
 `DocumentFailed.stage` tells you where it failed:
 
@@ -126,6 +126,8 @@ normalization:
 ```python
 --8<-- "docs/scripts/retrieval/ingestion_example.py:sanitizing"
 ```
+
+If `sanitize` raises, that document is dropped rather than ingested unsanitized: `SanitizingLoader` yields a `LoadFailure` in its place, and the runtime reports it as a `DocumentFailed` with `stage="load"`.
 
 Sanitization runs once per document, not per chunk; content_hash is
 computed on the sanitized text, so the skip-by-hash path stays accurate.

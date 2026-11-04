@@ -8,6 +8,7 @@ inject failures.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
 from uuid import uuid4
 
@@ -820,15 +821,89 @@ async def test_sanitizing_loader_sanitizer_protocol():
     assert isinstance(_UpperSanitizer(), Sanitizer)
 
 
-async def test_sanitizer_errors_propagate():
-    class _Boom:
-        def sanitize(self, document: Document) -> Document:
-            raise RuntimeError("redaction failure")
+class _RejectConfidentialSanitizer:
+    """Raises for any document containing ``CONFIDENTIAL``."""
 
-    inner = _ListLoader([Document(content="x")])
-    loader = SanitizingLoader(inner, _Boom())
-    with pytest.raises(RuntimeError, match="redaction failure"):
-        [_ async for _ in loader.astream()]
+    def sanitize(self, document: Document) -> Document:
+        if "CONFIDENTIAL" in document.content:
+            raise ValueError(f"cannot safely redact {document.source!r}")
+        return document
+
+
+async def test_sanitizer_error_yields_load_failure_and_stream_continues():
+    inner = _ListLoader(
+        [
+            Document(content="first", source="a.txt"),
+            Document(content="CONFIDENTIAL second", source="b.txt"),
+            Document(content="third", source="c.txt"),
+        ]
+    )
+    loader = SanitizingLoader(inner, _RejectConfidentialSanitizer())
+
+    items = [item async for item in loader.astream()]
+
+    assert [type(i) for i in items] == [Document, LoadFailure, Document]
+    assert items[1].source == "b.txt"
+    assert isinstance(items[1].error, ValueError)
+
+
+async def test_async_sanitizer_error_yields_load_failure():
+    class _AsyncBoom:
+        async def sanitize(self, document: Document) -> Document:
+            raise RuntimeError("redaction service down")
+
+    loader = SanitizingLoader(
+        _ListLoader([Document(content="x", source="x.txt")]), _AsyncBoom()
+    )
+
+    (item,) = [item async for item in loader.astream()]
+
+    assert isinstance(item, LoadFailure)
+    assert isinstance(item.error, RuntimeError)
+
+
+async def test_sanitizer_failure_source_falls_back_to_document_id():
+    doc = Document(content="CONFIDENTIAL")
+    loader = SanitizingLoader(_ListLoader([doc]), _RejectConfidentialSanitizer())
+
+    (item,) = [item async for item in loader.astream()]
+
+    assert isinstance(item, LoadFailure)
+    assert item.source == str(doc.id)
+
+
+async def test_sanitizer_error_raises_from_aload():
+    loader = SanitizingLoader(
+        _ListLoader([Document(content="CONFIDENTIAL", source="b.txt")]),
+        _RejectConfidentialSanitizer(),
+    )
+
+    with pytest.raises(ValueError, match="cannot safely redact"):
+        await loader.aload()
+
+
+async def test_sanitizer_error_is_skipped_by_runtime():
+    runtime, store, _ = _runtime()
+    loader = SanitizingLoader(
+        _ListLoader(
+            [
+                Document(content="first", source="a.txt"),
+                Document(content="CONFIDENTIAL second", source="b.txt"),
+                Document(content="third", source="c.txt"),
+            ]
+        ),
+        _RejectConfidentialSanitizer(),
+    )
+
+    stats = await runtime.ingest_all(loader)
+
+    assert [(f.stage, f.source) for f in stats.failed_documents] == [("load", "b.txt")]
+    assert {
+        e.chunk_metadata["source_path"] for e in await store.find({}, limit=10)
+    } == {
+        "a.txt",
+        "c.txt",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1022,6 +1097,17 @@ async def test_on_ingest_callback_errors_propagate():
 
     with pytest.raises(RuntimeError, match="callback bug"):
         await runtime.ingest_all(_ListLoader([Document(content="alpha")]))
+
+
+async def test_document_failed_logs_a_warning(caplog: pytest.LogCaptureFixture):
+    runtime, _, _ = _runtime()
+    loader = _ListLoader([LoadFailure(source="bad.txt", error=ValueError("bad"))])
+
+    with caplog.at_level(logging.WARNING):
+        await runtime.ingest_all(loader)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("bad.txt" in m and "'load'" in m and "ValueError" in m for m in messages)
 
 
 def test_invalid_on_error_raises():

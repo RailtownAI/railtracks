@@ -14,6 +14,10 @@ and wrap their existing loader::
 the loader awaits it. Use the async form for I/O-heavy redaction
 (remote DLP services, vector classifiers); use sync for pure regex /
 string work. No PII logic is baked into the framework.
+
+If ``sanitize`` raises, that document is dropped and yielded as a
+``LoadFailure`` instead, so unsanitized content never reaches the
+embedder and the remaining documents still load.
 """
 
 from __future__ import annotations
@@ -34,7 +38,9 @@ class Sanitizer(Protocol):
     Implementations may modify and return the input, or return a fresh
     ``Document``. ``sanitize`` may be synchronous or asynchronous (the
     return type may be a ``Document`` or an ``Awaitable[Document]``).
-    Errors raised here propagate; the framework does not swallow them.
+    An error raised here drops that document: ``SanitizingLoader`` yields
+    it as a ``LoadFailure``, which ``RetrievalRuntime`` reports as a
+    ``DocumentFailed`` and ``load()``/``aload()`` raise.
     """
 
     def sanitize(self, document: Document) -> Union[Document, Awaitable[Document]]: ...
@@ -43,7 +49,8 @@ class Sanitizer(Protocol):
 class SanitizingLoader(BaseDocumentLoader):
     """Wraps an inner loader and runs every yielded document through a
     caller-supplied ``Sanitizer``. ``LoadFailure`` items from the inner
-    loader are passed through unchanged."""
+    loader are passed through unchanged, and a document whose sanitizer
+    raises is yielded as a ``LoadFailure`` in its place."""
 
     def __init__(self, inner: BaseDocumentLoader, sanitizer: Sanitizer) -> None:
         self._inner = inner
@@ -54,7 +61,12 @@ class SanitizingLoader(BaseDocumentLoader):
             if isinstance(doc, LoadFailure):
                 yield doc
                 continue
-            result = self._sanitizer.sanitize(doc)
-            if inspect.isawaitable(result):
-                result = await result
+            try:
+                result = self._sanitizer.sanitize(doc)
+                if inspect.isawaitable(result):
+                    result = await result
+            except Exception as exc:
+                source = doc.source if doc.source is not None else str(doc.id)
+                yield LoadFailure(source=source, error=exc)
+                continue
             yield result
