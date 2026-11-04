@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
 from railtracks.retrieval.models import DocumentType
 
@@ -277,3 +278,56 @@ class TestPyPDFLoaderDirectory:
                 str(tmp_path), breakdown_strategy="document"
             ).aload()
         assert len(docs) == 1
+
+
+class TestPyPDFLoaderUnreadableFiles:
+    """Tests for corrupt or encrypted PDFs."""
+
+    async def test_corrupt_pdf_in_directory_yields_load_failure(self, tmp_path):
+        from pypdf.errors import PdfReadError
+
+        for name in ("a.pdf", "b.pdf", "c.pdf"):
+            (tmp_path / name).touch()
+        reader = _make_reader(["content"])
+
+        def _open(path: str) -> MagicMock:
+            if path.endswith("b.pdf"):
+                raise PdfReadError("EOF marker not found")
+            return reader
+
+        with patch(
+            "railtracks.retrieval.loaders.pdf_loader.PdfReader", side_effect=_open
+        ):
+            items = [item async for item in PyPDFLoader(str(tmp_path)).astream()]
+
+        assert [type(i).__name__ for i in items] == [
+            "Document",
+            "LoadFailure",
+            "Document",
+        ]
+        assert items[1].source == str(tmp_path / "b.pdf")
+        assert isinstance(items[1].error, PdfReadError)
+
+    async def test_page_extraction_error_keeps_earlier_pages(self, tmp_path):
+        f = tmp_path / "doc.pdf"
+        f.touch()
+        reader = _make_reader(["page one", "page two"])
+        reader.pages[1].extract_text.side_effect = ValueError("bad content stream")
+
+        with patch(
+            "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+        ):
+            items = [item async for item in PyPDFLoader(str(f)).astream()]
+
+        assert items[0].content == "page one"
+        assert isinstance(items[1], LoadFailure)
+        assert len(items) == 2
+
+    async def test_real_corrupt_pdf_yields_load_failure(self, tmp_path):
+        f = tmp_path / "corrupt.pdf"
+        f.write_bytes(b"this is not a pdf")
+
+        items = [item async for item in PyPDFLoader(str(f)).astream()]
+
+        assert len(items) == 1
+        assert isinstance(items[0], LoadFailure)
