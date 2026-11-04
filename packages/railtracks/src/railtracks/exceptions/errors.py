@@ -63,7 +63,12 @@ class LLMError(NodeInvocationError):
     Being a `NodeInvocationError` lets callers branch on both axes at once: catch
     `NodeInvocationError` for "a node terminated", then test for `LLMError` to ask
     whether the LLM caused it.
+
+    ``retry_exhausted`` is True when the model call already ran out of retries, so
+    outer retry layers propagate the error instead of retrying it.
     """
+
+    retry_exhausted: bool = False
 
     def __init__(
         self,

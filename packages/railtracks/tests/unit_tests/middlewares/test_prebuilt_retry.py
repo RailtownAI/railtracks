@@ -1,14 +1,21 @@
 """Unit tests for the prebuilt Retry middleware: `rt.prebuilt.middleware.Retry`.
 
-Retry is slot-agnostic — it only re-invokes `call` — so the tests wire it
-directly via `.wrap(fake_call)` with arbitrary signatures.
+Retry is slot-agnostic — it only re-invokes `call` — so most tests wire it
+directly via `.wrap(fake_call)` with arbitrary signatures; the rest run it on an
+agent node.
 """
 
 from __future__ import annotations
 
 import litellm
 import pytest
-from railtracks.llm._exceptions import RetryError
+import railtracks as rt
+from railtracks.exceptions import LLMRateLimitError, LLMTimeoutError
+from railtracks.llm._exceptions import (
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    RetryError,
+)
 from railtracks.llm.retries import ExponentialRetry, FixedRetry
 from railtracks.middleware import Middleware
 from railtracks.prebuilt.middleware import Retry
@@ -105,3 +112,91 @@ async def test_kwargs_are_forwarded_on_every_attempt():
 
     assert result == "hello"
     assert seen == ["hello", "hello"]
+
+
+def _counting(factory, calls):
+    def make():
+        calls["n"] += 1
+        return factory()
+
+    return make
+
+
+@pytest.mark.parametrize(
+    "provider_error", [ProviderRateLimitError, ProviderTimeoutError]
+)
+async def test_agent_node_retries_with_default_retry_on(mock_llm, provider_error):
+    calls = {"n": 0}
+    llm = mock_llm(errors=[_counting(lambda: provider_error("transient"), calls)] * 2)
+    agent = rt.agent_node("Agent", llm=llm, middleware=[_no_sleep_retry()])
+
+    result = await rt.Flow(name="Retry agent", entry_point=agent).ainvoke("Hello")
+
+    assert result.text == "mocked Message"
+    assert calls["n"] == 2
+
+
+@pytest.mark.parametrize(
+    "provider_error, node_error",
+    [
+        (ProviderRateLimitError, LLMRateLimitError),
+        (ProviderTimeoutError, LLMTimeoutError),
+    ],
+)
+async def test_agent_node_exhaustion_raises_retry_error(
+    mock_llm, provider_error, node_error
+):
+    calls = {"n": 0}
+    llm = mock_llm(errors=[_counting(lambda: provider_error("transient"), calls)] * 5)
+    agent = rt.agent_node("Agent", llm=llm, middleware=[_no_sleep_retry()])
+
+    with pytest.raises(RetryError) as exc:
+        await rt.Flow(name="Retry agent", entry_point=agent).ainvoke("Hello")
+
+    assert calls["n"] == 3
+    assert [type(e) for e in exc.value.exception_list] == [node_error] * 3
+
+
+@pytest.mark.parametrize("model_layer", ["retry_approach", "model_middleware"])
+async def test_node_retry_does_not_restart_an_exhausted_model_retry(
+    mock_llm, model_layer
+):
+    calls = {"n": 0}
+    llm = mock_llm(
+        errors=[_counting(_rate_limit_error, calls)] * 20,
+        retry_approach=(
+            FixedRetry(max_tries=3, delay=0.0)
+            if model_layer == "retry_approach"
+            else None
+        ),
+    )
+    agent = rt.agent_node(
+        "Agent",
+        llm=llm,
+        middleware=[_no_sleep_retry()],
+        model_middleware=(
+            [_no_sleep_retry()] if model_layer == "model_middleware" else None
+        ),
+    )
+
+    with pytest.raises(LLMRateLimitError) as exc:
+        await rt.Flow(name="Stacked retries", entry_point=agent).ainvoke("Hello")
+
+    assert calls["n"] == 3
+    assert exc.value.retry_exhausted
+
+
+async def test_exhausted_error_propagates_even_with_broad_retry_on():
+    calls = {"n": 0}
+    exhausted = LLMRateLimitError("rate limited")
+    exhausted.retry_exhausted = True
+
+    async def already_retried():
+        calls["n"] += 1
+        raise exhausted
+
+    with pytest.raises(LLMRateLimitError) as exc:
+        await _no_sleep_retry(retry_on=(Exception,)).wrap(already_retried)()
+
+    assert exc.value is exhausted
+    assert calls["n"] == 1

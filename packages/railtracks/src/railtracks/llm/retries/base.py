@@ -60,7 +60,8 @@ class RetryApproach(ABC):
 
         Raises:
             RetryError: All attempts failed; ``exception_list`` holds every error.
-            Exception: Any non-retryable exception propagates immediately.
+            Exception: Non-retryable errors and errors marked ``retry_exhausted``
+                propagate immediately, preserving an inner retry layer's budget.
         """
         retryable = retry_on if retry_on is not None else _RETRYABLE_EXCEPTIONS
         exceptions: list[Exception] = []
@@ -69,6 +70,8 @@ class RetryApproach(ABC):
             try:
                 return completion()
             except retryable as e:
+                if getattr(e, "retry_exhausted", False) is True:
+                    raise
                 exceptions.append(e)
                 if attempt == self._max_tries - 1:
                     raise RetryError(
@@ -96,6 +99,8 @@ class RetryApproach(ABC):
             try:
                 return await completion()
             except retryable as e:
+                if getattr(e, "retry_exhausted", False) is True:
+                    raise
                 exceptions.append(e)
                 if attempt == self._max_tries - 1:
                     raise RetryError(
