@@ -7,7 +7,9 @@ from litellm.types.utils import EmbeddingResponse, Usage
 from railtracks.retrieval.embedding import AzureEmbedding
 
 
-def _embedding_response(vectors: list[list[float]], *, model: str = "azure/my-deploy") -> EmbeddingResponse:
+def _embedding_response(
+    vectors: list[list[float]], *, model: str = "azure/my-deploy"
+) -> EmbeddingResponse:
     data = [
         {"embedding": v, "index": i, "object": "embedding"}
         for i, v in enumerate(vectors)
