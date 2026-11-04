@@ -45,3 +45,4 @@ def test_embedded_retrieved_and_result():
     result = RetrievalResult(query="q", chunks=[retrieved])
     assert result.total_candidates is None
     assert result.metadata == {}
+    assert result.embedding_metrics is None

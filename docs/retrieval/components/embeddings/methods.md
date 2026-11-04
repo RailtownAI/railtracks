@@ -138,7 +138,12 @@ LiteLLMEmbedding(
 | `api_key` | Provider API key. Falls back to the provider's env var. |
 | `api_base` | Override the default base URL. |
 | `api_version` | API version (required for some providers). |
-| `**litellm_kwargs` | Any additional keyword arguments forwarded to `litellm.aembedding`. |
+| `**litellm_kwargs` | Any additional keyword arguments forwarded to `litellm.aembedding`. Pass `base_model` for Azure custom-deployment cost mapping (used by `litellm.completion_cost`, not sent on the embed request). |
+
+Embedding cost comes from `litellm.completion_cost`, so free/local models
+(e.g. Ollama) report `0.0` rather than `None`. Custom LiteLLM embedding
+pricing only registers when **both** `input_cost_per_token` and
+`output_cost_per_token` are set.
 
 ```python
 from railtracks.retrieval.embedding import LiteLLMEmbedding
