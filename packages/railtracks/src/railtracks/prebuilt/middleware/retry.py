@@ -5,11 +5,18 @@ from typing import Any
 from typing_extensions import Never
 
 from railtracks.exceptions import LLMRateLimitError, LLMTimeoutError
+from railtracks.llm import ProviderRateLimitError, ProviderTimeoutError
 from railtracks.llm.retries import ExponentialRetry, RetryApproach
 from railtracks.llm.retries.base import _RETRYABLE_EXCEPTIONS
 from railtracks.middleware.core import Middleware
 
-_DEFAULT_RETRY_ON = (*_RETRYABLE_EXCEPTIONS, LLMTimeoutError, LLMRateLimitError)
+_DEFAULT_RETRY_ON = (
+    *_RETRYABLE_EXCEPTIONS,
+    ProviderTimeoutError,
+    ProviderRateLimitError,
+    LLMTimeoutError,
+    LLMRateLimitError,
+)
 
 
 class Retry(Middleware[Any, Any, Never]):
@@ -38,11 +45,12 @@ class Retry(Middleware[Any, Any, Never]):
         approach: Backoff strategy; defaults to
             :class:`~railtracks.llm.retries.ExponentialRetry` with ``max_tries``.
         retry_on: Exception types worth retrying. Defaults to the transient LLM
-            provider errors (rate limits, timeouts, connection failures) plus the
-            agent node's ``LLMTimeoutError`` and ``LLMRateLimitError``. Pass your own
-            tuple to replace these defaults. Anything not in the tuple propagates
-            immediately, as does an error whose model call already ran out of
-            retries (``retry_exhausted``).
+            provider errors (rate limits, timeouts, connection failures), the
+            ``ProviderTimeoutError`` and ``ProviderRateLimitError`` model middleware
+            sees, and the agent node's ``LLMTimeoutError`` and ``LLMRateLimitError``.
+            Pass your own tuple to replace these defaults. Anything not in the tuple
+            propagates immediately, as does an error whose model call already ran
+            out of retries (``retry_exhausted``).
     """
 
     def __init__(

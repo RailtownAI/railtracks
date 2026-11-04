@@ -173,11 +173,14 @@ def classify_provider_error(exc: BaseException) -> type[ProviderError] | None:
     """The `ProviderError` subclass that best describes `exc`, or None if none do.
 
     Looks through a `RetryError` at what was actually retried, so an exhausted retry of
-    timeouts classifies as a timeout.
+    timeouts classifies as a timeout, whether the attempts raised litellm's errors or
+    already-translated ones.
     """
     if isinstance(exc, RetryError):
         underlying = exc.exception_list[-1] if exc.exception_list else None
         return classify_provider_error(underlying) if underlying else None
+    if isinstance(exc, ProviderError):
+        return type(exc)
     for litellm_type, provider_type in _LITELLM_ERROR_MAP:
         if isinstance(exc, litellm_type):
             return provider_type
