@@ -56,7 +56,7 @@ Failures are surfaced as events, not raised. This results in bulk re-indexing ac
 
 ## Unreadable and failing documents
 
-One bad document never ends the run by default. A file that isn't valid UTF-8, a corrupt or encrypted PDF, or a binary object in a bucket is reported as a `DocumentFailed` and the rest of the corpus is still ingested. The same applies when the chunker or a store write raises for one document.
+One bad document never ends the run by default. A file that isn't valid UTF-8, a corrupt or encrypted PDF, or a bucket object with a text extension that doesn't decode is reported as a `DocumentFailed` and the rest of the corpus is still ingested. The same applies when the chunker or a store write raises for one document. Binary objects without a text extension, such as images, are still skipped with a warning.
 
 `DocumentFailed.stage` tells you where it failed:
 
