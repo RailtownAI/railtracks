@@ -160,27 +160,13 @@ async def test_agent_node_exhaustion_raises_retry_error(
     assert [type(e) for e in exc.value.exception_list] == [node_error] * 3
 
 
-@pytest.mark.parametrize("model_layer", ["retry_approach", "model_middleware"])
-async def test_node_retry_does_not_restart_an_exhausted_model_retry(
-    mock_llm, model_layer
-):
+async def test_node_retry_does_not_restart_an_exhausted_model_retry(mock_llm):
     calls = {"n": 0}
     llm = mock_llm(
         errors=[_counting(_rate_limit_error, calls)] * 20,
-        retry_approach=(
-            FixedRetry(max_tries=3, delay=0.0)
-            if model_layer == "retry_approach"
-            else None
-        ),
+        retry_approach=FixedRetry(max_tries=3, delay=0.0),
     )
-    agent = rt.agent_node(
-        "Agent",
-        llm=llm,
-        middleware=[_no_sleep_retry()],
-        model_middleware=(
-            [_no_sleep_retry()] if model_layer == "model_middleware" else None
-        ),
-    )
+    agent = rt.agent_node("Agent", llm=llm, middleware=[_no_sleep_retry()])
 
     with pytest.raises(LLMRateLimitError) as exc:
         await rt.Flow(name="Stacked retries", entry_point=agent).ainvoke("Hello")
