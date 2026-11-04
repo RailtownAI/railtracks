@@ -552,6 +552,7 @@ class RetrievalRuntime:
         )
         stats.documents_failed += 1
         stats.failed_documents.append(failed)
+        logger.warning("Could not ingest %s (stage %r): %r", source, stage, errors[-1])
         return failed
 
     async def delete_document(self, document_id: UUID) -> None:
