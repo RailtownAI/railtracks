@@ -62,7 +62,7 @@ One bad document never ends the run by default. A file that isn't valid UTF-8, a
 
 | `stage` | What happened | What is in the store |
 |---|---|---|
-| `"load"` | The loader could not read the source. `document_id` is `None`; `source` names the file or object. | Nothing new. |
+| `"load"` | The loader could not read the source. `document_id` is `None`; `source` names the file or object. | Any documents the source yielded before the error, such as earlier PDF pages. |
 | `"chunk"` | The chunker raised. | Nothing new; any prior version is untouched. |
 | `"embed"` | At least one embedding batch failed, or a chunk exceeded `max_tokens`. | The successful batches, so the document is partial. |
 | `"store"` | A store read or write raised. | Whatever was written before the error, so the document may be partial. |
