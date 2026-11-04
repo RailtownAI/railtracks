@@ -150,6 +150,9 @@ class _ChromaBase:
         metadata = {k: v for k, v in payload.items() if k != "content"}
         content = payload.get("content")
         embeddings: PyEmbeddings = [vector]
+        # Chroma's upsert merges metadata into an existing record, so keys the
+        # new payload no longer has would survive. Delete first to replace it.
+        await asyncio.to_thread(collection.delete, ids=[id])
         await asyncio.to_thread(
             collection.upsert,
             ids=[id],
