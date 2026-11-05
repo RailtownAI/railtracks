@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -30,6 +31,10 @@ class StoreScope:
         StoreScope(labels={"agent_id": "docs-bot", "session_id": "s1"})  # agent context
         StoreScope(labels={"account_id": 42, "is_prod": True})  # non-string scalars
 
+    Scopes match exactly: ``{"tenant": "alice"}`` does not match an entry
+    written with ``{"tenant": "alice", "env": "prod"}``. An empty scope is the
+    same as no scope and matches only unscoped entries.
+
     The ``scope_`` prefix applied in :meth:`to_payload_filters` avoids key
     collisions in flat payload dicts that also carry content fields.
     """
@@ -38,6 +43,22 @@ class StoreScope:
 
     def to_payload_filters(self) -> dict[str, Any]:
         return {f"scope_{k}": v for k, v in self.labels.items()}
+
+    def to_key(self) -> str:
+        """Canonical string for this exact label set, independent of label order."""
+        return json.dumps(dict(self.labels), sort_keys=True, separators=(",", ":"))
+
+
+# Payload key holding StoreScope.to_key(), so filters can match a scope exactly.
+SCOPE_KEY = "scope"
+
+
+def exact_scope_filter(scope: StoreScope | None) -> dict[str, str]:
+    """Equality filter matching entries written with exactly ``scope``.
+
+    ``None`` and an empty ``StoreScope`` both match only unscoped entries.
+    """
+    return {SCOPE_KEY: (scope if scope is not None else StoreScope()).to_key()}
 
 
 @dataclass
