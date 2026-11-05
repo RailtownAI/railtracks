@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import builtins
 import warnings
-from unittest.mock import MagicMock, PropertyMock, patch
+from dataclasses import replace
+from unittest.mock import MagicMock, PropertyMock, call, patch
 from uuid import uuid4
 
 import pytest
@@ -306,6 +307,23 @@ async def test_upsert_omits_metadatas_when_payload_is_only_content():
         documents=["hello world"],
         metadatas=None,
     )
+
+
+async def test_upsert_deletes_existing_record_first():
+    col = _make_collection()
+    backend = _injected_backend(col)
+
+    await backend.upsert("entry-1", [0.1, 0.2], {"k": 1})
+
+    assert col.mock_calls == [
+        call.delete(ids=["entry-1"]),
+        call.upsert(
+            ids=["entry-1"],
+            embeddings=[[0.1, 0.2]],
+            documents=None,
+            metadatas=[{"k": 1}],
+        ),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -918,3 +936,15 @@ async def test_real_chroma_search_handles_empty_and_oversized_top_k(tmp_path):
     assert len(await backend.search([1.0, 0.0], 10, {})) == 2
     assert [h[0] for h in await backend.search([1.0, 0.0], 10, {"k": 2})] == ["b"]
     assert await backend.search([1.0, 0.0], 10, {"k": 3}) == []
+
+
+async def test_real_chroma_rewrite_drops_stale_chunk_metadata(tmp_path):
+    pytest.importorskip("chromadb")
+    store = VectorStore(await ChromaBackend.create("col", path=str(tmp_path)))
+    entry = replace(_make_entry(), chunk_metadata={"page": 3, "tags": ["a"]})
+
+    await store.write(entry)
+    await store.write(replace(entry, chunk_metadata={"page": 4}))
+
+    [got] = await store.find({"page": 4})
+    assert got.chunk_metadata == {"page": 4}
