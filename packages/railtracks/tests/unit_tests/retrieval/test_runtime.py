@@ -35,7 +35,7 @@ from railtracks.retrieval.loaders.sanitizing import (
 from railtracks.retrieval.models import Chunk
 from railtracks.retrieval.runtime import _content_hash
 from railtracks.retrieval.stores import StoreScope, VectorStore
-from railtracks.retrieval.stores.models import StoreEntry
+from railtracks.retrieval.stores.models import StoreEntry, exact_scope_filter
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
 
 # ---------------------------------------------------------------------------
@@ -192,7 +192,7 @@ async def test_delete_where_called_before_first_write_only():
     async for _ in runtime.ingest(_ListLoader([doc])):
         pass
 
-    assert calls == [{"document_id": str(doc.id)}]
+    assert calls == [{"document_id": str(doc.id), **exact_scope_filter(None)}]
 
 
 async def test_total_failure_preserves_prior_version():
@@ -395,6 +395,107 @@ async def test_reingest_does_not_clobber_other_tenants_entries():
 
     alice_entries = await store.find({"scope_user_id": "alice"}, limit=10)
     assert {e.content for e in alice_entries} == {"alpha", "beta"}
+
+
+_ALICE = StoreScope(labels={"tenant": "alice"})
+_ALICE_PROD = StoreScope(labels={"tenant": "alice", "env": "prod"})
+_BOB = StoreScope(labels={"tenant": "bob"})
+
+
+async def _contents(runtime: RetrievalRuntime, scope: StoreScope | None) -> set[str]:
+    result = await runtime.retrieve("q", top_k=50, scope=scope)
+    return {c.chunk.content for c in result.chunks}
+
+
+async def _ingest(
+    runtime: RetrievalRuntime, content: str, scope: StoreScope | None
+) -> list:
+    loader = _ListLoader([Document(source="README.md", content=content)])
+    return [e async for e in runtime.ingest(loader, scope=scope)]
+
+
+async def _runtime_with_mixed_scopes() -> RetrievalRuntime:
+    """One runtime holding the same source under four scopes."""
+    runtime, _, _ = _runtime()
+    await _ingest(runtime, "alice", _ALICE)
+    await _ingest(runtime, "prod", _ALICE_PROD)
+    await _ingest(runtime, "bob", _BOB)
+    await _ingest(runtime, "shared", None)
+    return runtime
+
+
+async def test_mixed_scopes_land_side_by_side():
+    runtime = await _runtime_with_mixed_scopes()
+
+    assert await _contents(runtime, _ALICE) == {"alice"}
+    assert await _contents(runtime, _ALICE_PROD) == {"prod"}
+    assert await _contents(runtime, _BOB) == {"bob"}
+    assert await _contents(runtime, StoreScope()) == {"shared"}
+    assert await _contents(runtime, None) == {"alice", "prod", "bob", "shared"}
+
+
+async def test_metadata_filters_cannot_reach_another_scope():
+    runtime = await _runtime_with_mixed_scopes()
+
+    result = await runtime.retrieve(
+        "q", scope=_BOB, metadata_filters={"scope_tenant": "alice"}
+    )
+
+    assert result.chunks == []
+
+
+async def test_delete_document_only_deletes_within_scope():
+    runtime = await _runtime_with_mixed_scopes()
+    doc_id = Document(source="README.md", content="").id
+
+    await runtime.delete_document(doc_id, scope=_ALICE)
+
+    assert await _contents(runtime, None) == {"prod", "bob", "shared"}
+
+
+async def test_delete_document_without_scope_deletes_only_unscoped_copy():
+    runtime = await _runtime_with_mixed_scopes()
+    doc_id = Document(source="README.md", content="").id
+
+    await runtime.delete_document(doc_id)
+
+    assert await _contents(runtime, None) == {"alice", "prod", "bob"}
+
+
+@pytest.mark.parametrize(
+    ("scope", "replaced"),
+    [(None, "shared"), (_ALICE, "alice"), (_ALICE_PROD, "prod")],
+)
+async def test_reingest_replaces_only_the_same_scope(scope, replaced):
+    runtime = await _runtime_with_mixed_scopes()
+
+    await _ingest(runtime, "updated", scope)
+
+    everything = {"alice", "prod", "bob", "shared"}
+    assert await _contents(runtime, None) == everything - {replaced} | {"updated"}
+
+
+@pytest.mark.parametrize("scope", [None, _ALICE])
+async def test_skip_check_only_sees_the_same_scope(scope):
+    """Content stored under other scopes doesn't make this one's ingest a skip."""
+    runtime, _, _ = _runtime()
+    for other in (None, _ALICE, _ALICE_PROD, _BOB):
+        if other != scope:
+            await _ingest(runtime, "same", other)
+
+    events = await _ingest(runtime, "same", scope)
+
+    assert not any(isinstance(e, DocumentSkipped) for e in events)
+    assert await _contents(runtime, scope or StoreScope()) == {"same"}
+
+
+@pytest.mark.parametrize("scope", [None, _ALICE])
+async def test_reingest_of_unchanged_document_is_skipped_within_scope(scope):
+    runtime = await _runtime_with_mixed_scopes()
+
+    events = await _ingest(runtime, "alice" if scope is not None else "shared", scope)
+
+    assert any(isinstance(e, DocumentSkipped) for e in events)
 
 
 async def test_retrieve_raises_on_model_mismatch():
