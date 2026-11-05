@@ -21,8 +21,7 @@ class LiteLLMEmbedding(Embedding):
     (e.g. ``openai/...``, ``azure/...``). ``aembed`` makes one API call per
     invocation; use ``astream_batches`` for large inputs.
 
-    Cost is read via ``litellm.completion_cost`` (not the private
-    ``_hidden_params["response_cost"]`` field). Free/local models such as
+    Cost is read via ``litellm.completion_cost``. Free/local models such as
     Ollama therefore report ``0.0`` instead of ``None``. Custom Azure
     deployment names need ``base_model`` (passed through ``**litellm_kwargs``)
     so LiteLLM can map pricing. Custom embedding pricing in LiteLLM only
@@ -63,10 +62,8 @@ class LiteLLMEmbedding(Embedding):
         if not texts:
             return TextEmbeddings(vectors=[], metrics=EmbeddingMetrics())
         t0 = time.perf_counter()
-        # base_model is only for cost mapping; litellm.aembedding does not take it.
-        call_kwargs = {k: v for k, v in self._kwargs.items() if k != "base_model"}
         response = await litellm.aembedding(
-            model=self._model, input=texts, **call_kwargs
+            model=self._model, input=texts, **self._kwargs
         )
         latency = time.perf_counter() - t0
         vectors = [list(_get_vector(item)) for item in response.data]
@@ -78,14 +75,11 @@ class LiteLLMEmbedding(Embedding):
     def _cost(self, response: Any) -> float | None:
         """Return provider-billed embedding cost, preserving a real ``0.0``."""
         try:
-            cost_kwargs: dict[str, Any] = {
-                "completion_response": response,
-                "model": self._model,
-            }
-            base_model = self._kwargs.get("base_model")
-            if base_model is not None:
-                cost_kwargs["base_model"] = base_model
-            return litellm.completion_cost(**cost_kwargs)
+            return litellm.completion_cost(
+                completion_response=response,
+                model=self._model,
+                base_model=self._kwargs.get("base_model"),
+            )
         except Exception:
             return None
 
