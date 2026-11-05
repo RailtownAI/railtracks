@@ -8,6 +8,7 @@ from uuid import UUID
 from railtracks.utils.logging.create import get_rt_logger
 
 from ..models import (
+    AllScopes,
     Entity,
     RetrievedStoreEntry,
     StoreEntry,
@@ -230,12 +231,15 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
     )
 
 
-def _with_scope(filters: dict[str, Any], scope: StoreScope | None) -> dict[str, Any]:
-    """Add the exact-scope filter to ``filters``; ``None`` searches every scope.
+def _with_scope(
+    filters: dict[str, Any], scope: StoreScope | AllScopes | None
+) -> dict[str, Any]:
+    """Add the exact-scope filter to ``filters``; ``ALL_SCOPES`` adds none.
 
-    The scope is applied last so caller filters can't override it.
+    ``None`` matches only unscoped entries. The scope is applied last so caller
+    filters can't override it.
     """
-    if scope is None:
+    if isinstance(scope, AllScopes):
         return dict(filters)
     return {**filters, **exact_scope_filter(scope)}
 
@@ -309,7 +313,7 @@ class VectorStore:
         self,
         embedding: list[float],
         k: int,
-        scope: StoreScope | None = None,
+        scope: StoreScope | AllScopes | None = None,
     ) -> list[RetrievedStoreEntry]:
         raw_hits = await self._backend.search(embedding, k, _with_scope({}, scope))
 
