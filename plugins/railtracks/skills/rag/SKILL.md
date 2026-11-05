@@ -234,10 +234,15 @@ user_scope = StoreScope(labels={"user_id": "u123", "org_id": "acme"})
 # Write: ingest only into this scope
 stats = await runtime.ingest_all(loader=loader, scope=user_scope)
 
-# Read: retrieve only from this scope
+# Read: retrieve only from this scope (no scope = unscoped entries only)
 result = await runtime.retrieve("question", top_k=5, scope=user_scope)
 
-# Delete all documents for this scope
+# Admin search across every tenant must be explicit
+from railtracks.retrieval import ALL_SCOPES
+everything = await runtime.retrieve("question", top_k=5, scope=ALL_SCOPES)
+
+# Delete all documents for exactly this scope (labels must match exactly:
+# clearing {"org_id": "acme"} does not touch {"user_id": "u123", "org_id": "acme"})
 await runtime.store.clear(user_scope)
 ```
 
@@ -297,6 +302,8 @@ embedder = OllamaEmbedding(model="nomic-embed-text", api_base="http://localhost:
 from uuid import UUID
 
 await runtime.delete_document(document_id=UUID("1f0c9b6e-0000-4000-8000-000000000000"))
+# Pass the scope it was ingested with to delete only that tenant's copy
+await runtime.delete_document(document_id=UUID("1f0c9b6e-0000-4000-8000-000000000000"), scope=user_scope)
 ```
 
 ---

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
@@ -30,6 +32,11 @@ class StoreScope:
         StoreScope(labels={"agent_id": "docs-bot", "session_id": "s1"})  # agent context
         StoreScope(labels={"account_id": 42, "is_prod": True})  # non-string scalars
 
+    Scopes match exactly: ``{"tenant": "alice"}`` does not match an entry
+    written with ``{"tenant": "alice", "env": "prod"}``. An empty scope is the
+    same as no scope (``None``) and matches only unscoped entries. To search
+    across every scope, pass :data:`ALL_SCOPES` instead.
+
     The ``scope_`` prefix applied in :meth:`to_payload_filters` avoids key
     collisions in flat payload dicts that also carry content fields.
     """
@@ -38,6 +45,40 @@ class StoreScope:
 
     def to_payload_filters(self) -> dict[str, Any]:
         return {f"scope_{k}": v for k, v in self.labels.items()}
+
+    def to_key(self) -> str:
+        """Canonical string for this exact label set, independent of label order."""
+        return json.dumps(dict(self.labels), sort_keys=True, separators=(",", ":"))
+
+
+class AllScopes(Enum):
+    """Type of :data:`ALL_SCOPES`."""
+
+    ALL_SCOPES = "all_scopes"
+
+
+ALL_SCOPES = AllScopes.ALL_SCOPES
+"""Searches every scope when passed as a read's ``scope``. Writes and deletes
+don't accept it; use ``Store.delete_where`` to delete across scopes."""
+
+# Payload key holding StoreScope.to_key(), so filters can match a scope exactly.
+SCOPE_KEY = "scope"
+
+
+def exact_scope_filter(scope: StoreScope | None) -> dict[str, str]:
+    """Equality filter matching entries written with exactly ``scope``.
+
+    ``None`` and an empty ``StoreScope`` both match only unscoped entries.
+
+    Raises:
+        ValueError: If ``scope`` is ``ALL_SCOPES``, which only reads accept.
+    """
+    if isinstance(scope, AllScopes):
+        raise ValueError(
+            "ALL_SCOPES is only valid for reads; use Store.delete_where to act "
+            "across every scope."
+        )
+    return {SCOPE_KEY: (scope if scope is not None else StoreScope()).to_key()}
 
 
 @dataclass
@@ -112,7 +153,7 @@ class RetrievedStoreEntry:
 @dataclass
 class StoreQuery:
     text: str
-    scope: StoreScope | None = None
+    scope: StoreScope | AllScopes | None = None
     embedding: list[float] | None = None
     top_k: int = 10
     metadata_filters: dict[str, Any] | None = None
