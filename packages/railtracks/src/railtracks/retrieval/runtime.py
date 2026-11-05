@@ -17,7 +17,7 @@ from .errors import EmbeddingModelMismatchError
 from .loaders.base import BaseDocumentLoader
 from .loaders.models import LoadFailure
 from .models import Chunk, Document, EmbeddedChunk, RetrievalResult, RetrievedChunk
-from .stores.models import StoreEntry, StoreQuery, StoreScope
+from .stores.models import StoreEntry, StoreQuery, StoreScope, exact_scope_filter
 from .stores.protocol import Store
 
 logger = get_rt_logger(__name__)
@@ -252,7 +252,10 @@ class RetrievalRuntime:
         Args:
             loader: Source of ``Document`` objects to ingest.
             scope: Tag written onto every ``StoreEntry`` produced by this
-                call. Single-tenant callers can leave this ``None``.
+                call. The skip check and the replacement of a changed
+                document only see entries with exactly this scope; ``None``
+                means unscoped entries. Single-tenant callers can leave this
+                ``None``.
 
         Yields:
             ``BatchIngested`` after each successful batch finishes writing,
@@ -392,7 +395,7 @@ class RetrievalRuntime:
         stale_filters = {
             "source_path": doc.source,
             "content_hash": doc.content_hash,
-            **(scope.to_payload_filters() if scope is not None else {}),
+            **exact_scope_filter(scope),
         }
         existing = await self._store.find(stale_filters, limit=1)
         if not existing:
@@ -467,7 +470,7 @@ class RetrievalRuntime:
                     await self._store.delete_where(
                         {
                             "document_id": str(doc.id),
-                            **(scope.to_payload_filters() if scope is not None else {}),
+                            **exact_scope_filter(scope),
                         }
                     )
                     delete_done = True
@@ -555,13 +558,23 @@ class RetrievalRuntime:
         logger.warning("Could not ingest %s (stage %r): %r", source, stage, errors[-1])
         return failed
 
-    async def delete_document(self, document_id: UUID) -> None:
-        """Remove all chunks for a document from the store.
+    async def delete_document(
+        self, document_id: UUID, *, scope: StoreScope | None = None
+    ) -> None:
+        """Remove all chunks for a document within one scope.
 
-        Convenience wrapper around ``store.delete_where({"document_id": ...})``
-        so callers don't need to know the metadata key.
+        Document ids come from ``Document.source``, so tenants that ingest the
+        same source share an id; only the copy in ``scope`` is deleted.
+
+        Args:
+            document_id: Id of the document to delete.
+            scope: Scope the document was ingested with. ``None`` deletes only
+                the unscoped copy. To delete every tenant's copy, call
+                ``store.delete_where({"document_id": str(document_id)})``.
         """
-        await self._store.delete_where({"document_id": str(document_id)})
+        await self._store.delete_where(
+            {"document_id": str(document_id), **exact_scope_filter(scope)}
+        )
 
     async def retrieve(
         self,
@@ -576,7 +589,8 @@ class RetrievalRuntime:
             query: The text to embed and search with.
             top_k: Maximum number of results.
             metadata_filters: Additional equality filters on chunk metadata.
-            scope: Restricts the search to entries written with the same
+                They can't widen ``scope``.
+            scope: Restricts the search to entries written with exactly this
                 scope. Leave ``None`` to search across all scopes.
 
         Raises:
