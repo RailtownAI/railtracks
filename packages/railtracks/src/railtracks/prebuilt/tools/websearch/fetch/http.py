@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import httpx
+import litellm
 import trafilatura
+from litellm.litellm_core_utils.url_utils import async_safe_get
 
 from ..models import FetchResult
 
@@ -10,6 +12,9 @@ _DEFAULT_USER_AGENT = "railtracks-websearch/1.0"
 
 class HttpFetch:
     """FetchBackend using a plain HTTP GET + trafilatura extraction.
+
+    URLs that resolve to a non-public address, directly or through a redirect,
+    are refused. Add trusted internal hosts to `litellm.user_url_allowed_hosts`.
 
     Handles static/server-rendered pages. JS-heavy pages that render content
     client-side will typically come back with no extractable content; a
@@ -42,11 +47,13 @@ class HttpFetch:
             async with httpx.AsyncClient(
                 timeout=self._timeout,
                 headers={"User-Agent": self._user_agent},
-                follow_redirects=True,
+                # litellm connects to the checked IP when its verification is off.
+                verify=litellm.ssl_verify is not False,
             ) as client:
-                resp = await client.get(url)
+                # Checks the address of the URL and of every redirect it follows.
+                resp = await async_safe_get(client, url)
                 resp.raise_for_status()
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, ValueError) as e:
             return FetchResult(
                 url=url, is_error=True, error_message=f"Fetch failed: {e}"
             )
