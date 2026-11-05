@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -9,7 +8,6 @@ from typing import (
     Callable,
     Generator,
     Generic,
-    NoReturn,
     ParamSpec,
     TypeVar,
 )
@@ -46,6 +44,9 @@ logger = get_rt_logger(__name__)
 # sentinel used to mark "no result yet" (None is a valid node result)
 _UNSET = object()
 
+# strong references to running drivers, so an abandoned stream's run isn't garbage-collected
+_drivers: set[asyncio.Task[None]] = set()
+
 
 class Stream(Generic[_TOutput], AsyncIterator[Any]):
     """
@@ -59,6 +60,11 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
     A `Stream` is also awaitable: `await stream` runs it to completion (discarding unread
     chunks) and returns the final result, which is useful when you break out of iteration
     early but still want the result. The run always finishes; breaking does not cancel it.
+
+    The run is driven by a task the `Stream` owns, so it opens and closes its session
+    whatever the reader does: a stream that is broken out of and never read again still
+    finishes and closes its run. Cancelling the task that reads the stream cancels the run,
+    as cancelling `await rt.call(...)` does.
 
     If the node raises, the exception propagates out of the `async for` loop (or the
     `await`), exactly like `rt.call`.
@@ -84,8 +90,10 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             node: The node type to invoke.
             args: The positional arguments to pass to the node.
             kwargs: The keyword arguments to pass to the node.
-            on_start: Called once, just before the run is launched on first iteration.
-            on_close: Called once when the run finishes, errors, or times out.
+            on_start: Called once, inside the task that drives the run, before the run is
+                launched.
+            on_close: Called once, inside the same task, when the run finishes, errors,
+                times out, or is cancelled.
         """
         self._node = node
         self._args = args
@@ -95,12 +103,11 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         self._request_id = str(uuid4())
 
         self._queue: asyncio.Queue[tuple[str, Any]] | None = None
-        self._started = False
+        self._driver: asyncio.Task[None] | None = None
         self._finished = False
         self._result: Any = _UNSET
         self._error: BaseException | None = None
         self._sub_id: str | None = None
-        self._deadline: float | None = None
         self._timeout: float | None = None
         # set when this stream is the top-level request, not a call from inside a node
         self._top_level_start: float | None = None
@@ -112,12 +119,44 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
 
     # ------------------------------------------------------------------ lifecycle
 
-    async def _start(self) -> None:
-        """Lazily starts the run on first iteration: subscribes for the run's completion,
-        then publishes the entry request with its chunk queue attached."""
-        if self._started:
-            return
-        self._started = True
+    def _launch(self) -> asyncio.Queue[tuple[str, Any]]:
+        """Starts the task that drives the run on first iteration; returns the queue the
+        reader takes chunks from."""
+        if self._queue is None:
+            self._queue = asyncio.Queue()
+            driver = asyncio.create_task(self._drive(), name="rt.astream driver")
+            _drivers.add(driver)
+            driver.add_done_callback(_drivers.discard)
+            self._driver = driver
+        return self._queue
+
+    async def _drive(self) -> None:
+        """Runs the node to completion and closes the run, then puts the terminal
+        ("done", None) marker on the queue. Runs in its own task, so the session it opens
+        never lands in the reader's context."""
+        assert self._queue is not None
+        try:
+            done = await self._start()
+            try:
+                message = await asyncio.wait_for(done, timeout=self._timeout)
+            except asyncio.TimeoutError:
+                assert self._timeout is not None
+                raise GlobalTimeOutError(timeout=self._timeout)
+            self._result = output_mapping(message)
+        except BaseException as e:
+            self._error = e
+            if isinstance(e, asyncio.CancelledError):
+                raise
+        finally:
+            try:
+                await self._cleanup()
+            finally:
+                self._queue.put_nowait(("done", None))
+
+    async def _start(self) -> asyncio.Future[RequestCompletionMessage]:
+        """Subscribes for the run's completion, then publishes the entry request with its
+        chunk queue attached. Returns the future the completion message lands on."""
+        assert self._queue is not None
 
         # let the caller set up the run context (e.g. open a session); the Stream stays
         # out of session lifecycle entirely.
@@ -128,34 +167,31 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             self._top_level_start = await begin_top_level(self._node)
         await activate_publisher()
         publisher = get_publisher()
-        # token chunks are written onto this queue directly by the streamed frame's LLM node
-        # (via the frame-local queue carried in its context); the completion subscriber below
-        # enqueues the terminal ("done", ...) marker.
-        queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
-        self._queue = queue
 
         # a fatal failure ends the whole run, so even a stream inside a node stops on one;
         # otherwise it would wait for a completion the closed session can't deliver
         is_done = top_level_message_filter(self._request_id)
+        done: asyncio.Future[RequestCompletionMessage] = (
+            asyncio.get_running_loop().create_future()
+        )
 
         def _subscriber(message: RequestCompletionMessage) -> None:
-            # the Stream only listens for run completion here
-            if is_done(message):
-                queue.put_nowait(("done", message))
+            if is_done(message) and not done.done():
+                done.set_result(message)
 
-        # subscribe BEFORE publishing the request so the completion marker can't be missed
+        # subscribe BEFORE publishing the request so the completion can't be missed
         self._sub_id = publisher.subscribe(_subscriber, name="astream subscriber")
 
         self._timeout = get_local_config().timeout
-        self._deadline = (
-            None if self._timeout is None else time.monotonic() + self._timeout
-        )
 
+        # token chunks are written onto the queue directly by the streamed frame's LLM node
+        # (via the frame-local queue carried in its context)
         await publisher.publish(
             request_creation(
-                self._request_id, self._node, self._args, self._kwargs, queue
+                self._request_id, self._node, self._args, self._kwargs, self._queue
             )
         )
+        return done
 
     async def _cleanup(self) -> None:
         """Ends a top-level run, then hands teardown of the run context back to the
@@ -187,42 +223,22 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         if self._finished:
             raise StopAsyncIteration
 
-        await self._start()
-        assert self._queue is not None
-
-        remaining: float | None = None
-        if self._deadline is not None:
-            remaining = self._deadline - time.monotonic()
-            if remaining <= 0:
-                await self._finish_with_timeout()
-
+        queue = self._launch()
         try:
-            kind, payload = await asyncio.wait_for(self._queue.get(), timeout=remaining)
-        except asyncio.TimeoutError:
-            await self._finish_with_timeout()
+            kind, payload = await queue.get()
+        except asyncio.CancelledError:
+            # the reader was cancelled (e.g. a client disconnected), so the run is too
+            assert self._driver is not None
+            self._driver.cancel()
+            raise
 
         if kind == "chunk":
             return payload
-        else:
-            # the run has finished: resolve the final result (or raise the node's error)
-            self._finished = True
-            try:
-                self._result = output_mapping(payload)
-            except BaseException as e:
-                self._error = e
-                raise
-            finally:
-                await self._cleanup()
-            raise StopAsyncIteration
 
-    async def _finish_with_timeout(self) -> NoReturn:
-        """Marks the stream as finished and raises the global timeout error."""
-        assert self._timeout is not None, "timeout can only fire when one is configured"
-        error = GlobalTimeOutError(timeout=self._timeout)
         self._finished = True
-        self._error = error
-        await self._cleanup()
-        raise error
+        if self._error is not None:
+            raise self._error
+        raise StopAsyncIteration
 
     # ------------------------------------------------------------------ result access
 
