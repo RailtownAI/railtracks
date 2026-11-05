@@ -72,6 +72,26 @@ async def test_breaking_out_of_a_stream_still_closes_its_run(writer, mock_llm):
     assert [e.payload["status"] for e in _completed(writer.events)] == ["success"]
 
 
+async def test_a_stream_abandoned_inside_a_node_ends_with_its_session(mock_llm):
+    class _SlowLLM(mock_llm):
+        async def _astream_chat(self, messages, **kwargs):
+            yield "a"
+            await asyncio.sleep(0.2)
+            yield "b"
+
+    @rt.function_node
+    async def entry() -> str:
+        """Returns the first streamed chunk."""
+        async for chunk in rt.astream(_agent(_SlowLLM()), user_input="go"):
+            return chunk
+
+    flow = rt.Flow("abandoned_inside_a_node", entry, timeout=None)
+    assert await flow.ainvoke() == "a"
+
+    assert not is_context_present()
+    assert await _settle() == []
+
+
 async def test_cancelling_the_reader_cancels_and_closes_the_run(writer, mock_llm):
     class _SlowLLM(mock_llm):
         async def _astream_chat(self, messages, **kwargs):

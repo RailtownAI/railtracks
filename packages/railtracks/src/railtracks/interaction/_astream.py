@@ -137,12 +137,23 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         assert self._queue is not None
         try:
             done = await self._start()
-            try:
-                message = await asyncio.wait_for(done, timeout=self._timeout)
-            except asyncio.TimeoutError:
+            # the session's publisher loop ends when the session closes, after which the
+            # run's completion can never arrive (e.g. a stream abandoned inside a node)
+            publisher_loop = get_publisher().pub_loop
+            assert publisher_loop is not None
+            finished, _ = await asyncio.wait(
+                {done, publisher_loop},
+                timeout=self._timeout,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if done not in finished:
+                if publisher_loop in finished:
+                    raise RuntimeError(
+                        "The session closed before the stream's run finished."
+                    )
                 assert self._timeout is not None
                 raise GlobalTimeOutError(timeout=self._timeout)
-            self._result = output_mapping(message)
+            self._result = output_mapping(done.result())
         except BaseException as e:
             self._error = e
             if isinstance(e, asyncio.CancelledError):
