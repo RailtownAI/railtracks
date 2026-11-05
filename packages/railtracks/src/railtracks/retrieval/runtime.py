@@ -17,7 +17,13 @@ from .errors import EmbeddingModelMismatchError
 from .loaders.base import BaseDocumentLoader
 from .loaders.models import LoadFailure
 from .models import Chunk, Document, EmbeddedChunk, RetrievalResult, RetrievedChunk
-from .stores.models import StoreEntry, StoreQuery, StoreScope, exact_scope_filter
+from .stores.models import (
+    AllScopes,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
+    exact_scope_filter,
+)
 from .stores.protocol import Store
 
 logger = get_rt_logger(__name__)
@@ -266,6 +272,7 @@ class RetrievalRuntime:
             written; ``DocumentFailed`` signals the partial state.
 
         Raises:
+            ValueError: If ``scope`` is ``ALL_SCOPES``; ingest needs one scope.
             Exception: Any per-document error when ``on_error="raise"``.
             EmbeddingModelMismatchError: When the embedder's model differs
                 from the one the store was built with.
@@ -297,6 +304,8 @@ class RetrievalRuntime:
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
+        # Fail fast on ALL_SCOPES instead of once per document.
+        exact_scope_filter(scope)
         async with aclosing(loader.astream()) as stream:
             async for item in stream:
                 if isinstance(item, LoadFailure):
@@ -581,7 +590,7 @@ class RetrievalRuntime:
         query: str,
         top_k: int = 5,
         metadata_filters: dict[str, Any] | None = None,
-        scope: StoreScope | None = None,
+        scope: StoreScope | AllScopes | None = None,
     ) -> RetrievalResult:
         """Embed ``query`` and return the top ``top_k`` matches from the store.
 
@@ -591,7 +600,8 @@ class RetrievalRuntime:
             metadata_filters: Additional equality filters on chunk metadata.
                 They can't widen ``scope``.
             scope: Restricts the search to entries written with exactly this
-                scope. Leave ``None`` to search across all scopes.
+                scope. ``None`` searches only unscoped entries; pass
+                ``ALL_SCOPES`` to search across every scope.
 
         Raises:
             EmbeddingModelMismatchError: When the embedder reports a model
