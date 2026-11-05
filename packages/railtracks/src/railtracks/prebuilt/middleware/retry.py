@@ -4,8 +4,12 @@ from typing import Any
 
 from typing_extensions import Never
 
+from railtracks.exceptions import LLMRateLimitError, LLMTimeoutError
 from railtracks.llm.retries import ExponentialRetry, RetryApproach
+from railtracks.llm.retries.base import _RETRYABLE_EXCEPTIONS
 from railtracks.middleware.core import Middleware
+
+_DEFAULT_RETRY_ON = (*_RETRYABLE_EXCEPTIONS, LLMTimeoutError, LLMRateLimitError)
 
 
 class Retry(Middleware[Any, Any, Never]):
@@ -34,9 +38,11 @@ class Retry(Middleware[Any, Any, Never]):
         approach: Backoff strategy; defaults to
             :class:`~railtracks.llm.retries.ExponentialRetry` with ``max_tries``.
         retry_on: Exception types worth retrying. Defaults to the transient LLM
-            provider errors (rate limits, timeouts, connection failures) — pass
-            your own tuple (e.g. ``(Exception,)``) for node-level use. Anything
-            not in the tuple propagates immediately.
+            provider errors (rate limits, timeouts, connection failures) plus the
+            agent node's ``LLMTimeoutError`` and ``LLMRateLimitError``. Pass your own
+            tuple to replace these defaults. Anything not in the tuple propagates
+            immediately, as does an error whose model call already ran out of
+            retries (``retry_exhausted``).
     """
 
     def __init__(
@@ -49,7 +55,7 @@ class Retry(Middleware[Any, Any, Never]):
         self._approach = (
             approach if approach is not None else ExponentialRetry(max_tries=max_tries)
         )
-        self._retry_on = retry_on
+        self._retry_on = retry_on if retry_on is not None else _DEFAULT_RETRY_ON
         super().__init__(self._middleware_fn)
 
     async def _middleware_fn(self, call, *args, **kwargs):
