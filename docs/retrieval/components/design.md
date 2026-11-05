@@ -254,6 +254,8 @@ The scope filter lives in `Store.read`, not the runtime meaning even direct
 calls to `VectorStore.nearest_neighbors()` honor it. Two tenants can
 share an `InMemoryVectorBackend` without leaking data across.
 
+Scopes match exactly. Each entry stores its full label set as one canonical `scope` key (`StoreScope.to_key()`), because the backends only support flat equality filters: filtering on the individual `scope_<label>` keys would let `{"tenant": "alice"}` also match `{"tenant": "alice", "env": "prod"}`. An unscoped entry stores the empty label set, so `scope=None` means "unscoped entries only" for ingest and `delete_document`. `retrieve()` is the one exception: without a scope it searches every scope.
+
 ---
 
 ## On the roadmap but not currently implemented:

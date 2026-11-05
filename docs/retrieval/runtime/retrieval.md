@@ -52,6 +52,8 @@ Scope is enforced at the store layer, not the runtime and even
 `VectorStore.nearest_neighbors()` (the lower-level bypass method) honors
 it. And unlike metadata filters, scope is stamped onto entries at write time, not just applied at read time.
 
+A scope matches entries written with exactly the same labels, and `metadata_filters` can't widen it. `retrieve()` without a scope searches every scope; pass `StoreScope()` to search only unscoped entries.
+
 ---
 
 ## Audit hook
