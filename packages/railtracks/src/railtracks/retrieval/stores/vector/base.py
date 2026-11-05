@@ -13,6 +13,7 @@ from ..models import (
     StoreEntry,
     StoreQuery,
     StoreScope,
+    exact_scope_filter,
 )
 
 logger = get_rt_logger(__name__)
@@ -55,6 +56,7 @@ _RESERVED_PAYLOAD_KEYS = frozenset(
         "chunk_metadata",
         "chunk_metadata_keys",
         "embedding_version",
+        "scope",
         "abstract",
         "summary",
         "valid_from",
@@ -114,7 +116,7 @@ def _encode_provenance(entry: StoreEntry) -> dict:
 
 
 def _encode_enrichment(entry: StoreEntry) -> dict:
-    out: dict = {}
+    out: dict = exact_scope_filter(entry.scope)
     if entry.scope is not None:
         out.update(entry.scope.to_payload_filters())
     if entry.abstract is not None:
@@ -228,6 +230,16 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
     )
 
 
+def _with_scope(filters: dict[str, Any], scope: StoreScope | None) -> dict[str, Any]:
+    """Add the exact-scope filter to ``filters``; ``None`` searches every scope.
+
+    The scope is applied last so caller filters can't override it.
+    """
+    if scope is None:
+        return dict(filters)
+    return {**filters, **exact_scope_filter(scope)}
+
+
 # ---------------------------------------------------------------------------
 # VectorStore
 # ---------------------------------------------------------------------------
@@ -260,11 +272,7 @@ class VectorStore:
                 "caller must supply a pre-computed embedding."
             )
 
-        filters: dict[str, Any] = (
-            query.scope.to_payload_filters() if query.scope is not None else {}
-        )
-        if query.metadata_filters:
-            filters.update(query.metadata_filters)
+        filters = _with_scope(query.metadata_filters or {}, query.scope)
 
         raw_hits = await self._backend.search(query.embedding, query.top_k, filters)
 
@@ -285,7 +293,7 @@ class VectorStore:
         await self._backend.delete(str(id))
 
     async def clear(self, scope: StoreScope) -> None:
-        await self._backend.delete_where(scope.to_payload_filters())
+        await self._backend.delete_where(exact_scope_filter(scope))
 
     async def delete_where(self, filters: dict[str, Any]) -> None:
         await self._backend.delete_where(filters)
@@ -303,8 +311,7 @@ class VectorStore:
         k: int,
         scope: StoreScope | None = None,
     ) -> list[RetrievedStoreEntry]:
-        filters = scope.to_payload_filters() if scope is not None else {}
-        raw_hits = await self._backend.search(embedding, k, filters)
+        raw_hits = await self._backend.search(embedding, k, _with_scope({}, scope))
 
         results: list[RetrievedStoreEntry] = []
         for rank, (hit_id, score, payload) in enumerate(raw_hits):
