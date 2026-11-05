@@ -51,6 +51,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "certifi >= 2024.7.4",
     "colorama >= 0.4.6",
     "litellm >= 1.104.3, < 1.106",
     "mcp >= 1.23.0, <2",
