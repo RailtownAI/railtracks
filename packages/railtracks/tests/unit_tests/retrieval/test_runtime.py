@@ -34,7 +34,7 @@ from railtracks.retrieval.loaders.sanitizing import (
 )
 from railtracks.retrieval.models import Chunk
 from railtracks.retrieval.runtime import _content_hash
-from railtracks.retrieval.stores import StoreScope, VectorStore
+from railtracks.retrieval.stores import ALL_SCOPES, AllScopes, StoreScope, VectorStore
 from railtracks.retrieval.stores.models import StoreEntry, exact_scope_filter
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
 
@@ -402,7 +402,9 @@ _ALICE_PROD = StoreScope(labels={"tenant": "alice", "env": "prod"})
 _BOB = StoreScope(labels={"tenant": "bob"})
 
 
-async def _contents(runtime: RetrievalRuntime, scope: StoreScope | None) -> set[str]:
+async def _contents(
+    runtime: RetrievalRuntime, scope: StoreScope | AllScopes | None
+) -> set[str]:
     result = await runtime.retrieve("q", top_k=50, scope=scope)
     return {c.chunk.content for c in result.chunks}
 
@@ -431,7 +433,8 @@ async def test_mixed_scopes_land_side_by_side():
     assert await _contents(runtime, _ALICE_PROD) == {"prod"}
     assert await _contents(runtime, _BOB) == {"bob"}
     assert await _contents(runtime, StoreScope()) == {"shared"}
-    assert await _contents(runtime, None) == {"alice", "prod", "bob", "shared"}
+    assert await _contents(runtime, None) == {"shared"}
+    assert await _contents(runtime, ALL_SCOPES) == {"alice", "prod", "bob", "shared"}
 
 
 async def test_metadata_filters_cannot_reach_another_scope():
@@ -450,7 +453,7 @@ async def test_delete_document_only_deletes_within_scope():
 
     await runtime.delete_document(doc_id, scope=_ALICE)
 
-    assert await _contents(runtime, None) == {"prod", "bob", "shared"}
+    assert await _contents(runtime, ALL_SCOPES) == {"prod", "bob", "shared"}
 
 
 async def test_delete_document_without_scope_deletes_only_unscoped_copy():
@@ -459,7 +462,7 @@ async def test_delete_document_without_scope_deletes_only_unscoped_copy():
 
     await runtime.delete_document(doc_id)
 
-    assert await _contents(runtime, None) == {"alice", "prod", "bob"}
+    assert await _contents(runtime, ALL_SCOPES) == {"alice", "prod", "bob"}
 
 
 @pytest.mark.parametrize(
@@ -472,7 +475,7 @@ async def test_reingest_replaces_only_the_same_scope(scope, replaced):
     await _ingest(runtime, "updated", scope)
 
     everything = {"alice", "prod", "bob", "shared"}
-    assert await _contents(runtime, None) == everything - {replaced} | {"updated"}
+    assert await _contents(runtime, ALL_SCOPES) == everything - {replaced} | {"updated"}
 
 
 @pytest.mark.parametrize("scope", [None, _ALICE])
@@ -487,6 +490,61 @@ async def test_skip_check_only_sees_the_same_scope(scope):
 
     assert not any(isinstance(e, DocumentSkipped) for e in events)
     assert await _contents(runtime, scope or StoreScope()) == {"same"}
+
+
+class _OpenTrackingLoader(_ListLoader):
+    def __init__(self, docs: list[Document | LoadFailure]) -> None:
+        super().__init__(docs)
+        self.opened = False
+
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
+        self.opened = True
+        async for doc in super().astream():
+            yield doc
+
+
+async def _drain_ingest(
+    runtime: RetrievalRuntime, loader: BaseDocumentLoader, scope: AllScopes
+) -> None:
+    async for _ in runtime.ingest(loader, scope=scope):  # type: ignore[arg-type]
+        pass
+
+
+@pytest.mark.parametrize("on_error", ["skip", "raise"])
+@pytest.mark.parametrize("method", ["ingest", "ingest_all"])
+async def test_ingest_rejects_all_scopes_before_loading(on_error, method):
+    """ALL_SCOPES is a caller error, so it raises up front in either error
+    mode instead of becoming a DocumentFailed for every document."""
+    events: list = []
+    store = _store()
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=store,
+        on_error=on_error,
+        on_ingest=events.append,
+    )
+    loader = _OpenTrackingLoader([Document(source="README.md", content="alice")])
+
+    with pytest.raises(ValueError, match="ALL_SCOPES"):
+        if method == "ingest":
+            await _drain_ingest(runtime, loader, ALL_SCOPES)
+        else:
+            await runtime.ingest_all(loader, scope=ALL_SCOPES)  # type: ignore[arg-type]
+
+    assert not loader.opened
+    assert events == []
+    assert await store.count() == 0
+
+
+async def test_delete_document_rejects_all_scopes():
+    runtime = await _runtime_with_mixed_scopes()
+    doc_id = Document(source="README.md", content="").id
+
+    with pytest.raises(ValueError, match="ALL_SCOPES"):
+        await runtime.delete_document(doc_id, scope=ALL_SCOPES)  # type: ignore[arg-type]
+
+    assert await runtime.store.count() == 4
 
 
 @pytest.mark.parametrize("scope", [None, _ALICE])

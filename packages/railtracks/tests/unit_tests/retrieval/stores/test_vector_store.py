@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import pytest
 from railtracks.retrieval.stores.models import (
+    ALL_SCOPES,
     Entity,
     StoreEntry,
     StoreQuery,
@@ -167,12 +168,57 @@ async def test_read_scope_is_exact_not_subset():
     assert [r.entry.id for r in results] == [entries["alice"].id]
 
 
-async def test_read_without_scope_searches_every_scope():
+@pytest.mark.parametrize("scope", [None, StoreScope()])
+async def test_read_without_scope_matches_only_unscoped_entries(scope):
     store, entries = await _store_with_mixed_scopes()
 
-    results = await store.read(StoreQuery(text="q", embedding=[1.0, 0.0, 0.0]))
+    results = await store.read(
+        StoreQuery(text="q", scope=scope, embedding=[1.0, 0.0, 0.0])
+    )
+
+    assert [r.entry.id for r in results] == [entries["unscoped"].id]
+
+
+async def test_read_with_all_scopes_searches_every_scope():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.read(
+        StoreQuery(text="q", scope=ALL_SCOPES, embedding=[1.0, 0.0, 0.0])
+    )
 
     assert {r.entry.id for r in results} == {e.id for e in entries.values()}
+
+
+async def test_all_scopes_does_not_bypass_metadata_filters():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.read(
+        StoreQuery(
+            text="q",
+            scope=ALL_SCOPES,
+            embedding=[1.0, 0.0, 0.0],
+            metadata_filters={"scope_tenant": "bob"},
+        )
+    )
+
+    assert [r.entry.id for r in results] == [entries["bob"].id]
+
+
+async def test_nearest_neighbors_with_all_scopes_searches_every_scope():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.nearest_neighbors([1.0, 0.0, 0.0], k=10, scope=ALL_SCOPES)
+
+    assert {r.entry.id for r in results} == {e.id for e in entries.values()}
+
+
+async def test_clear_rejects_all_scopes():
+    store, entries = await _store_with_mixed_scopes()
+
+    with pytest.raises(ValueError, match="ALL_SCOPES"):
+        await store.clear(ALL_SCOPES)  # type: ignore[arg-type]
+
+    assert len(await store.find({}, limit=10)) == len(entries)
 
 
 @pytest.mark.parametrize(
@@ -370,7 +416,9 @@ async def test_nearest_neighbors_rank_order():
     await store.write(e2)
     await store.write(e3)
 
-    results = await store.nearest_neighbors([1.0, 0.0, 0.0], k=3)
+    results = await store.nearest_neighbors(
+        [1.0, 0.0, 0.0], k=3, scope=StoreScope(labels={"user_id": "alice"})
+    )
     assert len(results) == 3
     assert results[0].rank == 0
     assert results[1].rank == 1
