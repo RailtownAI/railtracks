@@ -27,7 +27,7 @@ For raw vector search at the runtime level (`runtime.retrieve(...)`), see
 | Type | Summary |
 |---|---|
 | `StoreEntry` | Atomic unit written to and returned by the store. Required fields come from an `EmbeddedChunk`; build with `StoreEntry.from_chunk(...)`. Enrichment fields (`abstract`, `summary`, `entities`, validity window) are optional and can be filled in later via `dataclasses.replace`. |
-| `StoreScope` | Frozen `labels` dict acting as a hard-filter namespace. Every read/clear is scoped by equality on these labels. `StoreScope()` (empty) matches everything. Use it for tenancy (`user_id`, `organization`, `environment`, etc.). |
+| `StoreScope` | Frozen `labels` dict acting as a hard-filter namespace. Every scoped read and `clear` matches entries written with exactly the same labels: `{"tenant": "alice"}` does not match `{"tenant": "alice", "env": "prod"}`. `StoreScope()` (empty) matches only unscoped entries; a query with `scope=None` searches every scope. Use it for tenancy (`user_id`, `organization`, `environment`, etc.). |
 | `Entity` | Frozen named-entity record (`name`, `type`, `source_chunk_id`, `metadata`) attached to `StoreEntry.entities`. |
 | `RetrievedStoreEntry` | A read hit: the underlying `StoreEntry` plus `score` (similarity in `[0, 1]`, higher is more similar), 0-indexed `rank`, and optional `source_retriever` / `rerank_score`. |
 
@@ -45,10 +45,10 @@ retrieval parameters.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `text` | `str` | required | Raw query string |
-| `scope` | `StoreScope | None` | `None` | Namespace filter applied to the search |
+| `scope` | `StoreScope | None` | `None` | Namespace filter applied to the search; `None` searches every scope |
 | `embedding` | `list[float] | None` | `None` | Pre-computed query vector (required by `VectorStore`) |
 | `top_k` | `int` | `10` | Maximum results to return |
-| `metadata_filters` | `dict[str, Any] | None` | `None` | Additional payload equality filters |
+| `metadata_filters` | `dict[str, Any] | None` | `None` | Additional payload equality filters, combined with the scope; the scope's key is set last, so a scoped read never returns another scope's entries |
 
 ---
 
@@ -66,11 +66,7 @@ class Store(Protocol):
     async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]: ...
 ```
 
-`write` returns the entry ID as a string. `clear` removes all entries
-matching the given scope; that's the path for session cleanup and user
-data deletion. `delete_where` and `find` power the runtime's upsert and
-staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness));
-both operate on metadata-only equality filters.
+`write` returns the entry ID as a string. `clear` removes all entries written with exactly the given scope; that's the path for session cleanup and user data deletion. `delete_where` and `find` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); both operate on metadata-only equality filters.
 
 ---
 
@@ -90,8 +86,7 @@ while owning serialization and scope filtering.
 --8<-- "docs/scripts/retrieval/store.py:knn"
 ```
 
-Returns raw scored entries. **Scope is still enforced**: you can't skip
-the multi-tenant filter by dropping to this method.
+Returns raw scored entries. **Scope is still enforced**: you can't skip the multi-tenant filter by dropping to this method.
 
 ### Note on retrieved vectors
 
