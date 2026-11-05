@@ -328,16 +328,19 @@ def astream(
     # session we open one and hold it in this closure; the Stream calls `_close` back once
     # it finishes (see Stream.on_start / on_close), so the session's open/close logic lives
     # with astream rather than inside the returned object.
-    owned: list[Session] = []
+    session: Session | None = None
 
     def _open() -> None:
+        nonlocal session
         if not is_context_present():
             from railtracks import Session  # lazy import to avoid a circular import
 
-            owned.append(Session())
+            session = Session()
 
     def _close() -> None:
-        while owned:
-            owned.pop().__exit__(None, None, None)
+        nonlocal session
+        if session is not None:
+            session.__exit__(None, None, None)
+            session = None
 
     return Stream(node, args, kwargs, on_start=_open, on_close=_close)
