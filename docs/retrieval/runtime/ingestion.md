@@ -113,6 +113,11 @@ Scope is request-level context, not runtime config; that's why it lives
 on `ingest()` / `ingest_all()` / `retrieve()` rather than on the
 constructor. Single-tenant callers just omit it.
 
+Ingest only looks at entries with exactly the scope it was given: the unchanged-document skip and the replacement of a changed document never touch another tenant's copy, and an unscoped ingest (`scope=None`) only sees unscoped entries. `delete_document(document_id, scope=...)` follows the same rule. Two tenants that ingest the same `source` share a document id, so pass the scope to delete one tenant's copy; to delete every copy, call `runtime.store.delete_where({"document_id": str(document_id)})`.
+
+!!! warning "Entries written before scopes matched exactly"
+    Entries written by an earlier version have no `scope` key, so scoped reads, the skip check and the replace-on-change step don't see them. Re-ingest that data into a new collection or table after upgrading.
+
 ---
 
 ## Sanitizing loaders
