@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import typing
 from uuid import UUID
+
+import railtracks.retrieval.embedding
+import railtracks.retrieval.models
 
 from railtracks.retrieval import (
     Chunk,
     Document,
     EmbeddedChunk,
+    EmbeddingMetrics,
     RetrievalResult,
     RetrievedChunk,
 )
@@ -45,3 +50,20 @@ def test_embedded_retrieved_and_result():
     result = RetrievalResult(query="q", chunks=[retrieved])
     assert result.total_candidates is None
     assert result.metadata == {}
+    assert result.embedding_metrics is None
+
+
+def test_retrieval_result_type_hints_resolve():
+    # get_type_hints must not raise NameError; EmbeddingMetrics must not be
+    # hidden behind TYPE_CHECKING.
+    hints = typing.get_type_hints(RetrievalResult)
+    assert EmbeddingMetrics in typing.get_args(hints["embedding_metrics"])
+
+
+def test_embedding_metrics_same_object_in_retrieval_and_embedding():
+    # EmbeddingMetrics lives in retrieval/models.py and is re-exported from
+    # retrieval/embedding/models.py; both paths must point to the same class.
+    assert (
+        railtracks.retrieval.embedding.EmbeddingMetrics
+        is railtracks.retrieval.models.EmbeddingMetrics
+    )
