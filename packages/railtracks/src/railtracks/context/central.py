@@ -316,7 +316,7 @@ def get_owned_state(cls: type[_T], owner_id: str | None = None) -> _T:
     """Return the active session's instance of ``cls`` for one owner, creating it on first use.
 
     Args:
-        cls: The value's class, called with no arguments the first time the owner asks for it in this session.
+        cls: The value's class, called with no arguments when the owner first asks for it in this session. Threads that ask at once may each call it, but only one result is kept.
         owner_id: The owner's ``type_id``. Defaults to the innermost middleware or node body that is running.
 
     Returns:
@@ -330,9 +330,11 @@ def get_owned_state(cls: type[_T], owner_id: str | None = None) -> _T:
         owner_id = _running_owner_id(session_context)
     store = session_context.owned_state
     key = (owner_id, cls)
-    if key not in store:
-        store[key] = cls()
-    return cast(_T, store[key])
+    value = store.get(key)
+    if value is None:
+        # sync nodes run on worker threads; setdefault is atomic, so racing creators keep one value
+        value = store.setdefault(key, cls())
+    return cast(_T, value)
 
 
 def _running_owner_id(session_context: SessionContext) -> str:

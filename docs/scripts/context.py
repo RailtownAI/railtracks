@@ -67,7 +67,7 @@ class Cart:
 
 
 @rt.function_node
-def add_to_cart(item: str) -> list[str]:
+async def add_to_cart(item: str) -> list[str]:
     """Add an item to the shopper's cart.
 
     Args:

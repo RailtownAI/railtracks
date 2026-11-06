@@ -35,7 +35,7 @@ Here’s how you can use context during a run:
 ```
 
 - **Per session.** Every run starts from a fresh value, and runs happening at the same time never share one.
-- **Shared within the session.** Every call of the same tool, and every node a middleware instance is attached to, sees the same value. Parallel calls in one run share it too, so use a [`Lock`](../agent_design/middleware/prebuilt/list/lock.md) for a read-modify-write that spans an `await`.
+- **Shared within the session.** Every call of the same tool, and every node a middleware instance is attached to, sees the same value. Parallel calls in one run share it too. A sync (`def`) tool runs on a worker thread, so two parallel calls can update the value at the same moment: make a stateful tool `async def`, or attach a [`Lock`](../agent_design/middleware/prebuilt/list/lock.md) to it. In async code, use a `Lock` when a read-modify-write spans an `await`.
 - **Private.** The value is not in the context dictionary: `rt.context.keys()` doesn't list it, it isn't recorded as a context event, and it ends with the session.
 - **Read from elsewhere** by passing the owner: `rt.context.local(Cart, owner=some_middleware)` for a middleware instance, or `owner=SomeNode` for a node class.
 

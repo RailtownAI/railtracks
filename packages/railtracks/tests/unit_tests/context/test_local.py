@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass, field
 
 import pytest
@@ -21,6 +22,14 @@ class Counter:
 @dataclass
 class Seen:
     values: list[str] = field(default_factory=list)
+
+
+@dataclass
+class SlowSeen:
+    values: list[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        time.sleep(0.05)  # widens the window for two threads to create at once
 
 
 def count_calls() -> Middleware:
@@ -127,6 +136,31 @@ def test_one_owner_keeps_one_value_per_class():
         return await rt.call(tool, x="b")
 
     assert rt.Flow("two-classes", entry_point=driver).invoke() == (2, ["a", "b"])
+
+
+def test_parallel_sync_calls_share_one_value():
+    @rt.function_node
+    def record(x: str) -> None:
+        rt.context.local(SlowSeen).values.append(x)
+
+    @rt.function_node
+    async def driver() -> list[str]:
+        await asyncio.gather(*(rt.call(record, x=str(i)) for i in range(8)))
+        return sorted(rt.context.local(SlowSeen, owner=record).values)
+
+    assert rt.Flow("parallel-sync", entry_point=driver).invoke() == [
+        str(i) for i in range(8)
+    ]
+
+
+def test_decorated_tool_can_be_passed_as_owner():
+    @rt.function_node
+    async def driver() -> int:
+        await rt.call(stateful_tool)
+        await rt.call(stateful_tool)
+        return rt.context.local(Counter, owner=stateful_tool).calls
+
+    assert rt.Flow("decorated-owner", entry_point=driver).invoke() == 2
 
 
 def test_state_is_not_part_of_the_context_dictionary():

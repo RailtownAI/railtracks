@@ -383,6 +383,62 @@ def test_call_count_readable_after_the_run_finishes():
     assert budget.call_count == 0
 
 
+def test_a_run_that_only_reads_keeps_the_last_spend_visible():
+    budget = MaxCalls(5)
+
+    @rt.function_node(middleware=[budget])
+    def tool() -> str:
+        return "ok"
+
+    @rt.function_node
+    async def spend() -> None:
+        for _ in range(3):
+            await rt.call(tool)
+
+    @rt.function_node
+    async def read() -> int:
+        return budget.call_count
+
+    rt.Flow("spend", entry_point=spend).invoke()
+    assert rt.Flow("read-only", entry_point=read).invoke() == 0
+    assert budget.call_count == 3
+
+
+def test_reset_all_resets_every_run_still_in_progress():
+    budget = MaxCalls(2)
+    spent = {"first": asyncio.Event(), "second": asyncio.Event()}
+    resumed = asyncio.Event()
+
+    @rt.function_node(middleware=[budget])
+    def tool() -> str:
+        return "ok"
+
+    @rt.function_node
+    async def long_run(name: str, calls: int) -> int:
+        for _ in range(calls):
+            await rt.call(tool)
+        spent[name].set()
+        await resumed.wait()
+        await rt.call(tool)  # over budget unless reset_all reached this run
+        return budget.call_count
+
+    async def main() -> list[int]:
+        first = asyncio.create_task(
+            rt.Flow("first", entry_point=long_run).ainvoke(name="first", calls=2)
+        )
+        await spent["first"].wait()
+        # the second run makes the latest call, so reset() alone would miss the first
+        second = asyncio.create_task(
+            rt.Flow("second", entry_point=long_run).ainvoke(name="second", calls=1)
+        )
+        await spent["second"].wait()
+        budget.reset_all()
+        resumed.set()
+        return list(await asyncio.gather(first, second))
+
+    assert asyncio.run(main()) == [1, 1]
+
+
 def test_finished_runs_leave_nothing_on_the_instance():
     """Each session's counter ends with its session, so a long-lived budget never grows."""
     budget = MaxCalls(1)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import weakref
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,7 +11,7 @@ from railtracks.context.operations import local
 from railtracks.middleware.core import Middleware
 
 
-@dataclass
+@dataclass(eq=False)  # hashable by identity, for the WeakSet
 class _CallCount:
     calls: int = 0
 
@@ -39,8 +40,10 @@ class MaxCalls(Middleware[Any, Any, Never]):
     own run, so hold several calls under one budget by running them inside a
     ``Flow``.
 
-    Outside a run, :attr:`call_count` reads the most recent run's count, so a
-    finished run's spend stays readable.
+    Outside a run, :attr:`call_count` reads the count of the run that last made a
+    call, so a finished run's spend stays readable. :meth:`reset` resets that
+    count, or the active session's inside a run; :meth:`reset_all` resets every
+    session still running too.
 
     Args:
         max_calls: Number of calls allowed before the limit is enforced.
@@ -61,8 +64,10 @@ class MaxCalls(Middleware[Any, Any, Never]):
         self._custom_message = custom_message
         # calls made outside any run count here
         self._unscoped = _CallCount()
-        # what call_count reads outside a run: the most recent run's count
+        # what call_count reads outside a run: the count of the run that last called
         self._last = self._unscoped
+        # every count still in use; a finished session's drops out on its own
+        self._counts: weakref.WeakSet[_CallCount] = weakref.WeakSet([self._unscoped])
         super().__init__(self._middleware_fn)
 
     @property
@@ -71,9 +76,9 @@ class MaxCalls(Middleware[Any, Any, Never]):
         return self._max_calls
 
     def _count(self) -> _CallCount:
-        """The active session's count, or outside a run, the most recent one."""
+        """The active session's count, or outside a run, the most recent run's."""
         if is_context_present():
-            self._last = local(_CallCount, owner=self)
+            return local(_CallCount, owner=self)
         return self._last
 
     @property
@@ -86,18 +91,15 @@ class MaxCalls(Middleware[Any, Any, Never]):
         self._count().calls = 0
 
     def reset_all(self) -> None:
-        """Reset the counter that :attr:`call_count` reads.
-
-        Each session's counter ends with its session, so the most recent one is the
-        only counter left to reset; this is the same as :meth:`reset`.
-        """
-        self.reset()
+        """Reset every counter: each session still running, and calls made outside a run."""
+        for count in list(self._counts):
+            count.calls = 0
 
     async def _middleware_fn(self, call, *args, **kwargs):
-        if not is_context_present():
-            # a call outside any run must not spend a finished run's budget
-            self._last = self._unscoped
-        count = self._count()
+        # a call outside any run must not spend a finished run's budget
+        count = self._count() if is_context_present() else self._unscoped
+        self._counts.add(count)
+        self._last = count
         # Read-modify-write is safe under one event loop: no await between them.
         if count.calls >= self._max_calls:
             if self._custom_message:
