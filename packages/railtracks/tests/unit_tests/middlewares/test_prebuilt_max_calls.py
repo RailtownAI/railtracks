@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import gc
+import weakref
 
 import pytest
 import railtracks as rt
@@ -382,7 +384,7 @@ def test_call_count_readable_after_the_run_finishes():
 
 
 def test_finished_runs_leave_nothing_on_the_instance():
-    """Each run's counter ends with its run, so a long-lived budget never grows."""
+    """Each session's counter ends with its session, so a long-lived budget never grows."""
     budget = MaxCalls(1)
 
     @rt.function_node(middleware=[budget])
@@ -394,13 +396,13 @@ def test_finished_runs_leave_nothing_on_the_instance():
         return await rt.call(tool)
 
     assert rt.Flow("first-run", entry_point=driver).invoke() == "ok"
-    attributes = set(vars(budget))
+    first_count = weakref.ref(budget._last)
 
-    for i in range(100):
+    for i in range(3):
         assert rt.Flow(f"run-{i}", entry_point=driver).invoke() == "ok"
 
-    assert set(vars(budget)) == attributes
-    assert budget._last_run_state == {"_calls": 1}
+    gc.collect()
+    assert first_count() is None
     # The most recent run stays readable.
     assert budget.call_count == 1
 

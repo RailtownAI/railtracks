@@ -56,7 +56,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 
 ### 5. State
 - A middleware instance is shared, never copied: every node it is attached to (both slots), every node `rt.couple` builds from those, and every run, including concurrent runs, call the same object.
-- Keep per-run state in `rt.context` under a key the middleware owns (one key per instance, e.g. a `uuid` suffix), as `ConversationMemory` does. Each run gets its own copy of the context dictionary, so concurrent runs stay apart.
+- Keep per-run state in `rt.context.local(SomeDataclass)`: one instance per middleware (or node) per session, with no key to choose. It works in `@rt.wrap_node`-style functions and `Middleware` subclasses alike. Read it from elsewhere in the run with `rt.context.local(SomeDataclass, owner=the_middleware)`.
 - Keep only process-wide resources on `self` or in a closure: clients, connection pools, semaphores.
 - For a budget, use `railtracks.prebuilt.middleware.MaxCalls`, which keeps a separate count per session. To serialize calls that share state, put `railtracks.prebuilt.middleware.Lock` outside the middleware that uses it.
 
@@ -147,4 +147,4 @@ Adjusted = rt.couple(
 - Write content allow/block checks as `input_guard`/`output_guard`, so they show up in `GuardrailTrace` with the rest of your rails.
 - Write `wrap_node`/`wrap_llm` functions as `async def`.
 - Put failure-aware logic in `wrap_llm`/`wrap_node`; `post_llm`/`post_node` run only on success.
-- Keep per-run middleware state in `rt.context`, not on `self`; one instance serves every run, including concurrent ones.
+- Keep per-run middleware state in `rt.context.local`, not on `self`; one instance serves every run, including concurrent ones.

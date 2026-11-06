@@ -54,3 +54,28 @@ GitHubAgent = rt.agent_node(
 github_flow = rt.Flow("github-flow", entry_point=GitHubAgent)
 response = github_flow.invoke("What is the last issue created? Please write a comment on it.")
 # --8<-- [end: example]
+
+# --8<-- [start: local_state]
+from dataclasses import dataclass, field
+
+import railtracks as rt
+
+
+@dataclass
+class Cart:
+    items: list[str] = field(default_factory=list)
+
+
+@rt.function_node
+def add_to_cart(item: str) -> list[str]:
+    """Add an item to the shopper's cart.
+
+    Args:
+        item: The item to add.
+    Returns:
+        Everything in the cart so far.
+    """
+    cart = rt.context.local(Cart)  # this tool's cart for this session
+    cart.items.append(item)
+    return list(cart.items)
+# --8<-- [end: local_state]

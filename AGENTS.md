@@ -129,10 +129,10 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - `orchestration/`: `Flow`, `FlowConnection`.
 - `execution/`: coordinator/execution-strategy/task running the request graph.
 - `interaction/`: `rt.call`, `call_batch`, `astream`, `broadcast`, `couple` (in-node calls to other nodes/agents).
-- `middleware/`: generic node-level `Middleware`/`wrap_node`/`post_node` (`after_node` deprecated shim), `RunLocal` (per-run middleware state, stored on the session), plus `Verdict`/`VerifierRejectedError`. The human-in-the-loop gate itself is in `prebuilt/`.
+- `middleware/`: generic node-level `Middleware`/`wrap_node`/`post_node` (`after_node` deprecated shim), plus `Verdict`/`VerifierRejectedError`. The human-in-the-loop gate itself is in `prebuilt/`.
 - `pubsub/`: internal message bus (request creation/success/failure events).
 - `state/`: execution state/forest tracking, session info.
-- `context/`: `rt.context` get/put/update/delete (run-scoped context vars).
+- `context/`: `rt.context` get/put/update/delete (run-scoped context vars), plus `local` (session-scoped state keyed by the running middleware or node, stored on `SessionContext.owned_state`).
 - `llm/`: model abstractions (`ModelBase`, provider clients: `AnthropicLLM`, `OpenAILLM`, `GeminiLLM`, `OpenAICompatibleProvider`, etc.), messages, tool schemas.
 - `decisions/`: decision models, the counterpart of `llm/`: questions (`Predicate`/`Choice`/`Score`), `DecisionSchema`, typed answers, `DecisionResponse`, the providers (`TypeSafeDecisions`, `OpenRouterDecisions`, `OpenAIDecisions`, all through `litellm.adecisions`) and their errors (`DecisionProviderError`, `SchemaDefinitionError`). It is self-contained: from the rest of railtracks it may import only `railtracks.llm.retries`, it never raises an `RTError`, and it records no events; `tests/unit_tests/decisions/test_layering.py` enforces this. Node concerns belong in `built_nodes/decisions/`.
 - `rt_mcp/`: MCP client/server integration (`connect_mcp`, `create_mcp_server`).

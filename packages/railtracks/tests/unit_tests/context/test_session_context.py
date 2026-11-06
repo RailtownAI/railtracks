@@ -163,3 +163,16 @@ def test_with_scope_pushed_shares_the_registry_with_its_parent(dummy_executor_co
 
 
 # ============ END SessionContext registered_middleware Tests ===============
+
+
+def test_owned_state_is_per_session_and_shared_by_derived_frames(
+    dummy_executor_config,
+):
+    root = SessionContext(session_id="r", executor_config=dummy_executor_config)
+    other = SessionContext(session_id="o", executor_config=dummy_executor_config)
+    child = root.with_scope_pushed(ScopeEntry(ScopeKind.NODE, "node-1"))
+
+    child.owned_state[("owner", int)] = 1
+
+    assert root.owned_state is child.owned_state
+    assert other.owned_state == {}

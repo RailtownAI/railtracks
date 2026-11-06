@@ -52,11 +52,11 @@ You can inspect the current call count and reset the counter programmatically:
 ```python
 budget = MaxCalls(max_calls=3)
 
-# Inspect current spend (scoped to the active run)
+# Inspect current spend (scoped to the active session)
 print(budget.call_count)
 
 # Reset the counter that call_count reads
 budget.reset()
 ```
 
-Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns. Each run's counter is a [`RunLocal`](../../custom.md#middleware-state) that lives and ends with its run, so a long-lived `MaxCalls` keeps nothing from runs before the most recent one. `reset_all()` is kept as an alias of `reset()`.
+Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns. The count itself is kept in [`rt.context.local`](../../../../advanced/context.md#state-owned-by-a-middleware-or-node), so it ends with its session and a long-lived `MaxCalls` keeps nothing from earlier runs. `reset_all()` is kept as an alias of `reset()`.
