@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 import uuid
 from typing import (
-    Any,
     Awaitable,
     Callable,
     Concatenate,
@@ -16,11 +15,7 @@ from typing import (
 
 from typing_extensions import TypeVar as TypeVarWithDefault
 
-from railtracks.context.central import (
-    claim_middleware_registration,
-    get_middleware_run_state,
-    is_context_present,
-)
+from railtracks.context.central import claim_middleware_registration
 from railtracks.events.middleware import MiddlewareCreationEvent
 from railtracks.events.send import emit
 from railtracks.utils.logging.create import get_rt_logger
@@ -79,13 +74,6 @@ class Middleware(Generic[_P, _R, _Constraint]):
             raise RuntimeError("All retries exhausted")
 
     ``fn`` must be ``async``; passing a plain ``def`` raises ``TypeError``.
-
-    One instance is shared, never copied: every node it is attached to, every node
-    ``rt.couple`` builds from those, and every run, including concurrent runs, call
-    the same object. Plain attributes are therefore shared by all of them, which
-    suits configuration and resources such as clients. Declare per-run state as a
-    :class:`~railtracks.middleware.RunLocal` field instead, so each run gets its own
-    value.
     """
 
     def __init__(
@@ -102,21 +90,6 @@ class Middleware(Generic[_P, _R, _Constraint]):
         self.type_id = str(
             uuid.uuid4()
         )  # identifies this middleware definition, shared by every invocation
-        # RunLocal values for calls made outside any run
-        self._out_of_run_state: dict[str, Any] = {}
-        # what RunLocal fields read outside a run: the most recent run's values
-        self._last_run_state: dict[str, Any] = self._out_of_run_state
-
-    def _run_state(self) -> dict[str, Any]:
-        """The values this instance's ``RunLocal`` fields hold in the active run.
-
-        Outside a run, the most recent run's values, so a finished run stays readable.
-        """
-        state = get_middleware_run_state(self.type_id)
-        if state is None:
-            return self._last_run_state
-        self._last_run_state = state
-        return state
 
     async def start_creation_task(self):
         # instances are shared across runs, so announce once per session, not once ever
@@ -134,9 +107,6 @@ class Middleware(Generic[_P, _R, _Constraint]):
         fn = self._fn
 
         async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-            if not is_context_present():
-                # a call outside any run must not spend a finished run's state
-                self._last_run_state = self._out_of_run_state
             return await fn(inner, *args, **kwargs)
 
         return wrapped

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -32,20 +32,6 @@ class ScopeEntry:
                 raise ValueError(f"ScopeEntry of kind {self.kind} must have a type_id.")
 
 
-@dataclass
-class SessionMiddleware:
-    """Middleware bookkeeping for one session, shared by every frame derived from it.
-
-    A middleware instance is shared by every run, so anything it keeps per run lives
-    here, keyed by its ``type_id``, and ends with the session.
-    """
-
-    # type ids of the middleware that have emitted their creation event
-    announced: set[str] = field(default_factory=set)
-    # RunLocal values per type id, then per field name
-    run_state: dict[str, dict[str, Any]] = field(default_factory=dict)
-
-
 class SessionContext:
     """
     The SessionContext class is used to store global variables designed to be used in the RT system.
@@ -65,7 +51,7 @@ class SessionContext:
         flow_id: str | None = None,
         session_name: str | None = None,
         stream_queue: asyncio.Queue[Any] | None = None,
-        middleware: SessionMiddleware | None = None,
+        registered_middleware: set[str] | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
         self._publisher: Publisher[RequestCompletionMessage] | None = publisher
@@ -76,14 +62,18 @@ class SessionContext:
         self._flow_id: str | None = flow_id
         self._session_name: str | None = session_name
         self._stream_queue: asyncio.Queue[Any] | None = stream_queue
-        self._middleware: SessionMiddleware = (
-            middleware if middleware is not None else SessionMiddleware()
+        self._registered_middleware: set[str] = (
+            registered_middleware if registered_middleware is not None else set()
         )
 
     @property
-    def middleware(self) -> SessionMiddleware:
-        """This session's middleware bookkeeping, shared by every frame derived from this one."""
-        return self._middleware
+    def registered_middleware(self) -> set[str]:
+        """Type ids of the middleware that have emitted a creation event in this session.
+
+        The same set is passed to every frame derived from this one, so it lives exactly
+        as long as the session does.
+        """
+        return self._registered_middleware
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -193,7 +183,7 @@ class SessionContext:
             flow_id=self._flow_id,
             session_name=self._session_name,
             stream_queue=self._stream_queue,
-            middleware=self._middleware,
+            registered_middleware=self._registered_middleware,
         )
 
     @property

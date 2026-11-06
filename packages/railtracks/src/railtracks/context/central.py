@@ -274,7 +274,7 @@ def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
         flow_name=ctx.session_context.flow_name,
         flow_id=ctx.session_context.flow_id,
         session_name=ctx.session_context.session_name,
-        middleware=ctx.session_context.middleware,
+        registered_middleware=ctx.session_context.registered_middleware,
     )
     new_ctx = RunnerContextVars(
         session_context=new_session_context,
@@ -300,29 +300,11 @@ def claim_middleware_registration(middleware_type_id: str) -> bool:
     context = runner_context.get()
     if context is None:
         return False
-    announced = context.session_context.middleware.announced
-    if middleware_type_id in announced:
+    registered = context.session_context.registered_middleware
+    if middleware_type_id in registered:
         return False
-    announced.add(middleware_type_id)
+    registered.add(middleware_type_id)
     return True
-
-
-def get_middleware_run_state(middleware_type_id: str) -> dict[str, Any] | None:
-    """Return a middleware instance's per-run values for the active session.
-
-    Args:
-        middleware_type_id: The ``type_id`` of the middleware instance.
-
-    Returns:
-        The instance's values for this run, created empty on first use, or None
-        outside a session.
-    """
-    context = runner_context.get()
-    if context is None:
-        return None
-    return context.session_context.middleware.run_state.setdefault(
-        middleware_type_id, {}
-    )
 
 
 def get_stream_queue() -> asyncio.Queue[Any] | None:

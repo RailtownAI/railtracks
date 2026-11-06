@@ -24,6 +24,7 @@ from collections.abc import AsyncGenerator
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
+from ..loaders.models import LoadFailure
 from ..models import Chunk, Document, DocumentType
 
 
@@ -103,7 +104,7 @@ class Chunker(ABC):
 
     async def astream_documents(
         self,
-        documents: AsyncGenerator[Document, None],
+        documents: AsyncGenerator[Document | LoadFailure, None],
     ) -> AsyncGenerator[Chunk, None]:
         """Stream chunks for every document in an async document stream.
 
@@ -118,8 +119,15 @@ class Chunker(ABC):
 
         Yields:
             Chunk: Chunks produced from each document, in document order.
+
+        Raises:
+            Exception: The error of the first ``LoadFailure`` in
+                ``documents``. ``RetrievalRuntime.ingest`` skips and reports
+                unreadable sources instead.
         """
         async for doc in documents:
+            if isinstance(doc, LoadFailure):
+                raise doc.error
             for chunk in await self.achunk(doc):
                 yield chunk
 
