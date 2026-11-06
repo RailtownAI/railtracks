@@ -176,23 +176,22 @@ class Timeout(Middleware):
 
 
 # --8<-- [start: per_run_state]
-import uuid
+from dataclasses import dataclass
 
 
-def count_calls():
+@dataclass
+class CallCount:
+    calls: int = 0
+
+
+@rt.wrap_node
+async def count_calls(call, *args, **kwargs):
     """Count the calls a node makes in each run; every run starts from zero."""
-    # one key per instance, so two counters never share a count
-    key = f"count_calls_{uuid.uuid4().hex[:8]}"
-
-    @rt.wrap_node
-    async def counter(call, *args, **kwargs):
-        rt.context.put(key, rt.context.get(key, 0) + 1)
-        return await call(*args, **kwargs)
-
-    return counter
+    rt.context.local(CallCount).calls += 1
+    return await call(*args, **kwargs)
 
 
 CountedAgent = rt.agent_node(
-    name="Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"), middleware=[count_calls()]
+    name="Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"), middleware=[count_calls]
 )
 # --8<-- [end: per_run_state]

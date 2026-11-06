@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, KeysView
+from typing import Any, KeysView, Protocol, TypeVar
 
 from railtracks.events.context import (
     record_delete,
@@ -9,7 +9,9 @@ from railtracks.events.context import (
     record_update,
 )
 
-from .central import safe_get_runner_context
+from .central import get_owned_state, safe_get_runner_context
+
+_T = TypeVar("_T")
 
 
 def get(
@@ -88,3 +90,31 @@ def keys() -> KeysView[str]:
     """
     context = safe_get_runner_context()
     return context.external_context.keys()
+
+
+class StateOwner(Protocol):
+    """Anything with a stable ``type_id``: a middleware instance, a node class, or a decorated tool."""
+
+    @property
+    def type_id(self) -> str: ...
+
+
+def local(cls: type[_T], /, *, owner: StateOwner | None = None) -> _T:
+    """
+    Get the state the running middleware or node keeps for this session.
+
+    Each owner gets one instance of ``cls`` per session, created by calling ``cls()`` the first time it asks. Every node and call in the session that runs the same owner sees that instance, a new session starts from a fresh one, and concurrent sessions never share it. The owner is the innermost middleware or node body that is running, so a middleware instance, a decorator-built middleware, and a tool each get their own state without choosing a key.
+
+    Parallel calls in one session share the instance, and sync tools run on worker threads, so guard a read-modify-write with a ``Lock``. The state is not part of the context dictionary: it is never recorded as a context event, never shown by ``keys()``, and ends with the session.
+
+    Args:
+        cls: The state's class, called with no arguments to create it. A dataclass with defaults keeps several fields together.
+        owner: The middleware instance, node class, or decorated tool whose state to get. Defaults to the one that is running; pass it to read an owner's state from elsewhere in the session.
+
+    Returns:
+        The owner's instance of ``cls`` for this session.
+
+    Raises:
+        ContextError: Outside a session, or when ``owner`` is omitted and no middleware or node is running.
+    """
+    return get_owned_state(cls, None if owner is None else owner.type_id)

@@ -44,7 +44,7 @@ async def test_pipe_resolves_relationships_and_publishes_payload():
     manager = central.ContextVarScopeManager()
 
     with manager.enter_node("caller"):
-        with manager.enter_node_body():
+        with manager.enter_node_body("node-type"):
             with manager.enter_node("n1"):
                 events = await _emit(NodeInvocation(args=(1,), kwargs={"x": 2}))
 

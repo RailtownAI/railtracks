@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+import weakref
+from dataclasses import dataclass
 from typing import Any
 
 from typing_extensions import Never
 
-from railtracks.context.central import get_session_identity, is_context_present
-from railtracks.exceptions.errors import ContextError
+from railtracks.context.central import is_context_present
+from railtracks.context.operations import local
 from railtracks.middleware.core import Middleware
 
-# Counters outlive their session so a finished run's budget stays readable.
-# Keeping only the most recent bounds that without limiting real concurrency.
-_MAX_TRACKED_SESSIONS = 64
+
+@dataclass(eq=False)  # hashable by identity, for the WeakSet
+class _CallCount:
+    calls: int = 0
 
 
 class MaxCalls(Middleware[Any, Any, Never]):
@@ -31,14 +33,17 @@ class MaxCalls(Middleware[Any, Any, Never]):
             model_middleware=[middleware.MaxCalls(5)],  # cap raw model calls
         )
 
-    The count is tracked per session, resetting to zero when a new one begins. A
-    single ``MaxCalls`` instance shared across nodes within the same session
-    enforces a combined budget, while a fresh instance per node gives each its
-    own limit. A bare top-level ``rt.call`` is its own run, so hold several calls
-    under one budget by running them inside a ``Flow``.
+    The count is kept per session in ``rt.context.local``, starting from zero in
+    every session, concurrent ones included. A single ``MaxCalls`` instance shared
+    across nodes within the same session enforces a combined budget, while a fresh
+    instance per node gives each its own limit. A bare top-level ``rt.call`` is its
+    own run, so hold several calls under one budget by running them inside a
+    ``Flow``.
 
-    Finished sessions' counters stay readable via :attr:`call_count`, capped at
-    the 64 most recent.
+    Outside a run, :attr:`call_count` reads the count of the run that last made a
+    call, so a finished run's spend stays readable. :meth:`reset` resets that
+    count, or the active session's inside a run; :meth:`reset_all` resets every
+    session still running too.
 
     Args:
         max_calls: Number of calls allowed before the limit is enforced.
@@ -57,9 +62,12 @@ class MaxCalls(Middleware[Any, Any, Never]):
     ):
         self._max_calls = max_calls
         self._custom_message = custom_message
-        # Keyed by session_id, or None outside a run; least-recently-used first.
-        self._session_counts: OrderedDict[str | None, int] = OrderedDict()
-        self._last_session_id: str | None = None
+        # calls made outside any run count here
+        self._unscoped = _CallCount()
+        # what call_count reads outside a run: the count of the run that last called
+        self._last = self._unscoped
+        # every count still in use; a finished session's drops out on its own
+        self._counts: weakref.WeakSet[_CallCount] = weakref.WeakSet([self._unscoped])
         super().__init__(self._middleware_fn)
 
     @property
@@ -67,53 +75,37 @@ class MaxCalls(Middleware[Any, Any, Never]):
         """The maximum number of calls allowed before raising."""
         return self._max_calls
 
-    def _current_session_id(self) -> str | None:
-        """Return the active session ID, or ``None`` if not inside a run."""
+    def _count(self) -> _CallCount:
+        """The active session's count, or outside a run, the most recent run's."""
         if is_context_present():
-            try:
-                return get_session_identity().session_id
-            except ContextError:
-                return None
-        return None
-
-    def _inspection_key(self) -> str | None:
-        """Return the live session, or the last counted one when outside a run."""
-        if is_context_present():
-            return self._current_session_id()
-        return self._last_session_id
+            return local(_CallCount, owner=self)
+        return self._last
 
     @property
     def call_count(self) -> int:
-        """Calls in the active session, or the run that just finished.
-
-        Returns 0 for a session evicted by the 64-session retention cap.
-        """
-        return self._session_counts.get(self._inspection_key(), 0)
+        """Calls in the active session, or outside a run, in the most recent one."""
+        return self._count().calls
 
     def reset(self) -> None:
         """Reset the counter that :attr:`call_count` reads."""
-        self._session_counts.pop(self._inspection_key(), None)
+        self._count().calls = 0
 
     def reset_all(self) -> None:
-        """Reset call counters for all sessions."""
-        self._session_counts.clear()
-        self._last_session_id = None
+        """Reset every counter: each session still running, and calls made outside a run."""
+        for count in list(self._counts):
+            count.calls = 0
 
     async def _middleware_fn(self, call, *args, **kwargs):
-        # Live session only: a call outside a run must not spend a finished
-        # run's budget, so unlike _inspection_key this never falls back.
-        sess_id = self._current_session_id()
+        # a call outside any run must not spend a finished run's budget
+        count = self._count() if is_context_present() else self._unscoped
+        self._counts.add(count)
+        self._last = count
         # Read-modify-write is safe under one event loop: no await between them.
-        current_count = self._session_counts.get(sess_id, 0)
-        if current_count >= self._max_calls:
+        if count.calls >= self._max_calls:
             if self._custom_message:
                 raise MaxCallsExceededError(self._custom_message)
             raise MaxCallsExceededError("Maximum number of calls exceeded")
-        self._session_counts[sess_id] = current_count + 1
-        self._session_counts.move_to_end(sess_id)
-        self._last_session_id = sess_id
-        while len(self._session_counts) > _MAX_TRACKED_SESSIONS:
-            self._session_counts.popitem(last=False)
+        count.calls += 1
         return await call(*args, **kwargs)
 
 

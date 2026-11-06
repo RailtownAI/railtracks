@@ -200,7 +200,7 @@ async def test_concurrent_guards_each_record_the_agent_they_ran_for():
     mgr = ContextVarScopeManager()
 
     async def guarded_agent(agent_id: str, judge_id: str):
-        with mgr.enter_node(agent_id), mgr.enter_node_body():
+        with mgr.enter_node(agent_id), mgr.enter_node_body("node-type"):
             with (
                 mgr.enter_llm_call("model-x"),
                 mgr.enter_middleware("guard") as call_id,

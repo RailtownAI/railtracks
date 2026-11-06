@@ -43,19 +43,19 @@ A middleware object is shared, never copied. Every node you attach it to (in eit
 
 | State kept in | Shared by | Use it for |
 |---|---|---|
-| The instance (`self.count`) or a closure variable | Every run in the process, including concurrent ones | Process-wide resources: a client, a connection pool, a semaphore |
-| `rt.context`, under a key the middleware owns | One run, since each run gets its own copy of the context dictionary | Per-run counters, budgets, and conversation state |
+| The instance (`self.client`) or a closure variable | Every run in the process, including concurrent ones | Configuration and process-wide resources: a client, a connection pool, a semaphore |
+| [`rt.context.local`](../../advanced/context.md#state-owned-by-a-middleware-or-node) | One session; each run starts from a fresh value | Anything that changes during a run: counters, budgets, scratch values |
 
-This counter keeps its count in `rt.context`, so each run starts from zero and concurrent runs never see each other's count:
+`rt.context.local(cls)` returns this session's instance of `cls` for the middleware that is running, creating it with `cls()` on first use. Railtracks works out the owner from what is running, so there is no key to choose, and the same call works in a decorator-built middleware, a `Middleware` subclass, or a tool. This counter starts from zero in every run, and concurrent runs never see each other's count:
 
 ```python
 --8<-- "docs/scripts/middleware.py:per_run_state"
 ```
 
-The prebuilt middleware follow the same split and are good references: [`MaxCalls`](prebuilt/list/max_calls.md) keeps a separate budget per session, [`ConversationMemory`](prebuilt/list/conversation_memory.md) stores its history in `rt.context`, and [`Lock`](prebuilt/list/lock.md) serializes the calls that share it.
+To read a middleware's state from somewhere else in the run, such as the node that drives it, pass the instance: `rt.context.local(CallCount, owner=count_calls)`. [`MaxCalls`](prebuilt/list/max_calls.md) keeps its budget this way. [`ConversationMemory`](prebuilt/list/conversation_memory.md) stores its history in `rt.context` instead, under a key you can name, so the history can be seeded, shared between nodes, or read from the flow's context. [`Lock`](prebuilt/list/lock.md) serializes the calls that share it.
 
 !!! warning "Instance state is shared across concurrent runs"
-    A per-run value kept on `self` mixes runs together: two runs in flight at once both read and write it, and a run sees whatever the previous one left behind. Keep per-run state in `rt.context`. When runs genuinely need to coordinate on shared state, put a [`Lock`](prebuilt/list/lock.md) outside the middleware that uses it.
+    A per-run value kept on `self` mixes runs together: two runs in flight at once both read and write it, and a run sees whatever the previous one left behind. Keep per-run state in `rt.context.local`. When runs genuinely need to coordinate on shared state, put a [`Lock`](prebuilt/list/lock.md) outside the middleware that uses it.
 
 
 
