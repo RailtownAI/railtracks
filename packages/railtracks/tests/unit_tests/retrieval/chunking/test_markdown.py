@@ -149,7 +149,7 @@ def test_fence_closes_only_with_matching_marker(body, closing, line_ending):
 
     assert len(chunks) == 2
     assert chunks[0].metadata["headers"] == ["# Start"]
-    assert "# still code" in chunks[0].content or "# code" in chunks[0].content
+    assert chunks[0].content == (body + closing).replace("\n", line_ending).strip()
     assert chunks[1].metadata["headers"] == ["# Start", "## Next"]
     assert chunks[1].content == "After."
     assert all(text[c.offsets[0] : c.offsets[1]] == c.content for c in chunks)
