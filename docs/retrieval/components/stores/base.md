@@ -66,7 +66,7 @@ class Store(Protocol):
     async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]: ...
 ```
 
-`write` returns the entry ID as a string. `clear` removes all entries written with exactly the given scope (it rejects `ALL_SCOPES`); that's the path for session cleanup and user data deletion. `delete_where` and `find` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); both operate on metadata-only equality filters.
+`write` returns the entry ID as a string. `clear` removes all entries written with exactly the given scope (it rejects `ALL_SCOPES`); that's the path for session cleanup and user data deletion. `delete_where` and `find` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); both operate on metadata-only equality filters. In those filters (and in `count`), entry-field names (`document_id`, `chunk_id`, ...), `scope` and `scope_<label>` refer to the entry itself, and every other key refers to `chunk_metadata`. A metadata key that shares a name with an entry field can only be filtered through `StoreQuery.metadata_filters`, where every key (except `scope_<label>`) refers to `chunk_metadata`.
 
 ---
 
