@@ -8,6 +8,8 @@ heading context on each chunk:
 * ``metadata["section"]`` — the immediate heading the chunk belongs to,
   or ``None`` for pre-heading preamble.
 
+Heading-like lines inside fenced code blocks remain body text.
+
 When ``chunk_size`` is set and a section's body exceeds it (measured via
 ``length_fn``), the section body is delegated to a fallback
 :class:`Splitter` (default: :class:`RecursiveSplitter`). Each sub-piece
@@ -24,6 +26,28 @@ from .base import Chunker, Splitter
 from .recursive import RecursiveSplitter
 
 _DEFAULT_HEADERS: list[str] = ["#", "##", "###"]
+_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+_CLOSING_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})[ \t]*$")
+
+
+def _fence_state(
+    line: str, fence_char: str | None, fence_length: int
+) -> tuple[str | None, int, bool]:
+    """Return the next fence state and whether this line can be a heading."""
+    if fence_char is not None:
+        closing = _CLOSING_FENCE_RE.match(line)
+        if closing:
+            marker = closing.group(1)
+            if marker[0] == fence_char and len(marker) >= fence_length:
+                return None, 0, False
+        return fence_char, fence_length, False
+
+    opening = _FENCE_RE.match(line)
+    if opening:
+        marker, info = opening.groups()
+        if marker[0] != "`" or "`" not in info:
+            return marker[0], len(marker), False
+    return None, 0, True
 
 
 class MarkdownHeaderChunker(Chunker):
@@ -148,6 +172,8 @@ class MarkdownHeaderChunker(Chunker):
         # We need absolute offsets, so walk the text manually.
         sections: list[dict] = []
         heading_stack: list[tuple[int, str]] = []  # (level, full_line "# Title")
+        fence_char: str | None = None
+        fence_length = 0
 
         # Split into lines with positions.
         line_entries: list[
@@ -190,7 +216,10 @@ class MarkdownHeaderChunker(Chunker):
             current_body_end = None
 
         for line_text, line_start, line_end in line_entries:
-            m = header_re.match(line_text)
+            fence_char, fence_length, is_heading_candidate = _fence_state(
+                line_text, fence_char, fence_length
+            )
+            m = header_re.match(line_text) if is_heading_candidate else None
             if m and ("#" * len(m.group(1))) in self.headers_to_split_on:
                 flush(line_start)
                 level = len(m.group(1))
