@@ -7,9 +7,12 @@ agent node.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import litellm
 import pytest
 import railtracks as rt
+from litellm.utils import ModelResponse
 from railtracks.exceptions import LLMRateLimitError, LLMTimeoutError
 from railtracks.llm._exceptions import (
     ProviderRateLimitError,
@@ -157,27 +160,13 @@ async def test_agent_node_exhaustion_raises_retry_error(
     assert [type(e) for e in exc.value.exception_list] == [node_error] * 3
 
 
-@pytest.mark.parametrize("model_layer", ["retry_approach", "model_middleware"])
-async def test_node_retry_does_not_restart_an_exhausted_model_retry(
-    mock_llm, model_layer
-):
+async def test_node_retry_does_not_restart_an_exhausted_model_retry(mock_llm):
     calls = {"n": 0}
     llm = mock_llm(
         errors=[_counting(_rate_limit_error, calls)] * 20,
-        retry_approach=(
-            FixedRetry(max_tries=3, delay=0.0)
-            if model_layer == "retry_approach"
-            else None
-        ),
+        retry_approach=FixedRetry(max_tries=3, delay=0.0),
     )
-    agent = rt.agent_node(
-        "Agent",
-        llm=llm,
-        middleware=[_no_sleep_retry()],
-        model_middleware=(
-            [_no_sleep_retry()] if model_layer == "model_middleware" else None
-        ),
-    )
+    agent = rt.agent_node("Agent", llm=llm, middleware=[_no_sleep_retry()])
 
     with pytest.raises(LLMRateLimitError) as exc:
         await rt.Flow(name="Stacked retries", entry_point=agent).ainvoke("Hello")
@@ -200,3 +189,67 @@ async def test_exhausted_error_propagates_even_with_broad_retry_on():
 
     assert exc.value is exhausted
     assert calls["n"] == 1
+
+
+def _provider_failure(error_type):
+    return error_type(message="transient", llm_provider="openai", model="gpt-4o")
+
+
+def _ok_completion() -> ModelResponse:
+    return ModelResponse(
+        choices=[
+            {"message": {"content": "ok", "role": "assistant"}, "finish_reason": "stop"}
+        ]
+    )
+
+
+def _openai_agent(**middleware):
+    return rt.agent_node(
+        "Agent", llm=rt.llm.OpenAILLM("gpt-4o", api_key="test-key"), **middleware
+    )
+
+
+@pytest.mark.parametrize("error_type", [litellm.RateLimitError, litellm.Timeout])
+async def test_model_middleware_retries_translated_provider_errors(error_type):
+    agent = _openai_agent(model_middleware=[_no_sleep_retry()])
+    side_effect = [_provider_failure(error_type)] * 2 + [_ok_completion()]
+
+    with patch("litellm.completion", side_effect=side_effect) as completion:
+        result = await rt.Flow(name="Model retry", entry_point=agent).ainvoke("Hi")
+
+    assert result.text == "ok"
+    assert completion.call_count == 3
+
+
+@pytest.mark.parametrize(
+    "error_type, node_error",
+    [(litellm.RateLimitError, LLMRateLimitError), (litellm.Timeout, LLMTimeoutError)],
+)
+async def test_exhausted_model_middleware_retry_keeps_the_error_type(
+    error_type, node_error
+):
+    agent = _openai_agent(model_middleware=[_no_sleep_retry()])
+
+    with patch(
+        "litellm.completion", side_effect=_provider_failure(error_type)
+    ) as completion:
+        with pytest.raises(node_error) as exc:
+            await rt.Flow(name="Model retry", entry_point=agent).ainvoke("Hi")
+
+    assert type(exc.value) is node_error
+    assert exc.value.retry_exhausted
+    assert completion.call_count == 3
+
+
+async def test_model_and_node_retry_on_a_real_provider_do_not_multiply():
+    agent = _openai_agent(
+        middleware=[_no_sleep_retry()], model_middleware=[_no_sleep_retry()]
+    )
+
+    with patch(
+        "litellm.completion", side_effect=_provider_failure(litellm.RateLimitError)
+    ) as completion:
+        with pytest.raises(LLMRateLimitError):
+            await rt.Flow(name="Stacked retries", entry_point=agent).ainvoke("Hi")
+
+    assert completion.call_count == 3
