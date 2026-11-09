@@ -419,12 +419,28 @@ class RetrievalRuntime:
     @staticmethod
     def _stamp_staleness_metadata(doc: Document, chunks: list[Chunk]) -> None:
         """Inject staleness-detection metadata into every chunk so future
-        `find` calls can identify whether this document has changed."""
+        `find` calls can identify whether this document has changed.
+
+        The runtime owns these keys: they overwrite any same-named metadata
+        from the loader, which would otherwise break the skip check. A
+        warning is logged once per document when a different value is
+        replaced.
+        """
+        runtime_keys = {"source_path": doc.source, "content_hash": doc.content_hash}
+        runtime_keys = {k: v for k, v in runtime_keys.items() if v is not None}
+        overwritten: set[str] = set()
         for chunk in chunks:
-            if doc.source is not None:
-                chunk.metadata.setdefault("source_path", doc.source)
-            if doc.content_hash is not None:
-                chunk.metadata.setdefault("content_hash", doc.content_hash)
+            for key, value in runtime_keys.items():
+                if key in chunk.metadata and chunk.metadata[key] != value:
+                    overwritten.add(key)
+                chunk.metadata[key] = value
+        if overwritten:
+            logger.warning(
+                "Document %r has metadata %s, which the runtime sets for its "
+                "skip check; the loader's values were replaced.",
+                doc.source,
+                sorted(overwritten),
+            )
 
     def _split_oversized(
         self, chunks: list[Chunk], stats: IngestionStats
