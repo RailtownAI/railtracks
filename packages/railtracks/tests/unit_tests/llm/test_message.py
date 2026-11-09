@@ -175,6 +175,7 @@ class TestAttachment:
             (".png", "png"),
             (".gif", "gif"),
             (".webp", "webp"),
+            (".avif", "avif"),
             (".PNG", "png"),
         ],
     )
@@ -258,6 +259,13 @@ class TestAttachment:
         # Image URLs are passed to the provider as-is; no fetch at construction.
         assert attachment.encoding is None
 
+    def test_url_avif(self):
+        attachment = Attachment("https://example.com/photo.avif")
+        assert attachment.type == "url"
+        assert attachment.modality == "image"
+        assert attachment.mime_type == "image/avif"
+        assert attachment.encoding is None
+
     def test_url_with_query_string(self):
         url = "https://example.com/photo.png?token=abc&x=1"
         attachment = Attachment(url)
@@ -286,7 +294,7 @@ class TestAttachment:
             def __exit__(self, *a):
                 return False
 
-        def fake_urlopen(req, timeout=None):
+        def fake_open_url(url, *, timeout, method="GET"):
             seen["probe_timeout"] = timeout
             return _FakeResp()
 
@@ -297,7 +305,7 @@ class TestAttachment:
             seen["encode_max_mb"] = max_mb
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "open_url", fake_open_url)
         monkeypatch.setattr(message_module, "encode", fake_encode)
 
         UserMessage(
@@ -378,8 +386,8 @@ class TestAttachment:
             def __exit__(self, *a):
                 return False
 
-        def fake_urlopen(req, timeout=None):
-            assert req.get_method() == "HEAD"
+        def fake_open_url(url, *, timeout, method="GET"):
+            assert method == "HEAD"
             return _FakeResp()
 
         def fake_encode(path, *, timeout=10.0, max_mb=32.0):
@@ -387,7 +395,7 @@ class TestAttachment:
 
             return _b64.b64encode(pdf_bytes).decode("utf-8")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "open_url", fake_open_url)
         monkeypatch.setattr(message_module, "encode", fake_encode)
 
         attachment = Attachment("https://arxiv.org/pdf/1706.03762", trust_urls=True)
@@ -405,10 +413,10 @@ class TestAttachment:
         """
         from railtracks.llm import message as message_module
 
-        def boom_urlopen(req, timeout=None):
+        def boom_open_url(url, *, timeout, method="GET"):
             raise AssertionError("HEAD probe must not be issued when trust_urls=False")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", boom_urlopen)
+        monkeypatch.setattr(message_module, "open_url", boom_open_url)
 
         attachment = Attachment("https://arxiv.org/pdf/1706.03762")
         assert attachment.modality == "image"
@@ -421,10 +429,10 @@ class TestAttachment:
 
         from railtracks.llm import message as message_module
 
-        def fake_urlopen(req, timeout=None):
+        def fake_open_url(url, *, timeout, method="GET"):
             raise URLError("nope")
 
-        monkeypatch.setattr(message_module.urllib_request, "urlopen", fake_urlopen)
+        monkeypatch.setattr(message_module, "open_url", fake_open_url)
 
         attachment = Attachment(
             "https://example.com/something-no-extension", trust_urls=True

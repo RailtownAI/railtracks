@@ -74,7 +74,7 @@ Given the LLM powering your agent, you can pass image inputs to your multimodal 
 ```
 The `attachment` parameter can be a single `str` or a `list[str]`. We currently support the following:
 
-- Both file and web URLs of the following types: `jpeg`, `png`, `gif`, and `webp`
+- Both file and web URLs of the following types: `jpeg`, `png`, `gif`, `webp`, and `avif` (OpenAI, Anthropic and Gemini do not accept `avif`, but some OpenAI-compatible servers do)
 - `byte64` encoded string of the image
 
 A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names an audio, video, text or Office document file (such as `.mp3`, `.mp4` or `.docx`) raises a `ValueError`, since those formats are not supported as attachments yet. With `trust_urls=True`, such a URL is HEAD-probed first and accepted when the server reports an image or PDF, for example a thumbnail service that renders a frame from a `.mp4` path.
@@ -91,14 +91,13 @@ Supported PDF sources:
 
 - Local file paths ending in `.pdf`
 - Base64-encoded PDF payloads or full `data:application/pdf;base64,...` URIs
-- HTTPS URLs ending in `.pdf` — **only with `trust_urls=True`** (see below)
+- URLs ending in `.pdf`, **only with `trust_urls=True`**
 
-!!! warning "URL PDFs require `trust_urls=True`"
-    Unlike most image URLs (which the provider fetches), PDFs are passed to the provider inline as base64. That means railtracks downloads the URL **in-process** before the call. End-user-supplied URLs are an SSRF surface once their bytes are fetched on your server and embedded in the prompt, so this path is opt-in:
+PDFs reach the provider inline as base64, so Railtracks downloads a PDF URL in your process before the call. That download is opt-in, and only for URLs you trust (see [Attachment URLs in production](#attachment-urls-in-production)):
 
-    ```python
-    --8<-- "docs/scripts/multimodal.py:pdf_url"
-    ```
+```python
+--8<-- "docs/scripts/multimodal.py:pdf_url"
+```
 
 ### Tuning the fetch timeout and size limit
 
@@ -110,5 +109,27 @@ The HEAD probe and PDF download share a per-request timeout that defaults to 10 
 
 Both settings only apply when `trust_urls=True`. With `trust_urls=False`, Railtracks itself makes no network requests. With `trust_urls=True`, it makes none for local files, data URIs and image URLs with a recognized extension.
 
-!!! warning "Some image URLs are downloaded in your process anyway"
-    `trust_urls` controls only the downloads Railtracks makes. Some providers can't take an image by URL, so litellm, which Railtracks uses to call providers, downloads the image in your process before sending the request, whatever `trust_urls` is set to. If image URLs come from end users, download and check them yourself and pass a local file or data URI instead.
+---
+## Attachment URLs in production
+
+Railtracks doesn't check where an attachment URL points. Who downloads it depends on the attachment:
+
+| Attachment | Downloaded by |
+|---|---|
+| Local file, base64 or data URI | Nobody. Railtracks reads the file or uses the bytes as they are. |
+| Image URL | The provider, in most cases. When the provider can't take the URL, litellm (which Railtracks uses to call providers) downloads it in your process first, whatever `trust_urls` is set to: every image URL for Gemini, and `http://` URLs for Anthropic. litellm refuses URLs that point at a non-public address. |
+| PDF URL, or the HEAD probe of a URL without an image or PDF extension | Railtracks, in your process, only with `trust_urls=True`. There is no address check, so internal and `localhost` URLs work. |
+
+A typical path from development to production:
+
+1. **While building**, pass local file paths or bytes.
+2. **For URLs you trust**, such as your own storage, an internal server or test fixtures, set `trust_urls=True`.
+3. **When URLs come from end users**, download them in your app, apply your own URL rules and content moderation, then pass the bytes. This is also how to attach an image from an internal host that litellm would refuse:
+
+```python
+--8<-- "docs/scripts/multimodal.py:production_fetch"
+```
+
+litellm's check can be changed with `litellm.user_url_allowed_hosts` (hosts it should allow) and `litellm.user_url_validation` (on by default). Both apply to the whole process.
+
+When the PDF download fails, the error shows the URL without its credentials or query string, so signed URLs don't end up in logs. Errors raised by litellm or the provider can still include the full URL.

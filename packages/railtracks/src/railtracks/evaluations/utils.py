@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from railtracks.paths import resolve_railtracks_home
+from railtracks.paths import ensure_gitignore, resolve_railtracks_home
 
 from .result import EvaluationResult
 
@@ -17,6 +17,7 @@ def save(results: list[EvaluationResult]):
     for result in results:
         fp = evals_dir / f"{result.evaluation_id}.json"
         fp.parent.mkdir(parents=True, exist_ok=True)
+        ensure_gitignore(evals_dir)
         if fp.exists():
             raise Exception(
                 f"Evaluation result with id {result.evaluation_id} already exists."

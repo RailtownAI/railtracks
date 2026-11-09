@@ -137,15 +137,13 @@ def _middleware_rows_cte() -> str:
     one definition:
 
     * **Name**, from ``middleware.creation`` joined on ``middleware_type_id`` and
-      **grouped by it**. The grouping is required, not tidiness: a type_id gets a
-      creation event per process, so ``_observe_middleware`` alone has 225
-      creations across 33 type_ids on a 3,887-event store, and an ungrouped join
-      would fan each of its events out 7-fold. The join is global rather than
-      session-scoped for the same reason it resolves at all —
-      ``_llm_observe`` is a module-level singleton whose registration fires once
-      per *process*, so sessions after the first carry invocations whose creation
-      lives in another session's file. Measured: 0 of 1,545 events with a parent
-      type_id fail to resolve globally.
+      **grouped by it**. The grouping is required, not tidiness: one middleware
+      object is shared by every run, so its type_id gets a creation event in every
+      session it runs in, and an ungrouped join would fan each of its events out
+      once per session in the store. The join is global rather than
+      session-scoped so a session whose own creation is missing still resolves,
+      as it does for stores recorded by releases that announced a shared
+      middleware only in the first session of a process.
 
       It stays a ``LEFT`` join with a fallback label anyway. An unresolvable
       middleware should appear as an unnamed row rather than vanish — a stream

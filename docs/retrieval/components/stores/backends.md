@@ -124,6 +124,8 @@ Chroma stores text alongside each vector as a *Document*. Both Chroma
 backends map `StoreEntry.content` (equivalently, `Chunk.content`) to this
 field automatically — you don't need to set it separately. This is what
 Chroma displays in its UI and what server-side embedding functions receive.
+The content is stored only as the Document, not repeated in the entry's
+metadata; it is read back from the Document on search and listing.
 
 ### Distance metric
 
@@ -139,6 +141,8 @@ changed later**. Pick at create time:
 | `COSINE` (default) | `cosine` | `1 - distance` |
 | `L2` | `l2` | `1 / (1 + sqrt(distance))` |
 | `IP` | `ip` | `1 - distance` |
+
+If the collection already exists, its space must match `metric`: `initialize()` raises a `ValueError` otherwise, since converting its distances with another metric's formula would return wrong scores. Pass the matching `DistanceMetric`, or use a new collection name.
 
 | Property | Value |
 |---|---|
@@ -180,19 +184,21 @@ and passed as `vector` on every write and search, exactly like the local
 
 ### Distance metric
 
-For Cloud collections, `metric` controls the **score conversion formula
-only** — the `hnsw:space` is managed server-side and cannot be set at
-collection creation time.
+Works the same as for `ChromaBackend`: `metric` sets the collection's distance space when the collection is created, and the space cannot be changed later. A Cloud collection that already exists must use the same space as `metric`, or `initialize()` raises a `ValueError`. Collections created without an explicit space default to `l2`.
 
 ```python
 --8<-- "docs/scripts/retrieval/store.py:chroma_cloud_metric"
 ```
 
-| `DistanceMetric` | Score formula |
-|---|---|
-| `COSINE` (default) | `1 - distance` |
-| `L2` | `1 / (1 + sqrt(distance))` |
-| `IP` | `1 - distance` |
+| `DistanceMetric` | Chroma space | Score formula |
+|---|---|---|
+| `COSINE` (default) | `cosine` | `1 - distance` |
+| `L2` | `l2` | `1 / (1 + sqrt(distance))` |
+| `IP` | `ip` | `1 - distance` |
+
+### Result limit
+
+Chroma Cloud rejects a query that asks for more than 300 results, its default per-query quota. `ChromaCloudBackend` caps each search at `max_results` (300 by default): a larger `top_k` returns at most `max_results` results and emits a `UserWarning`. If Chroma has raised your account's quota, pass the new limit as `max_results`, or `max_results=None` to never cap.
 
 | Property | Value |
 |---|---|

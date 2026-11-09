@@ -191,8 +191,8 @@ def chroma_cloud_metric():
     # --8<-- [start:chroma_cloud_metric]
     from railtracks.retrieval.stores import ChromaCloudBackend, DistanceMetric
 
-    # metric controls the score conversion formula only —
-    # the hnsw:space is managed server-side for Cloud collections.
+    # metric sets the collection's distance space on creation; an existing
+    # collection must already use the same space.
     backend = ChromaCloudBackend(
         "my-collection",
         api_key="chk-...",

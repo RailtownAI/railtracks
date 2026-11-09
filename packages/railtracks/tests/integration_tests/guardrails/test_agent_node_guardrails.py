@@ -355,3 +355,35 @@ def test_structured_tool_call_combination_rejected_at_creation(mock_llm, block_i
             llm=mock_llm(),
             model_middleware=[block_input],
         )
+
+
+# ============================================================
+# Guard traces across runs
+# ============================================================
+
+
+def _rail_names(payload: object) -> list[str]:
+    if isinstance(payload, dict):
+        own = [payload["rail_name"]] if "rail_name" in payload else []
+        return own + [n for v in payload.values() for n in _rail_names(v)]
+    if isinstance(payload, list):
+        return [n for v in payload for n in _rail_names(v)]
+    return []
+
+
+@pytest.mark.asyncio
+async def test_guard_trace_keeps_its_rail_name_in_every_run(mock_llm):
+    """The guard instance is shared across runs; each session document must still name it."""
+    guard = FnInputGuard(lambda _event: GuardrailDecision.allow(), name="my_rail")
+    Agent = rt.agent_node(  # noqa: N806
+        name="named-rail",
+        llm=mock_llm(custom_response="ok"),
+        model_middleware=[guard],
+    )
+    flow = rt.Flow("named_rail_runs", Agent)
+
+    for _ in range(2):
+        conn = flow.connect()
+        await conn.ainvoke(user_input="hello")
+        # each node appears again under its parent snapshot, so compare the set
+        assert set(_rail_names(conn.session.payload())) == {"my_rail"}

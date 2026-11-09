@@ -52,9 +52,9 @@ Combine these with `[retrieval-core]` to add specific capabilities.
 | `[ocr]` | `pypdfium2`, `pytesseract`, `pillow` | OCR fallback in `PyPDFOCRLoader`. Also needs the [Tesseract binary](https://tesseract-ocr.github.io/tessdoc/Installation.html) on `PATH`. |
 | `[huggingface]` | `datasets` | `HuggingFaceDatasetLoader` for streaming HF datasets. |
 | `[chroma]` | `chromadb`, `pdfplumber` | ChromaDB-backed ingestion utilities. |
-| `[aws]` | `boto3` | `S3Loader`. |
-| `[azure-blob]` | `azure-core`, `azure-identity`, `azure-storage-blob` | `AzureBlobLoader`. |
-| `[gcp]` | `google-cloud-storage` | `GCSLoader`. |
+| `[aws]` | `boto3` | `S3Loader`. Add `[pdf]` to parse PDF objects. |
+| `[azure-blob]` | `azure-core`, `azure-identity`, `azure-storage-blob` | `AzureBlobLoader`. Add `[pdf]` to parse PDF objects. |
+| `[gcp]` | `google-cloud-storage` | `GCSLoader`. Add `[pdf]` to parse PDF objects. |
 | `[sql]` | `sqlalchemy` | `SQLLoader`. |
 
 ---

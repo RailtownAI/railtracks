@@ -7,7 +7,6 @@ from copy import deepcopy
 from enum import Enum
 from typing import Any, Generic, TypeVar, cast
 from urllib import error as urllib_error
-from urllib import request as urllib_request
 from urllib.parse import urlparse
 
 from .content import Content, ToolCall, ToolCalls, ToolResponse
@@ -17,6 +16,8 @@ from .encoding import (
     detect_source,
     encode,
     ensure_data_uri,
+    open_url,
+    redact_url,
     validate_max_mb,
 )
 
@@ -31,6 +32,7 @@ _EXTENSION_MIME_MAP = {
     ".png": "image/png",
     ".gif": "image/gif",
     ".webp": "image/webp",
+    ".avif": "image/avif",
     ".pdf": "application/pdf",
 }
 
@@ -57,8 +59,7 @@ def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | 
     suffix; filename comes from Content-Disposition if present.
     """
     try:
-        req = urllib_request.Request(url, method="HEAD")
-        with urllib_request.urlopen(req, timeout=timeout) as resp:
+        with open_url(url, timeout=timeout, method="HEAD") as resp:
             ct = (
                 resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
                 or None
@@ -172,7 +173,7 @@ class Attachment:
                 self.mime_type = probed_ct
         if self.mime_type is None and file_extension in _NON_IMAGE_EXTENSIONS:
             raise ValueError(
-                f"Unsupported attachment format: {file_extension} in URL {self.url!r}. "
+                f"Unsupported attachment format: {file_extension} in URL {redact_url(self.url)!r}. "
                 f"Supported formats: {', '.join(_EXTENSION_MIME_MAP)}."
             )
         if self.mime_type:
@@ -182,7 +183,7 @@ class Attachment:
         if self.modality == "document":
             if not trust_urls:
                 raise ValueError(
-                    f"PDF URL attachments require trust_urls=True: {self.url!r}. "
+                    f"PDF URL attachments require trust_urls=True: {redact_url(self.url)!r}. "
                     "Constructing this attachment would fetch the URL in-process and "
                     "embed its bytes into the LLM prompt, which is an SSRF/exfiltration "
                     "surface for end-user-supplied URLs. Pass trust_urls=True only "

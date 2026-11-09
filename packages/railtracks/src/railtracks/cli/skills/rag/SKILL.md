@@ -181,7 +181,8 @@ async def ingest_with_progress(runtime: RetrievalRuntime, loader) -> None:
         if isinstance(event, BatchIngested):
             print(f"batch {event.batch_index}: {len(event.embedded_chunks)} chunks written")
         elif isinstance(event, DocumentFailed):
-            print(f"FAILED: {event.document_id} — {event.errors}")
+            # stage is "load", "chunk", "embed", or "store"; document_id is None for "load"
+            print(f"FAILED at {event.stage}: {event.source} — {event.errors!r}")
         elif isinstance(event, DocumentSkipped):
             print(f"skipped (unchanged): {event.document_id}")
 ```
@@ -304,7 +305,7 @@ await runtime.delete_document(document_id=UUID("1f0c9b6e-0000-4000-8000-00000000
 - Create Chroma backends with `await ChromaBackend.create(...)`, which handles initialization.
 - Use the same embedding model for ingest and retrieve on a collection; railtracks raises `EmbeddingModelMismatchError` on a mismatch.
 - Ingest with `ingest_all()` and a loader that streams (`astream()`), so documents are processed as they load.
-- Check `documents_failed` in the ingestion stats and surface any failures to the user.
+- Check `documents_failed` in the ingestion stats and surface any failures to the user. One unreadable file or failing document is reported as a `DocumentFailed` (see its `stage` and `source`) and the rest still ingest; pass `on_error="raise"` to `RetrievalRuntime` only when a single bad document should stop the run.
 - In production, store vectors in `ChromaBackend` with a `path`, or in `PgvectorBackend`; `InMemoryVectorBackend` keeps them only until the process restarts.
 - Build `RetrievalRuntime` once at startup and reuse it across requests.
 - Pass `retrieve()` the user's natural-language question as the query.
