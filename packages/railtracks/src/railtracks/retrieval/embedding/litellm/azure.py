@@ -15,6 +15,9 @@ class AzureEmbedding(LiteLLMEmbedding):
         api_key: Azure API key. Falls back to ``AZURE_API_KEY``.
         dimensions: Truncate output vectors to this size. Only supported by
             ``text-embedding-3-*`` models.
+        model: The Azure OpenAI model this deployment serves (e.g.
+            ``"text-embedding-3-small"``). Only needed for cost tracking when
+            the deployment name is not a model name.
     """
 
     def __init__(
@@ -25,10 +28,13 @@ class AzureEmbedding(LiteLLMEmbedding):
         api_version: str,
         api_key: str | None = None,  # falls back to AZURE_API_KEY
         dimensions: int | None = None,
+        model: str | None = None,
     ) -> None:
         extra: dict[str, Any] = {}
         if dimensions is not None:
             extra["dimensions"] = dimensions
+        if model is not None:
+            extra["base_model"] = model
         super().__init__(
             model=f"azure/{deployment}",
             api_base=api_base,
