@@ -13,13 +13,13 @@ from __future__ import annotations
 import numpy as np
 from sklearn.metrics.pairwise import paired_cosine_distances
 
-from .._logging import get_logger
+from .._logging import RetrievalComponent, get_logger
 from ..embedding.base import Embedding
 from ..models import Chunk, Document
 from .base import Chunker, Splitter
 from .sentence import RegexSentenceSplitter
 
-logger = get_logger("chunking")
+logger = get_logger(RetrievalComponent.CHUNKING)
 
 
 class SemanticChunker(Chunker):

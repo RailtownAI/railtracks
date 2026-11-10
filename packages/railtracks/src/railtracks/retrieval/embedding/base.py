@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterable
 from typing import TypeVar
 
-from .._logging import get_logger
+from .._logging import RetrievalComponent, get_logger
 from ..models import Chunk, EmbeddedChunk
 from ..utils import abatched
 from .models import (
@@ -15,7 +15,7 @@ from .models import (
     TextEmbeddings,
 )
 
-logger = get_logger("embedding")
+logger = get_logger(RetrievalComponent.EMBEDDING)
 
 _T = TypeVar("_T")
 

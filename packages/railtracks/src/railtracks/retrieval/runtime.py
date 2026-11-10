@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 from uuid import UUID
 
-from ._logging import get_logger
+from ._logging import RetrievalComponent, get_logger
 from .chunking.base import Chunker
 from .chunking.tokenization import Tokenizer
 from .embedding.base import Embedding
@@ -25,7 +25,7 @@ from .stores.models import (
 )
 from .stores.protocol import Store
 
-logger = get_logger("runtime")
+logger = get_logger(RetrievalComponent.RUNTIME)
 
 IngestionStage = Literal["load", "chunk", "embed", "store"]
 """The ingest step a ``DocumentFailed`` happened in."""

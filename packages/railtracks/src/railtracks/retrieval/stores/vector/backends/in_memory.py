@@ -6,10 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-from ...._logging import get_logger
+from ...._logging import RetrievalComponent, get_logger
 from ..metric import DistanceMetric
 
-logger = get_logger("store")
+logger = get_logger(RetrievalComponent.STORE)
 
 
 class InMemoryBackend:

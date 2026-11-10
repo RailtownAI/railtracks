@@ -10,7 +10,7 @@ import pathlib
 
 import pytest
 import railtracks.retrieval
-from railtracks.retrieval._logging import get_logger
+from railtracks.retrieval._logging import RetrievalComponent, get_logger
 from railtracks.utils.logging.config import rt_logger_name
 
 RETRIEVAL_ROOT = pathlib.Path(railtracks.retrieval.__file__).parent
@@ -70,4 +70,7 @@ def test_retrieval_package_does_not_import_upward(module_path: pathlib.Path):
 
 
 def test_retrieval_loggers_hang_under_the_rt_logger():
-    assert get_logger("embedding").name == f"{rt_logger_name}.retrieval.embedding"
+    assert (
+        get_logger(RetrievalComponent.EMBEDDING).name
+        == f"{rt_logger_name}.retrieval.embedding"
+    )

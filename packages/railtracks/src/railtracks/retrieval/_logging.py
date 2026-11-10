@@ -6,18 +6,26 @@ Flow. They are named by component so the console's short label tells them apart.
 """
 
 import logging
-from typing import Literal
+from enum import Enum
 
-RetrievalComponent = Literal["chunking", "embedding", "loader", "runtime", "store"]
+
+class RetrievalComponent(str, Enum):
+    """The retrieval components that log, each with its own logger."""
+
+    CHUNKING = "chunking"
+    EMBEDDING = "embedding"
+    LOADER = "loader"
+    RUNTIME = "runtime"
+    STORE = "store"
 
 
 def get_logger(component: RetrievalComponent) -> logging.Logger:
     """The logger for one retrieval component.
 
     Args:
-        component: The component's name, such as ``"embedding"`` or ``"store"``.
+        component: The component to log for, such as ``RetrievalComponent.STORE``.
 
     Returns:
         The ``RT.retrieval.<component>`` logger.
     """
-    return logging.getLogger(f"RT.retrieval.{component}")
+    return logging.getLogger(f"RT.retrieval.{component.value}")
