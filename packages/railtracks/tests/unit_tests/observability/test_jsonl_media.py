@@ -9,16 +9,16 @@ from railtracks.events.context import _snapshot
 from railtracks.llm import MessageHistory, UserMessage
 from railtracks.observability import (
     EVENTS_DIR_ENV,
+    SAVE_MEDIA_MAX_MB_ENV,
     SCOPE_SESSION,
     Event,
     JsonlWriter,
-    resolve_media_dir,
 )
 from railtracks.observability.writers.jsonl._media import (
-    MEDIA_MAX_MB_ENV,
     MediaStore,
     save_media_max_bytes,
 )
+from railtracks.observability.writers.jsonl._serialize import RTObserverEncoder
 from railtracks.utils.json.encoder import RTJSONEncoder
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
@@ -97,7 +97,7 @@ def test_existing_media_file_is_not_rewritten(tmp_path: Path, png_path):
 def test_limit_of_zero_saves_metadata_only(
     tmp_path: Path, png_path, monkeypatch: pytest.MonkeyPatch
 ):
-    monkeypatch.setenv(MEDIA_MAX_MB_ENV, "0")
+    monkeypatch.setenv(SAVE_MEDIA_MAX_MB_ENV, "0")
     media_dir = tmp_path / "media"
     writer = JsonlWriter(tmp_path / "events", media_directory=media_dir)
 
@@ -113,7 +113,7 @@ def test_limit_saves_media_up_to_the_size(
 ):
     large = tmp_path / "large.png"
     large.write_bytes(PNG_BYTES + b"\x00" * 1000)
-    monkeypatch.setenv(MEDIA_MAX_MB_ENV, str(500 / (1024 * 1024)))
+    monkeypatch.setenv(SAVE_MEDIA_MAX_MB_ENV, str(500 / (1024 * 1024)))
     media_dir = tmp_path / "media"
     writer = JsonlWriter(tmp_path / "events", media_directory=media_dir)
 
@@ -130,13 +130,15 @@ def test_media_is_saved_inside_the_events_dir_by_default(tmp_path: Path, png_pat
     assert (tmp_path / "events" / "media" / PNG_SHA256).exists()
 
 
-def test_media_dir_follows_events_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
-    monkeypatch.delenv(EVENTS_DIR_ENV, raising=False)
-    assert resolve_media_dir() == tmp_path / ".railtracks" / "data" / "events" / "media"
-
+def test_media_dir_follows_events_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, png_path
+):
     monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path / "saved-events"))
-    assert resolve_media_dir() == tmp_path / "saved-events" / "media"
+    writer = JsonlWriter()
+
+    _write(writer, _llm_event(png_path))
+
+    assert (tmp_path / "saved-events" / "media" / PNG_SHA256).exists()
 
 
 @pytest.mark.parametrize(
@@ -151,16 +153,16 @@ def test_media_dir_follows_events_dir(tmp_path: Path, monkeypatch: pytest.Monkey
 )
 def test_save_media_max_bytes(raw, expected, monkeypatch: pytest.MonkeyPatch):
     if raw is None:
-        monkeypatch.delenv(MEDIA_MAX_MB_ENV, raising=False)
+        monkeypatch.delenv(SAVE_MEDIA_MAX_MB_ENV, raising=False)
     else:
-        monkeypatch.setenv(MEDIA_MAX_MB_ENV, raw)
+        monkeypatch.setenv(SAVE_MEDIA_MAX_MB_ENV, raw)
     assert save_media_max_bytes() == expected
 
 
 @pytest.mark.parametrize("raw", ["lots", "-1", "nan", "inf"])
 def test_invalid_limit_warns_and_saves_everything(raw, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv(MEDIA_MAX_MB_ENV, raw)
-    with pytest.warns(UserWarning, match=MEDIA_MAX_MB_ENV):
+    monkeypatch.setenv(SAVE_MEDIA_MAX_MB_ENV, raw)
+    with pytest.warns(UserWarning, match=SAVE_MEDIA_MAX_MB_ENV):
         assert save_media_max_bytes() is None
 
 
@@ -181,6 +183,37 @@ def test_store_reports_a_failed_write(tmp_path: Path, caplog):
         store.save(PNG_SHA256, len(PNG_BYTES), lambda: PNG_BYTES)
 
     assert "Could not save media" in caplog.text
+
+
+def test_store_does_not_retry_a_failed_write(tmp_path: Path, caplog):
+    not_a_dir = tmp_path / "media"
+    not_a_dir.write_text("in the way")
+    store = MediaStore(not_a_dir)
+    calls = []
+
+    def data() -> bytes:
+        calls.append(1)
+        return PNG_BYTES
+
+    with caplog.at_level(logging.WARNING):
+        for _ in range(3):
+            store.save(PNG_SHA256, len(PNG_BYTES), data)
+
+    assert caplog.text.count("Could not save media") == 1
+    assert len(calls) <= 1
+
+
+def test_event_encoder_ignores_an_unrelated_record_method():
+    class Recorder:
+        called = False
+
+        def record(self, *args: object) -> str:
+            Recorder.called = True
+            return "recorded"
+
+    json.dumps({"value": Recorder()}, cls=RTObserverEncoder)
+
+    assert not Recorder.called
 
 
 def test_session_json_encoder_keeps_the_legacy_shape(png_path):

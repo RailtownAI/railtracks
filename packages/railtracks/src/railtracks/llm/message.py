@@ -51,7 +51,7 @@ _RECORD_SOURCES = {"local": "path", "url": "url", "data_uri": "inline"}
 
 
 class MediaSink(Protocol):
-    """Where `record()` stores media bytes, keyed by their hash.
+    """Where `to_event_record()` stores media bytes, keyed by their hash.
 
     The same shape as `railtracks.utils.json.recordable.MediaSink`, declared here
     because the llm package does not import the rest of railtracks.
@@ -231,7 +231,7 @@ class Attachment:
         self.modality = _modality_for_mime(self.mime_type)
         self.type = "data_uri"
 
-    def record(self, media: MediaSink | None) -> dict[str, Any]:
+    def to_event_record(self, media: MediaSink | None) -> dict[str, Any]:
         """Describe this attachment for the event record, without its bytes.
 
         Args:
@@ -459,11 +459,11 @@ class UserMessage(_StringOnlyContent[Role.user]):
 
         return super().encode()
 
-    def record(self, media: MediaSink | None) -> dict[str, Any]:
+    def to_event_record(self, media: MediaSink | None) -> dict[str, Any]:
         """Describe this message for the event record.
 
         Matches `encode()` except that each attachment is a media part from
-        `Attachment.record`.
+        `Attachment.to_event_record`.
 
         Args:
             media: Where to store attachment bytes under their hash, or None to
@@ -479,7 +479,7 @@ class UserMessage(_StringOnlyContent[Role.user]):
             "role": self.role.value,
             "content": [
                 {"type": "text", "text": self.content},
-                *(attachment.record(media) for attachment in self.attachment),
+                *(attachment.to_event_record(media) for attachment in self.attachment),
             ],
         }
 

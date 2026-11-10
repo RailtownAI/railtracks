@@ -15,8 +15,8 @@ from .storage import (
     EVENTS_DIR_ENV,
     EVENTS_SUBDIR,
     MEDIA_SUBDIR,
+    SAVE_MEDIA_MAX_MB_ENV,
     resolve_events_dir,
-    resolve_media_dir,
 )
 from .writers import JsonlWriter, Writer
 
@@ -36,5 +36,5 @@ __all__ = [
     "EVENTS_SUBDIR",
     "resolve_events_dir",
     "MEDIA_SUBDIR",
-    "resolve_media_dir",
+    "SAVE_MEDIA_MAX_MB_ENV",
 ]

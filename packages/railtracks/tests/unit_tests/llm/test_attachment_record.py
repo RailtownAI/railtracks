@@ -74,7 +74,7 @@ class TestAttachmentRecord:
     def test_local_file(self, png_path):
         sink = _Sink()
 
-        part = Attachment(png_path).record(sink)
+        part = Attachment(png_path).to_event_record(sink)
 
         assert part == {
             "type": "image",
@@ -92,7 +92,7 @@ class TestAttachmentRecord:
 
         sink = _Sink()
 
-        part = Attachment(f"data:image/png;base64,{b64}").record(sink)
+        part = Attachment(f"data:image/png;base64,{b64}").to_event_record(sink)
 
         assert part["source"] == "inline"
         assert part["filename"] is None
@@ -104,7 +104,7 @@ class TestAttachmentRecord:
     def test_image_url_keeps_the_url_and_saves_nothing(self):
         sink = _Sink()
 
-        part = Attachment("https://example.com/cat.png").record(sink)
+        part = Attachment("https://example.com/cat.png").to_event_record(sink)
 
         assert part["source"] == "url"
         assert part["url"] == "https://example.com/cat.png"
@@ -112,7 +112,7 @@ class TestAttachmentRecord:
         assert sink.saved == []
 
     def test_without_a_sink_the_hash_is_still_recorded(self, png_path):
-        part = Attachment(png_path).record(None)
+        part = Attachment(png_path).to_event_record(None)
         assert part["sha256"] == PNG_SHA256
 
 
@@ -124,7 +124,7 @@ class TestUserMessageRecord:
 
         sink = _Sink()
 
-        recorded = message.record(sink)
+        recorded = message.to_event_record(sink)
 
         assert recorded["role"] == "user"
         text, local, url = recorded["content"]
@@ -134,7 +134,7 @@ class TestUserMessageRecord:
 
     def test_without_attachments_matches_encode(self):
         message = UserMessage("just text")
-        assert message.record(_Sink()) == message.encode()
+        assert message.to_event_record(_Sink()) == message.encode()
 
     def test_encode_is_unchanged(self, png_path):
         message = UserMessage("describe", attachment=png_path)

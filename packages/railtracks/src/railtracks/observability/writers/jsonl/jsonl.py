@@ -25,7 +25,7 @@ class JsonlWriter:
 
         Media in the events is recorded as metadata and a content hash, and its
         bytes are saved once per hash to ``media_directory``, by default a
-        ``media`` folder inside the events directory. ``RAILTRACKS_MEDIA_MAX_MB``
+        ``media`` folder inside the events directory. ``RAILTRACKS_SAVE_MEDIA_MAX_MB``
         caps the size saved: unset saves everything, ``0`` saves nothing.
         """
         self._directory = directory if directory is not None else resolve_events_dir()

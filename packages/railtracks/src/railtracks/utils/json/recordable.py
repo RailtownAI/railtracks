@@ -21,7 +21,7 @@ class Recordable(Protocol):
     """An object whose shape in the event record differs from its `encode()`.
 
     `encode()` also feeds the session JSON, so anything that should look different
-    in the JSONL events implements `record()` instead of changing `encode()`.
+    in the JSONL events implements `to_event_record()` instead of changing `encode()`.
     """
 
-    def record(self, media: MediaSink | None) -> dict[str, Any]: ...
+    def to_event_record(self, media: MediaSink | None) -> dict[str, Any]: ...
