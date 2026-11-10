@@ -564,16 +564,17 @@ def _metadata_entry(chunk_metadata: dict) -> StoreEntry:
     return replace(_make_entry(), chunk_metadata=chunk_metadata)
 
 
-def test_payload_spreads_scalars_and_blobs_only_non_scalars():
+def test_payload_spreads_prefixed_scalars_and_blobs_only_non_scalars():
     entry = _metadata_entry({"page": 3, "lang": "en", "tags": ["a", "b"]})
 
     payload = _entry_to_payload(entry)
 
-    assert payload["page"] == 3
-    assert payload["lang"] == "en"
-    assert "tags" not in payload
+    assert payload["meta_page"] == 3
+    assert payload["meta_lang"] == "en"
+    assert "page" not in payload
+    assert "meta_tags" not in payload
     assert json.loads(payload["chunk_metadata"]) == {"tags": ["a", "b"]}
-    assert json.loads(payload["chunk_metadata_keys"]) == ["page", "lang"]
+    assert json.loads(payload["chunk_meta_keys"]) == ["page", "lang"]
 
 
 def test_payload_with_only_scalars_has_no_blob():
@@ -602,7 +603,7 @@ def test_chunk_metadata_round_trips(chunk_metadata):
 def test_none_scalar_round_trips_when_backend_drops_the_key():
     entry = _metadata_entry({"page": None, "lang": "en"})
     payload = _entry_to_payload(entry)
-    del payload["page"]  # Chroma drops None-valued metadata keys
+    del payload["meta_page"]  # Chroma drops None-valued metadata keys
 
     got = _payload_to_entry(str(entry.id), payload)
 
@@ -633,7 +634,16 @@ def test_legacy_payload_with_full_blob_still_decodes():
 
 
 @pytest.mark.parametrize(
-    "key", ["summary", "content", "document_id", "chunk_metadata_keys", "scope_x"]
+    "key",
+    [
+        "summary",
+        "content",
+        "document_id",
+        "scope",
+        "chunk_meta_keys",
+        "scope_user_id",
+        "keys",
+    ],
 )
 def test_chunk_metadata_key_colliding_with_entry_field_round_trips(key):
     entry = _metadata_entry({key: "from-metadata", "page": 3})
@@ -642,11 +652,89 @@ def test_chunk_metadata_key_colliding_with_entry_field_round_trips(key):
     got = _payload_to_entry(str(entry.id), payload)
 
     assert got.chunk_metadata == {key: "from-metadata", "page": 3}
+    assert payload[f"meta_{key}"] == "from-metadata"
     assert payload.get(key) != "from-metadata"
     assert got.content == entry.content
     assert got.summary == entry.summary
     assert got.document_id == entry.document_id
     assert got.scope == entry.scope
+
+
+# ---------------------------------------------------------------------------
+# Filter keys are translated to the prefixed metadata keys
+# ---------------------------------------------------------------------------
+
+
+def _csv_like_entry(scope: StoreScope | None, metadata: dict) -> StoreEntry:
+    return StoreEntry(
+        id=uuid4(),
+        content="row",
+        vector=[1.0, 0.0, 0.0],
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        scope=scope,
+        chunk_metadata=metadata,
+    )
+
+
+async def test_metadata_filter_on_reserved_name_matches_the_metadata_value():
+    # A CSV column named document_id is filterable and doesn't hit the
+    # internal document id.
+    store = VectorStore(InMemoryBackend())
+    row = _csv_like_entry(None, {"document_id": "42"})
+    other = _csv_like_entry(None, {"document_id": "7"})
+    await store.write(row)
+    await store.write(other)
+
+    results = await store.read(
+        StoreQuery(
+            text="q",
+            embedding=[1.0, 0.0, 0.0],
+            metadata_filters={"document_id": "42"},
+        )
+    )
+    by_internal_id = await store.read(
+        StoreQuery(
+            text="q",
+            embedding=[1.0, 0.0, 0.0],
+            metadata_filters={"document_id": str(row.document_id)},
+        )
+    )
+
+    assert [r.entry.id for r in results] == [row.id]
+    assert by_internal_id == []
+
+
+async def test_planted_scope_label_in_metadata_does_not_enter_a_scope():
+    store = VectorStore(InMemoryBackend())
+    alice = StoreScope(labels={"tenant": "alice"})
+    real = _csv_like_entry(alice, {})
+    planted = _csv_like_entry(None, {"scope_tenant": "alice", "scope": alice.to_key()})
+    await store.write(real)
+    await store.write(planted)
+
+    results = await store.read(
+        StoreQuery(text="q", scope=alice, embedding=[1.0, 0.0, 0.0])
+    )
+
+    assert [r.entry.id for r in results] == [real.id]
+
+
+async def test_find_count_and_delete_where_translate_metadata_keys():
+    store = VectorStore(InMemoryBackend())
+    entry = _csv_like_entry(None, {"page": 4})
+    await store.write(entry)
+    await store.write(_csv_like_entry(None, {"page": 5}))
+
+    [found] = await store.find({"page": 4, "document_id": str(entry.document_id)})
+    assert found.id == entry.id
+    assert await store.count({"page": 4}) == 1
+
+    await store.delete_where({"page": 4})
+
+    assert await store.count({"page": 4}) == 0
+    assert await store.count() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -688,18 +776,18 @@ def test_reserved_payload_keys_cover_every_store_entry_field():
     entry_fields = {f.name for f in fields(StoreEntry)}
     assert _UNWRITTEN_ENTRY_FIELDS <= entry_fields
     assert _RESERVED_PAYLOAD_KEYS == (entry_fields - _UNWRITTEN_ENTRY_FIELDS) | {
-        "chunk_metadata_keys"
+        "chunk_meta_keys"
     }
 
 
 def test_payload_writes_exactly_the_reserved_keys():
     # A fully populated entry writes every reserved key and nothing else,
-    # apart from scope_* labels and the spread chunk_metadata scalars.
+    # apart from scope_* labels and the meta_* chunk_metadata scalars.
     entry = _fully_populated_entry()
 
     payload = _entry_to_payload(entry)
 
-    written = {k for k in payload if not k.startswith("scope_") and k not in {"page"}}
+    written = {k for k in payload if not k.startswith(("scope_", "meta_"))}
     assert written == _RESERVED_PAYLOAD_KEYS
 
 
@@ -707,7 +795,7 @@ def test_payload_writes_exactly_the_reserved_keys():
 # from that list still gets a case here.
 _ENTRY_FIELD_KEYS = sorted(
     {f.name for f in fields(StoreEntry)} - _UNWRITTEN_ENTRY_FIELDS
-    | {"chunk_metadata_keys", "scope_x"}
+    | {"chunk_meta_keys", "scope_x"}
 )
 
 

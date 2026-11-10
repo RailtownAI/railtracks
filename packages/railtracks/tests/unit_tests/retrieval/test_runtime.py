@@ -782,6 +782,63 @@ async def test_complete_document_with_count_metadata_is_skipped():
     assert embedder2.calls == []
 
 
+@pytest.mark.parametrize("key", ["source_path", "content_hash"])
+async def test_loader_metadata_cannot_override_runtime_staleness_keys(key):
+    """A loader column named like a runtime key is overwritten, so it can't
+    stop an unchanged document from being skipped."""
+    store = _store()
+    runtime, _, _ = _runtime(store=store)
+
+    def doc() -> Document:
+        return Document(
+            source="path/to/doc", content="alpha beta", metadata={key: "user-value"}
+        )
+
+    await runtime.ingest_all(_ListLoader([doc()]))
+    runtime2, _, embedder2 = _runtime(store=store)
+    events = [e async for e in runtime2.ingest(_ListLoader([doc()]))]
+
+    assert any(isinstance(e, DocumentSkipped) for e in events)
+    assert embedder2.calls == []
+    [entry, *_] = await store.find({"source_path": "path/to/doc"}, limit=10)
+    assert entry.chunk_metadata[key] != "user-value"
+
+
+async def test_overwriting_loader_metadata_logs_one_warning_per_document(
+    caplog: pytest.LogCaptureFixture,
+):
+    runtime, _, _ = _runtime()
+    doc = Document(
+        source="path/to/doc",
+        content="alpha beta gamma",  # 3 chunks, one warning
+        metadata={"source_path": "user-value", "content_hash": "user-hash"},
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await runtime.ingest_all(_ListLoader([doc]))
+
+    warnings = [
+        r.getMessage() for r in caplog.records if "skip check" in r.getMessage()
+    ]
+    assert len(warnings) == 1
+    assert "path/to/doc" in warnings[0]
+    assert "['content_hash', 'source_path']" in warnings[0]
+
+
+async def test_matching_loader_metadata_does_not_warn(
+    caplog: pytest.LogCaptureFixture,
+):
+    runtime, _, _ = _runtime()
+    doc = Document(
+        source="path/to/doc", content="alpha", metadata={"source_path": "path/to/doc"}
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await runtime.ingest_all(_ListLoader([doc]))
+
+    assert not any("skip check" in r.getMessage() for r in caplog.records)
+
+
 async def test_entry_without_count_metadata_is_reingested():
     """Every chunk the runtime writes carries doc_chunk_count, so an entry
     without it was written by something else — its completeness can't be
