@@ -6,9 +6,12 @@ Flow. They are named by component so the console's short label tells them apart.
 """
 
 import logging
+from typing import Literal
+
+RetrievalComponent = Literal["chunking", "embedding", "loader", "runtime", "store"]
 
 
-def get_logger(component: str) -> logging.Logger:
+def get_logger(component: RetrievalComponent) -> logging.Logger:
     """The logger for one retrieval component.
 
     Args:
