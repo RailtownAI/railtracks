@@ -610,20 +610,6 @@ def test_none_scalar_round_trips_when_backend_drops_the_key():
     assert got.chunk_metadata == {"page": None, "lang": "en"}
 
 
-def test_payload_with_unprefixed_metadata_keys_still_decodes():
-    # Before #1185, scalar metadata was spread without the meta_ prefix and
-    # listed in chunk_metadata_keys; those payloads must still read back.
-    entry = _metadata_entry({})
-    payload = _entry_to_payload(entry)
-    payload["page"] = 3
-    payload["chunk_metadata_keys"] = json.dumps(["page", "lang"])  # lang was None
-    payload["chunk_metadata"] = json.dumps({"tags": ["a"]})
-
-    got = _payload_to_entry(str(entry.id), payload)
-
-    assert got.chunk_metadata == {"page": 3, "lang": None, "tags": ["a"]}
-
-
 def test_payload_with_non_label_scope_value_still_decodes():
     # Before #1746, metadata like {"scope_x": None} was spread as a top-level
     # key; it must not make the read fail now that StoreScope checks labels.
@@ -655,7 +641,6 @@ def test_legacy_payload_with_full_blob_still_decodes():
         "document_id",
         "scope",
         "chunk_meta_keys",
-        "chunk_metadata_keys",
         "scope_user_id",
         "keys",
     ],
@@ -810,7 +795,7 @@ def test_payload_writes_exactly_the_reserved_keys():
 # from that list still gets a case here.
 _ENTRY_FIELD_KEYS = sorted(
     {f.name for f in fields(StoreEntry)} - _UNWRITTEN_ENTRY_FIELDS
-    | {"chunk_meta_keys", "chunk_metadata_keys", "scope_x"}
+    | {"chunk_meta_keys", "scope_x"}
 )
 
 

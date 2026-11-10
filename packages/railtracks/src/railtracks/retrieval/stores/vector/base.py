@@ -50,9 +50,6 @@ _META_PREFIX = "meta_"
 # meta_-prefixed, so a metadata key named "keys" can't collide with it.
 _META_KEYS = "chunk_meta_keys"
 
-# Pre-#1185 layout: scalars spread without a prefix, names listed here.
-_LEGACY_META_KEYS = "chunk_metadata_keys"
-
 # Top-level payload keys written from StoreEntry fields, plus _META_KEYS.
 _RESERVED_PAYLOAD_KEYS = frozenset(
     {
@@ -115,20 +112,16 @@ def _store_filters_to_payload(filters: dict[str, Any]) -> dict[str, Any]:
 def _decode_chunk_metadata(payload: dict) -> dict:
     """Rebuild ``chunk_metadata`` from the JSON blob and the spread scalars.
 
-    Reads three layouts: prefixed scalars listed in ``chunk_meta_keys``
-    (current), unprefixed scalars listed in ``chunk_metadata_keys`` (before
-    #1185), and everything in the blob (before #1186).
+    Payloads written before #1186 keep everything in the blob and have no
+    ``chunk_meta_keys``. Unprefixed scalars written before #1185 aren't read
+    back; re-ingest those entries.
     """
     chunk_metadata = (
         json.loads(payload["chunk_metadata"]) if "chunk_metadata" in payload else {}
     )
-    # Chroma drops None-valued metadata keys on write, hence payload.get.
-    if _META_KEYS in payload:
-        for k in json.loads(payload[_META_KEYS]):
-            chunk_metadata[k] = payload.get(_metadata_key(k))
-    else:
-        for k in json.loads(payload.get(_LEGACY_META_KEYS, "[]")):
-            chunk_metadata[k] = payload.get(k)
+    for k in json.loads(payload.get(_META_KEYS, "[]")):
+        # Chroma drops None-valued metadata keys on write.
+        chunk_metadata[k] = payload.get(_metadata_key(k))
     return chunk_metadata
 
 
