@@ -19,6 +19,10 @@ class Entity:
     metadata: dict = field(default_factory=dict)
 
 
+# Label values every backend can store and filter on, and json.dumps can encode.
+_LABEL_VALUE_TYPES = (str, int, float, bool)
+
+
 @dataclass(frozen=True)
 class StoreScope:
     """Equality-filter namespace for store entries.
@@ -39,9 +43,28 @@ class StoreScope:
 
     The ``scope_`` prefix applied in :meth:`to_payload_filters` avoids key
     collisions in flat payload dicts that also carry content fields.
+
+    Raises:
+        TypeError: If a label key isn't a ``str`` or a label value isn't a
+            ``str``, ``int``, ``float`` or ``bool``. Convert other ids (such
+            as a ``UUID``) with ``str(value)`` first.
     """
 
     labels: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        for key, value in self.labels.items():
+            if not isinstance(key, str):
+                raise TypeError(
+                    f"StoreScope label keys must be str, got {key!r} "
+                    f"({type(key).__name__})."
+                )
+            if not isinstance(value, _LABEL_VALUE_TYPES):
+                raise TypeError(
+                    f"StoreScope label {key!r} is a {type(value).__name__}; "
+                    "label values must be str, int, float or bool. Convert it "
+                    "first, e.g. str(value)."
+                )
 
     def to_payload_filters(self) -> dict[str, Any]:
         return {f"scope_{k}": v for k, v in self.labels.items()}

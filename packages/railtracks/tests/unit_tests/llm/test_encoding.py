@@ -1,10 +1,20 @@
 import base64
 import http.client
 import io
+import ssl
+import threading
+from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
+import certifi
 import pytest
+from litellm.exceptions import ImageFetchError
+from litellm.litellm_core_utils.prompt_templates.image_handling import (
+    convert_url_to_base64,
+)
+from railtracks.llm import encoding as encoding_module
 from railtracks.llm.attachment_formats import (
     detect_attachment_mime_from_bytes,
     detect_image_mime_from_bytes,
@@ -15,6 +25,8 @@ from railtracks.llm.encoding import (
     detect_source,
     encode,
     ensure_data_uri,
+    open_url,
+    redact_url,
 )
 
 
@@ -341,3 +353,120 @@ class TestDetectAttachmentMime:
     )
     def test_misplaced_or_truncated_headers_are_not_detected(self, data):
         assert detect_attachment_mime_from_bytes(data) is None
+
+
+_BODY = b"body"
+
+
+class _RecordingHandler(BaseHTTPRequestHandler):
+    """Records each request path; `/missing` paths return 404, others `_BODY`."""
+
+    paths: list[str] = []
+
+    def do_GET(self) -> None:
+        self.paths.append(self.path)
+        status = 404 if self.path.startswith("/missing") else 200
+        self.send_response(status)
+        self.send_header("Content-Length", str(len(_BODY)))
+        self.end_headers()
+        self.wfile.write(_BODY)
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+@pytest.fixture
+def local_server() -> Iterator[str]:
+    _RecordingHandler.paths = []
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _RecordingHandler)
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.01}
+    )
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+class TestOpenUrl:
+    @pytest.mark.parametrize(
+        "path,sent",
+        [
+            ("/a b.png", "/a%20b.png"),
+            ("/café.png", "/caf%C3%A9.png"),
+            ("/already%20encoded.png", "/already%20encoded.png"),
+            ("/img.png?name=a b&x=1", "/img.png?name=a%20b&x=1"),
+        ],
+        ids=["space", "non_ascii", "already_encoded", "query"],
+    )
+    def test_percent_encodes_only_what_http_client_rejects(
+        self, local_server, path, sent
+    ):
+        with open_url(local_server + path, timeout=5) as response:
+            assert response.read() == _BODY
+        assert _RecordingHandler.paths == [sent]
+
+    def test_tls_context_adds_certifi_to_the_system_roots(self, monkeypatch):
+        loaded: list[object] = []
+        original_verify = ssl.SSLContext.load_verify_locations
+        original_default = ssl.SSLContext.load_default_certs
+
+        def spy_verify(self, cafile=None, capath=None, cadata=None):
+            loaded.append(cafile)
+            return original_verify(self, cafile, capath, cadata)
+
+        def spy_default(self, purpose=ssl.Purpose.SERVER_AUTH):
+            loaded.append("system")
+            return original_default(self, purpose)
+
+        monkeypatch.setattr(ssl.SSLContext, "load_verify_locations", spy_verify)
+        monkeypatch.setattr(ssl.SSLContext, "load_default_certs", spy_default)
+        encoding_module._tls_context.cache_clear()
+        try:
+            context = encoding_module._tls_context()
+        finally:
+            encoding_module._tls_context.cache_clear()
+        assert loaded[0] == "system"
+        assert loaded[-1] == certifi.where()
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname
+
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            (
+                "https://cdn.example.com/a/report.pdf?sig=SECRET&exp=1#page=2",
+                "https://cdn.example.com/a/report.pdf",
+            ),
+            (
+                "https://user:SECRET@example.com:8443/doc.pdf",
+                "https://example.com:8443/doc.pdf",
+            ),
+            ("https://example.com/plain.pdf", "https://example.com/plain.pdf"),
+        ],
+        ids=["query_and_fragment", "credentials", "unchanged"],
+    )
+    def test_redact_url(self, url, expected):
+        assert redact_url(url) == expected
+
+    def test_download_error_does_not_show_the_query_string(self, local_server):
+        with pytest.raises(ValueError) as exc_info:
+            encode(local_server + "/missing.pdf?sig=SECRET")
+        assert "SECRET" not in str(exc_info.value)
+        assert "/missing.pdf" in str(exc_info.value)
+
+    def test_invalid_url_error_does_not_show_credentials(self):
+        with pytest.raises(ValueError) as exc_info:
+            encode("http://user:SECRET@127.0.0.1/report.pdf")
+        assert "SECRET" not in str(exc_info.value)
+        assert exc_info.value.__cause__ is None
+
+
+def test_litellm_refuses_to_download_internal_image_urls(local_server):
+    """The modalities docs rely on litellm checking the image URLs it downloads itself."""
+    with pytest.raises(ImageFetchError):
+        convert_url_to_base64(local_server + "/cat.png")
+    assert _RecordingHandler.paths == []

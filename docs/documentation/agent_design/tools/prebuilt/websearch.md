@@ -55,3 +55,19 @@ By default the toolset uses `HttpFetch`, a plain HTTP request paired with `trafi
 ```python
 --8<-- "docs/scripts/websearch.py:websearch_fetch_backend"
 ```
+
+## Internal addresses
+
+The URL passed to `fetch` usually comes from the model, which may have picked it up from a page anyone can write. So `HttpFetch` refuses URLs that resolve to a non-public address, such as `localhost`, a private network or the cloud metadata service at `169.254.169.254`, and checks every redirect the same way. A refused URL comes back to the agent as a failed fetch.
+
+The check is litellm's, the same one litellm applies to the image URLs it downloads. It resolves the host on your machine, so it needs local DNS even when you fetch through a proxy. To let the agent read an internal host, add the host to litellm's allowlist. The setting applies to the whole process:
+
+```python
+--8<-- "docs/scripts/websearch.py:websearch_allowed_hosts"
+```
+
+For rules of your own, such as an allow-list of sites, wrap `HttpFetch` in your own `FetchBackend`. This example checks only the first URL, and `HttpFetch` still follows redirects to any public host, so write your own fetch if redirects must stay on the allow-list too:
+
+```python
+--8<-- "docs/scripts/websearch.py:websearch_custom_fetch"
+```

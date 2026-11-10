@@ -8,6 +8,7 @@ from uuid import UUID
 from railtracks.utils.logging.create import get_rt_logger
 
 from ..models import (
+    _LABEL_VALUE_TYPES,
     AllScopes,
     Entity,
     RetrievedStoreEntry,
@@ -253,7 +254,9 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
             labels={
                 k.removeprefix("scope_"): v
                 for k, v in payload.items()
-                if k.startswith("scope_")
+                # Payloads from before #1746 can carry spread metadata like
+                # scope_x=None; skip it rather than fail the whole read.
+                if k.startswith("scope_") and isinstance(v, _LABEL_VALUE_TYPES)
             }
         ),
         embedding_version=payload.get("embedding_version"),
