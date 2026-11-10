@@ -6,6 +6,7 @@ from abc import abstractmethod
 from collections.abc import AsyncGenerator, Iterable
 from pathlib import PurePosixPath
 
+from railtracks.retrieval._logging import get_logger
 from railtracks.retrieval.loaders._pdf_options import (
     BreakdownStrategy,
     validate_breakdown_strategy,
@@ -13,9 +14,8 @@ from railtracks.retrieval.loaders._pdf_options import (
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
-from railtracks.utils.logging.create import get_rt_logger
 
-logger = get_rt_logger(__name__)
+logger = get_logger("loader")
 
 _EXTENSION_TO_TYPE: dict[str, DocumentType] = {
     ".md": DocumentType.MARKDOWN,

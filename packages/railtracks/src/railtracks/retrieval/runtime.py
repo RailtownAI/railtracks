@@ -7,8 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 from uuid import UUID
 
-from railtracks.utils.logging.create import get_rt_logger
-
+from ._logging import get_logger
 from .chunking.base import Chunker
 from .chunking.tokenization import Tokenizer
 from .embedding.base import Embedding
@@ -26,7 +25,7 @@ from .stores.models import (
 )
 from .stores.protocol import Store
 
-logger = get_rt_logger(__name__)
+logger = get_logger("runtime")
 
 IngestionStage = Literal["load", "chunk", "embed", "store"]
 """The ingest step a ``DocumentFailed`` happened in."""
@@ -508,7 +507,7 @@ class RetrievalRuntime:
         retrieve() calls can enforce model consistency."""
         if self._captured_model is None and embedded.embedding_model:
             self._captured_model = embedded.embedding_model
-            logger.info(
+            logger.debug(
                 "RetrievalRuntime captured embedding model %r "
                 "from first successful batch; subsequent retrieve() "
                 "calls will enforce this model.",
@@ -528,7 +527,7 @@ class RetrievalRuntime:
         existing = await self._store.find({}, limit=1)
         if existing and existing[0].embedding_model:
             self._captured_model = existing[0].embedding_model
-            logger.info(
+            logger.debug(
                 "RetrievalRuntime seeded captured embedding model %r from "
                 "an existing store entry; mismatched embedders will raise.",
                 self._captured_model,

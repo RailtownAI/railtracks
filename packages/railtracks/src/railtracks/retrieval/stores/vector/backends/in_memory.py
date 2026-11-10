@@ -6,11 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-from railtracks.utils.logging.create import get_rt_logger
-
+from ...._logging import get_logger
 from ..metric import DistanceMetric
 
-logger = get_rt_logger(__name__)
+logger = get_logger("store")
 
 
 class InMemoryBackend:

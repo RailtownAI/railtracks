@@ -13,14 +13,13 @@ from __future__ import annotations
 import numpy as np
 from sklearn.metrics.pairwise import paired_cosine_distances
 
-from railtracks.utils.logging.create import get_rt_logger
-
+from .._logging import get_logger
 from ..embedding.base import Embedding
 from ..models import Chunk, Document
 from .base import Chunker, Splitter
 from .sentence import RegexSentenceSplitter
 
-logger = get_rt_logger(__name__)
+logger = get_logger("chunking")
 
 
 class SemanticChunker(Chunker):

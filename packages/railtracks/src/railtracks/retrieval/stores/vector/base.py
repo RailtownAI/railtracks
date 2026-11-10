@@ -5,8 +5,6 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 from uuid import UUID
 
-from railtracks.utils.logging.create import get_rt_logger
-
 from ..models import (
     _LABEL_VALUE_TYPES,
     AllScopes,
@@ -17,8 +15,6 @@ from ..models import (
     StoreScope,
     exact_scope_filter,
 )
-
-logger = get_rt_logger(__name__)
 
 
 class VectorBackend(Protocol):

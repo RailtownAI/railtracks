@@ -6,8 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterable
 from typing import TypeVar
 
-from railtracks.utils.logging.create import get_rt_logger
-
+from .._logging import get_logger
 from ..models import Chunk, EmbeddedChunk
 from ..utils import abatched
 from .models import (
@@ -16,7 +15,7 @@ from .models import (
     TextEmbeddings,
 )
 
-logger = get_rt_logger(__name__)
+logger = get_logger("embedding")
 
 _T = TypeVar("_T")
 
