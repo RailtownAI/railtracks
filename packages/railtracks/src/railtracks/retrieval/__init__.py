@@ -34,9 +34,19 @@ from .runtime import (
     IngestionStats,
     RetrievalRuntime,
 )
-from .stores import Store, StoreEntry, StoreQuery, StoreScope, VectorStore
+from .stores import (
+    ALL_SCOPES,
+    AllScopes,
+    Store,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
+    VectorStore,
+)
 
 __all__ = [
+    "ALL_SCOPES",
+    "AllScopes",
     "BatchIngested",
     "Chunk",
     "ContentExtractor",

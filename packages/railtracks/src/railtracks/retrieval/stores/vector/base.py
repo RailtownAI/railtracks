@@ -8,11 +8,14 @@ from uuid import UUID
 from railtracks.utils.logging.create import get_rt_logger
 
 from ..models import (
+    _LABEL_VALUE_TYPES,
+    AllScopes,
     Entity,
     RetrievedStoreEntry,
     StoreEntry,
     StoreQuery,
     StoreScope,
+    exact_scope_filter,
 )
 
 logger = get_rt_logger(__name__)
@@ -55,6 +58,7 @@ _RESERVED_PAYLOAD_KEYS = frozenset(
         "chunk_metadata",
         "chunk_metadata_keys",
         "embedding_version",
+        "scope",
         "abstract",
         "summary",
         "valid_from",
@@ -114,7 +118,7 @@ def _encode_provenance(entry: StoreEntry) -> dict:
 
 
 def _encode_enrichment(entry: StoreEntry) -> dict:
-    out: dict = {}
+    out: dict = exact_scope_filter(entry.scope)
     if entry.scope is not None:
         out.update(entry.scope.to_payload_filters())
     if entry.abstract is not None:
@@ -214,7 +218,9 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
             labels={
                 k.removeprefix("scope_"): v
                 for k, v in payload.items()
-                if k.startswith("scope_")
+                # Payloads from before #1746 can carry spread metadata like
+                # scope_x=None; skip it rather than fail the whole read.
+                if k.startswith("scope_") and isinstance(v, _LABEL_VALUE_TYPES)
             }
         ),
         embedding_version=payload.get("embedding_version"),
@@ -226,6 +232,19 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
         valid_until=valid_until,
         created_at=created_at,
     )
+
+
+def _with_scope(
+    filters: dict[str, Any], scope: StoreScope | AllScopes | None
+) -> dict[str, Any]:
+    """Add the exact-scope filter to ``filters``; ``ALL_SCOPES`` adds none.
+
+    ``None`` matches only unscoped entries. The scope is applied last so caller
+    filters can't override it.
+    """
+    if isinstance(scope, AllScopes):
+        return dict(filters)
+    return {**filters, **exact_scope_filter(scope)}
 
 
 # ---------------------------------------------------------------------------
@@ -260,11 +279,7 @@ class VectorStore:
                 "caller must supply a pre-computed embedding."
             )
 
-        filters: dict[str, Any] = (
-            query.scope.to_payload_filters() if query.scope is not None else {}
-        )
-        if query.metadata_filters:
-            filters.update(query.metadata_filters)
+        filters = _with_scope(query.metadata_filters or {}, query.scope)
 
         raw_hits = await self._backend.search(query.embedding, query.top_k, filters)
 
@@ -285,7 +300,7 @@ class VectorStore:
         await self._backend.delete(str(id))
 
     async def clear(self, scope: StoreScope) -> None:
-        await self._backend.delete_where(scope.to_payload_filters())
+        await self._backend.delete_where(exact_scope_filter(scope))
 
     async def delete_where(self, filters: dict[str, Any]) -> None:
         await self._backend.delete_where(filters)
@@ -301,10 +316,9 @@ class VectorStore:
         self,
         embedding: list[float],
         k: int,
-        scope: StoreScope | None = None,
+        scope: StoreScope | AllScopes | None = None,
     ) -> list[RetrievedStoreEntry]:
-        filters = scope.to_payload_filters() if scope is not None else {}
-        raw_hits = await self._backend.search(embedding, k, filters)
+        raw_hits = await self._backend.search(embedding, k, _with_scope({}, scope))
 
         results: list[RetrievedStoreEntry] = []
         for rank, (hit_id, score, payload) in enumerate(raw_hits):

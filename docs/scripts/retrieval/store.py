@@ -54,7 +54,8 @@ async def knn():
     results = await store.nearest_neighbors(
         embedding=query_vec,
         k=10,
-        scope=StoreScope(labels={"user_id": "alice"}),   # optional, but still enforced
+        # Omit to search unscoped entries only; ALL_SCOPES searches every scope.
+        scope=StoreScope(labels={"user_id": "alice"}),
     )
 # --8<-- [end:knn]
 
