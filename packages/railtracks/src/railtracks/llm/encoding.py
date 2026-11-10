@@ -1,19 +1,76 @@
 import base64
+import functools
 import hashlib
 import http.client
 import math
 import os
 import re
+import ssl
+import string
 from pathlib import Path
 from typing import Literal
 from urllib import error, request
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse, urlsplit, urlunsplit
+from urllib.response import addinfourl
+
+import certifi
 
 from .attachment_formats import detect_attachment_mime_from_bytes
 
 DEFAULT_MAX_DOWNLOAD_MB = 32.0
 _READ_CHUNK_BYTES = 64 * 1024
 _URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
+
+
+def redact_url(url: str) -> str:
+    """Return `url` without credentials, query string or fragment, for error messages.
+
+    Args:
+        url: The URL to redact.
+
+    Returns:
+        The scheme, host, port and path of `url`.
+    """
+    parts = urlsplit(url)
+    return urlunsplit(
+        (parts.scheme, parts.netloc.rpartition("@")[2], parts.path, "", "")
+    )
+
+
+@functools.cache
+def _tls_context() -> ssl.SSLContext:
+    """Return a TLS context trusting the system roots plus the `certifi` bundle."""
+    context = ssl.create_default_context()
+    # Windows fetches some roots on first use only, so the system store alone can miss them.
+    context.load_verify_locations(certifi.where())
+    return context
+
+
+def open_url(
+    url: str, *, timeout: float, method: Literal["GET", "HEAD"] = "GET"
+) -> http.client.HTTPResponse | addinfourl:
+    """Open a URL with `urllib`, percent-encoding its path and query first.
+
+    Args:
+        url: The URL to open.
+        timeout: Timeout in seconds for the connection and each read.
+        method: The HTTP method to send.
+
+    Returns:
+        The open response, to be used as a context manager.
+
+    Raises:
+        urllib.error.URLError: If the host cannot be reached or the server
+            returns an HTTP error status.
+    """
+    parts = urlsplit(url)
+    # Encode only what http.client rejects (spaces, control and non-ASCII characters).
+    quoted = parts._replace(
+        path=quote(parts.path, safe=string.punctuation),
+        query=quote(parts.query, safe=string.punctuation),
+    )
+    req = request.Request(urlunsplit(quoted), method=method)
+    return request.urlopen(req, timeout=timeout, context=_tls_context())
 
 
 def validate_max_mb(max_mb: float, *, name: str = "max_mb") -> None:
@@ -197,24 +254,28 @@ def _download_capped(path: str, *, timeout: float, max_mb: float) -> bytes:
     max_bytes = int(max_mb * 1024 * 1024)
     chunks: list[bytes] = []
     total = 0
+    shown = redact_url(path)
     try:
-        with request.urlopen(path, timeout=timeout) as url:
+        with open_url(path, timeout=timeout) as url:
             while chunk := url.read(_READ_CHUNK_BYTES):
                 total += len(chunk)
                 if total > max_bytes:
                     raise ValueError(
-                        f"Download from {path!r} exceeds the {max_mb} MB limit."
+                        f"Download from {shown!r} exceeds the {max_mb} MB limit."
                     )
                 chunks.append(chunk)
             # Bytes still owed under Content-Length; None when the server sent none.
             missing = getattr(url, "length", None)
     except error.HTTPError as e:
-        raise ValueError(f"Failed to encode URL: {path}. Error: {e!r}") from e
+        raise ValueError(f"Failed to encode URL: {shown}. Error: {e!r}") from e
     except http.client.IncompleteRead as e:
-        raise ValueError(f"Download from {path!r} ended early: {e!r}") from e
+        raise ValueError(f"Download from {shown!r} ended early: {e!r}") from e
+    except http.client.InvalidURL:
+        # Its message repeats the netloc, which can hold credentials.
+        raise ValueError(f"Invalid URL: {shown!r}.") from None
     if isinstance(missing, int) and missing > 0:
         raise ValueError(
-            f"Download from {path!r} ended {missing} bytes short of its Content-Length."
+            f"Download from {shown!r} ended {missing} bytes short of its Content-Length."
         )
     return b"".join(chunks)
 
@@ -237,8 +298,10 @@ def encode(
     Raises:
         FileNotFoundError: If the file doesn't exist.
         ValueError: If `max_mb` is not positive and finite, the path is not a
-            local file, a URL body exceeds `max_mb`, or a URL body ends before
-            its declared `Content-Length` or final chunk.
+            local file, a URL returns an HTTP error status, a URL body exceeds
+            `max_mb`, or a URL body ends before its declared `Content-Length`
+            or final chunk.
+        urllib.error.URLError: If a URL's host cannot be resolved or reached.
     """
     validate_max_mb(max_mb)
     source_type = detect_source(path)
