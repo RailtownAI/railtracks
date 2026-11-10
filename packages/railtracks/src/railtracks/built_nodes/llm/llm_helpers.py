@@ -25,7 +25,6 @@ from railtracks.llm._exceptions import (
     ProviderError,
     ProviderRateLimitError,
     ProviderTimeoutError,
-    RetryError,
 )
 from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.history import MessageHistory
@@ -140,13 +139,11 @@ def llm_invoke_factory(
             except ProviderError as e:
                 # Carry `reason` across rather than repr()-ing, which would nest ANSI
                 # escapes inside the new message.
-                node_error = _node_error_for(e)(
+                raise _node_error_for(e)(
                     reason=getattr(e, "reason", None) or str(e),
                     message_history=getattr(e, "message_history", None) or wire,
                     notes=getattr(e, "notes", None),
-                )
-                node_error.retry_exhausted = isinstance(e, RetryError)
-                raise node_error from e
+                ) from e
             except Exception as e:
                 # Classified too: a provider exception can reach here without passing
                 # through `_call_provider`, so a mid-stream timeout stays catchable as

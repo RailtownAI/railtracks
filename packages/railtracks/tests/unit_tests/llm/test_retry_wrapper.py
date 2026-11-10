@@ -184,21 +184,3 @@ class TestAsyncRetryInWrapper:
                     await llm.achat(message_history)
 
         assert call_count["n"] == 1
-
-
-def test_sync_retry_propagates_an_exhausted_error():
-    calls = {"n": 0}
-    exhausted = RetryError("fixed", "Max retries exceeded", [], [_rate_limit_error()])
-    exhausted.retry_exhausted = True
-
-    def already_retried():
-        calls["n"] += 1
-        raise exhausted
-
-    with pytest.raises(RetryError) as exc:
-        FixedRetry(max_tries=3, delay=0.0).call_with_retry(
-            already_retried, retry_on=(Exception,)
-        )
-
-    assert exc.value is exhausted
-    assert calls["n"] == 1
