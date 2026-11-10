@@ -129,11 +129,11 @@ class MockLogger(logging.Logger):
     def completion_start_time(self):
         return None
 
-    def _update_completion_start_time(self, completion_start_time):
+    def update_completion_start_time(self, completion_start_time):
         pass
 
     @property
-    def _llm_caching_handler(self):
+    def llm_caching_handler(self):
         return None
 
     def success_handler(self, *args, **kwargs):
