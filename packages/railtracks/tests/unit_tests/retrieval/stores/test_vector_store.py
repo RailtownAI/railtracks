@@ -11,10 +11,12 @@ from uuid import uuid4
 
 import pytest
 from railtracks.retrieval.stores.models import (
+    ALL_SCOPES,
     Entity,
     StoreEntry,
     StoreQuery,
     StoreScope,
+    exact_scope_filter,
 )
 from railtracks.retrieval.stores.protocol import Store
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
@@ -105,6 +107,189 @@ async def test_scope_filter_enforcement():
     results = await store.read(_make_query(user_id="bob"))
     assert len(results) == 1
     assert results[0].entry.id == entry_bob.id
+
+
+def _scoped_entry(labels: dict | None, vector: list[float] | None = None) -> StoreEntry:
+    return StoreEntry(
+        id=uuid4(),
+        content=f"entry {labels}",
+        vector=vector or [1.0, 0.0, 0.0],
+        embedding_model="toy",
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        scope=StoreScope(labels=labels) if labels is not None else None,
+    )
+
+
+async def _store_with_mixed_scopes() -> tuple[VectorStore, dict[str, StoreEntry]]:
+    store = VectorStore(InMemoryBackend())
+    entries = {
+        "alice": _scoped_entry({"tenant": "alice"}),
+        "alice_prod": _scoped_entry({"tenant": "alice", "env": "prod"}),
+        "bob": _scoped_entry({"tenant": "bob"}),
+        "unscoped": _scoped_entry(None),
+    }
+    for entry in entries.values():
+        await store.write(entry)
+    return store, entries
+
+
+def test_scope_key_ignores_label_order():
+    a = StoreScope(labels={"tenant": "alice", "env": "prod"})
+    b = StoreScope(labels={"env": "prod", "tenant": "alice"})
+    assert a.to_key() == b.to_key()
+    assert a.to_key() != StoreScope(labels={"tenant": "alice"}).to_key()
+
+
+def test_exact_scope_filter_treats_none_and_empty_scope_as_unscoped():
+    assert exact_scope_filter(None) == exact_scope_filter(StoreScope())
+
+
+def test_payload_records_exact_scope_for_scoped_and_unscoped_entries():
+    scoped = _entry_to_payload(_scoped_entry({"tenant": "alice"}))
+    unscoped = _entry_to_payload(_scoped_entry(None))
+
+    assert scoped["scope"] == StoreScope(labels={"tenant": "alice"}).to_key()
+    assert scoped["scope_tenant"] == "alice"
+    assert unscoped["scope"] == StoreScope().to_key()
+
+
+async def test_read_scope_is_exact_not_subset():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.read(
+        StoreQuery(
+            text="q",
+            scope=StoreScope(labels={"tenant": "alice"}),
+            embedding=[1.0, 0.0, 0.0],
+        )
+    )
+
+    assert [r.entry.id for r in results] == [entries["alice"].id]
+
+
+@pytest.mark.parametrize("scope", [None, StoreScope()])
+async def test_read_without_scope_matches_only_unscoped_entries(scope):
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.read(
+        StoreQuery(text="q", scope=scope, embedding=[1.0, 0.0, 0.0])
+    )
+
+    assert [r.entry.id for r in results] == [entries["unscoped"].id]
+
+
+async def test_read_with_all_scopes_searches_every_scope():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.read(
+        StoreQuery(text="q", scope=ALL_SCOPES, embedding=[1.0, 0.0, 0.0])
+    )
+
+    assert {r.entry.id for r in results} == {e.id for e in entries.values()}
+
+
+async def test_all_scopes_does_not_bypass_metadata_filters():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.read(
+        StoreQuery(
+            text="q",
+            scope=ALL_SCOPES,
+            embedding=[1.0, 0.0, 0.0],
+            metadata_filters={"scope_tenant": "bob"},
+        )
+    )
+
+    assert [r.entry.id for r in results] == [entries["bob"].id]
+
+
+async def test_nearest_neighbors_with_all_scopes_searches_every_scope():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.nearest_neighbors([1.0, 0.0, 0.0], k=10, scope=ALL_SCOPES)
+
+    assert {r.entry.id for r in results} == {e.id for e in entries.values()}
+
+
+async def test_clear_rejects_all_scopes():
+    store, entries = await _store_with_mixed_scopes()
+
+    with pytest.raises(ValueError, match="ALL_SCOPES"):
+        await store.clear(ALL_SCOPES)  # type: ignore[arg-type]
+
+    assert len(await store.find({}, limit=10)) == len(entries)
+
+
+@pytest.mark.parametrize(
+    "metadata_filters",
+    [
+        {"scope_tenant": "alice"},
+        {"scope": StoreScope(labels={"tenant": "alice"}).to_key()},
+    ],
+)
+async def test_metadata_filters_cannot_override_scope(metadata_filters):
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.read(
+        StoreQuery(
+            text="q",
+            scope=StoreScope(labels={"tenant": "bob"}),
+            embedding=[1.0, 0.0, 0.0],
+            metadata_filters=metadata_filters,
+        )
+    )
+
+    assert entries["alice"].id not in {r.entry.id for r in results}
+
+
+async def test_read_does_not_mutate_metadata_filters():
+    store, _ = await _store_with_mixed_scopes()
+    metadata_filters = {"page": 1}
+
+    await store.read(
+        StoreQuery(
+            text="q",
+            scope=StoreScope(labels={"tenant": "bob"}),
+            embedding=[1.0, 0.0, 0.0],
+            metadata_filters=metadata_filters,
+        )
+    )
+
+    assert metadata_filters == {"page": 1}
+
+
+async def test_nearest_neighbors_scope_is_exact():
+    store, entries = await _store_with_mixed_scopes()
+
+    results = await store.nearest_neighbors(
+        [1.0, 0.0, 0.0], k=10, scope=StoreScope(labels={"tenant": "alice"})
+    )
+
+    assert [r.entry.id for r in results] == [entries["alice"].id]
+
+
+async def test_clear_removes_only_the_exact_scope():
+    store, entries = await _store_with_mixed_scopes()
+
+    await store.clear(StoreScope(labels={"tenant": "alice"}))
+
+    remaining = {e.id for e in await store.find({}, limit=10)}
+    assert remaining == {
+        entries["alice_prod"].id,
+        entries["bob"].id,
+        entries["unscoped"].id,
+    }
+
+
+async def test_clear_with_empty_scope_removes_only_unscoped_entries():
+    store, entries = await _store_with_mixed_scopes()
+
+    await store.clear(StoreScope())
+
+    remaining = {e.id for e in await store.find({}, limit=10)}
+    assert entries["unscoped"].id not in remaining
+    assert len(remaining) == 3
 
 
 async def test_read_returns_full_entry():
@@ -231,7 +416,9 @@ async def test_nearest_neighbors_rank_order():
     await store.write(e2)
     await store.write(e3)
 
-    results = await store.nearest_neighbors([1.0, 0.0, 0.0], k=3)
+    results = await store.nearest_neighbors(
+        [1.0, 0.0, 0.0], k=3, scope=StoreScope(labels={"user_id": "alice"})
+    )
     assert len(results) == 3
     assert results[0].rank == 0
     assert results[1].rank == 1
@@ -422,6 +609,18 @@ def test_none_scalar_round_trips_when_backend_drops_the_key():
     assert got.chunk_metadata == {"page": None, "lang": "en"}
 
 
+def test_payload_with_non_label_scope_value_still_decodes():
+    # Before #1746, metadata like {"scope_x": None} was spread as a top-level
+    # key; it must not make the read fail now that StoreScope checks labels.
+    entry = _scoped_entry({"tenant": "alice"})
+    payload = _entry_to_payload(entry)
+    payload["scope_x"] = None
+
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.scope == StoreScope(labels={"tenant": "alice"})
+
+
 def test_legacy_payload_with_full_blob_still_decodes():
     entry = _metadata_entry({})
     payload = _entry_to_payload(entry)
@@ -457,7 +656,7 @@ def test_chunk_metadata_key_colliding_with_entry_field_round_trips(key):
 # StoreEntry fields that are never written as a top-level payload key of their
 # own: the id is the backend's row id, the backend owns the vector, and scope
 # is spread as scope_* keys.
-_UNWRITTEN_ENTRY_FIELDS = {"id", "vector", "scope"}
+_UNWRITTEN_ENTRY_FIELDS = {"id", "vector"}
 
 
 def _fully_populated_entry() -> StoreEntry:
