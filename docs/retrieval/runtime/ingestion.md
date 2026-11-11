@@ -71,6 +71,8 @@ One bad document never ends the run by default. A file that isn't valid UTF-8, a
 
 Pass `on_error="raise"` to `RetrievalRuntime` to stop at the first failing document instead. Failed embedding batches are still reported rather than raised in this mode. Two errors always propagate regardless of `on_error`, because the run cannot usefully continue past them: `EmbeddingModelMismatchError`, and any exception a loader raises out of its own `astream()` (for example a failed bucket listing), since a stream that has raised cannot resume.
 
+A failure that repeats for every document is not about the documents: an unreachable store fails the duplicate check before embedding, and a store that accepts reads but not writes charges for the whole corpus and keeps nothing. Pass `max_consecutive_failures=N` to stop the run with `ConsecutiveIngestionFailuresError` once N documents in a row fail at the same stage with the same exception type. A success in between starts the count over, so scattered bad documents never stop the run; `None` (the default) keeps reporting every failure.
+
 ---
 
 ## Re-ingest semantics

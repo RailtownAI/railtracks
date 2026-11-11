@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 from uuid import UUID
 
+from railtracks.exceptions import ConsecutiveIngestionFailuresError
 from railtracks.utils.logging.create import get_rt_logger
 
 from .chunking.base import Chunker
@@ -30,6 +31,42 @@ logger = get_rt_logger(__name__)
 
 IngestionStage = Literal["load", "chunk", "embed", "store"]
 """The ingest step a ``DocumentFailed`` happened in."""
+
+
+@dataclass
+class _FailureStreak:
+    """The stage and the error type of the document failures that follow each other.
+
+    A success between two failures starts the streak over, so scattered bad documents never
+    reach ``limit``: only a failure that repeats for every document does, which means the
+    stage itself is broken rather than the documents.
+    """
+
+    limit: int
+    stage: IngestionStage | None = None
+    error_type: type[BaseException] | None = None
+    count: int = 0
+
+    def note(self, event: Any) -> None:  # noqa: ANN401  # the streaming events of the runtime
+        """Count one streaming event.
+
+        Raises:
+            ConsecutiveIngestionFailuresError: When the streak reaches ``limit``.
+        """
+        if isinstance(event, (BatchIngested, DocumentSkipped)):
+            self.stage, self.error_type, self.count = None, None, 0
+            return
+        if not isinstance(event, DocumentFailed):
+            return
+        last_error = event.errors[-1]
+        if self.stage == event.stage and self.error_type is type(last_error):
+            self.count += 1
+        else:
+            self.stage, self.error_type, self.count = event.stage, type(last_error), 1
+        if self.count >= self.limit:
+            raise ConsecutiveIngestionFailuresError(
+                self.limit, event.stage, last_error, event.source
+            )
 
 
 @dataclass
@@ -168,9 +205,17 @@ class RetrievalRuntime:
             reported, not raised. ``EmbeddingModelMismatchError`` and errors
             raised out of the loader's own stream always propagate, since
             the run cannot usefully continue past them.
+        max_consecutive_failures: When set, ends the run with
+            ``ConsecutiveIngestionFailuresError`` once this many documents in a
+            row fail at the same stage for the same reason. A success in
+            between starts the count over, so scattered bad documents never
+            end the run; only a stage that is broken for every document does.
+            ``None`` (default) keeps reporting every failure under
+            ``on_error="skip"``.
 
     Raises:
-        ValueError: If ``on_error`` is not ``"skip"`` or ``"raise"``.
+        ValueError: If ``on_error`` is not ``"skip"`` or ``"raise"``, or
+            ``max_consecutive_failures`` is not a positive number.
     """
 
     def __init__(
@@ -188,9 +233,15 @@ class RetrievalRuntime:
         max_tokens: int | None = None,
         tokenizer: Tokenizer | None = None,
         on_error: Literal["skip", "raise"] = "skip",
+        max_consecutive_failures: int | None = None,
     ) -> None:
         if on_error not in ("skip", "raise"):
             raise ValueError(f"on_error must be 'skip' or 'raise', got {on_error!r}")
+        if max_consecutive_failures is not None and max_consecutive_failures < 1:
+            raise ValueError(
+                "max_consecutive_failures must be a positive number, "
+                f"got {max_consecutive_failures!r}"
+            )
         self._chunker = chunker
         self._embedder = embedder
         self._store = store
@@ -199,6 +250,7 @@ class RetrievalRuntime:
         self._on_retrieve = on_retrieve
         self._max_tokens = max_tokens
         self._on_error = on_error
+        self._max_consecutive_failures = max_consecutive_failures
         if max_tokens is not None and tokenizer is None:
             from .chunking.tokenization import TiktokenTokenizer
 
@@ -233,6 +285,10 @@ class RetrievalRuntime:
     @property
     def on_error(self) -> Literal["skip", "raise"]:
         return self._on_error
+
+    @property
+    def max_consecutive_failures(self) -> int | None:
+        return self._max_consecutive_failures
 
     @staticmethod
     def _resolve_batch_size(batch_size: int | None, embedder: Embedding) -> int:
@@ -306,16 +362,26 @@ class RetrievalRuntime:
     ]:
         # Fail fast on ALL_SCOPES instead of once per document.
         exact_scope_filter(scope)
+        streak = (
+            _FailureStreak(self._max_consecutive_failures)
+            if self._max_consecutive_failures is not None
+            else None
+        )
         async with aclosing(loader.astream()) as stream:
             async for item in stream:
                 if isinstance(item, LoadFailure):
                     if self._on_error == "raise":
                         raise item.error
-                    yield self._record_document_failed(
+                    failed = self._record_document_failed(
                         None, item.source, [item.error], "load", stats
                     )
+                    if streak is not None:
+                        streak.note(failed)
+                    yield failed
                     continue
                 async for event in self._ingest_document(item, stats, scope):
+                    if streak is not None:
+                        streak.note(event)
                     yield event
 
     async def _ingest_document(
