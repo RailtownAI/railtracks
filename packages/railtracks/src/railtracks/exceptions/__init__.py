@@ -1,4 +1,5 @@
 from .errors import (
+    ConsecutiveIngestionFailuresError,
     ContextError,
     DecisionAuthenticationError,
     DecisionModelError,
@@ -31,5 +32,6 @@ __all__ = [
     "DecisionAuthenticationError",
     "DecisionRefusalError",
     "ContextError",
+    "ConsecutiveIngestionFailuresError",
     "VisualExtraRequiredError",
 ]

@@ -23,6 +23,7 @@ __all__ = [
     "GlobalTimeOutError",
     "ContextError",
     "FatalError",
+    "ConsecutiveIngestionFailuresError",
 ]
 
 
@@ -267,3 +268,34 @@ class ContextError(RTError):
 
 class FatalError(RTError):
     fatal = True
+
+
+class ConsecutiveIngestionFailuresError(RTError):
+    """
+    Raised when documents fail one after another at the same ingest stage for the same reason.
+
+    ``on_error="skip"`` reports one bad document and carries on, which is right when the
+    document is the problem. A failure that repeats for every document is not about the
+    documents: the store, the embedder or the loader is unreachable, and carrying on pays for
+    the rest of the corpus without storing it. ``RetrievalRuntime.max_consecutive_failures``
+    sets how many such failures in a row stop the run.
+    """
+
+    def __init__(
+        self, limit: int, stage: str, error: BaseException, source: str | None = None
+    ):
+        self.limit = limit
+        self.stage = stage
+        self.source = source
+        self.last_error = error
+
+        message = (
+            f"{limit} documents in a row failed at the {stage!r} stage with "
+            f"{type(error).__name__}: {error}"
+        )
+        if source is not None:
+            message += f" (last document: {source})"
+        super().__init__(message)
+
+    def __str__(self):
+        return self._color(super().__str__(), self.RED)
