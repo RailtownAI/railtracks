@@ -21,7 +21,7 @@ __all__ = [
     "DecisionAuthenticationError",
     "DecisionRefusalError",
     "GlobalTimeOutError",
-"ContextError",
+    "ContextError",
     "FatalError",
     "ConsecutiveIngestionFailuresError",
 ]
@@ -281,7 +281,9 @@ class ConsecutiveIngestionFailuresError(RTError):
     sets how many such failures in a row stop the run.
     """
 
-    def __init__(self, limit: int, stage: str, error: BaseException, source: str | None = None):
+    def __init__(
+        self, limit: int, stage: str, error: BaseException, source: str | None = None
+    ):
         self.limit = limit
         self.stage = stage
         self.source = source

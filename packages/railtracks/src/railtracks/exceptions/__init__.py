@@ -31,7 +31,7 @@ __all__ = [
     "DecisionRateLimitError",
     "DecisionAuthenticationError",
     "DecisionRefusalError",
-"ContextError",
+    "ContextError",
     "ConsecutiveIngestionFailuresError",
     "VisualExtraRequiredError",
 ]

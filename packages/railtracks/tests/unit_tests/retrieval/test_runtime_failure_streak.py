@@ -77,7 +77,10 @@ def _runtime(
 
 
 def _docs(count: int) -> list[Document]:
-    return [Document(content=f"word{index} other", source=f"doc{index}.txt") for index in range(count)]
+    return [
+        Document(content=f"word{index} other", source=f"doc{index}.txt")
+        for index in range(count)
+    ]
 
 
 async def test_a_broken_store_stops_the_run_at_the_limit() -> None:
