@@ -79,6 +79,7 @@ def stop(x: int) -> int:
 def _started_kwargs():
     return {
         "session_id": "sess-1",
+        "request_id": "req-1",
         "flow_name": "flow",
         "flow_id": "fid",
         "session_name": None,
@@ -93,7 +94,11 @@ def test_event_type_strings():
     assert SessionStarted(**_started_kwargs()).event_type() == "session.started"
     assert (
         SessionCompleted(
-            session_id="sess-1", status="success", error=None, duration_seconds=0.1
+            session_id="sess-1",
+            request_id="req-1",
+            status="success",
+            error=None,
+            duration_seconds=0.1,
         ).event_type()
         == "session.completed"
     )
@@ -137,6 +142,12 @@ async def test_success_run_is_bracketed_by_session_events(writer):
     assert started.scope_type == "session"
     assert started.payload["session_id"] == started.scope_id
     assert completed.payload["session_id"] == started.scope_id
+
+    # the run's request id ties the pair to the entry node it created
+    request_id = started.payload["request_id"]
+    assert completed.payload["request_id"] == request_id
+    entry = _of_type(writer.events, "node.creation")[0]
+    assert entry.payload["request_id"] == request_id
 
     assert started.payload["flow_name"] == "my-flow"
     assert started.payload["flow_id"] is not None

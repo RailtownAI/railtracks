@@ -82,11 +82,13 @@ class NodeEventBase(
 @dataclass(kw_only=True)
 class NodeCreation(CreationEventBase):
     """Node instantiated. Emitted before the node enters its own scope, so its parent
-    resolves from the caller's ambient chain (no self-skip)."""
+    resolves from the caller's ambient chain (no self-skip). `request_id` is the request
+    that created the node; for a run's entry node it is the run's `request_id`."""
 
     node_id: str
     name: str
     node_type: str
+    request_id: str
 
     def event_type(self) -> str:
         return "node.creation"
