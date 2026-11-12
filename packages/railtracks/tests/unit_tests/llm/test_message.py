@@ -708,9 +708,38 @@ class TestAttachmentContent:
 
     def test_attachment_is_read_only(self):
         attachment = Attachment.from_bytes(_PNG)
-        for name in ("url", "type", "mime_type", "filename", "size", "sha256"):
+        for name in (
+            "url",
+            "type",
+            "mime_type",
+            "filename",
+            "size",
+            "sha256",
+            "detail",
+        ):
             with pytest.raises(AttributeError):
                 setattr(attachment, name, None)
+
+    def test_detail_is_kept_for_images_and_video(self):
+        data_uri = f"data:image/png;base64,{base64.b64encode(_PNG).decode()}"
+        assert Attachment(data_uri, detail="auto").detail == "auto"
+        assert Attachment.from_bytes(_MP4, detail="low").detail == "low"
+        assert (
+            Attachment.from_url("https://example.com/a.png", detail="high").detail
+            == "high"
+        )
+        assert Attachment.from_bytes(_PNG).detail is None
+        assert Attachment.from_bytes(_PNG, detail="").detail is None
+
+    def test_detail_is_not_part_of_equality(self):
+        low = Attachment.from_bytes(_PNG, detail="low")
+        assert low == Attachment.from_bytes(_PNG, detail="high")
+        assert hash(low) == hash(Attachment.from_bytes(_PNG))
+
+    @pytest.mark.parametrize("data", [_WAV, b"%PDF-1.7\n"], ids=["audio", "pdf"])
+    def test_detail_rejected_for_other_modalities(self, data):
+        with pytest.raises(ValueError, match="detail applies to image and video"):
+            Attachment.from_bytes(data, detail="low")
 
     def test_file_extension_is_deprecated(self):
         with pytest.warns(DeprecationWarning, match="file_extension"):

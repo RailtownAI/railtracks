@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import mimetypes
@@ -12,6 +13,7 @@ from typing import (
     Any,
     AsyncGenerator,
     Callable,
+    ClassVar,
     Dict,
     Generator,
     Iterable,
@@ -21,6 +23,7 @@ from typing import (
     Type,
     TypeVar,
     cast,
+    get_args,
     overload,
 )
 
@@ -43,7 +46,14 @@ from .._exceptions import (
 )
 from ..content import ToolCall, ToolCalls
 from ..history import MessageHistory
-from ..message import AssistantMessage, Attachment, Message, ToolMessage, UserMessage
+from ..message import (
+    AssistantMessage,
+    Attachment,
+    Message,
+    Modality,
+    ToolMessage,
+    UserMessage,
+)
 from ..model import ModelBase
 from ..response import MessageInfo, Response
 from ..retries import RetryApproach
@@ -203,6 +213,61 @@ def _model_in_litellm_catalog(model_name: str) -> bool:
     return routed_model in litellm.model_cost
 
 
+# OpenAI's `input_audio.format` names; other subtypes pass through as they are.
+_INPUT_AUDIO_FORMATS = {
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/x-wav": "wav",
+    "audio/wave": "wav",
+    "audio/vnd.wave": "wav",
+}
+
+
+def _image_part(attachment: Attachment) -> Dict[str, Any]:
+    image_url: Dict[str, str] = {"url": attachment.encoding or attachment.url}
+    if attachment.detail is not None:
+        image_url["detail"] = attachment.detail
+    return {"type": "image_url", "image_url": image_url}
+
+
+def _file_part(attachment: Attachment) -> Dict[str, Any]:
+    """Build a `file` part; litellm reads `format` for Gemini and Anthropic and drops it for OpenAI."""
+    mime_type = attachment.mime_type
+    fallback_ext = mimetypes.guess_extension(mime_type or "") or ""
+    file: Dict[str, str] = {
+        "file_data": attachment.encoding or attachment.url,
+        "filename": attachment.filename or f"attachment{fallback_ext}",
+    }
+    if mime_type is not None:
+        file["format"] = mime_type
+    if attachment.detail is not None:
+        file["detail"] = attachment.detail
+    return {"type": "file", "file": file}
+
+
+def _audio_part(attachment: Attachment) -> Dict[str, Any]:
+    """Build an `input_audio` part, which needs the bytes; an audio URL goes as a `file` part."""
+    if attachment.data is None:
+        return _file_part(attachment)
+    mime_type = attachment.mime_type or ""
+    return {
+        "type": "input_audio",
+        "input_audio": {
+            "data": base64.b64encode(attachment.data).decode("ascii"),
+            "format": _INPUT_AUDIO_FORMATS.get(mime_type, mime_type.partition("/")[2]),
+        },
+    }
+
+
+_CONTENT_PART_BUILDERS: Dict[Modality, Callable[[Attachment], Dict[str, Any]]] = {
+    "image": _image_part,
+    "audio": _audio_part,
+    "video": _file_part,
+    "document": _file_part,
+    "file": _file_part,
+}
+
+
 def _to_litellm_tool(tool: Tool) -> Dict[str, Any]:
     """
     Convert your Tool object into the dict format for litellm.completion.
@@ -323,6 +388,10 @@ class LiteLLMWrapper(ModelBase, ABC):
         "service_tier",
         "verbosity",
     )
+
+    # Attachment modalities sent to the provider; a provider whose litellm transform
+    # drops a part narrows this, so the call fails instead of losing the attachment.
+    _ACCEPTED_MODALITIES: ClassVar[frozenset[Modality]] = frozenset(get_args(Modality))
 
     def __init__(
         self,
@@ -1059,53 +1128,41 @@ class LiteLLMWrapper(ModelBase, ABC):
         self, text: str, attachments: List[Attachment]
     ) -> List[Dict[str, Any]]:
         """Build the multimodal content list for a UserMessage with attachments."""
-        content_list: List[Dict[str, Any]] = [{"type": "text", "text": text}]
+        return [
+            {"type": "text", "text": text},
+            *(self._to_content_part(attachment) for attachment in attachments),
+        ]
 
-        for msg_attachment in attachments:
-            url = msg_attachment.encoding or msg_attachment.url
-            if msg_attachment.modality == "document":
-                # Only trust litellm's PDF-support check when the model is in
-                # litellm's capability catalog. Custom deployment names (Azure
-                # Foundry etc.) route fine but have no capability metadata,
-                # so supports_pdf_input returns False by default and would
-                # falsely reject valid deployments. When the model isn't in
-                # the catalog, skip the pre-check and let the API decide.
-                if _model_in_litellm_catalog(
-                    self._model_name
-                ) and not litellm.utils.supports_pdf_input(self._model_name):
-                    raise ValueError(
-                        f"Model {self._model_name!r} does not support PDF attachments. "
-                        "Use a PDF-capable model or render the PDF pages to images first."
-                    )
-                fallback_ext = (
-                    mimetypes.guess_extension(msg_attachment.mime_type or "") or ""
-                )
-                content_list.append(
-                    {
-                        "type": "file",
-                        "file": {
-                            "file_data": url,
-                            "filename": msg_attachment.filename
-                            or f"attachment{fallback_ext}",
-                        },
-                    }
-                )
-            elif msg_attachment.modality == "image":
-                content_list.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": url},
-                    }
-                )
-            else:
-                raise AttachmentNotSupportedError(
-                    self._model_name,
-                    msg_attachment.mime_type,
-                    f"Railtracks cannot send {msg_attachment.modality} attachments "
-                    "to providers yet; only images and PDFs are supported.",
-                )
+    def _to_content_part(self, attachment: Attachment) -> Dict[str, Any]:
+        """Build the litellm content part for one attachment.
 
-        return content_list
+        Override this to change how a provider sends one kind of part.
+
+        Raises:
+            AttachmentNotSupportedError: If the attachment's modality is not in
+                `_ACCEPTED_MODALITIES`.
+            ValueError: If the attachment is a PDF and litellm's catalog says the
+                model does not take PDF input.
+        """
+        modality = attachment.modality
+        if modality not in self._ACCEPTED_MODALITIES:
+            accepted = ", ".join(sorted(self._ACCEPTED_MODALITIES))
+            raise AttachmentNotSupportedError(
+                self._model_name,
+                attachment.mime_type,
+                f"{type(self).__name__} sends {accepted} attachments, not {modality}.",
+            )
+        # Models missing from litellm's catalog (custom deployments) skip the check.
+        if (
+            modality == "document"
+            and _model_in_litellm_catalog(self._model_name)
+            and not litellm.utils.supports_pdf_input(self._model_name)
+        ):
+            raise ValueError(
+                f"Model {self._model_name!r} does not support PDF attachments. "
+                "Use a PDF-capable model or render the PDF pages to images first."
+            )
+        return _CONTENT_PART_BUILDERS[modality](attachment)
 
     def _to_litellm_message(self, msg: Message) -> Dict[str, Any]:
         """

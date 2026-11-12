@@ -1,16 +1,17 @@
 import logging
-from typing import List, Literal
+from typing import Any, Dict, List, Literal
 
 from litellm.exceptions import InternalServerError
 
 from railtracks.utils.deprecation import warn_pending_change
 
 from ...history import MessageHistory
+from ...message import Attachment
 from ...providers import ModelProvider
 from ...retries import RetryApproach
 from ...tools import Tool
 from .._litellm_wrapper import LiteLLMWrapper
-from .._model_exception_base import ModelError
+from .._model_exception_base import AttachmentNotSupportedError, ModelError
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,27 @@ class AzureAILLM(LiteLLMWrapper):
             **kwargs,
         )
         self.logger = logger
+
+    def _to_content_part(self, attachment: Attachment) -> Dict[str, Any]:
+        """Reject `file` parts on the `azure_ai/` route, whose litellm transform drops them.
+
+        Raises:
+            AttachmentNotSupportedError: If the model is on the `azure_ai/` route
+                and the attachment is sent as a `file` part (a PDF, video, audio
+                URL or other file).
+        """
+        # Images and audio bytes are the only attachments not sent as `file` parts.
+        sent_as_file = attachment.modality != "image" and not (
+            attachment.modality == "audio" and attachment.data is not None
+        )
+        if sent_as_file and self._model_name.startswith("azure_ai/"):
+            raise AttachmentNotSupportedError(
+                self._model_name,
+                attachment.mime_type,
+                "litellm's azure_ai transform keeps only text, image and audio "
+                "parts. Use an azure/ deployment for PDFs and other files.",
+            )
+        return super()._to_content_part(attachment)
 
     def chat(self, messages: MessageHistory):
         try:

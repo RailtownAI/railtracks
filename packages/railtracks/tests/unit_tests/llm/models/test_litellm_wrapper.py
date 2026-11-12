@@ -242,6 +242,7 @@ class TestHelpers:
         assert file_block["type"] == "file"
         assert file_block["file"]["file_data"] == data_uri
         assert file_block["file"]["filename"] == "attachment.pdf"
+        assert file_block["file"]["format"] == "application/pdf"
 
     def test_to_litellm_message_local_pdf_uses_source_filename(
         self,
@@ -346,22 +347,103 @@ class TestHelpers:
         assert len(calls) == 1
 
     @pytest.mark.parametrize(
-        "attachment",
+        "attachment,part",
         [
-            Attachment.from_bytes(b"ID3\x04\x00", filename="call.mp3"),
-            Attachment("https://example.com/clip.mp4"),
-            Attachment.from_bytes(b"plain text", mime_type="text/plain"),
+            (
+                Attachment.from_bytes(b"ID3\x04\x00", filename="call.mp3"),
+                {
+                    "type": "input_audio",
+                    "input_audio": {"data": "SUQzBAA=", "format": "mp3"},
+                },
+            ),
+            (
+                Attachment.from_bytes(b"wav", mime_type="audio/x-wav"),
+                {
+                    "type": "input_audio",
+                    "input_audio": {"data": "d2F2", "format": "wav"},
+                },
+            ),
+            (
+                Attachment.from_bytes(b"ogg", mime_type="audio/ogg"),
+                {
+                    "type": "input_audio",
+                    "input_audio": {"data": "b2dn", "format": "ogg"},
+                },
+            ),
+            (
+                Attachment("https://example.com/call.mp3"),
+                {
+                    "type": "file",
+                    "file": {
+                        "file_data": "https://example.com/call.mp3",
+                        "filename": "call.mp3",
+                        "format": "audio/mpeg",
+                    },
+                },
+            ),
+            (
+                Attachment("https://example.com/clip.mp4"),
+                {
+                    "type": "file",
+                    "file": {
+                        "file_data": "https://example.com/clip.mp4",
+                        "filename": "clip.mp4",
+                        "format": "video/mp4",
+                    },
+                },
+            ),
+            (
+                Attachment.from_bytes(b"plain text", mime_type="text/plain"),
+                {
+                    "type": "file",
+                    "file": {
+                        "file_data": "data:text/plain;base64,cGxhaW4gdGV4dA==",
+                        "filename": "attachment.txt",
+                        "format": "text/plain",
+                    },
+                },
+            ),
         ],
-        ids=["audio", "video", "file"],
+        ids=["audio", "audio_alias", "audio_other", "audio_url", "video_url", "file"],
     )
-    def test_to_litellm_message_rejects_modalities_not_wired_yet(
-        self, mock_litellm_wrapper, attachment
+    def test_to_litellm_message_part_per_modality(
+        self, mock_litellm_wrapper, attachment, part
     ):
-        """Audio, video and other files must not be sent as `image_url` parts."""
         wrapper = mock_litellm_wrapper()
-        message = UserMessage("Transcribe this.", attachment=attachment)
+        message = UserMessage("Describe this.", attachment=attachment)
 
-        with pytest.raises(AttachmentNotSupportedError, match="cannot send"):
+        assert wrapper._to_litellm_message(message)["content"][1] == part
+
+    def test_to_litellm_message_passes_detail(self, mock_litellm_wrapper):
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+        message = UserMessage(
+            "Compare.",
+            attachment=[
+                Attachment.from_bytes(png, detail="low"),
+                Attachment.from_url("https://example.com/clip.mp4", detail="high"),
+            ],
+        )
+
+        image, video = mock_litellm_wrapper()._to_litellm_message(message)["content"][
+            1:
+        ]
+
+        assert image["image_url"]["detail"] == "low"
+        assert video["file"]["detail"] == "high"
+
+    def test_to_litellm_message_rejects_modality_the_provider_drops(
+        self, mock_litellm_wrapper, monkeypatch
+    ):
+        wrapper = mock_litellm_wrapper()
+        monkeypatch.setattr(wrapper, "_ACCEPTED_MODALITIES", frozenset({"image"}))
+        message = UserMessage(
+            "Transcribe this.",
+            attachment=Attachment.from_bytes(b"wav", mime_type="audio/wav"),
+        )
+
+        with pytest.raises(
+            AttachmentNotSupportedError, match="sends image .*not audio"
+        ):
             wrapper._to_litellm_message(message)
 
     def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
