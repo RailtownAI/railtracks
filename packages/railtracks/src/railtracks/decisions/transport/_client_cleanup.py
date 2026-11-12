@@ -23,7 +23,7 @@ from collections.abc import AsyncGenerator
 import litellm
 
 # The key ``get_async_httpx_client(llm_provider=...)`` caches under, before litellm
-# appends the event loop's id (the same from litellm 1.104.3 through 1.105.x).
+# appends the event loop's token (the same from litellm 1.104.3 through 1.108.x).
 _CLIENT_KEY = "async_httpx_client"
 
 _watchers: weakref.WeakKeyDictionary[

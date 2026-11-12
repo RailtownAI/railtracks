@@ -289,7 +289,5 @@ entire contract.
 --8<-- "docs/scripts/retrieval/store.py:custom"
 ```
 
-`filters` is a flat `dict[str, str]` built from
-`StoreScope.to_payload_filters()` plus any `metadata_filters` from the
-query. **All keys must match** for an entry to be returned; there's no
+`filters` is a flat `dict[str, str]` built from the query's `metadata_filters` plus, for a scoped query, a `scope` key holding `StoreScope.to_key()` (the exact label set). Every entry's payload carries that `scope` key, alongside one `scope_<label>` key per label. Scalar `chunk_metadata` values are stored as `meta_<key>`, so metadata can never overwrite an entry field or a scope label; `VectorStore` adds the prefix to filter keys, so a custom backend only ever sees payload keys. **All keys must match** for an entry to be returned; there's no
 boolean logic at the backend layer.
