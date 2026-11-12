@@ -72,12 +72,12 @@ Given the LLM powering your agent, you can pass image inputs to your multimodal 
 ```python
 --8<-- "docs/scripts/multimodal.py:public_url"
 ```
-The `attachment` parameter takes a file path, URL, base64 string or data URI, an [`Attachment`](#the-attachment-object), or a list of them. We currently support the following:
+The `attachment` parameter takes a file path, URL, base64 string, data URI, raw bytes, an [`Attachment`](#the-attachment-object), or a list of them. Raw bytes are passed to `Attachment.from_bytes`. We currently support the following:
 
 - Both file and web URLs of images, such as `jpeg`, `png`, `gif`, `webp` and `avif`. Most providers accept only the first four: OpenAI, Anthropic and Gemini reject `avif`, but some OpenAI-compatible servers accept it.
 - A base64 string or data URI of the image
 
-A local file's type is read from its first bytes, then from its extension, so a JPEG saved as `.png` is still sent as `image/jpeg`. A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names a text or Office document file (such as `.txt` or `.docx`) raises a `ValueError`. With `trust_urls=True`, a URL without an image or PDF extension is HEAD-probed first, and an image, PDF, audio or video type the server reports wins, for example a thumbnail service that renders a frame from a `.mp4` path.
+A local file's type is read from its first bytes, then from its extension, so a JPEG saved as `.png` is still sent as `image/jpeg`. A local image in any other format (such as BMP, SVG or ICO) raises a `ValueError`, because most providers reject it; to send one anyway, use `Attachment.from_bytes` with an explicit `mime_type`. A web URL without a file extension (for example a CDN link) is passed to the provider as an image. A URL whose extension names a text or Office document file (such as `.txt` or `.docx`) raises a `ValueError`. With `trust_urls=True`, a URL without an image or PDF extension is HEAD-probed first, and an image, PDF, audio or video type the server reports wins, for example a thumbnail service that renders a frame from a `.mp4` path.
 
 ---
 ## PDF documents

@@ -1,3 +1,4 @@
+import base64
 from copy import deepcopy
 from typing import List
 
@@ -212,6 +213,27 @@ class TestAttachment:
         file.write_bytes(content)
         with pytest.raises(ValueError, match="Unsupported attachment format"):
             Attachment(str(file))
+
+    @pytest.mark.parametrize(
+        "name,content",
+        [
+            ("photo.bmp", b"BM\x36\x00\x0c\x00\x00\x00\x00\x00\x36\x00"),
+            ("logo.svg", b'<svg xmlns="http://www.w3.org/2000/svg"/>'),
+            ("favicon.ico", b"\x00\x00\x01\x00\x01\x00"),
+        ],
+    )
+    def test_local_image_outside_provider_formats_raises(self, tmp_path, name, content):
+        """Most providers take only PNG, JPEG, GIF, WebP and AVIF, so fail before sending."""
+        file = tmp_path / name
+        file.write_bytes(content)
+        with pytest.raises(ValueError, match="Image paths must be PNG, JPEG"):
+            Attachment(str(file))
+
+    def test_other_image_types_need_from_bytes_with_a_path(self):
+        bmp = b"BM\x36\x00\x0c\x00\x00\x00\x00\x00\x36\x00"
+        assert Attachment.from_bytes(bmp, mime_type="image/bmp").modality == "image"
+        data_uri = "data:image/bmp;base64," + base64.b64encode(bmp).decode()
+        assert Attachment(data_uri).mime_type == "image/bmp"
 
     def test_non_media_data_uri_raises(self):
         with pytest.raises(ValueError, match="Unsupported attachment format"):
@@ -779,6 +801,15 @@ class TestAttachmentContent:
             "url='https://example.com/a.png', filename='a.png')"
         )
 
+    def test_repr_redacts_url_credentials_and_query(self):
+        attachment = Attachment(
+            "https://user:PASSWORD@bucket.s3.amazonaws.com/a.png?X-Amz-Signature=SECRET#frag"
+        )
+        text = repr(attachment)
+        assert "PASSWORD" not in text
+        assert "SECRET" not in text
+        assert "url='https://bucket.s3.amazonaws.com/a.png'" in text
+
     def test_from_url_with_explicit_type_skips_probe(self, monkeypatch):
         from railtracks.llm import message as message_module
 
@@ -849,6 +880,26 @@ class TestUserMessageAttachments:
     def test_no_attachment(self):
         message = UserMessage("Just text")
         assert message.attachment is None
+
+    @pytest.mark.parametrize("wrap", [bytes, bytearray, memoryview])
+    def test_raw_bytes_become_one_attachment(self, wrap):
+        message = UserMessage("Check this", attachment=wrap(_PNG))
+        assert message.attachment == [Attachment.from_bytes(_PNG)]
+
+    def test_raw_bytes_mixed_with_other_sources(self):
+        message = UserMessage(
+            "Compare",
+            attachment=[_PNG, "https://example.com/b.png", Attachment.from_bytes(_WAV)],
+        )
+        assert [a.mime_type for a in message.attachment] == [
+            "image/png",
+            "image/png",
+            "audio/wav",
+        ]
+
+    def test_undetectable_raw_bytes_point_to_mime_type(self):
+        with pytest.raises(ValueError, match="pass mime_type"):
+            UserMessage("hi", attachment=b"plain text")
 
     @pytest.mark.parametrize(
         "attachment,expected_type",

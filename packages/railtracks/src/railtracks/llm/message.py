@@ -48,6 +48,13 @@ _UNSUPPORTED_URL_EXTENSIONS = frozenset(
     + (".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx")  # Office
 )
 
+# Image types most providers accept; other image paths raise until #1349 adds per-provider checks.
+_PATH_IMAGE_TYPES = frozenset(
+    ("image/png", "image/jpeg", "image/gif", "image/webp", "image/avif")
+)
+
+_BYTES_LIKE = (bytes, bytearray, memoryview)
+
 
 def _modality_for_mime(mime_type: str) -> Modality:
     if mime_type == "application/pdf":
@@ -135,9 +142,10 @@ class Attachment:
             FileNotFoundError: If a local file does not exist.
             ValueError: If `attachment_max_mb` is not positive and finite, a
                 local file is empty, a local file or base64 payload is not an
-                image, PDF, audio or video file, a data URI or base64 payload is
-                malformed, a URL's extension names a text or Office document
-                type, or a PDF URL is passed while `trust_urls` is False.
+                image, PDF, audio or video file, a local image is not PNG, JPEG,
+                GIF, WebP or AVIF, a data URI or base64 payload is malformed, a
+                URL's extension names a text or Office document type, or a PDF
+                URL is passed while `trust_urls` is False.
         """
         if not isinstance(url, str):
             raise TypeError(
@@ -171,6 +179,17 @@ class Attachment:
                 f"in {source!r}. Paths and base64 strings must be an image, PDF, "
                 "audio or video file; use Attachment.from_bytes with an explicit "
                 "mime_type for other files."
+            )
+        if (
+            self._type == "local"
+            and self.modality == "image"
+            and self._mime_type not in _PATH_IMAGE_TYPES
+        ):
+            raise ValueError(
+                f"Unsupported attachment format: {self._mime_type} in {url!r}. "
+                "Image paths must be PNG, JPEG, GIF, WebP or AVIF, the formats most "
+                "providers accept; use Attachment.from_bytes with an explicit "
+                "mime_type to send another image type."
             )
 
     @classmethod
@@ -415,12 +434,35 @@ class Attachment:
     def __repr__(self) -> str:
         fields = [f"type={self.type!r}", f"mime_type={self.mime_type!r}"]
         if self.type == "url":
-            fields.append(f"url={self.url!r}")
+            fields.append(f"url={redact_url(self.url)!r}")
         if self.filename is not None:
             fields.append(f"filename={self.filename!r}")
         if self.size is not None:
             fields.append(f"size={self.size}")
         return f"Attachment({', '.join(fields)})"
+
+
+AttachmentInput = str | Attachment | bytes | bytearray | memoryview
+
+
+def _as_attachment(
+    item: AttachmentInput,
+    *,
+    trust_urls: bool,
+    attachment_timeout: float,
+    attachment_max_mb: float,
+) -> Attachment:
+    """Return `item` as an `Attachment`, building one from a source string or raw bytes."""
+    if isinstance(item, Attachment):
+        return item
+    if isinstance(item, _BYTES_LIKE):
+        return Attachment.from_bytes(item)
+    return Attachment(
+        item,
+        trust_urls=trust_urls,
+        attachment_timeout=attachment_timeout,
+        attachment_max_mb=attachment_max_mb,
+    )
 
 
 class Role(str, Enum):
@@ -529,7 +571,8 @@ class UserMessage(_StringOnlyContent[Role.user]):
     Args:
         content: The content of the user message.
         attachment: The file attachment(s) for the user message: a file path, URL,
-                    data URI or `Attachment`, or a list of them. Defaults to None.
+                    data URI, raw bytes or `Attachment`, or a list of them.
+                    Raw bytes go through `Attachment.from_bytes`. Defaults to None.
         trust_urls: Allow in-process fetch for URL attachments. Defaults to False.
                     When False, `.pdf` URLs and URLs whose extension names a
                     text or Office document type raise, and other
@@ -553,13 +596,13 @@ class UserMessage(_StringOnlyContent[Role.user]):
 
     Raises:
         ValueError: If an attachment is rejected, for the reasons listed on
-            `Attachment.__init__`.
+            `Attachment.__init__` and `Attachment.from_bytes`.
     """
 
     def __init__(
         self,
         content: str | None = None,
-        attachment: str | Attachment | Sequence[str | Attachment] | None = None,
+        attachment: AttachmentInput | Sequence[AttachmentInput] | None = None,
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
@@ -567,13 +610,11 @@ class UserMessage(_StringOnlyContent[Role.user]):
         if attachment is not None:
             items = (
                 [attachment]
-                if isinstance(attachment, (str, Attachment))
+                if isinstance(attachment, (str, Attachment, *_BYTES_LIKE))
                 else list(attachment)
             )
             self.attachment = [
-                item
-                if isinstance(item, Attachment)
-                else Attachment(
+                _as_attachment(
                     item,
                     trust_urls=trust_urls,
                     attachment_timeout=attachment_timeout,

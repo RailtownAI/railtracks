@@ -4,10 +4,22 @@ import base64
 import functools
 import mimetypes
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+_UTF8_BOM = b"\xef\xbb\xbf"
+
+# SVG has no magic bytes: its first tag, after any XML declaration, comments and SVG
+# doctype, must be <svg>, so HTML or Markdown with an inline <svg> is not one.
+_SVG_START = re.compile(
+    # Each token ends at its first closing delimiter, so a failed match cannot backtrack.
+    rb"(?:\s|<\?xml(?:[^?]|\?(?!>))*\?>|<!--(?:[^-]|-(?!->))*-->"
+    rb"|<!doctype\s+svg(?:[^>\[]|\[[^\]]*\])*>)*<svg[\s/>]",
+    re.DOTALL | re.IGNORECASE,
+)
 
 
 def _load_attachment_formats() -> dict[str, Any]:
@@ -108,12 +120,7 @@ def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
             if len(b) >= end and b[start:end] in variable_bytes:
                 return mime_type
 
-    # SVG has no magic bytes; it must open the document, after an optional XML
-    # declaration, comment or doctype, so HTML or Markdown with an inline <svg> is not one.
-    head = b[:1024].lstrip().lower()
-    if head.startswith((b"<svg", b"<?xml", b"<!--", b"<!doctype svg")) and (
-        b"<svg" in head
-    ):
+    if _SVG_START.match(b.removeprefix(_UTF8_BOM)):
         return "image/svg+xml"
 
     return None

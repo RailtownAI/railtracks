@@ -3,6 +3,7 @@ import http.client
 import io
 import ssl
 import threading
+import time
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock, patch
@@ -387,6 +388,8 @@ class TestDetectAttachmentMime:
             b'<?xml version="1.0"?><invoice/>',
             b'# Logo\n<svg xmlns="http://www.w3.org/2000/svg"/>',
             b"<!DOCTYPE html><html><body><svg/></body></html>",
+            b"<!-- x --><html><body><svg></svg></body></html>",
+            b"<svgfoo/>",
         ],
         ids=[
             "text_starting_with_BM",
@@ -395,6 +398,8 @@ class TestDetectAttachmentMime:
             "plain_xml",
             "markdown_with_inline_svg",
             "html_with_inline_svg",
+            "html_after_comment_with_inline_svg",
+            "tag_starting_with_svg",
         ],
     )
     def test_lookalike_content_is_not_detected(self, data):
@@ -406,10 +411,46 @@ class TestDetectAttachmentMime:
             b'<?xml version="1.0"?>\n<!-- logo -->\n<svg xmlns="http://www.w3.org/2000/svg"/>',
             b'  <svg xmlns="http://www.w3.org/2000/svg"/>',
             b'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "x"><svg/>',
+            b'<!DOCTYPE svg [ <!ENTITY logo "x"> ]><svg/>',
+            b'\xef\xbb\xbf<?xml version="1.0"?><svg xmlns="x"/>',
+            b"<!-- " + b"MIT License. " * 200 + b"-- -->\n<svg/>",
+        ],
+        ids=[
+            "xml_declaration_and_comment",
+            "leading_whitespace",
+            "doctype",
+            "doctype_internal_subset",
+            "utf8_bom",
+            "long_license_comment",
         ],
     )
     def test_svg_detected(self, svg):
         assert detect_attachment_mime_from_bytes(svg) == "image/svg+xml"
+
+    def test_html_page_after_comment_keeps_its_extension_type(self):
+        page = b"<!-- x --><html><body><svg></svg></body></html>"
+        assert detect_mime(page, "page.html") == "text/html"
+
+    def test_bom_svg_is_read_as_base64(self):
+        svg = b'\xef\xbb\xbf<?xml version="1.0"?><svg xmlns="x"/>'
+        assert decode_data_uri(base64.b64encode(svg).decode()) == (
+            "image/svg+xml",
+            svg,
+        )
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            b"<!--a-->" * 20_000 + b"<html>",
+            b" " * 200_000 + b"x",
+            b"<!--" + b"-" * 200_000,
+        ],
+        ids=["many_comments", "long_whitespace", "unterminated_comment"],
+    )
+    def test_svg_check_stays_linear_on_non_svg(self, data):
+        start = time.perf_counter()
+        assert detect_attachment_mime_from_bytes(data) is None
+        assert time.perf_counter() - start < 1
 
 
 class TestDetectMime:
