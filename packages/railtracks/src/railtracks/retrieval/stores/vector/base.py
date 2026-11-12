@@ -38,9 +38,15 @@ class VectorBackend(Protocol):
 # ---------------------------------------------------------------------------
 
 
-# Top-level payload keys written from StoreEntry fields. A chunk_metadata key
-# with one of these names (or a scope_* name) is kept in the JSON blob instead
-# of being spread, so neither value overwrites the other.
+# Scalar chunk_metadata values are spread as top-level keys with this prefix,
+# so metadata can't overwrite entry fields or scope labels (mirrors scope_).
+_META_PREFIX = "meta_"
+
+# Records the (unprefixed) names of the spread metadata keys. Deliberately not
+# meta_-prefixed, so a metadata key named "keys" can't collide with it.
+_META_KEYS = "chunk_meta_keys"
+
+# Top-level payload keys written from StoreEntry fields, plus _META_KEYS.
 _RESERVED_PAYLOAD_KEYS = frozenset(
     {
         "content",
@@ -52,7 +58,7 @@ _RESERVED_PAYLOAD_KEYS = frozenset(
         "parent_chunk_id",
         "chunk_offsets",
         "chunk_metadata",
-        "chunk_metadata_keys",
+        _META_KEYS,
         "embedding_version",
         "scope",
         "abstract",
@@ -64,28 +70,54 @@ _RESERVED_PAYLOAD_KEYS = frozenset(
 )
 
 
-def _is_spreadable(key: str, value: object) -> bool:
-    if key in _RESERVED_PAYLOAD_KEYS or key.startswith("scope_"):
-        return False
-    return _is_scalar(value)
-
-
 def _is_scalar(value: object) -> bool:
     return isinstance(value, (str, int, float, bool)) or value is None
+
+
+def _metadata_key(key: str) -> str:
+    """Payload key a chunk_metadata key is stored under."""
+    return f"{_META_PREFIX}{key}"
+
+
+def _metadata_filters_to_payload(filters: dict[str, Any]) -> dict[str, Any]:
+    """Translate a query's ``metadata_filters`` to payload keys.
+
+    Every key is a chunk_metadata key, except ``scope_*`` labels, which are
+    kept so a read can narrow by a single label (e.g. under ``ALL_SCOPES``).
+    The exact-scope filter is applied after this, so they can't widen a scope.
+    """
+    return {
+        k if k.startswith("scope_") else _metadata_key(k): v for k, v in filters.items()
+    }
+
+
+def _store_filters_to_payload(filters: dict[str, Any]) -> dict[str, Any]:
+    """Translate ``find``/``count``/``delete_where`` filters to payload keys.
+
+    Entry-field names, ``scope`` and ``scope_*`` labels are kept as they are;
+    every other key is treated as a chunk_metadata key.
+    """
+    return {
+        k
+        if k in _RESERVED_PAYLOAD_KEYS or k.startswith("scope_")
+        else _metadata_key(k): v
+        for k, v in filters.items()
+    }
 
 
 def _decode_chunk_metadata(payload: dict) -> dict:
     """Rebuild ``chunk_metadata`` from the JSON blob and the spread scalars.
 
-    Payloads written before scalars were dropped from the blob have no
-    ``chunk_metadata_keys`` and keep everything in the blob.
+    Payloads written before #1186 keep everything in the blob and have no
+    ``chunk_meta_keys``. Unprefixed scalars written before #1185 aren't read
+    back; re-ingest those entries.
     """
     chunk_metadata = (
         json.loads(payload["chunk_metadata"]) if "chunk_metadata" in payload else {}
     )
-    for k in json.loads(payload.get("chunk_metadata_keys", "[]")):
+    for k in json.loads(payload.get(_META_KEYS, "[]")):
         # Chroma drops None-valued metadata keys on write.
-        chunk_metadata[k] = payload.get(k)
+        chunk_metadata[k] = payload.get(_metadata_key(k))
     return chunk_metadata
 
 
@@ -96,16 +128,13 @@ def _encode_provenance(entry: StoreEntry) -> dict:
     if entry.chunk_offsets is not None:
         out["chunk_offsets"] = json.dumps(list(entry.chunk_offsets))
     if entry.chunk_metadata:
-        # Scalars are spread at the top level so they are filterable via
-        # `metadata_filters` / `find`, and their keys recorded for the read
-        # back. Only the rest goes in the JSON blob, so nothing is stored twice.
-        scalars = {
-            k: v for k, v in entry.chunk_metadata.items() if _is_spreadable(k, v)
-        }
+        # Scalars are spread (prefixed) so they are filterable; only the rest
+        # goes in the JSON blob, so nothing is stored twice.
+        scalars = {k: v for k, v in entry.chunk_metadata.items() if _is_scalar(v)}
         rest = {k: v for k, v in entry.chunk_metadata.items() if k not in scalars}
         if scalars:
-            out.update(scalars)
-            out["chunk_metadata_keys"] = json.dumps(list(scalars))
+            out.update({_metadata_key(k): v for k, v in scalars.items()})
+            out[_META_KEYS] = json.dumps(list(scalars))
         if rest:
             out["chunk_metadata"] = json.dumps(rest)
     if entry.embedding_version is not None:
@@ -275,7 +304,9 @@ class VectorStore:
                 "caller must supply a pre-computed embedding."
             )
 
-        filters = _with_scope(query.metadata_filters or {}, query.scope)
+        filters = _with_scope(
+            _metadata_filters_to_payload(query.metadata_filters or {}), query.scope
+        )
 
         raw_hits = await self._backend.search(query.embedding, query.top_k, filters)
 
@@ -299,14 +330,16 @@ class VectorStore:
         await self._backend.delete_where(exact_scope_filter(scope))
 
     async def delete_where(self, filters: dict[str, Any]) -> None:
-        await self._backend.delete_where(filters)
+        await self._backend.delete_where(_store_filters_to_payload(filters))
 
     async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]:
-        raw_hits = await self._backend.list_where(filters, limit)
+        raw_hits = await self._backend.list_where(
+            _store_filters_to_payload(filters), limit
+        )
         return [_payload_to_entry(hit_id, payload) for hit_id, payload in raw_hits]
 
     async def count(self, filters: dict[str, Any] | None = None) -> int:
-        return await self._backend.count(filters or {})
+        return await self._backend.count(_store_filters_to_payload(filters or {}))
 
     async def nearest_neighbors(
         self,

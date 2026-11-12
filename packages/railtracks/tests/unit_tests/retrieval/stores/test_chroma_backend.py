@@ -948,3 +948,26 @@ async def test_real_chroma_rewrite_drops_stale_chunk_metadata(tmp_path):
 
     [got] = await store.find({"page": 4})
     assert got.chunk_metadata == {"page": 4}
+
+
+async def test_real_chroma_metadata_named_like_entry_fields_is_filterable(tmp_path):
+    pytest.importorskip("chromadb")
+    store = VectorStore(await ChromaBackend.create("col", path=str(tmp_path)))
+    entry = replace(
+        _make_entry(),
+        chunk_metadata={"content": "from-csv", "document_id": "42", "page": None},
+    )
+
+    await store.write(entry)
+    [hit] = await store.read(
+        StoreQuery(
+            text="q",
+            embedding=[1.0, 0.0, 0.0],
+            scope=entry.scope,
+            metadata_filters={"document_id": "42"},
+        )
+    )
+
+    assert hit.entry.content == entry.content
+    assert hit.entry.document_id == entry.document_id
+    assert hit.entry.chunk_metadata == entry.chunk_metadata

@@ -34,6 +34,8 @@ yourself:
 --8<-- "docs/scripts/retrieval/retrieval_example.py:metadata_filters"
 ```
 
+These two keys belong to the runtime: if a loader puts a `source_path` or `content_hash` column into the metadata, the runtime's value replaces it and a warning is logged. Every key in `metadata_filters` refers to `Chunk.metadata` (apart from `scope_<label>` keys, which narrow by one scope label), even one named like an entry field: `{"document_id": "42"}` matches a `document_id` metadata column, not the internal document id. To restrict a search to one document, filter on its `source_path`.
+
 !!! warning "Filters are flat equality only"
     Currently we only support `field==value` for filtering. For other common filtering needs (`or`, `is_in`, etc) please open an issue or a PR at https://github.com/RailtownAI/railtracks/issues
 

@@ -116,7 +116,7 @@ constructor. Single-tenant callers just omit it.
 Ingest only looks at entries with exactly the scope it was given: the unchanged-document skip and the replacement of a changed document never touch another tenant's copy, and an unscoped ingest (`scope=None`) only sees unscoped entries. `delete_document(document_id, scope=...)` follows the same rule. Two tenants that ingest the same `source` share a document id, so pass the scope to delete one tenant's copy; to delete every copy, call `runtime.store.delete_where({"document_id": str(document_id)})`.
 
 !!! warning "Entries written before scopes matched exactly"
-    Entries written by an earlier version have no `scope` key, so reads (scoped or not, except with `ALL_SCOPES`), the skip check and the replace-on-change step don't see them. This includes single-tenant stores: a plain `retrieve()` returns nothing from old entries. Re-ingest that data into a new collection or table after upgrading.
+    Entries written by an earlier version have no `scope` key, so reads (scoped or not, except with `ALL_SCOPES`), the skip check and the replace-on-change step don't see them. This includes single-tenant stores: a plain `retrieve()` returns nothing from old entries. They also store chunk metadata without the `meta_` prefix, so metadata filters don't match them and their scalar metadata isn't read back. Re-ingest that data into a new collection or table after upgrading.
 
 ---
 
