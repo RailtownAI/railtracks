@@ -65,10 +65,11 @@ rt.enable_logging(level="DEBUG", log_file="my_logs.log")
 # --8<-- [end: logging_env_var]
 
 # --8<-- [start: logging_railtown]
+import os
+
 import railtownai
 
-RAILTOWN_API_KEY = "YOUR_RAILTOWN_API_KEY"
-railtownai.init(RAILTOWN_API_KEY)
+railtownai.init(os.environ["RAILTOWN_API_KEY"])
 # --8<-- [end: logging_railtown]
 
 # --8<-- [start: logging_loggly]
