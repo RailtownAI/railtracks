@@ -111,6 +111,7 @@ class Attachment:
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
+        detail: str | None = None,
     ):
         """
         Create an attachment from a file path, URL, or base64/data-URI payload.
@@ -132,6 +133,9 @@ class Attachment:
             attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
                 Must be positive and finite. Defaults to 32. Only applies when
                 `trust_urls=True`.
+            detail: How closely the provider looks at an image or video, passed
+                through as is, e.g. `"low"`, `"high"` or `"auto"` for OpenAI.
+                Defaults to None, the provider's default.
 
         Raises:
             TypeError: If `url` is not a string.
@@ -140,8 +144,9 @@ class Attachment:
                 local file is empty, a local file or base64 payload is not an
                 image, PDF, audio or video file, a local image is not PNG, JPEG,
                 GIF, WebP or AVIF, a data URI or base64 payload is malformed, a
-                URL's extension names a text or Office document type, or a PDF
-                URL is passed while `trust_urls` is False.
+                URL's extension names a text or Office document type, a PDF
+                URL is passed while `trust_urls` is False, or `detail` is given
+                for an attachment that is not an image or video.
         """
         if not isinstance(url, str):
             raise TypeError(
@@ -189,6 +194,7 @@ class Attachment:
                 "providers accept; use Attachment.from_bytes with an explicit "
                 "mime_type to send another image type."
             )
+        self._set_detail(detail)
 
     @classmethod
     def from_bytes(
@@ -196,6 +202,7 @@ class Attachment:
         data: bytes | bytearray | memoryview,
         mime_type: str | None = None,
         filename: str | None = None,
+        detail: str | None = None,
     ) -> Attachment:
         """Create an attachment from raw bytes, of any file type.
 
@@ -204,6 +211,8 @@ class Attachment:
             mime_type: The MIME type, e.g. `"audio/wav"`. Detected from the magic
                 bytes, then from `filename`'s extension, when omitted.
             filename: The file name sent to providers that take one.
+            detail: How closely the provider looks at an image or video. See
+                `Attachment.__init__`.
 
         Returns:
             The attachment, with `type` `"data_uri"`.
@@ -211,7 +220,9 @@ class Attachment:
         Raises:
             TypeError: If `data` is not bytes-like.
             ValueError: If `data` is empty, `mime_type` is not a bare
-                `type/subtype`, or `mime_type` is omitted and cannot be detected.
+                `type/subtype`, `mime_type` is omitted and cannot be detected,
+                or `detail` is given for an attachment that is not an image or
+                video.
         """
         if not isinstance(data, (bytes, bytearray, memoryview)):
             raise TypeError(f"data must be bytes, but got {type(data)}")
@@ -227,6 +238,7 @@ class Attachment:
                 )
         attachment = cls.__new__(cls)
         attachment._set("...", "data_uri", mime_type, filename, data)
+        attachment._set_detail(detail)
         return attachment
 
     @classmethod
@@ -238,6 +250,7 @@ class Attachment:
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
+        detail: str | None = None,
     ) -> Attachment:
         """Create an attachment from a URL, optionally declaring its type.
 
@@ -257,6 +270,8 @@ class Attachment:
                 probe and the PDF download.
             attachment_max_mb: Largest PDF accepted, in megabytes. Must be
                 positive and finite.
+            detail: How closely the provider looks at an image or video. See
+                `Attachment.__init__`.
 
         Returns:
             The attachment, with `type` `"url"`.
@@ -265,8 +280,9 @@ class Attachment:
             ValueError: If `url` is not a URL, `mime_type` is not a bare
                 `type/subtype`, `attachment_max_mb` is not positive and finite,
                 the URL's extension names a text or Office document type and no
-                `mime_type` is given, or the attachment is a PDF and `trust_urls`
-                is False.
+                `mime_type` is given, the attachment is a PDF and `trust_urls`
+                is False, or `detail` is given for an attachment that is not an
+                image or video.
         """
         if detect_source(url) != "url":
             raise ValueError(f"Not a URL: {url!r}")
@@ -280,6 +296,7 @@ class Attachment:
             timeout=attachment_timeout,
             max_mb=attachment_max_mb,
         )
+        attachment._set_detail(detail)
         return attachment
 
     def _init_url(
@@ -356,6 +373,13 @@ class Attachment:
         self._data = data
         self._sha256: str | None = None
 
+    def _set_detail(self, detail: str | None) -> None:
+        if detail is not None and self.modality not in ("image", "video"):
+            raise ValueError(
+                f"detail applies to image and video attachments, not {self.modality}."
+            )
+        self._detail = detail
+
     @property
     def url(self) -> str:
         """The path or URL given, or `"..."` for inline data."""
@@ -394,6 +418,11 @@ class Attachment:
         if self._mime_type is None:
             return "image"
         return _modality_for_mime(self._mime_type)
+
+    @property
+    def detail(self) -> str | None:
+        """How closely the provider looks at an image or video, or None for its default."""
+        return self._detail
 
     @property
     def file_extension(self) -> None:
