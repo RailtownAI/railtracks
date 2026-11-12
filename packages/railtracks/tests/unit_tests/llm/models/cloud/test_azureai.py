@@ -115,12 +115,27 @@ PDF = Attachment.from_bytes(b"%PDF-1.7\n", filename="report.pdf")
 WAV = Attachment.from_bytes(b"wav", mime_type="audio/wav")
 
 
-def test_azure_ai_route_rejects_file_parts():
+@pytest.mark.parametrize(
+    "model_name",
+    # deepseek-r1 is in litellm's catalog without PDF input, mistral-large is not.
+    ["azure_ai/mistral-large", "azure_ai/deepseek-r1"],
+)
+@pytest.mark.parametrize(
+    "attachment",
+    [PDF, Attachment("https://example.com/call.mp3")],
+    ids=["pdf", "audio_url"],
+)
+def test_azure_ai_route_rejects_file_parts(model_name, attachment):
     """litellm's azure_ai transform flattens a message without image or audio to text."""
-    llm = AzureAILLM(model_name="azure_ai/mistral-large")
+    llm = AzureAILLM(model_name=model_name)
 
     with pytest.raises(AttachmentNotSupportedError, match="azure_ai"):
-        llm._to_litellm_message(UserMessage("Summarize.", attachment=PDF))
+        llm._to_litellm_message(UserMessage("Summarize.", attachment=attachment))
+
+
+def test_azure_ai_route_sends_audio_bytes():
+    llm = AzureAILLM(model_name="azure_ai/mistral-large")
+
     audio = llm._to_litellm_message(UserMessage("Transcribe.", attachment=WAV))
     assert audio["content"][1]["type"] == "input_audio"
 

@@ -729,6 +729,12 @@ class TestAttachmentContent:
             == "high"
         )
         assert Attachment.from_bytes(_PNG).detail is None
+        assert Attachment.from_bytes(_PNG, detail="").detail is None
+
+    def test_detail_is_not_part_of_equality(self):
+        low = Attachment.from_bytes(_PNG, detail="low")
+        assert low == Attachment.from_bytes(_PNG, detail="high")
+        assert hash(low) == hash(Attachment.from_bytes(_PNG))
 
     @pytest.mark.parametrize("data", [_WAV, b"%PDF-1.7\n"], ids=["audio", "pdf"])
     def test_detail_rejected_for_other_modalities(self, data):

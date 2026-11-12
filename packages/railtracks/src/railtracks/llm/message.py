@@ -374,6 +374,7 @@ class Attachment:
         self._sha256: str | None = None
 
     def _set_detail(self, detail: str | None) -> None:
+        detail = detail or None
         if detail is not None and self.modality not in ("image", "video"):
             raise ValueError(
                 f"detail applies to image and video attachments, not {self.modality}."

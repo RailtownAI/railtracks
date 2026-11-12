@@ -148,7 +148,7 @@ Railtracks doesn't check where an attachment URL points. Who downloads it depend
 |---|---|
 | Local file, base64 or data URI | Nobody. Railtracks reads the file or uses the bytes as they are. |
 | Image URL | The provider, in most cases. When the provider can't take the URL, litellm (which Railtracks uses to call providers) downloads it in your process first, whatever `trust_urls` is set to: every image URL for Gemini, and `http://` URLs for Anthropic. litellm refuses URLs that point at a non-public address. |
-| Audio or video URL | The provider. Railtracks passes the URL as is. |
+| Audio or video URL | The provider. Railtracks passes the URL as is. For Gemini, litellm downloads `http://` URLs in your process first, while `https://` URLs go to Gemini. |
 | PDF URL, or the HEAD probe of a URL without an image or PDF extension | Railtracks, in your process, only with `trust_urls=True`. There is no address check, so internal and `localhost` URLs work. |
 
 A typical path from development to production:
