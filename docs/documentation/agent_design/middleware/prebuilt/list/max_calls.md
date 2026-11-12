@@ -57,6 +57,11 @@ print(budget.call_count)
 
 # Reset the counter that call_count reads
 budget.reset()
+
+# Reset every counter: each run still in progress, and calls made outside a run
+budget.reset_all()
 ```
 
-Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns. The count itself is kept in [`rt.context.local`](../../../../advanced/context.md#state-owned-by-a-middleware-or-node), so it ends with its session and a long-lived `MaxCalls` keeps nothing from earlier runs. `reset_all()` is kept as an alias of `reset()`.
+Read `call_count` outside a run and it reports the run that last made a call, so you can check what a flow spent once `invoke()` returns. `reset()` resets that count, or the active session's when called inside a run. `reset_all()` also reaches every run still in progress, so you can lift the budget of runs you don't hold a handle to.
+
+The count itself is kept in [`rt.context.local`](../../../../advanced/context.md#state-owned-by-a-middleware-or-node), so it ends with its session and a long-lived `MaxCalls` keeps nothing from earlier runs.

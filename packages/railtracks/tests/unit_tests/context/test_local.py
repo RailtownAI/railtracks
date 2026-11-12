@@ -199,6 +199,33 @@ def test_decorator_middleware_owns_its_state_and_shares_it_across_nodes():
     assert flow.invoke() == 3
 
 
+def test_model_middleware_owns_its_state_apart_from_its_agent(mock_llm):
+    @rt.wrap_llm
+    async def count_model_calls(call, history, schema, tools):
+        rt.context.local(Counter).calls += 1
+        return await call(history, schema, tools)
+
+    agent = rt.agent_node(
+        "Agent",
+        llm=mock_llm(custom_response="hi"),
+        model_middleware=[count_model_calls],
+    )
+
+    @rt.function_node
+    async def driver() -> tuple[int, int]:
+        await rt.call(agent, user_input="a")
+        await rt.call(agent, user_input="b")
+        return (
+            rt.context.local(Counter, owner=count_model_calls).calls,
+            rt.context.local(Counter, owner=agent).calls,
+        )
+
+    flow = rt.Flow("model-middleware", entry_point=driver)
+
+    assert flow.invoke() == (2, 0)
+    assert flow.invoke() == (2, 0)
+
+
 def test_two_instances_of_one_middleware_keep_separate_state():
     first, second = CountCalls(), CountCalls()
 

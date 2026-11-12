@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import weakref
 from dataclasses import dataclass
 from typing import Any
@@ -68,6 +69,8 @@ class MaxCalls(Middleware[Any, Any, Never]):
         self._last = self._unscoped
         # every count still in use; a finished session's drops out on its own
         self._counts: weakref.WeakSet[_CallCount] = weakref.WeakSet([self._unscoped])
+        # flows on separate threads can share this instance
+        self._counts_lock = threading.Lock()
         super().__init__(self._middleware_fn)
 
     @property
@@ -92,13 +95,16 @@ class MaxCalls(Middleware[Any, Any, Never]):
 
     def reset_all(self) -> None:
         """Reset every counter: each session still running, and calls made outside a run."""
-        for count in list(self._counts):
+        with self._counts_lock:
+            counts = list(self._counts)
+        for count in counts:
             count.calls = 0
 
     async def _middleware_fn(self, call, *args, **kwargs):
         # a call outside any run must not spend a finished run's budget
         count = self._count() if is_context_present() else self._unscoped
-        self._counts.add(count)
+        with self._counts_lock:
+            self._counts.add(count)
         self._last = count
         # Read-modify-write is safe under one event loop: no await between them.
         if count.calls >= self._max_calls:
