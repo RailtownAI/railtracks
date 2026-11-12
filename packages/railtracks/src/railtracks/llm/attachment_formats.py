@@ -1,6 +1,5 @@
 """Attachment format detection: MIME types from magic bytes or from a file extension."""
 
-import base64
 import functools
 import mimetypes
 import os
@@ -21,77 +20,45 @@ _SVG_START = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 
+# WebM and Matroska share the EBML magic bytes; the header's DocType element tells them apart.
+_MATROSKA_DOCTYPE = b"\x42\x82\x88matroska"
+_EBML_HEADER_BYTES = 64
 
-def _load_attachment_formats() -> dict[str, Any]:
-    """Load attachment format definitions from YAML file."""
-    formats_file = Path(__file__).parent / "attachment_formats.yaml"
-
-    if not formats_file.exists():
-        raise FileNotFoundError(f"Attachment formats file not found: {formats_file}")
-
-    with open(formats_file) as f:
-        return yaml.safe_load(f)
+_Signature = tuple[tuple[int, tuple[bytes, ...]], ...]
 
 
-def _convert_yaml_to_python(
-    formats: dict[str, Any],
-) -> tuple[
-    list[tuple[bytes, str]],
-    list[tuple[int, int, int, bytes, set[bytes], str]],
-    dict[str, str],
-]:
-    """Convert YAML format definitions to Python data structures."""
-    prefix_formats = []
-    for item in formats.get("prefix_formats", []):
-        # Handle base64-encoded magic bytes
-        if "magic_bytes_b64" in item:
-            magic = base64.b64decode(item["magic_bytes_b64"])
-        elif "magic_bytes" in item:
-            magic = item["magic_bytes"].encode("utf-8")
-        else:
-            raise ValueError(
-                f"Format item missing magic_bytes or magic_bytes_b64: {item}"
-            )
-        prefix_formats.append((magic, item["mime_type"]))
-
-    offset_formats = [
-        (
-            item.get("fixed_offset", 0),
-            item["offset_start"],
-            item["offset_end"],
-            item["fixed_bytes"].encode("utf-8"),
-            {b.encode("utf-8") for b in item.get("variable_bytes", [])},
-            item["mime_type"],
-        )
-        for item in formats.get("offset_formats", [])
-    ]
-
-    extension_formats = {
-        extension: item["mime_type"]
-        for section in ("prefix_formats", "offset_formats", "extension_formats")
-        for item in formats.get(section, [])
-        for extension in item.get("extensions", [])
-    }
-
-    return prefix_formats, offset_formats, extension_formats
+def _signature(match: dict[int, str | list[str]]) -> _Signature:
+    """Return a `match` map as (offset, allowed bytes) pairs, reading its text as latin-1."""
+    return tuple(
+        (offset, tuple(s.encode("latin-1") for s in ([b] if isinstance(b, str) else b)))
+        for offset, b in match.items()
+    )
 
 
-# Load formats at module initialization
-_formats = _load_attachment_formats()
-PREFIX_FORMATS, OFFSET_FORMATS, EXTENSION_FORMATS = _convert_yaml_to_python(_formats)
-CONTAINER_FORMATS = frozenset(
-    item["mime_type"]
-    for section in ("prefix_formats", "offset_formats")
-    for item in _formats.get(section, [])
-    if item.get("container")
+_TABLE: dict[str, Any] = yaml.safe_load(
+    (Path(__file__).parent / "attachment_formats.yaml").read_text(encoding="utf-8")
 )
+_FORMATS: list[dict[str, Any]] = _TABLE["formats"]
+_SIGNATURES = [
+    (row["mime_type"], _signature(row["match"])) for row in _FORMATS if "match" in row
+]
+CONTAINER_FORMATS: dict[str, frozenset[str]] = {
+    row["mime_type"]: frozenset(row["container"])
+    for row in _FORMATS
+    if "container" in row
+}
+UNSUPPORTED_URL_EXTENSIONS = frozenset(_TABLE["unsupported_url_extensions"])
 
 
 @functools.cache
-def _stdlib_mimetypes() -> mimetypes.MimeTypes:
-    # A fresh instance holds only Python's built-in table, not the OS registry,
-    # so lookups match on every machine running the same Python version.
-    return mimetypes.MimeTypes()
+def _mime_types() -> mimetypes.MimeTypes:
+    # A fresh instance holds only Python's built-in table, not the OS registry, so
+    # lookups match on every machine; the YAML extensions override it.
+    types = mimetypes.MimeTypes()
+    for row in _FORMATS:
+        for extension in row.get("extensions", ()):
+            types.add_type(row["mime_type"], extension)
+    return types
 
 
 def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
@@ -101,24 +68,14 @@ def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
     `attachment_formats.yaml`. Add a new format by appending a row there; no code
     changes needed.
     """
-    if not b:
-        return None
-
-    for magic_bytes, mime_type in PREFIX_FORMATS:
-        if b.startswith(magic_bytes):
+    for mime_type, signature in _SIGNATURES:
+        if all(b.startswith(allowed, offset) for offset, allowed in signature):
+            if (
+                mime_type == "video/webm"
+                and _MATROSKA_DOCTYPE in b[:_EBML_HEADER_BYTES]
+            ):
+                return "video/x-matroska"
             return mime_type
-
-    for (
-        fixed_offset,
-        start,
-        end,
-        fixed_bytes,
-        variable_bytes,
-        mime_type,
-    ) in OFFSET_FORMATS:
-        if b.startswith(fixed_bytes, fixed_offset):
-            if len(b) >= end and b[start:end] in variable_bytes:
-                return mime_type
 
     if _SVG_START.match(b.removeprefix(_UTF8_BOM)):
         return "image/svg+xml"
@@ -129,8 +86,8 @@ def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
 def detect_mime(data: bytes, name: str | None = None) -> str | None:
     """Return the MIME type of file content, from its magic bytes, then its name.
 
-    A container that can hold audio or video (Ogg, Matroska, MP4) takes the type
-    its extension names when that is audio or video, so `clip.ogv` is video.
+    A container (Ogg, Matroska, MP4, HEIF) takes the type its extension names when
+    that is a kind it can hold, so `clip.ogv` is video and `photo.avif` is AVIF.
 
     Args:
         data: The file content.
@@ -141,9 +98,8 @@ def detect_mime(data: bytes, name: str | None = None) -> str | None:
     """
     magic = detect_attachment_mime_from_bytes(data)
     named = detect_mime_from_extension(name) if name else None
-    if magic in CONTAINER_FORMATS and named:
-        if named.split("/", 1)[0] in ("audio", "video"):
-            return named
+    if named and named.split("/", 1)[0] in CONTAINER_FORMATS.get(magic or "", ()):
+        return named
     return magic or named
 
 
@@ -162,13 +118,4 @@ def detect_mime_from_extension(name: str) -> str | None:
     extension = os.path.splitext(name)[1].lower()
     if not extension:
         return None
-    return (
-        EXTENSION_FORMATS.get(extension)
-        or _stdlib_mimetypes().guess_type(f"file{extension}")[0]
-    )
-
-
-def detect_image_mime_from_bytes(b: bytes) -> str | None:
-    """Return MIME type for image formats only, or None for non-image / unknown bytes."""
-    mime = detect_attachment_mime_from_bytes(b)
-    return mime if mime and mime.startswith("image/") else None
+    return _mime_types().guess_type(f"file{extension}")[0]

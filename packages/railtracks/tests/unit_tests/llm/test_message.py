@@ -1,9 +1,13 @@
 import base64
-from copy import deepcopy
+import email
+from contextlib import nullcontext
+from copy import copy, deepcopy
+from types import SimpleNamespace
 from typing import List
 
 import pytest
 from railtracks.llm import AssistantMessage, SystemMessage, ToolMessage, UserMessage
+from railtracks.llm import message as message_module
 from railtracks.llm.content import Stream, ToolCall, ToolCalls, ToolResponse
 from railtracks.llm.message import Attachment, Message, Role
 
@@ -355,10 +359,10 @@ class TestAttachment:
         seen = {}
 
         class _FakeResp:
-            headers = {
-                "Content-Type": "application/pdf",
-                "Content-Disposition": 'inline; filename="paper.pdf"',
-            }
+            headers = email.message_from_string(
+                "Content-Type: application/pdf\n"
+                'Content-Disposition: inline; filename="paper.pdf"\n\n'
+            )
 
             def __enter__(self):
                 return self
@@ -443,10 +447,10 @@ class TestAttachment:
         pdf_bytes = b"%PDF-1.4\n%remote pdf body\n%%EOF"
 
         class _FakeResp:
-            headers = {
-                "Content-Type": "application/pdf",
-                "Content-Disposition": 'inline; filename="1706.03762v7.pdf"',
-            }
+            headers = email.message_from_string(
+                "Content-Type: application/pdf\n"
+                'Content-Disposition: inline; filename="1706.03762v7.pdf"\n\n'
+            )
 
             def __enter__(self):
                 return self
@@ -793,6 +797,49 @@ class TestAttachmentContent:
         assert copied == attachment
         assert copied.sha256 == attachment.sha256
         assert copied.data is attachment.data
+
+    def test_copies_are_the_same_object(self):
+        attachment = Attachment.from_bytes(_PNG)
+        assert deepcopy(attachment) is attachment
+        assert copy(attachment) is attachment
+        assert deepcopy([attachment])[0] is attachment
+
+    def test_sha256_is_computed_once_on_first_access(self, monkeypatch):
+        calls = []
+        real_sha256 = message_module.hashlib.sha256
+
+        def spy(data):
+            calls.append(data)
+            return real_sha256(data)
+
+        monkeypatch.setattr(message_module.hashlib, "sha256", spy)
+        attachment = Attachment.from_bytes(_PNG)
+        assert calls == []
+
+        assert attachment.sha256 == attachment.sha256 == real_sha256(_PNG).hexdigest()
+        assert calls == [_PNG]
+
+    @pytest.mark.parametrize(
+        "headers,expected",
+        [
+            (
+                "Content-Type: Application/PDF; charset=binary\n"
+                "Content-Disposition: attachment; filename*=UTF-8''na%C3%AFve%20paper.pdf",
+                ("application/pdf", "na\u00efve paper.pdf"),
+            ),
+            ('Content-Disposition: inline; filename="a b.png"', (None, "a b.png")),
+            ("", (None, None)),
+        ],
+        ids=["rfc2231_filename", "no_content_type", "no_headers"],
+    )
+    def test_probe_reads_headers(self, monkeypatch, headers, expected):
+        response = SimpleNamespace(headers=email.message_from_string(headers + "\n\n"))
+        monkeypatch.setattr(
+            message_module, "open_url", lambda *_, **__: nullcontext(response)
+        )
+        assert message_module._probe_url_metadata("https://x.test/a", timeout=1) == (
+            expected
+        )
 
     def test_repr_has_no_payload(self):
         attachment = Attachment.from_bytes(_PNG, filename="chart.png")

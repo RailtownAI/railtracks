@@ -23,6 +23,9 @@ DEFAULT_MAX_DOWNLOAD_MB = 32.0
 _READ_CHUNK_BYTES = 64 * 1024
 _URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
 
+MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
+"""A bare, lowercase `type/subtype` with no parameters."""
+
 
 def redact_url(url: str) -> str:
     """Return `url` without credentials, query string or fragment, for error messages.
@@ -90,43 +93,13 @@ def _normalize_base64(s: str) -> str:
     """Convert base64 text to the standard alphabet with no whitespace and full padding.
 
     Args:
-        s: Base64 text, possibly line-wrapped, unpadded, or URL-safe.
+        s: Base64 text, possibly line-wrapped, under- or over-padded, or URL-safe.
 
     Returns:
         Standard-alphabet base64 with a length that is a multiple of 4.
     """
-    s = "".join(s.split()).translate(_URLSAFE_TO_STANDARD)
+    s = "".join(s.split()).translate(_URLSAFE_TO_STANDARD).rstrip("=")
     return s + "=" * (-len(s) % 4)
-
-
-def _is_base64_attachment(s: str) -> bool:
-    """
-    Return True if s appears to be a base64-encoded attachment payload (image or PDF),
-    not a full data URI. Attempts a strict decode first, then a tolerant decode if needed.
-    """
-    s_stripped = s.strip()
-    # fast reject common non-base64 characters (allow padding and urlsafe variants)
-    if not re.fullmatch(r"[A-Za-z0-9+/=\s]+", s_stripped):
-        # could still be urlsafe base64 without +/; try replace
-        if re.fullmatch(r"[A-Za-z0-9\-_=\s]+", s_stripped) is None:
-            return False
-
-    try:
-        decoded = base64.b64decode(s_stripped, validate=True)
-    except Exception:
-        try:
-            decoded = base64.b64decode(_normalize_base64(s_stripped))
-        except Exception:
-            return False
-
-    return detect_attachment_mime_from_bytes(decoded) is not None
-
-
-def _validate_data_uri_header(header: str) -> bool:
-    # Expect pattern like: data:image/png;base64, or data:audio/wav;base64,
-    return bool(
-        re.match(r"^data:[a-z0-9.+-]+/[a-z0-9.+-]+;base64,$", header, flags=re.I)
-    )
 
 
 def _decode_base64(s: str) -> bytes:
@@ -159,28 +132,44 @@ def decode_data_uri(base64_or_data_uri: str) -> tuple[str, bytes]:
             MIME type of plain base64 cannot be detected.
     """
     s = base64_or_data_uri.strip()
-    if s.startswith("data:"):
-        try:
-            header, payload = s.split(",", 1)
-        except ValueError:
-            raise ValueError(
-                "Incomplete data URI: missing comma separating header and base64 payload"
-            )
-        header_with_comma = header + ","
-        if not _validate_data_uri_header(header_with_comma):
-            raise ValueError(
-                f"Malformed data URI header. Expected format like 'data:image/png;base64,' or 'data:application/pdf;base64,'. Got: {header_with_comma}"
-            )
-        mime = header[len("data:") :].split(";", 1)[0].lower()
-        return mime, _decode_base64(payload)
+    if not s.startswith("data:"):
+        return _decode_plain_base64(s)
+    header, comma, payload = s.partition(",")
+    if not comma:
+        raise ValueError(
+            "Incomplete data URI: missing comma separating header and base64 payload"
+        )
+    mime, _, encoding = header.removeprefix("data:").lower().partition(";")
+    if encoding != "base64" or not MIME_TYPE.fullmatch(mime):
+        raise ValueError(
+            f"Malformed data URI header. Expected format like 'data:image/png;base64,' or 'data:application/pdf;base64,'. Got: {header},"
+        )
+    return mime, _decode_base64(payload)
 
-    decoded = _decode_base64(s)
-    mime = detect_attachment_mime_from_bytes(decoded)
+
+def _decode_plain_base64(s: str) -> tuple[str, bytes]:
+    data = _decode_base64(s)
+    mime = detect_attachment_mime_from_bytes(data)
     if not mime:
         raise ValueError(
             "Could not detect MIME type from provided base64 data. Provide a proper data URI or a supported attachment (image, audio, video or PDF)."
         )
-    return mime, decoded
+    return mime, data
+
+
+def decode_base64_attachment(s: str) -> tuple[str, bytes] | None:
+    """Decode plain base64 that holds an attachment with a detectable type.
+
+    Args:
+        s: Any string; data URIs, paths and URLs give None.
+
+    Returns:
+        The MIME type and decoded bytes, or None when `s` is not such a payload.
+    """
+    try:
+        return _decode_plain_base64(s.strip())
+    except ValueError:
+        return None
 
 
 def ensure_data_uri(base64_or_data_uri: str) -> str:
@@ -209,8 +198,7 @@ def detect_source(path: str) -> AttachmentSource:
     if path.startswith("data:"):
         return "data_uri"
 
-    # If it's a plain base64-encoded attachment payload (image or PDF), treat as data_uri too
-    if _is_base64_attachment(path):
+    if decode_base64_attachment(path) is not None:
         return "data_uri"
 
     parsed = urlparse(path)
@@ -273,6 +261,27 @@ def _download_capped(path: str, *, timeout: float, max_mb: float) -> bytes:
     return b"".join(chunks)
 
 
+def read_file(path: str) -> bytes:
+    """Read a local file.
+
+    Args:
+        path: The file path.
+
+    Returns:
+        The file content.
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+        ValueError: If the path is not a file.
+    """
+    file_path = Path(path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    if not file_path.is_file():
+        raise ValueError(f"Path is not a file: {path}")
+    return file_path.read_bytes()
+
+
 def load_bytes(
     path: str, *, timeout: float = 10.0, max_mb: float = DEFAULT_MAX_DOWNLOAD_MB
 ) -> bytes:
@@ -301,12 +310,7 @@ def load_bytes(
 
     match source_type:
         case "local":
-            file_path = Path(path)
-            if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {path}")
-            if not file_path.is_file():
-                raise ValueError(f"Path is not a file: {path}")
-            return file_path.read_bytes()
+            return read_file(path)
         case "url":
             return _download_capped(path, timeout=timeout, max_mb=max_mb)
         case "data_uri":
