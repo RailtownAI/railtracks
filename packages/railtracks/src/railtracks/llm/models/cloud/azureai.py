@@ -118,15 +118,18 @@ class AzureAILLM(LiteLLMWrapper):
                 and the attachment is sent as a `file` part (a PDF, video, audio
                 URL or other file).
         """
-        part = super()._to_content_part(attachment)
-        if part["type"] == "file" and self._model_name.startswith("azure_ai/"):
+        # Images and audio bytes are the only attachments not sent as `file` parts.
+        sent_as_file = attachment.modality != "image" and not (
+            attachment.modality == "audio" and attachment.data is not None
+        )
+        if sent_as_file and self._model_name.startswith("azure_ai/"):
             raise AttachmentNotSupportedError(
                 self._model_name,
                 attachment.mime_type,
                 "litellm's azure_ai transform keeps only text, image and audio "
                 "parts. Use an azure/ deployment for PDFs and other files.",
             )
-        return part
+        return super()._to_content_part(attachment)
 
     def chat(self, messages: MessageHistory):
         try:

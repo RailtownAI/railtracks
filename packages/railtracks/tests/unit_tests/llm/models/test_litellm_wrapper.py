@@ -443,9 +443,7 @@ class TestHelpers:
 
         with (
             patch.object(Attachment, "encoding", new_callable=PropertyMock) as encoding,
-            pytest.raises(
-                AttachmentNotSupportedError, match="sends image .*not audio"
-            ),
+            pytest.raises(AttachmentNotSupportedError, match="sends image .*not audio"),
         ):
             wrapper._to_litellm_message(message)
         encoding.assert_not_called()
