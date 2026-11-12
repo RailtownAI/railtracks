@@ -8,7 +8,9 @@ from pathlib import Path
 from railtracks.paths import resolve_railtracks_home
 
 EVENTS_DIR_ENV = "RAILTRACKS_EVENTS_DIR"
+SAVE_MEDIA_MAX_MB_ENV = "RAILTRACKS_SAVE_MEDIA_MAX_MB"
 EVENTS_SUBDIR = Path("data/events")
+MEDIA_SUBDIR = Path("media")
 
 
 def resolve_events_dir() -> Path:
