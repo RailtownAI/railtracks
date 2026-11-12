@@ -3,7 +3,7 @@ import gc
 import logging
 import threading
 from json import JSONDecodeError
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import litellm
 import pytest
@@ -357,12 +357,17 @@ class TestHelpers:
     def test_to_litellm_message_rejects_modalities_not_wired_yet(
         self, mock_litellm_wrapper, attachment
     ):
-        """Audio, video and other files must not be sent as `image_url` parts."""
+        """Audio, video and other files must not be sent as `image_url` parts, and are
+        rejected before their base64 is built."""
         wrapper = mock_litellm_wrapper()
         message = UserMessage("Transcribe this.", attachment=attachment)
 
-        with pytest.raises(AttachmentNotSupportedError, match="cannot send"):
+        with (
+            patch.object(Attachment, "encoding", new_callable=PropertyMock) as encoding,
+            pytest.raises(AttachmentNotSupportedError, match="cannot send"),
+        ):
             wrapper._to_litellm_message(message)
+        encoding.assert_not_called()
 
     def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
         """

@@ -89,7 +89,7 @@ PDF input works through the same `attachment` parameter. The provider must nativ
 
 Supported PDF sources:
 
-- Local PDF files (the type is read from the file, so the extension does not matter)
+- Local PDF files (the type is read from the file's first bytes, then its extension, so a PDF saved without a `.pdf` extension still works)
 - Base64-encoded PDF payloads or full `data:application/pdf;base64,...` URIs
 - URLs ending in `.pdf`, **only with `trust_urls=True`**
 

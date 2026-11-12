@@ -675,8 +675,12 @@ class TestAttachmentContent:
             Attachment.from_bytes(b"no magic here")
 
     def test_from_bytes_rejects_empty_data(self):
-        with pytest.raises(ValueError, match="empty"):
+        with pytest.raises(ValueError, match="^Attachment data is empty"):
             Attachment.from_bytes(b"", mime_type="image/png")
+        with pytest.raises(ValueError, match="^Attachment data is empty"):
+            Attachment("data:image/png;base64,")
+        with pytest.raises(ValueError, match="'shot.png' is empty"):
+            Attachment.from_bytes(b"", mime_type="image/png", filename="shot.png")
 
     def test_from_bytes_rejects_non_bytes(self):
         with pytest.raises(TypeError, match="must be bytes"):

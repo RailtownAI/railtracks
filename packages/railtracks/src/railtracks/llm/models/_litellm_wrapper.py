@@ -1062,6 +1062,14 @@ class LiteLLMWrapper(ModelBase, ABC):
         content_list: List[Dict[str, Any]] = [{"type": "text", "text": text}]
 
         for msg_attachment in attachments:
+            # Checked before `.encoding`, so a large audio or video file is never base64-encoded.
+            if msg_attachment.modality not in ("image", "document"):
+                raise AttachmentNotSupportedError(
+                    self._model_name,
+                    msg_attachment.mime_type,
+                    f"Railtracks cannot send {msg_attachment.modality} attachments "
+                    "to providers yet; only images and PDFs are supported.",
+                )
             url = msg_attachment.encoding or msg_attachment.url
             if msg_attachment.modality == "document":
                 # Only trust litellm's PDF-support check when the model is in
@@ -1090,19 +1098,12 @@ class LiteLLMWrapper(ModelBase, ABC):
                         },
                     }
                 )
-            elif msg_attachment.modality == "image":
+            else:
                 content_list.append(
                     {
                         "type": "image_url",
                         "image_url": {"url": url},
                     }
-                )
-            else:
-                raise AttachmentNotSupportedError(
-                    self._model_name,
-                    msg_attachment.mime_type,
-                    f"Railtracks cannot send {msg_attachment.modality} attachments "
-                    "to providers yet; only images and PDFs are supported.",
                 )
 
         return content_list

@@ -36,12 +36,6 @@ Modality = Literal["image", "audio", "video", "document", "file"]
 
 _MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
 
-_MEDIA_MODALITIES: dict[str, Modality] = {
-    "image": "image",
-    "audio": "audio",
-    "video": "video",
-}
-
 # URLs ending in these raise: providers cannot take them as attachments by URL.
 _UNSUPPORTED_URL_EXTENSIONS = frozenset(
     (".csv", ".htm", ".html", ".md", ".txt")  # text
@@ -59,7 +53,11 @@ _BYTES_LIKE = (bytes, bytearray, memoryview)
 def _modality_for_mime(mime_type: str) -> Modality:
     if mime_type == "application/pdf":
         return "document"
-    return _MEDIA_MODALITIES.get(mime_type.split("/", 1)[0], "file")
+    match mime_type.split("/", 1)[0]:
+        case "image" | "audio" | "video" as media:
+            return media
+        case _:
+            return "file"
 
 
 def _validate_mime_type(mime_type: str) -> str:
@@ -349,7 +347,12 @@ class Attachment:
         data: bytes | None,
     ) -> None:
         if data is not None and not data:
-            raise ValueError(f"Attachment {filename or url!r} is empty.")
+            name = filename or (url if source != "data_uri" else None)
+            raise ValueError(
+                f"Attachment {name!r} is empty."
+                if name
+                else "Attachment data is empty."
+            )
         self._url = url
         self._type: AttachmentSource = source
         self._mime_type = mime_type
