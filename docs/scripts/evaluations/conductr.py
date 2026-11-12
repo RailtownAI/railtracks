@@ -50,8 +50,13 @@ SomeAgent = railtracks.agent_node(
 )
 
 # --8<-- [start: send_runs]
+import os
+
+import railtownai
 import railtracks as rt
 from railtownai import upload_agent_run
+
+railtownai.init(os.environ["RAILTOWN_API_KEY"])
 
 my_flow = rt.Flow(
     "Flow Name",
