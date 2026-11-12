@@ -109,6 +109,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "node_id": STRING,
         "name": STRING,
         "node_type": STRING,
+        "request_id": STRING,
         "args": JSON,
         "kwargs": JSON,
         "response": JSON,
@@ -150,6 +151,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
     "session": {
         **_CREATION,
         "session_id": STRING,
+        "request_id": STRING,
         "flow_name": STRING,
         "flow_id": STRING,
         "session_name": STRING,

@@ -115,7 +115,8 @@ async def _start(
     kwargs,
 ):
     await activate_publisher()
-    start_time = await begin_top_level(node)
+    request_id = str(uuid4())
+    start_time = await begin_top_level(node, request_id)
 
     # there is a really funny edge case that we need to handle here to prevent if the user itself throws an timeout
     #  exception. It should be handled differently then the global timeout exception.
@@ -131,7 +132,11 @@ async def _start(
 
     timeout = get_local_config().timeout
     fut = _execute(
-        node, args=args, kwargs=kwargs, message_filter=top_level_message_filter
+        node,
+        args=args,
+        kwargs=kwargs,
+        message_filter=top_level_message_filter,
+        request_id=request_id,
     )
 
     error: BaseException | None = None
@@ -150,7 +155,7 @@ async def _start(
         error = e
         raise
     finally:
-        await end_top_level(start_time, error)
+        await end_top_level(start_time, error, request_id)
 
     return result
 
@@ -173,12 +178,14 @@ async def _execute(
     args,
     kwargs,
     message_filter: Callable[[str], Callable[[RequestCompletionMessage], bool]],
+    request_id: str | None = None,
 ) -> _TOutput:
     publisher = get_publisher()
 
-    # generate a unique request ID for this request. We need to hold this reference here because we will use it to
-    # filter for its completion
-    request_id = str(uuid4())
+    # generate a unique request ID for this request unless the caller already announced one. We need to hold this
+    # reference here because we will use it to filter for its completion
+    if request_id is None:
+        request_id = str(uuid4())
 
     # Streaming is opt-in and frame-local: a regular `rt.call` NEVER streams. The only
     # enabler is `rt.astream`, which publishes its own RequestCreation with a stream_queue.
