@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import gc
+import weakref
 
 import pytest
 import railtracks as rt
 from railtracks.exceptions import LLMError
 from railtracks.middleware import Middleware
 from railtracks.prebuilt.middleware.lock import Lock
-from railtracks.prebuilt.middleware.max_calls import (
-    _MAX_TRACKED_SESSIONS,
-    MaxCalls,
-    MaxCallsExceededError,
-)
+from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 
 
 def test_max_calls_is_a_plain_middleware():
@@ -385,8 +383,64 @@ def test_call_count_readable_after_the_run_finishes():
     assert budget.call_count == 0
 
 
-def test_retained_session_counters_are_bounded():
-    """Finished runs' counters are kept for inspection, but not without limit."""
+def test_a_run_that_only_reads_keeps_the_last_spend_visible():
+    budget = MaxCalls(5)
+
+    @rt.function_node(middleware=[budget])
+    def tool() -> str:
+        return "ok"
+
+    @rt.function_node
+    async def spend() -> None:
+        for _ in range(3):
+            await rt.call(tool)
+
+    @rt.function_node
+    async def read() -> int:
+        return budget.call_count
+
+    rt.Flow("spend", entry_point=spend).invoke()
+    assert rt.Flow("read-only", entry_point=read).invoke() == 0
+    assert budget.call_count == 3
+
+
+def test_reset_all_resets_every_run_still_in_progress():
+    budget = MaxCalls(2)
+    spent = {"first": asyncio.Event(), "second": asyncio.Event()}
+    resumed = asyncio.Event()
+
+    @rt.function_node(middleware=[budget])
+    def tool() -> str:
+        return "ok"
+
+    @rt.function_node
+    async def long_run(name: str, calls: int) -> int:
+        for _ in range(calls):
+            await rt.call(tool)
+        spent[name].set()
+        await resumed.wait()
+        await rt.call(tool)  # over budget unless reset_all reached this run
+        return budget.call_count
+
+    async def main() -> list[int]:
+        first = asyncio.create_task(
+            rt.Flow("first", entry_point=long_run).ainvoke(name="first", calls=2)
+        )
+        await spent["first"].wait()
+        # the second run makes the latest call, so reset() alone would miss the first
+        second = asyncio.create_task(
+            rt.Flow("second", entry_point=long_run).ainvoke(name="second", calls=1)
+        )
+        await spent["second"].wait()
+        budget.reset_all()
+        resumed.set()
+        return list(await asyncio.gather(first, second))
+
+    assert asyncio.run(main()) == [1, 1]
+
+
+def test_finished_runs_leave_nothing_on_the_instance():
+    """Each session's counter ends with its session, so a long-lived budget never grows."""
     budget = MaxCalls(1)
 
     @rt.function_node(middleware=[budget])
@@ -397,11 +451,15 @@ def test_retained_session_counters_are_bounded():
     async def driver() -> str:
         return await rt.call(tool)
 
-    for i in range(_MAX_TRACKED_SESSIONS + 10):
+    assert rt.Flow("first-run", entry_point=driver).invoke() == "ok"
+    first_count = weakref.ref(budget._last)
+
+    for i in range(3):
         assert rt.Flow(f"run-{i}", entry_point=driver).invoke() == "ok"
 
-    assert len(budget._session_counts) == _MAX_TRACKED_SESSIONS
-    # The most recent run is never the one evicted.
+    gc.collect()
+    assert first_count() is None
+    # The most recent run stays readable.
     assert budget.call_count == 1
 
 

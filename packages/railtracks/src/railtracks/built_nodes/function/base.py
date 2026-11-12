@@ -25,6 +25,11 @@ class RTFunction(Protocol, Generic[_P, _TOutput]):
 
     node_type: type[Node[_P, _TOutput]]
 
+    @property
+    def type_id(self) -> str:
+        """The ``type_id`` of ``node_type``, so a decorated tool can be passed as an ``rt.context.local`` owner."""
+        return self.node_type.type_id
+
     def with_node_type(
         self, node_type: type[Node[_P, _TOutput]]
     ) -> RTFunction[_P, _TOutput]:
