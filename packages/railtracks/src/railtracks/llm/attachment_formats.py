@@ -65,8 +65,8 @@ def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
     """Return MIME type for supported attachment formats by inspecting magic bytes.
 
     Covers the images, documents, audio and video declared in
-    `attachment_formats.yaml`. Add a new format by appending a row there; no code
-    changes needed.
+    `attachment_formats.yaml`. A format with fixed magic bytes needs only a row
+    there; Matroska, whose DocType has no fixed offset, is told apart from WebM here.
     """
     for mime_type, signature in _SIGNATURES:
         if all(b.startswith(allowed, offset) for offset, allowed in signature):
@@ -87,7 +87,8 @@ def detect_mime(data: bytes, name: str | None = None) -> str | None:
     """Return the MIME type of file content, from its magic bytes, then its name.
 
     A container (Ogg, Matroska, MP4, HEIF) takes the type its extension names when
-    that is a kind it can hold, so `clip.ogv` is video and `photo.avif` is AVIF.
+    it can hold that type, so `clip.ogv` is video and `photo.avif` is AVIF, while a
+    HEIF named `photo.jpg` stays HEIF.
 
     Args:
         data: The file content.
@@ -98,7 +99,8 @@ def detect_mime(data: bytes, name: str | None = None) -> str | None:
     """
     magic = detect_attachment_mime_from_bytes(data)
     named = detect_mime_from_extension(name) if name else None
-    if named and named.split("/", 1)[0] in CONTAINER_FORMATS.get(magic or "", ()):
+    holds = CONTAINER_FORMATS.get(magic or "", frozenset())
+    if named and (named in holds or named.split("/", 1)[0] in holds):
         return named
     return magic or named
 

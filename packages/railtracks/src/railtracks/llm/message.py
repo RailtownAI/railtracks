@@ -25,7 +25,7 @@ from .encoding import (
     AttachmentSource,
     decode_base64_attachment,
     decode_data_uri,
-    detect_source,
+    is_url,
     load_bytes,
     open_url,
     read_file,
@@ -78,10 +78,13 @@ def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | 
     try:
         with open_url(url, timeout=timeout, method="HEAD") as resp:
             headers = resp.headers
-            # get_content_type() reports text/plain when the header is missing.
+            # get_content_type() reports text/plain for a missing, empty or malformed
+            # header; a missing one gives None here, and text/* is ignored downstream.
             content_type = (
                 headers.get_content_type() if "Content-Type" in headers else None
             )
+            # With both filename= and filename*=, get_filename() returns the plain one,
+            # which servers send as an ASCII fallback for the same name.
             return content_type, headers.get_filename()
     except (urllib_error.URLError, OSError, ValueError):
         return None, None
@@ -155,7 +158,7 @@ class Attachment:
         if inline is not None:
             mime_type, data = inline
             self._set("...", "data_uri", mime_type, None, data)
-        elif detect_source(url) == "url":
+        elif is_url(url):
             self._init_url(
                 url,
                 mime_type=None,
@@ -266,7 +269,7 @@ class Attachment:
                 `mime_type` is given, or the attachment is a PDF and `trust_urls`
                 is False.
         """
-        if detect_source(url) != "url":
+        if not is_url(url):
             raise ValueError(f"Not a URL: {url!r}")
         validate_max_mb(attachment_max_mb, name="attachment_max_mb")
         attachment = cls.__new__(cls)

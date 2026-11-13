@@ -3,8 +3,9 @@
 # latin-1, so `\x` escapes give exact bytes. Rows without `match` are named by extension only.
 # `extensions` map a file name to the same MIME type its bytes produce, overriding
 # Python's `mimetypes`.
-# `container` lists the top-level types a format can hold. A file name naming one of
-# those types decides it, so an Ogg file named .ogv is video and a HEIF named .avif is AVIF.
+# `container` lists the top-level types (`audio`) or exact MIME types (`image/avif`) a format
+# can hold. A file name naming one of them decides it, so an Ogg file named .ogv is video
+# and a HEIF named .avif is AVIF.
 formats:
   - mime_type: "image/png"
     match: {0: "\x89PNG\r\n\x1a\n"}
@@ -52,7 +53,7 @@ formats:
   - mime_type: "image/heif"
     match: {4: "ftyp", 8: ["mif1", "msf1"]}
     extensions: [".heif"]
-    container: [image]
+    container: [image/avif, image/heic]
   - mime_type: "audio/mp4"
     match: {4: "ftyp", 8: "M4A "}
     extensions: [".m4a"]

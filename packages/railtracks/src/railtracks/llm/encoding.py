@@ -26,6 +26,13 @@ _URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
 MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
 """A bare, lowercase `type/subtype` with no parameters."""
 
+_URL_SCHEMES = frozenset(("http", "https", "ftp", "ftps"))
+
+
+def is_url(path: str) -> bool:
+    """Return whether `path` is an http(s) or ftp(s) URL, without trying it as base64."""
+    return urlparse(path).scheme in _URL_SCHEMES
+
 
 def redact_url(url: str) -> str:
     """Return `url` without credentials, query string or fragment, for error messages.
@@ -203,7 +210,7 @@ def detect_source(path: str) -> AttachmentSource:
 
     parsed = urlparse(path)
 
-    if parsed.scheme in ("http", "https", "ftp", "ftps"):
+    if parsed.scheme in _URL_SCHEMES:
         return "url"
 
     if (

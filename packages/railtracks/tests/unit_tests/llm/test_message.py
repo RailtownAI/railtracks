@@ -224,6 +224,9 @@ class TestAttachment:
             ("photo.bmp", b"BM\x36\x00\x0c\x00\x00\x00\x00\x00\x36\x00"),
             ("logo.svg", b'<svg xmlns="http://www.w3.org/2000/svg"/>'),
             ("favicon.ico", b"\x00\x00\x01\x00\x01\x00"),
+            # Generic HEIF brand: a JPEG or PNG name does not override the bytes.
+            ("misnamed.jpg", b"\x00\x00\x00\x18ftypmif1\x00\x00\x00\x00mif1heic"),
+            ("misnamed.png", b"\x00\x00\x00\x18ftypmif1\x00\x00\x00\x00mif1heic"),
         ],
     )
     def test_local_image_outside_provider_formats_raises(self, tmp_path, name, content):
