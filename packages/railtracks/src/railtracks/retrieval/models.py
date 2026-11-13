@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+
+if TYPE_CHECKING:
+    from .embedding.models import EmbeddingMetrics
 
 # Sentinel "no id supplied" marker — the RFC 4122 nil UUID, which is never
 # legitimately used as an entity id. If you ever need to distinguish "the
@@ -104,6 +107,7 @@ class RetrievalResult:
     chunks: list[RetrievedChunk]
     total_candidates: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    embedding_metrics: EmbeddingMetrics | None = None
 
 
 @dataclass
