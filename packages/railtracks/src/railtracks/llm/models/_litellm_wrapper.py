@@ -1201,11 +1201,27 @@ class LiteLLMWrapper(ModelBase, ABC):
         model_name = _return_none_on_error(lambda: raw.model)
         system_fingerprint = _return_none_on_error(lambda: raw.system_fingerprint)
         total_cost = _return_none_on_error(lambda: raw._hidden_params["response_cost"])
+        served_tier = _served_service_tier(raw)
+        if served_tier is not None:
+            # litellm prices a buffered response at the tier the request asked for, while the
+            # provider reports the tier it actually served, which is the one billed: a
+            # downgraded priority request is charged standard rates.
+            repriced = _return_none_on_error(
+                lambda: litellm.completion_cost(
+                    completion_response=raw,
+                    model=requested_model or raw.model,
+                    service_tier=served_tier,
+                )
+            )
+            if repriced is not None:
+                total_cost = repriced
         if total_cost is None:
             # Streamed responses carry no cost; usage pricing keeps cache discounts.
             total_cost = _return_none_on_error(
                 lambda: litellm.completion_cost(
-                    completion_response=raw, model=requested_model or raw.model
+                    completion_response=raw,
+                    model=requested_model or raw.model,
+                    service_tier=served_tier,
                 )
             )
 
@@ -1220,6 +1236,12 @@ class LiteLLMWrapper(ModelBase, ABC):
 
 
 _T = TypeVar("_T")
+
+
+def _served_service_tier(raw: Any) -> str | None:
+    """The service tier the provider reports it served, when it reports one."""
+    tier = _return_none_on_error(lambda: raw.service_tier)
+    return tier if isinstance(tier, str) and tier else None
 
 
 def _return_none_on_error(func: Callable[[], _T]) -> _T | None:
