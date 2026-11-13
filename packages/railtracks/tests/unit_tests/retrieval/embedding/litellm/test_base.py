@@ -101,7 +101,7 @@ async def test_azure_custom_deployment_priced_with_base_model():
         )
         result = await emb.aembed(["x"])
 
-    assert "base_model" not in mock.call_args.kwargs
+    assert mock.call_args.kwargs["base_model"] == "azure/text-embedding-3-small"
     assert result.metrics.total_cost is not None and result.metrics.total_cost > 0
 
 

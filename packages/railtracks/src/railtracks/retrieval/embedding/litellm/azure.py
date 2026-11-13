@@ -17,7 +17,8 @@ class AzureEmbedding(LiteLLMEmbedding):
             ``text-embedding-3-*`` models.
         base_model: Underlying Azure model id used for cost mapping when the
             deployment name is custom (forwarded to
-            ``litellm.completion_cost``).
+            ``litellm.aembedding``, which uses it for cost tracking and does
+            not send it to the provider).
     """
 
     def __init__(

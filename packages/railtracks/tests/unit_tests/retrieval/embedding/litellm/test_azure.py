@@ -62,4 +62,4 @@ async def test_azure_embedding_stores_base_model_for_cost_mapping():
         )
         await emb.aembed(["x"])
     assert emb._kwargs["base_model"] == "azure/text-embedding-3-small"
-    assert "base_model" not in mock.call_args.kwargs
+    assert mock.call_args.kwargs["base_model"] == "azure/text-embedding-3-small"
