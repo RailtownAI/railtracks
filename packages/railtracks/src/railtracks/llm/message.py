@@ -25,7 +25,8 @@ from .encoding import (
     AttachmentSource,
     decode_base64_attachment,
     decode_data_uri,
-    is_url,
+    detect_path_source,
+    detect_source,
     load_bytes,
     open_url,
     read_file,
@@ -137,8 +138,9 @@ class Attachment:
         Raises:
             TypeError: If `url` is not a string.
             FileNotFoundError: If a local file does not exist.
-            ValueError: If `attachment_max_mb` is not positive and finite, a
-                local file is empty, a local file or base64 payload is not an
+            ValueError: If `attachment_max_mb` is not positive and finite, `url`
+                has a scheme other than http(s), ftp(s) or `file:` (such as
+                `s3://`), a local file is empty, a local file or base64 payload is not an
                 image, PDF, audio or video file, a local image is not PNG, JPEG,
                 GIF, WebP or AVIF, a data URI or base64 payload is malformed, a
                 URL's extension names a text or Office document type, or a PDF
@@ -158,7 +160,7 @@ class Attachment:
         if inline is not None:
             mime_type, data = inline
             self._set("...", "data_uri", mime_type, None, data)
-        elif is_url(url):
+        elif detect_path_source(url) == "url":
             self._init_url(
                 url,
                 mime_type=None,
@@ -269,7 +271,7 @@ class Attachment:
                 `mime_type` is given, or the attachment is a PDF and `trust_urls`
                 is False.
         """
-        if not is_url(url):
+        if detect_source(url) != "url":
             raise ValueError(f"Not a URL: {url!r}")
         validate_max_mb(attachment_max_mb, name="attachment_max_mb")
         attachment = cls.__new__(cls)

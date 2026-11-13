@@ -274,6 +274,13 @@ class TestAttachment:
         with pytest.raises(FileNotFoundError):
             Attachment(path)
 
+    @pytest.mark.parametrize(
+        "path", ["s3://bucket/a.png", "gs://bucket/a.png", "az://container/a.png"]
+    )
+    def test_unsupported_scheme_raises_value_error(self, path):
+        with pytest.raises(ValueError, match="Could not determine"):
+            Attachment(path)
+
     def test_local_pdf(self, tmp_path):
         pdf_file = tmp_path / "doc.pdf"
         pdf_file.write_bytes(b"%PDF-1.4\n%fake pdf body\n%%EOF")

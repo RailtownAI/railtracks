@@ -26,13 +26,6 @@ _URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
 MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
 """A bare, lowercase `type/subtype` with no parameters."""
 
-_URL_SCHEMES = frozenset(("http", "https", "ftp", "ftps"))
-
-
-def is_url(path: str) -> bool:
-    """Return whether `path` is an http(s) or ftp(s) URL, without trying it as base64."""
-    return urlparse(path).scheme in _URL_SCHEMES
-
 
 def redact_url(url: str) -> str:
     """Return `url` without credentials, query string or fragment, for error messages.
@@ -208,9 +201,24 @@ def detect_source(path: str) -> AttachmentSource:
     if decode_base64_attachment(path) is not None:
         return "data_uri"
 
+    return detect_path_source(path)
+
+
+def detect_path_source(path: str) -> Literal["url", "local"]:
+    """Return whether a string that is not a data URI or base64 is a URL or a local path.
+
+    Args:
+        path: The URL or path to check.
+
+    Returns:
+        "url" for http(s) and ftp(s), "local" for no scheme, `file:` or a Windows drive.
+
+    Raises:
+        ValueError: If the string has any other scheme, such as `s3://`.
+    """
     parsed = urlparse(path)
 
-    if parsed.scheme in _URL_SCHEMES:
+    if parsed.scheme in ("http", "https", "ftp", "ftps"):
         return "url"
 
     if (

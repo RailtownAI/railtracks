@@ -27,10 +27,10 @@ from railtracks.llm.encoding import (
     _READ_CHUNK_BYTES,
     decode_base64_attachment,
     decode_data_uri,
+    detect_path_source,
     detect_source,
     encode,
     ensure_data_uri,
-    is_url,
     open_url,
     redact_url,
 )
@@ -56,7 +56,8 @@ class TestDetectSource:
     )
     def test_detect_source_types(self, path, expected):
         assert detect_source(path) == expected
-        assert is_url(path) == (expected == "url")
+        if expected != "data_uri":
+            assert detect_path_source(path) == expected
 
     @patch("os.name", "nt")
     def test_detect_windows_forward_slash(self):
