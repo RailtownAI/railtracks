@@ -85,7 +85,7 @@ class TestConversion:
             ]
         )
         docs = await LangChainLoaderAdapter(loader).aload()
-        assert docs[0].source == "s3://bucket/key"
+        assert docs[0].source == "s3://bucket/key#page=1"
         assert "source" not in docs[0].metadata
         assert docs[0].metadata == {"page": 1}
 
@@ -98,7 +98,7 @@ class TestConversion:
             ]
         )
         docs = await LangChainLoaderAdapter(loader, source="override").aload()
-        assert docs[0].source == "override"
+        assert docs[0].source == "override#page=1"
         assert docs[0].metadata == {"source": "ignored", "page": 1}
 
     async def test_default_document_type_is_text(self):

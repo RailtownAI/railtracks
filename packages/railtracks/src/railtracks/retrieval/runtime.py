@@ -305,6 +305,8 @@ class RetrievalRuntime:
     ]:
         # Fail fast on ALL_SCOPES instead of once per document.
         exact_scope_filter(scope)
+        seen_document_ids: set[UUID] = set()
+        warned_duplicate_ids: set[UUID] = set()
         async with aclosing(loader.astream()) as stream:
             async for item in stream:
                 if isinstance(item, LoadFailure):
@@ -314,6 +316,18 @@ class RetrievalRuntime:
                         None, item.source, [item.error], "load", stats
                     )
                     continue
+                if item.id in seen_document_ids:
+                    if item.id not in warned_duplicate_ids:
+                        warned_duplicate_ids.add(item.id)
+                        logger.warning(
+                            "Ingest saw duplicate Document.id %s (source=%r); later "
+                            "documents with this id overwrite earlier ones in the "
+                            "store.",
+                            item.id,
+                            item.source,
+                        )
+                else:
+                    seen_document_ids.add(item.id)
                 async for event in self._ingest_document(item, stats, scope):
                     yield event
 

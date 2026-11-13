@@ -39,7 +39,10 @@ async def stream_pdf(
 
     Args:
         pdf: Path to the PDF file, or the PDF's raw bytes.
-        source: Value for each `Document.source`.
+        source: Base value for `Document.source`. The `page` strategy
+            appends ``#page=N`` and the `paragraph` strategy appends
+            ``#page=N&paragraph=M`` so every document from one PDF gets a
+            distinct source; the `document` strategy uses it unchanged.
         breakdown_strategy: How to split the PDF into `Document` objects.
             Defaults to `page`.
         metadata: Extra metadata copied into every `Document`, before the
@@ -53,11 +56,11 @@ async def stream_pdf(
     total_pages = len(reader.pages)
     base_metadata = dict(metadata or {})
 
-    def make_document(content: str, **position: int) -> Document:
+    def make_document(content: str, suffix: str = "", **position: int) -> Document:
         return Document(
             content=content,
             type=DocumentType.PDF,
-            source=source,
+            source=f"{source}{suffix}",
             metadata={
                 **base_metadata,
                 **position,
@@ -83,11 +86,16 @@ async def stream_pdf(
         if not text or not text.strip():
             continue
         if breakdown_strategy == "page":
-            yield make_document(text, page=page_number)
+            yield make_document(text, f"#page={page_number}", page=page_number)
             continue
         paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
         for paragraph_number, paragraph in enumerate(paragraphs, start=1):
-            yield make_document(paragraph, page=page_number, paragraph=paragraph_number)
+            yield make_document(
+                paragraph,
+                f"#page={page_number}&paragraph={paragraph_number}",
+                page=page_number,
+                paragraph=paragraph_number,
+            )
 
 
 class PyPDFLoader(BaseDocumentLoader):
@@ -99,14 +107,17 @@ class PyPDFLoader(BaseDocumentLoader):
     Breakdown strategies:
 
     - `page` *(default)*: one `Document` per page, yielded as each page is
-      extracted. `metadata` includes `page` (1-based), `total_pages`, and
-      `file_type`. Empty pages are skipped.
+      extracted. `source` is ``path#page=N``. `metadata` includes `path`
+      (plain file path), `page` (1-based), `total_pages`, and `file_type`.
+      Empty pages are skipped.
     - `paragraph`: one `Document` per non-empty paragraph on each page.
-      Paragraphs are separated by ``\\n\\n``. `metadata` includes `page`
+      Paragraphs are separated by ``\\n\\n``. `source` is
+      ``path#page=N&paragraph=M``. `metadata` includes `path`, `page`
       (1-based), `paragraph` (1-based within the page), `total_pages`, and
       `file_type`.
     - `document`: entire PDF as one `Document`, with pages joined by ``\\n\\n``.
-      `metadata` includes `total_pages` and `file_type`.
+      `source` is the plain file path. `metadata` includes `path`,
+      `total_pages`, and `file_type`.
 
     Requires: ``pip install "railtracks[pdf]"``
 
@@ -141,7 +152,10 @@ class PyPDFLoader(BaseDocumentLoader):
             Document: The next extracted document.
         """
         async for doc in stream_pdf(
-            path, source=str(path), breakdown_strategy=self._breakdown_strategy
+            path,
+            source=str(path),
+            breakdown_strategy=self._breakdown_strategy,
+            metadata={"path": str(path)},
         ):
             yield doc
 
