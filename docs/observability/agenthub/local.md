@@ -34,7 +34,7 @@ The legacy visualizer runs locally with **no sign up required**.
     railtracks viz
     ```
 
-This will create a `.railtracks` directory at your project root and open the web app in your browser. Once initialised, railtracks will find that directory automatically, even if you run your agents from a subdirectory, by walking up the folder tree until it locates `.railtracks`.
+This will create a `.railtracks` directory at your project root and open the web app in your browser. Once initialised, railtracks will find that directory automatically, even if you run your agents from a subdirectory, by walking up the folder tree until it locates `.railtracks`. The folder holds your run data, so railtracks puts a `.gitignore` inside it to keep it out of git; you don't need to add it to your own `.gitignore`.
 
 !!! tip "Running from multiple directories?"
     Run `railtracks init` once from your project root (the same level as your `.git` folder). All subsequent agent runs across the project will resolve to that single `.railtracks` directory regardless of which subdirectory they are launched from.

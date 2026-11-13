@@ -7,8 +7,8 @@ buffering the corpus and waiting for a stage to drain before the next one
 starts.
 
 This page covers what you need to run that stream safely in production:
-streaming events, re-ingest semantics, multi-tenant writes, sanitization,
-and the token guard.
+streaming events, unreadable documents, re-ingest semantics, multi-tenant
+writes, sanitization, and the token guard.
 
 For loader-specific details (TextLoader, PDFs, Hugging Face datasets, custom
 sources) see the [Ingestion components pages](../components/ingestion/base.md).
@@ -47,10 +47,29 @@ match on it to log, retry, or short-circuit:
 |---|---|
 | `BatchIngested` | A batch of chunks finished embedding and was written. |
 | `EmbeddingFailure` | A batch failed mid-flight. The stream continues; successful batches for the same document are still written. |
-| `DocumentFailed` | End-of-document signalling at least one batch in the document failed. |
+| `DocumentFailed` | A document could not be fully ingested. Its `stage` says whether loading, chunking, embedding, or the store write failed. |
 | `DocumentSkipped` | The document's `source` + `content_hash` matches an existing entry; no embedding call was made. |
 
-Failures are surfaced as events, not raised. This results in bulk re-indexing across thousands of documents not aborting due to one batch failure.
+Failures are surfaced as events, not raised. This results in bulk re-indexing across thousands of documents not aborting due to one bad file or one batch failure.
+
+---
+
+## Unreadable and failing documents
+
+One bad document never ends the run by default. A file that isn't valid UTF-8, a corrupt or encrypted PDF, or a bucket object with a text extension that doesn't decode is reported as a `DocumentFailed` and the rest of the corpus is still ingested. The same applies when a sanitizer, the chunker, or a store write raises for one document. Binary objects without a text extension, such as images, are still skipped with a warning.
+
+`DocumentFailed.stage` tells you where it failed:
+
+| `stage` | What happened | What is in the store |
+|---|---|---|
+| `"load"` | The loader could not read the source. `document_id` is `None`; `source` names the file or object. | Any documents the source yielded before the error, such as earlier PDF pages. |
+| `"chunk"` | The chunker raised. | Nothing new; any prior version is untouched. |
+| `"embed"` | At least one embedding batch failed, or a chunk exceeded `max_tokens`. | The successful batches, so the document is partial. |
+| `"store"` | A store read or write raised. | Whatever was written before the error, so the document may be partial. |
+
+`IngestionStats.failed_documents` collects every `DocumentFailed` from an `ingest_all` run. Sources that failed to load count toward `documents_failed` but not `documents_loaded`.
+
+Pass `on_error="raise"` to `RetrievalRuntime` to stop at the first failing document instead. Failed embedding batches are still reported rather than raised in this mode. Two errors always propagate regardless of `on_error`, because the run cannot usefully continue past them: `EmbeddingModelMismatchError`, and any exception a loader raises out of its own `astream()` (for example a failed bucket listing), since a stream that has raised cannot resume.
 
 ---
 
@@ -94,6 +113,11 @@ Scope is request-level context, not runtime config; that's why it lives
 on `ingest()` / `ingest_all()` / `retrieve()` rather than on the
 constructor. Single-tenant callers just omit it.
 
+Ingest only looks at entries with exactly the scope it was given: the unchanged-document skip and the replacement of a changed document never touch another tenant's copy, and an unscoped ingest (`scope=None`) only sees unscoped entries. `delete_document(document_id, scope=...)` follows the same rule. Two tenants that ingest the same `source` share a document id, so pass the scope to delete one tenant's copy; to delete every copy, call `runtime.store.delete_where({"document_id": str(document_id)})`.
+
+!!! warning "Entries written before scopes matched exactly"
+    Entries written by an earlier version have no `scope` key, so reads (scoped or not, except with `ALL_SCOPES`), the skip check and the replace-on-change step don't see them. This includes single-tenant stores: a plain `retrieve()` returns nothing from old entries. They also store chunk metadata without the `meta_` prefix, so metadata filters don't match them and their scalar metadata isn't read back. Re-ingest that data into a new collection or table after upgrading.
+
 ---
 
 ## Sanitizing loaders
@@ -107,6 +131,8 @@ normalization:
 ```python
 --8<-- "docs/scripts/retrieval/ingestion_example.py:sanitizing"
 ```
+
+If `sanitize` raises, that document is dropped rather than ingested unsanitized: `SanitizingLoader` yields a `LoadFailure` in its place, and the runtime reports it as a `DocumentFailed` with `stage="load"`.
 
 Sanitization runs once per document, not per chunk; content_hash is
 computed on the sanitized text, so the skip-by-hash path stays accurate.

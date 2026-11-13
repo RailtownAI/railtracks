@@ -85,6 +85,50 @@ message_history = rt.llm.MessageHistory(
 )
 # --8<-- [end: pdf_timeout]
 
+# --8<-- [start: production_fetch]
+import httpx
+
+
+def download_attachment(url: str) -> str:
+    """Download an end-user URL under your app's rules and return a data URI."""
+    # Check the URL against your own allow/deny rules before fetching it.
+    response = httpx.get(url, timeout=10)
+    response.raise_for_status()
+    # Moderate response.content here, before it reaches the model.
+    mime_type = response.headers["Content-Type"].split(";")[0]
+    payload = base64.b64encode(response.content).decode()
+    return f"data:{mime_type};base64,{payload}"
+
+
+user_url = "https://cdn.britannica.com/39/226539-050-D21D7721/Portrait-of-a-cat-with-whiskers-visible.jpg"
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="What is the image below showing?",
+            attachment=download_attachment(user_url),
+        )
+    ]
+)
+# --8<-- [end: production_fetch]
+
+# --8<-- [start: attachment_object]
+# The type is detected from the bytes; pass mime_type= when it can't be.
+chart = rt.llm.Attachment.from_bytes(img_bytes, filename="random.png")
+# A URL without an extension, typed up front so no HEAD probe is needed.
+thumbnail = rt.llm.Attachment.from_url(
+    "https://cdn.example.com/thumbnails/8f3a2c", mime_type="image/webp"
+)
+
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Do these two images show the same chart?",
+            attachment=[chart, thumbnail],
+        )
+    ]
+)
+# --8<-- [end: attachment_object]
+
 # --8<-- [start: combined]
 message_history = rt.llm.MessageHistory(
     [

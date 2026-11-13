@@ -124,6 +124,8 @@ Chroma stores text alongside each vector as a *Document*. Both Chroma
 backends map `StoreEntry.content` (equivalently, `Chunk.content`) to this
 field automatically — you don't need to set it separately. This is what
 Chroma displays in its UI and what server-side embedding functions receive.
+The content is stored only as the Document, not repeated in the entry's
+metadata; it is read back from the Document on search and listing.
 
 ### Distance metric
 
@@ -193,6 +195,10 @@ Works the same as for `ChromaBackend`: `metric` sets the collection's distance s
 | `COSINE` (default) | `cosine` | `1 - distance` |
 | `L2` | `l2` | `1 / (1 + sqrt(distance))` |
 | `IP` | `ip` | `1 - distance` |
+
+### Result limit
+
+Chroma Cloud rejects a query that asks for more than 300 results, its default per-query quota. `ChromaCloudBackend` caps each search at `max_results` (300 by default): a larger `top_k` returns at most `max_results` results and emits a `UserWarning`. If Chroma has raised your account's quota, pass the new limit as `max_results`, or `max_results=None` to never cap.
 
 | Property | Value |
 |---|---|
@@ -283,7 +289,5 @@ entire contract.
 --8<-- "docs/scripts/retrieval/store.py:custom"
 ```
 
-`filters` is a flat `dict[str, str]` built from
-`StoreScope.to_payload_filters()` plus any `metadata_filters` from the
-query. **All keys must match** for an entry to be returned; there's no
+`filters` is a flat `dict[str, str]` built from the query's `metadata_filters` plus, for a scoped query, a `scope` key holding `StoreScope.to_key()` (the exact label set). Every entry's payload carries that `scope` key, alongside one `scope_<label>` key per label. Scalar `chunk_metadata` values are stored as `meta_<key>`, so metadata can never overwrite an entry field or a scope label; `VectorStore` adds the prefix to filter keys, so a custom backend only ever sees payload keys. **All keys must match** for an entry to be returned; there's no
 boolean logic at the backend layer.

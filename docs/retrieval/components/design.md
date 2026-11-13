@@ -143,10 +143,12 @@ ensuring safe handling of memory constraints.
 
 ### Loaders
 
-`BaseDocumentLoader.astream() → AsyncGenerator[Document, None]` is the
+`BaseDocumentLoader.astream() → AsyncGenerator[Document | LoadFailure, None]` is the
 single abstract primitive. `aload()` and `load()` are derived. Subclasses
 must yield documents as soon as they're available instead of buffering the
 corpus and yielding at the end which breaks the streaming model.
+
+A source the loader cannot read (an undecodable file, a corrupt PDF, a failed download) is yielded as a `LoadFailure` rather than raised, because an async generator that raises cannot resume and the rest of the corpus would be lost. Subclasses get this by wrapping each source's documents in the shared `_isolate_source` helper. The runtime turns each `LoadFailure` into a `DocumentFailed(stage="load")`; `aload()`, `load()`, and `Chunker.astream_documents` raise its error instead.
 
 Wrap any loader in `SanitizingLoader(inner, sanitizer)` to redact PII or
 normalize content before it reaches the embedder. The sanitizer runs once
@@ -251,6 +253,8 @@ one runtime serves any number of tenants.
 The scope filter lives in `Store.read`, not the runtime meaning even direct
 calls to `VectorStore.nearest_neighbors()` honor it. Two tenants can
 share an `InMemoryVectorBackend` without leaking data across.
+
+Scopes match exactly. Each entry stores its full label set as one canonical `scope` key (`StoreScope.to_key()`), because the backends only support flat equality filters: filtering on the individual `scope_<label>` keys would let `{"tenant": "alice"}` also match `{"tenant": "alice", "env": "prod"}`. An unscoped entry stores the empty label set, so `scope=None` means "unscoped entries only" everywhere: ingest, `delete_document`, `retrieve()` and the store's reads. Searching every scope takes an explicit `ALL_SCOPES`, which only reads accept; deleting across scopes goes through `Store.delete_where`. Leaving the scope out therefore fails closed.
 
 ---
 

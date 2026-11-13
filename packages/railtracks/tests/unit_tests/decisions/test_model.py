@@ -509,7 +509,7 @@ class TestClientCleanup:
         async def run():
             with pytest.raises(DecisionProviderError):
                 await cls("jev-latest", api_key="test-key").aask("Help!", Triage)
-            suffix = f"-{id(asyncio.get_running_loop())}"
+            suffix = cache.update_cache_key_with_event_loop("")
             [seen["handler"]] = [
                 handler
                 for key, handler in cache.cache_dict.items()

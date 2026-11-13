@@ -17,20 +17,20 @@ from railtracks.events.session import (
     format_error,
 )
 from railtracks.exceptions import FatalError, GlobalTimeOutError, LLMError
-from railtracks.observability import Event, configure, configure_writers
+from railtracks.observability import Event, configure_writers
 
 
 class _Collecting:
     def __init__(self):
         self.events: list[Event] = []
 
-    async def start(self):
+    def start(self):
         pass
 
-    async def write(self, event: Event):
+    def write(self, event: Event):
         self.events.append(event)
 
-    async def shutdown(self):
+    def shutdown(self):
         pass
 
 
@@ -169,9 +169,6 @@ async def test_failed_run_still_reports_completed(writer):
     assert completed[0].payload["status"] == "failure"
     assert completed[0].payload["error"] == "kaboom"
 
-    # the observer is torn down on the failure path too, so writers get drained
-    assert configure.observer._running is False
-
 
 @pytest.mark.parametrize(
     ("node", "end_on_error", "fatal"),
@@ -233,7 +230,6 @@ async def test_a_failed_top_level_stream_still_reports_completed(writer, mock_ll
     completed = _of_type(writer.events, "session.completed")
     assert len(completed) == 1
     assert completed[0].payload["status"] == "failure"
-    assert configure.observer._running is False
 
 
 async def test_a_timed_out_top_level_stream_reports_the_timeout(writer, mock_llm):

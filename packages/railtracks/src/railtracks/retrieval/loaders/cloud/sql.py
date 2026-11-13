@@ -73,10 +73,15 @@ class SQLLoader(BaseDocumentLoader):
             unset/missing/NULL. The ``row=`` prefix keeps index fallbacks
             out of the same namespace as real column values.
 
-            For a raw ``SELECT``, ``table_or_query`` is the full SQL text, so
-            each row's source includes that query. Editing the query changes
-            every row's id; that matches #1648's table/query namespace and is
-            intentional until store cleanup lands.
+            For a raw ``SELECT``, the source includes the full query text, so
+            editing the query gives every row a new id, and copies stored
+            under the old ids stay in the store.
+
+            Without an ``id_column`` or ``source_column``, ids follow row
+            order, and ``SELECT * FROM table`` does not guarantee an order.
+            One reordered row shifts every row after it, so they are all
+            re-embedded. Set ``id_column`` or add an ``ORDER BY`` to avoid
+            that.
         engine: An existing ``sqlalchemy.Engine`` instance.
         engine_kwargs: Extra keyword arguments forwarded to
             ``sqlalchemy.create_engine()``.
@@ -177,8 +182,6 @@ class SQLLoader(BaseDocumentLoader):
 
         # Namespace row keys with table_or_query so Document.id (uuid5 of
         # source) is unique across tables and across rows that share an id.
-        # Raw SELECT queries use the full SQL text as the namespace (#1648);
-        # editing the query intentionally changes every row's id.
         source_col = self._source_column or self._id_column
         if source_col and source_col in row and row[source_col] is not None:
             row_key = str(row[source_col])

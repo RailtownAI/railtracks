@@ -1,20 +1,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.loaders.pdf_loader import PyPDFLoader
 from railtracks.retrieval.models import DocumentType
 
-
-def _make_reader(page_texts: list[str]) -> MagicMock:
-    """Build a mock PdfReader with pages that return the given texts."""
-    reader = MagicMock()
-    pages = []
-    for text in page_texts:
-        page = MagicMock()
-        page.extract_text.return_value = text
-        pages.append(page)
-    reader.pages = pages
-    return reader
+from ..conftest import make_pdf_reader
 
 
 class TestPyPDFLoaderInit:
@@ -71,7 +62,7 @@ class TestPyPDFLoaderPageStrategy:
         """One Document is produced for each non-empty page."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["Page one text", "Page two text"])
+        reader = make_pdf_reader(["Page one text", "Page two text"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -82,7 +73,7 @@ class TestPyPDFLoaderPageStrategy:
         """Pages with no text content are not yielded."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["First page", "", "   ", "Last page"])
+        reader = make_pdf_reader(["First page", "", "   ", "Last page"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -97,7 +88,7 @@ class TestPyPDFLoaderPageStrategy:
         """metadata['page'] is the 1-based page number."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["p1", "p2"])
+        reader = make_pdf_reader(["p1", "p2"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -109,7 +100,7 @@ class TestPyPDFLoaderPageStrategy:
         """metadata['total_pages'] reflects the total page count of the PDF."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["p1", "p2", "p3"])
+        reader = make_pdf_reader(["p1", "p2", "p3"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -120,7 +111,7 @@ class TestPyPDFLoaderPageStrategy:
         """Document type is PDF."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["content"])
+        reader = make_pdf_reader(["content"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -131,7 +122,7 @@ class TestPyPDFLoaderPageStrategy:
         """A PDF where every page is empty yields no Documents."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["", "   "])
+        reader = make_pdf_reader(["", "   "])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -146,7 +137,7 @@ class TestPyPDFLoaderDocumentStrategy:
         """The 'document' strategy produces exactly one Document per file."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["page 1", "page 2", "page 3"])
+        reader = make_pdf_reader(["page 1", "page 2", "page 3"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -157,7 +148,7 @@ class TestPyPDFLoaderDocumentStrategy:
         """Pages are joined with '\\n\\n' in the document strategy."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["first", "second"])
+        reader = make_pdf_reader(["first", "second"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -168,7 +159,7 @@ class TestPyPDFLoaderDocumentStrategy:
         """metadata['total_pages'] reflects the total page count."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["a", "b"])
+        reader = make_pdf_reader(["a", "b"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -179,7 +170,7 @@ class TestPyPDFLoaderDocumentStrategy:
         """The 'document' strategy does not include a 'page' key in metadata."""
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["content"])
+        reader = make_pdf_reader(["content"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -194,7 +185,7 @@ class TestPyPDFLoaderParagraphStrategy:
     async def test_yields_one_document_per_non_empty_paragraph(self, tmp_path):
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(
+        reader = make_pdf_reader(
             ["First paragraph\n\n   \n\nSecond paragraph", "Third paragraph"]
         )
         with patch(
@@ -216,7 +207,7 @@ class TestPyPDFLoaderParagraphStrategy:
     async def test_metadata_includes_page_paragraph_and_file_details(self, tmp_path):
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["First\n\nSecond", "Third"])
+        reader = make_pdf_reader(["First\n\nSecond", "Third"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -235,7 +226,7 @@ class TestPyPDFLoaderParagraphStrategy:
     ):
         pdf = tmp_path / "doc.pdf"
         pdf.touch()
-        reader = _make_reader(["First\n\nSecond"])
+        reader = make_pdf_reader(["First\n\nSecond"])
         page = reader.pages[0]
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
@@ -253,7 +244,7 @@ class TestPyPDFLoaderDirectory:
         """All .pdf files in a directory are loaded."""
         (tmp_path / "a.pdf").touch()
         (tmp_path / "b.pdf").touch()
-        reader = _make_reader(["content"])
+        reader = make_pdf_reader(["content"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -271,7 +262,7 @@ class TestPyPDFLoaderDirectory:
         """Non-.pdf files in a directory are silently ignored."""
         (tmp_path / "doc.pdf").touch()
         (tmp_path / "readme.txt").write_text("text", encoding="utf-8")
-        reader = _make_reader(["pdf content"])
+        reader = make_pdf_reader(["pdf content"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -287,7 +278,7 @@ class TestPyPDFLoaderUniqueSources:
     async def test_page_strategy_sources_are_unique_and_stable(self, tmp_path):
         pdf = tmp_path / "report.pdf"
         pdf.write_bytes(b"%PDF-1.4")
-        reader = _make_reader(["page 1 text", "page 2 text", "page 3 text"])
+        reader = make_pdf_reader(["page 1 text", "page 2 text", "page 3 text"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -310,7 +301,7 @@ class TestPyPDFLoaderUniqueSources:
     ):
         pdf = tmp_path / "report.pdf"
         pdf.write_bytes(b"%PDF-1.4")
-        reader = _make_reader(["first para\n\nsecond para", "only para"])
+        reader = make_pdf_reader(["first para\n\nsecond para", "only para"])
         with patch(
             "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
         ):
@@ -321,3 +312,56 @@ class TestPyPDFLoaderUniqueSources:
             f"{pdf}#page=2&paragraph=1",
         ]
         assert len({d.id for d in docs}) == 3
+
+
+class TestPyPDFLoaderUnreadableFiles:
+    """Tests for corrupt or encrypted PDFs."""
+
+    async def test_corrupt_pdf_in_directory_yields_load_failure(self, tmp_path):
+        from pypdf.errors import PdfReadError
+
+        for name in ("a.pdf", "b.pdf", "c.pdf"):
+            (tmp_path / name).touch()
+        reader = make_pdf_reader(["content"])
+
+        def _open(path: str) -> MagicMock:
+            if path.endswith("b.pdf"):
+                raise PdfReadError("EOF marker not found")
+            return reader
+
+        with patch(
+            "railtracks.retrieval.loaders.pdf_loader.PdfReader", side_effect=_open
+        ):
+            items = [item async for item in PyPDFLoader(str(tmp_path)).astream()]
+
+        assert [type(i).__name__ for i in items] == [
+            "Document",
+            "LoadFailure",
+            "Document",
+        ]
+        assert items[1].source == str(tmp_path / "b.pdf")
+        assert isinstance(items[1].error, PdfReadError)
+
+    async def test_page_extraction_error_keeps_earlier_pages(self, tmp_path):
+        f = tmp_path / "doc.pdf"
+        f.touch()
+        reader = make_pdf_reader(["page one", "page two"])
+        reader.pages[1].extract_text.side_effect = ValueError("bad content stream")
+
+        with patch(
+            "railtracks.retrieval.loaders.pdf_loader.PdfReader", return_value=reader
+        ):
+            items = [item async for item in PyPDFLoader(str(f)).astream()]
+
+        assert items[0].content == "page one"
+        assert isinstance(items[1], LoadFailure)
+        assert len(items) == 2
+
+    async def test_real_corrupt_pdf_yields_load_failure(self, tmp_path):
+        f = tmp_path / "corrupt.pdf"
+        f.write_bytes(b"this is not a pdf")
+
+        items = [item async for item in PyPDFLoader(str(f)).astream()]
+
+        assert len(items) == 1
+        assert isinstance(items[0], LoadFailure)

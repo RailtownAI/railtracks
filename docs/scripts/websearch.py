@@ -33,3 +33,34 @@ from railtracks.prebuilt.tools.websearch.fetch import HttpFetch
 # tune the default fetch backend, e.g. a longer timeout for slow pages
 web_search = WebSearchToolSet(fetch=HttpFetch(timeout=30.0))
 # --8<-- [end: websearch_fetch_backend]
+
+# --8<-- [start: websearch_allowed_hosts]
+import litellm
+
+# let the default fetch backend read an internal host (process-wide)
+litellm.user_url_allowed_hosts = ["wiki.internal:8080"]
+# --8<-- [end: websearch_allowed_hosts]
+
+# --8<-- [start: websearch_custom_fetch]
+from urllib.parse import urlparse
+
+from railtracks.prebuilt.tools.websearch import FetchResult
+
+
+class AllowListFetch:
+    """Fetch pages only from hosts your app allows."""
+
+    def __init__(self, allowed_hosts: set[str]) -> None:
+        self._allowed_hosts = allowed_hosts
+        self._fetch = HttpFetch()
+
+    async def fetch(self, url: str) -> FetchResult:
+        if urlparse(url).hostname not in self._allowed_hosts:
+            return FetchResult(
+                url=url, is_error=True, error_message="This host is not allowed."
+            )
+        return await self._fetch.fetch(url)
+
+
+web_search = WebSearchToolSet(fetch=AllowListFetch({"docs.python.org"}))
+# --8<-- [end: websearch_custom_fetch]

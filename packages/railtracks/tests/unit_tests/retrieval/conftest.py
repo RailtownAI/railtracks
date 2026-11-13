@@ -14,6 +14,7 @@ Exports:
 from __future__ import annotations
 
 from typing import Callable
+from unittest.mock import MagicMock
 
 import pytest
 from railtracks.retrieval import Chunk, Document
@@ -166,3 +167,15 @@ def chunker_checklist() -> Callable[..., None]:
             )
     """
     return _run_checklist
+
+
+def make_pdf_reader(page_texts: list[str]) -> MagicMock:
+    """Build a mock ``PdfReader`` whose pages return the given texts."""
+    reader = MagicMock()
+    pages = []
+    for text in page_texts:
+        page = MagicMock()
+        page.extract_text.return_value = text
+        pages.append(page)
+    reader.pages = pages
+    return reader

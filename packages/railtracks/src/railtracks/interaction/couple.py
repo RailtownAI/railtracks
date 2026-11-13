@@ -63,7 +63,7 @@ def couple(
     model_middleware: Iterable[ModelMiddleware] | None = None,
 ) -> type[Node[_P, _R]] | RTFunction[_P, _R]:
     """
-    Attaches middleware to a Node or RTFunction. Returns a new deepcopied Node or RTFunction; the one passed in is never modified.
+    Attaches middleware to a Node or RTFunction. Returns a new Node or RTFunction; the one passed in is never modified. Middleware instances are shared with it rather than copied, so a ``MaxCalls`` budget or ``Lock`` already on ``node`` covers both.
 
     Args:
         node: The Node or RTFunction to attach middleware to.

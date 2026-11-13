@@ -29,140 +29,158 @@ def _parse_line(line: str) -> Event:
     return Event(**data)
 
 
-async def test_start_creates_directory(tmp_path: Path):
+def test_start_creates_directory(tmp_path: Path):
     target = tmp_path / "nested" / "dir"
     writer = JsonlWriter(target)
-    await writer.start()
+    writer.start()
     try:
         assert target.is_dir()
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
 
-async def test_default_directory_matches_visualizer_store(
+def test_default_directory_matches_visualizer_store(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
     writer = JsonlWriter()
 
-    await writer.start()
+    writer.start()
     try:
-        await writer.write(_make_session_event(SCOPE_SESSION, scope_id="default"))
+        writer.write(_make_session_event(SCOPE_SESSION, scope_id="default"))
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
     assert (tmp_path / "default.jsonl").exists()
 
 
-async def test_write_creates_per_scope_id_files(tmp_path: Path):
+def test_start_writes_railtracks_gitignore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.delenv(EVENTS_DIR_ENV, raising=False)
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+    writer = JsonlWriter()
+
+    writer.start()
+    writer.shutdown()
+
+    assert (tmp_path / ".railtracks" / ".gitignore").exists()
+
+
+def test_start_leaves_directory_outside_railtracks_alone(tmp_path: Path):
+    writer = JsonlWriter(tmp_path / "events")
+
+    writer.start()
+    writer.shutdown()
+
+    assert not list(tmp_path.rglob(".gitignore"))
+
+
+def test_write_creates_per_scope_id_files(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
+    writer.start()
     try:
-        await writer.write(_make_session_event(SCOPE_SESSION, scope_id="sess-1"))
-        await writer.write(_make_session_event(SCOPE_RETRIEVAL, scope_id="ret-1"))
+        writer.write(_make_session_event(SCOPE_SESSION, scope_id="sess-1"))
+        writer.write(_make_session_event(SCOPE_RETRIEVAL, scope_id="ret-1"))
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
     assert (tmp_path / "sess-1.jsonl").exists()
     assert (tmp_path / "ret-1.jsonl").exists()
 
 
-async def test_one_line_per_event(tmp_path: Path):
+def test_one_line_per_event(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
+    writer.start()
     try:
         for _ in range(5):
-            await writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1"))
+            writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1"))
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
     lines = (tmp_path / "s1.jsonl").read_text().splitlines()
     assert len(lines) == 5
 
 
-async def test_each_line_round_trips_to_original_event(tmp_path: Path):
+def test_each_line_round_trips_to_original_event(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
+    writer.start()
     original = _make_session_event(
         SCOPE_SESSION,
         payload={"nested": {"k": "v"}, "list": [1, 2, 3]},
         parent_scope_id="parent-1",
     )
     try:
-        await writer.write(original)
+        writer.write(original)
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
     lines = (tmp_path / "id-1.jsonl").read_text().splitlines()
     assert len(lines) == 1
     assert _parse_line(lines[0]) == original
 
 
-async def test_non_ascii_payload_is_stored_as_readable_utf8(tmp_path: Path):
+def test_non_ascii_payload_is_stored_as_readable_utf8(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
+    writer.start()
     original = _make_session_event(SCOPE_SESSION, payload={"text": "你好 😀"})
     try:
-        await writer.write(original)
+        writer.write(original)
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
     raw = (tmp_path / "id-1.jsonl").read_bytes()
     assert "你好 😀".encode("utf-8") in raw
     assert _parse_line(raw.decode("utf-8")) == original
 
 
-async def test_lone_surrogate_in_payload_is_written_not_raised(tmp_path: Path):
+def test_lone_surrogate_in_payload_is_written_not_raised(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
+    writer.start()
     original = _make_session_event(SCOPE_SESSION, payload={"text": "cut \ud83d"})
     try:
-        await writer.write(original)
+        writer.write(original)
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
     raw = (tmp_path / "id-1.jsonl").read_bytes()
     assert _parse_line(raw.decode("utf-8")) == original
 
 
-async def test_append_across_writer_lifecycles(tmp_path: Path):
+def test_append_across_writer_lifecycles(tmp_path: Path):
     first = JsonlWriter(tmp_path)
-    await first.start()
-    await first.write(
-        _make_session_event(SCOPE_SESSION, scope_id="s1", event_type="first")
-    )
-    await first.shutdown()
+    first.start()
+    first.write(_make_session_event(SCOPE_SESSION, scope_id="s1", event_type="first"))
+    first.shutdown()
 
     second = JsonlWriter(tmp_path)
-    await second.start()
-    await second.write(
-        _make_session_event(SCOPE_SESSION, scope_id="s1", event_type="second")
-    )
-    await second.shutdown()
+    second.start()
+    second.write(_make_session_event(SCOPE_SESSION, scope_id="s1", event_type="second"))
+    second.shutdown()
 
     lines = (tmp_path / "s1.jsonl").read_text().splitlines()
     assert [_parse_line(line).event_type for line in lines] == ["first", "second"]
 
 
-async def test_shutdown_closes_handles(tmp_path: Path):
+def test_shutdown_closes_handles(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
-    await writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1"))
+    writer.start()
+    writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1"))
     handle = writer._files["s1"]
-    await writer.shutdown()
+    writer.shutdown()
     assert handle.closed
     assert writer._files == {}
 
 
-async def test_flush_makes_bytes_readable_before_shutdown(tmp_path: Path):
+def test_flush_makes_bytes_readable_before_shutdown(tmp_path: Path):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
+    writer.start()
     try:
-        await writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1"))
+        writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1"))
         lines = (tmp_path / "s1.jsonl").read_text().splitlines()
         assert len(lines) == 1
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
 
 @pytest.mark.parametrize(
@@ -178,20 +196,18 @@ async def test_flush_makes_bytes_readable_before_shutdown(tmp_path: Path):
         "with\x00null",
     ],
 )
-async def test_write_rejects_unsafe_scope_id(tmp_path: Path, bad_scope_id: str):
+def test_write_rejects_unsafe_scope_id(tmp_path: Path, bad_scope_id: str):
     writer = JsonlWriter(tmp_path)
-    await writer.start()
+    writer.start()
     try:
         with pytest.raises(ValueError, match="unsafe scope_id"):
-            await writer.write(
-                _make_session_event(SCOPE_SESSION, scope_id=bad_scope_id)
-            )
+            writer.write(_make_session_event(SCOPE_SESSION, scope_id=bad_scope_id))
         assert list(tmp_path.iterdir()) == []
     finally:
-        await writer.shutdown()
+        writer.shutdown()
 
 
-async def test_start_propagates_mkdir_oserror(
+def test_start_propagates_mkdir_oserror(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """JsonlWriter.start() surfaces the mkdir OSError to its caller. Higher
@@ -208,4 +224,39 @@ async def test_start_propagates_mkdir_oserror(
 
     monkeypatch.setattr(Path, "mkdir", _refuse)
     with pytest.raises(OSError, match="Read-only file system"):
-        await writer.start()
+        writer.start()
+
+
+def test_session_completed_closes_the_sessions_file(tmp_path: Path):
+    writer = JsonlWriter(tmp_path)
+    writer.start()
+    writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1"))
+    handle = writer._files["s1"]
+
+    writer.write(
+        _make_session_event(
+            SCOPE_SESSION, scope_id="s1", event_type="session.completed"
+        )
+    )
+
+    assert handle.closed
+    assert "s1" not in writer._files
+    writer.shutdown()
+
+
+def test_a_late_event_after_completion_appends_to_the_same_file(tmp_path: Path):
+    writer = JsonlWriter(tmp_path)
+    writer.start()
+    writer.write(
+        _make_session_event(
+            SCOPE_SESSION, scope_id="s1", event_type="session.completed"
+        )
+    )
+    writer.write(_make_session_event(SCOPE_SESSION, scope_id="s1", event_type="late"))
+    writer.shutdown()
+
+    lines = (tmp_path / "s1.jsonl").read_text().splitlines()
+    assert [_parse_line(line).event_type for line in lines] == [
+        "session.completed",
+        "late",
+    ]

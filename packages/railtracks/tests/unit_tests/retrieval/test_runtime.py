@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncGenerator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -27,16 +27,20 @@ from railtracks.retrieval.chunking import IdentityChunker
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
 from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
+from railtracks.retrieval.loaders import TextLoader
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.loaders.sanitizing import (
     Sanitizer,
     SanitizingLoader,
 )
 from railtracks.retrieval.models import Chunk
 from railtracks.retrieval.runtime import _content_hash
-from railtracks.retrieval.stores import StoreScope, VectorStore
-from railtracks.retrieval.stores.models import StoreEntry
+from railtracks.retrieval.stores import ALL_SCOPES, AllScopes, StoreScope, VectorStore
+from railtracks.retrieval.stores.models import StoreEntry, exact_scope_filter
 from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBackend
+
+from .conftest import make_pdf_reader
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -44,10 +48,10 @@ from railtracks.retrieval.stores.vector.backends.in_memory import InMemoryBacken
 
 
 class _ListLoader(BaseDocumentLoader):
-    def __init__(self, docs: list[Document]) -> None:
+    def __init__(self, docs: list[Document | LoadFailure]) -> None:
         self._docs = docs
 
-    async def astream(self) -> AsyncGenerator[Document, None]:
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
         for doc in self._docs:
             yield doc
 
@@ -192,7 +196,7 @@ async def test_delete_where_called_before_first_write_only():
     async for _ in runtime.ingest(_ListLoader([doc])):
         pass
 
-    assert calls == [{"document_id": str(doc.id)}]
+    assert calls == [{"document_id": str(doc.id), **exact_scope_filter(None)}]
 
 
 async def test_total_failure_preserves_prior_version():
@@ -395,6 +399,165 @@ async def test_reingest_does_not_clobber_other_tenants_entries():
 
     alice_entries = await store.find({"scope_user_id": "alice"}, limit=10)
     assert {e.content for e in alice_entries} == {"alpha", "beta"}
+
+
+_ALICE = StoreScope(labels={"tenant": "alice"})
+_ALICE_PROD = StoreScope(labels={"tenant": "alice", "env": "prod"})
+_BOB = StoreScope(labels={"tenant": "bob"})
+
+
+async def _contents(
+    runtime: RetrievalRuntime, scope: StoreScope | AllScopes | None
+) -> set[str]:
+    result = await runtime.retrieve("q", top_k=50, scope=scope)
+    return {c.chunk.content for c in result.chunks}
+
+
+async def _ingest(
+    runtime: RetrievalRuntime, content: str, scope: StoreScope | None
+) -> list:
+    loader = _ListLoader([Document(source="README.md", content=content)])
+    return [e async for e in runtime.ingest(loader, scope=scope)]
+
+
+async def _runtime_with_mixed_scopes() -> RetrievalRuntime:
+    """One runtime holding the same source under four scopes."""
+    runtime, _, _ = _runtime()
+    await _ingest(runtime, "alice", _ALICE)
+    await _ingest(runtime, "prod", _ALICE_PROD)
+    await _ingest(runtime, "bob", _BOB)
+    await _ingest(runtime, "shared", None)
+    return runtime
+
+
+async def test_mixed_scopes_land_side_by_side():
+    runtime = await _runtime_with_mixed_scopes()
+
+    assert await _contents(runtime, _ALICE) == {"alice"}
+    assert await _contents(runtime, _ALICE_PROD) == {"prod"}
+    assert await _contents(runtime, _BOB) == {"bob"}
+    assert await _contents(runtime, StoreScope()) == {"shared"}
+    assert await _contents(runtime, None) == {"shared"}
+    assert await _contents(runtime, ALL_SCOPES) == {"alice", "prod", "bob", "shared"}
+
+
+async def test_metadata_filters_cannot_reach_another_scope():
+    runtime = await _runtime_with_mixed_scopes()
+
+    result = await runtime.retrieve(
+        "q", scope=_BOB, metadata_filters={"scope_tenant": "alice"}
+    )
+
+    assert result.chunks == []
+
+
+async def test_delete_document_only_deletes_within_scope():
+    runtime = await _runtime_with_mixed_scopes()
+    doc_id = Document(source="README.md", content="").id
+
+    await runtime.delete_document(doc_id, scope=_ALICE)
+
+    assert await _contents(runtime, ALL_SCOPES) == {"prod", "bob", "shared"}
+
+
+async def test_delete_document_without_scope_deletes_only_unscoped_copy():
+    runtime = await _runtime_with_mixed_scopes()
+    doc_id = Document(source="README.md", content="").id
+
+    await runtime.delete_document(doc_id)
+
+    assert await _contents(runtime, ALL_SCOPES) == {"alice", "prod", "bob"}
+
+
+@pytest.mark.parametrize(
+    ("scope", "replaced"),
+    [(None, "shared"), (_ALICE, "alice"), (_ALICE_PROD, "prod")],
+)
+async def test_reingest_replaces_only_the_same_scope(scope, replaced):
+    runtime = await _runtime_with_mixed_scopes()
+
+    await _ingest(runtime, "updated", scope)
+
+    everything = {"alice", "prod", "bob", "shared"}
+    assert await _contents(runtime, ALL_SCOPES) == everything - {replaced} | {"updated"}
+
+
+@pytest.mark.parametrize("scope", [None, _ALICE])
+async def test_skip_check_only_sees_the_same_scope(scope):
+    """Content stored under other scopes doesn't make this one's ingest a skip."""
+    runtime, _, _ = _runtime()
+    for other in (None, _ALICE, _ALICE_PROD, _BOB):
+        if other != scope:
+            await _ingest(runtime, "same", other)
+
+    events = await _ingest(runtime, "same", scope)
+
+    assert not any(isinstance(e, DocumentSkipped) for e in events)
+    assert await _contents(runtime, scope or StoreScope()) == {"same"}
+
+
+class _OpenTrackingLoader(_ListLoader):
+    def __init__(self, docs: list[Document | LoadFailure]) -> None:
+        super().__init__(docs)
+        self.opened = False
+
+    async def astream(self) -> AsyncGenerator[Document | LoadFailure, None]:
+        self.opened = True
+        async for doc in super().astream():
+            yield doc
+
+
+async def _drain_ingest(
+    runtime: RetrievalRuntime, loader: BaseDocumentLoader, scope: AllScopes
+) -> None:
+    async for _ in runtime.ingest(loader, scope=scope):  # type: ignore[arg-type]
+        pass
+
+
+@pytest.mark.parametrize("on_error", ["skip", "raise"])
+@pytest.mark.parametrize("method", ["ingest", "ingest_all"])
+async def test_ingest_rejects_all_scopes_before_loading(on_error, method):
+    """ALL_SCOPES is a caller error, so it raises up front in either error
+    mode instead of becoming a DocumentFailed for every document."""
+    events: list = []
+    store = _store()
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=store,
+        on_error=on_error,
+        on_ingest=events.append,
+    )
+    loader = _OpenTrackingLoader([Document(source="README.md", content="alice")])
+
+    with pytest.raises(ValueError, match="ALL_SCOPES"):
+        if method == "ingest":
+            await _drain_ingest(runtime, loader, ALL_SCOPES)
+        else:
+            await runtime.ingest_all(loader, scope=ALL_SCOPES)  # type: ignore[arg-type]
+
+    assert not loader.opened
+    assert events == []
+    assert await store.count() == 0
+
+
+async def test_delete_document_rejects_all_scopes():
+    runtime = await _runtime_with_mixed_scopes()
+    doc_id = Document(source="README.md", content="").id
+
+    with pytest.raises(ValueError, match="ALL_SCOPES"):
+        await runtime.delete_document(doc_id, scope=ALL_SCOPES)  # type: ignore[arg-type]
+
+    assert await runtime.store.count() == 4
+
+
+@pytest.mark.parametrize("scope", [None, _ALICE])
+async def test_reingest_of_unchanged_document_is_skipped_within_scope(scope):
+    runtime = await _runtime_with_mixed_scopes()
+
+    events = await _ingest(runtime, "alice" if scope is not None else "shared", scope)
+
+    assert any(isinstance(e, DocumentSkipped) for e in events)
 
 
 async def test_retrieve_raises_on_model_mismatch():
@@ -623,6 +786,63 @@ async def test_complete_document_with_count_metadata_is_skipped():
     assert embedder2.calls == []
 
 
+@pytest.mark.parametrize("key", ["source_path", "content_hash"])
+async def test_loader_metadata_cannot_override_runtime_staleness_keys(key):
+    """A loader column named like a runtime key is overwritten, so it can't
+    stop an unchanged document from being skipped."""
+    store = _store()
+    runtime, _, _ = _runtime(store=store)
+
+    def doc() -> Document:
+        return Document(
+            source="path/to/doc", content="alpha beta", metadata={key: "user-value"}
+        )
+
+    await runtime.ingest_all(_ListLoader([doc()]))
+    runtime2, _, embedder2 = _runtime(store=store)
+    events = [e async for e in runtime2.ingest(_ListLoader([doc()]))]
+
+    assert any(isinstance(e, DocumentSkipped) for e in events)
+    assert embedder2.calls == []
+    [entry, *_] = await store.find({"source_path": "path/to/doc"}, limit=10)
+    assert entry.chunk_metadata[key] != "user-value"
+
+
+async def test_overwriting_loader_metadata_logs_one_warning_per_document(
+    caplog: pytest.LogCaptureFixture,
+):
+    runtime, _, _ = _runtime()
+    doc = Document(
+        source="path/to/doc",
+        content="alpha beta gamma",  # 3 chunks, one warning
+        metadata={"source_path": "user-value", "content_hash": "user-hash"},
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await runtime.ingest_all(_ListLoader([doc]))
+
+    warnings = [
+        r.getMessage() for r in caplog.records if "skip check" in r.getMessage()
+    ]
+    assert len(warnings) == 1
+    assert "path/to/doc" in warnings[0]
+    assert "['content_hash', 'source_path']" in warnings[0]
+
+
+async def test_matching_loader_metadata_does_not_warn(
+    caplog: pytest.LogCaptureFixture,
+):
+    runtime, _, _ = _runtime()
+    doc = Document(
+        source="path/to/doc", content="alpha", metadata={"source_path": "path/to/doc"}
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await runtime.ingest_all(_ListLoader([doc]))
+
+    assert not any("skip check" in r.getMessage() for r in caplog.records)
+
+
 async def test_entry_without_count_metadata_is_reingested():
     """Every chunk the runtime writes carries doc_chunk_count, so an entry
     without it was written by something else — its completeness can't be
@@ -821,54 +1041,337 @@ async def test_sanitizing_loader_sanitizer_protocol():
     assert isinstance(_UpperSanitizer(), Sanitizer)
 
 
-async def test_sanitizer_errors_propagate():
-    class _Boom:
-        def sanitize(self, document: Document) -> Document:
-            raise RuntimeError("redaction failure")
+class _RejectConfidentialSanitizer:
+    """Raises for any document containing ``CONFIDENTIAL``."""
 
-    inner = _ListLoader([Document(content="x")])
-    loader = SanitizingLoader(inner, _Boom())
-    with pytest.raises(RuntimeError, match="redaction failure"):
-        [_ async for _ in loader.astream()]
+    def sanitize(self, document: Document) -> Document:
+        if "CONFIDENTIAL" in document.content:
+            raise ValueError(f"cannot safely redact {document.source!r}")
+        return document
+
+
+async def test_sanitizer_error_yields_load_failure_and_stream_continues():
+    inner = _ListLoader(
+        [
+            Document(content="first", source="a.txt"),
+            Document(content="CONFIDENTIAL second", source="b.txt"),
+            Document(content="third", source="c.txt"),
+        ]
+    )
+    loader = SanitizingLoader(inner, _RejectConfidentialSanitizer())
+
+    items = [item async for item in loader.astream()]
+
+    assert [type(i) for i in items] == [Document, LoadFailure, Document]
+    assert items[1].source == "b.txt"
+    assert isinstance(items[1].error, ValueError)
+
+
+async def test_async_sanitizer_error_yields_load_failure():
+    class _AsyncBoom:
+        async def sanitize(self, document: Document) -> Document:
+            raise RuntimeError("redaction service down")
+
+    loader = SanitizingLoader(
+        _ListLoader([Document(content="x", source="x.txt")]), _AsyncBoom()
+    )
+
+    (item,) = [item async for item in loader.astream()]
+
+    assert isinstance(item, LoadFailure)
+    assert isinstance(item.error, RuntimeError)
+
+
+async def test_sanitizer_failure_source_falls_back_to_document_id():
+    doc = Document(content="CONFIDENTIAL")
+    loader = SanitizingLoader(_ListLoader([doc]), _RejectConfidentialSanitizer())
+
+    (item,) = [item async for item in loader.astream()]
+
+    assert isinstance(item, LoadFailure)
+    assert item.source == str(doc.id)
+
+
+async def test_sanitizer_error_raises_from_aload():
+    loader = SanitizingLoader(
+        _ListLoader([Document(content="CONFIDENTIAL", source="b.txt")]),
+        _RejectConfidentialSanitizer(),
+    )
+
+    with pytest.raises(ValueError, match="cannot safely redact"):
+        await loader.aload()
+
+
+async def test_sanitizer_error_is_skipped_by_runtime():
+    runtime, store, _ = _runtime()
+    loader = SanitizingLoader(
+        _ListLoader(
+            [
+                Document(content="first", source="a.txt"),
+                Document(content="CONFIDENTIAL second", source="b.txt"),
+                Document(content="third", source="c.txt"),
+            ]
+        ),
+        _RejectConfidentialSanitizer(),
+    )
+
+    stats = await runtime.ingest_all(loader)
+
+    assert [(f.stage, f.source) for f in stats.failed_documents] == [("load", "b.txt")]
+    assert {
+        e.chunk_metadata["source_path"] for e in await store.find({}, limit=10)
+    } == {
+        "a.txt",
+        "c.txt",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Per-document error isolation
+# ---------------------------------------------------------------------------
+
+
+class _FailOnWordChunker(_OneChunkPerWordChunker):
+    """Raises for any document containing ``word``."""
+
+    def __init__(self, word: str) -> None:
+        self._word = word
+
+    def chunk(self, document: Document) -> list[Chunk]:
+        if self._word in document.content.split():
+            raise RuntimeError(f"cannot chunk {document.source!r}")
+        return super().chunk(document)
+
+
+class _FailOnWordStore(VectorStore):
+    """Raises on ``write`` for any chunk whose content is ``word``."""
+
+    def __init__(self, word: str) -> None:
+        super().__init__(InMemoryBackend())
+        self._word = word
+
+    async def write(self, entry: StoreEntry) -> str:
+        if entry.content == self._word:
+            raise ConnectionError("store unavailable")
+        return await super().write(entry)
+
+
+class _RaisingLoader(BaseDocumentLoader):
+    """Yields ``docs`` and then raises out of its own stream."""
+
+    def __init__(self, docs: list[Document]) -> None:
+        self._docs = docs
+
+    async def astream(self) -> AsyncGenerator[Document, None]:
+        for doc in self._docs:
+            yield doc
+        raise RuntimeError("listing failed")
+
+
+async def test_load_failure_becomes_documentfailed_and_run_continues():
+    runtime, store, _ = _runtime()
+    error = UnicodeDecodeError("utf-8", b"\xe9", 0, 1, "invalid continuation byte")
+    loader = _ListLoader(
+        [
+            Document(content="alpha", source="a.txt"),
+            LoadFailure(source="b.txt", error=error),
+            Document(content="gamma", source="c.txt"),
+        ]
+    )
+
+    events = [e async for e in runtime.ingest(loader)]
+
+    failed = [e for e in events if isinstance(e, DocumentFailed)]
+    assert len(failed) == 1
+    assert failed[0].stage == "load"
+    assert failed[0].document_id is None
+    assert failed[0].source == "b.txt"
+    assert failed[0].errors == [error]
+    assert await store.count() == 2
+
+
+async def test_load_failure_counts_in_stats_but_not_as_loaded():
+    runtime, _, _ = _runtime()
+    loader = _ListLoader(
+        [
+            Document(content="alpha"),
+            LoadFailure(source="bad.txt", error=ValueError("bad")),
+        ]
+    )
+
+    stats = await runtime.ingest_all(loader)
+
+    assert stats.documents_loaded == 1
+    assert stats.documents_failed == 1
+    assert stats.failed_documents[0].source == "bad.txt"
+
+
+async def test_on_error_raise_reraises_load_failure():
+    runtime = RetrievalRuntime(
+        _OneChunkPerWordChunker(), _FakeEmbedder(), _store(), on_error="raise"
+    )
+    error = ValueError("bad file")
+    loader = _ListLoader(
+        [
+            Document(content="alpha"),
+            LoadFailure(source="bad.txt", error=error),
+            Document(content="gamma"),
+        ]
+    )
+
+    with pytest.raises(ValueError, match="bad file"):
+        await runtime.ingest_all(loader)
+    assert await runtime.store.count() == 1
+
+
+async def test_chunker_error_is_reported_with_chunk_stage():
+    store = _store()
+    runtime = RetrievalRuntime(_FailOnWordChunker("poison"), _FakeEmbedder(), store)
+    bad = Document(content="poison pill", source="bad.txt")
+    loader = _ListLoader([bad, Document(content="alpha beta", source="ok.txt")])
+
+    stats = await runtime.ingest_all(loader)
+
+    assert stats.documents_failed == 1
+    failed = stats.failed_documents[0]
+    assert failed.stage == "chunk"
+    assert failed.document_id == bad.id
+    assert isinstance(failed.errors[0], RuntimeError)
+    assert await store.count() == 2
+
+
+async def test_store_error_is_reported_with_store_stage():
+    store = _FailOnWordStore("poison")
+    runtime = RetrievalRuntime(_OneChunkPerWordChunker(), _FakeEmbedder(), store)
+    loader = _ListLoader([Document(content="poison"), Document(content="alpha")])
+
+    stats = await runtime.ingest_all(loader)
+
+    assert stats.documents_failed == 1
+    assert stats.failed_documents[0].stage == "store"
+    assert isinstance(stats.failed_documents[0].errors[0], ConnectionError)
+    assert await store.count() == 1
+
+
+async def test_embedding_batch_failure_is_reported_with_embed_stage():
+    runtime, _, _ = _runtime(embedder=_FakeEmbedder(fail_on_texts={"bad"}))
+
+    stats = await runtime.ingest_all(_ListLoader([Document(content="good bad")]))
+
+    assert stats.failed_documents[0].stage == "embed"
+
+
+async def test_documentfailed_keeps_batch_errors_when_store_then_raises():
+    store = _FailOnWordStore("gamma")
+    runtime = RetrievalRuntime(
+        _OneChunkPerWordChunker(),
+        _FakeEmbedder(fail_on_texts={"alpha"}),
+        store,
+        batch_size=2,
+    )
+    # Batch 1 ("alpha beta") fails to embed; batch 2 ("gamma delta") hits the store error.
+    stats = await runtime.ingest_all(
+        _ListLoader([Document(content="alpha beta gamma delta")])
+    )
+
+    (failed,) = stats.failed_documents
+    assert failed.stage == "store"
+    assert [type(e) for e in failed.errors] == [RuntimeError, ConnectionError]
+
+
+async def test_on_error_raise_reraises_chunker_error():
+    runtime = RetrievalRuntime(
+        _FailOnWordChunker("poison"), _FakeEmbedder(), _store(), on_error="raise"
+    )
+
+    with pytest.raises(RuntimeError, match="cannot chunk"):
+        await runtime.ingest_all(_ListLoader([Document(content="poison")]))
+
+
+async def test_model_mismatch_raises_even_when_skipping():
+    store = _store()
+    runtime_v1, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v1"))
+    await runtime_v1.ingest_all(_ListLoader([Document(content="alpha")]))
+    runtime_v2, _, _ = _runtime(store=store, embedder=_FakeEmbedder(model="model-v2"))
+    assert runtime_v2.on_error == "skip"
+
+    with pytest.raises(EmbeddingModelMismatchError):
+        await runtime_v2.ingest_all(_ListLoader([Document(content="beta")]))
+
+
+async def test_error_raised_out_of_loader_stream_propagates():
+    runtime, store, _ = _runtime()
+
+    with pytest.raises(RuntimeError, match="listing failed"):
+        await runtime.ingest_all(_RaisingLoader([Document(content="alpha")]))
+    assert await store.count() == 1
+
+
+async def test_on_ingest_callback_errors_propagate():
+    def _callback(event: object) -> None:
+        raise RuntimeError("callback bug")
+
+    runtime = RetrievalRuntime(
+        _OneChunkPerWordChunker(), _FakeEmbedder(), _store(), on_ingest=_callback
+    )
+
+    with pytest.raises(RuntimeError, match="callback bug"):
+        await runtime.ingest_all(_ListLoader([Document(content="alpha")]))
+
+
+async def test_document_failed_logs_a_warning(caplog: pytest.LogCaptureFixture):
+    runtime, _, _ = _runtime()
+    loader = _ListLoader([LoadFailure(source="bad.txt", error=ValueError("bad"))])
+
+    with caplog.at_level(logging.WARNING):
+        await runtime.ingest_all(loader)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("bad.txt" in m and "'load'" in m and "ValueError" in m for m in messages)
+
+
+def test_invalid_on_error_raises():
+    with pytest.raises(ValueError, match="on_error"):
+        RetrievalRuntime(
+            _OneChunkPerWordChunker(),
+            _FakeEmbedder(),
+            _store(),
+            on_error="ignore",  # type: ignore[arg-type]
+        )
+
+
+async def test_directory_with_one_undecodable_file_ingests_the_rest(tmp_path):
+    (tmp_path / "a.txt").write_text("first file", encoding="utf-8")
+    (tmp_path / "b.txt").write_bytes("caf\xe9".encode("latin-1"))
+    (tmp_path / "c.txt").write_text("third file", encoding="utf-8")
+    runtime, store, _ = _runtime()
+
+    stats = await runtime.ingest_all(TextLoader(str(tmp_path)))
+
+    assert stats.documents_loaded == 2
+    assert stats.documents_failed == 1
+    (failed,) = stats.failed_documents
+    assert failed.stage == "load"
+    assert failed.source == str(tmp_path / "b.txt")
+    assert isinstance(failed.errors[0], UnicodeDecodeError)
+    assert await store.count() == 4
+
+
+async def test_sanitizing_loader_passes_load_failures_through():
+    failure = LoadFailure(source="bad.txt", error=ValueError("bad"))
+    inner = _ListLoader([failure, Document(content="hello")])
+    loader = SanitizingLoader(inner, _UpperSanitizer())
+
+    items = [item async for item in loader.astream()]
+
+    assert items[0] is failure
+    assert isinstance(items[1], Document)
+    assert items[1].content == "HELLO"
 
 
 # ---------------------------------------------------------------------------
 # #1648 — shared Document.source / Document.id must not drop sibling pages
 # ---------------------------------------------------------------------------
-
-
-def _make_pdf_reader(page_texts: list[str]) -> MagicMock:
-    """Build a mock PdfReader with pages that return the given texts."""
-    reader = MagicMock()
-    pages = []
-    for text in page_texts:
-        page = MagicMock()
-        page.extract_text.return_value = text
-        pages.append(page)
-    reader.pages = pages
-    return reader
-
-
-async def test_ingest_keeps_all_pages_when_sources_are_unique():
-    """Pages that share a PDF path but use distinct sources all land in the store."""
-    store = _store()
-    embedder = _FakeEmbedder()
-    runtime = RetrievalRuntime(IdentityChunker(), embedder, store)
-    pages = [
-        Document(
-            content=f"page {n} text",
-            source=f"report.pdf#page={n}",
-            metadata={"page": n},
-        )
-        for n in (1, 2, 3)
-    ]
-    stats = await runtime.ingest_all(_ListLoader(pages))
-    assert stats.chunks_embedded == 3
-    assert await store.count() == 3
-
-    stats2 = await runtime.ingest_all(_ListLoader(pages))
-    assert stats2.documents_skipped == 3
-    assert await store.count() == 3
 
 
 async def test_ingest_pypdf_loader_through_runtime_keeps_all_pages(tmp_path):
@@ -881,7 +1384,7 @@ async def test_ingest_pypdf_loader_through_runtime_keeps_all_pages(tmp_path):
 
     pdf = tmp_path / "report.pdf"
     pdf.write_bytes(b"%PDF-1.4")
-    reader = _make_pdf_reader(["page 1 text", "page 2 text", "page 3 text"])
+    reader = make_pdf_reader(["page 1 text", "page 2 text", "page 3 text"])
     store = _store()
     runtime = RetrievalRuntime(IdentityChunker(), _FakeEmbedder(), store)
 
@@ -911,7 +1414,7 @@ async def test_ingest_keeps_pages_with_identical_text(tmp_path):
     pdf = tmp_path / "report.pdf"
     pdf.write_bytes(b"%PDF-1.4")
     # Identical text on pages 1 and 3 must still produce three store entries.
-    reader = _make_pdf_reader(["same text", "middle page", "same text"])
+    reader = make_pdf_reader(["same text", "middle page", "same text"])
     store = _store()
     runtime = RetrievalRuntime(IdentityChunker(), _FakeEmbedder(), store)
 
