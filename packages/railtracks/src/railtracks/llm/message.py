@@ -131,15 +131,16 @@ class Attachment:
             attachment_timeout: Per-request timeout in seconds for the HEAD
                 probe and the in-process PDF download. Defaults to 10. Only
                 applies when `trust_urls=True`.
-            attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
-                Must be positive and finite. Defaults to 32. Only applies when
-                `trust_urls=True`.
+            attachment_max_mb: Largest local file or PDF from a URL accepted,
+                in megabytes. Must be positive and finite. Defaults to 32. A
+                local file is checked before it is read; a URL download only
+                happens when `trust_urls=True`.
 
         Raises:
             TypeError: If `url` is not a string.
             FileNotFoundError: If a local file does not exist.
             ValueError: If `attachment_max_mb` is not positive and finite, a
-                local file is empty, a local file or base64 payload is not an
+                local file is empty or larger than `attachment_max_mb`, a local file or base64 payload is not an
                 image, PDF, audio or video file, a local image is not PNG, JPEG,
                 GIF, WebP or AVIF, a data URI or base64 payload is malformed, a
                 URL's extension names a text or Office document type, or a PDF
@@ -153,6 +154,13 @@ class Attachment:
 
         match detect_source(url):
             case "local":
+                if (
+                    os.path.isfile(url)
+                    and os.path.getsize(url) > attachment_max_mb * 1024 * 1024
+                ):
+                    raise ValueError(
+                        f"File {url!r} exceeds the {attachment_max_mb} MB limit."
+                    )
                 data = load_bytes(url)
                 self._set(
                     url, "local", detect_mime(data, url), os.path.basename(url), data
@@ -593,9 +601,10 @@ class UserMessage(_StringOnlyContent[Role.user]):
                     and the in-process PDF download. Defaults to 10. Only
                     applies when `trust_urls=True`. Raise this for large PDFs
                     over slow links.
-        attachment_max_mb: Largest PDF accepted from a URL, in megabytes.
-                    Must be positive and finite. Defaults to 32. Only applies
-                    when `trust_urls=True`.
+        attachment_max_mb: Largest local file or PDF from a URL accepted,
+                    in megabytes. Must be positive and finite. Defaults to 32.
+                    A local file is checked before it is read; a URL download
+                    only happens when `trust_urls=True`.
 
     Raises:
         ValueError: If an attachment is rejected, for the reasons listed on

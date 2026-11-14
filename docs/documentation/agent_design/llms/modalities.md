@@ -101,7 +101,7 @@ PDFs reach the provider inline as base64, so Railtracks downloads a PDF URL in y
 
 ### Tuning the fetch timeout and size limit
 
-The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links. The download stops once it passes `attachment_max_mb` (32 MB by default) and raises a `ValueError`, so a very large or never-ending response cannot exhaust memory:
+The HEAD probe and PDF download share a per-request timeout that defaults to 10 seconds. Raise it via `attachment_timeout` for large PDFs over slow links. The download stops once it passes `attachment_max_mb` (32 MB by default) and raises a `ValueError`, so a very large or never-ending response cannot exhaust memory. The same limit applies to a local file path: a file larger than `attachment_max_mb` raises a `ValueError` before it is read:
 
 ```python
 --8<-- "docs/scripts/multimodal.py:pdf_timeout"

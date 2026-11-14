@@ -1,5 +1,6 @@
 import base64
 from copy import deepcopy
+from pathlib import Path
 from typing import List
 
 import pytest
@@ -278,6 +279,39 @@ class TestAttachment:
         assert attachment.filename == "doc.pdf"
         assert attachment.encoding is not None
         assert attachment.encoding.startswith("data:application/pdf;base64,")
+
+    @pytest.mark.parametrize("extra_bytes, raises", [(0, False), (1, True)])
+    def test_local_file_size_limit(self, tmp_path, extra_bytes, raises):
+        limit_mb = 0.001
+        pdf_file = tmp_path / "doc.pdf"
+        header = b"%PDF-1.4\n"
+        size = int(limit_mb * 1024 * 1024) + extra_bytes
+        pdf_file.write_bytes(header + b"0" * (size - len(header)))
+
+        if raises:
+            with pytest.raises(ValueError, match="exceeds the 0.001 MB limit"):
+                Attachment(str(pdf_file), attachment_max_mb=limit_mb)
+        else:
+            attachment = Attachment(str(pdf_file), attachment_max_mb=limit_mb)
+            assert attachment.size == size
+
+    def test_oversized_local_file_is_not_read(self, tmp_path, monkeypatch):
+        pdf_file = tmp_path / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4\n" + b"0" * 2048)
+
+        def fail_read(self):
+            raise AssertionError("the file was read")
+
+        monkeypatch.setattr(Path, "read_bytes", fail_read)
+        with pytest.raises(ValueError, match="exceeds"):
+            Attachment(str(pdf_file), attachment_max_mb=0.001)
+
+    def test_user_message_applies_the_limit_to_a_local_path(self, tmp_path):
+        pdf_file = tmp_path / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4\n" + b"0" * 2048)
+
+        with pytest.raises(ValueError, match="exceeds"):
+            UserMessage("Summarize.", attachment=str(pdf_file), attachment_max_mb=0.001)
 
     def test_base64_pdf(self):
         import base64 as _b64
