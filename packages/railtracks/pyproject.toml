@@ -51,8 +51,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "certifi >= 2024.7.4",
     "colorama >= 0.4.6",
-    "litellm >= 1.104.3, < 1.106",
+    "litellm >= 1.104.3, < 1.109",
     "mcp >= 1.23.0, <2",
     "pydantic >= 2.11, <3",
     "python-dotenv >= 1.0.0",
@@ -91,12 +92,12 @@ websearch = [
 # pulls in every extra in this section.
 tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
 semantic = ["scikit-learn>=1.3.0"]
-pdf = ["pypdf >= 6.16.1, < 7"]
+pdf = ["pypdf >= 6.21.4, < 7"]
 ocr = [
     "pypdfium2 >= 4.30.0",
     "pytesseract >= 0.3.10",
     "pillow >= 10.0.0",
-    "pypdf >= 6.16.1, < 7",
+    "pypdf >= 6.21.4, < 7",
 ]
 glm = [
     "glmocr ~= 0.1.1",

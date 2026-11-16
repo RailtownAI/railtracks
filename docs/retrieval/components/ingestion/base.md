@@ -55,6 +55,8 @@ chunking/embedding/storage:
 collect everything into a list before returning, so use them only when
 you don't anticipate memory constraints.
 
+When a file or object can't be read, `astream()` yields a `LoadFailure` (with the `source` and the `error`) in its place and carries on with the next one. `load()` and `aload()` raise that error instead, and `RetrievalRuntime` reports it as a `DocumentFailed` with `stage="load"`; see [Unreadable and failing documents](../../runtime/ingestion.md#unreadable-and-failing-documents).
+
 ---
 
 ## Next steps

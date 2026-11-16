@@ -59,7 +59,7 @@ class _Run:
     end_on_error: bool
     # only DEBUG prints arguments, responses, and the run's result
     show_content: bool
-    # shared across runs: a middleware announces itself once per process
+    # shared across runs: keyed by type id, which a middleware keeps in every run
     middleware_names: dict[str, str]
     # LLM id -> model name; a model announces itself before each call
     models: dict[str, str] = field(default_factory=dict)

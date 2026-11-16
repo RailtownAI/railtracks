@@ -14,7 +14,8 @@ from unittest.mock import patch
 import pytest
 from pypdf.errors import PdfReadError
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
-from railtracks.retrieval.models import DocumentType
+from railtracks.retrieval.loaders.models import LoadFailure
+from railtracks.retrieval.models import Document, DocumentType
 
 from .conftest import (
     make_container_client_for_loading,
@@ -182,13 +183,26 @@ class TestPdfObjects:
         assert doc.content == "Shouted"
         assert doc.type == DocumentType.PDF
 
-    def test_corrupt_pdf_raises(
+    async def test_corrupt_pdf_yields_load_failure_and_rest_load(
         self,
         make_loader: LoaderFactory,
         source_prefix: str,
         provider_metadata: dict[str, str],
     ) -> None:
-        # Pins today's behaviour; containing one document's failure is #1654.
+        objects: dict[str, str | bytes] = {"broken.pdf": b"not a pdf", "c.txt": "c"}
+        with make_loader(objects) as loader:
+            items = [item async for item in loader.astream()]
+
+        assert [type(i) for i in items] == [LoadFailure, Document]
+        assert items[0].source == f"{source_prefix}broken.pdf"
+        assert isinstance(items[0].error, PdfReadError)
+
+    def test_corrupt_pdf_load_raises(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
         objects: dict[str, str | bytes] = {"broken.pdf": b"not a pdf"}
         with make_loader(objects) as loader:
             with pytest.raises(PdfReadError):
@@ -224,6 +238,46 @@ class TestNonTextObjects:
                 ValueError, match=rf"{re.escape(source_prefix)}notes\.txt.*encoding="
             ):
                 loader.load()
+
+    async def test_known_text_extension_that_does_not_decode_yields_load_failure(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        objects: dict[str, str | bytes] = {
+            "a.txt": "alpha",
+            "notes.txt": "café".encode("latin-1"),
+            "c.txt": "c",
+        }
+        with make_loader(objects) as loader:
+            items = [item async for item in loader.astream()]
+
+        assert [type(i) for i in items] == [Document, LoadFailure, Document]
+        assert items[1].source == f"{source_prefix}notes.txt"
+        assert isinstance(items[1].error, ValueError)
+
+    async def test_failed_download_yields_load_failure_and_rest_load(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        objects: dict[str, str | bytes] = {"a.txt": "alpha", "b.txt": "beta"}
+        with make_loader(objects) as loader:
+            fetch = loader._fetch_bytes  # type: ignore[attr-defined]
+
+            def _flaky_fetch(key: str) -> bytes:
+                if key == "a.txt":
+                    raise ConnectionError("download failed")
+                return fetch(key)
+
+            with patch.object(loader, "_fetch_bytes", side_effect=_flaky_fetch):
+                items = [item async for item in loader.astream()]
+
+        assert [type(i) for i in items] == [LoadFailure, Document]
+        assert items[0].source == f"{source_prefix}a.txt"
+        assert isinstance(items[0].error, ConnectionError)
 
     def test_custom_encoding_decodes_known_text_extension(
         self,

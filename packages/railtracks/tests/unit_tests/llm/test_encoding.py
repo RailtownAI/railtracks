@@ -1,20 +1,37 @@
 import base64
 import http.client
 import io
+import ssl
+import threading
+import time
+from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
+import certifi
 import pytest
+from litellm.exceptions import ImageFetchError
+from litellm.litellm_core_utils.prompt_templates.image_handling import (
+    convert_url_to_base64,
+)
+from railtracks.llm import attachment_formats
+from railtracks.llm import encoding as encoding_module
 from railtracks.llm.attachment_formats import (
     detect_attachment_mime_from_bytes,
     detect_image_mime_from_bytes,
+    detect_mime,
+    detect_mime_from_extension,
 )
 from railtracks.llm.encoding import (
     _READ_CHUNK_BYTES,
     _is_base64_attachment,
+    decode_data_uri,
     detect_source,
     encode,
     ensure_data_uri,
+    open_url,
+    redact_url,
 )
 
 
@@ -341,3 +358,286 @@ class TestDetectAttachmentMime:
     )
     def test_misplaced_or_truncated_headers_are_not_detected(self, data):
         assert detect_attachment_mime_from_bytes(data) is None
+
+    @pytest.mark.parametrize(
+        "data,mime_type",
+        [
+            (b"ID3\x04\x00\x00\x00\x00\x00\x00", "audio/mpeg"),
+            (b"ID3\x03\x00\x00\x00\x00\x00\x00", "audio/mpeg"),
+            (b"RIFF\x24\x00\x00\x00WAVEfmt ", "audio/wav"),
+            (b"OggS\x00\x02\x00\x00", "audio/ogg"),
+            (b"fLaC\x00\x00\x00\x22", "audio/flac"),
+            (b"\x00\x00\x00\x20ftypM4A \x00\x00\x00\x00", "audio/mp4"),
+            (b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00", "video/mp4"),
+            (b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00", "video/mp4"),
+            (b"\x00\x00\x00\x14ftypqt  \x00\x00\x00\x00", "video/quicktime"),
+            (b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81", "video/webm"),
+            (b"RIFF\x24\x00\x00\x00AVI LIST", "video/x-msvideo"),
+            (b"BM\x36\x00\x0c\x00\x00\x00\x00\x00\x36\x00", "image/bmp"),
+        ],
+    )
+    def test_audio_video_and_bmp_detected(self, data, mime_type):
+        assert detect_attachment_mime_from_bytes(data) == mime_type
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            b"BMW sales notes",
+            b"ID3 tag notes",
+            b"\xff\xfb\x90\x64\x00",
+            b'<?xml version="1.0"?><invoice/>',
+            b'# Logo\n<svg xmlns="http://www.w3.org/2000/svg"/>',
+            b"<!DOCTYPE html><html><body><svg/></body></html>",
+            b"<!-- x --><html><body><svg></svg></body></html>",
+            b"<svgfoo/>",
+        ],
+        ids=[
+            "text_starting_with_BM",
+            "text_starting_with_ID3",
+            "bare_mp3_frame_sync",
+            "plain_xml",
+            "markdown_with_inline_svg",
+            "html_with_inline_svg",
+            "html_after_comment_with_inline_svg",
+            "tag_starting_with_svg",
+        ],
+    )
+    def test_lookalike_content_is_not_detected(self, data):
+        assert detect_attachment_mime_from_bytes(data) is None
+
+    @pytest.mark.parametrize(
+        "svg",
+        [
+            b'<?xml version="1.0"?>\n<!-- logo -->\n<svg xmlns="http://www.w3.org/2000/svg"/>',
+            b'  <svg xmlns="http://www.w3.org/2000/svg"/>',
+            b'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "x"><svg/>',
+            b'<!DOCTYPE svg [ <!ENTITY logo "x"> ]><svg/>',
+            b'\xef\xbb\xbf<?xml version="1.0"?><svg xmlns="x"/>',
+            b"<!-- " + b"MIT License. " * 200 + b"-- -->\n<svg/>",
+        ],
+        ids=[
+            "xml_declaration_and_comment",
+            "leading_whitespace",
+            "doctype",
+            "doctype_internal_subset",
+            "utf8_bom",
+            "long_license_comment",
+        ],
+    )
+    def test_svg_detected(self, svg):
+        assert detect_attachment_mime_from_bytes(svg) == "image/svg+xml"
+
+    def test_html_page_after_comment_keeps_its_extension_type(self):
+        page = b"<!-- x --><html><body><svg></svg></body></html>"
+        assert detect_mime(page, "page.html") == "text/html"
+
+    def test_bom_svg_is_read_as_base64(self):
+        svg = b'\xef\xbb\xbf<?xml version="1.0"?><svg xmlns="x"/>'
+        assert decode_data_uri(base64.b64encode(svg).decode()) == (
+            "image/svg+xml",
+            svg,
+        )
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            b"<!--a-->" * 20_000 + b"<html>",
+            b" " * 200_000 + b"x",
+            b"<!--" + b"-" * 200_000,
+        ],
+        ids=["many_comments", "long_whitespace", "unterminated_comment"],
+    )
+    def test_svg_check_stays_linear_on_non_svg(self, data):
+        start = time.perf_counter()
+        assert detect_attachment_mime_from_bytes(data) is None
+        assert time.perf_counter() - start < 1
+
+
+class TestDetectMime:
+    @pytest.mark.parametrize(
+        "data,name,mime_type",
+        [
+            (b"OggS\x00\x02\x00\x00", "clip.ogv", "video/ogg"),
+            (b"OggS\x00\x02\x00\x00", "voice.ogg", "audio/ogg"),
+            (b"OggS\x00\x02\x00\x00", None, "audio/ogg"),
+            (b"\x1a\x45\xdf\xa3\x9f\x42", "movie.mkv", "video/x-matroska"),
+            (b"\x1a\x45\xdf\xa3\x9f\x42", "notes.txt", "video/webm"),
+            (b"\x89PNG\r\n\x1a\n", "clip.mp4", "image/png"),
+            (b"plain text", "notes.txt", "text/plain"),
+            (b"plain text", None, None),
+        ],
+    )
+    def test_magic_bytes_then_name(self, data, name, mime_type):
+        assert detect_mime(data, name) == mime_type
+
+
+class TestDetectMimeFromExtension:
+    def test_every_listed_extension_gives_its_row_type(self):
+        """A file's name and its contents must give the same MIME type."""
+        formats = attachment_formats._formats
+        for section in ("prefix_formats", "offset_formats", "extension_formats"):
+            for row in formats[section]:
+                for extension in row.get("extensions", []):
+                    mime_type = detect_mime_from_extension(f"x{extension}")
+                    assert mime_type == row["mime_type"], extension
+
+    @pytest.mark.parametrize(
+        "name,mime_type",
+        [
+            ("chart.PNG", "image/png"),
+            ("dir.v2/clip.webp", "image/webp"),
+            ("/a/b/voice.wav", "audio/wav"),
+            ("notes.txt", "text/plain"),
+            ("archive.tar.gz", None),
+            ("no_extension", None),
+            ("dir.v2/no_extension", None),
+            ("data.unknownext", None),
+        ],
+    )
+    def test_lookup(self, name, mime_type):
+        assert detect_mime_from_extension(name) == mime_type
+
+
+class TestDecodeDataUri:
+    def test_any_media_type_header_is_accepted(self):
+        data = b"RIFF\x24\x00\x00\x00WAVEfmt "
+        uri = "data:audio/wav;base64," + base64.b64encode(data).decode("utf-8")
+        assert decode_data_uri(uri) == ("audio/wav", data)
+
+    def test_mime_type_is_lowercased(self):
+        assert decode_data_uri("data:Image/PNG;base64,iVBORw0KGgo=") == (
+            "image/png",
+            b"\x89PNG\r\n\x1a\n",
+        )
+
+    def test_plain_base64_type_comes_from_magic_bytes(self):
+        data = b"OggS\x00\x02\x00\x00"
+        assert decode_data_uri(base64.b64encode(data).decode("utf-8")) == (
+            "audio/ogg",
+            data,
+        )
+
+    @pytest.mark.parametrize(
+        "uri",
+        ["data:image;base64,AAAA", "data:image/png,AAAA", "data:image/png;base64,**"],
+    )
+    def test_malformed_input_raises(self, uri):
+        with pytest.raises(ValueError):
+            decode_data_uri(uri)
+
+
+_BODY = b"body"
+
+
+class _RecordingHandler(BaseHTTPRequestHandler):
+    """Records each request path; `/missing` paths return 404, others `_BODY`."""
+
+    paths: list[str] = []
+
+    def do_GET(self) -> None:
+        self.paths.append(self.path)
+        status = 404 if self.path.startswith("/missing") else 200
+        self.send_response(status)
+        self.send_header("Content-Length", str(len(_BODY)))
+        self.end_headers()
+        self.wfile.write(_BODY)
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+@pytest.fixture
+def local_server() -> Iterator[str]:
+    _RecordingHandler.paths = []
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _RecordingHandler)
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.01}
+    )
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+class TestOpenUrl:
+    @pytest.mark.parametrize(
+        "path,sent",
+        [
+            ("/a b.png", "/a%20b.png"),
+            ("/café.png", "/caf%C3%A9.png"),
+            ("/already%20encoded.png", "/already%20encoded.png"),
+            ("/img.png?name=a b&x=1", "/img.png?name=a%20b&x=1"),
+        ],
+        ids=["space", "non_ascii", "already_encoded", "query"],
+    )
+    def test_percent_encodes_only_what_http_client_rejects(
+        self, local_server, path, sent
+    ):
+        with open_url(local_server + path, timeout=5) as response:
+            assert response.read() == _BODY
+        assert _RecordingHandler.paths == [sent]
+
+    def test_tls_context_adds_certifi_to_the_system_roots(self, monkeypatch):
+        loaded: list[object] = []
+        original_verify = ssl.SSLContext.load_verify_locations
+        original_default = ssl.SSLContext.load_default_certs
+
+        def spy_verify(self, cafile=None, capath=None, cadata=None):
+            loaded.append(cafile)
+            return original_verify(self, cafile, capath, cadata)
+
+        def spy_default(self, purpose=ssl.Purpose.SERVER_AUTH):
+            loaded.append("system")
+            return original_default(self, purpose)
+
+        monkeypatch.setattr(ssl.SSLContext, "load_verify_locations", spy_verify)
+        monkeypatch.setattr(ssl.SSLContext, "load_default_certs", spy_default)
+        encoding_module._tls_context.cache_clear()
+        try:
+            context = encoding_module._tls_context()
+        finally:
+            encoding_module._tls_context.cache_clear()
+        assert loaded[0] == "system"
+        assert loaded[-1] == certifi.where()
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname
+
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            (
+                "https://cdn.example.com/a/report.pdf?sig=SECRET&exp=1#page=2",
+                "https://cdn.example.com/a/report.pdf",
+            ),
+            (
+                "https://user:SECRET@example.com:8443/doc.pdf",
+                "https://example.com:8443/doc.pdf",
+            ),
+            ("https://example.com/plain.pdf", "https://example.com/plain.pdf"),
+        ],
+        ids=["query_and_fragment", "credentials", "unchanged"],
+    )
+    def test_redact_url(self, url, expected):
+        assert redact_url(url) == expected
+
+    def test_download_error_does_not_show_the_query_string(self, local_server):
+        with pytest.raises(ValueError) as exc_info:
+            encode(local_server + "/missing.pdf?sig=SECRET")
+        assert "SECRET" not in str(exc_info.value)
+        assert "/missing.pdf" in str(exc_info.value)
+
+    def test_invalid_url_error_does_not_show_credentials(self):
+        with pytest.raises(ValueError) as exc_info:
+            encode("http://user:SECRET@127.0.0.1/report.pdf")
+        assert "SECRET" not in str(exc_info.value)
+        assert exc_info.value.__cause__ is None
+
+
+def test_litellm_refuses_to_download_internal_image_urls(local_server):
+    """The modalities docs rely on litellm checking the image URLs it downloads itself."""
+    with pytest.raises(ImageFetchError):
+        convert_url_to_base64(local_server + "/cat.png")
+    assert _RecordingHandler.paths == []

@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator
 import pytest
 from railtracks.retrieval import Chunk, Document
 from railtracks.retrieval.chunking import Chunker
+from railtracks.retrieval.loaders import LoadFailure
 
 # -------------------------------------------------------------------
 # Test chunker subclass
@@ -179,3 +180,19 @@ async def test_astream_documents_empty_stream():
     chunker = _PassthroughChunker()
     chunks = [c async for c in chunker.astream_documents(_empty())]
     assert chunks == []
+
+
+@pytest.mark.asyncio
+async def test_astream_documents_raises_on_load_failure():
+    error = ValueError("unreadable")
+
+    async def _stream() -> AsyncGenerator[Document | LoadFailure, None]:
+        yield Document(content="doc one", type="text")
+        yield LoadFailure(source="bad.txt", error=error)
+
+    chunker = _PassthroughChunker()
+    chunks = []
+    with pytest.raises(ValueError, match="unreadable"):
+        async for c in chunker.astream_documents(_stream()):
+            chunks.append(c)
+    assert len(chunks) == 1

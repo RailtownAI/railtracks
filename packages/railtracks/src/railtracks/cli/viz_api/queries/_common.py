@@ -206,11 +206,10 @@ _NODE_SPAN_CTE = """
 #: middleware ran 79 times.
 #:
 #: Grouped by the join key, and **globally rather than per session**, for the two
-#: reasons :func:`_middleware_rows_cte` documents: a type_id gets a creation
-#: event per process, and a module-level middleware registers once per process so
-#: later sessions carry invocations whose creation lives in another session's
-#: file. Shared by the middleware endpoints and the event log so the two cannot
-#: disagree about which events belong to a name.
+#: reasons :func:`_middleware_rows_cte` documents: a shared middleware gets a
+#: creation event in every session it runs in, and a session whose own creation
+#: is missing should still resolve. Shared by the middleware endpoints and the
+#: event log so the two cannot disagree about which events belong to a name.
 _MIDDLEWARE_NAME_CTE = """
     mw_names AS (
       SELECT middleware_type_id         AS type_id,
