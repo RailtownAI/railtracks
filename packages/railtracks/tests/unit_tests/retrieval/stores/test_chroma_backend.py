@@ -969,3 +969,27 @@ async def test_real_chroma_metadata_named_like_entry_fields_is_filterable(tmp_pa
     assert hit.entry.content == entry.content
     assert hit.entry.document_id == entry.document_id
     assert hit.entry.chunk_metadata == entry.chunk_metadata
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("backend_cls", [ChromaBackend, ChromaCloudBackend])
+async def test_aclose_releases_collection_and_is_idempotent(backend_cls):
+    backend = object.__new__(backend_cls)
+    backend._collection = _make_collection()
+
+    await backend.aclose()
+    await backend.aclose()
+
+    with pytest.raises(RuntimeError):
+        await backend.delete("x")
+
+
+async def test_vector_store_async_with_releases_chroma_collection():
+    backend = _injected_backend(_make_collection())
+    async with VectorStore(backend):
+        pass
+    assert backend._collection is None
