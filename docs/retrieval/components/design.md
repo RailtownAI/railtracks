@@ -176,12 +176,12 @@ past individual batch failures** delegating the handling of failed batches to th
 
 ### Stores
 
-The `Store` protocol exposes six async methods: [Store API Reference](../../api_reference/railtracks/retrieval.html#Store)
+The `Store` protocol exposes eight async methods: [Store API Reference](../../api_reference/railtracks/retrieval.html#Store)
 
 `VectorStore` is the canonical implementation. It delegates index
 operations to a `VectorBackend` (InMemory, Chroma, or Pgvector) and owns
 payload serialization and scope filtering. The backend protocol is small
-enough (`upsert`, `search`, `delete`, `delete_where`) that adding a new
+enough (`upsert`, `search`, `delete`, `delete_where`, `list_where`, `count`) that adding a new
 backend is a single-file change.
 
 ---

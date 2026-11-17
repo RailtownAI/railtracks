@@ -37,14 +37,24 @@ store = VectorStore(InMemoryVectorBackend())
 
 
 async def operations(entry: StoreEntry, query: StoreQuery):
-    await store.write(entry)
+    entry_id = await store.write(entry)
     results = await store.read(query)
     for r in results:
         print(r.rank, r.score, r.entry.content)
 
-    await store.delete(entry.id)
+    await store.delete(entry_id)
     await store.clear(StoreScope(labels={"user_id": "alice"}))
 # --8<-- [end:vs]
+
+
+async def filtered(document_id: str):
+    # --8<-- [start:filters]
+    # Chunks of one document (in any scope) whose metadata has page=4.
+    doc_filter = {"document_id": document_id}
+    entries = await store.find(doc_filter, limit=10, metadata_filters={"page": 4})
+    n = await store.count(metadata_filters={"page": 4})
+    await store.delete_where(doc_filter, metadata_filters={"page": 4})
+    # --8<-- [end:filters]
 
 
 # --8<-- [start:knn]
