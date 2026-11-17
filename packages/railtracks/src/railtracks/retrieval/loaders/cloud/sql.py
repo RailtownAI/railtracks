@@ -147,7 +147,9 @@ class SQLLoader(BaseDocumentLoader):
 
         if not self._is_raw_query:
             _validate_identifier(table_or_query, "table_or_query")
-        columns = [(c, f"content_columns[{c!r}]") for c in self._content_columns]
+        columns: list[tuple[str | None, str]] = [
+            (c, f"content_columns[{c!r}]") for c in self._content_columns
+        ]
         columns += [(id_column, "id_column"), (source_column, "source_column")]
         columns += [(c, f"metadata_columns[{c!r}]") for c in metadata_columns or []]
         for column, label in columns:
