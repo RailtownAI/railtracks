@@ -309,7 +309,7 @@ from railtracks.retrieval.loaders import SQLLoader
 loader = SQLLoader(
     "postgresql+psycopg2://user:pass@db.example.com:5432/mydb",
     table_or_query="documents",
-    content_column="body",
+    content_columns="body",
     metadata_columns=["title", "author", "created_at"],
     id_column="id",
 )
@@ -328,7 +328,7 @@ from railtracks.retrieval.loaders import SQLLoader
 loader = SQLLoader(
     os.environ["SUPABASE_DB_URL"],  # postgresql+psycopg2://...
     table_or_query="knowledge_base",
-    content_column="content",
+    content_columns="content",
     metadata_columns=["title", "category", "updated_at"],
     id_column="id",
     source_column="title",
@@ -347,7 +347,7 @@ loader = SQLLoader(
         "FROM articles "
         "WHERE published = true AND category = 'policy'"
     ),
-    content_column="body",
+    content_columns="body",
     id_column="id",
     source_column="title",
 )
@@ -361,9 +361,9 @@ from railtracks.retrieval.loaders import SQLLoader
 loader = SQLLoader(
     "postgresql+psycopg2://user:pass@host/db",
     table_or_query="documents",
-    content_column="body",
+    content_columns="body",
     id_column="id",
-    keys=["doc-001", "doc-002", "doc-003"],
+    ids=["doc-001", "doc-002", "doc-003"],
 )
 documents = loader.load()
 # --8<-- [end:sql_load_keys]
@@ -382,7 +382,7 @@ engine = sa.create_engine(
 loader = SQLLoader(
     "",                    # ignored when engine= is provided
     table_or_query="documents",
-    content_column="body",
+    content_columns="body",
     engine=engine,
 )
 documents = loader.load()
@@ -397,7 +397,7 @@ async def load_sql_documents():
     loader = SQLLoader(
         "postgresql+psycopg2://user:pass@host/db",
         table_or_query="documents",
-        content_column="body",
+        content_columns="body",
         id_column="id",
     )
     return await loader.aload()

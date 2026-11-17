@@ -51,6 +51,8 @@ Pass a [SQLAlchemy database URL](https://docs.sqlalchemy.org/en/20/core/engines.
 --8<-- "docs/scripts/integrations/storage_loaders.py:sql_basic_postgres"
 ```
 
+`content_columns` takes one column name or a list of them. With a list, the values are joined with `content_separator` (default `"\n"`) to form `Document.content`.
+
 ## Supabase
 
 ```python
@@ -85,7 +87,7 @@ transforming data before it reaches the loader:
                 SELECT id, body FROM ranked WHERE rn <= 100
             ) AS t
         """,
-        content_column="body",
+        content_columns="body",
         id_column="id",
     )
     ```
@@ -97,7 +99,7 @@ transforming data before it reaches the loader:
 ```
 
 !!! note
-    Filtering by `keys=` requires `id_column` to be set when constructing the
+    Filtering by `ids=` requires `id_column` to be set when constructing the
     loader.
 
 ## Reuse an existing engine
@@ -156,7 +158,7 @@ Each returned `Document` carries:
 | `Document.type` | `DocumentType.TEXT` |
 | `metadata[<col>]` | One entry per column listed in `metadata_columns` |
 
-When `metadata_columns` is `None`, all columns except `content_column` and
+When `metadata_columns` is `None`, all columns except `content_columns` and
 `id_column` are included automatically.
 
 ---
@@ -164,7 +166,7 @@ When `metadata_columns` is `None`, all columns except `content_column` and
 ## Security considerations
 
 !!! danger "Never pass user-controlled strings as identifiers"
-    `table_or_query`, `content_column`, `id_column`, `source_column`, and
+    `table_or_query`, `content_columns`, `id_column`, `source_column`, and
     `metadata_columns` are interpolated directly into SQL as structural
     identifiers (table and column names).  SQLAlchemy cannot parameterise these
     the way it can parameterise values.
@@ -183,7 +185,7 @@ When `metadata_columns` is `None`, all columns except `content_column` and
     loader = SQLLoader(
         connection_string,
         table_or_query="SELECT id, body FROM documents WHERE user_id = :uid",
-        content_column="body",
+        content_columns="body",
     )
     # Execute with bound parameter via your engine directly, then pass chunks as needed.
     ```
