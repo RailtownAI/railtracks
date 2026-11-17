@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
-import concurrent.futures
-import contextvars
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, List, ParamSpec, TypeVar
 
 from railtracks._session import Session
 from railtracks.interaction._call import call
+from railtracks.utils.asyncio_compat import run_sync
 
 if TYPE_CHECKING:
     from railtracks.context.external import MutableExternalContext
@@ -97,15 +95,7 @@ class FlowConnection(Generic[_P, _TOutput]):
             own event loop; `contextvars.copy_context()` keeps Session and
             logging context visible there.
         """
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(self.ainvoke(*args, **kwargs))
-
-        ctx = contextvars.copy_context()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(ctx.run, asyncio.run, self.ainvoke(*args, **kwargs))
-            return future.result()
+        return run_sync(self.ainvoke(*args, **kwargs))
 
     @property
     def connected(self) -> bool:

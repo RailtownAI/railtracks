@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import AsyncGenerator
+import inspect
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import aclosing
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal
+from types import TracebackType
+from typing import Any, Literal
 from uuid import UUID
+
+from typing_extensions import Self
 
 from ._logging import RetrievalComponent, get_logger
 from .chunking.base import Chunker
@@ -115,6 +119,35 @@ class IngestionStats:
     total_metrics: EmbeddingMetrics = field(default_factory=EmbeddingMetrics)
 
 
+@dataclass(frozen=True)
+class IngestCompleted:
+    """The final event of an ``ingest`` run, carrying its ``IngestionStats``.
+
+    Yielded once, after every document has been processed. It is not
+    yielded when the run raises.
+    """
+
+    stats: IngestionStats
+
+
+IngestionEvent = (
+    BatchIngested
+    | EmbeddingFailure
+    | DocumentFailed
+    | DocumentSkipped
+    | IngestCompleted
+)
+"""Every event ``RetrievalRuntime.ingest`` can yield."""
+
+_DocumentEvent = BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped
+
+
+async def _call_hook(hook: Callable[..., Awaitable[None] | None], *args: Any) -> None:
+    result = hook(*args)
+    if inspect.isawaitable(result):
+        await result
+
+
 @dataclass
 class _DocumentProgress:
     """How far one document got through ingest, and what went wrong."""
@@ -157,10 +190,12 @@ class RetrievalRuntime:
         batch_size: Items per embedding batch. Falls back to
             ``embedder.default_batch_size`` when omitted; raises
             ``ValueError`` at construction if neither is set.
-        on_ingest: Synchronous callback invoked with each ``IngestionEvent``
-            as it is yielded. Wrap in ``asyncio.create_task`` for async logging.
-        on_retrieve: Synchronous callback invoked with the query string and
-            the ``RetrievalResult`` after each retrieve call.
+        on_ingest: Callback invoked with each ``IngestionEvent`` before it
+            is yielded, ending with ``IngestCompleted``. May be sync or
+            async; an async callback is awaited, so it delays the run.
+        on_retrieve: Callback invoked with the query string and the
+            ``RetrievalResult`` after each retrieve call. May be sync or
+            async; an async callback is awaited before ``retrieve`` returns.
         max_tokens: When set, chunks whose token count exceeds this limit
             are dropped before embedding and reported via
             ``EmbeddingFailure`` rather than being sent to the provider.
@@ -186,11 +221,9 @@ class RetrievalRuntime:
         store: Store,
         *,
         batch_size: int | None = None,
-        on_ingest: Callable[
-            [BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped], None
-        ]
+        on_ingest: Callable[[IngestionEvent], Awaitable[None] | None] | None = None,
+        on_retrieve: Callable[[str, RetrievalResult], Awaitable[None] | None]
         | None = None,
-        on_retrieve: Callable[[str, RetrievalResult], None] | None = None,
         max_tokens: int | None = None,
         tokenizer: Tokenizer | None = None,
         on_error: Literal["skip", "raise"] = "skip",
@@ -215,6 +248,23 @@ class RetrievalRuntime:
         # an existing store entry on the first ingest/retrieve.
         self._captured_model: str | None = None
         self._seed_attempted: bool = False
+
+    async def aclose(self) -> None:
+        """Close the store, if it defines ``aclose``. Safe to call twice."""
+        aclose = getattr(self._store, "aclose", None)
+        if aclose is not None:
+            await aclose()
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.aclose()
 
     @property
     def store(self) -> Store:
@@ -256,9 +306,7 @@ class RetrievalRuntime:
         loader: BaseDocumentLoader,
         *,
         scope: StoreScope | None = None,
-    ) -> AsyncGenerator[
-        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
-    ]:
+    ) -> AsyncGenerator[IngestionEvent, None]:
         """Stream loader → chunker → embedder → store, yielding per-batch events.
 
         Args:
@@ -275,7 +323,8 @@ class RetrievalRuntime:
             for an unchanged document, and ``DocumentFailed`` once for each
             document that could not be fully ingested (see its ``stage``).
             Successful batches for a partially-failed document are still
-            written; ``DocumentFailed`` signals the partial state.
+            written; ``DocumentFailed`` signals the partial state. The last
+            event is ``IngestCompleted`` with the run's ``IngestionStats``.
 
         Raises:
             ValueError: If ``scope`` is ``ALL_SCOPES``; ingest needs one scope.
@@ -285,9 +334,15 @@ class RetrievalRuntime:
         """
         stats = IngestionStats()
         async for event in self._ingest_with_stats(loader, stats, scope):
-            if self._on_ingest is not None:
-                self._on_ingest(event)
+            await self._emit(event)
             yield event
+        completed = IngestCompleted(stats=stats)
+        await self._emit(completed)
+        yield completed
+
+    async def _emit(self, event: IngestionEvent) -> None:
+        if self._on_ingest is not None:
+            await _call_hook(self._on_ingest, event)
 
     async def ingest_all(
         self,
@@ -295,11 +350,11 @@ class RetrievalRuntime:
         *,
         scope: StoreScope | None = None,
     ) -> IngestionStats:
-        """Drain `ingest` and return aggregate counts."""
+        """Drain `ingest` and return the stats from its `IngestCompleted`."""
         stats = IngestionStats()
-        async for event in self._ingest_with_stats(loader, stats, scope):
-            if self._on_ingest is not None:
-                self._on_ingest(event)
+        async for event in self.ingest(loader, scope=scope):
+            if isinstance(event, IngestCompleted):
+                stats = event.stats
         return stats
 
     async def _ingest_with_stats(
@@ -307,9 +362,7 @@ class RetrievalRuntime:
         loader: BaseDocumentLoader,
         stats: IngestionStats,
         scope: StoreScope | None,
-    ) -> AsyncGenerator[
-        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
-    ]:
+    ) -> AsyncGenerator[_DocumentEvent, None]:
         # Fail fast on ALL_SCOPES instead of once per document.
         exact_scope_filter(scope)
         seen_document_ids: set[UUID] = set()
@@ -340,9 +393,7 @@ class RetrievalRuntime:
 
     async def _ingest_document(
         self, doc: Document, stats: IngestionStats, scope: StoreScope | None
-    ) -> AsyncGenerator[
-        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
-    ]:
+    ) -> AsyncGenerator[_DocumentEvent, None]:
         stats.documents_loaded += 1
         progress = _DocumentProgress()
         try:
@@ -365,9 +416,7 @@ class RetrievalRuntime:
         stats: IngestionStats,
         progress: _DocumentProgress,
         scope: StoreScope | None,
-    ) -> AsyncGenerator[
-        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
-    ]:
+    ) -> AsyncGenerator[_DocumentEvent, None]:
         doc.content_hash = _content_hash(doc.content)
 
         await self._ensure_captured_model_seeded()
@@ -496,9 +545,7 @@ class RetrievalRuntime:
         stats: IngestionStats,
         progress: _DocumentProgress,
         scope: StoreScope | None,
-    ) -> AsyncGenerator[
-        BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
-    ]:
+    ) -> AsyncGenerator[_DocumentEvent, None]:
         # batch_index is per-document: it counts batches (successful and
         # failed) within this document and resets for the next one.
         batch_index = 0
@@ -671,5 +718,5 @@ class RetrievalRuntime:
             embedding_metrics=text_result.metrics,
         )
         if self._on_retrieve is not None:
-            self._on_retrieve(query, result)
+            await _call_hook(self._on_retrieve, query, result)
         return result

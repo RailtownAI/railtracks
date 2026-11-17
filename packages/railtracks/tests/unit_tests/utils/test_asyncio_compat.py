@@ -7,7 +7,9 @@ import threading
 import pytest
 from railtracks.utils.asyncio_compat import run_sync
 
-_marker: contextvars.ContextVar[str] = contextvars.ContextVar("_marker", default="unset")
+_marker: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_marker", default="unset"
+)
 
 
 async def _double(x: int) -> int:
