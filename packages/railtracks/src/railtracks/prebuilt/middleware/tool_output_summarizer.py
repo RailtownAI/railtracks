@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from weakref import WeakKeyDictionary
 
 from pydantic import BaseModel
@@ -9,7 +10,11 @@ from pydantic import BaseModel
 from railtracks.built_nodes._types import LLM_CALL, ModelSource
 from railtracks.built_nodes.llm.node import agent_node
 from railtracks.built_nodes.llm.response import StringResponse
-from railtracks.context.central import get_current_scope, is_context_present
+from railtracks.context.central import (
+    get_current_scope,
+    is_context_present,
+    safe_get_runner_context,
+)
 from railtracks.context.scope_link import ScopeLink
 from railtracks.context.session_context import ScopeEntry, ScopeKind
 from railtracks.interaction._call import call as call_node
@@ -82,9 +87,7 @@ class ToolOutputSummarizer(ModelOnlyMiddleware):
             llm=summarizer,
             system_message=_SUMMARY_SYSTEM_PROMPT,
         )
-        self._run_summaries: WeakKeyDictionary[
-            ScopeLink[ScopeEntry], dict[str, str | None]
-        ] = WeakKeyDictionary()
+        self._context_key = f"tool_output_summarizer_{uuid.uuid4().hex}"
         self._max_chars = max_chars
         self._summary_max_chars = summary_max_chars
         self._input_max_chars = input_max_chars
@@ -140,8 +143,16 @@ class ToolOutputSummarizer(ModelOnlyMiddleware):
         )
         if node_scope is None:
             return {}
-        # Middleware can be shared by agent invocations; retain only live node scopes.
-        return self._run_summaries.setdefault(node_scope, {})
+        # The run context owns state; weak node keys discard completed invocations.
+        context = safe_get_runner_context().external_context
+        try:
+            summaries_by_scope: WeakKeyDictionary[
+                ScopeLink[ScopeEntry], dict[str, str | None]
+            ] = context.get(self._context_key)
+        except KeyError:
+            summaries_by_scope = WeakKeyDictionary()
+            context.put(self._context_key, summaries_by_scope)
+        return summaries_by_scope.setdefault(node_scope, {})
 
     async def _cache_summary(
         self, response: ToolResponse, summaries: dict[str, str | None]
