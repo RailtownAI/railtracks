@@ -7,7 +7,6 @@ from .key_value import (
 from .models import (
     ALL_SCOPES,
     AllScopes,
-    Entity,
     RetrievedStoreEntry,
     StoreEntry,
     StoreQuery,
@@ -33,7 +32,6 @@ __all__ = [
     "ChromaBackend",
     "ChromaCloudBackend",
     "DistanceMetric",
-    "Entity",
     "InMemoryKeyValueStore",
     "InMemoryVectorBackend",
     "KeyValueStore",

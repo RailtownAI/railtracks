@@ -514,7 +514,7 @@ async def test_snapshot_reflects_deletes(tmp_path: Path):
     store = VectorStore(InMemoryBackend(snapshot_path=path))
     entry = _make_entry()
     await store.write(entry)
-    await store.delete(entry.id)
+    await store.delete(str(entry.id))
 
     reloaded = VectorStore(InMemoryBackend(snapshot_path=path))
     results = await reloaded.read(_make_query())
