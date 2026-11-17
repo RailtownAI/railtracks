@@ -71,6 +71,7 @@ from railtracks.retrieval import (
     DocumentFailed,
     DocumentSkipped,
     EmbeddingFailure,
+    IngestCompleted,
     RetrievalRuntime,
 )
 
@@ -86,6 +87,8 @@ async def stream(runtime: RetrievalRuntime, loader):
                 print(f"  ! {src} failed at {stage}: {errs[-1]!r}")
             case DocumentSkipped(source=src):
                 print(f"  ~ skipped (unchanged): {src}")
+            case IngestCompleted(stats=stats):
+                print(f"done: {stats.chunks_embedded} chunks, {stats.documents_failed} failed")
 # --8<-- [end:streaming]
 
 
@@ -160,23 +163,15 @@ loader: BaseDocumentLoader = SanitizingLoader(TextLoader("./hr_docs"), sanitizer
 
 
 # --8<-- [start:on_ingest_hook]
-import asyncio
-
-
 def audit(event):
     # Sync hook — runs inline with the ingest stream. Keep it cheap:
     # logging, in-process counters, metrics .inc() calls.
     print(f"[audit] {type(event).__name__}: {event}")
 
 
-def audit_async(event):
-    # Slow or async work? Schedule it and return immediately so the
-    # stream keeps moving. Errors surface on the task, not on ingest.
-    asyncio.create_task(_send_to_audit_log(event))
-
-
-async def _send_to_audit_log(event) -> None:
-    # Stand-in for a real async client (asyncpg, aiohttp webhook, etc.).
+async def audit_async(event):
+    # Async hooks are awaited before the event is yielded, so a slow hook
+    # slows the stream. Stand-in for a real async client (asyncpg, aiohttp).
     ...
 
 
