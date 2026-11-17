@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from railtracks.retrieval.chunking import TiktokenTokenizer, Tokenizer, tokenization
 
 
