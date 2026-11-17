@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import fields, replace
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -12,7 +11,6 @@ from uuid import uuid4
 import pytest
 from railtracks.retrieval.stores.models import (
     ALL_SCOPES,
-    Entity,
     StoreEntry,
     StoreQuery,
     StoreScope,
@@ -35,8 +33,6 @@ from railtracks.retrieval.stores.vector.base import (
 def _make_entry(
     user_id: str = "alice",
     content: str = "hello world",
-    summary: str | None = "a summary",
-    abstract: str | None = "an abstract",
     vector: list[float] | None = None,
 ) -> StoreEntry:
     if vector is None:
@@ -48,8 +44,6 @@ def _make_entry(
         embedding_model="toy",
         chunk_id=uuid4(),
         document_id=uuid4(),
-        abstract=abstract,
-        summary=summary,
         scope=StoreScope(labels={"user_id": user_id}),
     )
 
@@ -293,24 +287,23 @@ async def test_clear_with_empty_scope_removes_only_unscoped_entries():
 
 
 async def test_read_returns_full_entry():
-    """Read returns the entry with content and summary intact —
+    """Read returns the entry with its content intact —
     no projection layer between backend and caller."""
     store = VectorStore(InMemoryBackend())
-    entry = _make_entry(summary="important summary", content="full content")
+    entry = _make_entry(content="full content")
     await store.write(entry)
 
     results = await store.read(_make_query())
     assert len(results) == 1
-    assert results[0].entry.summary == "important summary"
     assert results[0].entry.content == "full content"
 
 
 async def test_delete():
     store = VectorStore(InMemoryBackend())
     entry = _make_entry()
-    await store.write(entry)
+    entry_id = await store.write(entry)
 
-    await store.delete(entry.id)
+    await store.delete(entry_id)
 
     results = await store.read(_make_query())
     assert results == []
@@ -459,8 +452,6 @@ async def test_chunk_roundtrip_preserves_all_fields():
         parent_chunk_id=parent_chunk_id,
         chunk_offsets=(12, 48),
         chunk_metadata={"section": "intro", "lang": "en"},
-        abstract="abs",
-        summary="sum",
         scope=StoreScope(labels={"user_id": "alice"}),
     )
 
@@ -655,7 +646,6 @@ def test_chunk_metadata_key_colliding_with_entry_field_round_trips(key):
     assert payload[f"meta_{key}"] == "from-metadata"
     assert payload.get(key) != "from-metadata"
     assert got.content == entry.content
-    assert got.summary == entry.summary
     assert got.document_id == entry.document_id
     assert got.scope == entry.scope
 
@@ -761,12 +751,7 @@ def _fully_populated_entry() -> StoreEntry:
         parent_chunk_id=uuid4(),
         chunk_offsets=(0, 4),
         chunk_metadata={"page": 3, "tags": ["a"]},
-        abstract="abs",
-        summary="sum",
         scope=StoreScope(labels={"user_id": "alice"}),
-        entities=[Entity(name="n", type="t", source_chunk_id=chunk_id)],
-        valid_from=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        valid_until=datetime(2026, 12, 31, tzinfo=timezone.utc),
     )
 
 
@@ -821,11 +806,151 @@ def test_reserved_key_in_metadata_round_trips_when_fields_are_unset(key):
         "parent_chunk_id",
         "chunk_offsets",
         "embedding_version",
-        "abstract",
-        "summary",
-        "entities",
-        "valid_from",
-        "valid_until",
     ):
         assert getattr(got, name) is None, name
     assert not got.scope.labels
+
+
+# ---------------------------------------------------------------------------
+# Payloads from older versions
+# ---------------------------------------------------------------------------
+
+# Written by versions that still had these StoreEntry fields.
+_LEGACY_ENRICHMENT_PAYLOAD = {
+    "abstract": "abs",
+    "summary": "sum",
+    "valid_from": "2026-01-01T00:00:00+00:00",
+    "valid_until": "2026-12-31T00:00:00+00:00",
+    "entities": json.dumps(
+        [{"name": "n", "type": "t", "source_chunk_id": str(uuid4()), "metadata": {}}]
+    ),
+}
+
+
+def test_payload_with_removed_enrichment_keys_still_decodes():
+    entry = _metadata_entry({"page": 3})
+    payload = {**_entry_to_payload(entry), **_LEGACY_ENRICHMENT_PAYLOAD}
+
+    got = _payload_to_entry(str(entry.id), payload)
+
+    assert got.chunk_metadata == {"page": 3}
+    assert got.content == entry.content
+    assert got.scope == entry.scope
+    for name in _LEGACY_ENRICHMENT_PAYLOAD:
+        assert not hasattr(got, name), name
+
+
+async def test_legacy_enrichment_keys_do_not_leak_through_a_store_read():
+    backend = InMemoryBackend()
+    store = VectorStore(backend)
+    entry = _metadata_entry({"page": 3})
+    await backend.upsert(
+        str(entry.id),
+        entry.vector,
+        {**_entry_to_payload(entry), **_LEGACY_ENRICHMENT_PAYLOAD},
+    )
+
+    [hit] = await store.read(_make_query())
+    [found] = await store.find({}, limit=1)
+
+    assert hit.entry.chunk_metadata == {"page": 3}
+    assert found.chunk_metadata == {"page": 3}
+
+
+def test_payload_no_longer_writes_removed_enrichment_keys():
+    payload = _entry_to_payload(_fully_populated_entry())
+
+    assert not set(_LEGACY_ENRICHMENT_PAYLOAD) & set(payload)
+
+
+# ---------------------------------------------------------------------------
+# metadata_filters on find / count / delete_where
+# ---------------------------------------------------------------------------
+
+
+async def test_find_count_and_delete_where_accept_metadata_filters():
+    store = VectorStore(InMemoryBackend())
+    entry = _csv_like_entry(None, {"page": 4})
+    await store.write(entry)
+    await store.write(_csv_like_entry(None, {"page": 5}))
+
+    [found] = await store.find(metadata_filters={"page": 4})
+    assert found.id == entry.id
+    assert await store.count(metadata_filters={"page": 4}) == 1
+
+    await store.delete_where(metadata_filters={"page": 4})
+
+    assert await store.count(metadata_filters={"page": 4}) == 0
+    assert await store.count() == 1
+
+
+async def test_metadata_filters_on_store_methods_always_mean_chunk_metadata():
+    # document_id is an entry field in filters, but chunk metadata here.
+    store = VectorStore(InMemoryBackend())
+    row = _csv_like_entry(None, {"document_id": "42"})
+    await store.write(row)
+    await store.write(_csv_like_entry(None, {"document_id": "7"}))
+
+    [found] = await store.find(metadata_filters={"document_id": "42"}, limit=10)
+    assert found.id == row.id
+    by_internal_id = await store.find(
+        metadata_filters={"document_id": str(row.document_id)}
+    )
+    assert by_internal_id == []
+    assert await store.count(metadata_filters={"document_id": "42"}) == 1
+
+    await store.delete_where(metadata_filters={"document_id": "42"})
+
+    assert await store.count() == 1
+    assert await store.count({"document_id": str(row.document_id)}) == 0
+
+
+async def test_filters_and_metadata_filters_combine():
+    store = VectorStore(InMemoryBackend())
+    alice = StoreScope(labels={"tenant": "alice"})
+    alice_page = _csv_like_entry(alice, {"page": 4})
+    bob_page = _csv_like_entry(StoreScope(labels={"tenant": "bob"}), {"page": 4})
+    alice_other = _csv_like_entry(alice, {"page": 5})
+    for entry in (alice_page, bob_page, alice_other):
+        await store.write(entry)
+
+    scope_filter = exact_scope_filter(alice)
+    found = await store.find(scope_filter, limit=10, metadata_filters={"page": 4})
+    assert [e.id for e in found] == [alice_page.id]
+    assert await store.count(scope_filter, metadata_filters={"page": 4}) == 1
+
+    await store.delete_where(scope_filter, metadata_filters={"page": 4})
+
+    remaining = {e.id for e in await store.find({}, limit=10)}
+    assert remaining == {bob_page.id, alice_other.id}
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {"filters": {}},
+        {"metadata_filters": {}},
+        {"filters": {}, "metadata_filters": {}},
+    ],
+)
+async def test_delete_where_rejects_empty_filters(kwargs):
+    store = VectorStore(InMemoryBackend())
+    await store.write(_make_entry())
+
+    with pytest.raises(ValueError, match="clear"):
+        await store.delete_where(**kwargs)
+
+    assert await store.count() == 1
+
+
+async def test_clear_of_unscoped_namespace_still_works():
+    store = VectorStore(InMemoryBackend())
+    unscoped = _csv_like_entry(None, {})
+    scoped = _csv_like_entry(StoreScope(labels={"tenant": "alice"}), {})
+    await store.write(unscoped)
+    await store.write(scoped)
+
+    await store.clear(StoreScope())
+
+    assert [e.id for e in await store.find({}, limit=10)] == [scoped.id]

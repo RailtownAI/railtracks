@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 from uuid import uuid4
 
 import pytest
@@ -18,8 +18,6 @@ from railtracks.retrieval.stores.models import (
 def _make_entry(
     user_id: str = "alice",
     content: str = "hello world",
-    summary: str | None = "a summary",
-    abstract: str | None = "an abstract",
 ) -> StoreEntry:
     return StoreEntry(
         id=uuid4(),
@@ -28,8 +26,6 @@ def _make_entry(
         embedding_model="toy",
         chunk_id=uuid4(),
         document_id=uuid4(),
-        abstract=abstract,
-        summary=summary,
         scope=StoreScope(labels={"user_id": user_id}),
     )
 
@@ -74,13 +70,15 @@ def test_store_scope_accepts_non_string_scalars():
 def test_store_entry_stores_all_fields():
     entry = _make_entry()
     assert entry.content == "hello world"
-    assert entry.abstract == "an abstract"
-    assert entry.summary == "a summary"
     assert entry.scope.labels == {"user_id": "alice"}
-    assert entry.entities is None
-    assert entry.valid_from is None
-    assert entry.valid_until is None
     assert entry.created_at is not None
+
+
+@pytest.mark.parametrize(
+    "name", ["abstract", "summary", "entities", "valid_from", "valid_until"]
+)
+def test_store_entry_has_no_unused_enrichment_fields(name):
+    assert name not in {f.name for f in fields(StoreEntry)}
 
 
 def test_store_entry_optional_fields_default_none():
@@ -92,9 +90,9 @@ def test_store_entry_optional_fields_default_none():
         chunk_id=uuid4(),
         document_id=uuid4(),
     )
-    assert entry.abstract is None
-    assert entry.summary is None
     assert entry.scope is None
+    assert entry.parent_chunk_id is None
+    assert entry.embedding_version is None
 
 
 def test_store_entry_content_accessible():
@@ -109,12 +107,7 @@ def test_store_entry_from_chunk():
     )
     scope = StoreScope(labels={"user_id": "alice"})
 
-    entry = StoreEntry.from_chunk(
-        embedded,
-        scope=scope,
-        abstract="abs",
-        summary="sum",
-    )
+    entry = StoreEntry.from_chunk(embedded, scope=scope)
 
     assert entry.content == "chunk text"
     assert entry.vector == [0.1, 0.2]
@@ -124,8 +117,6 @@ def test_store_entry_from_chunk():
     assert entry.document_id == chunk.document_id
     assert entry.chunk_index == 3
     assert entry.scope == scope
-    assert entry.abstract == "abs"
-    assert entry.summary == "sum"
     assert entry.id is not None
 
 
@@ -134,8 +125,14 @@ def test_store_entry_from_chunk_minimal():
     embedded = EmbeddedChunk(chunk=chunk, vector=[1.0], embedding_model="m")
     entry = StoreEntry.from_chunk(embedded)
     assert entry.scope is None
-    assert entry.abstract is None
-    assert entry.summary is None
+
+
+@pytest.mark.parametrize("kwarg", ["abstract", "summary", "entities"])
+def test_store_entry_from_chunk_rejects_removed_kwargs(kwarg):
+    chunk = Chunk(content="text", document_id=uuid4())
+    embedded = EmbeddedChunk(chunk=chunk, vector=[1.0], embedding_model="m")
+    with pytest.raises(TypeError):
+        StoreEntry.from_chunk(embedded, **{kwarg: "x"})
 
 
 def test_store_query_defaults():
@@ -148,6 +145,12 @@ def test_store_query_defaults():
 def test_store_query_scope_optional():
     query = StoreQuery(text="hello")
     assert query.scope is None
+
+
+def test_store_query_text_optional():
+    query = StoreQuery(embedding=[0.1, 0.2])
+    assert query.text is None
+    assert query.embedding == [0.1, 0.2]
 
 
 def test_retrieved_store_entry():
