@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
 import mimetypes
@@ -245,13 +244,14 @@ def _file_part(attachment: Attachment) -> Dict[str, Any]:
 
 def _audio_part(attachment: Attachment) -> Dict[str, Any]:
     """Build an `input_audio` part, which needs the bytes; an audio URL goes as a `file` part."""
-    if attachment.data is None:
+    payload = attachment.base64
+    if payload is None:
         return _file_part(attachment)
     mime_type = attachment.mime_type or ""
     return {
         "type": "input_audio",
         "input_audio": {
-            "data": base64.b64encode(attachment.data).decode("ascii"),
+            "data": payload,
             "format": _INPUT_AUDIO_FORMATS.get(mime_type, mime_type.partition("/")[2]),
         },
     }
@@ -1145,6 +1145,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                 model does not take PDF input.
         """
         modality = attachment.modality
+        # Checked before any builder, so an attachment that isn't sent is never base64-encoded.
         if modality not in self._ACCEPTED_MODALITIES:
             accepted = ", ".join(sorted(self._ACCEPTED_MODALITIES))
             hint = (

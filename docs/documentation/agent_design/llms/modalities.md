@@ -189,6 +189,7 @@ Each attachment exposes:
 | `size` | Size in bytes; `None` for a URL that is passed to the provider as is |
 | `sha256` | Hex SHA-256 of the bytes, the same whichever way they were loaded; `None` for such URLs |
 | `data` | The raw bytes; `None` for such URLs |
+| `base64` / `encoding` | The bytes as plain base64 / as a `data:` URI, built on each read; `None` for such URLs |
 
 A local file, base64 string or data URI is read once when the attachment is created and kept as raw bytes, so changing the file afterwards does not change the attachment. The base64 that providers need is built from those bytes on each request. Two attachments are equal when they hold the same bytes (or the same URL) and MIME type.
 
