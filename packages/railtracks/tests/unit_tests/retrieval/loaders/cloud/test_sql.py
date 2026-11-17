@@ -34,7 +34,7 @@ def loader(populated_engine):
     return SQLLoader(
         "",
         table_or_query="documents",
-        content_column="body",
+        content_columns="body",
         id_column="id",
         source_column="title",
         metadata_columns=["title"],
@@ -74,7 +74,7 @@ class TestSQLLoaderInit:
                 "",
                 "documents",
                 "body",
-                keys=["doc-1"],
+                ids=["doc-1"],
                 engine=populated_engine,
             )
 
@@ -124,7 +124,7 @@ class TestSQLLoaderRawQuery:
         loader = SQLLoader(
             "",
             table_or_query="SELECT id, body FROM documents WHERE id = 'doc-1'",
-            content_column="body",
+            content_columns="body",
             id_column="id",
             engine=populated_engine,
         )
@@ -138,7 +138,7 @@ class TestSQLLoaderRawQuery:
         loader = SQLLoader(
             "",
             table_or_query="select id, body from documents",
-            content_column="body",
+            content_columns="body",
             engine=populated_engine,
         )
         docs = loader.load()
@@ -154,7 +154,7 @@ class TestSQLLoaderKeysFilter:
             "documents",
             "body",
             id_column="id",
-            keys=["doc-1", "doc-3"],
+            ids=["doc-1", "doc-3"],
             engine=populated_engine,
         )
         docs = loader.load()
@@ -168,7 +168,7 @@ class TestSQLLoaderKeysFilter:
             "documents",
             "body",
             id_column="id",
-            keys=[],
+            ids=[],
             engine=populated_engine,
         )
         assert loader.load() == []
@@ -181,7 +181,7 @@ class TestSQLLoaderKeysFilter:
             "documents",
             "body",
             id_column="id",
-            keys=["does-not-exist"],
+            ids=["does-not-exist"],
             engine=populated_engine,
         )
         assert loader.load() == []
@@ -194,7 +194,7 @@ class TestSQLLoaderAutoMetadata:
         loader = SQLLoader(
             "",
             "documents",
-            content_column="body",
+            content_columns="body",
             id_column="id",
             engine=populated_engine,
         )
@@ -210,3 +210,94 @@ class TestSQLLoaderAsync:
         docs = await loader.aload()
         assert len(docs) == 3
         assert {d.content for d in docs} == {r["body"] for r in ROWS}
+
+
+class TestSQLLoaderContentColumns:
+    def test_multiple_columns_joined_with_separator(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        loader = SQLLoader(
+            "",
+            "documents",
+            ["title", "body"],
+            content_separator=" | ",
+            engine=populated_engine,
+        )
+        contents = {d.content for d in loader.load()}
+        assert contents == {f"{r['title']} | {r['body']}" for r in ROWS}
+
+    def test_default_separator_is_newline(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        loader = SQLLoader("", "documents", ["title", "body"], engine=populated_engine)
+        contents = {d.content for d in loader.load()}
+        assert contents == {f"{r['title']}\n{r['body']}" for r in ROWS}
+
+    def test_all_content_columns_excluded_from_metadata(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        loader = SQLLoader("", "documents", ["title", "body"], engine=populated_engine)
+        for doc in loader.load():
+            assert "title" not in doc.metadata
+            assert "body" not in doc.metadata
+
+    def test_each_content_column_is_validated(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        with pytest.raises(ValueError, match="Invalid SQL identifier"):
+            SQLLoader("", "documents", ["body", "x; DROP"], engine=populated_engine)
+
+    def test_missing_content_columns_raises_type_error(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        with pytest.raises(TypeError, match="content_columns"):
+            SQLLoader("", "documents", engine=populated_engine)
+
+
+class TestSQLLoaderRenamedArguments:
+    def test_content_column_keyword_warns(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        with pytest.warns(
+            FutureWarning, match=r"SQLLoader\(content_column=.*2\.0\.0"
+        ) as rec:
+            loader = SQLLoader(
+                "", "documents", content_column="body", engine=populated_engine
+            )
+        assert "content_columns=" in str(rec[0].message)
+        assert rec[0].filename == __file__
+        assert {d.content for d in loader.load()} == {r["body"] for r in ROWS}
+
+    def test_keys_keyword_warns(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        with pytest.warns(FutureWarning, match=r"SQLLoader\(keys=.*2\.0\.0") as rec:
+            loader = SQLLoader(
+                "",
+                "documents",
+                "body",
+                id_column="id",
+                keys=["doc-1"],
+                engine=populated_engine,
+            )
+        assert "ids=" in str(rec[0].message)
+        assert len(loader.load()) == 1
+
+    def test_positional_content_column_is_silent(
+        self, populated_engine, recwarn
+    ) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        SQLLoader("", "documents", "body", engine=populated_engine)
+        assert not [w for w in recwarn if issubclass(w.category, FutureWarning)]
+
+    @pytest.mark.parametrize(
+        ("old", "new", "value"),
+        [("content_column", "content_columns", "body"), ("keys", "ids", ["doc-1"])],
+    )
+    def test_passing_both_names_raises(self, populated_engine, old, new, value) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        kwargs = {"content_columns": "body", "id_column": "id", old: value, new: value}
+        with pytest.raises(TypeError, match=rf"{old}.*{new}"):
+            SQLLoader("", "documents", engine=populated_engine, **kwargs)

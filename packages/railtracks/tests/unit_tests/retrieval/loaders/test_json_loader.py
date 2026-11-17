@@ -15,10 +15,10 @@ class TestJSONLoaderSingleObject:
         docs = await JSONLoader(str(json_object_file)).aload()
         assert len(docs) == 1
 
-    async def test_single_object_content_keys_star_serialises_full_object(
+    async def test_single_object_content_columns_star_serialises_full_object(
         self, json_object_file
     ):
-        """content_keys='*' (default) serialises the whole object as content."""
+        """content_columns='*' (default) serialises the whole object as content."""
         docs = await JSONLoader(str(json_object_file)).aload()
         parsed = json.loads(docs[0].content)
         assert parsed["title"] == "Doc"
@@ -56,7 +56,7 @@ class TestJSONLoaderArray:
 
     async def test_array_order_preserved(self, json_array_file):
         """Documents are yielded in the same order as the array."""
-        docs = await JSONLoader(str(json_array_file), content_keys=["title"]).aload()
+        docs = await JSONLoader(str(json_array_file), content_columns=["title"]).aload()
         assert "First" in docs[0].content
         assert "Second" in docs[1].content
 
@@ -74,49 +74,49 @@ class TestJSONLoaderArray:
         assert len({d.id for d in docs}) == len(docs)
 
 
-class TestJSONLoaderContentKeys:
-    """Tests for the content_keys parameter."""
+class TestJSONLoaderContentColumns:
+    """Tests for the content_columns parameter."""
 
-    async def test_explicit_content_keys_build_content_string(self, json_object_file):
-        """Explicit content_keys join the matching values into content."""
+    async def test_explicit_content_columns_build_content_string(self, json_object_file):
+        """Explicit content_columns join the matching values into content."""
         docs = await JSONLoader(
-            str(json_object_file), content_keys=["title", "body"]
+            str(json_object_file), content_columns=["title", "body"]
         ).aload()
         assert "title: Doc" in docs[0].content
         assert "body: Content here" in docs[0].content
 
-    async def test_explicit_content_keys_exclude_from_metadata(self, json_object_file):
-        """Keys listed in content_keys are not repeated in metadata."""
-        docs = await JSONLoader(str(json_object_file), content_keys=["title"]).aload()
+    async def test_explicit_content_columns_exclude_from_metadata(self, json_object_file):
+        """Keys listed in content_columns are not repeated in metadata."""
+        docs = await JSONLoader(str(json_object_file), content_columns=["title"]).aload()
         assert "title" not in docs[0].metadata
 
-    async def test_non_content_keys_go_to_metadata(self, json_object_file):
-        """Keys not in content_keys (and not ignored) end up in metadata."""
-        docs = await JSONLoader(str(json_object_file), content_keys=["title"]).aload()
+    async def test_non_content_columns_go_to_metadata(self, json_object_file):
+        """Keys not in content_columns (and not ignored) end up in metadata."""
+        docs = await JSONLoader(str(json_object_file), content_columns=["title"]).aload()
         assert docs[0].metadata["body"] == "Content here"
         assert docs[0].metadata["score"] == 42
 
     async def test_content_separator_joins_values(self, json_object_file):
-        """content_separator is used between the values of multiple content_keys."""
+        """content_separator is used between the values of multiple content_columns."""
         docs = await JSONLoader(
             str(json_object_file),
-            content_keys=["title", "body"],
+            content_columns=["title", "body"],
             content_separator=" | ",
         ).aload()
         assert "title: Doc | body: Content here" == docs[0].content
 
     async def test_missing_content_key_raises_value_error(self, json_object_file):
         """A content_key not present in the object raises ValueError."""
-        loader = JSONLoader(str(json_object_file), content_keys=["nonexistent"])
+        loader = JSONLoader(str(json_object_file), content_columns=["nonexistent"])
         with pytest.raises(ValueError, match="not found in object"):
             await loader.aload()
 
 
-class TestJSONLoaderIdKey:
-    """Tests for the id_key parameter (per-object source identity)."""
+class TestJSONLoaderIdColumn:
+    """Tests for the id_column parameter (per-object source identity)."""
 
-    async def test_id_key_used_in_source(self, tmp_path):
-        """When id_key is set, its value becomes the source suffix."""
+    async def test_id_column_used_in_source(self, tmp_path):
+        """When id_column is set, its value becomes the source suffix."""
         f = tmp_path / "with_id.json"
         f.write_text(
             json.dumps(
@@ -127,31 +127,31 @@ class TestJSONLoaderIdKey:
             ),
             encoding="utf-8",
         )
-        docs = await JSONLoader(str(f), id_key="_id").aload()
+        docs = await JSONLoader(str(f), id_column="_id").aload()
         assert [d.source for d in docs] == [f"{f}#a1", f"{f}#a2"]
 
-    async def test_id_key_keeps_ids_stable_across_reorder(self, tmp_path):
-        """Same id_key value → same Document.id when the same file is re-loaded
+    async def test_id_column_keeps_ids_stable_across_reorder(self, tmp_path):
+        """Same id_column value → same Document.id when the same file is re-loaded
         with objects reordered. This is the upsert-correctness contract."""
         f = tmp_path / "data.json"
         f.write_text(
             json.dumps([{"_id": "a1", "body": "x"}, {"_id": "a2", "body": "y"}]),
             encoding="utf-8",
         )
-        docs1 = await JSONLoader(str(f), id_key="_id").aload()
+        docs1 = await JSONLoader(str(f), id_column="_id").aload()
 
         f.write_text(
             json.dumps([{"_id": "a2", "body": "y"}, {"_id": "a1", "body": "x"}]),
             encoding="utf-8",
         )
-        docs2 = await JSONLoader(str(f), id_key="_id").aload()
+        docs2 = await JSONLoader(str(f), id_column="_id").aload()
 
         by_id_1 = {d.source.rsplit("#", 1)[1]: d.id for d in docs1}
         by_id_2 = {d.source.rsplit("#", 1)[1]: d.id for d in docs2}
         assert by_id_1 == by_id_2
 
-    async def test_missing_id_key_raises_per_object(self, tmp_path):
-        """id_key validation runs per object: raise when any object lacks the key."""
+    async def test_missing_id_column_raises_per_object(self, tmp_path):
+        """id_column validation runs per object: raise when any object lacks the key."""
         f = tmp_path / "mixed.json"
         f.write_text(
             json.dumps(
@@ -162,28 +162,28 @@ class TestJSONLoaderIdKey:
             ),
             encoding="utf-8",
         )
-        loader = JSONLoader(str(f), id_key="_id")
+        loader = JSONLoader(str(f), id_column="_id")
         with pytest.raises(
-            ValueError, match="id_key '_id' not found in object at index 1"
+            ValueError, match="id_column '_id' not found in object at index 1"
         ):
             await loader.aload()
 
 
-class TestJSONLoaderIgnoreKeys:
-    """Tests for the ignore_keys parameter."""
+class TestJSONLoaderIgnoreColumns:
+    """Tests for the ignore_columns parameter."""
 
-    async def test_ignore_keys_excluded_from_content_star(self, json_object_file):
+    async def test_ignore_columns_excluded_from_content_star(self, json_object_file):
         """Ignored keys are excluded from the serialised content when using '*'."""
-        docs = await JSONLoader(str(json_object_file), ignore_keys=["score"]).aload()
+        docs = await JSONLoader(str(json_object_file), ignore_columns=["score"]).aload()
         parsed = json.loads(docs[0].content)
         assert "score" not in parsed
 
-    async def test_ignore_keys_excluded_from_metadata(self, json_object_file):
+    async def test_ignore_columns_excluded_from_metadata(self, json_object_file):
         """Ignored keys do not appear in metadata."""
         docs = await JSONLoader(
             str(json_object_file),
-            content_keys=["title"],
-            ignore_keys=["score"],
+            content_columns=["title"],
+            ignore_columns=["score"],
         ).aload()
         assert "score" not in docs[0].metadata
 
@@ -198,7 +198,7 @@ class TestJSONLoaderJSONL:
 
     async def test_jsonl_blank_lines_are_skipped(self, jsonl_file):
         """Blank lines do not produce empty Documents or shift indices."""
-        docs = await JSONLoader(str(jsonl_file), content_keys=["title"]).aload()
+        docs = await JSONLoader(str(jsonl_file), content_columns=["title"]).aload()
         assert [d.metadata["index"] for d in docs] == [0, 1, 2]
         assert "First" in docs[0].content
         assert "Second" in docs[1].content
@@ -218,8 +218,8 @@ class TestJSONLoaderJSONL:
         docs = await JSONLoader(str(jsonl_file)).aload()
         assert all(d.type == DocumentType.JSONL for d in docs)
 
-    async def test_jsonl_id_key_used_in_source(self, tmp_path):
-        """When id_key is set, its value becomes the source suffix per line."""
+    async def test_jsonl_id_column_used_in_source(self, tmp_path):
+        """When id_column is set, its value becomes the source suffix per line."""
         f = tmp_path / "data.jsonl"
         f.write_text(
             json.dumps({"_id": "a1", "body": "x"})
@@ -228,7 +228,7 @@ class TestJSONLoaderJSONL:
             + "\n",
             encoding="utf-8",
         )
-        docs = await JSONLoader(str(f), id_key="_id").aload()
+        docs = await JSONLoader(str(f), id_column="_id").aload()
         assert [d.source for d in docs] == [f"{f}#a1", f"{f}#a2"]
 
     async def test_jsonl_non_object_line_raises_value_error(self, tmp_path):
@@ -264,14 +264,14 @@ class TestJSONLoaderDirectory:
 
     async def test_directory_sorted_order(self, json_dir):
         """Files from a directory are streamed in sorted order."""
-        docs = await JSONLoader(str(json_dir), content_keys=["key"]).aload()
+        docs = await JSONLoader(str(json_dir), content_columns=["key"]).aload()
         assert "val_a" in docs[0].content
         assert "val_b" in docs[1].content
 
     async def test_directory_loads_json_and_jsonl_together(self, jsonl_dir):
         """A directory mixing .json and .jsonl files loads both, sorted, and
         each Document carries the right type for its source file."""
-        docs = await JSONLoader(str(jsonl_dir), content_keys=["key"]).aload()
+        docs = await JSONLoader(str(jsonl_dir), content_columns=["key"]).aload()
         assert len(docs) == 3
         assert "val_a" in docs[0].content
         assert "val_b1" in docs[1].content
@@ -325,10 +325,10 @@ class TestJSONLoaderErrors:
 
 
 class TestJSONLoaderContentExtractors:
-    @pytest.mark.parametrize("content_keys", ["*", ["question"]])
+    @pytest.mark.parametrize("content_columns", ["*", ["question"]])
     @pytest.mark.parametrize("suffix", [".json", ".jsonl"])
     async def test_extractor_failure_names_key_index_and_source(
-        self, tmp_path, content_keys, suffix
+        self, tmp_path, content_columns, suffix
     ):
         f = tmp_path / f"rows{suffix}"
         rows = [{"question": "valid"}, {"question": "invalid"}]
@@ -344,7 +344,7 @@ class TestJSONLoaderContentExtractors:
             return str(value)
 
         stream = JSONLoader(
-            str(f), content_keys=content_keys, content_extractor=extract
+            str(f), content_columns=content_columns, content_extractor=extract
         ).astream()
         assert (await anext(stream)).metadata["index"] == 0
         failure = await anext(stream)
@@ -352,7 +352,7 @@ class TestJSONLoaderContentExtractors:
         assert failure.source == str(f)
         error = failure.error
         assert isinstance(error, ValueError)
-        key = "*" if content_keys == "*" else "question"
+        key = "*" if content_columns == "*" else "question"
         assert f"key {key!r}" in str(error)
         assert "index 1" in str(error)
         assert str(f) in str(error)
@@ -367,7 +367,7 @@ class TestJSONLoaderContentExtractors:
 
         docs = await JSONLoader(
             str(f),
-            content_keys=["question"],
+            content_columns=["question"],
             content_extractor=JsonExtractor(),
         ).aload()
 
@@ -394,9 +394,52 @@ class TestJSONLoaderContentExtractors:
 
         docs = await JSONLoader(
             str(f),
-            content_keys=["question"],
+            content_columns=["question"],
             content_extractor=lambda value: value["text"].upper(),
         ).aload()
 
         assert docs[0].content == "question: WHY?"
         assert docs[0].metadata["metadata"] == metadata
+
+
+RENAMED_JSON_ARGS = pytest.mark.parametrize(
+    ("old", "new", "value"),
+    [
+        ("content_keys", "content_columns", ["title"]),
+        ("id_key", "id_column", "title"),
+        ("ignore_keys", "ignore_columns", ["score"]),
+    ],
+)
+
+
+class TestJSONLoaderRenamedArguments:
+    """The pre-rename keyword names still work but warn until 2.0.0."""
+
+    @RENAMED_JSON_ARGS
+    async def test_old_name_warns_and_behaves_like_new(
+        self, json_object_file, old, new, value
+    ):
+        with pytest.warns(FutureWarning, match=rf"JSONLoader\({old}=.*2\.0\.0") as rec:
+            legacy = JSONLoader(str(json_object_file), **{old: value})
+        assert f"{new}=" in str(rec[0].message)
+        assert rec[0].filename == __file__
+
+        legacy_docs = await legacy.aload()
+        current_docs = await JSONLoader(str(json_object_file), **{new: value}).aload()
+        assert [(d.content, d.source, d.metadata) for d in legacy_docs] == [
+            (d.content, d.source, d.metadata) for d in current_docs
+        ]
+
+    @RENAMED_JSON_ARGS
+    def test_passing_both_names_raises(self, json_object_file, old, new, value):
+        with pytest.raises(TypeError, match=rf"{old}.*{new}"):
+            JSONLoader(str(json_object_file), **{old: value, new: value})
+
+    def test_new_names_are_silent(self, json_object_file, recwarn):
+        JSONLoader(
+            str(json_object_file),
+            content_columns=["title"],
+            id_column="title",
+            ignore_columns=["score"],
+        )
+        assert not [w for w in recwarn if issubclass(w.category, FutureWarning)]

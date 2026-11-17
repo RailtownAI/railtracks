@@ -139,3 +139,38 @@ class TestAzureBlobLoaderAsync:
         docs = await loader.aload()
         assert len(docs) == 1
         assert docs[0].content == "hello"
+
+
+class TestAzureBlobLoaderRenamedArguments:
+    def test_container_keyword(self) -> None:
+        from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
+
+        with patch_azure(make_container_client_for_loading({})) as (storage, _):
+            AzureBlobLoader(ACCOUNT_URL, container=CONTAINER)
+        assert storage.ContainerClient.call_args.kwargs["container_name"] == CONTAINER
+
+    def test_container_name_keyword_warns(self) -> None:
+        from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
+
+        with patch_azure(make_container_client_for_loading({})) as (storage, _):
+            with pytest.warns(
+                FutureWarning, match=r"AzureBlobLoader\(container_name=.*2\.0\.0"
+            ) as rec:
+                AzureBlobLoader(ACCOUNT_URL, container_name=CONTAINER)
+        assert "container=" in str(rec[0].message)
+        assert rec[0].filename == __file__
+        assert storage.ContainerClient.call_args.kwargs["container_name"] == CONTAINER
+
+    def test_passing_both_names_raises(self) -> None:
+        from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
+
+        with patch_azure(make_container_client_for_loading({})):
+            with pytest.raises(TypeError, match="container_name.*container"):
+                AzureBlobLoader(ACCOUNT_URL, CONTAINER, container_name=CONTAINER)
+
+    def test_missing_container_raises(self) -> None:
+        from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
+
+        with patch_azure(make_container_client_for_loading({})):
+            with pytest.raises(TypeError, match="container"):
+                AzureBlobLoader(ACCOUNT_URL)
