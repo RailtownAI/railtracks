@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterable
 from typing import TypeVar
+
+from railtracks.utils.asyncio_compat import run_sync
 
 from .._logging import RetrievalComponent, get_logger
 from ..models import Chunk, EmbeddedChunk
@@ -43,21 +44,8 @@ class Embedding(ABC):
     async def aembed(self, texts: list[str]) -> TextEmbeddings: ...
 
     def embed(self, texts: list[str]) -> TextEmbeddings:
-        """Sync embed. Raises if called from an async context."""
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            pass
-        else:
-            if "ipykernel" in sys.modules:
-                raise RuntimeError(
-                    "embed() cannot be called from a Jupyter notebook; "
-                    "use `result = await embedder.aembed(texts)` instead."
-                )
-            raise RuntimeError(
-                "embed() cannot be called from an async context; use `await aembed()` instead."
-            )
-        return asyncio.run(self.aembed(texts))
+        """Blocking wrapper around ``aembed``; safe inside a running event loop."""
+        return run_sync(self.aembed(texts))
 
     async def _embed_one_batch(
         self, batch: list[Chunk]

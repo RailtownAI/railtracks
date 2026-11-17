@@ -140,6 +140,11 @@ class InMemoryBackend:
                 if _matches_filters(payload, filters)
             )
 
+    async def aclose(self) -> None:
+        """Write a final snapshot when ``snapshot_path`` is set; otherwise a no-op."""
+        async with self._lock:
+            await self._flush()
+
     async def _flush(self) -> None:
         """Persist current state to snapshot_path. Must be called while holding _lock.
 

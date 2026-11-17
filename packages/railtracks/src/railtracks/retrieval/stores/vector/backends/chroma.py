@@ -143,6 +143,10 @@ class _ChromaBase:
             raise RuntimeError(self._NOT_INITIALIZED)
         return self._collection
 
+    async def aclose(self) -> None:
+        """Drop the collection reference; call ``initialize()`` again to reuse."""
+        self._collection = None
+
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
         collection = self._initialized_collection()
         # Content lives only in the Chroma document (shown and searched by the

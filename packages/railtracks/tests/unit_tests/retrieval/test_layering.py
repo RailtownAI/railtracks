@@ -2,7 +2,8 @@
 railtracks.
 
 Retrieval runs outside a Flow as often as inside one, so it imports nothing from the
-surrounding package except ``railtracks.exceptions`` and ``railtracks.observability``.
+surrounding package except ``railtracks.exceptions``, ``railtracks.observability`` and the
+stdlib-only ``railtracks.utils.asyncio_compat``.
 """
 
 import ast
@@ -19,6 +20,7 @@ ALLOWED_PREFIXES = (
     "railtracks.retrieval",
     "railtracks.exceptions",
     "railtracks.observability",
+    "railtracks.utils.asyncio_compat",
 )
 
 MODULES = sorted(RETRIEVAL_ROOT.rglob("*.py"))
