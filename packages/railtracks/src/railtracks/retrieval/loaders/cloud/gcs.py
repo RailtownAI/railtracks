@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
 from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
+from railtracks.utils.deprecation import renamed_argument
 
 
 class GCSLoader(ObjectStoreLoader):
@@ -16,7 +17,7 @@ class GCSLoader(ObjectStoreLoader):
 
     Text objects are decoded with ``encoding``. PDFs are parsed with the same
     logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
-    ``pdf_breakdown_strategy``. An object that cannot be downloaded or parsed,
+    ``breakdown_strategy``. An object that cannot be downloaded or parsed,
     including a ``.txt``, ``.md``, ``.csv``, ``.json`` or ``.jsonl`` object that
     is not valid text, is yielded as a ``LoadFailure`` and the remaining
     objects still load. Any other object that is not valid text, such as an
@@ -35,7 +36,7 @@ class GCSLoader(ObjectStoreLoader):
     Requires the ``gcp`` extra: ``pip install railtracks[gcp]``.
 
     Args:
-        bucket_name: GCS bucket name.
+        bucket: GCS bucket name.
         prefix: Optional object name prefix to filter the listing. Ignored
             when ``keys`` is provided.
         keys: Explicit list of object names to load. When set, ``prefix`` is
@@ -43,25 +44,32 @@ class GCSLoader(ObjectStoreLoader):
         project: Google Cloud project ID. Inferred from ADC when ``None``.
         credentials: Explicit Google credential object. Defaults to ADC.
         encoding: Text encoding used to decode object bytes. Defaults to ``"utf-8"``.
-        pdf_breakdown_strategy: How to split each PDF into ``Document`` objects,
+        breakdown_strategy: How to split each PDF into ``Document`` objects,
             as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
             ``"document"``.
+        pdf_breakdown_strategy: Deprecated alias for ``breakdown_strategy``,
+            removed in 2.0.0.
+        bucket_name: Deprecated alias for ``bucket``, removed in 2.0.0.
 
     Raises:
         ImportError: If ``google-cloud-storage`` is not installed.
-        ValueError: If ``pdf_breakdown_strategy`` is not a known strategy.
+        TypeError: If ``bucket`` is missing, or a deprecated alias is
+            passed together with its replacement.
+        ValueError: If ``breakdown_strategy`` is not a known strategy.
     """
 
     def __init__(
         self,
-        bucket_name: str,
+        bucket: Optional[str] = None,
         *,
         prefix: Optional[str] = None,
         keys: Optional[list[str]] = None,
         project: Optional[str] = None,
         credentials: Optional[Any] = None,
         encoding: str = "utf-8",
-        pdf_breakdown_strategy: BreakdownStrategy = "page",
+        breakdown_strategy: BreakdownStrategy = "page",
+        pdf_breakdown_strategy: Optional[BreakdownStrategy] = None,
+        bucket_name: Optional[str] = None,
     ) -> None:
         try:
             from google.cloud import storage  # type: ignore[import]
@@ -71,32 +79,49 @@ class GCSLoader(ObjectStoreLoader):
                 "Install it via `pip install railtracks[gcp]` or `uv add railtracks[gcp]`."
             )
 
+        bucket = renamed_argument(
+            "GCSLoader",
+            old="bucket_name",
+            new="bucket",
+            old_value=bucket_name,
+            new_value=bucket,
+            version="2.0.0",
+        )
+        if bucket is None:
+            raise TypeError("GCSLoader() missing required argument: 'bucket'")
+        breakdown_strategy = renamed_argument(
+            "GCSLoader",
+            old="pdf_breakdown_strategy",
+            new="breakdown_strategy",
+            old_value=pdf_breakdown_strategy,
+            new_value=breakdown_strategy,
+            unset="page",
+            version="2.0.0",
+        )
         super().__init__(
             prefix=prefix,
             keys=keys,
             encoding=encoding,
-            pdf_breakdown_strategy=pdf_breakdown_strategy,
+            breakdown_strategy=breakdown_strategy,
         )
-        self._bucket_name = bucket_name
+        self._bucket = bucket
         self._client = storage.Client(project=project, credentials=credentials)
 
     def __repr__(self) -> str:
-        return f"GCSLoader(bucket_name={self._bucket_name!r})"
+        return f"GCSLoader(bucket={self._bucket!r})"
 
     def _list_keys(self) -> list[str]:
         kwargs: dict[str, Any] = {}
         if self._prefix is not None:
             kwargs["prefix"] = self._prefix
-        return [
-            blob.name for blob in self._client.list_blobs(self._bucket_name, **kwargs)
-        ]
+        return [blob.name for blob in self._client.list_blobs(self._bucket, **kwargs)]
 
     def _fetch_bytes(self, key: str) -> bytes:
-        bucket = self._client.bucket(self._bucket_name)
+        bucket = self._client.bucket(self._bucket)
         return bucket.blob(key).download_as_bytes()
 
     def _source(self, key: str) -> str:
-        return f"gs://{self._bucket_name}/{key}"
+        return f"gs://{self._bucket}/{key}"
 
     def _metadata(self, key: str) -> dict[str, str]:
-        return {"bucket": self._bucket_name, "name": key}
+        return {"bucket": self._bucket, "name": key}

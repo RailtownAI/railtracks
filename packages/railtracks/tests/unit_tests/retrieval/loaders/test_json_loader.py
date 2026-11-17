@@ -77,7 +77,9 @@ class TestJSONLoaderArray:
 class TestJSONLoaderContentColumns:
     """Tests for the content_columns parameter."""
 
-    async def test_explicit_content_columns_build_content_string(self, json_object_file):
+    async def test_explicit_content_columns_build_content_string(
+        self, json_object_file
+    ):
         """Explicit content_columns join the matching values into content."""
         docs = await JSONLoader(
             str(json_object_file), content_columns=["title", "body"]
@@ -85,14 +87,20 @@ class TestJSONLoaderContentColumns:
         assert "title: Doc" in docs[0].content
         assert "body: Content here" in docs[0].content
 
-    async def test_explicit_content_columns_exclude_from_metadata(self, json_object_file):
+    async def test_explicit_content_columns_exclude_from_metadata(
+        self, json_object_file
+    ):
         """Keys listed in content_columns are not repeated in metadata."""
-        docs = await JSONLoader(str(json_object_file), content_columns=["title"]).aload()
+        docs = await JSONLoader(
+            str(json_object_file), content_columns=["title"]
+        ).aload()
         assert "title" not in docs[0].metadata
 
     async def test_non_content_columns_go_to_metadata(self, json_object_file):
         """Keys not in content_columns (and not ignored) end up in metadata."""
-        docs = await JSONLoader(str(json_object_file), content_columns=["title"]).aload()
+        docs = await JSONLoader(
+            str(json_object_file), content_columns=["title"]
+        ).aload()
         assert docs[0].metadata["body"] == "Content here"
         assert docs[0].metadata["score"] == 42
 

@@ -18,6 +18,9 @@ Notice guides:
 from __future__ import annotations
 
 import warnings
+from typing import TypeVar
+
+T = TypeVar("T")
 
 NEXT_VERSION = "1.5.0"
 UPGRADE_GUIDE = "https://docs.railtracks.org/documentation/upgrading/1_5_0/"
@@ -29,6 +32,7 @@ def warn_pending_change(
     change: str = "changes",
     instead: str | None = None,
     detail: str | None = None,
+    version: str | None = None,
     stacklevel: int = 3,
 ) -> None:
     """Emit a ``FutureWarning`` about an API that changes in the next release.
@@ -41,11 +45,12 @@ def warn_pending_change(
             works in the current release; omit it when no forward path exists yet, and
             the message will point at the upgrade guide instead.
         detail: Extra context appended before the guide link.
+        version: The release the change lands in. Defaults to ``NEXT_VERSION``.
         stacklevel: Frames to skip so the warning is attributed to the user's line. The
             default of 3 is correct for a helper called from a module-level
             ``__getattr__`` or from a public function body.
     """
-    message = f"{what} {change} in railtracks {NEXT_VERSION}."
+    message = f"{what} {change} in railtracks {version or NEXT_VERSION}."
 
     if instead is not None:
         message += f" Use {instead} instead."
@@ -55,3 +60,44 @@ def warn_pending_change(
     message += f" See {UPGRADE_GUIDE} for the full upgrade guide."
 
     warnings.warn(message, FutureWarning, stacklevel=stacklevel)
+
+
+def renamed_argument(
+    owner: str,
+    *,
+    old: str,
+    new: str,
+    old_value: T | None,
+    new_value: T,
+    unset: T | None = None,
+    version: str | None = None,
+    stacklevel: int = 4,
+) -> T:
+    """Resolve a keyword argument renamed from ``old`` to ``new``, warning when ``old`` is used.
+
+    Args:
+        owner: The callable that takes the argument, e.g. ``"JSONLoader"``.
+        old: The previous argument name.
+        new: The current argument name.
+        old_value: The value passed under ``old``; ``None`` means it was not passed.
+        new_value: The value passed under ``new``.
+        unset: The default of ``new``; a ``new_value`` equal to it counts as not passed.
+        version: The release that removes ``old``. Defaults to ``NEXT_VERSION``.
+        stacklevel: Frames to skip so the warning is attributed to the user's line. The
+            default of 4 is correct when called directly from the owner's ``__init__``.
+
+    Raises:
+        TypeError: If both ``old`` and ``new`` are passed.
+    """
+    if old_value is None:
+        return new_value
+    if new_value != unset:
+        raise TypeError(f"{owner}() got both {old}= and {new}=; pass only {new}=.")
+    warn_pending_change(
+        f"{owner}({old}=...)",
+        change="is removed",
+        instead=f"{new}=",
+        version=version,
+        stacklevel=stacklevel,
+    )
+    return old_value

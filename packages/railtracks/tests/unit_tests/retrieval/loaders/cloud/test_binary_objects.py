@@ -162,7 +162,9 @@ class TestPdfObjects:
         source_prefix: str,
         provider_metadata: dict[str, str],
     ) -> None:
-        with pytest.raises(TypeError, match="pdf_breakdown_strategy.*breakdown_strategy"):
+        with pytest.raises(
+            TypeError, match="pdf_breakdown_strategy.*breakdown_strategy"
+        ):
             with make_loader(
                 {}, breakdown_strategy="document", pdf_breakdown_strategy="document"
             ):

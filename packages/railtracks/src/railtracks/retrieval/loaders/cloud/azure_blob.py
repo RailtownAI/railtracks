@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
 from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
+from railtracks.utils.deprecation import renamed_argument
 
 
 def _ensure_credential(credential: Optional[Any]) -> Any:
@@ -29,7 +30,7 @@ class AzureBlobLoader(ObjectStoreLoader):
 
     Text objects are decoded with ``encoding``. PDFs are parsed with the same
     logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
-    ``pdf_breakdown_strategy``. A blob that cannot be downloaded or parsed,
+    ``breakdown_strategy``. A blob that cannot be downloaded or parsed,
     including a ``.txt``, ``.md``, ``.csv``, ``.json`` or ``.jsonl`` blob that
     is not valid text, is yielded as a ``LoadFailure`` and the remaining
     blobs still load. Any other blob that is not valid text, such as an
@@ -45,7 +46,7 @@ class AzureBlobLoader(ObjectStoreLoader):
     Args:
         account_url: Azure Storage account URL, e.g.
             ``"https://<account>.blob.core.windows.net"``.
-        container_name: Name of the blob container.
+        container: Name of the blob container.
         prefix: Optional blob name prefix to filter the listing. Ignored when
             ``keys`` is provided.
         keys: Explicit list of blob names to load. When set, ``prefix`` is
@@ -53,25 +54,33 @@ class AzureBlobLoader(ObjectStoreLoader):
         credential: Azure credential used for authentication. Defaults to
             ``DefaultAzureCredential()`` when ``None``.
         encoding: Text encoding used to decode blob bytes. Defaults to ``"utf-8"``.
-        pdf_breakdown_strategy: How to split each PDF into ``Document`` objects,
+        breakdown_strategy: How to split each PDF into ``Document`` objects,
             as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
             ``"document"``.
+        pdf_breakdown_strategy: Deprecated alias for ``breakdown_strategy``,
+            removed in 2.0.0.
+        container_name: Deprecated alias for ``container``, removed in
+            2.0.0.
 
     Raises:
         ImportError: If ``azure-storage-blob`` or ``azure-identity`` are not installed.
-        ValueError: If ``pdf_breakdown_strategy`` is not a known strategy.
+        TypeError: If ``container`` is missing, or a deprecated alias is
+            passed together with its replacement.
+        ValueError: If ``breakdown_strategy`` is not a known strategy.
     """
 
     def __init__(
         self,
         account_url: str,
-        container_name: str,
+        container: Optional[str] = None,
         *,
         prefix: Optional[str] = None,
         keys: Optional[list[str]] = None,
         credential: Optional[Any] = None,
         encoding: str = "utf-8",
-        pdf_breakdown_strategy: BreakdownStrategy = "page",
+        breakdown_strategy: BreakdownStrategy = "page",
+        pdf_breakdown_strategy: Optional[BreakdownStrategy] = None,
+        container_name: Optional[str] = None,
     ) -> None:
         try:
             from azure.storage.blob import ContainerClient
@@ -83,17 +92,36 @@ class AzureBlobLoader(ObjectStoreLoader):
 
         credential = _ensure_credential(credential)
 
+        container = renamed_argument(
+            "AzureBlobLoader",
+            old="container_name",
+            new="container",
+            old_value=container_name,
+            new_value=container,
+            version="2.0.0",
+        )
+        if container is None:
+            raise TypeError("AzureBlobLoader() missing required argument: 'container'")
+        breakdown_strategy = renamed_argument(
+            "AzureBlobLoader",
+            old="pdf_breakdown_strategy",
+            new="breakdown_strategy",
+            old_value=pdf_breakdown_strategy,
+            new_value=breakdown_strategy,
+            unset="page",
+            version="2.0.0",
+        )
         super().__init__(
             prefix=prefix,
             keys=keys,
             encoding=encoding,
-            pdf_breakdown_strategy=pdf_breakdown_strategy,
+            breakdown_strategy=breakdown_strategy,
         )
         self._account_url = account_url.rstrip("/")
-        self._container_name = container_name
+        self._container = container
         self._container_client = ContainerClient(
             account_url=self._account_url,
-            container_name=container_name,
+            container_name=container,
             credential=credential,
         )
 
@@ -101,7 +129,7 @@ class AzureBlobLoader(ObjectStoreLoader):
         return (
             f"AzureBlobLoader("
             f"account_url={self._account_url!r}, "
-            f"container_name={self._container_name!r})"
+            f"container={self._container!r})"
         )
 
     def _list_keys(self) -> list[str]:
@@ -115,11 +143,11 @@ class AzureBlobLoader(ObjectStoreLoader):
         return blob_client.download_blob().readall()
 
     def _source(self, key: str) -> str:
-        return f"{self._account_url}/{self._container_name}/{key}"
+        return f"{self._account_url}/{self._container}/{key}"
 
     def _metadata(self, key: str) -> dict[str, str]:
         return {
             "account_url": self._account_url,
-            "container": self._container_name,
+            "container": self._container,
             "blob_name": key,
         }

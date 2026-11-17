@@ -10,6 +10,7 @@ from railtracks.retrieval.content_extraction import ContentExtractor, JsonExtrac
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
+from railtracks.utils.deprecation import renamed_argument
 
 
 class JSONLoader(BaseDocumentLoader):
@@ -27,60 +28,94 @@ class JSONLoader(BaseDocumentLoader):
       JSONL is the preferred format for corpora larger than memory.
 
     `Document.source` is set to `"{file_path}#{obj_id}"`, where `obj_id`
-    is `obj[id_key]` when `id_key` is given and the object's position in
-    the file otherwise. Per-object sources keep `Document.id` stable and
+    is `obj[id_column]` when `id_column` is given and the object's position
+    in the file otherwise. Per-object sources keep `Document.id` stable and
     unique across objects, which is what the runtime needs for upsert
     (`delete_where` on `document_id`).
 
     Args:
         file_path: Path to a `.json` / `.jsonl` file, or a directory
             containing them.
-        content_keys: Keys whose values are concatenated to form
+        content_columns: Keys whose values are concatenated to form
             `Document.content`. Use `"*"` (default) to serialise the entire
             object as content. Pass an explicit list to control which fields
             become content — all remaining non-ignored fields are added to
             `Document.metadata`.
-        id_key: Top-level key whose value uniquely identifies an object
+        id_column: Top-level key whose value uniquely identifies an object
             (e.g. `"id"`, `"_id"`). Used as the object id in
             `Document.source`. Default: `None` (fall back to the object's
             position in the file). Prefer this when the JSON has a stable
             id field and objects may be reordered — position is only
             stable as long as the order is.
-        ignore_keys: Keys to drop entirely from both content and metadata.
-        content_separator: String used to join multiple content-key values.
+        ignore_columns: Keys to drop entirely from both content and metadata.
+        content_separator: String used to join multiple content values.
             Defaults to `"\\n"`.
         encoding: File encoding. Defaults to `utf-8-sig`.
-        content_extractor: Optional callable used to turn content-key values
+        content_extractor: Optional callable used to turn content values
             into text. When omitted, the loader preserves its existing JSON
-            serialization for `content_keys="*"` and `str(value)` behavior
+            serialization for `content_columns="*"` and `str(value)` behavior
             for explicit keys.
+        content_keys: Deprecated alias for `content_columns`, removed in 2.0.0.
+        id_key: Deprecated alias for `id_column`, removed in 2.0.0.
+        ignore_keys: Deprecated alias for `ignore_columns`, removed in 2.0.0.
 
     Raises:
         FileNotFoundError: If `file_path` does not exist.
+        TypeError: If a deprecated alias is passed together with its
+            replacement.
         ValueError: If `file_path` points to a file with an unsupported
             extension, the JSON/JSONL structure does not match the format
             (e.g. a `.json` file that is neither object nor array of
             objects, or a `.jsonl` line that is not a JSON object), or any
-            key in `content_keys` or `id_key` is not found in a parsed
+            key in `content_columns` or `id_column` is not found in a parsed
             object, or a content extractor fails (with key, index, and source).
     """
 
     def __init__(
         self,
         file_path: str,
-        content_keys: list[str] | Literal["*"] = "*",
-        id_key: str | None = None,
-        ignore_keys: list[str] | None = None,
+        content_columns: list[str] | Literal["*"] = "*",
+        id_column: str | None = None,
+        ignore_columns: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
         content_extractor: ContentExtractor | None = None,
+        *,
+        content_keys: list[str] | Literal["*"] | None = None,
+        id_key: str | None = None,
+        ignore_keys: list[str] | None = None,
     ) -> None:
+        content_columns = renamed_argument(
+            "JSONLoader",
+            old="content_keys",
+            new="content_columns",
+            old_value=content_keys,
+            new_value=content_columns,
+            unset="*",
+            version="2.0.0",
+        )
+        id_column = renamed_argument(
+            "JSONLoader",
+            old="id_key",
+            new="id_column",
+            old_value=id_key,
+            new_value=id_column,
+            version="2.0.0",
+        )
+        ignore_columns = renamed_argument(
+            "JSONLoader",
+            old="ignore_keys",
+            new="ignore_columns",
+            old_value=ignore_keys,
+            new_value=ignore_columns,
+            version="2.0.0",
+        )
         self._path = Path(file_path)
-        self._content_keys = content_keys
-        self._id_key = id_key
-        self._ignore_keys = set(ignore_keys or [])
+        self._content_columns = content_columns
+        self._id_column = id_column
+        self._ignore_columns = set(ignore_columns or [])
         self._content_separator = content_separator
-        # Unlike the HF loader, the default depends on the content-keys mode.
+        # Unlike the HF loader, the default depends on the content-columns mode.
         self._content_extractor = content_extractor
         self._encoding = encoding
 
@@ -104,37 +139,41 @@ class JSONLoader(BaseDocumentLoader):
             Document: The converted document.
 
         Raises:
-            ValueError: If any key in `content_keys` or `id_key` is not
+            ValueError: If any key in `content_columns` or `id_column` is not
                 present in `obj`.
         """
-        if self._content_keys == "*":
-            content_value = {k: v for k, v in obj.items() if k not in self._ignore_keys}
+        if self._content_columns == "*":
+            content_value = {
+                k: v for k, v in obj.items() if k not in self._ignore_columns
+            }
             content = self._extract_content(
                 content_value, JsonExtractor(), "*", source_prefix, index
             )
             metadata: dict[str, Any] = {}
         else:
-            unknown = [k for k in self._content_keys if k not in obj]
+            unknown = [k for k in self._content_columns if k not in obj]
             if unknown:
                 raise ValueError(
-                    f"content_keys {unknown} not found in object at index {index} in {source_prefix}"
+                    f"content_columns {unknown} not found in object at index {index} in {source_prefix}"
                 )
             content = self._content_separator.join(
                 f"{k}: {self._extract_content(obj[k], str, k, source_prefix, index)}"
-                for k in self._content_keys
+                for k in self._content_columns
             )
-            content_key_set = set(self._content_keys)
+            content_column_set = set(self._content_columns)
             metadata = {
                 k: v
                 for k, v in obj.items()
-                if k not in content_key_set and k not in self._ignore_keys
+                if k not in content_column_set and k not in self._ignore_columns
             }
 
-        if self._id_key is not None and self._id_key not in obj:
+        if self._id_column is not None and self._id_column not in obj:
             raise ValueError(
-                f"id_key {self._id_key!r} not found in object at index {index} in {source_prefix}"
+                f"id_column {self._id_column!r} not found in object at index {index} in {source_prefix}"
             )
-        obj_id = str(obj[self._id_key]) if self._id_key is not None else str(index)
+        obj_id = (
+            str(obj[self._id_column]) if self._id_column is not None else str(index)
+        )
 
         metadata["index"] = index
         return Document(
