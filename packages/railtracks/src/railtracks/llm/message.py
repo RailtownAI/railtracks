@@ -4,7 +4,6 @@ import base64
 import hashlib
 import logging
 import os
-import re
 import warnings
 from collections.abc import Sequence
 from copy import deepcopy
@@ -13,16 +12,24 @@ from typing import Any, Generic, Literal, TypeVar, cast
 from urllib import error as urllib_error
 from urllib.parse import urlparse
 
-from .attachment_formats import detect_mime, detect_mime_from_extension
+from .attachment_formats import (
+    UNSUPPORTED_URL_EXTENSIONS,
+    detect_mime,
+    detect_mime_from_extension,
+)
 from .content import Content, ToolCall, ToolCalls, ToolResponse
 from .context_injection_utils import ValueDict, fill_template
 from .encoding import (
     DEFAULT_MAX_DOWNLOAD_MB,
+    MIME_TYPE,
     AttachmentSource,
+    decode_base64_attachment,
     decode_data_uri,
+    detect_path_source,
     detect_source,
     load_bytes,
     open_url,
+    read_file,
     redact_url,
     validate_max_mb,
 )
@@ -33,14 +40,6 @@ _T = TypeVar("_T", bound=Content)
 
 Modality = Literal["image", "audio", "video", "document", "file"]
 """What an attachment holds. `document` is a PDF; `file` is any other non-media type."""
-
-_MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
-
-# URLs ending in these raise: providers cannot take them as attachments by URL.
-_UNSUPPORTED_URL_EXTENSIONS = frozenset(
-    (".csv", ".htm", ".html", ".md", ".txt")  # text
-    + (".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx")  # Office
-)
 
 # Image types most providers accept; other image paths raise until #1349 adds per-provider checks.
 _PATH_IMAGE_TYPES = frozenset(
@@ -63,7 +62,7 @@ def _modality_for_mime(mime_type: str) -> Modality:
 def _validate_mime_type(mime_type: str) -> str:
     """Return `mime_type` lowercased, or raise a `ValueError` unless it is a bare `type/subtype`."""
     normalized = mime_type.strip().lower()
-    if not _MIME_TYPE.fullmatch(normalized):
+    if not MIME_TYPE.fullmatch(normalized):
         raise ValueError(
             f"mime_type must be a bare 'type/subtype' such as 'image/png', got {mime_type!r}."
         )
@@ -74,19 +73,20 @@ def _probe_url_metadata(url: str, *, timeout: float) -> tuple[str | None, str | 
     """HEAD-probe a URL and return (content_type, filename) or (None, None) on failure.
 
     Used when a URL has no recognized extension (e.g. arxiv.org/pdf/1706.03762
-    serves a PDF but has no `.pdf` suffix). content_type strips any `; charset=...`
-    suffix; filename comes from Content-Disposition if present.
+    serves a PDF but has no `.pdf` suffix). content_type is lowercase with no
+    parameters; filename comes from Content-Disposition, RFC 2231 decoded.
     """
     try:
         with open_url(url, timeout=timeout, method="HEAD") as resp:
-            ct = (
-                resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
-                or None
+            headers = resp.headers
+            # get_content_type() reports text/plain for a missing, empty or malformed
+            # header; a missing one gives None here, and text/* is ignored downstream.
+            content_type = (
+                headers.get_content_type() if "Content-Type" in headers else None
             )
-            cd = resp.headers.get("Content-Disposition", "")
-            m = re.search(r'filename\*?=(?:[^\'\"]*\'\')?"?([^";]+)"?', cd)
-            fname = m.group(1).strip() if m else None
-            return ct, fname
+            # With both filename= and filename*=, get_filename() returns the plain one,
+            # which servers send as an ASCII fallback for the same name.
+            return content_type, headers.get_filename()
     except (urllib_error.URLError, OSError, ValueError):
         return None, None
 
@@ -138,8 +138,9 @@ class Attachment:
         Raises:
             TypeError: If `url` is not a string.
             FileNotFoundError: If a local file does not exist.
-            ValueError: If `attachment_max_mb` is not positive and finite, a
-                local file is empty, a local file or base64 payload is not an
+            ValueError: If `attachment_max_mb` is not positive and finite, `url`
+                has a scheme other than http(s), ftp(s) or `file:` (such as
+                `s3://`), a local file is empty, a local file or base64 payload is not an
                 image, PDF, audio or video file, a local image is not PNG, JPEG,
                 GIF, WebP or AVIF, a data URI or base64 payload is malformed, a
                 URL's extension names a text or Office document type, or a PDF
@@ -151,24 +152,26 @@ class Attachment:
             )
         validate_max_mb(attachment_max_mb, name="attachment_max_mb")
 
-        match detect_source(url):
-            case "local":
-                data = load_bytes(url)
-                self._set(
-                    url, "local", detect_mime(data, url), os.path.basename(url), data
-                )
-            case "url":
-                self._init_url(
-                    url,
-                    mime_type=None,
-                    filename=None,
-                    trust_urls=trust_urls,
-                    timeout=attachment_timeout,
-                    max_mb=attachment_max_mb,
-                )
-            case "data_uri":
-                mime_type, data = decode_data_uri(url)
-                self._set("...", "data_uri", mime_type, None, data)
+        inline = (
+            decode_data_uri(url)
+            if url.startswith("data:")
+            else decode_base64_attachment(url)
+        )
+        if inline is not None:
+            mime_type, data = inline
+            self._set("...", "data_uri", mime_type, None, data)
+        elif detect_path_source(url) == "url":
+            self._init_url(
+                url,
+                mime_type=None,
+                filename=None,
+                trust_urls=trust_urls,
+                timeout=attachment_timeout,
+                max_mb=attachment_max_mb,
+            )
+        else:
+            data = read_file(url)
+            self._set(url, "local", detect_mime(data, url), os.path.basename(url), data)
 
         if self._type != "url" and (self._mime_type is None or self.modality == "file"):
             source = url if self._type == "local" else "base64 data"
@@ -293,26 +296,27 @@ class Attachment:
         max_mb: float,
     ) -> None:
         url_path = urlparse(url).path
-        # `.php` or `.pl` can serve an image, so only a media extension is trusted.
         extension_mime = detect_mime_from_extension(url_path)
-        if extension_mime and _modality_for_mime(extension_mime) == "file":
-            extension_mime = None
+        # Image and PDF extensions are trusted. Audio and video ones are a fallback,
+        # since a video path can serve a thumbnail; `.php` or `.pl` say nothing.
+        extension_modality = (
+            _modality_for_mime(extension_mime) if extension_mime else None
+        )
         probed_filename: str | None = None
-        if mime_type is None and extension_mime is not None:
-            if _modality_for_mime(extension_mime) in ("image", "document"):
-                mime_type = extension_mime
+        if mime_type is None and extension_modality in ("image", "document"):
+            mime_type = extension_mime
         if mime_type is None and trust_urls:
             # The server knows best for a URL without an image or PDF extension
-            # (e.g. https://arxiv.org/pdf/1706.03762, or a thumbnail served from a
-            # video path). Skipped unless trusted, so unknown URLs are never
-            # touched from the railtracks process.
-            probed_ct, probed_filename = _probe_url_metadata(url, timeout=timeout)
-            if probed_ct and _modality_for_mime(probed_ct) != "file":
-                mime_type = probed_ct
-        mime_type = mime_type or extension_mime
+            # (e.g. https://arxiv.org/pdf/1706.03762). Skipped unless trusted, so
+            # unknown URLs are never touched from the railtracks process.
+            probed_type, probed_filename = _probe_url_metadata(url, timeout=timeout)
+            if probed_type and _modality_for_mime(probed_type) != "file":
+                mime_type = probed_type
+        if mime_type is None and extension_modality in ("audio", "video"):
+            mime_type = extension_mime
         if mime_type is None:
             extension = os.path.splitext(url_path)[1].lower()
-            if extension in _UNSUPPORTED_URL_EXTENSIONS:
+            if extension in UNSUPPORTED_URL_EXTENSIONS:
                 raise ValueError(
                     f"Unsupported attachment format: {extension} in URL {redact_url(url)!r}. "
                     "URL attachments must be an image, PDF, audio or video file."
@@ -358,9 +362,7 @@ class Attachment:
         self._mime_type = mime_type
         self._filename = filename or None
         self._data = data
-        # Computed with the bytes: histories are deep-copied on every model call,
-        # so a hash cached on first read would be redone for each earlier copy.
-        self._sha256 = None if data is None else hashlib.sha256(data).hexdigest()
+        self._sha256: str | None = None
 
     @property
     def url(self) -> str:
@@ -390,6 +392,8 @@ class Attachment:
     @property
     def sha256(self) -> str | None:
         """Hex SHA-256 of the bytes, the same for every source, or None when only the URL is held."""
+        if self._sha256 is None and self._data is not None:
+            self._sha256 = hashlib.sha256(self._data).hexdigest()
         return self._sha256
 
     @property
@@ -433,6 +437,13 @@ class Attachment:
 
     def __hash__(self) -> int:
         return hash(self._identity())
+
+    # Read-only, so copies (histories are deep-copied on every model call) can share it.
+    def __copy__(self) -> Attachment:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Attachment:
+        return self
 
     def __repr__(self) -> str:
         fields = [f"type={self.type!r}", f"mime_type={self.mime_type!r}"]
