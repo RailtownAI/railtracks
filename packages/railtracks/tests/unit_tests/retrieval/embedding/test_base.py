@@ -160,10 +160,12 @@ def test_embed_works_in_sync_context():
 
 
 @pytest.mark.asyncio
-async def test_sync_embed_raises_in_async_context():
-    emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
-    with pytest.raises(RuntimeError, match="async context"):
-        emb.embed(["hello"])
+async def test_sync_embed_works_in_async_context():
+    fake = _fake_response([[0.1, 0.2]])
+    with patch("litellm.aembedding", new=AsyncMock(return_value=fake)):
+        emb = LiteLLMEmbedding(model="openai/text-embedding-3-small")
+        result = emb.embed(["hello"])
+    assert result.vectors == [[0.1, 0.2]]
 
 
 # ---------------------------------------------------------------------------
