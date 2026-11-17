@@ -78,7 +78,7 @@ from railtracks.retrieval.stores import (
 ```
 pip install "railtracks[retrieval-core]"   # minimum (no connectors)
 pip install "railtracks[retrieval]"        # all connectors
-pip install "railtracks[chroma]"           # Chroma only
+pip install "railtracks[stores-chroma]"    # Chroma only
 pip install "railtracks[huggingface]"      # HuggingFace datasets
 pip install "railtracks[ocr]"             # PyPDF + OCR (requires Tesseract)
 ```

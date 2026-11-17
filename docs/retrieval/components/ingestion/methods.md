@@ -15,6 +15,7 @@ none of these fit.
 | `JSONLoader` | `.json` and `.jsonl` files (or directories) | Top-level object / one per line | None |
 | `PyPDFLoader` | PDFs with a text layer | Page (default) or whole file | `railtracks[pdf]` |
 | `PyPDFOCRLoader` | PDFs that include scanned images | Page (default) or whole file | `railtracks[ocr]` + Tesseract binary |
+| `GLMOCRLoader` | Images and PDFs, via GLM-OCR | File (default) or whole directory | `railtracks[glm]` |
 | `HuggingFaceDatasetLoader` | Any dataset on the [HF Hub](https://huggingface.co/datasets) | Row | `railtracks[huggingface]` |
 
 Every loader exposes the same triple: `load()` (sync, materializes
@@ -248,6 +249,34 @@ needed image-based extraction.
 
 ---
 
+## `GLMOCRLoader`
+
+For images (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.tif`, `.tiff`, `.webp`) and PDFs where Tesseract struggles with layout, tables, or handwriting. Files are sent to [GLM-OCR](https://pypi.org/project/glmocr/): the Zhipu cloud API by default, or your own self-hosted server when you pass `endpoint`.
+
+```bash
+pip install "railtracks[glm]"
+```
+
+```python
+from railtracks.retrieval.loaders import GLMOCRLoader
+
+cloud = GLMOCRLoader("scans/")
+self_hosted = GLMOCRLoader("scans/invoice.pdf", endpoint="http://localhost:8080")
+docs = cloud.load()
+```
+
+**Parameters**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `file_path` | `str` | required | Path to an image or PDF file, or a directory of them |
+| `endpoint` | `str \| None` | `None` | URL of a self-hosted GLM-OCR server; `None` uses the Zhipu cloud API |
+| `breakdown_strategy` | `"page" \| "document"` | `"page"` | `"page"` yields one `Document` per file; `"document"` joins a directory into one |
+
+**Document metadata**: `file_type` and `json_result` (the raw structured layout: bounding boxes, tables, reading order) per file; `json_results` (one per file) with the document strategy.
+
+---
+
 ## `HuggingFaceDatasetLoader`
 !!! warning "Early-exit hang with `HuggingFaceDatasetLoader`"
     Breaking out of `astream()` before the dataset is exhausted may cause the Python process to hang at shutdown. This is an upstream parquet-streaming bug in [`datasets`](https://github.com/huggingface/datasets) on `pyarrow <= 24`, see [huggingface/datasets#8176](https://github.com/huggingface/datasets/pull/8176) (fixes [#8169](https://github.com/huggingface/datasets/issues/8169) and [#7467](https://github.com/huggingface/datasets/issues/7467)). Workaround: call `gc.collect()` after you stop iterating, or upgrade to a `pyarrow` release that ships the underlying [arrow#45214](https://github.com/apache/arrow/issues/45214) fix.
@@ -421,6 +450,7 @@ Reach for a native railtracks loader (`TextLoader`, `PyPDFLoader`, `HuggingFaceD
 | Hand-curated structured data | `JSONLoader` |
 | PDFs that came from a digital source | `PyPDFLoader` |
 | PDFs from scans, photos, or unknown provenance | `PyPDFOCRLoader` |
+| Images, or scans with complex layouts and tables | `GLMOCRLoader` |
 | Public NLP datasets, benchmarks, large corpora | `HuggingFaceDatasetLoader` |
 | Anything else (DB row, API response, queue) | [Custom loader](#custom-loaders) |
 
