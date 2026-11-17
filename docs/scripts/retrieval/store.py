@@ -110,6 +110,32 @@ async def pgvector():
 # --8<-- [end:pg]
 
 
+# --8<-- [start:close]
+async def pgvector_scoped():
+    backend = await PgvectorBackend.create(dsn="postgresql://...", dim=1536)
+    async with VectorStore(backend) as store:
+        await store.count()
+    # The asyncpg pool is closed here, even if the body raised.
+# --8<-- [end:close]
+
+
+# --8<-- [start:runtime_close]
+from railtracks.retrieval import RetrievalRuntime
+from railtracks.retrieval.chunking import RecursiveCharacterChunker
+
+
+async def runtime_scoped():
+    backend = await PgvectorBackend.create(dsn="postgresql://...", dim=1536)
+    async with RetrievalRuntime(
+        chunker=RecursiveCharacterChunker(chunk_size=800),
+        embedder=OpenAIEmbedding(),
+        store=VectorStore(backend),
+    ) as runtime:
+        await runtime.retrieve("refund policy")
+    # Closing the runtime closes its store, which closes the backend.
+# --8<-- [end:runtime_close]
+
+
 # --8<-- [start:pg_init]
 async def pgvector_init():
     backend = PgvectorBackend(dsn="postgresql://...")
