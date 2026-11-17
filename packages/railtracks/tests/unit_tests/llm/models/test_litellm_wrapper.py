@@ -3,6 +3,7 @@ import gc
 import logging
 import threading
 from json import JSONDecodeError
+from typing import get_args
 from unittest.mock import PropertyMock, patch
 
 import litellm
@@ -31,6 +32,7 @@ from railtracks.llm._exceptions import (
     RetryError,
 )
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.message import Modality
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
@@ -407,35 +409,21 @@ class TestHelpers:
         ids=["audio", "audio_alias", "audio_other", "audio_url", "video_url", "file"],
     )
     def test_to_litellm_message_part_per_modality(
-        self, mock_litellm_wrapper, attachment, part
+        self, mock_litellm_wrapper, monkeypatch, attachment, part
     ):
         wrapper = mock_litellm_wrapper()
+        monkeypatch.setattr(
+            wrapper, "_ACCEPTED_MODALITIES", frozenset(get_args(Modality))
+        )
         message = UserMessage("Describe this.", attachment=attachment)
 
         assert wrapper._to_litellm_message(message)["content"][1] == part
 
-    def test_to_litellm_message_passes_detail(self, mock_litellm_wrapper):
-        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
-        message = UserMessage(
-            "Compare.",
-            attachment=[
-                Attachment.from_bytes(png, detail="low"),
-                Attachment.from_url("https://example.com/clip.mp4", detail="high"),
-            ],
-        )
-
-        image, video = mock_litellm_wrapper()._to_litellm_message(message)["content"][
-            1:
-        ]
-
-        assert image["image_url"]["detail"] == "low"
-        assert video["file"]["detail"] == "high"
-
-    def test_to_litellm_message_rejects_modality_the_provider_drops(
-        self, mock_litellm_wrapper, monkeypatch
+    def test_to_litellm_message_rejects_modality_not_accepted(
+        self, mock_litellm_wrapper
     ):
+        """By default only images and PDFs are sent, as no route was checked for more."""
         wrapper = mock_litellm_wrapper()
-        monkeypatch.setattr(wrapper, "_ACCEPTED_MODALITIES", frozenset({"image"}))
         message = UserMessage(
             "Transcribe this.",
             attachment=Attachment.from_bytes(b"wav", mime_type="audio/wav"),
@@ -443,10 +431,24 @@ class TestHelpers:
 
         with (
             patch.object(Attachment, "encoding", new_callable=PropertyMock) as encoding,
-            pytest.raises(AttachmentNotSupportedError, match="sends image .*not audio"),
+            pytest.raises(
+                AttachmentNotSupportedError, match="sends document, image .*not audio"
+            ),
         ):
             wrapper._to_litellm_message(message)
         encoding.assert_not_called()
+
+    def test_to_litellm_message_rejected_pdf_suggests_rendering(
+        self, mock_litellm_wrapper, monkeypatch
+    ):
+        wrapper = mock_litellm_wrapper()
+        monkeypatch.setattr(wrapper, "_ACCEPTED_MODALITIES", frozenset({"image"}))
+        message = UserMessage(
+            "Summarize.", attachment=Attachment.from_bytes(b"%PDF-1.7\n")
+        )
+
+        with pytest.raises(AttachmentNotSupportedError, match="Render the PDF pages"):
+            wrapper._to_litellm_message(message)
 
     def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
         """

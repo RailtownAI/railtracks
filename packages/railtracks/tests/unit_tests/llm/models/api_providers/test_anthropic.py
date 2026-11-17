@@ -24,7 +24,7 @@ def test_llm_correct_init():
     ids=["audio", "video"],
 )
 def test_rejects_audio_and_video(attachment):
-    """litellm's Anthropic transform drops `input_audio` parts, so they must raise."""
+    """Only images and PDFs are sent; litellm's Anthropic transform drops `input_audio`."""
     message = UserMessage("Describe this.", attachment=attachment)
 
     with pytest.raises(AttachmentNotSupportedError, match=attachment.modality):

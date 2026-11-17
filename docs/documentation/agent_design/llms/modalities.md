@@ -125,19 +125,17 @@ Railtracks sends each attachment as the content part providers expect:
 | Audio | `input_audio`, with the base64 bytes and a format such as `mp3` or `wav`. An audio URL is sent as a `file` part, since `input_audio` needs the bytes. |
 | Video, PDF or any other file | `file`, with the MIME type as its `format` |
 
-Which modalities a model takes depends on the provider:
+Each provider class sends only the modalities checked against its litellm route. Anything else raises `AttachmentNotSupportedError` before the call, because some litellm transforms drop parts they don't know, and the model would then answer without the attachment:
 
-| Provider | Image | PDF | Audio | Video |
-|---|---|---|---|---|
-| OpenAI | Yes | Yes | Audio models only (such as `gpt-audio-mini`), `wav` and `mp3` | No |
-| Anthropic | Yes | Yes | No | No |
-| Gemini | Yes | Yes | Yes | Yes |
-| Ollama | Yes | No | No | No |
-| Apple FM | No | No | No | No |
+| Provider class | Image | PDF | Audio | Video | Other files |
+|---|---|---|---|---|---|
+| `GeminiLLM` | Yes | Yes | Yes | Yes | Yes |
+| `OpenAILLM` | Yes | Yes | Audio models only (such as `gpt-audio-mini`), `wav` and `mp3` | No | No |
+| `OllamaLLM` | Yes | No | No | No | No |
+| `AppleFMLLM` | No | No | No | No | No |
+| Others (`AnthropicLLM`, `AzureAILLM`, OpenAI-compatible, ...) | Yes | Yes | No | No | No |
 
-`AnthropicLLM`, `OllamaLLM`, and `AzureAILLM` on the `azure_ai/` route (which takes no `file` parts) raise `AttachmentNotSupportedError` before the call for an attachment they can't send, because litellm would otherwise drop that part and the model would answer without it. Other mismatches, such as video sent to OpenAI, are rejected by the provider.
-
-For images and video, `detail` sets how closely the model looks, for example `"low"`, `"high"` or `"auto"` for OpenAI images. It is passed to the provider as is, and other modalities raise a `ValueError` when given one.
+The model itself must still support what is sent: a PDF to a model without PDF input, or audio to an OpenAI model that isn't an audio model, is rejected by litellm's catalog check or by the provider.
 
 ---
 ## Attachment URLs in production
@@ -176,8 +174,8 @@ Every attachment becomes an `rt.llm.Attachment`. Build one yourself when you alr
 | Constructor | Use it for |
 |---|---|
 | `Attachment(source)` | A file path, URL, base64 string or data URI, exactly as `attachment=` takes them |
-| `Attachment.from_bytes(data, mime_type=None, filename=None, detail=None)` | Bytes already in memory, such as a screenshot or a generated chart |
-| `Attachment.from_url(url, mime_type=None, filename=None, trust_urls=False, ..., detail=None)` | A URL whose type you know; `mime_type` skips the extension check and the HEAD probe |
+| `Attachment.from_bytes(data, mime_type=None, filename=None)` | Bytes already in memory, such as a screenshot or a generated chart |
+| `Attachment.from_url(url, mime_type=None, filename=None, trust_urls=False, ...)` | A URL whose type you know; `mime_type` skips the extension check and the HEAD probe |
 
 For files and bytes, the MIME type comes from, in order: the `mime_type` you pass, the content's first bytes, then the file extension. `from_bytes` raises a `ValueError` when none of them identify the type. For URLs it comes from the `mime_type` you pass, then an image or PDF extension, then the HEAD probe when `trust_urls=True`, then an audio or video extension.
 
@@ -189,11 +187,10 @@ Each attachment exposes:
 | `mime_type` | For example `"image/png"`; `None` for a URL of unknown type, which is sent as an image |
 | `filename` | The file name, when one is known |
 | `size` | Size in bytes; `None` for a URL that is passed to the provider as is |
-| `detail` | How closely the model looks at an image or video; `None` for the provider's default |
 | `sha256` | Hex SHA-256 of the bytes, the same whichever way they were loaded; `None` for such URLs |
 | `data` | The raw bytes; `None` for such URLs |
 
 A local file, base64 string or data URI is read once when the attachment is created and kept as raw bytes, so changing the file afterwards does not change the attachment. The base64 that providers need is built from those bytes on each request. Two attachments are equal when they hold the same bytes (or the same URL) and MIME type.
 
 !!! note "Other files"
-    Files other than images, PDFs, audio and video (text, Office documents and so on) need `from_bytes` or `from_url` with an explicit `mime_type`; a path, URL or base64 string of one raises a `ValueError`. They are sent as a `file` part, which only some providers, such as Gemini, accept.
+    Files other than images, PDFs, audio and video (text, Office documents and so on) need `from_bytes` or `from_url` with an explicit `mime_type`; a path, URL or base64 string of one raises a `ValueError`. They are sent as a `file` part, which only `GeminiLLM` sends.

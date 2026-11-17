@@ -131,8 +131,7 @@ message_history = rt.llm.MessageHistory(
 
 # --8<-- [start: audio_video]
 voice_note = rt.llm.Attachment("path/to/voice_note.mp3")
-# detail sets how closely the model looks at an image or video.
-clip = rt.llm.Attachment.from_url("https://example.com/demo.mp4", detail="low")
+clip = rt.llm.Attachment("https://example.com/demo.mp4")
 
 message_history = rt.llm.MessageHistory(
     [

@@ -23,7 +23,6 @@ from typing import (
     Type,
     TypeVar,
     cast,
-    get_args,
     overload,
 )
 
@@ -224,10 +223,10 @@ _INPUT_AUDIO_FORMATS = {
 
 
 def _image_part(attachment: Attachment) -> Dict[str, Any]:
-    image_url: Dict[str, str] = {"url": attachment.encoding or attachment.url}
-    if attachment.detail is not None:
-        image_url["detail"] = attachment.detail
-    return {"type": "image_url", "image_url": image_url}
+    return {
+        "type": "image_url",
+        "image_url": {"url": attachment.encoding or attachment.url},
+    }
 
 
 def _file_part(attachment: Attachment) -> Dict[str, Any]:
@@ -235,13 +234,12 @@ def _file_part(attachment: Attachment) -> Dict[str, Any]:
     mime_type = attachment.mime_type
     fallback_ext = mimetypes.guess_extension(mime_type or "") or ""
     file: Dict[str, str] = {
+        # A URL here relies on litellm's Gemini transform reading `file_data` as a file URI.
         "file_data": attachment.encoding or attachment.url,
         "filename": attachment.filename or f"attachment{fallback_ext}",
     }
     if mime_type is not None:
         file["format"] = mime_type
-    if attachment.detail is not None:
-        file["detail"] = attachment.detail
     return {"type": "file", "file": file}
 
 
@@ -389,9 +387,11 @@ class LiteLLMWrapper(ModelBase, ABC):
         "verbosity",
     )
 
-    # Attachment modalities sent to the provider; a provider whose litellm transform
-    # drops a part narrows this, so the call fails instead of losing the attachment.
-    _ACCEPTED_MODALITIES: ClassVar[frozenset[Modality]] = frozenset(get_args(Modality))
+    # Attachment modalities sent to the provider; others fail before the call, since
+    # some litellm transforms drop parts they don't know. Providers widen it once checked.
+    _ACCEPTED_MODALITIES: ClassVar[frozenset[Modality]] = frozenset(
+        {"image", "document"}
+    )
 
     def __init__(
         self,
@@ -1147,10 +1147,15 @@ class LiteLLMWrapper(ModelBase, ABC):
         modality = attachment.modality
         if modality not in self._ACCEPTED_MODALITIES:
             accepted = ", ".join(sorted(self._ACCEPTED_MODALITIES))
+            hint = (
+                " Render the PDF pages to images first."
+                if modality == "document"
+                else ""
+            )
             raise AttachmentNotSupportedError(
                 self._model_name,
                 attachment.mime_type,
-                f"{type(self).__name__} sends {accepted} attachments, not {modality}.",
+                f"{type(self).__name__} sends {accepted} attachments, not {modality}.{hint}",
             )
         # Models missing from litellm's catalog (custom deployments) skip the check.
         if (

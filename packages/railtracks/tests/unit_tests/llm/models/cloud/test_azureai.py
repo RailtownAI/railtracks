@@ -111,37 +111,14 @@ def test_chat_with_tools_failure(message_history, tool):
             llm.chat_with_tools(message_history, [tool])
 
 
-PDF = Attachment.from_bytes(b"%PDF-1.7\n", filename="report.pdf")
-WAV = Attachment.from_bytes(b"wav", mime_type="audio/wav")
+def test_azure_ai_claude_sends_pdf_and_rejects_audio():
+    """litellm sends `azure_ai/claude-*` through its Anthropic transform, which drops audio."""
+    llm = AzureAILLM(model_name="azure_ai/claude-sonnet-4-5")
+    pdf = UserMessage("Summarize.", attachment=Attachment.from_bytes(b"%PDF-1.7\n"))
+    wav = UserMessage(
+        "Transcribe.", attachment=Attachment.from_bytes(b"wav", mime_type="audio/wav")
+    )
 
-
-@pytest.mark.parametrize(
-    "model_name",
-    # deepseek-r1 is in litellm's catalog without PDF input, mistral-large is not.
-    ["azure_ai/mistral-large", "azure_ai/deepseek-r1"],
-)
-@pytest.mark.parametrize(
-    "attachment",
-    [PDF, Attachment("https://example.com/call.mp3")],
-    ids=["pdf", "audio_url"],
-)
-def test_azure_ai_route_rejects_file_parts(model_name, attachment):
-    """litellm's azure_ai transform flattens a message without image or audio to text."""
-    llm = AzureAILLM(model_name=model_name)
-
-    with pytest.raises(AttachmentNotSupportedError, match="azure_ai"):
-        llm._to_litellm_message(UserMessage("Summarize.", attachment=attachment))
-
-
-def test_azure_ai_route_sends_audio_bytes():
-    llm = AzureAILLM(model_name="azure_ai/mistral-large")
-
-    audio = llm._to_litellm_message(UserMessage("Transcribe.", attachment=WAV))
-    assert audio["content"][1]["type"] == "input_audio"
-
-
-def test_azure_openai_route_sends_file_parts():
-    llm = AzureAILLM(model_name="azure/my-deployment")
-
-    part = llm._to_litellm_message(UserMessage("Summarize.", attachment=PDF))
-    assert part["content"][1]["type"] == "file"
+    assert llm._to_litellm_message(pdf)["content"][1]["type"] == "file"
+    with pytest.raises(AttachmentNotSupportedError, match="not audio"):
+        llm._to_litellm_message(wav)
