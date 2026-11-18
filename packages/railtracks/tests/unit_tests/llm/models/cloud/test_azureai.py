@@ -3,9 +3,10 @@ from unittest.mock import patch
 import litellm
 import pytest
 from railtracks.llm._exceptions import ProviderError
-from railtracks.llm.message import AssistantMessage
+from railtracks.llm.message import AssistantMessage, Attachment, UserMessage
 from railtracks.llm.models import AzureAILLM
 from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
+from railtracks.llm.models._model_exception_base import AttachmentNotSupportedError
 from railtracks.llm.response import Response
 
 MODEL_NAME = "deepseek-r1"
@@ -108,3 +109,16 @@ def test_chat_with_tools_failure(message_history, tool):
     ):
         with pytest.raises(ProviderError):
             llm.chat_with_tools(message_history, [tool])
+
+
+def test_azure_ai_claude_sends_pdf_and_rejects_audio():
+    """litellm sends `azure_ai/claude-*` through its Anthropic transform, which drops audio."""
+    llm = AzureAILLM(model_name="azure_ai/claude-sonnet-4-5")
+    pdf = UserMessage("Summarize.", attachment=Attachment.from_bytes(b"%PDF-1.7\n"))
+    wav = UserMessage(
+        "Transcribe.", attachment=Attachment.from_bytes(b"wav", mime_type="audio/wav")
+    )
+
+    assert llm._to_litellm_message(pdf)["content"][1]["type"] == "file"
+    with pytest.raises(AttachmentNotSupportedError, match="not audio"):
+        llm._to_litellm_message(wav)
