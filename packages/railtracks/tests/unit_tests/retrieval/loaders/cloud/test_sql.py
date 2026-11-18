@@ -253,6 +253,12 @@ class TestSQLLoaderContentColumns:
         with pytest.raises(TypeError, match="content_columns"):
             SQLLoader("", "documents", engine=populated_engine)
 
+    def test_empty_content_columns_raises_value_error(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        with pytest.raises(ValueError, match="content_columns"):
+            SQLLoader("", "documents", [], engine=populated_engine)
+
 
 class TestSQLLoaderRenamedArguments:
     def test_content_column_keyword_warns(self, populated_engine) -> None:

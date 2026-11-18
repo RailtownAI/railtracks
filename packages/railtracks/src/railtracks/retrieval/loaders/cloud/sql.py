@@ -85,8 +85,9 @@ class SQLLoader(BaseDocumentLoader):
         ImportError: If ``sqlalchemy`` is not installed.
         TypeError: If ``content_columns`` is missing, or a deprecated alias is
             passed together with its replacement.
-        ValueError: If an identifier argument contains unsafe characters, or
-            if ``ids`` is provided without an ``id_column``.
+        ValueError: If ``content_columns`` is empty, an identifier argument
+            contains unsafe characters, or ``ids`` is provided without an
+            ``id_column``.
     """
 
     def __init__(
@@ -139,6 +140,10 @@ class SQLLoader(BaseDocumentLoader):
             if isinstance(content_columns, str)
             else list(content_columns)
         )
+        if not self._content_columns:
+            raise ValueError(
+                "SQLLoader() needs at least one column in 'content_columns'."
+            )
         self._content_separator = content_separator
         self._metadata_columns = metadata_columns
         self._id_column = id_column
