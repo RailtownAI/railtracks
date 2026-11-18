@@ -129,6 +129,20 @@ message_history = rt.llm.MessageHistory(
 )
 # --8<-- [end: attachment_object]
 
+# --8<-- [start: audio_video]
+voice_note = rt.llm.Attachment("path/to/voice_note.mp3")
+clip = rt.llm.Attachment("https://example.com/demo.mp4")
+
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Answer the question in the voice note using the clip.",
+            attachment=[voice_note, clip],
+        )
+    ]
+)
+# --8<-- [end: audio_video]
+
 # --8<-- [start: combined]
 message_history = rt.llm.MessageHistory(
     [
