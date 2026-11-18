@@ -430,13 +430,15 @@ class TestHelpers:
         )
 
         with (
-            patch.object(Attachment, "encoding", new_callable=PropertyMock) as encoding,
+            patch.object(
+                Attachment, "base64", new_callable=PropertyMock
+            ) as base64_payload,
             pytest.raises(
                 AttachmentNotSupportedError, match="sends document, image .*not audio"
             ),
         ):
             wrapper._to_litellm_message(message)
-        encoding.assert_not_called()
+        base64_payload.assert_not_called()
 
     def test_to_litellm_message_rejected_pdf_suggests_rendering(
         self, mock_litellm_wrapper, monkeypatch
