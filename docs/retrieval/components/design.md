@@ -181,8 +181,8 @@ The `Store` protocol exposes eight async methods: [Store API Reference](../../ap
 `VectorStore` is the canonical implementation. It delegates index
 operations to a `VectorBackend` (InMemory, Chroma, or Pgvector) and owns
 payload serialization and scope filtering. The backend protocol is small
-enough (`upsert`, `search`, `delete`, `delete_where`, `list_where`, `count`) that adding a new
-backend is a single-file change.
+enough (`upsert`, `search`, `delete`, `delete_where`, `list_where`,
+`count`) that adding a new backend is a single-file change.
 
 ---
 

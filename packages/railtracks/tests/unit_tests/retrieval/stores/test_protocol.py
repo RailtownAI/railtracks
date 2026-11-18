@@ -82,4 +82,14 @@ def test_incomplete_implementation_fails_store():
 
 
 def test_store_requires_nearest_neighbors():
-    assert hasattr(Store, "nearest_neighbors")
+    without_nearest_neighbors = type(
+        "_StoreWithoutNearestNeighbors",
+        (),
+        {
+            name: member
+            for name, member in vars(_CompleteStore).items()
+            if name != "nearest_neighbors"
+        },
+    )
+
+    assert not isinstance(without_nearest_neighbors(), Store)
