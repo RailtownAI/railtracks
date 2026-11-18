@@ -213,7 +213,9 @@ class TestSQLLoaderAsync:
 
 
 class TestSQLLoaderContentColumns:
-    def test_multiple_columns_joined_with_separator(self, populated_engine) -> None:
+    def test_multiple_columns_are_labelled_and_joined_with_separator(
+        self, populated_engine
+    ) -> None:
         from railtracks.retrieval.loaders.cloud.sql import SQLLoader
 
         loader = SQLLoader(
@@ -224,14 +226,20 @@ class TestSQLLoaderContentColumns:
             engine=populated_engine,
         )
         contents = {d.content for d in loader.load()}
-        assert contents == {f"{r['title']} | {r['body']}" for r in ROWS}
+        assert contents == {f"title: {r['title']} | body: {r['body']}" for r in ROWS}
 
     def test_default_separator_is_newline(self, populated_engine) -> None:
         from railtracks.retrieval.loaders.cloud.sql import SQLLoader
 
         loader = SQLLoader("", "documents", ["title", "body"], engine=populated_engine)
         contents = {d.content for d in loader.load()}
-        assert contents == {f"{r['title']}\n{r['body']}" for r in ROWS}
+        assert contents == {f"title: {r['title']}\nbody: {r['body']}" for r in ROWS}
+
+    def test_single_column_in_a_list_is_not_labelled(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        loader = SQLLoader("", "documents", ["body"], engine=populated_engine)
+        assert {d.content for d in loader.load()} == {r["body"] for r in ROWS}
 
     def test_all_content_columns_excluded_from_metadata(self, populated_engine) -> None:
         from railtracks.retrieval.loaders.cloud.sql import SQLLoader
