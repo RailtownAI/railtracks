@@ -182,6 +182,15 @@ def build_with_hook():
         store=VectorStore(InMemoryVectorBackend()),
         on_ingest=audit,
     )
+
+
+def build_with_async_hook():
+    return RetrievalRuntime(
+        chunker=RecursiveCharacterChunker(chunk_size=800),
+        embedder=OpenAIEmbedding(),
+        store=VectorStore(InMemoryVectorBackend()),
+        on_ingest=audit_async,
+    )
 # --8<-- [end:on_ingest_hook]
 
 
