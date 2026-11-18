@@ -108,7 +108,7 @@ class Store(Protocol):
 
 `write` returns the entry ID as a string, and `delete` takes that string. `clear` removes all entries written with exactly the given scope (it rejects `ALL_SCOPES`); that's the path for session cleanup and user data deletion. `nearest_neighbors` is a raw vector search that still enforces the scope (see [below](#nearest_neighbors-low-level-bypass)).
 
-`delete_where`, `find` and `count` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); they match entries by equality, without a vector search. They take two kinds of filter, and an entry must match both:
+`delete_where`, `find` and `count` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); they match entries by equality, without a vector search. They take two kinds of filter, and an entry must match both; if both give the same key different values, the call raises `ValueError`:
 
 - **`filters`**: entry-field names (`document_id`, `chunk_id`, ...), `scope` and `scope_<label>` refer to the entry itself, and every other key refers to `chunk_metadata`.
 - **`metadata_filters=`**: every key refers to `chunk_metadata` (except `scope_<label>`), the same as `StoreQuery.metadata_filters`. Use it for a metadata key that shares a name with an entry field, such as a CSV column called `document_id`.

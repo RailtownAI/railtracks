@@ -93,6 +93,9 @@ def _store_filters_to_payload(
     In ``filters``, entry-field names, ``scope`` and ``scope_*`` labels are kept
     as they are and every other key is a chunk_metadata key. Every key in
     ``metadata_filters`` is a chunk_metadata key, as in a read.
+
+    Raises:
+        ValueError: If both name the same payload key with different values.
     """
     translated = {
         k
@@ -100,7 +103,13 @@ def _store_filters_to_payload(
         else _metadata_key(k): v
         for k, v in (filters or {}).items()
     }
-    translated.update(_metadata_filters_to_payload(metadata_filters or {}))
+    for key, value in _metadata_filters_to_payload(metadata_filters or {}).items():
+        if key in translated and translated[key] != value:
+            raise ValueError(
+                f"filters and metadata_filters give different values for {key!r}: "
+                f"{translated[key]!r} and {value!r}."
+            )
+        translated[key] = value
     return translated
 
 
@@ -289,7 +298,8 @@ class VectorStore:
         """Delete every entry matching ``filters`` and ``metadata_filters``.
 
         Raises:
-            ValueError: If both are empty; use ``clear`` to empty a scope.
+            ValueError: If both are empty (use ``clear`` to empty a scope), or
+                they give the same key different values.
         """
         payload_filters = _store_filters_to_payload(filters, metadata_filters)
         if not payload_filters:

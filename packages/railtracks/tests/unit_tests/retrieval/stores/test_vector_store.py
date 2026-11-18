@@ -925,6 +925,30 @@ async def test_filters_and_metadata_filters_combine():
     assert remaining == {bob_page.id, alice_other.id}
 
 
+_STORE_FILTER_METHODS = pytest.mark.parametrize(
+    "method", ["find", "count", "delete_where"]
+)
+
+
+@_STORE_FILTER_METHODS
+async def test_conflicting_filters_and_metadata_filters_raise(method):
+    store = VectorStore(InMemoryBackend())
+    await store.write(_csv_like_entry(None, {"page": 4}))
+
+    with pytest.raises(ValueError, match="page"):
+        await getattr(store, method)({"page": 4}, metadata_filters={"page": 5})
+
+    assert await store.count() == 1
+
+
+@_STORE_FILTER_METHODS
+async def test_agreeing_filters_and_metadata_filters_are_accepted(method):
+    store = VectorStore(InMemoryBackend())
+    await store.write(_csv_like_entry(None, {"page": 4}))
+
+    await getattr(store, method)({"page": 4}, metadata_filters={"page": 4})
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [
