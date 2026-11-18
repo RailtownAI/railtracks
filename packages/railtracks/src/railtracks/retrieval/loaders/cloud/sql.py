@@ -59,8 +59,9 @@ class SQLLoader(BaseDocumentLoader):
                pass user-controlled strings here.
 
         content_columns: Column, or list of columns, whose values become
-            :attr:`Document.content`. Multiple values are joined with
-            ``content_separator``.
+            :attr:`Document.content`. A single column's value is used as-is;
+            multiple columns become ``"col: value"`` lines joined with
+            ``content_separator``, as in :class:`CSVLoader`.
         ids: Explicit list of ``id_column`` values to load. When set,
             ``id_column`` must also be provided. When ``None`` (default), all
             rows are loaded.
@@ -202,9 +203,12 @@ class SQLLoader(BaseDocumentLoader):
                 f"query results. Available columns: {available}. "
                 "Check that 'content_columns' matches columns returned by the query."
             )
-        content = self._content_separator.join(
-            str(row[col]) for col in self._content_columns
-        )
+        if len(self._content_columns) == 1:
+            content = str(row[self._content_columns[0]])
+        else:
+            content = self._content_separator.join(
+                f"{col}: {row[col]}" for col in self._content_columns
+            )
 
         if self._metadata_columns is not None:
             meta = {col: row[col] for col in self._metadata_columns if col in row}

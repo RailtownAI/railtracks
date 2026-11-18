@@ -51,7 +51,7 @@ Pass a [SQLAlchemy database URL](https://docs.sqlalchemy.org/en/20/core/engines.
 --8<-- "docs/scripts/integrations/storage_loaders.py:sql_basic_postgres"
 ```
 
-`content_columns` takes one column name or a list of them. With a list, the values are joined with `content_separator` (default `"\n"`) to form `Document.content`.
+`content_columns` takes one column name or a list of them. A single column's value becomes `Document.content` as-is. With several columns, each value is labelled with its column name (`title: ...`) and the labelled values are joined with `content_separator` (default `"\n"`), the same format `CSVLoader` and `JSONLoader` use.
 
 ## Supabase
 
