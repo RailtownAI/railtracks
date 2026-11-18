@@ -5,6 +5,7 @@ import warnings
 import pytest
 from railtracks.utils.deprecation import (
     NEXT_VERSION,
+    UPGRADE_GUIDE,
     renamed_argument,
     warn_pending_change,
 )
@@ -22,6 +23,23 @@ def test_warn_pending_change_names_given_version():
     message = str(record[0].message)
     assert "thing is removed in railtracks 2.0.0." in message
     assert NEXT_VERSION not in message
+
+
+def test_warn_pending_change_links_the_upgrade_guide_by_default():
+    with pytest.warns(FutureWarning) as record:
+        warn_pending_change("thing")
+
+    assert UPGRADE_GUIDE in str(record[0].message)
+
+
+def test_warn_pending_change_links_given_guide():
+    guide = "https://docs.example.org/renames/"
+    with pytest.warns(FutureWarning) as record:
+        warn_pending_change("thing", version="2.0.0", guide=guide)
+
+    message = str(record[0].message)
+    assert guide in message
+    assert UPGRADE_GUIDE not in message
 
 
 class _Widget:
@@ -78,3 +96,21 @@ def test_renamed_argument_treats_new_default_as_unset():
         )
 
     assert value == "y"
+
+
+def test_renamed_argument_passes_guide_through():
+    guide = "https://docs.example.org/renames/"
+    with pytest.warns(FutureWarning) as record:
+        renamed_argument(
+            "Thing",
+            old="old",
+            new="new",
+            old_value="y",
+            new_value=None,
+            guide=guide,
+            stacklevel=3,
+        )
+
+    message = str(record[0].message)
+    assert guide in message
+    assert UPGRADE_GUIDE not in message

@@ -6,7 +6,10 @@ import warnings
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, Optional
 
-from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.base import (
+    RENAMED_ARGUMENTS_GUIDE,
+    BaseDocumentLoader,
+)
 from railtracks.retrieval.models import Document, DocumentType
 from railtracks.utils.deprecation import renamed_argument
 
@@ -117,6 +120,7 @@ class SQLLoader(BaseDocumentLoader):
             old_value=content_column,
             new_value=content_columns,
             version="2.0.0",
+            guide=RENAMED_ARGUMENTS_GUIDE,
         )
         ids = renamed_argument(
             "SQLLoader",
@@ -125,6 +129,7 @@ class SQLLoader(BaseDocumentLoader):
             old_value=keys,
             new_value=ids,
             version="2.0.0",
+            guide=RENAMED_ARGUMENTS_GUIDE,
         )
         if content_columns is None:
             raise TypeError("SQLLoader() missing required argument: 'content_columns'")

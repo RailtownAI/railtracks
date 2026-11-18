@@ -265,6 +265,8 @@ class TestSQLLoaderRenamedArguments:
                 "", "documents", content_column="body", engine=populated_engine
             )
         assert "content_columns=" in str(rec[0].message)
+        assert "ingestion/methods/#renamed-arguments" in str(rec[0].message)
+        assert "1_5_0" not in str(rec[0].message)
         assert rec[0].filename == __file__
         assert {d.content for d in loader.load()} == {r["body"] for r in ROWS}
 

@@ -150,6 +150,8 @@ class TestGCSLoaderRenamedArguments:
             ) as rec:
                 loader = GCSLoader(bucket_name=BUCKET)
         assert "bucket=" in str(rec[0].message)
+        assert "ingestion/methods/#renamed-arguments" in str(rec[0].message)
+        assert "1_5_0" not in str(rec[0].message)
         assert rec[0].filename == __file__
         assert loader._source("a.txt") == f"gs://{BUCKET}/a.txt"
 

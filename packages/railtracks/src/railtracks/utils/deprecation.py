@@ -33,6 +33,7 @@ def warn_pending_change(
     instead: str | None = None,
     detail: str | None = None,
     version: str | None = None,
+    guide: str = UPGRADE_GUIDE,
     stacklevel: int = 3,
 ) -> None:
     """Emit a ``FutureWarning`` about an API that changes in the next release.
@@ -46,6 +47,7 @@ def warn_pending_change(
             the message will point at the upgrade guide instead.
         detail: Extra context appended before the guide link.
         version: The release the change lands in. Defaults to ``NEXT_VERSION``.
+        guide: The docs URL the message links to. Defaults to the 1.5.0 upgrade guide.
         stacklevel: Frames to skip so the warning is attributed to the user's line. The
             default of 3 is correct for a helper called from a module-level
             ``__getattr__`` or from a public function body.
@@ -57,7 +59,7 @@ def warn_pending_change(
     if detail is not None:
         message += f" {detail}"
 
-    message += f" See {UPGRADE_GUIDE} for the full upgrade guide."
+    message += f" See {guide} for details."
 
     warnings.warn(message, FutureWarning, stacklevel=stacklevel)
 
@@ -71,6 +73,7 @@ def renamed_argument(
     new_value: T,
     unset: T | None = None,
     version: str | None = None,
+    guide: str = UPGRADE_GUIDE,
     stacklevel: int = 4,
 ) -> T:
     """Resolve a keyword argument renamed from ``old`` to ``new``, warning when ``old`` is used.
@@ -83,6 +86,7 @@ def renamed_argument(
         new_value: The value passed under ``new``.
         unset: The default of ``new``; a ``new_value`` equal to it counts as not passed.
         version: The release that removes ``old``. Defaults to ``NEXT_VERSION``.
+        guide: The docs URL the warning links to. Defaults to the 1.5.0 upgrade guide.
         stacklevel: Frames to skip so the warning is attributed to the user's line. The
             default of 4 is correct when called directly from the owner's ``__init__``.
 
@@ -98,6 +102,7 @@ def renamed_argument(
         change="is removed",
         instead=f"{new}=",
         version=version,
+        guide=guide,
         stacklevel=stacklevel,
     )
     return old_value

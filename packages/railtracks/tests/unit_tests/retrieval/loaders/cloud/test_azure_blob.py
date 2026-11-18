@@ -158,6 +158,8 @@ class TestAzureBlobLoaderRenamedArguments:
             ) as rec:
                 AzureBlobLoader(ACCOUNT_URL, container_name=CONTAINER)
         assert "container=" in str(rec[0].message)
+        assert "ingestion/methods/#renamed-arguments" in str(rec[0].message)
+        assert "1_5_0" not in str(rec[0].message)
         assert rec[0].filename == __file__
         assert storage.ContainerClient.call_args.kwargs["container_name"] == CONTAINER
 

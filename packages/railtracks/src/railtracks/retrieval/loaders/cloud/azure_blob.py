@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
+from railtracks.retrieval.loaders.base import RENAMED_ARGUMENTS_GUIDE
 from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
 from railtracks.utils.deprecation import renamed_argument
 
@@ -99,6 +100,7 @@ class AzureBlobLoader(ObjectStoreLoader):
             old_value=container_name,
             new_value=container,
             version="2.0.0",
+            guide=RENAMED_ARGUMENTS_GUIDE,
         )
         if container is None:
             raise TypeError("AzureBlobLoader() missing required argument: 'container'")
@@ -110,6 +112,7 @@ class AzureBlobLoader(ObjectStoreLoader):
             new_value=breakdown_strategy,
             unset="page",
             version="2.0.0",
+            guide=RENAMED_ARGUMENTS_GUIDE,
         )
         super().__init__(
             prefix=prefix,

@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from railtracks.retrieval.content_extraction import ContentExtractor, JsonExtractor
-from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.loaders.base import (
+    RENAMED_ARGUMENTS_GUIDE,
+    BaseDocumentLoader,
+)
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
 from railtracks.utils.deprecation import renamed_argument
@@ -93,6 +96,7 @@ class JSONLoader(BaseDocumentLoader):
             new_value=content_columns,
             unset="*",
             version="2.0.0",
+            guide=RENAMED_ARGUMENTS_GUIDE,
         )
         id_column = renamed_argument(
             "JSONLoader",
@@ -101,6 +105,7 @@ class JSONLoader(BaseDocumentLoader):
             old_value=id_key,
             new_value=id_column,
             version="2.0.0",
+            guide=RENAMED_ARGUMENTS_GUIDE,
         )
         ignore_columns = renamed_argument(
             "JSONLoader",
@@ -109,6 +114,7 @@ class JSONLoader(BaseDocumentLoader):
             old_value=ignore_keys,
             new_value=ignore_columns,
             version="2.0.0",
+            guide=RENAMED_ARGUMENTS_GUIDE,
         )
         self._path = Path(file_path)
         self._content_columns = content_columns

@@ -430,6 +430,8 @@ class TestJSONLoaderRenamedArguments:
         with pytest.warns(FutureWarning, match=rf"JSONLoader\({old}=.*2\.0\.0") as rec:
             legacy = JSONLoader(str(json_object_file), **{old: value})
         assert f"{new}=" in str(rec[0].message)
+        assert "ingestion/methods/#renamed-arguments" in str(rec[0].message)
+        assert "1_5_0" not in str(rec[0].message)
         assert rec[0].filename == __file__
 
         legacy_docs = await legacy.aload()

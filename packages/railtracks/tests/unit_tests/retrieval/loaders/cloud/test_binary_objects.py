@@ -153,6 +153,8 @@ class TestPdfObjects:
                 (doc,) = loader.load()
 
         assert "breakdown_strategy=" in str(record[0].message)
+        assert "ingestion/methods/#renamed-arguments" in str(record[0].message)
+        assert "1_5_0" not in str(record[0].message)
         assert record[0].filename == __file__
         assert doc.content == "First page\n\nSecond page"
 
