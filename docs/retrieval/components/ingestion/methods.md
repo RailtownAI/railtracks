@@ -257,12 +257,18 @@ For images (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.tif`, `.tiff`, `.webp`) and PDFs 
 pip install "railtracks[glm]"
 ```
 
-```python
-from railtracks.retrieval.loaders import GLMOCRLoader
+`[glm]` is not part of `[retrieval]` or `[all]`: `glmocr` depends on [PyMuPDF](https://pypi.org/project/PyMuPDF/), which is licensed under AGPL-3.0. Check that this license works for your project before installing it.
 
-cloud = GLMOCRLoader("scans/")
-self_hosted = GLMOCRLoader("scans/invoice.pdf", endpoint="http://localhost:8080")
-docs = cloud.load()
+The cloud API needs a Zhipu API key. Create one on the [Zhipu open platform](https://open.bigmodel.cn) and set it in the environment; `glmocr` reads it from there:
+
+```bash
+export ZHIPU_API_KEY="your-key"
+```
+
+A self-hosted server (`endpoint=...`) doesn't use the Zhipu key.
+
+```python
+--8<-- "docs/scripts/retrieval/ingestion_example.py:glm_ocr_basic"
 ```
 
 **Parameters**

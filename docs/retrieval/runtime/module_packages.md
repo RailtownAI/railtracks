@@ -35,8 +35,9 @@ pip install "railtracks[retrieval-core]"
 ### **`[retrieval]`**:
 
 `[retrieval-core]` plus every built-in connector
-and backend (Tesseract OCR, GLM-OCR, HuggingFace, AWS, Azure Blob, GCP, SQL,
+and backend (Tesseract OCR, HuggingFace, AWS, Azure Blob, GCP, SQL,
 ChromaDB, pgvector). Largest install; use when you want everything available.
+It leaves out `[glm]` (see below).
 
 ```bash
 pip install "railtracks[retrieval]"
@@ -51,7 +52,7 @@ Combine these with `[retrieval-core]` to add specific capabilities.
 | Extra | Adds | For |
 |---|---|---|
 | `[ocr]` | `pypdfium2`, `pytesseract`, `pillow` | OCR fallback in `PyPDFOCRLoader`. Also needs the [Tesseract binary](https://tesseract-ocr.github.io/tessdoc/Installation.html) on `PATH`. |
-| `[glm]` | `glmocr` | `GLMOCRLoader` for images and PDFs, via the Zhipu cloud API or a self-hosted GLM-OCR server. |
+| `[glm]` | `glmocr` | `GLMOCRLoader` for images and PDFs, via the Zhipu cloud API or a self-hosted GLM-OCR server. Not included in `[retrieval]` or `[all]`. |
 | `[huggingface]` | `datasets` | `HuggingFaceDatasetLoader` for streaming HF datasets. |
 | `[aws]` | `boto3` | `S3Loader`. Add `[pdf]` to parse PDF objects. |
 | `[azure-blob]` | `azure-core`, `azure-identity`, `azure-storage-blob` | `AzureBlobLoader`. Add `[pdf]` to parse PDF objects. |
@@ -86,6 +87,9 @@ A few extras need things that aren't on PyPI:
 - **`[ocr]`**: The `pytesseract` Python wrapper needs the Tesseract
   binary installed and on `PATH`. See the
   [Tesseract install guide](https://tesseract-ocr.github.io/tessdoc/Installation.html).
+- **`[glm]`**: `glmocr` depends on PyMuPDF, which is licensed under
+  AGPL-3.0, so it is only installed when you ask for `[glm]` explicitly.
+  The cloud API reads its key from `ZHIPU_API_KEY`.
 - **`[stores-vector]`**: `asyncpg`/`pgvector` need a running Postgres
   with the `pgvector` extension enabled.
 
@@ -96,7 +100,7 @@ A few extras need things that aren't on PyPI:
 `railtracks[all]` **includes `[retrieval]`**, alongside the rest of
 railtracks (visualizer, Portkey integration, web search). It is the
 heaviest install available: every loader, connector, and vector-store
-backend comes with it.
+backend comes with it, except `GLMOCRLoader` (`[glm]`).
 
 Reach for `[all]` when you want everything and do not care about
 install size. If you only need retrieval, install `[retrieval]`

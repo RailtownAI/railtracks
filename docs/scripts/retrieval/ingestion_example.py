@@ -369,6 +369,18 @@ print(docs[0].metadata)
 # --8<-- [end:pdf_ocr_document_strategy]
 
 
+# --8<-- [start:glm_ocr_basic]
+
+# Requires: pip install "railtracks[glm]", and ZHIPU_API_KEY set for the cloud API.
+from railtracks.retrieval.loaders import GLMOCRLoader
+
+cloud = GLMOCRLoader("scans/")
+self_hosted = GLMOCRLoader("scans/invoice.pdf", endpoint="http://localhost:8080")
+docs = cloud.load()
+print(docs[0].metadata["json_result"])  # bounding boxes, tables, reading order
+# --8<-- [end:glm_ocr_basic]
+
+
 # --8<-- [start:hf_basic]
 async def hf_basic():
     # Requires: pip install "railtracks[huggingface]"
