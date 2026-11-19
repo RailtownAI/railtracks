@@ -1,4 +1,5 @@
 from .api_providers import (
+    XAILLM,
     AnthropicLLM,
     GeminiLLM,
     HuggingFaceLLM,
@@ -21,4 +22,5 @@ __all__ = [
     PortKeyLLM,
     EchoLLM,
     "OpenAICompatibleProvider",
+    XAILLM,
 ]

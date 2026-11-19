@@ -24,6 +24,14 @@ load_dotenv()  # Load environment variables from .env file
 model = rt.llm.GeminiLLM(model_name="gemini-3.8-flash")
 # --8<-- [end: gemini]
 
+# --8<-- [start: xai]
+import railtracks as rt
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file under XAI_API_KEY
+
+model = rt.llm.XAILLM("grok-4.7")
+# --8<-- [end: xai]
+
 # --8<-- [start: azure]
 import railtracks as rt
 # Railtracks loads .env automatically; set AZURE_API_BASE and AZURE_API_KEY there.
