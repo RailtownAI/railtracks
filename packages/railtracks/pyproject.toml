@@ -117,7 +117,8 @@ gcp = ["google-cloud-storage >= 2.0.0"]
 sql = ["sqlalchemy >= 2.0.0"]
 stores-vector = ["asyncpg>=0.29", "pgvector>=0.3"]
 stores-chroma = ["chromadb>1.3.0"]
-stores-all = ["railtracks[stores-vector]", "railtracks[stores-chroma]"]
+stores-turbovec = ["turbovec >= 1.1.2"]
+stores-all = ["railtracks[stores-chroma]", "railtracks[stores-turbovec]", "railtracks[stores-vector]"]
 
 # Minimum needed for the retrieval pipeline (chunking, embedding, in-memory
 # store, basic local-file loaders). No cloud connectors, no heavy backends.
