@@ -26,16 +26,14 @@ When your evaluations include a [`Categorical`](metrics/categorical.md) metric, 
 
 ???+ info "Required API Keys"
     You will need the following keys set up on your project for the above
-    ### Retreiving Agent Runs
+    ### Retrieving Agent Runs
     ```bash
     CONDUCTR_PROJECT_PAT="..."
     CONDUCTR_PROJECT_ID="..."
-    RAILTOWN_API_KEY="..."
     ```
     ### Sending Agent Evaluations
     ```bash
-    RAILTOWN_API_KEY="..."
-    EVALUATIONS_API_TOKEN=".."
+    EVALUATIONS_API_TOKEN="..."
     ```
 
     Please refer to your **Conductr** project page at <https://cndr.railtown.ai/> for more info.
