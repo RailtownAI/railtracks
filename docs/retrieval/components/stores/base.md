@@ -26,10 +26,27 @@ For raw vector search at the runtime level (`runtime.retrieve(...)`), see
 
 | Type | Summary |
 |---|---|
-| `StoreEntry` | Atomic unit written to and returned by the store. Required fields come from an `EmbeddedChunk`; build with `StoreEntry.from_chunk(...)`. Enrichment fields (`abstract`, `summary`, `entities`, validity window) are optional and can be filled in later via `dataclasses.replace`. |
+| `StoreEntry` | Atomic unit written to and returned by the store. Its fields come from an `EmbeddedChunk`; build with `StoreEntry.from_chunk(embedded_chunk, scope=...)`. See [the field table](#storeentry). |
 | `StoreScope` | Frozen `labels` dict acting as a hard-filter namespace. Every scoped read and `clear` matches entries written with exactly the same labels: `{"tenant": "alice"}` does not match `{"tenant": "alice", "env": "prod"}`. `StoreScope()` (empty) and `None` both match only unscoped entries. Reads also accept `ALL_SCOPES` to search every scope. Use it for tenancy (`user_id`, `organization`, `environment`, etc.). |
-| `Entity` | Frozen named-entity record (`name`, `type`, `source_chunk_id`, `metadata`) attached to `StoreEntry.entities`. |
 | `RetrievedStoreEntry` | A read hit: the underlying `StoreEntry` plus `score` (similarity in `[0, 1]`, higher is more similar), 0-indexed `rank`, and optional `source_retriever` / `rerank_score`. |
+
+### `StoreEntry`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `id` | `UUID` | required | Entry id; `write` returns it as a string. `from_chunk` uses the chunk id |
+| `content` | `str` | required | Chunk text |
+| `vector` | `list[float] | None` | required | Embedding to index; `None` on entries returned by reads, since the backend owns the vector |
+| `embedding_model` | `str` | required | Model that produced `vector` |
+| `chunk_id` | `UUID` | required | Id of the source `Chunk` |
+| `document_id` | `UUID` | required | Id of the source `Document` |
+| `scope` | `StoreScope | None` | `None` | Namespace the entry is written to; `None` is unscoped |
+| `chunk_index` | `int` | `0` | Position of the chunk in its document |
+| `parent_chunk_id` | `UUID | None` | `None` | Parent chunk, for hierarchical chunkers |
+| `chunk_offsets` | `tuple[int, int] | None` | `None` | Character span of the chunk in the document |
+| `chunk_metadata` | `dict` | `{}` | The chunk's metadata; scalar values are filterable |
+| `embedding_version` | `str | None` | `None` | Embedding model version, if the embedder reports one |
+| `created_at` | `datetime` | now (UTC) | When the entry was built |
 
 ---
 
@@ -44,7 +61,7 @@ retrieval parameters.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `text` | `str` | required | Raw query string |
+| `text` | `str | None` | `None` | Raw query string, kept for logging and custom stores; `VectorStore` searches by `embedding` only |
 | `scope` | `StoreScope | AllScopes | None` | `None` | Namespace filter applied to the search; `None` matches only unscoped entries, `ALL_SCOPES` searches every scope |
 | `embedding` | `list[float] | None` | `None` | Pre-computed query vector (required by `VectorStore`) |
 | `top_k` | `int` | `10` | Maximum results to return |
@@ -60,13 +77,47 @@ All store implementations satisfy `Store`:
 class Store(Protocol):
     async def write(self, entry: StoreEntry) -> str: ...
     async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]: ...
-    async def delete(self, id: UUID) -> None: ...
+    async def delete(self, id: str) -> None: ...
     async def clear(self, scope: StoreScope) -> None: ...
-    async def delete_where(self, filters: dict[str, Any]) -> None: ...
-    async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]: ...
+    async def delete_where(
+        self,
+        filters: dict[str, Any] | None = None,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> None: ...
+    async def find(
+        self,
+        filters: dict[str, Any] | None = None,
+        limit: int = 1,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> list[StoreEntry]: ...
+    async def count(
+        self,
+        filters: dict[str, Any] | None = None,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> int: ...
+    async def nearest_neighbors(
+        self,
+        embedding: list[float],
+        k: int,
+        scope: StoreScope | AllScopes | None = None,
+    ) -> list[RetrievedStoreEntry]: ...
 ```
 
-`write` returns the entry ID as a string. `clear` removes all entries written with exactly the given scope (it rejects `ALL_SCOPES`); that's the path for session cleanup and user data deletion. `delete_where` and `find` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); both operate on metadata-only equality filters. In those filters (and in `count`), entry-field names (`document_id`, `chunk_id`, ...), `scope` and `scope_<label>` refer to the entry itself, and every other key refers to `chunk_metadata`. A metadata key that shares a name with an entry field can only be filtered through `StoreQuery.metadata_filters`, where every key (except `scope_<label>`) refers to `chunk_metadata`.
+`write` returns the entry ID as a string, and `delete` takes that string. `clear` removes all entries written with exactly the given scope (it rejects `ALL_SCOPES`); that's the path for session cleanup and user data deletion. `nearest_neighbors` is a raw vector search that still enforces the scope (see [below](#nearest_neighbors-low-level-bypass)).
+
+`delete_where`, `find` and `count` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); they match entries by equality, without a vector search. They take two kinds of filter, and an entry must match both; if both give the same key different values, the call raises `ValueError`:
+
+- **`filters`**: entry-field names (`document_id`, `chunk_id`, ...), `scope` and `scope_<label>` refer to the entry itself, and every other key refers to `chunk_metadata`.
+- **`metadata_filters=`**: every key refers to `chunk_metadata` (except `scope_<label>`), the same as `StoreQuery.metadata_filters`. Use it for a metadata key that shares a name with an entry field, such as a CSV column called `document_id`.
+
+```python
+--8<-- "docs/scripts/retrieval/store.py:filters"
+```
+
+`VectorStore.delete_where` raises `ValueError` when both are empty, so a missing filter can't wipe the store; call `clear(scope)` to delete everything in a scope.
 
 ---
 

@@ -400,12 +400,11 @@ class RetrievalRuntime:
         """
         if doc.source is None:
             return False
-        stale_filters = {
-            "source_path": doc.source,
-            "content_hash": doc.content_hash,
-            **exact_scope_filter(scope),
-        }
-        existing = await self._store.find(stale_filters, limit=1)
+        scope_filter = exact_scope_filter(scope)
+        stale_metadata = {"source_path": doc.source, "content_hash": doc.content_hash}
+        existing = await self._store.find(
+            scope_filter, limit=1, metadata_filters=stale_metadata
+        )
         if not existing:
             return False
         expected = existing[0].chunk_metadata.get("doc_chunk_count")
@@ -413,7 +412,8 @@ class RetrievalRuntime:
             # Not written by this runtime (every ingest stamps the count):
             # completeness can't be verified, so re-ingest.
             return False
-        return await self._store.count(stale_filters) >= expected
+        count = await self._store.count(scope_filter, metadata_filters=stale_metadata)
+        return count >= expected
 
     @staticmethod
     def _stamp_staleness_metadata(doc: Document, chunks: list[Chunk]) -> None:

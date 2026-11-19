@@ -102,7 +102,6 @@ class RetrievedChunk:
 class RetrievalResult:
     query: str
     chunks: list[RetrievedChunk]
-    total_candidates: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
