@@ -49,6 +49,7 @@ match on it to log, retry, or short-circuit:
 | `EmbeddingFailure` | A batch failed mid-flight. The stream continues; successful batches for the same document are still written. |
 | `DocumentFailed` | A document could not be fully ingested. Its `stage` says whether loading, chunking, embedding, or the store write failed. |
 | `DocumentSkipped` | The document's `source` + `content_hash` matches an existing entry; no embedding call was made. |
+| `IngestCompleted` | Always the last event of a run that finishes. `stats` holds the same `IngestionStats` that `ingest_all` returns. Not yielded if the run raises. |
 
 Failures are surfaced as events, not raised. This results in bulk re-indexing across thousands of documents not aborting due to one bad file or one batch failure.
 
@@ -150,10 +151,7 @@ metrics, or write-ahead logging:
 --8<-- "docs/scripts/retrieval/ingestion_example.py:on_ingest_hook"
 ```
 
-The callback runs inline with the ingest stream. For anything async or
-slow (DB writes, HTTP webhooks), wrap the body in `asyncio.create_task(...)`
-so the stream keeps moving and errors then surface on the task instead of
-bubbling out of the ingest call.
+The callback can be a plain function or an `async def`; an async callback is awaited before the event is yielded. Either way it runs inline with the ingest stream, so a slow hook (DB writes, HTTP webhooks) slows ingestion and an exception it raises ends the run. The final call receives `IngestCompleted`. Hand slow work to a queue or background worker if the stream must keep moving.
 
 ---
 

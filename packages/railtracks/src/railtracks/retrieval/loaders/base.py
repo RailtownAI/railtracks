@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import aclosing
 
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document
+from railtracks.utils.asyncio_compat import run_sync
 
 
 class BaseDocumentLoader(ABC):
@@ -85,19 +85,7 @@ class BaseDocumentLoader(ABC):
         Raises:
             Exception: The error of the first `LoadFailure` from `astream()`.
         """
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            # No loop in this thread — safe to spin one up.
-            return asyncio.run(self.aload())
-
-        # A loop is already running. Run aload() on a worker thread that
-        # creates its own event loop. Avoids "asyncio.run() cannot be called
-        # from a running event loop" in Jupyter / async contexts.
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(asyncio.run, self.aload()).result()
+        return run_sync(self.aload())
 
     @staticmethod
     async def _isolate_source(

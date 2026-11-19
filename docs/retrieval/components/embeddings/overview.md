@@ -44,9 +44,7 @@ class Embedding(ABC):
 `aembed` takes a flat list of strings and returns a `TextEmbeddings`
 containing the raw vectors and per-call metrics.
 
-`embed` is a convenience sync wrapper. **It raises if called from a
-running event loop** (including Jupyter); use `await embedder.aembed(...)`
-in async contexts.
+`embed` is a convenience sync wrapper. Inside a running event loop (including Jupyter) it runs `aembed` on a worker thread and blocks until it finishes, so prefer `await embedder.aembed(...)` in async code.
 
 ---
 

@@ -978,3 +978,69 @@ async def test_clear_of_unscoped_namespace_still_works():
     await store.clear(StoreScope())
 
     assert [e.id for e in await store.find({}, limit=10)] == [scoped.id]
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
+
+
+class _ClosingBackend(InMemoryBackend):
+    def __init__(self) -> None:
+        super().__init__()
+        self.close_calls = 0
+
+    async def aclose(self) -> None:
+        self.close_calls += 1
+
+
+class _NoCloseBackend:
+    async def upsert(self, id, vector, payload) -> None: ...
+
+
+async def test_aclose_delegates_to_backend_aclose():
+    backend = _ClosingBackend()
+    await VectorStore(backend).aclose()
+    assert backend.close_calls == 1
+
+
+async def test_aclose_is_a_no_op_for_backend_without_aclose():
+    store = VectorStore(_NoCloseBackend())  # type: ignore[arg-type]
+    await store.aclose()
+
+
+async def test_async_with_closes_store_on_exit():
+    backend = _ClosingBackend()
+    async with VectorStore(backend) as store:
+        assert isinstance(store, VectorStore)
+        assert backend.close_calls == 0
+    assert backend.close_calls == 1
+
+
+async def test_async_with_closes_store_when_body_raises():
+    backend = _ClosingBackend()
+    with pytest.raises(RuntimeError, match="inside"):
+        async with VectorStore(backend):
+            raise RuntimeError("inside")
+    assert backend.close_calls == 1
+
+
+async def test_in_memory_aclose_persists_snapshot(tmp_path: Path):
+    snapshot = tmp_path / "snap.json"
+    backend = InMemoryBackend(snapshot_path=snapshot)
+    store = VectorStore(backend)
+    entry = _make_entry()
+    await store.write(entry)
+    snapshot.unlink()
+
+    await store.aclose()
+
+    data = json.loads(snapshot.read_text(encoding="utf-8"))
+    assert str(entry.id) in data["vectors"]
+
+
+async def test_in_memory_aclose_without_snapshot_path_is_a_no_op(tmp_path: Path):
+    backend = InMemoryBackend()
+    await backend.aclose()
+    await backend.aclose()
+    assert list(tmp_path.iterdir()) == []
