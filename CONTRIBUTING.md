@@ -21,7 +21,7 @@ Root
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.11 or higher
 - [Optional] A package manager like `pip` or `poetry`. We use `uv` for development environment management, but you can also use `venv` or `conda` if you prefer.
 
 ### Installing code and dependencies
@@ -45,6 +45,14 @@ Root
    uv pip install -e "packages/railtracks[all]"
    ```
    If you only need a specific extra (e.g. `visual`, `integrations`, `chroma`), replace `all` with the relevant extra name. See `packages/railtracks/pyproject.toml` for the full list.
+
+4. **Set up API keys (optional)**
+
+   Only needed for running examples or live LLM tests. Copy the template and uncomment the keys for the providers you use:
+   ```bash
+   cp .env.example .env
+   ```
+   `.env` is git-ignored; never commit real keys.
 
 
 ## Development Workflow

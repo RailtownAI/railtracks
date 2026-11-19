@@ -24,7 +24,7 @@ def mock_dependencies(monkeypatch):
     m_get_global_config.return_value.precedence_overwritten.return_value.payload_callback = None
 
     monkeypatch.setattr("railtracks._session.get_global_config", m_get_global_config)
-    monkeypatch.setattr("railtracks._session.RTPublisher", m_rt_publisher)
+    monkeypatch.setattr("railtracks._session.Publisher", m_rt_publisher)
     monkeypatch.setattr("railtracks._session.ExecutionInfo", m_execution_info)
     monkeypatch.setattr("railtracks._session.Coordinator", m_coordinator)
     monkeypatch.setattr("railtracks._session.RTState", m_rt_state)
@@ -33,7 +33,7 @@ def mock_dependencies(monkeypatch):
 
     return {
         "get_global_config": m_get_global_config,
-        "RTPublisher": m_rt_publisher,
+        "Publisher": m_rt_publisher,
         "ExecutionInfo": m_execution_info,
         "Coordinator": m_coordinator,
         "RTState": m_rt_state,
@@ -195,6 +195,19 @@ def test_session_saves_data(tmp_path, monkeypatch):
         assert content["runs"] == serialization_mock, "Serialization data mismatch"
         assert content["session_name"] == name, "Session name mismatch"
         assert "session_id" in content, "'session_id' key missing from saved data"
+
+
+def test_session_save_writes_railtracks_gitignore(
+    allow_persistence, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+
+    with patch.object(Session, "info", new_callable=PropertyMock) as mock_info:
+        mock_info.return_value.graph_serialization.return_value = {}
+
+        Session(name="gitignore", save_state=True).__exit__(None, None, None)
+
+    assert (tmp_path / ".railtracks" / ".gitignore").exists()
 
 
 def test_session_not_saves_data(tmp_path, monkeypatch):

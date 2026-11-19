@@ -1,5 +1,4 @@
 .cursor
-.env
 .idea
 .tox
 .vscode
@@ -14,6 +13,16 @@ test-results.xml
 .coverage
 .mypy_cache
 .pytest_cache
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+secrets/
+credentials.json
 
 # jupyter notebook
 .ipynb_checkpoints

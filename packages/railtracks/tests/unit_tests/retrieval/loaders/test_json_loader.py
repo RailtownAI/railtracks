@@ -3,6 +3,7 @@ import json
 import pytest
 from railtracks.retrieval import JsonExtractor, ProseExtractor
 from railtracks.retrieval.loaders.json_loader import JSONLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import DocumentType
 
 
@@ -346,13 +347,16 @@ class TestJSONLoaderContentExtractors:
             str(f), content_keys=content_keys, content_extractor=extract
         ).astream()
         assert (await anext(stream)).metadata["index"] == 0
-        with pytest.raises(ValueError) as exc:
-            await anext(stream)
+        failure = await anext(stream)
+        assert isinstance(failure, LoadFailure)
+        assert failure.source == str(f)
+        error = failure.error
+        assert isinstance(error, ValueError)
         key = "*" if content_keys == "*" else "question"
-        assert f"key {key!r}" in str(exc.value)
-        assert "index 1" in str(exc.value)
-        assert str(f) in str(exc.value)
-        assert exc.value.__cause__ is original_error
+        assert f"key {key!r}" in str(error)
+        assert "index 1" in str(error)
+        assert str(f) in str(error)
+        assert error.__cause__ is original_error
 
     async def test_json_extractor_serializes_nested_content_key(self, tmp_path):
         f = tmp_path / "nested.json"

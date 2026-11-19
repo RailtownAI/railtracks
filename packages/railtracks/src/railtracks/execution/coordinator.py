@@ -8,7 +8,7 @@ from railtracks.pubsub.messages import (
     RequestFinishedBase,
     RequestSuccess,
 )
-from railtracks.pubsub.publisher import RTPublisher
+from railtracks.utils.publisher import Publisher
 
 from .execution_strategy import TaskExecutionStrategy
 from .task import Task
@@ -145,7 +145,7 @@ class Coordinator:
         )
         self.execution_strategy = execution_modes
 
-    def start(self, publisher: RTPublisher):
+    def start(self, publisher: Publisher[RequestCompletionMessage]):
         """
         Starts the coordinator by attaching any relevant subscribers to the provided publisher.
         """

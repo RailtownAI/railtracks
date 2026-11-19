@@ -22,7 +22,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 - `wrap_node`/`wrap_llm` require `async def` (`TypeError` otherwise). `pre_llm`/`post_llm`/`post_node` accept sync or async.
 - `middleware=` wraps the whole node call (an agent's full tool-calling loop, including every tool node it invokes). `model_middleware=` wraps one raw LLM call inside that loop.
 - Attach at creation — `rt.agent_node(..., middleware=[...], model_middleware=[...])` — or after the fact without mutating the original — `rt.couple(node, middleware=[...], model_middleware=[...])`.
-- List order = wrapping order: `middleware=[A, B, C]` → `A` wraps `B` wraps `C` wraps the node. `rt.couple`-ing more onto an already-middlewared node adds the new ones innermost; existing middleware stays outermost.
+- List order = wrapping order: `middleware=[A, B, C]` → `A` wraps `B` wraps `C` wraps the node. `rt.couple`-ing more onto an already-middlewared node adds the new ones outermost; existing middleware stays innermost, closest to the node.
 
 ---
 
@@ -47,12 +47,18 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 - Two different things happen depending on middleware shape — know which one you're ordering:
   - **Input-transforming middleware** (`pre_llm`-style: mutates `message_history`/`schema`/`tools` before calling onward) — earlier entries in the list run first and hand their result to later entries. Put transformations before validations: `model_middleware=[ContextInjection(), my_guard]` so the guard sees the filled-in prompt, not the raw template.
   - **Span-wrapping middleware** (retry, timing, logging that brackets a whole call) — the outermost entry sees the aggregate outcome; the innermost is what actually gets re-invoked on each attempt. `middleware=[Retry(3), log_after]` → the log fires once per retry attempt (it's inside the retry). `middleware=[log_after, Retry(3)]` → the log fires once, for the final outcome only (it's outside the retry). Pick based on whether you want per-attempt or per-call visibility.
-- When `rt.couple`-ing middleware onto a node that already has some, the new list is innermost — it can't run "before" existing outer middleware like auth checks.
+- When `rt.couple`-ing middleware onto a node that already has some, the new list is outermost — it runs before the existing middleware, so it can't be placed inside an existing auth check or retry.
 
 ### 4. Naming & observability
 - `name=` sets `Middleware.name`, which is recorded with the middleware's events and shown in the beta visualizer (`railtracks viz --beta`) — the same way guardrails write their `name` into every `GuardrailTrace.rail_name`. Give your middleware a real `name=` so it's identifiable in traces/logs instead of falling back to the wrapper function's `__name__`.
 - Set `name=` when the same wrapper function is reused in more than one slot (e.g. one generic `retry_node` attached to several agents) and you need to tell instances apart.
 - Keep one concern per middleware function. A function that both logs and mutates the prompt makes the ordering question in §3 ambiguous — split it into two so each one has one clear rule for where it belongs in the list.
+
+### 5. State
+- A middleware instance is shared, never copied: every node it is attached to (both slots), every node `rt.couple` builds from those, and every run, including concurrent runs, call the same object.
+- Keep per-run state in `rt.context` under a key the middleware owns (one key per instance, e.g. a `uuid` suffix), as `ConversationMemory` does. Each run gets its own copy of the context dictionary, so concurrent runs stay apart.
+- Keep only process-wide resources on `self` or in a closure: clients, connection pools, semaphores.
+- For a budget, use `railtracks.prebuilt.middleware.MaxCalls`, which keeps a separate count per session. To serialize calls that share state, put `railtracks.prebuilt.middleware.Lock` outside the middleware that uses it.
 
 ---
 
@@ -141,3 +147,4 @@ Adjusted = rt.couple(
 - Write content allow/block checks as `input_guard`/`output_guard`, so they show up in `GuardrailTrace` with the rest of your rails.
 - Write `wrap_node`/`wrap_llm` functions as `async def`.
 - Put failure-aware logic in `wrap_llm`/`wrap_node`; `post_llm`/`post_node` run only on success.
+- Keep per-run middleware state in `rt.context`, not on `self`; one instance serves every run, including concurrent ones.

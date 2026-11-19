@@ -17,22 +17,22 @@ from uuid import uuid4
 
 from railtracks.context.central import (
     activate_publisher,
-    get_current_scope,
     get_local_config,
-    get_parent_id,
     get_publisher,
-    get_run_id,
+    is_context_active,
     is_context_present,
 )
 from railtracks.exceptions import GlobalTimeOutError, NodeCreationError
-from railtracks.pubsub.messages import (
-    FatalFailure,
-    RequestCompletionMessage,
-    RequestCreation,
-    RequestFinishedBase,
-)
+from railtracks.pubsub.messages import RequestCompletionMessage
 from railtracks.pubsub.utils import output_mapping
 from railtracks.utils.logging import get_rt_logger
+
+from .utils import (
+    begin_top_level,
+    end_top_level,
+    request_creation,
+    top_level_message_filter,
+)
 
 if TYPE_CHECKING:
     from railtracks._session import Session
@@ -102,6 +102,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         self._sub_id: str | None = None
         self._deadline: float | None = None
         self._timeout: float | None = None
+        # set when this stream is the top-level request, not a call from inside a node
+        self._top_level_start: float | None = None
         # run-context hooks supplied by the caller (session setup/teardown lives there,
         # not in the Stream. see rt.astream)
         self._on_start = on_start
@@ -122,6 +124,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         if self._on_start is not None:
             self._on_start()
 
+        if not is_context_active():
+            self._top_level_start = await begin_top_level(self._node)
         await activate_publisher()
         publisher = get_publisher()
         # token chunks are written onto this queue directly by the streamed frame's LLM node
@@ -130,14 +134,13 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         self._queue = queue
 
-        request_id = self._request_id
+        # a fatal failure ends the whole run, so even a stream inside a node stops on one;
+        # otherwise it would wait for a completion the closed session can't deliver
+        is_done = top_level_message_filter(self._request_id)
 
         def _subscriber(message: RequestCompletionMessage) -> None:
             # the Stream only listens for run completion here
-            if isinstance(message, RequestFinishedBase):
-                if message.request_id == request_id:
-                    queue.put_nowait(("done", message))
-            elif isinstance(message, FatalFailure):
+            if is_done(message):
                 queue.put_nowait(("done", message))
 
         # subscribe BEFORE publishing the request so the completion marker can't be missed
@@ -149,21 +152,14 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         )
 
         await publisher.publish(
-            RequestCreation(
-                current_node_id=get_parent_id(),
-                current_run_id=get_run_id(),
-                current_scope=get_current_scope(),
-                new_request_id=request_id,
-                running_mode="async",
-                new_node_type=self._node,
-                args=self._args,
-                kwargs=self._kwargs,
-                stream_queue=queue,
+            request_creation(
+                self._request_id, self._node, self._args, self._kwargs, queue
             )
         )
 
-    def _cleanup(self) -> None:
-        """Hands teardown of the run context back to the caller."""
+    async def _cleanup(self) -> None:
+        """Ends a top-level run, then hands teardown of the run context back to the
+        caller."""
         if self._sub_id is not None:
             try:
                 get_publisher().unsubscribe(self._sub_id)
@@ -175,6 +171,8 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         # tear down whatever on_start set up (e.g. a session); run at most once.
         if not self._closed:
             self._closed = True
+            if self._top_level_start is not None:
+                await end_top_level(self._top_level_start, self._error)
             if self._on_close is not None:
                 self._on_close()
 
@@ -196,33 +194,34 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         if self._deadline is not None:
             remaining = self._deadline - time.monotonic()
             if remaining <= 0:
-                self._finish_with_timeout()
+                await self._finish_with_timeout()
 
         try:
             kind, payload = await asyncio.wait_for(self._queue.get(), timeout=remaining)
         except asyncio.TimeoutError:
-            self._finish_with_timeout()
+            await self._finish_with_timeout()
 
         if kind == "chunk":
             return payload
         else:
             # the run has finished: resolve the final result (or raise the node's error)
             self._finished = True
-            self._cleanup()
             try:
                 self._result = output_mapping(payload)
             except BaseException as e:
                 self._error = e
                 raise
+            finally:
+                await self._cleanup()
             raise StopAsyncIteration
 
-    def _finish_with_timeout(self) -> NoReturn:
+    async def _finish_with_timeout(self) -> NoReturn:
         """Marks the stream as finished and raises the global timeout error."""
         assert self._timeout is not None, "timeout can only fire when one is configured"
         error = GlobalTimeOutError(timeout=self._timeout)
         self._finished = True
         self._error = error
-        self._cleanup()
+        await self._cleanup()
         raise error
 
     # ------------------------------------------------------------------ result access

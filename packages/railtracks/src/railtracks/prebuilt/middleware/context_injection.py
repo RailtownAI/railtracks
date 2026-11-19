@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+from copy import copy
 from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.middleware import ModelMiddleware
+from railtracks.llm.middleware import ModelOnlyMiddleware
 from railtracks.llm.response import Response
 from railtracks.llm.tools.tool import Tool
 from railtracks.prompts.prompt import inject_context
 
 
-class ContextInjection(ModelMiddleware):
+class ContextInjection(ModelOnlyMiddleware):
     """Inject ``rt.context`` values into prompt placeholders before each model call.
 
     Model-level middleware (``model_middleware=`` only). Fills ``{placeholder}``
@@ -30,6 +31,9 @@ class ContextInjection(ModelMiddleware):
     List position matters: place it before (outside) any middleware that must see
     the injected prompt, e.g. an input guard listed after this entry sees the
     filled-in template.
+
+    The placeholders are filled in a copy of the history, so the caller's messages
+    keep their templates and each model call fills them exactly once.
     """
 
     def __init__(self):
@@ -45,5 +49,5 @@ class ContextInjection(ModelMiddleware):
         schema: type[BaseModel] | None,
         tools: list[Tool] | None,
     ):
-        inject_context(message_history)
-        return await call(message_history, schema, tools)
+        filled = inject_context(MessageHistory([copy(m) for m in message_history]))
+        return await call(filled, schema, tools)

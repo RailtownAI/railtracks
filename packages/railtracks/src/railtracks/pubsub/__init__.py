@@ -19,10 +19,8 @@ __all__ = [
     "FatalFailure",
     "BroadcastEvent",
     "output_mapping",
-    "RTPublisher",
     "event_subscriber",
 ]
 
 from ._subscriber import event_subscriber
-from .publisher import RTPublisher
 from .utils import output_mapping

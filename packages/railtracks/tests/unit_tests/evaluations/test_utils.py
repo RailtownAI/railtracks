@@ -104,6 +104,20 @@ def test_save_file_content_is_valid_json(tmp_path, monkeypatch):
     assert content["evaluation_id"] == str(result.evaluation_id)
 
 
+def test_save_keeps_non_ascii_text_readable(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path
+    )
+
+    result = make_evaluation_result()
+    result.evaluation_name = "评估 😀"
+    save([result])
+
+    fp = tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json"
+    text = fp.read_bytes().decode("utf-8")
+    assert '"evaluation_name": "评估 😀"' in text
+
+
 def test_save_duplicate_raises(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "railtracks.evaluations.utils.resolve_railtracks_home", lambda: tmp_path
@@ -139,3 +153,11 @@ def test_save_multiple_results(tmp_path, monkeypatch):
         assert (
             tmp_path / "data" / "evaluations" / f"{result.evaluation_id}.json"
         ).exists()
+
+
+def test_save_writes_railtracks_gitignore(tmp_path, monkeypatch):
+    monkeypatch.setenv("RAILTRACKS_HOME", str(tmp_path))
+
+    save([make_evaluation_result()])
+
+    assert (tmp_path / ".railtracks" / ".gitignore").exists()

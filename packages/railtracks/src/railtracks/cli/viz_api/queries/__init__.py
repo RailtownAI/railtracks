@@ -30,6 +30,7 @@ from .middleware import (
 )
 from .nodes import (
     get_agent_llm_details,
+    get_decision_details,
     get_node_row,
     get_tool_io,
     list_llm_totals_by_node,
@@ -50,6 +51,7 @@ __all__ = [
     "count_middleware_rows",
     "count_session_rows",
     "get_agent_llm_details",
+    "get_decision_details",
     "get_event_stats",
     "get_llm_trace_stats",
     "get_middleware_stats",

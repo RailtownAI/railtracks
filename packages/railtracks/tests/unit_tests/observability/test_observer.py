@@ -1,4 +1,6 @@
-import asyncio
+import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 import pytest
@@ -6,267 +8,204 @@ from railtracks.observability import (
     SCOPE_SESSION,
     Event,
     Observer,
-    QueuePolicy,
     Timestamp,
 )
+from railtracks.observability import observer as observer_module
 
 
 class MemoryWriter:
-    def __init__(
-        self,
-        sleep_before_write: float = 0.0,
-        raise_on_write: bool = False,
-    ):
+    def __init__(self, raise_on_write: bool = False):
         self.events: List[Event] = []
-        self.started = False
-        self.shutdown_called = False
-        self._sleep = sleep_before_write
+        self.starts = 0
+        self.shutdowns = 0
         self._raise = raise_on_write
 
-    async def start(self) -> None:
-        self.started = True
+    def start(self) -> None:
+        self.starts += 1
 
-    async def write(self, event: Event) -> None:
-        if self._sleep:
-            await asyncio.sleep(self._sleep)
+    def write(self, event: Event) -> None:
         if self._raise:
             raise RuntimeError("boom")
         self.events.append(event)
 
-    async def shutdown(self) -> None:
-        self.shutdown_called = True
+    def shutdown(self) -> None:
+        self.shutdowns += 1
 
 
-def _event(scope_id: str = "s1") -> Event:
+class _RaisingStartWriter:
+    def start(self) -> None:
+        raise OSError(30, "Read-only file system")
+
+    def write(self, event: Event) -> None:  # pragma: no cover
+        raise AssertionError("write() should not be reached")
+
+    def shutdown(self) -> None:  # pragma: no cover
+        raise AssertionError("shutdown() should not be reached")
+
+
+def _event(scope_id: str = "s1", event_type: str = "test") -> Event:
     return Event(
-        event_type="test",
+        event_type=event_type,
         stamp=Timestamp.now(),
         scope_type=SCOPE_SESSION,
         scope_id=scope_id,
     )
 
 
-async def test_fan_out_to_multiple_writers():
+@pytest.fixture
+def warnings_logged(caplog):
+    caplog.set_level(logging.WARNING, logger=observer_module.logger.name)
+    return caplog
+
+
+def test_fan_out_to_multiple_writers_before_publish_returns():
     a, b = MemoryWriter(), MemoryWriter()
-    async with Observer() as obs:
-        await obs.register(a, "a")
-        await obs.register(b, "b")
-        await obs.publish(_event("e1"))
-        await obs.publish(_event("e2"))
+    obs = Observer()
+    obs.configure_writers([a, b])
+    obs.publish(_event("e1"))
+    assert [e.scope_id for e in a.events] == ["e1"]
+    obs.publish(_event("e2"))
     assert [e.scope_id for e in a.events] == ["e1", "e2"]
     assert [e.scope_id for e in b.events] == ["e1", "e2"]
 
 
-async def test_writer_start_and_shutdown_are_called():
+def test_writers_start_on_the_first_event_and_shut_down_once():
     w = MemoryWriter()
-    async with Observer() as obs:
-        await obs.register(w, "w")
-        assert w.started is True
-    assert w.shutdown_called is True
-
-
-async def test_slow_writer_does_not_block_fast_writer():
-    slow = MemoryWriter(sleep_before_write=0.05)
-    fast = MemoryWriter()
     obs = Observer()
-    await obs.start()
-    try:
-        await obs.register(slow, "slow")
-        await obs.register(fast, "fast")
-        for i in range(5):
-            await obs.publish(_event(f"e{i}"))
-        await asyncio.sleep(0.01)
-        assert len(fast.events) == 5
-        assert len(slow.events) < 5
-    finally:
-        await obs.shutdown()
-    assert len(slow.events) == 5
+    obs.configure_writers([w])
+    assert w.starts == 0
+
+    obs.publish(_event())
+    obs.publish(_event())
+    assert w.starts == 1
+
+    obs.shutdown()
+    obs.shutdown()
+    assert w.shutdowns == 1
 
 
-async def test_writer_exception_does_not_kill_observer():
-    bad = MemoryWriter(raise_on_write=True)
-    good = MemoryWriter()
-    async with Observer() as obs:
-        await obs.register(bad, "bad")
-        await obs.register(good, "good")
-        await obs.publish(_event("e1"))
-        await obs.publish(_event("e2"))
-    assert [e.scope_id for e in good.events] == ["e1", "e2"]
-    assert bad.events == []
-    assert bad.shutdown_called is True
-
-
-async def test_shutdown_drains_pending_events():
-    slow = MemoryWriter(sleep_before_write=0.005)
+def test_publish_after_shutdown_is_ignored():
+    w = MemoryWriter()
     obs = Observer()
-    await obs.start()
-    await obs.register(slow, "slow")
-    for i in range(5):
-        await obs.publish(_event(f"e{i}"))
-    await obs.shutdown()
-    assert len(slow.events) == 5
+    obs.configure_writers([w])
+    obs.publish(_event("before"))
+    obs.shutdown()
+    obs.publish(_event("after"))
+    assert [e.scope_id for e in w.events] == ["before"]
 
 
-async def test_publish_after_shutdown_raises():
+def test_default_writers_are_used_only_when_none_are_configured():
+    default = MemoryWriter()
+    obs = Observer(default_writers=lambda: [default])
+    obs.publish(_event())
+    assert len(default.events) == 1
+
+    mine = MemoryWriter()
+    configured = Observer(default_writers=lambda: [default])
+    configured.configure_writers([mine])
+    configured.publish(_event())
+    assert len(mine.events) == 1
+    assert len(default.events) == 1
+
+
+def test_is_observing_needs_a_writer_and_an_open_observer():
+    assert Observer().is_observing is False
+
     obs = Observer()
-    await obs.start()
-    await obs.register(MemoryWriter(), "w")
-    await obs.shutdown()
-    with pytest.raises(RuntimeError):
-        await obs.publish(_event())
-
-
-async def test_is_observing_needs_a_running_observer_with_a_writer():
-    obs = Observer()
-    assert obs.is_observing is False
-
-    await obs.start()
-    assert obs.is_observing is False
-
-    await obs.register(MemoryWriter(), "w")
+    obs.configure_writers([MemoryWriter()])
     assert obs.is_observing is True
 
-    await obs.shutdown()
+    obs.shutdown()
     assert obs.is_observing is False
 
 
-async def test_register_when_not_running_raises():
-    """Public register still requires start() first. Pre-start batch
-    registration goes through configure_writers()."""
-    obs = Observer()
-    with pytest.raises(RuntimeError, match="Observer is not running"):
-        await obs.register(MemoryWriter(), "w")
+def test_listeners_run_before_writers():
+    order: list[str] = []
 
-
-async def test_configure_writers_then_start_registers_pending():
-    """The Observer-level batch flow: configure_writers([...]) then start()
-    registers each with auto-name writer-{i}."""
-    a, b = MemoryWriter(), MemoryWriter()
-    obs = Observer()
-    obs.configure_writers([a, b])
-    try:
-        await obs.start()
-        # Both writers were started and consumer tasks are running.
-        assert a.started is True
-        assert b.started is True
-        assert set(obs._writers.keys()) == {"writer-0", "writer-1"}
-        await obs.publish(_event("e1"))
-    finally:
-        await obs.shutdown()
-    assert [e.scope_id for e in a.events] == ["e1"]
-    assert [e.scope_id for e in b.events] == ["e1"]
-
-
-async def test_configure_writers_after_start_raises():
-    obs = Observer()
-    await obs.start()
-    try:
-        with pytest.raises(
-            RuntimeError, match="configure_writers must be called before"
-        ):
-            obs.configure_writers([MemoryWriter()])
-    finally:
-        await obs.shutdown()
-
-
-async def test_concurrent_start_coalesces():
-    """Two concurrent Observer.start() calls: only one runs the pending-writer
-    registration; the other coalesces on the lock. No duplicate-name errors."""
-    a, b = MemoryWriter(), MemoryWriter()
-    obs = Observer()
-    obs.configure_writers([a, b])
-    try:
-        await asyncio.gather(*[obs.start() for _ in range(5)])
-        assert obs._running is True
-        assert set(obs._writers.keys()) == {"writer-0", "writer-1"}
-    finally:
-        await obs.shutdown()
-
-
-async def test_register_duplicate_name_raises():
-    async with Observer() as obs:
-        await obs.register(MemoryWriter(), "same")
-        with pytest.raises(ValueError):
-            await obs.register(MemoryWriter(), "same")
-
-
-async def test_unregister_cleans_up_writer_and_stops_delivery():
-    a, b = MemoryWriter(), MemoryWriter()
-    async with Observer() as obs:
-        await obs.register(a, "a")
-        await obs.register(b, "b")
-        await obs.publish(_event("e1"))
-        await obs.unregister("a")
-        assert a.shutdown_called is True
-        await obs.publish(_event("e2"))
-    assert [e.scope_id for e in a.events] == ["e1"]
-    assert [e.scope_id for e in b.events] == ["e1", "e2"]
-
-
-async def test_unregister_unknown_name_raises():
-    async with Observer() as obs:
-        with pytest.raises(KeyError):
-            await obs.unregister("nope")
-
-
-async def test_drop_oldest_when_queue_full():
-    gate = asyncio.Event()
-
-    class GatedWriter:
-        async def start(self) -> None:
-            return None
-
-        async def write(self, event: Event) -> None:
-            await gate.wait()
-
-        async def shutdown(self) -> None:
-            return None
+    class _OrderWriter(MemoryWriter):
+        def write(self, event: Event) -> None:
+            order.append("writer")
 
     obs = Observer()
-    await obs.start()
-    try:
-        await obs.register(
-            GatedWriter(), "gated", maxsize=3, policy=QueuePolicy.DROP_OLDEST
-        )
-        for i in range(6):
-            await obs.publish(_event(f"e{i}"))
-        assert obs._drops["gated"] >= 3
-    finally:
-        gate.set()
-        await obs.shutdown()
+    obs.configure_writers([_OrderWriter()])
+    obs.add_listener(lambda event: order.append("listener"))
+    obs.publish(_event())
+    assert order == ["listener", "writer"]
 
 
-# ------------------------------------------------------------------------
-# Writer-start resilience (#1049)
-# ------------------------------------------------------------------------
+def test_add_listener_is_idempotent():
+    obs = Observer()
+    calls: list[Event] = []
+    assert obs.add_listener(calls.append) is True
+    assert obs.add_listener(calls.append) is False
+    obs.publish(_event())
+    assert len(calls) == 1
 
 
-class _RaisingStartWriter:
-    async def start(self) -> None:
-        raise OSError(30, "Read-only file system")
+def test_writer_exception_does_not_affect_other_writers():
+    bad = MemoryWriter(raise_on_write=True)
+    good = MemoryWriter()
+    obs = Observer()
+    obs.configure_writers([bad, good])
+    obs.publish(_event("e1"))
+    obs.publish(_event("e2"))
+    obs.shutdown()
+    assert [e.scope_id for e in good.events] == ["e1", "e2"]
+    assert bad.shutdowns == 1
 
-    async def write(self, event: Event) -> None:  # pragma: no cover
-        raise AssertionError("write() should not be reached")
 
-    async def shutdown(self) -> None:  # pragma: no cover
-        raise AssertionError("shutdown() should not be reached")
+def test_a_writer_is_never_called_from_two_threads_at_once():
+    class _OverlapWriter(MemoryWriter):
+        def __init__(self) -> None:
+            super().__init__()
+            self.inside = 0
+            self.overlaps = 0
+
+        def write(self, event: Event) -> None:
+            self.inside += 1
+            if self.inside > 1:
+                self.overlaps += 1
+            time.sleep(0.0005)
+            self.events.append(event)
+            self.inside -= 1
+
+    w = _OverlapWriter()
+    obs = Observer()
+    obs.configure_writers([w])
+
+    def publish_some() -> None:
+        for _ in range(20):
+            obs.publish(_event())
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for future in [pool.submit(publish_some) for _ in range(4)]:
+            future.result()
+
+    assert len(w.events) == 80
+    assert w.overlaps == 0
 
 
-async def test_start_skips_writer_whose_start_fails(caplog):
-    """A pending writer whose start() raises does not tank observer bring-up.
-    The good writer still registers and a WARN is logged."""
-    import logging
+def test_configure_writers_after_the_first_event_swaps_them():
+    old, new = MemoryWriter(), MemoryWriter()
+    obs = Observer()
+    obs.configure_writers([old])
+    obs.publish(_event("e1"))
 
+    obs.configure_writers([new])
+    obs.publish(_event("e2"))
+
+    assert [e.scope_id for e in old.events] == ["e1"]
+    assert old.shutdowns == 1
+    assert [e.scope_id for e in new.events] == ["e2"]
+    assert new.starts == 1
+
+
+def test_a_writer_whose_start_fails_is_skipped(warnings_logged):
     good = MemoryWriter()
     obs = Observer()
     obs.configure_writers([_RaisingStartWriter(), good])
-    try:
-        with caplog.at_level(logging.WARNING, logger="railtracks"):
-            await obs.start()
-        assert obs._running is True
-        assert "writer-0" not in obs._writers
-        assert "writer-1" in obs._writers
-        assert good.started is True
-        assert any("failed to start" in r.getMessage() for r in caplog.records)
-    finally:
-        await obs.shutdown()
+    obs.publish(_event())
+
+    assert [sink.name for sink in obs._writers] == ["writer-1"]
+    assert len(good.events) == 1
+    assert any("failed to start" in r.getMessage() for r in warnings_logged.records)

@@ -9,17 +9,6 @@ from railtracks.pubsub.messages import (
     RequestSuccess,
 )
 
-# ================= START RequestCompletionMessage base tests ============
-
-
-def test_request_completion_message_log_message_repr():
-    m = RequestCompletionMessage()
-    assert isinstance(m.log_message(), str)
-    assert repr(m) == m.log_message()
-
-
-# ================ END RequestCompletionMessage base tests ===============
-
 # ================= START RequestFinishedBase and subclasses tests ============
 
 
@@ -43,30 +32,22 @@ def test_request_finished_base_repr(dummy_node_state):
     assert "id3" in r and "DummyNodeState" in r
 
 
-def test_request_success_repr_and_log_message(dummy_node_state):
+def test_request_success_repr(dummy_node_state):
     m = RequestSuccess(request_id="r", node_state=dummy_node_state, result=42)
     # '__repr__' should contain result
     assert repr(m).endswith("result=42)")
-    # log_message should use name() and the result value
-    assert "DONE" in m.log_message()
-    assert "MockNode" in m.log_message()
-    assert "42" in m.log_message()
 
 
-def test_request_failure_repr_and_log_message(dummy_node_state):
+def test_request_failure_repr(dummy_node_state):
     err = Exception("fail")
     m = RequestFailure(request_id="r", node_state=dummy_node_state, error=err)
     # repr contains error string
     assert "fail" in repr(m)
-    assert "FAILED" in m.log_message()
-    assert "MockNode" in m.log_message()
 
 
-def test_request_creation_failure_repr_and_log_message(dummy_exception):
+def test_request_creation_failure_repr(dummy_exception):
     m = RequestCreationFailure(request_id="Z", error=dummy_exception)
     assert repr(m) == "RequestCreationFailure(request_id=Z, error=Something went wrong)"
-    assert "FAILED" in m.log_message()
-    assert "Something went wrong" in m.log_message()
 
 
 # ================ END RequestFinishedBase and subclasses tests ===============

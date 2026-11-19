@@ -1,13 +1,13 @@
 from unittest.mock import patch
 
 import pytest
-from railtracks.pubsub.publisher import RTPublisher
+from railtracks.utils.publisher import Publisher
 
 
 # ================================== Pub Sub Fixtures ==================================
 @pytest.fixture
 def dummy_publisher():
-    pub = RTPublisher()
+    pub = Publisher()
     return pub
 
 

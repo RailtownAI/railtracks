@@ -7,20 +7,46 @@ Railtracks emits log records for execution ([node](../../documentation/agent_des
 
 ??? example "Example Logs"
     ```
-    [+3.525  s] RT          : INFO     - START CREATED Github Agent
-    [+8.041  s] RT          : INFO     - Github Agent CREATED create_issue
-    [+8.685  s] RT          : INFO     - create_issue DONE
-    [+14.333 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+14.760 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+17.540 s] RT          : INFO     - Github Agent CREATED assign_copilot_to_issue
-    [+18.961 s] RT          : INFO     - assign_copilot_to_issue DONE
-    [+23.401 s] RT          : INFO     - Github Agent DONE
+    [+  3.525s] ▶ Github Flow  entry: Github Agent
+    [+  3.526s]   ↳ Github Agent
+    [+  8.040s]     ◆ claude-sonnet-4-6 812→64 tokens · $0.0034 · 4.51s
+    [+  8.041s]     ↳ create_issue
+    [+  8.685s]     ✓ create_issue 0.644s
+    [+ 14.333s]     ◆ claude-sonnet-4-6 1004→71 tokens · $0.0041 · 5.64s
+    [+ 14.334s]     ↳ assign_copilot_to_issue
+    [+ 14.760s]     ✓ assign_copilot_to_issue 0.426s
+    [+ 23.400s]     ◆ claude-sonnet-4-6 1190→112 tokens · $0.0052 · 8.63s
+    [+ 23.401s]   ✓ Github Agent 19.875s
+    [+ 23.402s] ✓ Github Flow in 19.877s
     ```
 
 ---
 
 !!! Critical
-    Every log sent by Railtracks will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in.
+    Every log Railtracks sends about a run (node, LLM, and session records) will contain a parameter in `extras` for `session_id` which will be uuid tied to the session the error was thrown in. The observability pipeline's own warnings (`RT.railtracks.observability.*`) don't carry it, since that pipeline logs independently of the run's context.
+
+## Run View
+
+With logging enabled, each run prints as an indented tree built from the run's events: the run itself, every node it calls nested under its caller, and each LLM call with its model, tokens, cost, and latency. The logging level decides how much it shows:
+
+| Level | Run view shows |
+|-------|----------------|
+| `DEBUG` | Everything below, plus node arguments and responses, the run's result, guardrail and verifier decisions, and context reads and writes |
+| `INFO` | Each node starting and finishing, and each LLM call |
+| `WARNING` | The run starting and finishing |
+| `ERROR` | Failures only |
+| `CRITICAL` | Only failures that stop the run |
+| `NONE` | Nothing |
+
+Only `DEBUG` prints node arguments and responses, the run's result, and guardrail reasons. `INFO` and above show names, timings, models, token counts, and costs, so turning logging on doesn't put your users' conversations in your logs. Failure lines print at every level that shows failures and include the exception's message, which can quote user input; provider errors often quote the prompt.
+
+When a node calls several others at once (for example, an agent calling two sub-agents in one turn), their lines interleave, so each line inside those branches starts with the branch's name, as in `Word Analyst › ↳ count_letters`.
+
+In a Jupyter notebook the run view prints into the cell's output as one block, and frames from notebook code show as `<cell>`.
+
+Failures print at `DEBUG` through `ERROR`, marked `(fatal)` when they stop the run, and `CRITICAL` prints only the fatal ones. The lines of your code the exception came through are indented under each failure (railtracks and standard-library frames are left out; `DEBUG` shows them all). A node that its middleware retries shows a `↻ <NODE> retrying after <ERROR>` line, and its final outcome is what the `✓` or `✗` line reports. Each run uses the level of the thread it started in, so calling `enable_logging(level=...)` in a worker thread changes what that thread's runs print.
+
+For the runs it shows, the run view replaces the console lines for node creation, completion, and failure (`<PARENT> CREATED <CHILD>`, `<NODE> DONE`, `<NODE> FAILED`); a node still running after its run has ended prints them as before. Those records are still emitted on the `RT.lifecycle` logger and still reach your file handler and any handler you attach yourself, failures with their full traceback; configure that logger like any other, for example `logging.getLogger("RT.lifecycle").setLevel(logging.WARNING)` to keep only failures.
 
 ## Configuring Logging
 
@@ -33,6 +59,8 @@ Call `enable_logging()` once at application startup. The library never calls it 
 ```
 
 You can set the level and an optional log file path. If you omit them, Railtracks reads `RT_LOG_LEVEL` and `RT_LOG_FILE` from the environment (see below).
+
+If the `RT` logger already has a handler when you call `enable_logging()`, such as one you attached yourself or one from an earlier `enable_logging()` call, Railtracks leaves that setup alone: it sets the level but adds neither its console (so no [run view](#run-view)) nor the log file. Your handler still receives every record, node creation, completion, and failure included. To get the run view alongside your own handler, call `enable_logging()` first and attach your handler after.
 
 ### Console logger name
 
@@ -47,7 +75,7 @@ Loggers use dotted names (often from `__name__`), e.g. `RT.railtracks._session`.
 --8<-- "docs/scripts/_logging.py:logging_name_style"
 ```
 
-File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console formatter applies `name_style`.
+File output from `log_file` / `RT_LOG_FILE` still records the **full** dotted `name` on each record; only the console applies `name_style`. The console shows the name on `DEBUG`, `WARNING`, `ERROR`, and `CRITICAL` lines; `INFO` lines print as plain notes.
 
 ### Logging Levels
 
@@ -70,7 +98,9 @@ Railtracks supports six logging levels aligned with the standard Python logging 
 
 !!! tip "Console Handler"
 
-    Once you call `enable_logging()`, a console handler is added and logs are printed to the terminal.
+    Once you call `enable_logging()`, a console handler is added and logs are printed to the terminal, along with the [run view](#run-view). The run view only prints to the console: it isn't written to `log_file` or passed to other handlers, which get the log records instead, node creation, completion, and failure included.
+
+    On Windows, when output is redirected to a file or pipe (including most CI runners), set `PYTHONUTF8=1` so the run view's symbols (`▶`, `✓`, `✗`) don't print as escapes such as `\u25b6`. An interactive terminal needs nothing.
 
 !!! tip "File Handler"
 
@@ -80,8 +110,14 @@ Railtracks supports six logging levels aligned with the standard Python logging 
     --8<-- "docs/scripts/_logging.py:logging_to_file"
     ```
 
+    The file is appended to and never rotated or capped. To rotate it, attach a [`RotatingFileHandler`](https://docs.python.org/3/library/logging.handlers.html#rotatingfilehandler) to `RT` yourself instead of passing `log_file`, after calling `enable_logging()` so the console stays on (see [Enabling logging](#enabling-logging)):
+
+    ```python
+    --8<-- "docs/scripts/_logging.py:logging_rotating_file"
+    ```
+
 !!! warning "File Handler logging level"
-    Currently the logs outputted to the File Handler will be at `DEBUG` level for completeness. If you'd like us to support customizing this parameter, please open an issue at [railtracks/issues](https://github.com/RailtownAI/railtracks/issues)
+    The file handler records `INFO` and above, even when you pass `level="DEBUG"`; the level only changes the console. If you'd like us to support customizing this parameter, please open an issue at [railtracks/issues](https://github.com/RailtownAI/railtracks/issues)
 
 !!! tip "Custom Handlers"
 
@@ -137,27 +173,28 @@ You can forward logs to services like [Loggly](https://www.loggly.com/), [Sentry
 
 ## Log Message Examples
 
+Each example shows a record as `<LOGGER> : <LEVEL> - <MESSAGE>`, with the logger name as `name_style="short"` prints it. The console uses that layout for `DEBUG`, `WARNING`, `ERROR`, and `CRITICAL` records and prints `INFO` records as dim notes (`· <MESSAGE>`). Records about nodes starting, finishing, and failing come from the `RT.lifecycle` logger and reach the file handler and your own handlers, failures with their full traceback; the console shows them through the run view instead, while that run is in it.
+
 ??? note "DEBUG Messages"
-    | Type           | Example |
-    |----------------|---------|
-    | Runner Created | `RT.Runner   : DEBUG    - Runner <RUNNER_ID> is initialized` |
-    | Node Created   | `RT.Publisher: DEBUG    - RequestCreation(current_node_id=<PARENT_NODE_ID>, new_request_id=<REQUEST_ID>, running_mode=async, new_node_type=<NODE_NAME>, args=<INPUT_ARGS>, kwargs=<INPUT_KWARGS>)` |
-    | Node Completed | `RT.Publisher: DEBUG    - <NODE_NAME> DONE with result <RESULT>` |
+    | Type            | Example |
+    |-----------------|---------|
+    | Session Created | `RT.Session  : DEBUG    - Session <SESSION_ID> is initialized` |
 
 ??? note "INFO Messages"
     | Type             | Example |
     |------------------|---------|
-    | Initial Request  | `RT          : INFO     - START CREATED <NODE_NAME>` |
-    | Invoking Nodes   | `RT          : INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
-    | Node Completed   | `RT          : INFO     - <NODE_NAME> DONE` |
-    | Run Data Saved   | `RT.Runner   : INFO     - Saving execution info to .railtracks\<RUNNER_ID>.json` |
+    | Initial Request  | `RT.Lifecycle: INFO     - START CREATED <NODE_NAME>` |
+    | Invoking Nodes   | `RT.Lifecycle: INFO     - <PARENT_NODE_NAME> CREATED <CHILD_NODE_NAME>` |
+    | Node Completed   | `RT.Lifecycle: INFO     - <NODE_NAME> DONE` |
+    | Run Data Saved   | `RT.Session  : INFO     - Saving run data to .railtracks/data/sessions/<FLOW_NAME>_<SESSION_ID>.json` |
 
 ??? note "WARNING Messages"
     | Type              | Example |
     |-------------------|---------|
-    | Overwriting File  | `RT.Runner   : WARNING  - File .railtracks\<RUNNER_ID>.json already exists, overwriting...` |
+    | No System Message | `RT.Validation: WARNING  - No SystemMessage was provided. This is not recommended. Please provide the first message as a SystemMessage.` |
 
-??? note "ERROR Messages"
-    | Type        | Example |
-    |-------------|---------|
-    | Node Failed | `RT          : ERROR    - <NODE_NAME> FAILED` |
+??? note "ERROR and CRITICAL Messages"
+    | Type              | Example |
+    |-------------------|---------|
+    | Node Failed       | `RT.Lifecycle: ERROR    - <NODE_NAME> FAILED` |
+    | Node Failed Fatal | `RT.Lifecycle: CRITICAL - <NODE_NAME> FAILED` |

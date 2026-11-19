@@ -3,17 +3,14 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import pytest
 from railtracks.observability import (
     SCOPE_SESSION,
     Event,
     configure,
     configure_writers,
-    ensure_started,
     publish_event,
     shutdown,
 )
-from railtracks.observability.publish import _deliver_from_thread, publish_event_nowait
 from railtracks.observability.writers.jsonl import JsonlWriter
 
 
@@ -23,13 +20,13 @@ class _CollectingWriter:
     def __init__(self) -> None:
         self.events: list[Event] = []
 
-    async def start(self) -> None:
+    def start(self) -> None:
         pass
 
-    async def write(self, event: Event) -> None:
+    def write(self, event: Event) -> None:
         self.events.append(event)
 
-    async def shutdown(self) -> None:
+    def shutdown(self) -> None:
         pass
 
 
@@ -37,13 +34,13 @@ class _RaisingWriter:
     """Writer whose write() always raises. Verifies Observer's per-writer
     isolation carries over through publish_event."""
 
-    async def start(self) -> None:
+    def start(self) -> None:
         pass
 
-    async def write(self, event: Event) -> None:
+    def write(self, event: Event) -> None:
         raise RuntimeError("intentional test failure")
 
-    async def shutdown(self) -> None:
+    def shutdown(self) -> None:
         pass
 
 
@@ -58,196 +55,101 @@ def _make_session_event(
     )
 
 
-async def test_publish_before_start_raises():
-    """publish_event without a prior ensure_started() propagates the
-    Observer's RuntimeError. Callers get a loud failure, not a silent drop."""
-    configure_writers([_CollectingWriter()])
-    with pytest.raises(RuntimeError, match="Observer is not running"):
-        await publish_event(_make_session_event())
-
-
-async def test_publishes_to_configured_writer():
+def test_publishes_to_configured_writer_before_returning():
     writer = _CollectingWriter()
     configure_writers([writer])
-    await ensure_started()
 
     event = _make_session_event("node.create", {"node_id": "n1"})
-    await publish_event(event)
-    await shutdown()  # drains queues into writers
+    publish_event(event)
 
     assert writer.events == [event]
 
 
-async def test_no_writers_configured_is_a_silent_no_op():
-    # No configure_writers() call at all.
-    await ensure_started()
-    await publish_event(_make_session_event())  # zero writers → fan-out is a no-op
-    await shutdown()
+def test_no_writers_configured_is_a_silent_no_op():
+    publish_event(_make_session_event())
+    assert configure.observer.is_observing is False
 
 
-async def test_writer_that_raises_does_not_break_other_writers():
+def test_writer_that_raises_does_not_break_other_writers():
     good = _CollectingWriter()
     configure_writers([_RaisingWriter(), good])
-    await ensure_started()
 
     event = _make_session_event()
-    await publish_event(event)
-    await shutdown()
+    publish_event(event)
 
-    # The raising writer's exception was swallowed by Observer's consumer loop.
-    # The good writer still received the event.
     assert good.events == [event]
 
 
-async def test_multiple_events_delivered_in_order():
-    """Deterministic ordering: successive publish_event calls fan out to the
-    writer's queue in call order."""
+def test_multiple_events_delivered_in_order():
     writer = _CollectingWriter()
     configure_writers([writer])
-    await ensure_started()
 
     events = [_make_session_event(f"event-{i}") for i in range(5)]
     for event in events:
-        await publish_event(event)
-    await shutdown()
+        publish_event(event)
 
     assert [e.event_type for e in writer.events] == [e.event_type for e in events]
 
 
-async def test_publish_after_shutdown_raises():
-    """After shutdown, publish_event propagates RuntimeError. Same loud
-    failure as publish-before-start."""
+def test_publish_after_shutdown_is_ignored():
     writer = _CollectingWriter()
     configure_writers([writer])
-    await ensure_started()
-    await publish_event(_make_session_event("first"))
-    await shutdown()
+    publish_event(_make_session_event("first"))
+    shutdown()
 
-    with pytest.raises(RuntimeError, match="Observer is not running"):
-        await publish_event(_make_session_event("second"))
-    # Only the pre-shutdown event landed.
+    publish_event(_make_session_event("second"))
+
     assert [e.event_type for e in writer.events] == ["first"]
 
 
-async def test_ensure_started_with_events_disabled_skips_auto_default(caplog):
-    """With RAILTRACKS_DISABLE_EVENTS=True (set by conftest) and no explicit
-    configure_writers, ensure_started() starts with zero pending writers.
-    Subsequent publishes fan out to nothing."""
-    await ensure_started()
-    assert configure.observer._running is True
-    assert configure.observer._writers == {}
-    await publish_event(_make_session_event())
-    await shutdown()
+def test_events_disabled_starts_no_default_writer():
+    """RAILTRACKS_DISABLE_EVENTS=True is set by the root conftest."""
+    publish_event(_make_session_event())
+    assert configure.observer._writers == ()
 
 
-async def test_ensure_started_auto_injects_default_writer_when_events_enabled(
+def test_default_writer_is_a_jsonl_writer_when_events_are_enabled(
     monkeypatch, tmp_path
 ):
-    """With RAILTRACKS_DISABLE_EVENTS unset, ensure_started() auto-registers a
-    default JsonlWriter that writes to the resolved events directory."""
     monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
     monkeypatch.setenv("RAILTRACKS_EVENTS_DIR", str(tmp_path / "events"))
-    await ensure_started()
-    try:
-        assert len(configure.observer._writers) == 1
-        entry = next(iter(configure.observer._writers.values()))
-        assert isinstance(entry.writer, JsonlWriter)
-    finally:
-        await shutdown()
+
+    publish_event(_make_session_event())
+
+    sinks = configure.observer._writers
+    assert len(sinks) == 1
+    assert isinstance(sinks[0].writer, JsonlWriter)
+    assert (tmp_path / "events" / "test-session.jsonl").exists()
+    shutdown()
 
 
-async def test_explicit_configure_writers_wins_over_auto_default(monkeypatch):
-    """A user's explicit configure_writers([...]) suppresses the auto-default
-    even when the env var is unset."""
+def test_explicit_configure_writers_wins_over_the_default(monkeypatch):
     monkeypatch.delenv("RAILTRACKS_DISABLE_EVENTS", raising=False)
     user_writer = _CollectingWriter()
     configure_writers([user_writer])
-    await ensure_started()
-    try:
-        entries = list(configure.observer._writers.values())
-        assert len(entries) == 1
-        assert entries[0].writer is user_writer
-    finally:
-        await shutdown()
+
+    publish_event(_make_session_event())
+
+    assert [sink.writer for sink in configure.observer._writers] == [user_writer]
 
 
-# ---------------------------------------------------------------- sync publish
-
-
-async def test_publish_nowait_on_the_loop_delivers():
-    w = _CollectingWriter()
-    configure_writers([w])
-    await ensure_started()
-
-    publish_event_nowait(_make_session_event("sync.on_loop"))
-
-    await shutdown()
-    assert [e.event_type for e in w.events] == ["sync.on_loop"]
-
-
-async def test_publish_nowait_from_a_worker_thread_delivers_in_order():
-    w = _CollectingWriter()
-    configure_writers([w])
-    await ensure_started()
+async def test_publish_from_a_worker_thread_delivers_in_order():
+    writer = _CollectingWriter()
+    configure_writers([writer])
 
     def record_off_loop():
         for i in range(5):
-            publish_event_nowait(_make_session_event(f"sync.{i}"))
+            publish_event(_make_session_event(f"sync.{i}"))
 
     await asyncio.to_thread(record_off_loop)
 
-    await shutdown()
-    assert [e.event_type for e in w.events] == [f"sync.{i}" for i in range(5)]
+    assert [e.event_type for e in writer.events] == [f"sync.{i}" for i in range(5)]
 
 
-async def test_publish_nowait_before_start_raises():
-    with pytest.raises(RuntimeError, match="Observer is not running"):
-        publish_event_nowait(_make_session_event())
+def test_publish_from_a_thread_with_no_event_loop_delivers():
+    writer = _CollectingWriter()
+    configure_writers([writer])
 
+    publish_event(_make_session_event("no.loop"))
 
-async def test_publish_nowait_after_shutdown_raises():
-    configure_writers([_CollectingWriter()])
-    await ensure_started()
-    await shutdown()
-
-    with pytest.raises(RuntimeError, match="Observer is not running"):
-        publish_event_nowait(_make_session_event())
-
-
-async def test_delivery_landing_after_shutdown_does_not_reach_the_loop_handler():
-    w = _CollectingWriter()
-    configure_writers([w])
-    await ensure_started()
-    observer = configure.observer
-    await shutdown()
-
-    caught: list[object] = []
-    asyncio.get_running_loop().set_exception_handler(
-        lambda _loop, ctx: caught.append(ctx.get("exception"))
-    )
-
-    _deliver_from_thread(observer, _make_session_event("too.late"))
-    await asyncio.sleep(0)
-
-    assert caught == []
-    assert w.events == []
-
-
-async def test_scheduled_delivery_does_not_land_in_a_replacement_observer():
-    old_writer = _CollectingWriter()
-    configure_writers([old_writer])
-    await ensure_started()
-    old_observer = configure.observer
-
-    configure.reset_for_tests()
-    new_writer = _CollectingWriter()
-    configure_writers([new_writer])
-    await ensure_started()
-
-    _deliver_from_thread(old_observer, _make_session_event("belongs.to_old"))
-
-    assert [e.event_type for e in old_writer.events] == []  # still queued on old
-    await old_observer.shutdown()
-    assert [e.event_type for e in old_writer.events] == ["belongs.to_old"]
-    assert new_writer.events == []
-    await shutdown()
+    assert [e.event_type for e in writer.events] == ["no.loop"]

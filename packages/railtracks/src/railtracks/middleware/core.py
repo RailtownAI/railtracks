@@ -15,6 +15,7 @@ from typing import (
 
 from typing_extensions import TypeVar as TypeVarWithDefault
 
+from railtracks.context.central import claim_middleware_registration
 from railtracks.events.middleware import MiddlewareCreationEvent
 from railtracks.events.send import emit
 from railtracks.utils.logging.create import get_rt_logger
@@ -90,13 +91,11 @@ class Middleware(Generic[_P, _R, _Constraint]):
             uuid.uuid4()
         )  # identifies this middleware definition, shared by every invocation
 
-        self._has_registered = False
-
     async def start_creation_task(self):
-        if self._has_registered:
+        # instances are shared across runs, so announce once per session, not once ever
+        if not claim_middleware_registration(self.type_id):
             return
 
-        self._has_registered = True
         event = MiddlewareCreationEvent(
             middleware_type_id=self.type_id,
             middleware_name=self.name,

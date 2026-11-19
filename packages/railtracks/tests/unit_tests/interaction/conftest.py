@@ -30,11 +30,12 @@ def mock_context_functions():
         patch("railtracks.interaction._call.is_context_active") as active,
         patch("railtracks.interaction._call.activate_publisher") as activate,
         patch("railtracks.interaction._call.get_publisher") as get_pub,
-        patch("railtracks.interaction._call.get_parent_id") as get_parent,
-        patch("railtracks.interaction._call.get_run_id") as get_run,
-        patch("railtracks.interaction._call.get_current_scope") as get_scope,
-        patch("railtracks.interaction._call.get_session_identity") as get_identity,
+        patch("railtracks.interaction.utils.get_parent_id") as get_parent,
+        patch("railtracks.interaction.utils.get_run_id") as get_run,
+        patch("railtracks.interaction.utils.get_current_scope") as get_scope,
+        patch("railtracks.interaction.utils.get_session_identity") as get_identity,
         patch("railtracks.interaction._call.get_local_config") as get_config,
+        patch("railtracks.interaction.utils.get_local_config", get_config),
         patch("railtracks.events.context.safe_get_runner_context") as get_runner,
     ):
         # Set default return values

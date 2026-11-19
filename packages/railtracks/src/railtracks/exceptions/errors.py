@@ -1,8 +1,10 @@
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from ._base import RTError
 
 if TYPE_CHECKING:
+    from railtracks.decisions.schema import DecisionAnswer
     from railtracks.llm.history import MessageHistory
 
 __all__ = [
@@ -13,6 +15,11 @@ __all__ = [
     "LLMTimeoutError",
     "LLMRateLimitError",
     "LLMAuthenticationError",
+    "DecisionModelError",
+    "DecisionTimeoutError",
+    "DecisionRateLimitError",
+    "DecisionAuthenticationError",
+    "DecisionRefusalError",
     "GlobalTimeOutError",
     "ContextError",
     "FatalError",
@@ -143,6 +150,61 @@ class LLMAuthenticationError(LLMError):
     """The provider rejected the credentials. Retrying will not help; fix the config."""
 
 
+class DecisionModelError(NodeInvocationError):
+    """
+    Raised when a System One decision model call fails.
+
+    Raised as is for a failure no subclass covers: a dropped connection, a 5xx or
+    other 4xx status or a response that could not be parsed.
+
+    A `NodeInvocationError`, like `LLMError`, so a failed decision terminates the node
+    that made it and callers can catch both kinds of model failure the same way.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.reason = reason
+        message = f"{self._color('Decision Model Error: ', self.BOLD_RED)}{self._color(reason, self.RED)}"
+        super().__init__(message, notes=notes, fatal=fatal)
+
+
+class DecisionTimeoutError(DecisionModelError):
+    """The decision model did not answer in time."""
+
+
+class DecisionRateLimitError(DecisionModelError):
+    """The provider rejected the call for rate or quota reasons. Usually worth backing off."""
+
+
+class DecisionAuthenticationError(DecisionModelError):
+    """The API key is missing or was rejected. Retrying will not help; fix the config."""
+
+
+class DecisionRefusalError(DecisionModelError):
+    """The model declined to answer one or more questions.
+
+    Attributes:
+        refused: The names of the questions the model declined.
+        answers: The answers it did give, keyed by question name.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        refused: list[str],
+        answers: "Mapping[str, DecisionAnswer] | None" = None,
+        notes: list[str] | None = None,
+        fatal: bool = False,
+    ):
+        self.refused = list(refused)
+        self.answers = dict(answers or {})
+        super().__init__(reason, notes=notes, fatal=fatal)
+
+
 class NodeCreationError(RTError):
     """
     Raised during node creation/validation before any execution begins.
@@ -204,4 +266,4 @@ class ContextError(RTError):
 
 
 class FatalError(RTError):
-    pass
+    fatal = True

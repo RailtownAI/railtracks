@@ -24,6 +24,21 @@ rt.enable_logging(level="INFO", name_style="full")  # full dotted name, e.g. RT.
 rt.enable_logging(level="INFO", log_file="my_logs.log")
 # --8<-- [end: logging_to_file]
 
+# --8<-- [start: logging_rotating_file]
+import logging
+from logging.handlers import RotatingFileHandler
+
+rt.enable_logging(level="INFO")
+# up to 5 files of 10 MB each
+rotating = RotatingFileHandler(
+    "my_logs.log", maxBytes=10_000_000, backupCount=5, encoding="utf-8"
+)
+rotating.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+)
+logging.getLogger("RT").addHandler(rotating)
+# --8<-- [end: logging_rotating_file]
+
 # --8<-- [start: logging_custom_handler]
 import logging
 

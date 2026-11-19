@@ -244,7 +244,7 @@ async def google_search(query: str, num_results: int = 3) -> Dict[str, Any]:
    Returns:
        Dict[str, Any]: Formatted search results
    """
-   params = {
+   params: Dict[str, str | int] = {
       'key': os.environ['GOOGLE_SEARCH_API_KEY'],
       'cx': os.environ['GOOGLE_SEARCH_ENGINE_ID'],
       'q': query,

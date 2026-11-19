@@ -4,13 +4,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 from railtracks.exceptions import GlobalTimeOutError
-from railtracks.interaction._call import (
-    _execute,
-    _regular_message_filter,
-    _run,
-    _start,
-    _top_level_message_filter,
-    call,
+from railtracks.interaction._call import _execute, _run, _start, call
+from railtracks.interaction.utils import (
+    regular_message_filter,
+    top_level_message_filter,
 )
 from railtracks.nodes.nodes import Node
 from railtracks.pubsub.messages import (
@@ -63,7 +60,7 @@ class MockFatalFailure(FatalFailure):
 def test_regular_message_filter_matches_correct_request_id():
     """Test that regular message filter correctly identifies matching request IDs."""
     request_id = "test_request_123"
-    filter_func = _regular_message_filter(request_id)
+    filter_func = regular_message_filter(request_id)
 
     # Test matching message
     matching_message = MockRequestFinished(request_id, "result")
@@ -81,7 +78,7 @@ def test_regular_message_filter_matches_correct_request_id():
 def test_top_level_message_filter_matches_request_id_and_fatal_failure():
     """Test that top-level message filter matches both request ID and fatal failures."""
     request_id = "test_request_123"
-    filter_func = _top_level_message_filter(request_id)
+    filter_func = top_level_message_filter(request_id)
 
     # Test matching request ID
     matching_message = MockRequestFinished(request_id, "result")
@@ -241,7 +238,7 @@ async def test_run_calls_execute_with_regular_filter(mock_execute):
     assert call_args[0][0] == mock_node
     assert call_args[1]["args"] == ("arg1",)
     assert call_args[1]["kwargs"] == {"kwarg1": "value1"}
-    # message_filter should be _regular_message_filter
+    # message_filter should be regular_message_filter
     assert callable(call_args[1]["message_filter"])
 
 
@@ -261,7 +258,7 @@ async def test_execute_publishes_request_and_waits_for_response(full_context_set
     future_result.set_result("execution_result")
     full_context_setup["publisher"].listener.return_value = future_result
 
-    message_filter = _regular_message_filter
+    message_filter = regular_message_filter
     result = await _execute(mock_node, ("arg1",), {"kwarg1": "value1"}, message_filter)
 
     assert result._result == "execution_result"

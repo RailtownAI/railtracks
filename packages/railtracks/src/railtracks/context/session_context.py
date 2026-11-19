@@ -9,7 +9,8 @@ from railtracks.context.scope_link import ScopeLink
 from railtracks.utils.config import ExecutorConfig
 
 if TYPE_CHECKING:
-    from railtracks.pubsub.publisher import RTPublisher
+    from railtracks.pubsub.messages import RequestCompletionMessage
+    from railtracks.utils.publisher import Publisher
 
 
 class ScopeKind(Enum):
@@ -43,16 +44,17 @@ class SessionContext:
         *,
         session_id: str,
         run_id: str | None = None,
-        publisher: RTPublisher | None = None,
+        publisher: Publisher[RequestCompletionMessage] | None = None,
         scope: ScopeLink[ScopeEntry] | None = None,
         executor_config: ExecutorConfig,
         flow_name: str | None = None,
         flow_id: str | None = None,
         session_name: str | None = None,
         stream_queue: asyncio.Queue[Any] | None = None,
+        registered_middleware: set[str] | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
-        self._publisher: RTPublisher | None = publisher
+        self._publisher: Publisher[RequestCompletionMessage] | None = publisher
         self._session_id: str = session_id
         self._run_id: str | None = run_id
         self._executor_config: ExecutorConfig = executor_config
@@ -60,6 +62,18 @@ class SessionContext:
         self._flow_id: str | None = flow_id
         self._session_name: str | None = session_name
         self._stream_queue: asyncio.Queue[Any] | None = stream_queue
+        self._registered_middleware: set[str] = (
+            registered_middleware if registered_middleware is not None else set()
+        )
+
+    @property
+    def registered_middleware(self) -> set[str]:
+        """Type ids of the middleware that have emitted a creation event in this session.
+
+        The same set is passed to every frame derived from this one, so it lives exactly
+        as long as the session does.
+        """
+        return self._registered_middleware
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -125,7 +139,7 @@ class SessionContext:
         return self._publisher
 
     @publisher.setter
-    def publisher(self, value: RTPublisher):
+    def publisher(self, value: Publisher[RequestCompletionMessage]):
         self._publisher = value
 
     @property
@@ -169,6 +183,7 @@ class SessionContext:
             flow_id=self._flow_id,
             session_name=self._session_name,
             stream_queue=self._stream_queue,
+            registered_middleware=self._registered_middleware,
         )
 
     @property

@@ -1,84 +1,123 @@
-"""Attachment format magic byte patterns and MIME type detection (images + documents)."""
+"""Attachment format detection: MIME types from magic bytes or from a file extension."""
 
-import base64
+import functools
+import mimetypes
+import os
+import re
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+_UTF8_BOM = b"\xef\xbb\xbf"
 
-def _load_attachment_formats() -> dict[str, Any]:
-    """Load attachment format definitions from YAML file."""
-    formats_file = Path(__file__).parent / "attachment_formats.yaml"
+# SVG has no magic bytes: its first tag, after any XML declaration, comments and SVG
+# doctype, must be <svg>, so HTML or Markdown with an inline <svg> is not one.
+_SVG_START = re.compile(
+    # Each token ends at its first closing delimiter, so a failed match cannot backtrack.
+    rb"(?:\s|<\?xml(?:[^?]|\?(?!>))*\?>|<!--(?:[^-]|-(?!->))*-->"
+    rb"|<!doctype\s+svg(?:[^>\[]|\[[^\]]*\])*>)*<svg[\s/>]",
+    re.DOTALL | re.IGNORECASE,
+)
 
-    if not formats_file.exists():
-        raise FileNotFoundError(f"Attachment formats file not found: {formats_file}")
+# WebM and Matroska share the EBML magic bytes; the header's DocType element tells them apart.
+_MATROSKA_DOCTYPE = b"\x42\x82\x88matroska"
+_EBML_HEADER_BYTES = 64
 
-    with open(formats_file) as f:
-        return yaml.safe_load(f)
-
-
-def _convert_yaml_to_python(formats: dict[str, Any]) -> tuple[list, list]:
-    """Convert YAML format definitions to Python data structures."""
-    prefix_formats = []
-    for item in formats.get("prefix_formats", []):
-        # Handle base64-encoded magic bytes
-        if "magic_bytes_b64" in item:
-            magic = base64.b64decode(item["magic_bytes_b64"])
-        elif "magic_bytes" in item:
-            magic = item["magic_bytes"].encode("utf-8")
-        else:
-            raise ValueError(
-                f"Format item missing magic_bytes or magic_bytes_b64: {item}"
-            )
-        prefix_formats.append((magic, item["mime_type"]))
-
-    offset_formats = [
-        (
-            item["offset_start"],
-            item["offset_end"],
-            item["fixed_bytes"].encode("utf-8"),
-            {b.encode("utf-8") for b in item.get("variable_bytes", [])},
-            item["mime_type"],
-        )
-        for item in formats.get("offset_formats", [])
-    ]
-
-    return prefix_formats, offset_formats
+_Signature = tuple[tuple[int, tuple[bytes, ...]], ...]
 
 
-# Load formats at module initialization
-_formats = _load_attachment_formats()
-PREFIX_FORMATS, OFFSET_FORMATS = _convert_yaml_to_python(_formats)
+def _signature(match: dict[int, str | list[str]]) -> _Signature:
+    """Return a `match` map as (offset, allowed bytes) pairs, reading its text as latin-1."""
+    return tuple(
+        (offset, tuple(s.encode("latin-1") for s in ([b] if isinstance(b, str) else b)))
+        for offset, b in match.items()
+    )
+
+
+_TABLE: dict[str, Any] = yaml.safe_load(
+    (Path(__file__).parent / "attachment_formats.yaml").read_text(encoding="utf-8")
+)
+_FORMATS: list[dict[str, Any]] = _TABLE["formats"]
+_SIGNATURES = [
+    (row["mime_type"], _signature(row["match"])) for row in _FORMATS if "match" in row
+]
+CONTAINER_FORMATS: dict[str, frozenset[str]] = {
+    row["mime_type"]: frozenset(row["container"])
+    for row in _FORMATS
+    if "container" in row
+}
+UNSUPPORTED_URL_EXTENSIONS = frozenset(_TABLE["unsupported_url_extensions"])
+
+
+@functools.cache
+def _mime_types() -> mimetypes.MimeTypes:
+    # A fresh instance holds only Python's built-in table, not the OS registry, so
+    # lookups match on every machine; the YAML extensions override it.
+    types = mimetypes.MimeTypes()
+    for row in _FORMATS:
+        for extension in row.get("extensions", ()):
+            types.add_type(row["mime_type"], extension)
+    return types
 
 
 def detect_attachment_mime_from_bytes(b: bytes) -> str | None:
     """Return MIME type for supported attachment formats by inspecting magic bytes.
 
-    Covers images and documents declared in `attachment_formats.yaml`. Add a new
-    format by appending a row there; no code changes needed.
+    Covers the images, documents, audio and video declared in
+    `attachment_formats.yaml`. A format with fixed magic bytes needs only a row
+    there; Matroska, whose DocType has no fixed offset, is told apart from WebM here.
     """
-    if not b:
-        return None
-
-    for magic_bytes, mime_type in PREFIX_FORMATS:
-        if b.startswith(magic_bytes):
+    for mime_type, signature in _SIGNATURES:
+        if all(b.startswith(allowed, offset) for offset, allowed in signature):
+            if (
+                mime_type == "video/webm"
+                and _MATROSKA_DOCTYPE in b[:_EBML_HEADER_BYTES]
+            ):
+                return "video/x-matroska"
             return mime_type
 
-    for start, end, fixed_bytes, variable_bytes, mime_type in OFFSET_FORMATS:
-        if b.startswith(fixed_bytes):
-            if len(b) > end and b[start:end] in variable_bytes:
-                return mime_type
-
-    # SVG/XML detection is content-based, not magic-byte-based.
-    head = b[:256].lower()
-    if b"<svg" in head or head.lstrip().startswith(b"<?xml"):
+    if _SVG_START.match(b.removeprefix(_UTF8_BOM)):
         return "image/svg+xml"
 
     return None
 
 
-def detect_image_mime_from_bytes(b: bytes) -> str | None:
-    """Return MIME type for image formats only, or None for non-image / unknown bytes."""
-    mime = detect_attachment_mime_from_bytes(b)
-    return mime if mime and mime.startswith("image/") else None
+def detect_mime(data: bytes, name: str | None = None) -> str | None:
+    """Return the MIME type of file content, from its magic bytes, then its name.
+
+    A container (Ogg, Matroska, MP4, HEIF) takes the type its extension names when
+    it can hold that type, so `clip.ogv` is video and `photo.avif` is AVIF, while a
+    HEIF named `photo.jpg` stays HEIF.
+
+    Args:
+        data: The file content.
+        name: The file name or path, if known.
+
+    Returns:
+        The MIME type, or None when neither the bytes nor the name identify it.
+    """
+    magic = detect_attachment_mime_from_bytes(data)
+    named = detect_mime_from_extension(name) if name else None
+    holds = CONTAINER_FORMATS.get(magic or "", frozenset())
+    if named and (named in holds or named.split("/", 1)[0] in holds):
+        return named
+    return magic or named
+
+
+def detect_mime_from_extension(name: str) -> str | None:
+    """Return the MIME type for a file name, path or URL path by its extension.
+
+    Extensions listed in `attachment_formats.yaml` win, so a name and its magic
+    bytes agree on every Python version; Python's `mimetypes` covers the rest.
+
+    Args:
+        name: A file name, path or URL path.
+
+    Returns:
+        The MIME type, or None when the extension is missing or unknown.
+    """
+    extension = os.path.splitext(name)[1].lower()
+    if not extension:
+        return None
+    return _mime_types().guess_type(f"file{extension}")[0]

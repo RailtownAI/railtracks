@@ -142,6 +142,7 @@ nav:
               - Failures: documentation/agent_design/llms/handling_failures.md
               - Common Hyperparameters: documentation/agent_design/llms/common_hyperparams.md
               - Structured Output: documentation/agent_design/structured_extraction.md
+          - Decision Nodes: documentation/agent_design/decision_nodes.md
           - Middleware:
               - Overview: documentation/agent_design/middleware/overview.md
               - Custom: documentation/agent_design/middleware/custom.md

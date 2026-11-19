@@ -69,8 +69,9 @@ message_history = rt.llm.MessageHistory(
 
 # --8<-- [start: pdf_timeout]
 # Per-request timeout (seconds) for the HEAD probe and PDF download.
-# Defaults to 10; raise it for large PDFs over slow links. Only applies
-# when trust_urls=True.
+# Defaults to 10; raise it for large PDFs over slow links. The download
+# stops at attachment_max_mb (defaults to 32). Both only apply when
+# trust_urls=True.
 message_history = rt.llm.MessageHistory(
     [
         rt.llm.UserMessage(
@@ -78,10 +79,69 @@ message_history = rt.llm.MessageHistory(
             attachment="https://internal.example.com/large-report.pdf",
             trust_urls=True,
             attachment_timeout=60,
+            attachment_max_mb=64,
         )
     ]
 )
 # --8<-- [end: pdf_timeout]
+
+# --8<-- [start: production_fetch]
+import httpx
+
+
+def download_attachment(url: str) -> str:
+    """Download an end-user URL under your app's rules and return a data URI."""
+    # Check the URL against your own allow/deny rules before fetching it.
+    response = httpx.get(url, timeout=10)
+    response.raise_for_status()
+    # Moderate response.content here, before it reaches the model.
+    mime_type = response.headers["Content-Type"].split(";")[0]
+    payload = base64.b64encode(response.content).decode()
+    return f"data:{mime_type};base64,{payload}"
+
+
+user_url = "https://cdn.britannica.com/39/226539-050-D21D7721/Portrait-of-a-cat-with-whiskers-visible.jpg"
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="What is the image below showing?",
+            attachment=download_attachment(user_url),
+        )
+    ]
+)
+# --8<-- [end: production_fetch]
+
+# --8<-- [start: attachment_object]
+# The type is detected from the bytes; pass mime_type= when it can't be.
+chart = rt.llm.Attachment.from_bytes(img_bytes, filename="random.png")
+# A URL without an extension, typed up front so no HEAD probe is needed.
+thumbnail = rt.llm.Attachment.from_url(
+    "https://cdn.example.com/thumbnails/8f3a2c", mime_type="image/webp"
+)
+
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Do these two images show the same chart?",
+            attachment=[chart, thumbnail],
+        )
+    ]
+)
+# --8<-- [end: attachment_object]
+
+# --8<-- [start: audio_video]
+voice_note = rt.llm.Attachment("path/to/voice_note.mp3")
+clip = rt.llm.Attachment("https://example.com/demo.mp4")
+
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Answer the question in the voice note using the clip.",
+            attachment=[voice_note, clip],
+        )
+    ]
+)
+# --8<-- [end: audio_video]
 
 # --8<-- [start: combined]
 message_history = rt.llm.MessageHistory(

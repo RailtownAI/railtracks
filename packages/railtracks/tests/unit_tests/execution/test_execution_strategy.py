@@ -56,6 +56,24 @@ async def test_asyncio_execute_failure(
     mock_publisher.publish.assert_awaited_once_with(response)
 
 
+@pytest.mark.asyncio
+@patch("railtracks.execution.execution_strategy.NodeState")
+@patch("railtracks.execution.execution_strategy.get_publisher")
+async def test_asyncio_execute_skips_publish_after_publisher_shutdown(
+    mock_get_publisher, mock_node_state, mock_task, mock_publisher
+):
+    mock_get_publisher.return_value = mock_publisher
+    mock_publisher.is_running.return_value = False
+    mock_task.invoke = AsyncMock(return_value="late result")
+
+    strat = AsyncioExecutionStrategy()
+    response = await strat.execute(mock_task)
+
+    assert isinstance(response, RequestSuccess)
+    assert response.result == "late result"
+    mock_publisher.publish.assert_not_awaited()
+
+
 def test_asyncio_shutdown_is_noop():
     strat = AsyncioExecutionStrategy()
     strat.shutdown()  # Should not throw

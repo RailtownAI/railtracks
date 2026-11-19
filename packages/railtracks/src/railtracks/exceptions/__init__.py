@@ -1,5 +1,10 @@
 from .errors import (
     ContextError,
+    DecisionAuthenticationError,
+    DecisionModelError,
+    DecisionRateLimitError,
+    DecisionRefusalError,
+    DecisionTimeoutError,
     FatalError,
     GlobalTimeOutError,
     LLMAuthenticationError,
@@ -20,6 +25,11 @@ __all__ = [
     "LLMTimeoutError",
     "LLMRateLimitError",
     "LLMAuthenticationError",
+    "DecisionModelError",
+    "DecisionTimeoutError",
+    "DecisionRateLimitError",
+    "DecisionAuthenticationError",
+    "DecisionRefusalError",
     "ContextError",
     "VisualExtraRequiredError",
 ]

@@ -44,6 +44,17 @@ llm_agg AS (
   WHERE event_type = 'llm.response'
   GROUP BY scope_id
 ),
+-- System One decisions. Tokens and cost only: their latency is nested
+-- inside a node's duration.
+decision_agg AS (
+  SELECT d.scope_id,
+         SUM(COALESCE(d.input_tokens, 0)) AS input_tokens,
+         SUM(COALESCE(d.output_tokens, 0)) AS output_tokens,
+         SUM(d.total_cost) AS total_cost
+  FROM decision d
+  WHERE d.event_type = 'decision.response'
+  GROUP BY d.scope_id
+),
 node_agg AS (
   SELECT scope_id,
          COUNT(*) AS node_count
@@ -100,10 +111,15 @@ SELECT s.scope_id                                    AS session_id,
        EPOCH(c.ended_at)                             AS end_time,
        CAST(c.status AS VARCHAR)                     AS raw_status,
        c.duration_seconds                            AS duration,
-       COALESCE(l.input_tokens, 0)                   AS input_tokens,
-       COALESCE(l.output_tokens, 0)                  AS output_tokens,
-       CASE WHEN l.input_tokens IS NULL THEN 0.0
-            ELSE l.total_cost
+       COALESCE(l.input_tokens, 0)
+         + COALESCE(d.input_tokens, 0)               AS input_tokens,
+       COALESCE(l.output_tokens, 0)
+         + COALESCE(d.output_tokens, 0)              AS output_tokens,
+       -- 0.0 when nothing was billed; NULL when calls ran but none was priced
+       -- (SUM skips NULL costs, so a partly priced session under-reports).
+       CASE WHEN l.input_tokens IS NULL AND d.input_tokens IS NULL THEN 0.0
+            WHEN l.total_cost IS NULL AND d.total_cost IS NULL THEN NULL
+            ELSE COALESCE(l.total_cost, 0.0) + COALESCE(d.total_cost, 0.0)
        END                                           AS total_cost,
        COALESCE(n.node_count, 0)                     AS node_count,
        -- The rolled-up status, in SQL rather than Python, so the same
@@ -131,6 +147,7 @@ SELECT s.scope_id                                    AS session_id,
 FROM started s
 LEFT JOIN completed    c USING (scope_id)
 LEFT JOIN llm_agg      l USING (scope_id)
+LEFT JOIN decision_agg d USING (scope_id)
 LEFT JOIN node_agg     n USING (scope_id)
 LEFT JOIN last_failure f USING (scope_id)
 """

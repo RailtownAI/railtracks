@@ -17,7 +17,7 @@ from railtracks.query import EventQuery, connect
 
 from .._logging import debug_event
 
-_NAMESPACES = ["session", "node", "llm", "middleware"]
+_NAMESPACES = ["session", "node", "llm", "middleware", "decision"]
 
 
 FileSignature = tuple[str, ...]

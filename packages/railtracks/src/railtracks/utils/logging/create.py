@@ -2,7 +2,7 @@ import logging
 
 from railtracks.context.central import RTContextLoggingAdapter
 
-from .config import rt_logger_name
+from .config import lifecycle_logger_name, rt_logger_name
 
 
 def get_rt_logger(name: str | None = None):
@@ -21,3 +21,13 @@ def get_rt_logger(name: str | None = None):
 
     adapter = RTContextLoggingAdapter(logger, {})
     return adapter
+
+
+def get_lifecycle_logger():
+    """
+    The logger for node creation, completion, and failure records.
+
+    Railtracks' console leaves these to the run view; every other handler on the RT
+    logger, the root logger, or this one still receives them.
+    """
+    return RTContextLoggingAdapter(logging.getLogger(lifecycle_logger_name), {})

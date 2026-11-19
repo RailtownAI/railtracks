@@ -31,6 +31,8 @@ __all__ = [
     "context",
     "function_node",
     "agent_node",
+    "decision_node",
+    "decisions",
     "integrations",
     "prebuilt",
     "MCPStdioParams",
@@ -61,6 +63,7 @@ __all__ = [
 ]
 
 
+from railtracks.built_nodes.decisions import decision_node
 from railtracks.built_nodes.function import (
     function_node,
 )
@@ -68,6 +71,7 @@ from railtracks.built_nodes.llm import agent_node
 
 from . import (
     context,
+    decisions,
     evaluations,
     guardrails,
     integrations,
@@ -100,7 +104,7 @@ from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_serve
 from .state.info import ExecutionInfo
 from .utils.config import ExecutorConfig
 from .utils.deprecation import warn_pending_change
-from .utils.logging.config import enable_logging
+from .utils.logging.setup import enable_logging
 
 load_dotenv()
 

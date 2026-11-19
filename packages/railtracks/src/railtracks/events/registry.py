@@ -113,6 +113,10 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "kwargs": JSON,
         "response": JSON,
         "duration_seconds": FLOAT,
+        "status": _enum("success", "failure"),
+        "fatal": BOOLEAN,
+        "traceback": STRING,
+        "frames": JSON,
         **_FAILURE,
     },
     "middleware": {
@@ -128,6 +132,21 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "decision": JSON,
         **_FAILURE,
     },
+    "decision": {
+        **_PARENT_EVENT,
+        "decision_id": STRING,
+        "model_name": STRING,
+        "state": JSON,
+        "questions": JSON,
+        "reported_model_name": STRING,
+        "provider": STRING,
+        "answers": JSON,
+        "input_tokens": INTEGER,
+        "output_tokens": INTEGER,
+        "total_cost": FLOAT,
+        "latency": FLOAT,
+        **_FAILURE,
+    },
     "session": {
         **_CREATION,
         "session_id": STRING,
@@ -141,6 +160,7 @@ NAMESPACE_COLUMNS: dict[str, dict[str, ColumnSpec]] = {
         "status": _enum("success", "failure"),
         "error": STRING,
         "duration_seconds": FLOAT,
+        "fatal": BOOLEAN,
     },
 }
 
