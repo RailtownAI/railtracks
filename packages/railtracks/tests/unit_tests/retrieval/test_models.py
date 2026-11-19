@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import typing
 from uuid import UUID
 
 from railtracks.retrieval import (
@@ -46,3 +47,19 @@ def test_embedded_retrieved_and_result():
     assert result.total_candidates is None
     assert result.metadata == {}
     assert result.embedding_metrics is None
+
+
+def test_retrieval_result_type_hints_resolve():
+    import railtracks.retrieval
+    import railtracks.retrieval.embedding
+    import railtracks.retrieval.models
+
+    hints = typing.get_type_hints(railtracks.retrieval.RetrievalResult)
+    assert (
+        hints["embedding_metrics"]
+        == railtracks.retrieval.models.EmbeddingMetrics | None
+    )
+    assert (
+        railtracks.retrieval.embedding.EmbeddingMetrics
+        is railtracks.retrieval.models.EmbeddingMetrics
+    )
