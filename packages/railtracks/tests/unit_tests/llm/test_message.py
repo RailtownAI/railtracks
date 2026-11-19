@@ -319,6 +319,7 @@ class TestAttachment:
         assert attachment.modality == "document"
         assert attachment.mime_type == "application/pdf"
         assert attachment.filename is None
+        assert attachment.base64 == b64
         assert attachment.encoding == data_uri
 
     def test_data_uri_pdf_mixed_case_mime(self):
@@ -343,6 +344,7 @@ class TestAttachment:
         assert attachment.mime_type == "image/png"
         assert attachment.filename == "image.png"
         # Image URLs are passed to the provider as-is; no fetch at construction.
+        assert attachment.base64 is None
         assert attachment.encoding is None
 
     def test_url_avif(self):
