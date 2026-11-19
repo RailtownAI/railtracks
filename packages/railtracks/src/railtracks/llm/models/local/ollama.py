@@ -1,16 +1,14 @@
 import logging
 import os
-from typing import Any, Dict, List, Literal
+from typing import Literal
 
 import requests
 from litellm.utils import supports_function_calling
 
-from ...message import Attachment
 from ...providers import ModelProvider
 from ...retries.base import RetryApproach
 from .._litellm_wrapper import LiteLLMWrapper
 from .._model_exception_base import (
-    AttachmentNotSupportedError,
     FunctionCallingNotSupportedError,
     ModelError,
 )
@@ -27,6 +25,9 @@ class OllamaError(ModelError):
 
 
 class OllamaLLM(LiteLLMWrapper):
+    # litellm's Ollama transform keeps only text and image parts (#1628).
+    _ACCEPTED_MODALITIES = frozenset({"image"})
+
     def __init__(
         self,
         model_name: str,
@@ -149,25 +150,6 @@ class OllamaLLM(LiteLLMWrapper):
         except requests.exceptions.RequestException as e:
             logger.error(e)
             raise
-
-    def _to_litellm_attachment_content(
-        self, text: str, attachments: List[Attachment]
-    ) -> List[Dict[str, Any]]:
-        """Reject document attachments: litellm's Ollama transform drops them (#1628).
-
-        Raises:
-            AttachmentNotSupportedError: If any attachment is a document (e.g. a PDF).
-        """
-        document = next((a for a in attachments if a.modality == "document"), None)
-        if document is not None:
-            raise AttachmentNotSupportedError(
-                self._model_name,
-                document.mime_type,
-                "litellm's Ollama transform keeps only text and image parts. "
-                "Render the document pages to images first, or use a model that "
-                "supports documents.",
-            )
-        return super()._to_litellm_attachment_content(text, attachments)
 
     def chat_with_tools(self, messages, tools):
         # litellm's capability catalog is keyed on `ollama/`, not `ollama_chat/`.

@@ -41,7 +41,7 @@ _T = TypeVar("_T", bound=Content)
 Modality = Literal["image", "audio", "video", "document", "file"]
 """What an attachment holds. `document` is a PDF; `file` is any other non-media type."""
 
-# Image types most providers accept; other image paths raise until #1349 adds per-provider checks.
+# Image types most providers accept; other image paths raise until #1703 adds per-model checks.
 _PATH_IMAGE_TYPES = frozenset(
     ("image/png", "image/jpeg", "image/gif", "image/webp", "image/avif")
 )
@@ -420,11 +420,18 @@ class Attachment:
         return self._data
 
     @property
-    def encoding(self) -> str | None:
-        """The bytes as a base64 data URI, built on each read, or None when only the URL is held."""
+    def base64(self) -> str | None:
+        """The bytes as plain base64, built on each read, or None when only the URL is held."""
         if self._data is None:
             return None
-        payload = base64.b64encode(self._data).decode("ascii")
+        return base64.b64encode(self._data).decode("ascii")
+
+    @property
+    def encoding(self) -> str | None:
+        """The bytes as a base64 data URI, built on each read, or None when only the URL is held."""
+        payload = self.base64
+        if payload is None:
+            return None
         return f"data:{self.mime_type};base64,{payload}"
 
     def _identity(self) -> tuple[str, str | None]:
