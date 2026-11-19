@@ -115,7 +115,7 @@ async def llm_compliance_check(result: str, customer_message: str) -> Verdict[st
 async def draft_reply(customer_message: str) -> str:
     """Draft a reply to a customer's support message."""
     resp = await rt.call(ReplyDrafter, customer_message)
-    return resp.content
+    return resp.text
 
 
 draft_reply_flow = rt.Flow(name="llm_post_reply_flow", entry_point=draft_reply)

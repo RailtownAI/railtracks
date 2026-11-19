@@ -47,11 +47,11 @@ def _make_guard(mock_llm, label="IN_SCOPE", sensitivity="MEDIUM", scope=SCOPE):
 
 
 def _judge_user_text(seen: dict[str, list], call: int = 0) -> str:
-    return next(m.content for m in seen["calls"][call] if m.role == Role.user)
+    return next(m.text for m in seen["calls"][call] if m.role == Role.user)
 
 
 def _judge_system_text(seen: dict[str, list], call: int = 0) -> str:
-    return next(m.content for m in seen["calls"][call] if m.role == Role.system)
+    return next(m.text for m in seen["calls"][call] if m.role == Role.system)
 
 
 class TestConstruction:

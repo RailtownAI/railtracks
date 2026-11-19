@@ -19,7 +19,7 @@ async def direct_conversation() -> str:
     next_history = rt.llm.MessageHistory(first_response.message_history)
     next_history.append(rt.llm.UserMessage("Which region did I mention?"))
     second_response = await rt.call(ChatAgent, next_history)
-    return second_response.content
+    return second_response.text
 
 
 # --8<-- [end: direct_handoff]
@@ -37,7 +37,7 @@ async def conversation_turn(user_message: str) -> str:
 
     response = await rt.call(ChatAgent, history)
     rt.context.put("conversation_history", response.message_history)
-    return response.content
+    return response.text
 
 
 @rt.function_node

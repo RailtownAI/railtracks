@@ -48,8 +48,8 @@ async def test_first_call_stores_response_history_in_session_context():
         session_hist = s.context.get(memory.context_key)
         assert session_hist is not None
         assert len(session_hist) == 2
-        assert session_hist[0].content == "Hi there"
-        assert session_hist[1].content == "Hello!"
+        assert session_hist[0].text == "Hi there"
+        assert session_hist[1].text == "Hello!"
 
         # Verify get_history helper returns the session history
         assert memory.get_history() == session_hist
@@ -82,14 +82,14 @@ async def test_subsequent_calls_append_to_history():
         turn_2_input = received_inputs[1]
         assert isinstance(turn_2_input, MessageHistory)
         assert len(turn_2_input) == 3
-        assert turn_2_input[0].content == "What is your name?"
-        assert turn_2_input[1].content == "Echo: What is your name?"
-        assert turn_2_input[2].content == "What did I just ask?"
+        assert turn_2_input[0].text == "What is your name?"
+        assert turn_2_input[1].text == "Echo: What is your name?"
+        assert turn_2_input[2].text == "What did I just ask?"
 
         # Check session context after turn 2
         session_hist = s.context.get(memory.context_key)
         assert len(session_hist) == 4
-        assert session_hist[3].content == "Second reply"
+        assert session_hist[3].text == "Second reply"
 
 
 @pytest.mark.asyncio
@@ -153,9 +153,9 @@ async def test_preloaded_session_context():
         first_input = received_inputs[0]
         assert isinstance(first_input, MessageHistory)
         assert len(first_input) == 3
-        assert first_input[0].content == "Preloaded question"
-        assert first_input[1].content == "Preloaded answer"
-        assert first_input[2].content == "New question"
+        assert first_input[0].text == "Preloaded question"
+        assert first_input[1].text == "Preloaded answer"
+        assert first_input[2].text == "New question"
 
 
 @pytest.mark.asyncio
@@ -198,8 +198,8 @@ async def test_max_messages_limit():
         await wrapped("input")
         session_hist = s.context.get(memory.context_key)
         assert len(session_hist) == 2
-        assert session_hist[0].content == "3"
-        assert session_hist[1].content == "4"
+        assert session_hist[0].text == "3"
+        assert session_hist[1].text == "4"
 
 
 @pytest.mark.asyncio
@@ -231,7 +231,7 @@ class _FakeEchoModel:
 
     def chat(self, messages):
         self.seen_messages.append(MessageHistory(messages))
-        last = messages[-1].content
+        last = messages[-1].text
         return Response(
             message=Message(role=Role.assistant, content=f"Processed: {last}")
         )
@@ -269,9 +269,9 @@ async def test_end_to_end_agent_node_with_conversation_memory():
     # The second model call should have seen Turn 1's user msg, assistant msg, and Turn 2's user msg
     turn2_messages = fake_model.seen_messages[1]
     assert len(turn2_messages) == 3
-    assert turn2_messages[0].content == "What is your name?"
-    assert turn2_messages[1].content == "Processed: What is your name?"
-    assert turn2_messages[2].content == "What did I just ask?"
+    assert turn2_messages[0].text == "What is your name?"
+    assert turn2_messages[1].text == "Processed: What is your name?"
+    assert turn2_messages[2].text == "What did I just ask?"
 
 
 @pytest.mark.asyncio
@@ -295,7 +295,7 @@ async def test_flow_connection_reaches_injected_session_context():
     hist = conn.context.get(memory.context_key)
     assert hist is not None
     assert len(hist) == 2
-    assert hist[0].content == "Hello from connection"
+    assert hist[0].text == "Hello from connection"
 
 
 def test_sync_flow_invoke_with_conversation_memory():
@@ -350,12 +350,12 @@ async def test_two_agents_in_one_flow_have_different_memory():
         # Researcher should have its own 4 messages
         researcher_hist = s.context.get(memory_researcher.context_key)
         assert len(researcher_hist) == 4
-        assert researcher_hist[0].content == "Find market trends"
+        assert researcher_hist[0].text == "Find market trends"
 
         # Writer should have only its OWN 2 messages
         writer_hist = s.context.get(memory_writer.context_key)
         assert len(writer_hist) == 2
-        assert writer_hist[0].content == "Write an intro"
+        assert writer_hist[0].text == "Write an intro"
 
         # Verify they did not collide or share memory
         assert researcher_hist != writer_hist
@@ -395,7 +395,7 @@ def test_zero_max_messages_means_no_limit():
     existing = MessageHistory([UserMessage("q1"), AssistantMessage("a1")])
 
     combined = memory._combine_history(existing, "q2")
-    assert [m.content for m in combined] == ["q1", "a1", "q2"]
+    assert [m.text for m in combined] == ["q1", "a1", "q2"]
 
 
 @pytest.mark.asyncio
@@ -465,7 +465,7 @@ async def test_coupled_agent_keeps_the_callers_memory_handle():
 
     assert coupled._user_middleware[1] is memory
     assert len(fake_model.seen_messages[1]) == 3
-    assert [m.content for m in memory.get_history()] == [
+    assert [m.text for m in memory.get_history()] == [
         "first",
         "Processed: first",
         "second",

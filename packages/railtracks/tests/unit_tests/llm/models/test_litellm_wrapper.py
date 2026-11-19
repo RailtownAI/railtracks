@@ -22,6 +22,7 @@ from railtracks.llm import (
     AssistantMessage,
     Attachment,
     AttachmentNotSupportedError,
+    ToolCall,
     ToolCalls,
     UserMessage,
 )
@@ -32,7 +33,7 @@ from railtracks.llm._exceptions import (
     RetryError,
 )
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Modality
+from railtracks.llm.message import Message, Modality, Role
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
@@ -524,7 +525,7 @@ class TestCompletionMethods:
 
         assert isinstance(result, Response)
         assert isinstance(result.message, AssistantMessage)
-        assert result.message.content == content
+        assert result.message.content == [content]
 
     @pytest.mark.parametrize(
         "method_name,is_async",
@@ -668,7 +669,7 @@ class TestAsyncStreaming:
         assert "".join(chunks) == "Hello"
         assert final is not None
         assert isinstance(final.message, AssistantMessage)
-        assert final.message.content == "Hello"
+        assert final.message.text == "Hello"
 
     @pytest.mark.asyncio
     async def test_astream_structured_final_is_parsed(self, mock_litellm_wrapper):
@@ -1092,7 +1093,7 @@ class TestStreamedToolCallAccumulation:
         text, final = _drain(wrapper, chunks)
 
         assert text == ["he", "llo"]
-        assert final.message.content == "hello"
+        assert final.message.text == "hello"
 
 
 class TestStreamedUsage:
@@ -1509,7 +1510,7 @@ class TestReasoningSurfacing:
 
         response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
 
-        assert response.message.content == expected
+        assert response.message.content == ([] if expected is None else [expected])
         assert response.message.tool_calls == []
 
     def test_chat_with_tools_tool_call_surfaces_reasoning(self, mock_litellm_wrapper):
@@ -1642,7 +1643,7 @@ class TestIncompleteReplies:
         text, final = _drain(wrapper, chunks)
 
         assert text == []
-        assert final.message.content is None
+        assert final.message.content == []
 
     @pytest.mark.parametrize(
         "chunks",
@@ -1659,7 +1660,7 @@ class TestIncompleteReplies:
 
         _, final = _drain(wrapper, chunks)
 
-        assert final.message.content == ""
+        assert final.message.content == [""]
 
     def test_streamed_partial_text_is_kept_when_cut_off(self, mock_litellm_wrapper):
         wrapper = mock_litellm_wrapper()
@@ -1671,7 +1672,7 @@ class TestIncompleteReplies:
 
         _, final = _drain(wrapper, chunks)
 
-        assert final.message.content == "partial"
+        assert final.message.content == ["partial"]
 
     @pytest.mark.parametrize(
         "content,finish_reason,expected",
@@ -1691,7 +1692,7 @@ class TestIncompleteReplies:
 
         response = wrapper._chat_handle_base(raw, MessageInfo())
 
-        assert response.message.content == expected
+        assert response.message.content == ([] if expected is None else [expected])
 
     @pytest.mark.parametrize(
         "finish_reason,logged",
@@ -1930,3 +1931,80 @@ class TestStructuredPreservesProviderErrors:
 
 
 # =================================== END classify_provider_error Tests ====================================
+
+
+# =================================== START Ordered content parts Tests ====================================
+_ORDER_PNG = b"\x89PNG\r\n\x1a\n" + bytes(16)
+_ORDER_PDF = b"%PDF-1.7\n" + bytes(16)
+
+
+class TestOrderedContentParts:
+    def test_interleaved_parts_are_sent_in_order(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        image = Attachment.from_bytes(_ORDER_PNG)
+        pdf = Attachment.from_bytes(_ORDER_PDF, filename="q3.pdf")
+        message = UserMessage(
+            ["First chart:", image, "Then the report:", pdf, "Compare."]
+        )
+
+        content = wrapper._to_litellm_message(message)["content"]
+
+        assert [part["type"] for part in content] == [
+            "text",
+            "image_url",
+            "text",
+            "file",
+            "text",
+        ]
+        assert content[0]["text"] == "First chart:"
+        assert content[2]["text"] == "Then the report:"
+        assert content[3]["file"]["filename"] == "q3.pdf"
+        assert content[4]["text"] == "Compare."
+
+    def test_text_only_parts_are_sent_as_one_string(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        message = UserMessage(["Line one.", "Line two."])
+        assert wrapper._to_litellm_message(message)["content"] == "Line one.\nLine two."
+
+    def test_single_text_part_is_sent_unchanged(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        assert wrapper._to_litellm_message(UserMessage("Hi")) == {
+            "role": "user",
+            "content": "Hi",
+        }
+        assert wrapper._to_litellm_message(AssistantMessage("Hello")) == {
+            "role": "assistant",
+            "content": "Hello",
+        }
+
+    def test_empty_text_parts_are_left_out(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        image = Attachment.from_bytes(_ORDER_PNG)
+        content = wrapper._to_litellm_message(UserMessage(["", image]))["content"]
+        assert [part["type"] for part in content] == ["image_url"]
+
+    def test_attachment_only_message_has_no_text_part(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        image = Attachment.from_bytes(_ORDER_PNG)
+        content = wrapper._to_litellm_message(UserMessage(attachment=image))["content"]
+        assert [part["type"] for part in content] == ["image_url"]
+
+    def test_unsupported_part_is_rejected_wherever_it_sits(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        wrapper._ACCEPTED_MODALITIES = frozenset({"image"})
+        pdf = Attachment.from_bytes(_ORDER_PDF)
+        message = UserMessage(["a", pdf, "b"])
+        with pytest.raises(AttachmentNotSupportedError):
+            wrapper._to_litellm_message(message)
+
+
+# =================================== END Ordered content parts Tests ====================================
+
+
+def test_base_message_with_a_tool_call_list_is_sent_as_tool_calls(mock_litellm_wrapper):
+    call = ToolCall(identifier="c1", name="f", arguments={"x": 1})
+    wire = mock_litellm_wrapper()._to_litellm_message(
+        Message(content=[call], role=Role.assistant)
+    )
+    assert [tc.id for tc in wire["tool_calls"]] == ["c1"]
+    assert wire["content"] == ""

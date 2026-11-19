@@ -42,7 +42,7 @@ async def test_function_as_tool(llm):
     final_resp = response
 
     assert final_resp is not None
-    assert "15" in final_resp.content
+    assert "15" in final_resp.text
     assert conn.context.get("magic_number_called")
     assert conn.context.get("magic_operator_called")
 
@@ -157,7 +157,7 @@ async def test_agents_as_tools(llm):
     assert conn.context.get("secret_phrase_called")
 
     assert final_resp is not None
-    assert "3 cats and a dog" in final_resp.content
+    assert "3 cats and a dog" in final_resp.text
     assert any(
         message.role == "tool" and message.content.name == "Secret_Phrase_Maker"
         for message in final_resp.message_history

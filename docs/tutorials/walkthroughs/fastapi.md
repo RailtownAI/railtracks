@@ -50,7 +50,7 @@ async def solve_math(request: MathRequest):
     try:
         # Since Flow returns an async awaitable properly, handle it seamlessly
         result = await my_flow.ainvoke(request.query)
-        return MathResponse(result=str(result.content))
+        return MathResponse(result=result.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -85,7 +85,7 @@ async def chat_with_context(request: Request, body: MathRequest):
     context = {"auth_token": user_token}
     
     result = await my_flow.ainvoke(body.query, context=context)
-    return {"result": str(result.content)}
+    return {"result": result.text}
 ```
 
 Railtracks makes standing up advanced agent systems behind powerful web frameworks truly un-opinionated. Take a look at the hands-on Jupyter notebook linked above for more comprehensive examples.

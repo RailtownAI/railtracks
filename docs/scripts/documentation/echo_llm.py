@@ -8,5 +8,5 @@ agent = rt.agent_node(
 
 flow = rt.Flow("Echo example", entry_point=agent)
 result = flow.invoke("hi")
-print(result.content)
+print(result.text)
 # --8<-- [end: echo]

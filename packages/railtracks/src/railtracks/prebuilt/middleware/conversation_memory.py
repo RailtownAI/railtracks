@@ -7,7 +7,7 @@ from typing import Sequence
 from railtracks.built_nodes.llm.response import LLMResponse
 from railtracks.context.central import is_context_present, safe_get_runner_context
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Message, UserMessage
+from railtracks.llm.message import Attachment, Message, UserMessage
 from railtracks.middleware.core import Middleware
 
 
@@ -107,6 +107,12 @@ class ConversationMemory(Middleware):
             history.append(UserMessage(user_input))
         elif isinstance(user_input, UserMessage):
             history.append(user_input)
+        elif (
+            isinstance(user_input, list)
+            and user_input
+            and all(isinstance(part, (str, Attachment)) for part in user_input)
+        ):
+            history.append(UserMessage(user_input))
         elif isinstance(user_input, (list, MessageHistory)):
             for msg in user_input:
                 if isinstance(msg, Message):

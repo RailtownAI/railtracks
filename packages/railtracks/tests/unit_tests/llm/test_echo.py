@@ -54,7 +54,7 @@ def test_identity_and_zero_usage():
     assert model.model_provider() is ModelProvider.UNKNOWN
     assert model.model_gateway() is ModelProvider.UNKNOWN
     assert response.message.role == "assistant"
-    assert response.message.content == _SPEC_HISTORY
+    assert response.message.text == _SPEC_HISTORY
     info = response.message_info
     assert info.input_tokens == 0
     assert info.output_tokens == 0
@@ -67,19 +67,19 @@ def test_identity_and_zero_usage():
 def test_chat_echoes_every_role():
     messages = _history()
     response = EchoLLM().chat(messages)
-    assert response.message.content == (
+    assert response.message.text == (
         "system: You are a helper\n"
         "user: hi\n"
         "assistant: ok\n"
         "tool: add -> 3\n"
         "This is an echo of the test model."
     )
-    assert response.message.content == _expected_echo(messages)
+    assert response.message.text == _expected_echo(messages)
 
 
 def test_empty_history_is_only_the_echo_line():
     response = EchoLLM().chat(MessageHistory())
-    assert response.message.content == _ECHO_LINE
+    assert response.message.text == _ECHO_LINE
 
 
 def test_chat_with_tools_never_requests_a_tool():
@@ -87,7 +87,7 @@ def test_chat_with_tools_never_requests_a_tool():
     tool = rt.llm.Tool("add", "Add two numbers.", None)
     response = EchoLLM().chat_with_tools(messages, [tool])
 
-    assert response.message.content == _expected_echo(messages)
+    assert response.message.text == _expected_echo(messages)
     assert response.message.tool_calls == []
 
 
@@ -154,7 +154,7 @@ def test_call_needs_no_api_key_or_network(monkeypatch):
 
     model = EchoLLM()
     response = model.chat(MessageHistory([UserMessage("hi")]))
-    assert response.message.content == f"user: hi\n{_ECHO_LINE}"
+    assert response.message.text == f"user: hi\n{_ECHO_LINE}"
 
 
 @rt.function_node
@@ -177,7 +177,7 @@ def test_flow_invoke_without_tools():
         system_message="You are a helper",
     )
     result = rt.Flow("echo without tools", entry_point=agent).invoke("hi")
-    assert result.content == _SPEC_HISTORY
+    assert result.text == _SPEC_HISTORY
     assert result.tool_invocations == []
 
 
@@ -187,7 +187,7 @@ async def test_flow_ainvoke_without_tools():
         system_message="You are a helper",
     )
     result = await rt.Flow("echo without tools async", entry_point=agent).ainvoke("hi")
-    assert result.content == _SPEC_HISTORY
+    assert result.text == _SPEC_HISTORY
 
 
 def test_flow_invoke_with_tools_finishes_in_one_turn():
@@ -197,7 +197,7 @@ def test_flow_invoke_with_tools_finishes_in_one_turn():
         tool_nodes=[add],
     )
     result = rt.Flow("echo with tools", entry_point=agent).invoke("hi")
-    assert result.content == _SPEC_HISTORY
+    assert result.text == _SPEC_HISTORY
     assert result.tool_invocations == []
 
 
@@ -208,7 +208,7 @@ async def test_flow_ainvoke_with_tools_finishes_in_one_turn():
         tool_nodes=[add],
     )
     result = await rt.Flow("echo with tools async", entry_point=agent).ainvoke("hi")
-    assert result.content == _SPEC_HISTORY
+    assert result.text == _SPEC_HISTORY
     assert result.tool_invocations == []
 
 
@@ -268,7 +268,7 @@ async def test_astream_chat_yields_five_chunks_then_the_chat_response(monkeypatc
 
     chunks, final = await _collect(model.astream_chat(messages))
 
-    _assert_even_chunks(chunks, chat.message.content)
+    _assert_even_chunks(chunks, chat.message.text)
     assert sleeps == [1.0, 1.0, 1.0, 1.0, 1.0]
     assert sum(sleeps) == 5
     assert final.message.content == chat.message.content
@@ -290,7 +290,7 @@ async def test_astream_chat_with_tools_matches_chat_and_requests_nothing(monkeyp
 
     chunks, final = await _collect(model.astream_chat_with_tools(messages, [tool]))
 
-    _assert_even_chunks(chunks, chat.message.content)
+    _assert_even_chunks(chunks, chat.message.text)
     assert sum(sleeps) == 5
     assert final.message.content == chat.message.content
     assert final.message.tool_calls == []
@@ -333,7 +333,7 @@ async def test_astream_chat_splits_short_and_uneven_text(
     )
 
     assert chunks == expected
-    assert "".join(chunks) == sent.message.content
+    assert "".join(chunks) == sent.message.text
     assert final is sent
     assert sleeps == [1.0] * 5
     assert sum(sleeps) == 5
@@ -364,7 +364,7 @@ async def test_rt_astream_without_tools(monkeypatch):
     chunks = [chunk async for chunk in stream]
 
     _assert_even_chunks(chunks, _SPEC_HISTORY)
-    assert stream.result.content == _SPEC_HISTORY
+    assert stream.result.content == [_SPEC_HISTORY]
     assert stream.result.text == _SPEC_HISTORY
     assert stream.result.tool_invocations == []
 
@@ -380,5 +380,5 @@ async def test_rt_astream_with_tools(monkeypatch):
     chunks = [chunk async for chunk in stream]
 
     _assert_even_chunks(chunks, _SPEC_HISTORY)
-    assert "".join(chunks) == stream.result.content
+    assert "".join(chunks) == stream.result.text
     assert stream.result.tool_invocations == []

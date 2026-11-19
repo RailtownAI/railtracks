@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import logging
 import os
 import warnings
 from collections.abc import Sequence
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Generic, Literal, TypeVar, cast
+from typing import Any, Generic, Literal, TypeVar, Union, cast, overload
 from urllib import error as urllib_error
 from urllib.parse import urlparse
+
+from pydantic import BaseModel
 
 from .attachment_formats import (
     UNSUPPORTED_URL_EXTENSIONS,
@@ -33,8 +34,6 @@ from .encoding import (
     redact_url,
     validate_max_mb,
 )
-
-logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T", bound=Content)
 
@@ -486,6 +485,107 @@ def _as_attachment(
     )
 
 
+ContentPart = Union[str, Attachment]
+"""One part of a user or assistant message's content: text, or an attachment."""
+
+# Joins text parts in `.text`, so separate parts never run into one word.
+_TEXT_SEPARATOR = "\n"
+
+
+def _to_parts(content: object, *, owner: str) -> list[ContentPart]:
+    """Return `content` (text, an attachment, or a sequence of both) as a new list of parts.
+
+    Raises:
+        TypeError: If `content` or one of its items is neither a `str` nor an `Attachment`.
+    """
+    if isinstance(content, (str, Attachment)):
+        return [content]
+    if isinstance(content, Sequence) and not isinstance(content, _BYTES_LIKE):
+        parts = list(content)
+        for part in parts:
+            if not isinstance(part, (str, Attachment)):
+                raise TypeError(
+                    f"{owner} content parts must be str or Attachment, but got "
+                    f"{type(part).__name__}. Wrap raw bytes with Attachment.from_bytes."
+                )
+        return parts
+    raise TypeError(
+        f"{owner} content must be a str, an Attachment or a list of them, but got "
+        f"{type(content).__name__}."
+    )
+
+
+def _parts_of(content: object) -> list[ContentPart] | None:
+    """Return `content` as parts when it is text or a list of parts, else None."""
+    if isinstance(content, str):
+        return [content]
+    if (
+        isinstance(content, list)
+        and not isinstance(content, ToolCalls)
+        and all(isinstance(part, (str, Attachment)) for part in content)
+    ):
+        return cast(list[ContentPart], content)
+    return None
+
+
+def content_text(content: object) -> str:
+    """Return the text in a message's content.
+
+    Args:
+        content: A message's `content`.
+
+    Returns:
+        The text parts joined with newlines; the text spoken alongside tool calls;
+        a tool's result; or `""` for content with no text, such as structured output.
+    """
+    parts = _parts_of(content)
+    if parts is not None:
+        return _TEXT_SEPARATOR.join(part for part in parts if isinstance(part, str))
+    if isinstance(content, ToolCalls):
+        return content.text or ""
+    if isinstance(content, ToolResponse):
+        result = content.result
+        return result if isinstance(result, str) else result.decode("utf-8", "replace")
+    return ""
+
+
+def content_attachments(content: object) -> list[Attachment]:
+    """Return the attachments in a message's content, in order, or `[]` when it has none."""
+    parts = _parts_of(content) or []
+    return [part for part in parts if isinstance(part, Attachment)]
+
+
+def encode_content(content: object) -> object:
+    """Encode a message's content for the session record.
+
+    Text-only content becomes its text, and empty content (a reply with no content)
+    becomes None. Content with attachments becomes one text part followed by one
+    `{"modality", "type", "info"}` part per attachment. Other content, such as tool
+    calls or structured output, is returned as it is.
+
+    Args:
+        content: A message's `content`.
+
+    Returns:
+        The encoded content.
+    """
+    parts = _parts_of(content)
+    if parts is None:
+        return content
+    if not parts:
+        return None
+    attachments = content_attachments(content)
+    if not attachments:
+        return content_text(content)
+    return [
+        {"type": "text", "text": content_text(content)},
+        *(
+            {"modality": item.modality, "type": item.type, "info": item.url}
+            for item in attachments
+        ),
+    ]
+
+
 class Role(str, Enum):
     """
     A simple enum type that can be used to represent the role of a message.
@@ -519,12 +619,11 @@ class Message(Generic[_T, _TRole]):
 
         Args:
             content: The content of the message. It can take on any of the following types:
-                - str: A simple string message.
+                - list[ContentPart]: Text and attachments, in order (user and assistant messages).
+                - str: Plain text (system messages).
                 - ToolCalls: Tool calls plus any text the model spoke alongside them.
-                - List[ToolCall]: A list of tool calls.
                 - ToolResponse: A tool response.
                 - BaseModel: A custom base model object.
-                - Stream: A stream object with a final_message and a generator.
             role: The role of the message (assistant, user, system, tool, etc.).
         """
         assert isinstance(role, Role)
@@ -546,8 +645,25 @@ class Message(Generic[_T, _TRole]):
         """Collects the role of the message."""
         return self._role
 
+    @property
+    def text(self) -> str:
+        """The message's text: its text parts joined with newlines, a tool's result, or the
+        text spoken alongside tool calls. Empty for structured output."""
+        return content_text(self._content)
+
+    @property
+    def attachments(self) -> list[Attachment]:
+        """The attachments in the message's content, in order."""
+        return content_attachments(self._content)
+
     def __str__(self):
-        return f"{self.role.value}: {self.content}"
+        parts = _parts_of(self.content)
+        if parts is None or isinstance(self.content, str):
+            return f"{self.role.value}: {self.content}"
+        rendered = _TEXT_SEPARATOR.join(
+            part if isinstance(part, str) else repr(part) for part in parts
+        )
+        return f"{self.role.value}: {rendered}"
 
     def __repr__(self):
         return str(self)
@@ -555,17 +671,20 @@ class Message(Generic[_T, _TRole]):
     def encode(self) -> dict[str, Any]:
         return {
             "role": self.role.value,
-            "content": self.content,
+            "content": encode_content(self.content),
         }
 
     @property
-    def tool_calls(self):
+    def tool_calls(self) -> list[ToolCall]:
         """Gets the tool calls attached to this message, if any. If there are none return and empty list."""
-        tools: list[ToolCall] = []
-        if isinstance(self.content, list):
-            tools.extend(deepcopy(self.content))
-
-        return tools
+        content = self.content
+        if isinstance(content, ToolCalls) or (
+            isinstance(content, list)
+            and content
+            and all(isinstance(item, ToolCall) for item in content)
+        ):
+            return list(deepcopy(content))
+        return []
 
 
 class _StringOnlyContent(Message[str, _TRole], Generic[_TRole]):
@@ -585,13 +704,18 @@ class _StringOnlyContent(Message[str, _TRole], Generic[_TRole]):
         self._content = fill_template(self._content, value_dict)
 
 
-class UserMessage(_StringOnlyContent[Role.user]):
+class UserMessage(Message[list[ContentPart], Role.user]):
     """
-    Note that we only support string input
+    A message from the user: text and attachments, in order.
+
+    `content` is always a list of parts, so `UserMessage("Hi").content == ["Hi"]`.
+    Read `text` for the text and `attachments` for the attachments.
 
     Args:
-        content: The content of the user message.
-        attachment: The file attachment(s) for the user message: a file path, URL,
+        content: The text, an `Attachment`, or a list of text and `Attachment`s in
+                    the order the model should read them, e.g.
+                    `["Before:", Attachment("a.png"), "After:", Attachment("b.png")]`.
+        attachment: Attachment(s) placed after `content`: a file path, URL,
                     data URI, raw bytes or `Attachment`, or a list of them.
                     Raw bytes go through `Attachment.from_bytes`. Defaults to None.
         trust_urls: Allow in-process fetch for URL attachments. Defaults to False.
@@ -616,25 +740,27 @@ class UserMessage(_StringOnlyContent[Role.user]):
                     when `trust_urls=True`.
 
     Raises:
-        ValueError: If an attachment is rejected, for the reasons listed on
-            `Attachment.__init__` and `Attachment.from_bytes`.
+        TypeError: If a part of `content` is neither a `str` nor an `Attachment`.
+        ValueError: If the message has no parts, or an attachment is rejected for
+            the reasons listed on `Attachment.__init__` and `Attachment.from_bytes`.
     """
 
     def __init__(
         self,
-        content: str | None = None,
+        content: str | Attachment | Sequence[ContentPart] | None = None,
         attachment: AttachmentInput | Sequence[AttachmentInput] | None = None,
         trust_urls: bool = False,
         attachment_timeout: float = 10.0,
         attachment_max_mb: float = DEFAULT_MAX_DOWNLOAD_MB,
     ):
+        parts = [] if content is None else _to_parts(content, owner="UserMessage")
         if attachment is not None:
             items = (
                 [attachment]
                 if isinstance(attachment, (str, Attachment, *_BYTES_LIKE))
                 else list(attachment)
             )
-            self.attachment = [
+            parts.extend(
                 _as_attachment(
                     item,
                     trust_urls=trust_urls,
@@ -642,39 +768,28 @@ class UserMessage(_StringOnlyContent[Role.user]):
                     attachment_max_mb=attachment_max_mb,
                 )
                 for item in items
-            ]
-
-            if content is None:
-                logger.warning(
-                    "UserMessage initialized without content, setting to empty string."
-                )
-                content = ""
-        else:
-            self.attachment = None
-
-        if content is None:
-            raise ValueError(
-                "UserMessage must have content if no attachment is provided."
             )
-        super().__init__(content=content, role=Role.user)
+        if not parts:
+            raise ValueError("UserMessage needs text or at least one attachment.")
+        super().__init__(content=parts, role=Role.user)
 
-    def encode(self):
-        if self.attachment is not None:
-            attachment = [
-                {
-                    "modality": msg_attachment.modality,
-                    "type": msg_attachment.type,
-                    "info": msg_attachment.url,
-                }
-                for msg_attachment in self.attachment
-            ]
+    @property
+    def attachment(self) -> list[Attachment] | None:
+        """The attachments, or None when there are none. Deprecated: read `attachments` instead."""
+        warnings.warn(
+            "UserMessage.attachment is deprecated and will be removed; "
+            "read UserMessage.attachments instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.attachments or None
 
-            return {
-                "role": self.role.value,
-                "content": [{"type": "text", "text": self.content}, *attachment],
-            }
-
-        return super().encode()
+    def fill_prompt(self, value_dict: ValueDict) -> None:
+        """Fill `{key}` placeholders in the text parts, leaving attachments in place."""
+        self._content = [
+            fill_template(part, value_dict) if isinstance(part, str) else part
+            for part in self._content
+        ]
 
 
 class SystemMessage(_StringOnlyContent[Role.system]):
@@ -689,24 +804,49 @@ class SystemMessage(_StringOnlyContent[Role.system]):
         super().__init__(content=content, role=Role.system)
 
 
+def _assistant_content(content: object) -> object:
+    """Normalize an assistant message's content: a list of parts, a `ToolCalls`, or structured output."""
+    if content is None:
+        return []
+    if isinstance(content, (ToolCalls, BaseModel)):
+        return content
+    if (
+        isinstance(content, (list, tuple))
+        and content
+        and all(isinstance(item, ToolCall) for item in content)
+    ):
+        return ToolCalls(content)
+    if isinstance(content, (str, Attachment, list, tuple)):
+        return _to_parts(content, owner="AssistantMessage")
+    return content
+
+
 class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     """
     A simple class that represents a message from the assistant.
 
     Args:
-        content (_T): The content of the assistant message. A tool-calling turn is a
+        content: The content of the assistant message. A reply is a list of text and
+            attachments; a `str`, an `Attachment` or None (no content) is normalized to
+            one, so `AssistantMessage("Hi").content == ["Hi"]`. A tool-calling turn is a
             `ToolCalls`, which holds both the calls and any text the model spoke
-            alongside them; a plain `list[ToolCall]` is accepted and normalized to one.
+            alongside them; a plain `list[ToolCall]` is normalized to one. Structured
+            output is the pydantic model itself.
     """
 
-    def __init__(self, content: _T):
-        # Normalizing here means a tool-calling turn is always a ToolCalls, so
-        # nothing downstream has to handle both shapes, while callers that pass a
-        # plain list of tool calls keep working.
-        if isinstance(content, list) and not isinstance(content, ToolCalls):
-            content = cast(_T, ToolCalls(content))
+    @overload
+    def __init__(
+        self: AssistantMessage[list[ContentPart]],
+        content: str | Attachment | Sequence[ContentPart] | None,
+    ) -> None: ...
 
-        super().__init__(content=content, role=Role.assistant)
+    @overload
+    def __init__(self, content: _T) -> None: ...
+
+    def __init__(self, content: object):
+        super().__init__(
+            content=cast(_T, _assistant_content(content)), role=Role.assistant
+        )
 
         # Metadata that lives outside `content`. Any attribute added below must also
         # be copied in `copy_metadata_from`, or rebuild paths will silently drop it.

@@ -28,7 +28,7 @@ user_prompt = """Tell me about the RailtownAI/rc repository on GitHub."""
 
 flow = rt.Flow("github-flow", entry_point=GitHubAgent)
 result = flow.invoke(user_prompt)
-print(result.content)
+print(result.text)
 
 # --8<-- [end: github_call]
 
@@ -75,7 +75,7 @@ message_history.append(rt.llm.UserMessage(user_prompt))
 
 notion_flow = rt.Flow("notion-flow", entry_point=NotionAgent)
 result = notion_flow.invoke(message_history)
-print(result.content)
+print(result.text)
 
 # --8<-- [end: notion_call]
 
@@ -125,7 +125,7 @@ try:
 finally:
     kill_sandbox()
 
-print(code_flow_result.content)
+print(code_flow_result.text)
 
 # --8<-- [end: sandbox_call]
 
@@ -164,7 +164,7 @@ message_history.append(rt.llm.UserMessage(user_prompt))
 
 bash_flow = rt.Flow("bash-flow", entry_point=BashAgent)
 result = bash_flow.invoke(message_history)
-print(result.content)
+print(result.text)
 
 # --8<-- [end: bash_call]
 
@@ -204,7 +204,7 @@ user_prompt = """Send a message to general saying "Hello!"."""
 
 slack_flow = rt.Flow("slack-flow", entry_point=SlackAgent)
 result = slack_flow.invoke(user_prompt)
-print(result.content)
+print(result.text)
 
 # --8<-- [end: slack_call]
 

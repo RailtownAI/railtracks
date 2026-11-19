@@ -53,10 +53,10 @@ All agents return a response object which you can use to get the last message or
 
 !!! info "Reponse of a Run"
     === "Unstructured Response"
-        In the __unstructured response__ example, the last message from the agent and the entire message history can be accessed using the `content` and `message_history` attributes of the response object, respectively.
+        In the __unstructured response__ example, the last message from the agent and the entire message history can be accessed using the `text` and `message_history` attributes of the response object, respectively.
         
         ```python
-        print(f"Last Message: {response.content}")
+        print(f"Last Message: {response.text}")
         print(f"Message History: {response.message_history}")
         ```
 

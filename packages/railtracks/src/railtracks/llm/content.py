@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     AnyStr,
     Dict,
@@ -13,6 +14,9 @@ from typing import (
 )
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from .message import ContentPart
 
 
 ####################################################################################################
@@ -45,9 +49,9 @@ class ToolCalls(List[ToolCall]):
     separate field on the message keeps the model's whole response inside
     `content`.
 
-    This is a `list[ToolCall]`, so anything that already treats tool-call
-    content as a list — iteration, indexing, `isinstance(content, list)` —
-    keeps working, and `AssistantMessage` accepts a plain list as before.
+    This is a `list[ToolCall]`, so iteration and indexing work as on a list.
+    Check for a tool-calling turn with `isinstance(content, ToolCalls)`: a reply
+    is a list too, of text and attachments.
     """
 
     def __init__(
@@ -137,4 +141,6 @@ class Stream(Generic[_TOutput]):
 # ToolCalls is a List[ToolCall] subclass, so it is already covered by the
 # List[ToolCall] member; it is named here because it is the shape an assistant
 # tool-calling turn actually takes.
-Content = Union[str, ToolCalls, List[ToolCall], ToolResponse, BaseModel]
+Content = Union[
+    "List[ContentPart]", str, ToolCalls, List[ToolCall], ToolResponse, BaseModel
+]

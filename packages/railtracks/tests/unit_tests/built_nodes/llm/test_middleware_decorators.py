@@ -63,7 +63,7 @@ async def test_pre_llm_parametrized_sets_name_and_transforms_request():
     wrapped = middleware.wrap(core)
     await wrapped(_messages(), None, None)
 
-    assert [m.content for m in seen["history"]] == ["hi", "appended"]
+    assert [m.text for m in seen["history"]] == ["hi", "appended"]
 
 
 @pytest.mark.asyncio

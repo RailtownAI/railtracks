@@ -67,14 +67,14 @@ async def test_input_guard_transform_is_seen_by_the_next_guard_in_the_chain(mock
     def redact(event: LLMGuardrailEvent) -> GuardrailDecision:
         new_hist = event.messages.__class__(
             [
-                UserMessage(m.content.replace("secret", "[REDACTED]"))
+                UserMessage(m.text.replace("secret", "[REDACTED]"))
                 for m in event.messages
             ]
         )
         return GuardrailDecision.transform_messages(messages=new_hist, reason="redact")
 
     def record(event: LLMGuardrailEvent) -> GuardrailDecision:
-        seen["last_content"] = event.messages[-1].content
+        seen["last_content"] = event.messages[-1].text
         return GuardrailDecision.allow()
 
     Agent = rt.agent_node(  # noqa: N806

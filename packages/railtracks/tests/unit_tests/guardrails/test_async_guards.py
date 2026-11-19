@@ -231,7 +231,7 @@ class TestDecideAndAdecide:
     async def test_adecide_on_output_guard_uses_output_message(self) -> None:
         @output_guard
         async def rail(event) -> GuardrailDecision:
-            assert event.output_message.content == "the reply"
+            assert event.output_message.text == "the reply"
             return GuardrailDecision.allow()
 
         decision = await rail.adecide("the reply")

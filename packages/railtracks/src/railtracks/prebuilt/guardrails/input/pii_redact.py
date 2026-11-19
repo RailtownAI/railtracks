@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
-
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
 from railtracks.guardrails.llm.concrete import InputGuard
@@ -15,7 +13,7 @@ _SCANNABLE_ROLES = frozenset({Role.user, Role.system})
 
 
 class PIIRedactInputGuard(InputGuard):
-    """Redacts PII from user and system string messages before they reach the LLM."""
+    """Redacts PII from the text of user and system messages before they reach the LLM."""
 
     def __init__(
         self,
@@ -37,7 +35,7 @@ class PIIRedactInputGuard(InputGuard):
         self._engine = PIIEngine(self._config)
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        """Scan user/system string content and redact matches.
+        """Scan the text of user/system messages and redact matches.
 
         Returns:
             ``ALLOW`` when no PII is found, or ``TRANSFORM`` with rewritten messages on
@@ -49,19 +47,15 @@ class PIIRedactInputGuard(InputGuard):
         messages_affected = 0
 
         for msg in event.messages:
-            if msg.role not in _SCANNABLE_ROLES or not isinstance(msg.content, str):
+            if msg.role not in _SCANNABLE_ROLES:
                 new_messages.append(msg)
                 continue
 
-            redacted_text, records = self._engine.redact(msg.content)
+            redacted, records = self._engine.redact_message(msg)
             if records:
                 all_records.extend(records)
                 messages_affected += 1
-                clone = deepcopy(msg)
-                clone._content = redacted_text
-                new_messages.append(clone)
-            else:
-                new_messages.append(msg)
+            new_messages.append(redacted)
 
         if not all_records:
             return GuardrailDecision.allow(reason="No PII detected in input.")

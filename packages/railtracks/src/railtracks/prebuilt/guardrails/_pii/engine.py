@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from typing import Any
+from copy import deepcopy
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
+from railtracks.llm.content import ToolCalls
+from railtracks.llm.message import ContentPart, Message
+
 from .config import PIIEntity, PIIRedactConfig
+
+_M = TypeVar("_M", bound=Message)
 
 # Insertion order defines overlap precedence (earlier = wins in _merge_spans).
 _BUILTIN_PATTERNS: dict[PIIEntity, str] = {
@@ -143,6 +149,40 @@ class PIIEngine:
 
         parts.append(text[cursor:])
         return "".join(parts), records
+
+    def redact_message(self, message: _M) -> tuple[_M, list[RedactionRecord]]:
+        """Redact the text of a message, leaving its attachments in place.
+
+        Each text part is redacted on its own, so record offsets refer to that part.
+        Content without text parts, such as tool calls or structured output, is left
+        as it is.
+
+        Args:
+            message: The message to scan.
+
+        Returns:
+            A redacted copy of the message and its records, or the message itself and
+            no records when nothing was redacted.
+        """
+        content = message.content
+        if isinstance(content, str):
+            redacted, records = self.redact(content)
+            new_content: str | list[ContentPart] = redacted
+        elif isinstance(content, list) and not isinstance(content, ToolCalls):
+            records = []
+            new_content = []
+            for part in content:
+                if isinstance(part, str):
+                    part, part_records = self.redact(part)
+                    records.extend(part_records)
+                new_content.append(part)
+        else:
+            return message, []
+        if not records:
+            return message, []
+        clone = deepcopy(message)
+        clone._content = new_content
+        return clone, records
 
     def _detect(self, text: str) -> list[_Span]:
         spans: list[_Span] = []

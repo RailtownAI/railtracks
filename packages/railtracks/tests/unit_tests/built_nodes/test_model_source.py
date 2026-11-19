@@ -21,7 +21,7 @@ def test_agent_node_accepts_model_factory(mock_llm):
     response = rt.Flow("test_agent_node_accepts_model_factory", node).invoke(
         MessageHistory()
     )
-    assert response.content == "hello"
+    assert response.text == "hello"
 
 
 def test_model_factory_resolved_per_call(mock_llm):
@@ -41,9 +41,9 @@ def test_model_factory_resolved_per_call(mock_llm):
 
     flow = rt.Flow("test_model_factory_resolved_per_call", node)
 
-    assert flow.invoke(MessageHistory()).content == "from-a"
+    assert flow.invoke(MessageHistory()).text == "from-a"
     current["model"] = model_b
-    assert flow.invoke(MessageHistory()).content == "from-b"
+    assert flow.invoke(MessageHistory()).text == "from-b"
 
 
 def test_model_middleware_list_mutation_after_build_does_not_affect_built_agent(

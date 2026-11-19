@@ -55,7 +55,8 @@ def test_system_message():
 
 def test_assistant_message():
     message = AssistantMessage("Assistant response")
-    assert message.content == "Assistant response"
+    assert message.content == ["Assistant response"]
+    assert message.text == "Assistant response"
     assert message.role == "assistant"
     assert str(message) == "assistant: Assistant response"
     assert repr(message) == "assistant: Assistant response"
@@ -123,7 +124,8 @@ def test_tool_message():
     [
         (123, TypeError),
         (None, ValueError),
-        (["list", "of", "strings"], TypeError),
+        (["text", 123], TypeError),
+        ([], ValueError),
     ],
 )
 def test_invalid_user_message_content(invalid_content, expected_exception):
@@ -642,8 +644,8 @@ class TestAttachment:
             attachment=["https://example.com/report.pdf"],
             trust_urls=True,
         )
-        assert msg.attachment[0].modality == "document"
-        assert msg.attachment[0].encoding.startswith("data:application/pdf;base64,")
+        assert msg.attachments[0].modality == "document"
+        assert msg.attachments[0].encoding.startswith("data:application/pdf;base64,")
 
     def test_data_uri(self):
         data_uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"
@@ -924,10 +926,11 @@ class TestUserMessageAttachments:
         image_file.write_bytes(b"\x89PNG\r\n\x1a\n")
 
         message = UserMessage("Check this", attachment=str(image_file))
-        assert message.content == "Check this"
-        assert message.attachment is not None
-        assert len(message.attachment) == 1
-        assert message.attachment[0].type == "local"
+        assert message.content[0] == "Check this"
+        assert message.text == "Check this"
+        assert message.attachments
+        assert len(message.attachments) == 1
+        assert message.attachments[0].type == "local"
 
     def test_multiple_attachments(self, tmp_path):
         image1 = tmp_path / "test1.png"
@@ -936,25 +939,25 @@ class TestUserMessageAttachments:
         image2.write_bytes(b"\xff\xd8\xff")
 
         message = UserMessage("Check these", attachment=[str(image1), str(image2)])
-        assert message.attachment is not None
-        assert len(message.attachment) == 2
-        assert all(att.type == "local" for att in message.attachment)
+        assert message.attachments
+        assert len(message.attachments) == 2
+        assert all(att.type == "local" for att in message.attachments)
 
     def test_no_attachment(self):
         message = UserMessage("Just text")
-        assert message.attachment is None
+        assert message.attachments == []
 
     @pytest.mark.parametrize("wrap", [bytes, bytearray, memoryview])
     def test_raw_bytes_become_one_attachment(self, wrap):
         message = UserMessage("Check this", attachment=wrap(_PNG))
-        assert message.attachment == [Attachment.from_bytes(_PNG)]
+        assert message.attachments == [Attachment.from_bytes(_PNG)]
 
     def test_raw_bytes_mixed_with_other_sources(self):
         message = UserMessage(
             "Compare",
             attachment=[_PNG, "https://example.com/b.png", Attachment.from_bytes(_WAV)],
         )
-        assert [a.mime_type for a in message.attachment] == [
+        assert [a.mime_type for a in message.attachments] == [
             "image/png",
             "image/png",
             "audio/wav",
@@ -973,8 +976,8 @@ class TestUserMessageAttachments:
     )
     def test_attachment_types(self, attachment, expected_type):
         message = UserMessage("Test", attachment=attachment)
-        assert message.attachment is not None
-        assert message.attachment[0].type == expected_type
+        assert message.attachments
+        assert message.attachments[0].type == expected_type
 
     def test_mixed_attachments(self, tmp_path):
         local_file = tmp_path / "test.png"
@@ -986,11 +989,11 @@ class TestUserMessageAttachments:
         ]
 
         message = UserMessage("Mixed", attachment=attachments)
-        assert message.attachment is not None
-        assert len(message.attachment) == 3
-        assert message.attachment[0].type == "local"
-        assert message.attachment[1].type == "url"
-        assert message.attachment[2].type == "data_uri"
+        assert message.attachments
+        assert len(message.attachments) == 3
+        assert message.attachments[0].type == "local"
+        assert message.attachments[1].type == "url"
+        assert message.attachments[2].type == "data_uri"
 
     def test_accepts_attachment_objects(self):
         audio = Attachment.from_bytes(_WAV, filename="call.wav")
@@ -998,11 +1001,11 @@ class TestUserMessageAttachments:
         single = UserMessage("Transcribe", attachment=audio)
         mixed = UserMessage("Compare", attachment=("https://example.com/a.png", audio))
 
-        assert single.attachment == [audio]
-        assert single.attachment[0] is audio
-        assert mixed.attachment is not None
-        assert [a.type for a in mixed.attachment] == ["url", "data_uri"]
-        assert mixed.attachment[1] is audio
+        assert single.attachments == [audio]
+        assert single.attachments[0] is audio
+        assert mixed.attachments
+        assert [a.type for a in mixed.attachments] == ["url", "data_uri"]
+        assert mixed.attachments[1] is audio
 
     def test_encode_keeps_the_session_record_shape(self, tmp_path):
         """The session JSON reads `encode()`; new sources must keep its shape and stay payload-free."""

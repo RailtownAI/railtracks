@@ -61,7 +61,7 @@ class TestSyncRetryInWrapper:
                 response = llm.chat(message_history)
 
         assert call_count["n"] == 3
-        assert response.message.content == "hello"
+        assert response.message.text == "hello"
 
     def test_raises_retry_error_after_max_tries(self, message_history):
         llm = AnthropicLLM(
@@ -146,7 +146,7 @@ class TestAsyncRetryInWrapper:
                 response = await llm.achat(message_history)
 
         assert call_count["n"] == 3
-        assert response.message.content == "hello"
+        assert response.message.text == "hello"
 
     @pytest.mark.asyncio
     async def test_raises_retry_error_after_max_tries(self, message_history):

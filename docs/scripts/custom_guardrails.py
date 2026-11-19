@@ -25,7 +25,7 @@ from railtracks.guardrails import GuardrailDecision, LLMGuardrailEvent
 def block_passwords(event: LLMGuardrailEvent) -> GuardrailDecision:
     """Block any input that asks for a password."""
     for message in event.messages:
-        if isinstance(message.content, str) and "password" in message.content.lower():
+        if "password" in message.text.lower():
             return GuardrailDecision.block(
                 reason="Requests for passwords are not allowed.",
                 user_facing_message="Ask for something else instead.",
@@ -38,8 +38,8 @@ def block_passwords(event: LLMGuardrailEvent) -> GuardrailDecision:
 @rt.output_guard(name="no_sign_off", fail_open=True)
 def strip_sign_off(event: LLMGuardrailEvent) -> GuardrailDecision:
     """Rewrite the final reply to drop a trailing sign-off line."""
-    content = event.output_message.content if event.output_message else None
-    if not isinstance(content, str) or "\nBest," not in content:
+    content = event.output_message.text if event.output_message else ""
+    if "\nBest," not in content:
         return GuardrailDecision.allow()
     trimmed = content.split("\nBest,")[0].rstrip()
     return GuardrailDecision.transform_output(
@@ -81,7 +81,7 @@ Judge = rt.agent_node(
 @rt.input_guard(name="llm_judge")
 async def llm_judge(event: LLMGuardrailEvent) -> GuardrailDecision:
     """Delegate the decision to a second agent."""
-    verdict = await rt.call(Judge, user_input=str(event.messages[-1].content))
+    verdict = await rt.call(Judge, user_input=event.messages[-1].text)
     if not verdict.content.safe_request:
         return GuardrailDecision.block(
             reason=f"The judge flagged this request: {verdict.content.reason}",
@@ -107,7 +107,7 @@ class BlockKeywordGuard(InputGuard):
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
         for message in event.messages:
-            if isinstance(message.content, str) and self._keyword in message.content.lower():
+            if self._keyword in message.text.lower():
                 return GuardrailDecision.block(
                     reason=f"Blocked keyword: {self._keyword}.",
                 )

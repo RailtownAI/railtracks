@@ -266,7 +266,7 @@ async def test_tool_call_output_block(mock_llm, allow_input):
 async def test_tool_call_output_transform_updates_response_and_history(
     mock_llm, allow_input
 ):
-    """TRANSFORM: resp.content and resp.message_history[-1].content must both reflect the new message."""
+    """TRANSFORM: resp.text and resp.message_history[-1].text must both reflect the new message."""
     transformed = "transformed content"
 
     def tool_fn() -> str:
@@ -291,8 +291,8 @@ async def test_tool_call_output_transform_updates_response_and_history(
         user_input="hello"
     )
     assert isinstance(result, StringResponse)
-    assert result.content == transformed
-    assert result.message_history[-1].content == transformed
+    assert result.text == transformed
+    assert result.message_history[-1].text == transformed
 
 
 @pytest.mark.asyncio

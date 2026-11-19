@@ -39,7 +39,7 @@ def _judge(mock_llm, label: str):
 
 
 def _judge_user_text(state: dict, call: int = 0) -> str:
-    return next(m.content for m in state["calls"][call] if m.role == "user")
+    return next(m.text for m in state["calls"][call] if m.role == "user")
 
 
 def _guarded_agent(mock_llm, guard, *, name="guarded", **llm_kwargs):

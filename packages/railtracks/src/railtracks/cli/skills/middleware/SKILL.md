@@ -84,7 +84,7 @@ import railtracks as rt
 # Content-policy decision -> guardrail, not middleware
 @rt.input_guard
 def block_secrets(event: rt.guardrails.LLMGuardrailEvent) -> rt.guardrails.GuardrailDecision:
-    if any("SECRET" in m.content for m in event.messages if isinstance(m.content, str)):
+    if any("SECRET" in m.text for m in event.messages):
         return rt.guardrails.GuardrailDecision.block(reason="secret leaked")
     return rt.guardrails.GuardrailDecision.allow()
 
@@ -109,7 +109,7 @@ flow = rt.Flow(name="Support", entry_point=SupportAgent)
 
 try:
     result = flow.invoke("user message here")
-    print(result.content)
+    print(result.text)
 except rt.guardrails.GuardrailBlockedError as e:
     print(f"Blocked: {e}")
 ```

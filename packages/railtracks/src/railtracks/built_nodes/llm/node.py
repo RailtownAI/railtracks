@@ -18,7 +18,8 @@ from railtracks.validation.node_creation.validation import (
     _check_no_combined_tools_and_schema,
 )
 
-from .node_builder import LLMNodeBuilder, UserInput
+from .llm_helpers import UserInput
+from .node_builder import LLMNodeBuilder
 
 _TBaseModel = TypeVar("_TBaseModel", bound=BaseModel)
 _R = TypeVar("_R", bound=StructuredResponse | StringResponse)

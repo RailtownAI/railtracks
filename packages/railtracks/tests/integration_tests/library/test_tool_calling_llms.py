@@ -203,4 +203,4 @@ class TestFunctionNodeCallWithFunctionList:
             )
         )
 
-        assert "92" in result.content
+        assert "92" in result.text

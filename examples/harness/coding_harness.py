@@ -204,7 +204,7 @@ async def main() -> None:
         "test_fizzbuzz.py, then run the tests and report the outcome."
     )
 
-    print(f"\n{result.content}")
+    print(f"\n{result.text}")
     print(f"\n{await todos.pretty_dashboard()}")
     print("\nRun `railtracks viz` to replay this run.")
 

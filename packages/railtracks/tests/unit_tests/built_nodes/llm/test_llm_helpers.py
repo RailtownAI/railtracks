@@ -88,7 +88,7 @@ def test_prepare_called_as_tool_formats_array_param_with_list_value():
 
     history = prepare(items=[1, 2, 3])
 
-    assert "items: 1, 2, 3" in history[0].content
+    assert "items: 1, 2, 3" in history[0].text
 
 
 def test_prepare_called_as_tool_formats_object_param_with_dict_value():
@@ -97,7 +97,7 @@ def test_prepare_called_as_tool_formats_object_param_with_dict_value():
 
     history = prepare(config={"a": 1, "b": 2})
 
-    assert "config: a=1; b=2" in history[0].content
+    assert "config: a=1; b=2" in history[0].text
 
 
 def test_prepare_called_as_tool_formats_string_param_plainly():
@@ -106,7 +106,7 @@ def test_prepare_called_as_tool_formats_string_param_plainly():
 
     history = prepare(x="hello")
 
-    assert "x: hello" in history[0].content
+    assert "x: hello" in history[0].text
 
 
 def test_prepare_called_as_tool_missing_required_param_raises():
@@ -126,8 +126,8 @@ def test_prepare_called_as_tool_skips_missing_optional_param():
 
     history = prepare(city="Paris")
 
-    assert "city: Paris" in history[0].content
-    assert "units" not in history[0].content
+    assert "city: Paris" in history[0].text
+    assert "units" not in history[0].text
 
 
 def test_prepare_called_as_tool_ignores_unknown_arguments():
@@ -265,7 +265,7 @@ async def test_response_without_text_content_raises_llmerror(monkeypatch):
 
     assert "no text content" in exc.value.reason
     assert exc.value.message_history is not None
-    assert exc.value.message_history[-1].content == "hello"
+    assert exc.value.message_history[-1].text == "hello"
 
 
 class _Answer(BaseModel):
@@ -273,7 +273,8 @@ class _Answer(BaseModel):
 
 
 @pytest.mark.parametrize(
-    "schema,expected", [(None, "expected str."), (_Answer, "expected str or _Answer.")]
+    "schema,expected",
+    [(None, "expected text."), (_Answer, "expected text or _Answer.")],
 )
 def test_unusable_content_type_raises_llmerror_naming_the_expected_types(
     schema, expected

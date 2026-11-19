@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
-
 from railtracks.guardrails.core.decision import GuardrailDecision
 from railtracks.guardrails.core.event import LLMGuardrailEvent
 from railtracks.guardrails.llm.concrete import OutputGuard
@@ -33,7 +31,7 @@ class PIIRedactOutputGuard(OutputGuard):
         self._engine = PIIEngine(self._config)
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        """Redact PII from string assistant content on ``event.output_message``.
+        """Redact PII from the text of ``event.output_message``.
 
         Returns:
             ``ALLOW`` when there is nothing to scan or no PII, or ``TRANSFORM`` with the
@@ -42,17 +40,15 @@ class PIIRedactOutputGuard(OutputGuard):
             and redaction metadata in ``meta``.
         """
         msg = event.output_message
-        if msg is None or not isinstance(msg.content, str):
-            return GuardrailDecision.allow(reason="No string output to scan.")
+        if msg is None or not msg.text:
+            return GuardrailDecision.allow(reason="No text output to scan.")
 
-        redacted_text, records = self._engine.redact(msg.content)
+        redacted, records = self._engine.redact_message(msg)
         if not records:
             return GuardrailDecision.allow(reason="No PII detected in output.")
 
-        clone = deepcopy(msg)
-        clone._content = redacted_text
         return GuardrailDecision.transform_output(
-            output_message=clone,
+            output_message=redacted,
             reason=f"Redacted {len(records)} PII span(s) from output.",
             meta=build_redaction_meta(records),
         )

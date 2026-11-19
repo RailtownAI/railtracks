@@ -44,7 +44,7 @@ def _send(agent, content: str, context: dict) -> str:
     """Send `content` as user input and return what the model received."""
     flow = rt.Flow("EchoFlow", agent, context=context)
     response = asyncio.run(flow.ainvoke(MessageHistory([UserMessage(content)])))
-    return response.content
+    return response.text
 
 
 @pytest.fixture
@@ -120,7 +120,7 @@ def test_message_is_filled_once_on_every_model_call(
     chat_with_tools = model._chat_with_tools
 
     def recording_chat_with_tools(messages: MessageHistory, tools, **kwargs):
-        received.extend(m.content for m in messages if m.role == Role.user)
+        received.extend(m.text for m in messages if m.role == Role.user)
         return chat_with_tools(messages, tools, **kwargs)
 
     model._chat_with_tools = recording_chat_with_tools

@@ -23,7 +23,7 @@ from railtracks.validation.node_invocation.validation import check_message_histo
 
 
 def _contents(history: MessageHistory) -> list[str]:
-    return [str(m.content) for m in history]
+    return [m.text for m in history]
 
 
 def _roles(history: MessageHistory) -> list[str]:

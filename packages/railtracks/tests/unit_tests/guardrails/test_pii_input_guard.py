@@ -52,7 +52,7 @@ class TestTransformUserMessage:
         assert decision.action == GuardrailAction.TRANSFORM
         assert decision.messages is not None
         assert len(decision.messages) == 1
-        assert "[EMAIL_ADDRESS]" in decision.messages[0].content
+        assert "[EMAIL_ADDRESS]" in decision.messages[0].text
 
     def test_phone_in_user_message(self, guard: PIIRedactInputGuard) -> None:
         event = _make_input_event(
@@ -60,7 +60,7 @@ class TestTransformUserMessage:
         )
         decision = guard(event)
         assert decision.action == GuardrailAction.TRANSFORM
-        assert "[PHONE_NUMBER]" in decision.messages[0].content
+        assert "[PHONE_NUMBER]" in decision.messages[0].text
 
 
 class TestTransformSystemMessage:
@@ -70,7 +70,7 @@ class TestTransformSystemMessage:
         )
         decision = guard(event)
         assert decision.action == GuardrailAction.TRANSFORM
-        assert "[EMAIL_ADDRESS]" in decision.messages[0].content
+        assert "[EMAIL_ADDRESS]" in decision.messages[0].text
 
 
 class TestSkippedRoles:
@@ -125,9 +125,9 @@ class TestMultipleMessages:
         assert decision.action == GuardrailAction.TRANSFORM
         assert decision.messages is not None
         assert len(decision.messages) == 3
-        assert "[EMAIL_ADDRESS]" in decision.messages[0].content
-        assert "[IP_ADDRESS]" in decision.messages[1].content
-        assert decision.messages[2].content == "Clean message"
+        assert "[EMAIL_ADDRESS]" in decision.messages[0].text
+        assert "[IP_ADDRESS]" in decision.messages[1].text
+        assert decision.messages[2].text == "Clean message"
         assert decision.meta["messages_affected"] == 2
 
 
@@ -145,7 +145,7 @@ class TestCustomPatternInGuard:
         )
         decision = guard(event)
         assert decision.action == GuardrailAction.TRANSFORM
-        assert "[EMPLOYEE_ID]" in decision.messages[0].content
+        assert "[EMPLOYEE_ID]" in decision.messages[0].text
 
 
 class TestGuardName:

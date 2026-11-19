@@ -47,10 +47,11 @@ from ..history import MessageHistory
 from ..message import (
     AssistantMessage,
     Attachment,
+    ContentPart,
     Message,
     Modality,
     ToolMessage,
-    UserMessage,
+    content_text,
 )
 from ..model import ModelBase
 from ..response import MessageInfo, Response
@@ -1124,13 +1125,23 @@ class LiteLLMWrapper(ModelBase, ABC):
         """
         return self._model_name
 
-    def _to_litellm_attachment_content(
-        self, text: str, attachments: List[Attachment]
-    ) -> List[Dict[str, Any]]:
-        """Build the multimodal content list for a UserMessage with attachments."""
+    def _to_litellm_content(
+        self, parts: List[ContentPart]
+    ) -> str | List[Dict[str, Any]]:
+        """Build the litellm content for a message's text and attachments.
+
+        Text-only content is sent as one string. Content with attachments is sent as a
+        list of content parts in the message's order; empty text parts are left out,
+        since some providers reject them.
+        """
+        if not any(isinstance(part, Attachment) for part in parts):
+            return content_text(parts)
         return [
-            {"type": "text", "text": text},
-            *(self._to_content_part(attachment) for attachment in attachments),
+            {"type": "text", "text": part}
+            if isinstance(part, str)
+            else self._to_content_part(part)
+            for part in parts
+            if not isinstance(part, str) or part
         ]
 
     def _to_content_part(self, attachment: Attachment) -> Dict[str, Any]:
@@ -1177,18 +1188,11 @@ class LiteLLMWrapper(ModelBase, ABC):
         """
         base: Dict[str, Any] = {"role": msg.role}
         # handle the special case where the message is a tool so we have to link it to the tool id.
-        if isinstance(msg, UserMessage) and msg.attachment is not None:
-            base["content"] = self._to_litellm_attachment_content(
-                msg.content, msg.attachment
-            )
-
-        elif isinstance(msg, ToolMessage):
+        if isinstance(msg, ToolMessage):
             base["name"] = msg.content.name
             base["tool_call_id"] = msg.content.identifier
             base["content"] = msg.content.result
-        # only time this is true is tool calls, need to return litellm.utils.Message
-        elif isinstance(msg.content, list):
-            assert all(isinstance(t_c, ToolCall) for t_c in msg.content)
+        elif isinstance(msg.content, list) and msg.tool_calls:
             # Send back any text that came with the tool calls so the model sees
             # its own full turn on the next request.
             base["content"] = getattr(msg.content, "text", None) or ""
@@ -1228,6 +1232,8 @@ class LiteLLMWrapper(ModelBase, ABC):
         elif isinstance(msg.content, BaseModel):
             # searlize base model to string before passing along
             base["content"] = msg.content.model_dump_json()
+        elif isinstance(msg.content, list):
+            base["content"] = self._to_litellm_content(msg.content)
         else:
             base["content"] = msg.content
 
