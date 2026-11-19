@@ -26,6 +26,21 @@ Here’s how you can use context during a run:
 !!! warning
     The context only exists while the run is active. After that, it's gone.
 
+## State owned by a middleware or node
+
+`rt.context.local(cls)` gives the code that is running its own value for the session, without picking a key. It returns one instance of `cls` per owner per session, created with `cls()` the first time the owner asks for it. The owner is the innermost middleware or node that is running, so a tool and the middleware wrapped around it never see each other's value, and two instances of the same middleware stay apart.
+
+```python
+--8<-- "docs/scripts/context.py:local_state"
+```
+
+- **Per session.** Every run starts from a fresh value, and runs happening at the same time never share one.
+- **Shared within the session.** Every call of the same tool, and every node a middleware instance is attached to, sees the same value. Parallel calls in one run share it too. A sync (`def`) tool runs on a worker thread, so two parallel calls can update the value at the same moment: make a stateful tool `async def`, or attach a [`Lock`](../agent_design/middleware/prebuilt/list/lock.md) to it. In async code, use a `Lock` when a read-modify-write spans an `await`.
+- **Private.** The value is not in the context dictionary: `rt.context.keys()` doesn't list it, it isn't recorded as a context event, and it ends with the session.
+- **Read from elsewhere** by passing the owner: `rt.context.local(Cart, owner=some_middleware)` for a middleware instance, `owner=add_to_cart` for a decorated tool, or `owner=SomeAgent` for a node class such as an agent. A new definition is a new owner: decorating the same function twice, or building an agent inside a node, gives each its own state.
+
+Outside a session, or inside one with no middleware or node running and no `owner`, it raises `ContextError`.
+
 ## Real-World Examples
 
 For a complete example that carries conversation history between nodes through context, see [Message History](../invocation/message_history.md#share-history-between-nodes-in-one-run).

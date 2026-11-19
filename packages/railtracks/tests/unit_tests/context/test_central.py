@@ -205,7 +205,7 @@ def test_enter_node_body_reports_owning_node_id():
     manager = central.ContextVarScopeManager()
 
     with manager.enter_node("node-1"):
-        with manager.enter_node_body():
+        with manager.enter_node_body("node-type"):
             assert central.get_parent_id() == "node-1"
 
 
@@ -214,7 +214,7 @@ def test_enter_node_body_requires_active_node_scope():
     manager = central.ContextVarScopeManager()
 
     with pytest.raises(RuntimeError):
-        with manager.enter_node_body():
+        with manager.enter_node_body("node-type"):
             pass
 
 
@@ -317,7 +317,7 @@ def test_captured_scope_after_llm_call_carries_no_llm_id():
     manager = central.ContextVarScopeManager()
 
     with manager.enter_node("node-1"):
-        with manager.enter_node_body():
+        with manager.enter_node_body("node-type"):
             with manager.enter_llm_call("parent_id"):
                 assert central.get_llm_call_id() is not None
             captured_scope = central.get_current_scope()

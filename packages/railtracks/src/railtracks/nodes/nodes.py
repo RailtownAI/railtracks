@@ -6,7 +6,7 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Generic, Literal, ParamSpec, TypeVar
+from typing import Any, ClassVar, Generic, Literal, ParamSpec, TypeVar
 
 from railtracks.events.node import (
     NodeDestruction,
@@ -113,8 +113,15 @@ class Node(ABC, Generic[_P, _TOutput]):
                 method = cls.__dict__[method_name]
                 check_classmethod(method, method_name)
 
+        # one owner per node definition; extend_middleware copies keep their parent's
+        if "type_id" not in cls.__dict__:
+            cls.type_id = str(uuid.uuid4())
+
         # without this direct call to the parent __init_subclass__ method the generic resolutions will not work correctly
         super().__init_subclass__()
+
+    type_id: ClassVar[str]
+    """Identifies this node definition, shared by every invocation; owns its ``rt.context.local`` state."""
 
     _exterior_middleware: list[Middleware[_P, _TOutput]] = []
     _user_middleware: list[Middleware[_P, _TOutput]] = []
@@ -161,7 +168,7 @@ class Node(ABC, Generic[_P, _TOutput]):
         """
 
         async def body(*a: _P.args, **kw: _P.kwargs) -> _TOutput:
-            with self._scope_manager.enter_node_body():
+            with self._scope_manager.enter_node_body(self.type_id):
                 result = await self.invoke(*a, **kw)
                 return result
 
@@ -198,7 +205,11 @@ class Node(ABC, Generic[_P, _TOutput]):
             *middleware,
             *cls._user_middleware,
         ]  # new middleware goes outermost; a fresh list, but the instances stay shared
-        return type(cls.__name__, (cls,), {"_user_middleware": new_middleware})
+        return type(
+            cls.__name__,
+            (cls,),
+            {"_user_middleware": new_middleware, "type_id": cls.type_id},
+        )
 
     @classmethod
     def extend_model_middleware(
@@ -208,7 +219,11 @@ class Node(ABC, Generic[_P, _TOutput]):
             *middleware,
             *cls._user_model_middleware,
         ]  # new middleware goes outermost; a fresh list, but the instances stay shared
-        return type(cls.__name__, (cls,), {"_user_model_middleware": new_middleware})
+        return type(
+            cls.__name__,
+            (cls,),
+            {"_user_model_middleware": new_middleware, "type_id": cls.type_id},
+        )
 
     def __repr__(self):
         return f"{self.name()} <{hex(id(self))}>"

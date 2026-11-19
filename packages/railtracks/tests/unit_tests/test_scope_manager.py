@@ -9,7 +9,7 @@ def test_null_scope_manager_enter_node_is_a_noop():
 
 def test_null_scope_manager_enter_node_body_is_a_noop():
     manager = NullScopeManager()
-    with manager.enter_node_body():
+    with manager.enter_node_body("node-type"):
         pass
 
 

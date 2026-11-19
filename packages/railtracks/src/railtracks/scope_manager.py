@@ -9,7 +9,7 @@ class ScopeManager(Protocol):
 
     def enter_node(self, node_id: str) -> ContextManager[None]: ...
 
-    def enter_node_body(self) -> ContextManager[None]: ...
+    def enter_node_body(self, node_type_id: str) -> ContextManager[None]: ...
 
     def enter_middleware(
         self, middleware_type_id: str
@@ -26,7 +26,7 @@ class NullScopeManager:
         yield
 
     @contextmanager
-    def enter_node_body(self):
+    def enter_node_body(self, node_type_id: str):
         yield
 
     @contextmanager

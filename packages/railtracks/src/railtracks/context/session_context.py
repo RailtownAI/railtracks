@@ -32,6 +32,10 @@ class ScopeEntry:
                 raise ValueError(f"ScopeEntry of kind {self.kind} must have a type_id.")
 
 
+OwnedState = dict[tuple[str, type], object]
+"""Session-scoped values keyed by the owner's ``type_id`` and the value's class."""
+
+
 class SessionContext:
     """
     The SessionContext class is used to store global variables designed to be used in the RT system.
@@ -52,6 +56,7 @@ class SessionContext:
         session_name: str | None = None,
         stream_queue: asyncio.Queue[Any] | None = None,
         registered_middleware: set[str] | None = None,
+        owned_state: OwnedState | None = None,
     ):
         self._scope: ScopeLink[ScopeEntry] | None = scope
         self._publisher: Publisher[RequestCompletionMessage] | None = publisher
@@ -65,6 +70,7 @@ class SessionContext:
         self._registered_middleware: set[str] = (
             registered_middleware if registered_middleware is not None else set()
         )
+        self._owned_state: OwnedState = owned_state if owned_state is not None else {}
 
     @property
     def registered_middleware(self) -> set[str]:
@@ -74,6 +80,15 @@ class SessionContext:
         as long as the session does.
         """
         return self._registered_middleware
+
+    @property
+    def owned_state(self) -> OwnedState:
+        """The values behind ``rt.context.local``, keyed by owner ``type_id`` and class.
+
+        Shared by every frame derived from this one, so each value lives exactly as
+        long as the session does.
+        """
+        return self._owned_state
 
     @property
     def executor_config(self) -> ExecutorConfig:
@@ -184,6 +199,7 @@ class SessionContext:
             session_name=self._session_name,
             stream_queue=self._stream_queue,
             registered_middleware=self._registered_middleware,
+            owned_state=self._owned_state,
         )
 
     @property

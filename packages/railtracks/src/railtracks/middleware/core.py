@@ -74,6 +74,12 @@ class Middleware(Generic[_P, _R, _Constraint]):
             raise RuntimeError("All retries exhausted")
 
     ``fn`` must be ``async``; passing a plain ``def`` raises ``TypeError``.
+
+    One instance is shared, never copied: every node it is attached to, every node
+    ``rt.couple`` builds from those, and every run, concurrent runs included, call
+    the same object. Attributes on ``self`` therefore suit configuration and shared
+    resources such as clients. Keep state that changes during a run in
+    ``rt.context.local``, which gives each session its own value.
     """
 
     def __init__(

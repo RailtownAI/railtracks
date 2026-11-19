@@ -13,6 +13,8 @@ from typing import (
     Coroutine,
     MutableMapping,
     NamedTuple,
+    TypeVar,
+    cast,
 )
 
 from railtracks.exceptions import ContextError
@@ -30,6 +32,8 @@ from railtracks.utils.config import ExecutorConfig
 from .external import ExternalContext, MutableExternalContext
 from .scope_link import ScopeLink
 from .session_context import ScopeEntry, ScopeKind, SessionContext
+
+_T = TypeVar("_T")
 
 
 class RunnerContextVars:
@@ -275,6 +279,7 @@ def restore_scope(scope: ScopeLink[ScopeEntry] | None, run_id: str | None):
         flow_id=ctx.session_context.flow_id,
         session_name=ctx.session_context.session_name,
         registered_middleware=ctx.session_context.registered_middleware,
+        owned_state=ctx.session_context.owned_state,
     )
     new_ctx = RunnerContextVars(
         session_context=new_session_context,
@@ -305,6 +310,49 @@ def claim_middleware_registration(middleware_type_id: str) -> bool:
         return False
     registered.add(middleware_type_id)
     return True
+
+
+def get_owned_state(cls: type[_T], owner_id: str | None = None) -> _T:
+    """Return the active session's instance of ``cls`` for one owner, creating it on first use.
+
+    Args:
+        cls: The value's class, called with no arguments when the owner first asks for it in this session. Threads that ask at once may each call it, but only one result is kept.
+        owner_id: The owner's ``type_id``. Defaults to the innermost middleware or node body that is running.
+
+    Returns:
+        The same instance for every call with this owner and class in this session.
+
+    Raises:
+        ContextError: Outside a session, or when ``owner_id`` is omitted and no middleware or node body is running.
+    """
+    session_context = safe_get_runner_context().session_context
+    if owner_id is None:
+        owner_id = _running_owner_id(session_context)
+    store = session_context.owned_state
+    key = (owner_id, cls)
+    value = store.get(key)
+    if value is None:
+        # sync nodes run on worker threads; setdefault is atomic, so racing creators keep one value
+        value = store.setdefault(key, cls())
+    return cast(_T, value)
+
+
+def _running_owner_id(session_context: SessionContext) -> str:
+    """The ``type_id`` of the innermost middleware or node body in the scope chain."""
+    scope = session_context.scope
+    entry = (
+        scope.find(lambda e: e.kind in (ScopeKind.MIDDLEWARE, ScopeKind.NODE_BODY))
+        if scope is not None
+        else None
+    )
+    if entry is None or entry.type_id is None:
+        raise ContextError(
+            message="rt.context.local needs an owner, but no middleware or node is running.",
+            notes=[
+                "Call it from inside a middleware or a node, or pass owner= explicitly.",
+            ],
+        )
+    return entry.type_id
 
 
 def get_stream_queue() -> asyncio.Queue[Any] | None:
@@ -477,7 +525,7 @@ class ContextVarScopeManager:
             runner_context.reset(token)
 
     @contextmanager
-    def enter_node_body(self):
+    def enter_node_body(self, node_type_id: str):
         ctx = safe_get_runner_context()
         node_id = ctx.session_context.current_node_id
         if node_id is None:
@@ -485,7 +533,7 @@ class ContextVarScopeManager:
                 "Cannot enter a node-body scope outside of an active node scope"
             )
 
-        token = _push_scope(ScopeEntry(ScopeKind.NODE_BODY, node_id.id))
+        token = _push_scope(ScopeEntry(ScopeKind.NODE_BODY, node_id.id, node_type_id))
         try:
             yield
         finally:

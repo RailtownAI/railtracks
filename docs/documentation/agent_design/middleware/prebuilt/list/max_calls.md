@@ -55,15 +55,13 @@ budget = MaxCalls(max_calls=3)
 # Inspect current spend (scoped to the active session)
 print(budget.call_count)
 
-# Reset counter for the current session
+# Reset the counter that call_count reads
 budget.reset()
 
-# Reset counters for all sessions
+# Reset every counter: each run still in progress, and calls made outside a run
 budget.reset_all()
 ```
 
-Read `call_count` outside a run and it reports the run that just finished, so you can check what a flow spent once `invoke()` returns.
+Read `call_count` outside a run and it reports the run that last made a call, so you can check what a flow spent once `invoke()` returns. `reset()` resets that count, or the active session's when called inside a run. `reset_all()` also reaches every run still in progress, so you can lift the budget of runs you don't hold a handle to.
 
-!!! warning "Only the 64 most recent sessions stay readable"
-
-    Finished runs' counters are kept so they can be inspected afterwards, but a single `MaxCalls` retains at most the 64 most recently used sessions and evicts the oldest beyond that. This bounds memory for a long-lived instance; it does not limit how many runs may overlap. Reading `call_count` for a session evicted that long ago reports `0`, so capture the value you care about near the end of the run rather than much later.
+The count itself is kept in [`rt.context.local`](../../../../advanced/context.md#state-owned-by-a-middleware-or-node), so it ends with its session and a long-lived `MaxCalls` keeps nothing from earlier runs.
