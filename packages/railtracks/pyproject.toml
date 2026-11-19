@@ -89,7 +89,8 @@ websearch = [
 # Retrieval-stack building blocks. Install one of the two bundles below rather
 # than these individually: `retrieval-core` for the minimal pipeline, or
 # `retrieval` for everything. `[retrieval]` (and so `[all]`) pulls in every
-# extra in this section; `tiktok` and `chroma` are kept only so existing
+# extra in this section except `glm`, which stays opt-in because glmocr depends
+# on PyMuPDF (AGPL-3.0). `tiktok` and `chroma` are kept only so existing
 # installs keep resolving.
 tiktok = []
 semantic = ["scikit-learn>=1.3.0"]
@@ -129,7 +130,6 @@ retrieval-core = [
 retrieval = [
     "railtracks[retrieval-core]",
     "railtracks[ocr]",
-    "railtracks[glm]",
     "railtracks[huggingface]",
     "railtracks[aws]",
     "railtracks[azure-blob]",
