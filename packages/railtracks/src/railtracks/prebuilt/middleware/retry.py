@@ -4,8 +4,16 @@ from typing import Any
 
 from typing_extensions import Never
 
+from railtracks.llm import ProviderRateLimitError, ProviderTimeoutError
 from railtracks.llm.retries import ExponentialRetry, RetryApproach
+from railtracks.llm.retries.base import _RETRYABLE_EXCEPTIONS
 from railtracks.middleware.core import Middleware
+
+_DEFAULT_RETRY_ON = (
+    *_RETRYABLE_EXCEPTIONS,
+    ProviderTimeoutError,
+    ProviderRateLimitError,
+)
 
 
 class Retry(Middleware[Any, Any, Never]):
@@ -13,7 +21,8 @@ class Retry(Middleware[Any, Any, Never]):
 
     Slot-agnostic: works both as node middleware (``middleware=``) and as model
     middleware (``model_middleware=``) — it only re-invokes ``call`` and never
-    inspects the arguments::
+    inspects the arguments. On an agent node, put it in ``model_middleware=`` so
+    each attempt repeats only the model call::
 
         import railtracks as rt
         from railtracks.prebuilt import middleware
@@ -21,9 +30,11 @@ class Retry(Middleware[Any, Any, Never]):
         rt.agent_node(
             "Agent",
             llm=rt.llm.OpenAILLM(model_name="gpt-6-luna"),
-            middleware=[middleware.Retry(3)],  # retry the whole node
-            model_middleware=[middleware.Retry(3)],  # retry each raw model call
+            model_middleware=[middleware.Retry(3)],  # retry each model call
         )
+
+    As node middleware on an agent, each attempt re-runs the whole node, including
+    tools it already called and any streamed text the caller already received.
 
     The backoff schedule is delegated to a :class:`~railtracks.llm.retries.RetryApproach`
     (the same strategies used by ``retry_approach`` on model objects).
@@ -33,10 +44,10 @@ class Retry(Middleware[Any, Any, Never]):
             ``approach`` is given.
         approach: Backoff strategy; defaults to
             :class:`~railtracks.llm.retries.ExponentialRetry` with ``max_tries``.
-        retry_on: Exception types worth retrying. Defaults to the transient LLM
-            provider errors (rate limits, timeouts, connection failures) — pass
-            your own tuple (e.g. ``(Exception,)``) for node-level use. Anything
-            not in the tuple propagates immediately.
+        retry_on: Exception types worth retrying. Defaults to the transient errors
+            a model call raises (rate limits, timeouts, connection failures). Pass
+            your own tuple to replace these defaults, e.g. for node-level use.
+            Anything not in the tuple propagates immediately.
     """
 
     def __init__(
@@ -49,7 +60,7 @@ class Retry(Middleware[Any, Any, Never]):
         self._approach = (
             approach if approach is not None else ExponentialRetry(max_tries=max_tries)
         )
-        self._retry_on = retry_on
+        self._retry_on = retry_on if retry_on is not None else _DEFAULT_RETRY_ON
         super().__init__(self._middleware_fn)
 
     async def _middleware_fn(self, call, *args, **kwargs):
