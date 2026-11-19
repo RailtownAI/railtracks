@@ -88,9 +88,11 @@ websearch = [
 
 # Retrieval-stack building blocks. Install one of the two bundles below rather
 # than these individually: `retrieval-core` for the minimal pipeline, or
-# `retrieval` for everything. `[all]` includes `railtracks[retrieval]`, so it
-# pulls in every extra in this section.
-tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
+# `retrieval` for everything. `[retrieval]` (and so `[all]`) pulls in every
+# extra in this section except `glm`, which stays opt-in because glmocr depends
+# on PyMuPDF (AGPL-3.0). `tiktok` and `chroma` are kept only so existing
+# installs keep resolving.
+tiktok = []
 semantic = ["scikit-learn>=1.3.0"]
 pdf = ["pypdf >= 6.21.4, < 7"]
 ocr = [
@@ -103,10 +105,7 @@ glm = [
     "glmocr ~= 0.1.1",
 ]
 huggingface = ["datasets >= 2.14.0, < 6"]
-chroma = [
-    "chromadb >= 1.3.0",
-    "pdfplumber >= 0.10.1",
-]
+chroma = ["railtracks[stores-chroma]"]
 aws = ["boto3 >= 1.26.0"]
 azure-blob = [
     "azure-core >= 1.30.0",
@@ -116,13 +115,12 @@ azure-blob = [
 gcp = ["google-cloud-storage >= 2.0.0"]
 sql = ["sqlalchemy >= 2.0.0"]
 stores-vector = ["asyncpg>=0.29", "pgvector>=0.3"]
-stores-chroma = ["chromadb>1.3.0"]
+stores-chroma = ["chromadb >= 1.3.0"]
 stores-all = ["railtracks[stores-vector]", "railtracks[stores-chroma]"]
 
 # Minimum needed for the retrieval pipeline (chunking, embedding, in-memory
 # store, basic local-file loaders). No cloud connectors, no heavy backends.
 retrieval-core = [
-    "railtracks[tiktok]",
     "railtracks[semantic]",
     "railtracks[pdf]",
     "numpy >= 1.24",
@@ -133,7 +131,6 @@ retrieval = [
     "railtracks[retrieval-core]",
     "railtracks[ocr]",
     "railtracks[huggingface]",
-    "railtracks[chroma]",
     "railtracks[aws]",
     "railtracks[azure-blob]",
     "railtracks[gcp]",
