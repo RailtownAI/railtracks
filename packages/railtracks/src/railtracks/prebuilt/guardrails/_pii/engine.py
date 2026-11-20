@@ -7,7 +7,6 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from railtracks.llm.content import ToolCalls
 from railtracks.llm.message import ContentPart, Message
 
 from .config import PIIEntity, PIIRedactConfig
@@ -154,7 +153,7 @@ class PIIEngine:
         """Redact the text of a message, leaving its attachments in place.
 
         Each text part is redacted on its own, so record offsets refer to that part.
-        Content without text parts, such as tool calls or structured output, is left
+        Attachments and tool calls stay where they are, and structured output is left
         as it is.
 
         Args:
@@ -168,7 +167,7 @@ class PIIEngine:
         if isinstance(content, str):
             redacted, records = self.redact(content)
             new_content: str | list[ContentPart] = redacted
-        elif isinstance(content, list) and not isinstance(content, ToolCalls):
+        elif isinstance(content, list):
             records = []
             new_content = []
             for part in content:

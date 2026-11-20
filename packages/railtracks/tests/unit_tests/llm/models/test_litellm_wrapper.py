@@ -22,8 +22,9 @@ from railtracks.llm import (
     AssistantMessage,
     Attachment,
     AttachmentNotSupportedError,
+    SystemMessage,
     ToolCall,
-    ToolCalls,
+    ToolMessage,
     UserMessage,
 )
 from railtracks.llm._exceptions import (
@@ -164,6 +165,27 @@ class TestHelpers:
         assert litellm_message["tool_call_id"] == "123"
         assert litellm_message["content"] == "success"
 
+    def test_to_litellm_message_tool_message_with_an_attachment(
+        self, mock_litellm_wrapper
+    ):
+        """A tool result with an attachment is sent as ordered content blocks."""
+        image = Attachment.from_bytes(b"\x89PNG\r\n\x1a\n" + bytes(16))
+        message = ToolMessage(["Chart:", image], tool_call_id="123", name="plot")
+        litellm_message = mock_litellm_wrapper()._to_litellm_message(message)
+        assert litellm_message["tool_call_id"] == "123"
+        assert [block["type"] for block in litellm_message["content"]] == [
+            "text",
+            "image_url",
+        ]
+
+    def test_to_litellm_message_system_message_is_a_string(self, mock_litellm_wrapper):
+        message = SystemMessage(["Be brief.", "Answer in French."])
+        litellm_message = mock_litellm_wrapper()._to_litellm_message(message)
+        assert litellm_message == {
+            "role": "system",
+            "content": "Be brief.\nAnswer in French.",
+        }
+
     def test_to_litellm_message_tool_call_list(self, mock_litellm_wrapper, tool_call):
         """
         Test _to_litellm_message with a list of ToolCall instances.
@@ -182,9 +204,7 @@ class TestHelpers:
         """
         Test _to_litellm_message sends back the text that came with the tool calls.
         """
-        message = AssistantMessage(
-            content=ToolCalls([tool_call], text="I will call example_tool for you.")
-        )
+        message = AssistantMessage(["I will call example_tool for you.", tool_call])
         wrapper = mock_litellm_wrapper()
         litellm_message = wrapper._to_litellm_message(message)
         assert litellm_message["content"] == "I will call example_tool for you."
@@ -639,8 +659,7 @@ class TestCompletionMethods:
 
         assert isinstance(result, Response)
         assert isinstance(result.message, AssistantMessage)
-        calls = result.message.content
-        assert isinstance(calls, list)
+        calls = result.message.tool_calls
         assert calls[0].name == "tool_x"
         assert calls[0].arguments == {"foo": 1}
         assert calls[0].identifier == "id123"
@@ -733,8 +752,7 @@ class TestAsyncStreaming:
 
         assert final is not None
         assert isinstance(final.message, AssistantMessage)
-        calls = final.message.content
-        assert isinstance(calls, list)
+        calls = final.message.tool_calls
         assert calls[0].name == "tool_x"
         assert calls[0].identifier == "id123"
 
@@ -1339,8 +1357,9 @@ class TestSupportsStreamedToolCalling:
         else:
             result = method(message_history, [tool])
 
-        assert result.message.content[0].name == "tool_x"
-        assert result.message.content.text == "I will call tool_x with foo=1."
+        assert result.message.content[0] == "I will call tool_x with foo=1."
+        assert result.message.content[1].name == "tool_x"
+        assert result.message.text == "I will call tool_x with foo=1."
 
     def test_prepare_response_keeps_streamed_text_with_tool_calls(
         self, mock_litellm_wrapper, tool_call
@@ -1356,8 +1375,10 @@ class TestSupportsStreamedToolCalling:
             message_info=MessageInfo(),
         )
 
-        assert response.message.content == [tool_call]
-        assert response.message.content.text == "I will call example_tool for you."
+        assert response.message.content == [
+            "I will call example_tool for you.",
+            tool_call,
+        ]
 
 
 def test_temperature_passed_to_litellm_completion(message_history):
@@ -1504,7 +1525,7 @@ class TestReasoningSurfacing:
         self, mock_litellm_wrapper, content, finish_reason, expected
     ):
         """No tool calls means a plain reply whatever the finish_reason, never an empty
-        `ToolCalls` that the node cannot classify."""
+        tool-calling turn that the node cannot classify."""
         wrapper = mock_litellm_wrapper()
         raw = _model_response(content=content, finish_reason=finish_reason)
 
@@ -1530,7 +1551,9 @@ class TestReasoningSurfacing:
 
         response = wrapper._chat_with_tools_handler_base(raw, MessageInfo())
 
-        assert isinstance(response.message.content, ToolCalls)
+        assert response.message.content == [
+            ToolCall(identifier="id123", name="tool_x", arguments={})
+        ]
         assert response.message.reasoning_content == "2 + 2 is 4"
         assert response.message.thinking_blocks == _THINKING_BLOCKS
 

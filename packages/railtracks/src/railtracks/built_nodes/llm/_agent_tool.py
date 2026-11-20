@@ -143,11 +143,11 @@ def _describe_from_system_message(
     Returns:
         The description, or None if the agent has no system message or it is blank.
     """
-    if system_message is None or not system_message.content.strip():
+    if system_message is None or not system_message.text.strip():
         return None
 
     return DEFAULT_DESCRIPTION_TEMPLATE.format(
-        agent_name=agent_name, instructions=system_message.content
+        agent_name=agent_name, instructions=system_message.text
     )
 
 

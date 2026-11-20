@@ -47,7 +47,8 @@ def test_message_str_and_repr(content, role, expected_str, expected_repr):
 
 def test_system_message():
     message = SystemMessage("System message")
-    assert message.content == "System message"
+    assert message.content == ["System message"]
+    assert message.text == "System message"
     assert message.role == "system"
     assert str(message) == "system: System message"
     assert repr(message) == "system: System message"
@@ -108,15 +109,43 @@ def test_copy_metadata_from_plain_message_is_noop():
 
 
 def test_tool_message():
-    tool_response = ToolResponse(name="tool1", result="result", identifier="123")
-    message = ToolMessage(tool_response)
-    assert message.content == tool_response
+    message = ToolMessage("result", tool_call_id="123", name="tool1")
+    assert message.content == ["result"]
+    assert message.text == "result"
     assert message.role == "tool"
-    assert str(message) == f"tool: {tool_response}"
-    assert repr(message) == f"tool: {tool_response}"
-    assert message.content.name == "tool1"
-    assert message.content.result == "result"
-    assert message.content.identifier == "123"
+    assert message.tool_call_id == "123"
+    assert message.name == "tool1"
+    assert str(message) == "tool: tool1 -> result"
+    assert repr(message) == "tool: tool1 -> result"
+
+
+def test_tool_message_from_a_deprecated_tool_response():
+    tool_response = ToolResponse(name="tool1", result="result", identifier="123")
+    with pytest.warns(DeprecationWarning, match="tool_call_id"):
+        message = ToolMessage(tool_response)
+    assert message.content == ["result"]
+    assert (message.tool_call_id, message.name) == ("123", "tool1")
+
+
+def test_tool_message_deprecated_views():
+    message = ToolMessage("result", tool_call_id="123", name="tool1")
+    with pytest.warns(DeprecationWarning, match="text"):
+        assert message.result == "result"
+    with pytest.warns(DeprecationWarning, match="tool_call_id"):
+        assert message.identifier == "123"
+
+
+def test_tool_message_encode_keeps_the_session_json_shape():
+    message = ToolMessage("result", tool_call_id="123", name="tool1")
+    assert message.encode() == {
+        "role": "tool",
+        "content": {"identifier": "123", "name": "tool1", "result": "result"},
+    }
+
+
+def test_tool_message_needs_its_call_id_and_name():
+    with pytest.raises(TypeError, match="tool_call_id and name"):
+        ToolMessage("result")
 
 
 @pytest.mark.parametrize(
@@ -138,7 +167,12 @@ def test_invalid_user_message_content(invalid_content, expected_exception):
     [
         (123, TypeError),
         (None, TypeError),
-        (["list", "of", "strings"], TypeError),
+        (["text", 3], TypeError),
+        (Attachment.from_bytes(b"%PDF-1.7 file", filename="a.pdf"), TypeError),
+        (
+            ["text", Attachment.from_bytes(b"%PDF-1.7 file", filename="a.pdf")],
+            TypeError,
+        ),
     ],
 )
 def test_invalid_system_message_content(invalid_content, expected_exception):
@@ -1038,48 +1072,47 @@ class TestUserMessageAttachments:
 # =================================== END UserMessage Attachments Tests ==================================
 
 
-# =================================== START ToolCalls Content Tests ==================================
-class TestToolCallsContent:
-    """A tool-calling turn carries the calls AND whatever the model said with them."""
+# =================================== START Tool Call Parts Tests ==================================
+class TestToolCallParts:
+    """A tool-calling turn holds the text the model spoke and its calls, in order."""
 
     @pytest.fixture
     def call(self):
         return ToolCall(identifier="id1", name="example_tool", arguments={"foo": 1})
 
-    def test_holds_text_alongside_the_calls(self, call):
-        content = ToolCalls([call], text="I will call example_tool for you.")
-        assert list(content) == [call]
-        assert content.text == "I will call example_tool for you."
-
-    def test_text_defaults_to_none(self, call):
-        assert ToolCalls([call]).text is None
-
-    def test_behaves_as_a_list_of_tool_calls(self, call):
-        content = ToolCalls([call], text="prose")
-        assert isinstance(content, list)
-        assert len(content) == 1
-        assert content[0] is call
-        assert list(content) == [call]
-        assert content == [call]  # equality stays list equality
-
-    def test_deepcopy_preserves_text(self, call):
-        content = deepcopy(ToolCalls([call], text="prose"))
-        assert isinstance(content, ToolCalls)
-        assert content.text == "prose"
-
-    def test_assistant_message_normalizes_a_plain_list(self, call):
-        """Passing a bare list of tool calls still works, and becomes a ToolCalls."""
-        message = AssistantMessage(content=[call])
-        assert isinstance(message.content, ToolCalls)
-        assert message.content.text is None
+    def test_text_and_calls_share_the_content(self, call):
+        message = AssistantMessage(["I will call example_tool for you.", call])
+        assert message.content == ["I will call example_tool for you.", call]
+        assert message.text == "I will call example_tool for you."
         assert message.tool_calls == [call]
 
-    def test_assistant_message_keeps_a_tool_calls_as_is(self, call):
-        content = ToolCalls([call], text="prose")
-        assert AssistantMessage(content=content).content is content
+    def test_tool_calls_are_copies(self, call):
+        message = AssistantMessage([call])
+        copied = message.tool_calls[0]
+        assert copied == call
+        assert copied is not call
 
-    def test_encode_surfaces_the_text(self, call):
-        encoded = AssistantMessage(content=ToolCalls([call], text="prose")).encode()
+    def test_a_single_call_is_a_one_item_list(self, call):
+        assert AssistantMessage(call).content == [call]
+
+    def test_deprecated_tool_calls_become_parts(self, call):
+        with pytest.warns(DeprecationWarning, match="tool_calls"):
+            content = ToolCalls([call], text="prose")
+        assert AssistantMessage(content=content).content == ["prose", call]
+
+    def test_deprecated_tool_calls_without_text(self, call):
+        with pytest.warns(DeprecationWarning):
+            content = ToolCalls([call])
+        assert AssistantMessage(content=content).content == [call]
+
+    def test_str_renders_the_call(self, call):
+        assert str(AssistantMessage(["prose", call])) == (
+            "assistant: prose\nexample_tool({'foo': 1})"
+        )
+
+    def test_encode_keeps_the_session_json_shape(self, call):
+        encoded = AssistantMessage(["prose", call]).encode()
+        assert encoded["content"] == [call]
         assert encoded["text"] == "prose"
 
     def test_encode_omits_text_when_there_is_none(self, call):
@@ -1087,4 +1120,4 @@ class TestToolCallsContent:
         assert "text" not in AssistantMessage(content="hi").encode()
 
 
-# =================================== END ToolCalls Content Tests ==================================
+# =================================== END Tool Call Parts Tests ==================================

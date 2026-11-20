@@ -159,6 +159,6 @@ async def test_agents_as_tools(llm):
     assert final_resp is not None
     assert "3 cats and a dog" in final_resp.text
     assert any(
-        message.role == "tool" and message.content.name == "Secret_Phrase_Maker"
+        message.role == "tool" and message.name == "Secret_Phrase_Maker"
         for message in final_resp.message_history
     )  # child tool giving the secret phrase to parent

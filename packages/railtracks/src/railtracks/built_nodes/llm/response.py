@@ -2,7 +2,7 @@ from typing import Any, Generic, Sequence, TypeVar
 
 from pydantic import BaseModel
 
-from railtracks.llm import MessageHistory, ToolCall, ToolCalls, ToolResponse
+from railtracks.llm import MessageHistory, ToolCall, ToolMessage
 from railtracks.llm.content import Content
 from railtracks.llm.message import (
     Attachment,
@@ -65,18 +65,20 @@ class LLMResponse(Generic[_T]):
         return str(self.content)
 
     @property
-    def tool_invocations(self) -> list[tuple[ToolCall, ToolResponse]]:
-        """Returns each tool call in the history paired with its response."""
-        self._tool_invocations = []
-
-        for idx, msg in enumerate(self.message_history):
-            if msg.role == Role.assistant and isinstance(msg.content, ToolCalls):
-                for tr_idx, tc in enumerate(msg.content):
-                    self._tool_invocations.append(
-                        (tc, self.message_history[idx + tr_idx + 1].content)
-                    )
-
-        return self._tool_invocations
+    def tool_invocations(self) -> list[tuple[ToolCall, ToolMessage]]:
+        """Each tool call in the history paired with the `ToolMessage` that answered it, in order."""
+        answers = {
+            msg.tool_call_id: msg
+            for msg in self.message_history
+            if isinstance(msg, ToolMessage)
+        }
+        return [
+            (call, answers[call.identifier])
+            for msg in self.message_history
+            if msg.role == Role.assistant
+            for call in msg.tool_calls
+            if call.identifier in answers
+        ]
 
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)

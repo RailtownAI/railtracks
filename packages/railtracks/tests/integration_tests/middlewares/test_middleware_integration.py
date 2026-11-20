@@ -479,7 +479,7 @@ class TestContextInjection:
         async def capture_system(call, messages, schema, tools):
             for m in messages:
                 if m.role == "system":
-                    injected_system_content.append(m.content)
+                    injected_system_content.append(m.text)
             return await call(messages, schema, tools)
 
         agent = rt.agent_node(
@@ -506,7 +506,7 @@ class TestContextInjection:
         async def capture_system(call, messages, schema, tools):
             for m in messages:
                 if m.role == "system":
-                    injected_system_content.append(m.content)
+                    injected_system_content.append(m.text)
             return await call(messages, schema, tools)
 
         agent = rt.agent_node(

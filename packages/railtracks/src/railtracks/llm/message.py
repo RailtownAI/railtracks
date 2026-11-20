@@ -11,8 +11,6 @@ from typing import Any, Generic, Literal, TypeVar, Union, cast, overload
 from urllib import error as urllib_error
 from urllib.parse import urlparse
 
-from pydantic import BaseModel
-
 from .attachment_formats import (
     UNSUPPORTED_URL_EXTENSIONS,
     detect_mime,
@@ -485,32 +483,50 @@ def _as_attachment(
     )
 
 
-ContentPart = Union[str, Attachment]
-"""One part of a user or assistant message's content: text, or an attachment."""
+ContentPart = Union[str, Attachment, ToolCall]
+"""One part of a message's content: text, an attachment, or a tool call (assistant only)."""
+
+_PART_TYPES = (str, Attachment, ToolCall)
 
 # Joins text parts in `.text`, so separate parts never run into one word.
 _TEXT_SEPARATOR = "\n"
 
 
-def _to_parts(content: object, *, owner: str) -> list[ContentPart]:
-    """Return `content` (text, an attachment, or a sequence of both) as a new list of parts.
+def _to_parts(
+    content: object, *, owner: str, allowed: tuple[type, ...] = (str, Attachment)
+) -> list[ContentPart]:
+    """Return `content` (one part, or a sequence of parts) as a new list of parts.
+
+    Args:
+        content: The content given to a message.
+        owner: The message class, named in errors.
+        allowed: The part types this message accepts.
 
     Raises:
-        TypeError: If `content` or one of its items is neither a `str` nor an `Attachment`.
+        TypeError: If `content` or one of its items is not one of `allowed`.
     """
-    if isinstance(content, (str, Attachment)):
-        return [content]
-    if isinstance(content, Sequence) and not isinstance(content, _BYTES_LIKE):
+    names = [kind.__name__ for kind in allowed]
+    expected = (
+        names[0] if len(names) == 1 else f"{', '.join(names[:-1])} or {names[-1]}"
+    )
+    if isinstance(content, allowed):
+        return [cast(ContentPart, content)]
+    if isinstance(content, Sequence) and not isinstance(content, (str, *_BYTES_LIKE)):
         parts = list(content)
         for part in parts:
-            if not isinstance(part, (str, Attachment)):
+            if not isinstance(part, allowed):
+                hint = (
+                    " Wrap raw bytes with Attachment.from_bytes."
+                    if Attachment in allowed and isinstance(part, _BYTES_LIKE)
+                    else ""
+                )
                 raise TypeError(
-                    f"{owner} content parts must be str or Attachment, but got "
-                    f"{type(part).__name__}. Wrap raw bytes with Attachment.from_bytes."
+                    f"{owner} content parts must be {expected}, but got "
+                    f"{type(part).__name__}.{hint}"
                 )
         return parts
     raise TypeError(
-        f"{owner} content must be a str, an Attachment or a list of them, but got "
+        f"{owner} content must be {expected}, or a list of them, but got "
         f"{type(content).__name__}."
     )
 
@@ -519,13 +535,18 @@ def _parts_of(content: object) -> list[ContentPart] | None:
     """Return `content` as parts when it is text or a list of parts, else None."""
     if isinstance(content, str):
         return [content]
-    if (
-        isinstance(content, list)
-        and not isinstance(content, ToolCalls)
-        and all(isinstance(part, (str, Attachment)) for part in content)
+    if isinstance(content, list) and all(
+        isinstance(part, _PART_TYPES) for part in content
     ):
         return cast(list[ContentPart], content)
     return None
+
+
+def _render_parts(parts: list[ContentPart]) -> str:
+    """Render parts one per line: text as is, tool calls as `name(arguments)`, attachments by repr."""
+    return _TEXT_SEPARATOR.join(
+        repr(part) if isinstance(part, Attachment) else str(part) for part in parts
+    )
 
 
 def content_text(content: object) -> str:
@@ -535,18 +556,11 @@ def content_text(content: object) -> str:
         content: A message's `content`.
 
     Returns:
-        The text parts joined with newlines; the text spoken alongside tool calls;
-        a tool's result; or `""` for content with no text, such as structured output.
+        The text parts joined with newlines, or `""` for content with no text, such as
+        structured output.
     """
-    parts = _parts_of(content)
-    if parts is not None:
-        return _TEXT_SEPARATOR.join(part for part in parts if isinstance(part, str))
-    if isinstance(content, ToolCalls):
-        return content.text or ""
-    if isinstance(content, ToolResponse):
-        result = content.result
-        return result if isinstance(result, str) else result.decode("utf-8", "replace")
-    return ""
+    parts = _parts_of(content) or []
+    return _TEXT_SEPARATOR.join(part for part in parts if isinstance(part, str))
 
 
 def content_attachments(content: object) -> list[Attachment]:
@@ -559,9 +573,10 @@ def encode_content(content: object) -> object:
     """Encode a message's content for the session record.
 
     Text-only content becomes its text, and empty content (a reply with no content)
-    becomes None. Content with attachments becomes one text part followed by one
-    `{"modality", "type", "info"}` part per attachment. Other content, such as tool
-    calls or structured output, is returned as it is.
+    becomes None. Content with tool calls becomes the list of calls; the text spoken
+    with them is recorded separately by `AssistantMessage.encode`. Content with
+    attachments becomes one text part followed by one `{"modality", "type", "info"}`
+    part per attachment. Other content, such as structured output, is returned as it is.
 
     Args:
         content: A message's `content`.
@@ -574,6 +589,9 @@ def encode_content(content: object) -> object:
         return content
     if not parts:
         return None
+    tool_calls = [part for part in parts if isinstance(part, ToolCall)]
+    if tool_calls:
+        return tool_calls
     attachments = content_attachments(content)
     if not attachments:
         return content_text(content)
@@ -619,11 +637,9 @@ class Message(Generic[_T, _TRole]):
 
         Args:
             content: The content of the message. It can take on any of the following types:
-                - list[ContentPart]: Text and attachments, in order (user and assistant messages).
-                - str: Plain text (system messages).
-                - ToolCalls: Tool calls plus any text the model spoke alongside them.
-                - ToolResponse: A tool response.
-                - BaseModel: A custom base model object.
+                - list[ContentPart]: Text, attachments and tool calls, in order.
+                - str: Plain text, from a custom model.
+                - BaseModel: Structured output.
             role: The role of the message (assistant, user, system, tool, etc.).
         """
         assert isinstance(role, Role)
@@ -647,8 +663,7 @@ class Message(Generic[_T, _TRole]):
 
     @property
     def text(self) -> str:
-        """The message's text: its text parts joined with newlines, a tool's result, or the
-        text spoken alongside tool calls. Empty for structured output."""
+        """The text parts of the message's content, joined with newlines. Empty for structured output."""
         return content_text(self._content)
 
     @property
@@ -660,10 +675,7 @@ class Message(Generic[_T, _TRole]):
         parts = _parts_of(self.content)
         if parts is None or isinstance(self.content, str):
             return f"{self.role.value}: {self.content}"
-        rendered = _TEXT_SEPARATOR.join(
-            part if isinstance(part, str) else repr(part) for part in parts
-        )
-        return f"{self.role.value}: {rendered}"
+        return f"{self.role.value}: {_render_parts(parts)}"
 
     def __repr__(self):
         return str(self)
@@ -676,35 +688,23 @@ class Message(Generic[_T, _TRole]):
 
     @property
     def tool_calls(self) -> list[ToolCall]:
-        """Gets the tool calls attached to this message, if any. If there are none return and empty list."""
-        content = self.content
-        if isinstance(content, ToolCalls) or (
-            isinstance(content, list)
-            and content
-            and all(isinstance(item, ToolCall) for item in content)
-        ):
-            return list(deepcopy(content))
-        return []
+        """Copies of the tool calls in the message's content, in order; empty when there are none."""
+        parts = _parts_of(self.content) or []
+        return [deepcopy(part) for part in parts if isinstance(part, ToolCall)]
 
 
-class _StringOnlyContent(Message[str, _TRole], Generic[_TRole]):
-    """
-    A helper class used to represent a message that only accepts string content.
-    """
-
-    @classmethod
-    def validate_content(cls, content: str):
-        """
-        A method used to validate that the content of the message is a string.
-        """
-        if not isinstance(content, str):
-            raise TypeError(f"A {cls.__name__} needs a string but got {type(content)}")
+class _PromptMessage(Message[list[ContentPart], _TRole], Generic[_TRole]):
+    """A message whose text parts are prompt templates (user and system messages)."""
 
     def fill_prompt(self, value_dict: ValueDict) -> None:
-        self._content = fill_template(self._content, value_dict)
+        """Fill `{key}` placeholders in the text parts, leaving attachments in place."""
+        self._content = [
+            fill_template(part, value_dict) if isinstance(part, str) else part
+            for part in self._content
+        ]
 
 
-class UserMessage(Message[list[ContentPart], Role.user]):
+class UserMessage(_PromptMessage[Role.user]):
     """
     A message from the user: text and attachments, in order.
 
@@ -784,40 +784,37 @@ class UserMessage(Message[list[ContentPart], Role.user]):
         )
         return self.attachments or None
 
-    def fill_prompt(self, value_dict: ValueDict) -> None:
-        """Fill `{key}` placeholders in the text parts, leaving attachments in place."""
-        self._content = [
-            fill_template(part, value_dict) if isinstance(part, str) else part
-            for part in self._content
-        ]
 
-
-class SystemMessage(_StringOnlyContent[Role.system]):
+class SystemMessage(_PromptMessage[Role.system]):
     """
-    A simple class that represents a system message.
+    The instructions for the model.
+
+    `content` is a list of text parts, so `SystemMessage("Be brief.").content == ["Be brief."]`.
+    Read `text` for the instructions as one string.
 
     Args:
-        content (str): The content of the system message.
+        content: The text, or a list of text parts.
+
+    Raises:
+        TypeError: If a part is not a `str`; system messages take no attachments.
     """
 
-    def __init__(self, content: str):
-        super().__init__(content=content, role=Role.system)
+    def __init__(self, content: str | Sequence[str]):
+        super().__init__(
+            content=_to_parts(content, owner="SystemMessage", allowed=(str,)),
+            role=Role.system,
+        )
 
 
 def _assistant_content(content: object) -> object:
-    """Normalize an assistant message's content: a list of parts, a `ToolCalls`, or structured output."""
+    """Normalize an assistant message's content: a list of parts, or structured output."""
     if content is None:
         return []
-    if isinstance(content, (ToolCalls, BaseModel)):
-        return content
-    if (
-        isinstance(content, (list, tuple))
-        and content
-        and all(isinstance(item, ToolCall) for item in content)
-    ):
-        return ToolCalls(content)
-    if isinstance(content, (str, Attachment, list, tuple)):
-        return _to_parts(content, owner="AssistantMessage")
+    if isinstance(content, ToolCalls):
+        return [content.text, *content] if content.text else list(content)
+    # Before the BaseModel check: a ToolCall is a pydantic model, not structured output.
+    if isinstance(content, (str, Attachment, ToolCall, list, tuple)):
+        return _to_parts(content, owner="AssistantMessage", allowed=_PART_TYPES)
     return content
 
 
@@ -826,18 +823,18 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     A simple class that represents a message from the assistant.
 
     Args:
-        content: The content of the assistant message. A reply is a list of text and
-            attachments; a `str`, an `Attachment` or None (no content) is normalized to
-            one, so `AssistantMessage("Hi").content == ["Hi"]`. A tool-calling turn is a
-            `ToolCalls`, which holds both the calls and any text the model spoke
-            alongside them; a plain `list[ToolCall]` is normalized to one. Structured
-            output is the pydantic model itself.
+        content: The content of the assistant message: a list of text, attachments and
+            tool calls, in the order the model produced them, such as
+            `["Let me check.", ToolCall(...)]`. A single part or None (no content) is
+            normalized to a list, so `AssistantMessage("Hi").content == ["Hi"]`.
+            Structured output is the pydantic model itself. Read `tool_calls` to find a
+            tool-calling turn.
     """
 
     @overload
     def __init__(
         self: AssistantMessage[list[ContentPart]],
-        content: str | Attachment | Sequence[ContentPart] | None,
+        content: str | Attachment | ToolCall | Sequence[ContentPart] | None,
     ) -> None: ...
 
     @overload
@@ -878,10 +875,10 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
     def encode(self):
         encoded = super().encode()
 
-        # A ToolCalls encodes as a bare array, which would drop the text the model
-        # spoke with its calls; surface it the way providers put it on the wire.
-        if isinstance(self.content, ToolCalls) and self.content.text is not None:
-            encoded["text"] = self.content.text
+        # A tool-calling turn encodes as the array of calls; the text spoken with them
+        # goes beside it, the way providers put it on the wire.
+        if self.tool_calls and self.text:
+            encoded["text"] = self.text
 
         # Surface reasoning in the serialized message so it is visible in the run
         # graph/session data, not just on the live object.
@@ -893,18 +890,80 @@ class AssistantMessage(Message[_T, Role.assistant], Generic[_T]):
         return encoded
 
 
-# TODO further constrict the possible return type of a ToolMessage.
-class ToolMessage(Message[ToolResponse, Role.tool]):
+class ToolMessage(Message[list[ContentPart], Role.tool]):
     """
-    A simple class that represents a message that is a tool call answer.
+    A tool's answer to one tool call.
+
+    `content` is a list of text and attachments, like a user message, so
+    `ToolMessage("18°C", tool_call_id="c1", name="get_weather").content == ["18°C"]`.
 
     Args:
-        content (ToolResponse): The tool response content for the message.
+        content: The tool's result: text, an `Attachment`, or a list of both.
+        tool_call_id: The `identifier` of the `ToolCall` this answers.
+        name: The name of the tool that ran.
+
+    Raises:
+        TypeError: If a part of `content` is neither a `str` nor an `Attachment`, or
+            `tool_call_id` or `name` is missing.
     """
 
-    def __init__(self, content: ToolResponse):
-        if not isinstance(content, ToolResponse):
-            raise TypeError(
-                f"A {self.__class__.__name__} needs a ToolResponse but got {type(content)}. Check the invoke function of the OutputLessToolCallLLM node. That is the only place to return a ToolMessage."
+    def __init__(
+        self,
+        content: str | Attachment | Sequence[str | Attachment] | ToolResponse,
+        tool_call_id: str | None = None,
+        name: str | None = None,
+    ):
+        if isinstance(content, ToolResponse):
+            warnings.warn(
+                "ToolMessage(ToolResponse(...)) is deprecated and will be removed; use "
+                "ToolMessage(result, tool_call_id=..., name=...) instead.",
+                DeprecationWarning,
+                stacklevel=2,
             )
-        super().__init__(content=content, role=Role.tool)
+            tool_call_id, name = content.identifier, content.name
+            result = content.result
+            content = (
+                result if isinstance(result, str) else result.decode("utf-8", "replace")
+            )
+        if tool_call_id is None or name is None:
+            raise TypeError("ToolMessage needs tool_call_id and name.")
+        super().__init__(
+            content=_to_parts(content, owner="ToolMessage"), role=Role.tool
+        )
+        self.tool_call_id = tool_call_id
+        self.name = name
+
+    @property
+    def identifier(self) -> str:
+        """The tool call's identifier. Deprecated: read `tool_call_id` instead."""
+        warnings.warn(
+            "ToolMessage.identifier is deprecated and will be removed; "
+            "read ToolMessage.tool_call_id instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.tool_call_id
+
+    @property
+    def result(self) -> str:
+        """The tool's text result. Deprecated: read `text` instead."""
+        warnings.warn(
+            "ToolMessage.result is deprecated and will be removed; "
+            "read ToolMessage.text instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.text
+
+    def __str__(self):
+        return f"{self.role.value}: {self.name} -> {_render_parts(self.content)}"
+
+    def encode(self) -> dict[str, Any]:
+        return {
+            "role": self.role.value,
+            "content": {
+                "identifier": self.tool_call_id,
+                "name": self.name,
+                "result": encode_content(self.content),
+            },
+        }

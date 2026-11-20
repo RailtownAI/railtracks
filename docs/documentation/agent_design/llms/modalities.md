@@ -147,6 +147,8 @@ The model itself must still support what is sent: a PDF to a model without PDF i
 
 A message's `content` is always such a list: `UserMessage("Hi").content` is `["Hi"]`, and `UserMessage("Describe this.", attachment="cat.png").content` is `["Describe this.", Attachment(...)]`. Read `.text` for the text parts joined with newlines and `.attachments` for the attachments in order. `attachment=` still works, and its attachments go after whatever `content` holds.
 
+Every message follows the same rule. A `SystemMessage` holds text parts only, a `ToolMessage` holds the tool's text and attachments, and an assistant turn that calls tools holds the text the model spoke and its `ToolCall`s, in order, such as `["Let me check.", ToolCall(...)]`. Read the calls with `.tool_calls`.
+
 An agent takes the same list as its input and wraps it in one `UserMessage`:
 
 ```python

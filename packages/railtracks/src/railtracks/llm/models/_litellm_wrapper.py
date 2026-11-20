@@ -42,7 +42,7 @@ from .._exceptions import (
     ProviderTimeoutError,
     RetryError,
 )
-from ..content import ToolCall, ToolCalls
+from ..content import ToolCall
 from ..history import MessageHistory
 from ..message import (
     AssistantMessage,
@@ -334,6 +334,11 @@ def _reply_text(content: str | None, finish_reason: str | None) -> str | None:
     if not content and finish_reason in _INCOMPLETE_FINISH_REASONS:
         return None
     return content
+
+
+def _tool_turn(text: str | None, calls: List[ToolCall]) -> List[ContentPart]:
+    """The content of a tool-calling turn: any text the model spoke, then its calls."""
+    return [text, *calls] if text else list(calls)
 
 
 def _echo_reasoning(base: Dict[str, Any], msg: Message) -> None:
@@ -830,9 +835,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         if structured_response is not None:
             message = AssistantMessage(content=structured_response)
         elif len(tools) > 0:
-            message = AssistantMessage(
-                content=ToolCalls(tools, text=accumulated_content or None)
-            )
+            message = AssistantMessage(content=_tool_turn(accumulated_content, tools))
         else:
             message = AssistantMessage(
                 content=_reply_text(accumulated_content, finish_reason)
@@ -1032,7 +1035,7 @@ class LiteLLMWrapper(ModelBase, ABC):
         # Keep any text the model returned alongside the tool calls (e.g. "I will
         # check the weather in London for you"), it is part of the answer.
         assistant_msg = _attach_reasoning(
-            AssistantMessage(content=ToolCalls(calls, text=choice.message.content)),
+            AssistantMessage(content=_tool_turn(choice.message.content, calls)),
             choice.message,
         )
 
@@ -1132,16 +1135,17 @@ class LiteLLMWrapper(ModelBase, ABC):
 
         Text-only content is sent as one string. Content with attachments is sent as a
         list of content parts in the message's order; empty text parts are left out,
-        since some providers reject them.
+        since some providers reject them. Tool calls are left out too; they go in the
+        message's `tool_calls` field.
         """
         if not any(isinstance(part, Attachment) for part in parts):
             return content_text(parts)
         return [
-            {"type": "text", "text": part}
-            if isinstance(part, str)
-            else self._to_content_part(part)
+            self._to_content_part(part)
+            if isinstance(part, Attachment)
+            else {"type": "text", "text": part}
             for part in parts
-            if not isinstance(part, str) or part
+            if isinstance(part, Attachment) or (isinstance(part, str) and part)
         ]
 
     def _to_content_part(self, attachment: Attachment) -> Dict[str, Any]:
@@ -1189,13 +1193,13 @@ class LiteLLMWrapper(ModelBase, ABC):
         base: Dict[str, Any] = {"role": msg.role}
         # handle the special case where the message is a tool so we have to link it to the tool id.
         if isinstance(msg, ToolMessage):
-            base["name"] = msg.content.name
-            base["tool_call_id"] = msg.content.identifier
-            base["content"] = msg.content.result
-        elif isinstance(msg.content, list) and msg.tool_calls:
+            base["name"] = msg.name
+            base["tool_call_id"] = msg.tool_call_id
+            base["content"] = self._to_litellm_content(msg.content)
+        elif msg.tool_calls:
             # Send back any text that came with the tool calls so the model sees
             # its own full turn on the next request.
-            base["content"] = getattr(msg.content, "text", None) or ""
+            base["content"] = self._to_litellm_content(msg.content)
             base["tool_calls"] = [
                 ChatCompletionMessageToolCall(
                     function=Function(
@@ -1204,7 +1208,7 @@ class LiteLLMWrapper(ModelBase, ABC):
                     id=tool_call.identifier,
                     type="function",
                 )
-                for tool_call in msg.content
+                for tool_call in msg.tool_calls
             ]
             # Copy provider-specific metadata (e.g. Gemini thought_signature)
             # from the raw litellm message without returning it wholesale,

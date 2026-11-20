@@ -97,9 +97,9 @@ def test_attachment_only_has_no_empty_text_part(image):
         (None, ValueError, "needs text or at least one attachment"),
         ([], ValueError, "needs text or at least one attachment"),
         (["text", 3], TypeError, "must be str or Attachment, but got int"),
-        (b"raw", TypeError, "must be a str, an Attachment or a list"),
+        (b"raw", TypeError, "must be str or Attachment, or a list"),
         ([b"raw"], TypeError, "Attachment.from_bytes"),
-        ({"text": "hi"}, TypeError, "must be a str, an Attachment or a list"),
+        ({"text": "hi"}, TypeError, "must be str or Attachment, or a list"),
     ],
 )
 def test_invalid_content_is_rejected(content, error, match):
@@ -162,11 +162,21 @@ def test_encode_attachment_only_has_an_empty_text_part(image):
     }
 
 
-def test_encode_content_leaves_other_content_alone():
-    calls = ToolCalls([ToolCall(identifier="1", name="f", arguments={})])
-    assert encode_content(calls) is calls
+def test_encode_tool_calls_is_the_list_of_calls():
+    call = ToolCall(identifier="1", name="f", arguments={})
+    assert encode_content(["Checking.", call]) == [call]
+
+
+def test_encode_structured_output_is_left_alone():
     answer = _Answer(value=1)
     assert encode_content(answer) is answer
+
+
+def test_encode_system_message_is_a_string():
+    assert SystemMessage("Be brief.").encode() == {
+        "role": "system",
+        "content": "Be brief.",
+    }
 
 
 # ============================== AssistantMessage =============================
@@ -185,18 +195,27 @@ def test_assistant_reply_with_media_is_not_a_tool_call(image):
     assert message.attachments == [image]
 
 
-def test_assistant_list_of_tool_calls_becomes_tool_calls():
+def test_assistant_list_of_tool_calls_stays_a_list():
     call = ToolCall(identifier="1", name="f", arguments={"x": 1})
     message = AssistantMessage([call])
-    assert isinstance(message.content, ToolCalls)
+    assert message.content == [call]
     assert message.tool_calls == [call]
     assert message.text == ""
 
 
-def test_assistant_mixing_tool_calls_and_text_is_rejected():
+def test_assistant_text_and_tool_calls_keep_their_order():
+    first = ToolCall(identifier="1", name="f", arguments={})
+    second = ToolCall(identifier="2", name="g", arguments={})
+    message = AssistantMessage(["Checking.", first, "And this.", second])
+    assert message.content == ["Checking.", first, "And this.", second]
+    assert message.text == "Checking.\nAnd this."
+    assert message.tool_calls == [first, second]
+
+
+def test_user_message_rejects_tool_calls():
     call = ToolCall(identifier="1", name="f", arguments={})
-    with pytest.raises(TypeError, match="must be str or Attachment"):
-        AssistantMessage([call, "text"])
+    with pytest.raises(TypeError, match="must be str or Attachment, but got ToolCall"):
+        UserMessage(["text", call])
 
 
 def test_assistant_structured_output_is_kept():
@@ -210,13 +229,46 @@ def test_assistant_structured_output_is_kept():
 # =============================== Views on content ============================
 
 
-def test_text_view_for_every_message_kind():
+def test_every_message_kind_holds_a_list_of_parts(image):
     call = ToolCall(identifier="1", name="f", arguments={})
-    assert SystemMessage("Be brief.").text == "Be brief."
-    assert AssistantMessage(ToolCalls([call], text="Checking.")).text == "Checking."
-    assert AssistantMessage(ToolCalls([call])).text == ""
-    tool = ToolMessage(ToolResponse(identifier="1", name="f", result="42"))
-    assert tool.text == "42"
+    messages = [
+        SystemMessage("Be brief."),
+        UserMessage(["Look:", image]),
+        AssistantMessage(["Checking.", call]),
+        ToolMessage(["42", image], tool_call_id="1", name="f"),
+    ]
+    for message in messages:
+        assert isinstance(message.content, list)
+        assert message.text == content_text(message.content)
+    assert [m.text for m in messages] == ["Be brief.", "Look:", "Checking.", "42"]
+    assert messages[3].attachments == [image]
+
+
+def test_system_message_takes_a_list_of_text():
+    message = SystemMessage(["Be brief.", "Answer in {language}."])
+    message.fill_prompt({"language": "French"})
+    assert message.content == ["Be brief.", "Answer in French."]
+
+
+def test_system_message_rejects_attachments(image):
+    with pytest.raises(TypeError, match="SystemMessage content parts must be str"):
+        SystemMessage(["Read this:", image])
+
+
+def test_tool_message_rejects_tool_calls():
+    call = ToolCall(identifier="1", name="f", arguments={})
+    with pytest.raises(TypeError, match="ToolMessage content parts"):
+        ToolMessage([call], tool_call_id="1", name="f")
+
+
+def test_deprecated_tool_calls_and_tool_response_still_build_messages():
+    call = ToolCall(identifier="1", name="f", arguments={})
+    with pytest.warns(DeprecationWarning):
+        turn = AssistantMessage(ToolCalls([call], text="Checking."))
+    assert turn.content == ["Checking.", call]
+    with pytest.warns(DeprecationWarning):
+        tool = ToolMessage(ToolResponse(identifier="1", name="f", result="42"))
+    assert (tool.content, tool.tool_call_id, tool.name) == (["42"], "1", "f")
 
 
 def test_content_helpers_accept_plain_strings(image):
@@ -236,7 +288,7 @@ def test_response_text_and_attachments(image):
 
 def test_response_text_for_tool_calls_is_the_spoken_text():
     call = ToolCall(identifier="1", name="f", arguments={})
-    response = Response(AssistantMessage(ToolCalls([call], text="One moment.")))
+    response = Response(AssistantMessage(["One moment.", call]))
     assert response.text == "One moment."
 
 
@@ -267,11 +319,8 @@ def test_encode_empty_reply_is_null():
     assert AssistantMessage("").encode() == {"role": "assistant", "content": ""}
 
 
-def test_length_count_matches_text_and_counts_plain_tool_call_lists(image):
+def test_length_count_matches_text_and_counts_tool_calls(image):
     parts = ["ab", image, "cd"]
     assert message_char_count(parts) == len(content_text(parts))
     call = ToolCall(identifier="1", name="f", arguments={"x": 1})
-    assert message_char_count([call]) == message_char_count(ToolCalls([call]))
-    assert message_char_count(ToolCalls([call], text="hi")) > message_char_count(
-        ToolCalls([call])
-    )
+    assert message_char_count(["hi", call]) == 2 + message_char_count([call])

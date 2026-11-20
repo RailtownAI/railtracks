@@ -28,7 +28,7 @@ from railtracks.llm._exceptions import (
     ProviderRateLimitError,
     ProviderTimeoutError,
 )
-from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
+from railtracks.llm.content import ToolCall
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
     AssistantMessage,
@@ -195,21 +195,17 @@ async def run_tools(
     tool_nodes: list[type[Node]],
 ):
     assert len(tool_nodes) > 0, "No tool nodes provided to run_tools"
-    tool_calls = response.message.tool_calls
-
-    # `tool_calls` is a copy (so the loop can hand it to `invoke_tools` without history
-    # sharing mutable argument dicts), so carry the text over from the response's own
-    # content and copy the reasoning/provider metadata the rebuild would otherwise drop
-    # -- signed thinking blocks (which Anthropic requires echoed back) included.
-    hist_msg = AssistantMessage(
-        content=ToolCalls(
-            tool_calls, text=getattr(response.message.content, "text", None)
-        )
-    ).copy_metadata_from(response.message)
+    # `deepcopy` so history never shares mutable argument dicts with the Response that
+    # `post_llm` middleware may still mutate; `copy_metadata_from` carries the
+    # reasoning/provider metadata the rebuild would otherwise drop -- signed thinking
+    # blocks (which Anthropic requires echoed back) included.
+    hist_msg = AssistantMessage(deepcopy(response.message.content)).copy_metadata_from(
+        response.message
+    )
 
     message_history.append(hist_msg)
 
-    tool_messages = await invoke_tools(tool_calls, tool_nodes)
+    tool_messages = await invoke_tools(hist_msg.tool_calls, tool_nodes)
 
     message_history.extend(tool_messages)
 
@@ -231,23 +227,10 @@ async def invoke_tools(tool_calls: list[ToolCall], tool_nodes: list[type[Node]])
         for x in tool_results
     ]
 
-    tool_ids = [tool_call.identifier for tool_call in tool_calls]
-    tool_names = [tool_call.name for tool_call in tool_calls]
-
-    tool_messages: list[ToolMessage] = []
-
-    for tool_id, tool_name, result in zip(tool_ids, tool_names, stringified_results):
-        tool_messages.append(
-            ToolMessage(
-                ToolResponse(
-                    identifier=tool_id,
-                    name=tool_name,
-                    result=result,
-                )
-            )
-        )
-
-    return tool_messages
+    return [
+        ToolMessage(result, tool_call_id=tool_call.identifier, name=tool_call.name)
+        for tool_call, result in zip(tool_calls, stringified_results)
+    ]
 
 
 async def invoke_tool(tool_call: ToolCall, tool_nodes: list[type[Node]]):
@@ -365,9 +348,7 @@ def process_message(
 
     if len(tool_calls) > 0:
         return "Tool"
-    elif isinstance(content, str) or (
-        content and isinstance(content, list) and not isinstance(content, ToolCalls)
-    ):
+    elif isinstance(content, str) or (content and isinstance(content, list)):
         return "Content"
     elif schema is not None and isinstance(content, schema):
         return "Structured"
@@ -473,7 +454,7 @@ def prepare_string_response(
 
     content = last_message.content
 
-    assert isinstance(content, list) and not isinstance(content, ToolCalls), (
+    assert isinstance(content, list), (
         "Content of the last message must be text and attachments to be returned as is"
     )
 

@@ -29,7 +29,6 @@ from railtracks.llm._exceptions import (
     ProviderTimeoutError,
     RetryError,
 )
-from railtracks.llm.content import ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.llm.models._model_exception_base import ModelError, ModelNotFoundError
@@ -272,6 +271,10 @@ class _Answer(BaseModel):
     text: str
 
 
+class _Unexpected(BaseModel):
+    value: int
+
+
 @pytest.mark.parametrize(
     "schema,expected",
     [(None, "expected text."), (_Answer, "expected text or _Answer.")],
@@ -279,11 +282,7 @@ class _Answer(BaseModel):
 def test_unusable_content_type_raises_llmerror_naming_the_expected_types(
     schema, expected
 ):
-    response = Response(
-        message=AssistantMessage(
-            content=ToolResponse(identifier="1", name="t", result="r")
-        )
-    )
+    response = Response(message=AssistantMessage(content=_Unexpected(value=1)))
     history = MessageHistory([UserMessage("hello")])
 
     with pytest.raises(LLMError, match=re.escape(expected)) as exc:
@@ -432,13 +431,11 @@ async def test_run_tools_preserves_reasoning_and_isolates_history(monkeypatch):
     (so signed thinking survives the loop) while staying a distinct object from the
     Response, which `post_llm` middleware may still mutate."""
     from railtracks.llm import AssistantMessage, Response
-    from railtracks.llm.content import ToolCall, ToolCalls
+    from railtracks.llm.content import ToolCall
 
     blocks = [{"type": "thinking", "thinking": "use the tool", "signature": "sig"}]
     message = AssistantMessage(
-        content=ToolCalls(
-            [ToolCall(identifier="c1", name="t", arguments={})], text="calling"
-        )
+        content=["calling", ToolCall(identifier="c1", name="t", arguments={})]
     )
     message.raw_litellm_message = {"raw": "msg"}
     message.reasoning_content = "use the tool"
@@ -455,6 +452,11 @@ async def test_run_tools_preserves_reasoning_and_isolates_history(monkeypatch):
 
     appended = history[0]
     assert appended is not response.message
+    assert appended.content == [
+        "calling",
+        ToolCall(identifier="c1", name="t", arguments={}),
+    ]
+    assert appended.content[1] is not response.message.content[1]
     assert appended.reasoning_content == "use the tool"
     assert appended.thinking_blocks == blocks
     assert appended.raw_litellm_message == {"raw": "msg"}

@@ -24,7 +24,7 @@ async def test_injects_active_session_context_before_calling_onward():
     seen = {}
 
     async def fake_call(message_history, schema, tools):
-        seen["content"] = message_history[0].content
+        seen["content"] = message_history[0].text
         return "response"
 
     history = MessageHistory([SystemMessage("You are helping {user_name}.")])
@@ -48,7 +48,7 @@ async def test_no_session_is_a_noop():
     seen = {}
 
     async def fake_call(message_history, schema, tools):
-        seen["content"] = message_history[0].content
+        seen["content"] = message_history[0].text
         return "response"
 
     history = MessageHistory([SystemMessage("You are helping {user_name}.")])

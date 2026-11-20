@@ -13,7 +13,6 @@ from railtracks.llm import (
     Response,
     SystemMessage,
     ToolMessage,
-    ToolResponse,
     UserMessage,
 )
 
@@ -27,7 +26,7 @@ def _history() -> MessageHistory:
             SystemMessage("You are a helper"),
             UserMessage("hi"),
             AssistantMessage("ok"),
-            ToolMessage(ToolResponse(identifier="1", name="add", result="3")),
+            ToolMessage("3", tool_call_id="1", name="add"),
         ]
     )
 

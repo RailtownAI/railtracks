@@ -172,9 +172,7 @@ async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_mess
         "test_agent_as_tool_result_is_not_wrapped", caller
     ).ainvoke("Encode 'hello world'")
     tool_results = [
-        message.content.result
-        for message in response.message_history
-        if message.role == "tool"
+        message.text for message in response.message_history if message.role == "tool"
     ]
     assert tool_results == ["encoder check"]
 
@@ -332,7 +330,7 @@ async def test_context_placeholders_fill_the_child_prompt_but_not_the_tool_descr
     assert (
         "You help {customer_name} with their order." in tools_seen_by_parent[0].detail
     )
-    assert seen_by_child[0][0].content == "You help Ada with their order."
+    assert seen_by_child[0][0].text == "You help Ada with their order."
 
 
 # ====================================================== END terminal_llm as tool ========================================================

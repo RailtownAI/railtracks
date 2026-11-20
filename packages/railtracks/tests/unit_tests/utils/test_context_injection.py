@@ -143,7 +143,7 @@ def test_inject_values_injects_value():
     value_dict = ValueDict({"name": "Alice", "system_info": "All systems operational"})
 
     result = context_injection.inject_values(history, value_dict)
-    assert result[0].content == "System says All systems operational"
+    assert result[0].text == "System says All systems operational"
     assert result[1].text == "Hello, Alice!"
 
 

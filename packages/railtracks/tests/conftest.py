@@ -94,10 +94,8 @@ class MockLLM(rt.llm.ModelBase):
         if tool_results:
             final_message = ""
             for tool_message in tool_results:
-                tool_response = tool_message.content
                 final_message += (
-                    f"Tool {tool_response.name} returned: '{tool_response.result}'"
-                    + "\n"
+                    f"Tool {tool_message.name} returned: '{tool_message.text}'" + "\n"
                 )
             return Response(
                 message=AssistantMessage(content=final_message),
@@ -144,10 +142,8 @@ class MockLLM(rt.llm.ModelBase):
         if tool_results:
             final_message = ""
             for tool_message in tool_results:
-                tool_response = tool_message.content
                 final_message += (
-                    f"Tool {tool_response.name} returned: '{tool_response.result}'"
-                    + "\n"
+                    f"Tool {tool_message.name} returned: '{tool_message.text}'" + "\n"
                 )
             for char in final_message:
                 yield char

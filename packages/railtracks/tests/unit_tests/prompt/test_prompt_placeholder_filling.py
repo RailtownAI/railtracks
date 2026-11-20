@@ -146,7 +146,7 @@ def test_system_message_is_still_filled(mock_llm, context):
     delivered: list[str] = []
 
     def return_message(messages: MessageHistory) -> Response:
-        delivered.extend(m.content for m in messages if m.role == Role.system)
+        delivered.extend(m.text for m in messages if m.role == Role.system)
         return Response(message=Message(role=Role.assistant, content="ok"))
 
     model = mock_llm()
@@ -168,7 +168,7 @@ def test_system_message_is_refilled_on_repeated_invocation(mock_llm):
     delivered: list[str] = []
 
     def return_message(messages: MessageHistory) -> Response:
-        delivered.extend(m.content for m in messages if m.role == Role.system)
+        delivered.extend(m.text for m in messages if m.role == Role.system)
         return Response(message=Message(role=Role.assistant, content="ok"))
 
     model = mock_llm()
