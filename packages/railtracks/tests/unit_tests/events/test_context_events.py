@@ -395,7 +395,7 @@ async def test_conversation_memory_records_no_context_ops():
 
 async def test_prompt_injection_records_no_context_ops():
     async def fake_call(message_history, schema, tools):
-        return message_history[0].content
+        return message_history[0].text
 
     @rt.function_node
     async def node(history):

@@ -8,7 +8,7 @@ Scope, deliberate:
     - chat, structured output, streaming chat.
     - tool calling raises `NotImplementedError` — Apple's SDK drives its own
       tool loop and exposes no intent-only interception hook, so it does not
-      fit railtracks' "return ToolCalls, orchestrate externally" contract.
+      fit railtracks' "return tool calls, orchestrate externally" contract.
     - streaming structured output raises — the SDK's `stream_response` does
       not support guided generation.
 
@@ -271,7 +271,7 @@ class AppleFMLLM(ModelBase):
         mode. Reject up front instead.
         """
         for msg in messages:
-            if isinstance(msg, UserMessage) and getattr(msg, "attachment", None):
+            if isinstance(msg, UserMessage) and msg.attachments:
                 raise NotImplementedError(
                     "AppleFMLLM does not support UserMessage attachments. "
                     "Apple's on-device SDK exposes fm.ImageAttachment but "
@@ -299,15 +299,18 @@ class AppleFMLLM(ModelBase):
 
         for msg in messages:
             if isinstance(msg, SystemMessage):
-                instructions_parts.append(str(msg.content))
+                instructions_parts.append(msg.text)
             elif isinstance(msg, UserMessage):
                 if final_prompt is not None:
                     prior.append({"role": "user", "contents": [final_prompt]})
-                final_prompt = str(msg.content)
+                final_prompt = msg.text
             elif isinstance(msg, AssistantMessage):
-                prior.append({"role": "response", "contents": [str(msg.content)]})
+                reply = (
+                    str(msg.content) if isinstance(msg.content, BaseModel) else msg.text
+                )
+                prior.append({"role": "response", "contents": [reply]})
             else:
-                prior.append({"role": "user", "contents": [str(msg.content)]})
+                prior.append({"role": "user", "contents": [msg.text]})
 
         if final_prompt is None:
             raise ModelError(

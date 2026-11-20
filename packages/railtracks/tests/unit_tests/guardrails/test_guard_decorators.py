@@ -86,7 +86,7 @@ class TestDecisions:
         @input_guard
         def rail(event) -> GuardrailDecision:
             for msg in event.messages:
-                if isinstance(msg.content, str) and "SECRET" in msg.content:
+                if "SECRET" in msg.text:
                     return GuardrailDecision.block(reason="secret leaked")
             return GuardrailDecision.allow()
 
@@ -104,7 +104,7 @@ class TestDecisions:
 
         decision = rail(_output_event("sensitive"))
         assert decision.action == GuardrailAction.TRANSFORM
-        assert decision.output_message.content == "[redacted]"
+        assert decision.output_message.text == "[redacted]"
 
 
 class TestRawInputCoercion:
@@ -115,7 +115,7 @@ class TestRawInputCoercion:
         def rail(event) -> GuardrailDecision:
             assert isinstance(event, LLMGuardrailEvent)
             assert event.phase == LLMGuardrailPhase.INPUT
-            text = event.messages[0].content
+            text = event.messages[0].text
             return (
                 GuardrailDecision.block(reason="nope")
                 if "SECRET" in text
@@ -132,7 +132,7 @@ class TestRawInputCoercion:
             assert event.phase == LLMGuardrailPhase.OUTPUT
             return (
                 GuardrailDecision.block(reason="nope")
-                if "bad" in event.output_message.content
+                if "bad" in event.output_message.text
                 else GuardrailDecision.allow()
             )
 

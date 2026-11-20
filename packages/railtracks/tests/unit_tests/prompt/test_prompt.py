@@ -26,7 +26,7 @@ def test_context_injection(mock_llm):
     response = rt.Flow(
         "test_context_injection", node, context={"secret": "tomato"}
     ).invoke(MessageHistory())
-    assert response.content == "tomato"
+    assert response.text == "tomato"
 
 
 def test_context_injection_bypass(mock_llm):
@@ -45,7 +45,7 @@ def test_context_injection_bypass(mock_llm):
         "test_context_injection_bypass", node, context={"secret_value": "tomato"}
     ).invoke(MessageHistory())
 
-    assert response.content == "{secret_value}"
+    assert response.text == "{secret_value}"
 
 
 def test_prompt_numerical(mock_llm):
@@ -64,7 +64,7 @@ def test_prompt_numerical(mock_llm):
         MessageHistory()
     )
 
-    assert response.content == "tomato"
+    assert response.text == "tomato"
 
 
 def test_prompt_not_in_context(mock_llm):
@@ -81,7 +81,7 @@ def test_prompt_not_in_context(mock_llm):
 
     response = rt.Flow("test_prompt_not_in_context", node).invoke(MessageHistory())
 
-    assert response.content == "{secret2}"
+    assert response.text == "{secret2}"
 
 
 def test_no_injection_without_middleware(mock_llm):
@@ -101,7 +101,7 @@ def test_no_injection_without_middleware(mock_llm):
         node,
         context={"secret_value": "tomato"},
     ).invoke(MessageHistory())
-    assert response.content == "{secret_value}"
+    assert response.text == "{secret_value}"
 
 
 def test_context_injection_shared_middleware_list_stays_independent(mock_llm):
@@ -139,6 +139,6 @@ def test_context_injection_shared_middleware_list_stays_independent(mock_llm):
         entry,
         context={"secret_value": "tomato"},
     ).invoke(MessageHistory())
-    assert on.content == "tomato"
-    assert off.content == "{secret_value}"
+    assert on.text == "tomato"
+    assert off.text == "{secret_value}"
     assert len(shared_middleware) == 1

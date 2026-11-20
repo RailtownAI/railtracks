@@ -1,10 +1,10 @@
 """Shared character-counting helpers for length guardrails.
 
-Message content is not always a ``str``: tool turns carry ``ToolResponse`` /
-``ToolCalls``, and structured-output turns carry a pydantic ``BaseModel``.
-``len()`` on those types either raises ``TypeError`` or counts the wrong unit
-(number of tool calls).  Both ``InputLengthGuard`` and ``OutputLengthGuard``
-route through :func:`message_char_count` so they stay consistent.
+Message content is not always text: every message holds a list of text, attachments
+and tool calls, and structured-output turns hold a pydantic ``BaseModel``. ``len()``
+on those either raises ``TypeError`` or counts the wrong unit (number of parts).
+Both ``InputLengthGuard`` and ``OutputLengthGuard`` route through
+:func:`message_char_count` so they stay consistent.
 """
 
 from __future__ import annotations
@@ -14,7 +14,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from railtracks.llm.content import ToolCalls, ToolResponse
+from railtracks.llm.content import ToolCall
+from railtracks.llm.message import content_text
 
 
 def message_char_count(content: Any) -> int:
@@ -24,29 +25,22 @@ def message_char_count(content: Any) -> int:
     |---|---|
     | ``None`` | ``0`` |
     | ``str`` | ``len(content)`` |
-    | ``ToolResponse`` | ``len(content.result)`` (``result`` is ``str`` or ``bytes``) |
-    | ``ToolCalls`` | ``len(content.text or "")`` plus, for each call,
-      ``len(call.name)`` + ``len(json.dumps(call.arguments, default=str))`` |
+    | list of parts | ``len`` of the message text, plus ``len(call.name)`` +
+      ``len(json.dumps(call.arguments, default=str))`` for each tool call;
+      attachments count ``0`` |
     | ``BaseModel`` | ``len(content.model_dump_json())`` |
     | anything else | ``len(str(content))`` |
-
-    ``ToolCalls`` is checked before the generic list/object fallback because it
-    is a ``list`` subclass.
     """
     if content is None:
         return 0
     if isinstance(content, str):
         return len(content)
-    if isinstance(content, ToolResponse):
-        result = content.result
-        if isinstance(result, bytes):
-            return len(result)
-        return len(result or "")
-    if isinstance(content, ToolCalls):
-        total = len(content.text or "")
-        for call in content:
-            total += len(call.name)
-            total += len(json.dumps(call.arguments, default=str))
+    if isinstance(content, list):
+        total = len(content_text(content))
+        for part in content:
+            if isinstance(part, ToolCall):
+                total += len(part.name)
+                total += len(json.dumps(part.arguments, default=str))
         return total
     if isinstance(content, BaseModel):
         return len(content.model_dump_json())

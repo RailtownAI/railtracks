@@ -180,11 +180,11 @@ class ScopeGuard(InputGuard):
 
     @staticmethod
     def _latest_user_message(messages: list[Message]) -> tuple[int, str] | None:
-        """Index and text of the last user message with string content."""
+        """Index and text of the last user message."""
         for index in range(len(messages) - 1, -1, -1):
             msg = messages[index]
-            if msg.role == Role.user and isinstance(msg.content, str):
-                return index, msg.content
+            if msg.role == Role.user:
+                return index, msg.text
         return None
 
     @staticmethod
@@ -194,8 +194,8 @@ class ScopeGuard(InputGuard):
         for msg in reversed(earlier):
             if len(context) == _CONTEXT_MESSAGES:
                 break
-            if msg.role in _CONTEXT_ROLES and isinstance(msg.content, str):
-                context.append(f"{msg.role.value}: {msg.content[:_CONTEXT_CHAR_LIMIT]}")
+            if msg.role in _CONTEXT_ROLES and msg.text:
+                context.append(f"{msg.role.value}: {msg.text[:_CONTEXT_CHAR_LIMIT]}")
         context.reverse()
 
         parts: list[str] = []

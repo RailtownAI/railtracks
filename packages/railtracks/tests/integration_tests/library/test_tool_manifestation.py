@@ -89,8 +89,8 @@ async def test_terminal_llm_as_tool_correct_initialization(
     response = await rt.Flow(
         "test_terminal_llm_as_tool_correct_initialization", randomizer
     ).ainvoke(message_history)
-    assert "encoder check" in response.content
-    assert "decoder check" in response.content
+    assert "encoder check" in response.text
+    assert "decoder check" in response.text
 
 
 @pytest.mark.asyncio
@@ -137,7 +137,7 @@ async def test_terminal_llm_as_tool_correct_initialization_no_params(mock_llm):
         "test_terminal_llm_as_tool_correct_initialization_no_params", math_node
     ).ainvoke(message_history)
 
-    assert "[42, 42, 42, 42, 42]" in response.content
+    assert "[42, 42, 42, 42, 42]" in response.text
 
 
 @pytest.mark.timeout(30)
@@ -172,9 +172,7 @@ async def test_agent_as_tool_result_is_not_wrapped(mock_llm, encoder_system_mess
         "test_agent_as_tool_result_is_not_wrapped", caller
     ).ainvoke("Encode 'hello world'")
     tool_results = [
-        message.content.result
-        for message in response.message_history
-        if message.role == "tool"
+        message.text for message in response.message_history if message.role == "tool"
     ]
     assert tool_results == ["encoder check"]
 
@@ -225,7 +223,7 @@ async def test_terminal_llm_tool_with_invalid_parameters(
     # Check that there was an error running the tool
     assert any(
         message.role == "assistant"
-        and "There was an error during tool execution" in message.content
+        and "There was an error during tool execution" in message.text
         for message in response.message_history
     )
 
@@ -274,8 +272,8 @@ async def test_agent_without_manifest_is_called_with_request(mock_llm):
 
     child_messages = seen_by_child[0]
     assert [m.role for m in child_messages] == ["system", "user"]
-    assert child_messages[-1].content == "Say hello"
-    assert "Tool Echo_Agent returned: 'echoed'" in response.content
+    assert child_messages[-1].text == "Say hello"
+    assert "Tool Echo_Agent returned: 'echoed'" in response.text
 
 
 @pytest.mark.timeout(30)
@@ -332,7 +330,7 @@ async def test_context_placeholders_fill_the_child_prompt_but_not_the_tool_descr
     assert (
         "You help {customer_name} with their order." in tools_seen_by_parent[0].detail
     )
-    assert seen_by_child[0][0].content == "You help Ada with their order."
+    assert seen_by_child[0][0].text == "You help Ada with their order."
 
 
 # ====================================================== END terminal_llm as tool ========================================================

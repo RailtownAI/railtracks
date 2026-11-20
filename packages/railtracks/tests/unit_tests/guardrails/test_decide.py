@@ -34,7 +34,7 @@ class TestInputGuardDecideStr:
         decision = input_guard.decide("my email is alice@example.com")
         assert decision.action == GuardrailAction.TRANSFORM
         assert decision.messages is not None
-        assert "[EMAIL_ADDRESS]" in decision.messages[0].content
+        assert "[EMAIL_ADDRESS]" in decision.messages[0].text
 
     def test_str_clean(self, input_guard: PIIRedactInputGuard) -> None:
         decision = input_guard.decide("hello world")
@@ -45,7 +45,7 @@ class TestInputGuardDecideMessage:
     def test_user_message(self, input_guard: PIIRedactInputGuard) -> None:
         decision = input_guard.decide(UserMessage("SSN: 123-45-6789"))
         assert decision.action == GuardrailAction.TRANSFORM
-        assert "[US_SSN]" in decision.messages[0].content
+        assert "[US_SSN]" in decision.messages[0].text
 
     def test_system_message(self, input_guard: PIIRedactInputGuard) -> None:
         decision = input_guard.decide(SystemMessage("admin@corp.com is the admin"))
@@ -91,7 +91,7 @@ class TestOutputGuardDecideStr:
         decision = output_guard.decide("Contact alice@example.com")
         assert decision.action == GuardrailAction.TRANSFORM
         assert decision.output_message is not None
-        assert "[EMAIL_ADDRESS]" in decision.output_message.content
+        assert "[EMAIL_ADDRESS]" in decision.output_message.text
 
     def test_str_clean(self, output_guard: PIIRedactOutputGuard) -> None:
         decision = output_guard.decide("Here is your answer.")
@@ -102,7 +102,7 @@ class TestOutputGuardDecideMessage:
     def test_assistant_message(self, output_guard: PIIRedactOutputGuard) -> None:
         decision = output_guard.decide(AssistantMessage("Your SSN is 123-45-6789."))
         assert decision.action == GuardrailAction.TRANSFORM
-        assert "[US_SSN]" in decision.output_message.content
+        assert "[US_SSN]" in decision.output_message.text
 
 
 class TestOutputGuardDecideMessageHistory:
@@ -115,7 +115,7 @@ class TestOutputGuardDecideMessageHistory:
         )
         decision = output_guard.decide(history)
         assert decision.action == GuardrailAction.TRANSFORM
-        assert "[EMAIL_ADDRESS]" in decision.output_message.content
+        assert "[EMAIL_ADDRESS]" in decision.output_message.text
 
     def test_single_message_history(self, output_guard: PIIRedactOutputGuard) -> None:
         history = MessageHistory([AssistantMessage("alice@example.com")])

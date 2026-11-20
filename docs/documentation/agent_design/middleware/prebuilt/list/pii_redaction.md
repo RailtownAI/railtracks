@@ -1,6 +1,6 @@
 # PII Redaction
 
-`PIIRedactInputGuard` and `PIIRedactOutputGuard` scan **string** message content with regex and replace matches with placeholders such as `[EMAIL_ADDRESS]`. The input guard scans user and system messages; assistant and tool messages are left unchanged. The output guard scans the model's output message. Non-string content is passed through unchanged.
+`PIIRedactInputGuard` and `PIIRedactOutputGuard` scan the **text** of messages with regex and replace matches with placeholders such as `[EMAIL_ADDRESS]`. Each text part of a message is redacted on its own, and attachments stay where they are. The input guard scans user and system messages; assistant and tool messages are left unchanged. The output guard scans the model's output message. Tool calls and structured output are passed through unchanged.
 
 Detection uses a fixed priority when patterns overlap (for example, email and URL win over the broader phone pattern). `CREDIT_CARD` and `CA_SIN` matches are accepted only when they pass a Luhn checksum check. These guards return `TRANSFORM` when they rewrite text and `ALLOW` when there is nothing to change.
 

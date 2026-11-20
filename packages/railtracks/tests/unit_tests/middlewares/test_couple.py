@@ -237,7 +237,7 @@ async def test_couple_model_middleware_wraps_the_raw_model_call(mock_llm):
 
     result = await _run_agent(new_cls)
 
-    assert result.content == "hi"
+    assert result.text == "hi"
     assert log == ["m-in", "m-out"]
 
     # original class is untouched, so calling it directly must not see the
@@ -308,7 +308,7 @@ async def test_couple_middleware_and_model_middleware_together(mock_llm):
 
     result = await _run_agent(new_cls)
 
-    assert result.content == "hi"
+    assert result.text == "hi"
     assert node_log == ["node-in", "node-out"]
     assert model_log == ["model-in", "model-out"]
 
@@ -434,7 +434,7 @@ def test_coupled_agent_spends_the_original_max_calls_budget(mock_llm):
         out = []
         for node in (agent, coupled, agent):
             try:
-                out.append((await rt.call(node, user_input="hi")).content)
+                out.append((await rt.call(node, user_input="hi")).text)
             except Exception as e:
                 out.append(type(e).__name__)
         return out

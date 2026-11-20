@@ -39,7 +39,7 @@ def _judge(mock_llm, label: str):
 
 
 def _judge_user_text(state: dict, call: int = 0) -> str:
-    return next(m.content for m in state["calls"][call] if m.role == "user")
+    return next(m.text for m in state["calls"][call] if m.role == "user")
 
 
 def _guarded_agent(mock_llm, guard, *, name="guarded", **llm_kwargs):
@@ -202,9 +202,7 @@ async def test_blocked_subagent_error_reaches_parent_model(mock_llm):
 
     response = await rt.Flow("scope_subagent", parent).ainvoke(user_input="hello")
 
-    tool_results = [
-        str(m.content.result) for m in response.message_history if m.role == "tool"
-    ]
+    tool_results = [m.text for m in response.message_history if m.role == "tool"]
     assert len(tool_results) == 1
     assert "There was an error during tool execution" in tool_results[0]
     assert "GuardrailBlockedError" in tool_results[0]

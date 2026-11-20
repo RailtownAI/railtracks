@@ -143,7 +143,7 @@ def test_manifest_parameters_are_formatted_into_one_message(mock_llm):
     user_input = agent.prepare_args(city="Paris")["user_input"]
 
     assert isinstance(user_input, MessageHistory)
-    assert "city: Paris" in user_input[0].content
+    assert "city: Paris" in user_input[0].text
 
 
 # --- tool names ---

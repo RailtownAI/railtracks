@@ -209,7 +209,7 @@ def test_agent_node_middleware_slot_enforces_limit(mock_llm):
         for i in range(n):
             try:
                 res = await rt.call(agent, user_input=f"query {i}")
-                out.append(res.content)
+                out.append(res.text)
             except Exception as e:
                 out.append(type(e).__name__)
         return out
@@ -232,7 +232,7 @@ def test_agent_model_middleware_slot_enforces_limit_across_invocations(mock_llm)
         for i in range(n):
             try:
                 res = await rt.call(agent, user_input=f"query {i}")
-                out.append(res.content)
+                out.append(res.text)
             except LLMError as e:
                 # model middleware errors surface as LLMError, chained from the original
                 out.append(type(e.__cause__).__name__)
@@ -258,7 +258,7 @@ def test_agents_share_one_model_middleware_budget(mock_llm):
         for agent in (agent_a, agent_b, agent_a):
             try:
                 res = await rt.call(agent, user_input="hi")
-                out.append(res.content)
+                out.append(res.text)
             except LLMError as e:
                 # model middleware errors surface as LLMError, chained from the original
                 out.append(type(e.__cause__).__name__)
@@ -277,7 +277,7 @@ def test_agent_model_middleware_lock_runs_without_copying(mock_llm):
     )
 
     flow = rt.Flow("agent-model-lock", entry_point=agent)
-    assert flow.invoke(user_input="hi").content == "hello"
+    assert flow.invoke(user_input="hi").text == "hello"
     assert agent._user_model_middleware[0] is shared_lock
 
 

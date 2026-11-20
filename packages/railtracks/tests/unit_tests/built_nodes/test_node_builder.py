@@ -437,7 +437,7 @@ def test_nodebuilder_llm_model_middleware_wraps_model_call(mock_llm):
     result = rt.Flow(
         "test_nodebuilder_llm_model_middleware_wraps_model_call", node_cls
     ).invoke(user_input="hello")
-    assert result.content == "hi"
+    assert result.text == "hi"
     assert calls == ["in", "out"]
 
 
@@ -465,7 +465,7 @@ def test_nodebuilder_llm_context_injection_via_middleware(mock_llm):
             context={"secret": "tomato"},
         )
         .invoke(MessageHistory())
-        .content
+        .text
         == "tomato"
     )
 
@@ -488,7 +488,7 @@ def test_nodebuilder_llm_no_injection_by_default(mock_llm):
             context={"secret": "tomato"},
         )
         .invoke(MessageHistory())
-        .content
+        .text
         == "{secret}"
     )
 
@@ -536,7 +536,7 @@ def test_nodebuilder_llm_guardrails_input_only_does_not_fire_output(mock_llm):
         "test_nodebuilder_llm_guardrails_input_only_does_not_fire_output", node_cls
     ).invoke("hello")
     assert fired["input"]
-    assert result.content == "hi"
+    assert result.text == "hi"
 
 
 def test_nodebuilder_llm_empty_model_middleware_is_a_no_op(mock_llm):
@@ -547,7 +547,7 @@ def test_nodebuilder_llm_empty_model_middleware_is_a_no_op(mock_llm):
     assert (
         rt.Flow("test_nodebuilder_llm_empty_model_middleware_is_a_no_op", node_cls)
         .invoke("hello")
-        .content
+        .text
         == "hi"
     )
 
@@ -593,8 +593,8 @@ def test_nodebuilder_llm_guardrail_vs_user_middleware_order_is_list_position(
     guard_first_result = run(guard_first_cls, "guard_first_order")
     user_first_result = run(user_first_cls, "user_first_order")
 
-    assert guard_first_result.content == "[REDACTED BY GUARDRAIL]"
-    assert user_first_result.content == "overwritten by user middleware"
+    assert guard_first_result.text == "[REDACTED BY GUARDRAIL]"
+    assert user_first_result.text == "overwritten by user middleware"
 
 
 def test_nodebuilder_function_has_no_middleware_by_default():

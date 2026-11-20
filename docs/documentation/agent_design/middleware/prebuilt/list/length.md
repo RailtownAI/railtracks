@@ -2,7 +2,7 @@
 
 `InputLengthGuard` and `OutputLengthGuard` block an LLM interaction when the character count exceeds a configured ceiling. Both return `BLOCK` over the limit and `ALLOW` otherwise; they never transform content.
 
-`InputLengthGuard` sums `len(message.content)` across **all** messages in the input history (user, system, assistant, tool). `OutputLengthGuard` measures the assistant reply on `event.output_message`; if there is no output message, it allows.
+`InputLengthGuard` sums the character count of **all** messages in the input history (user, system, assistant, tool). `OutputLengthGuard` measures the assistant reply on `event.output_message`; if there is no output message, it allows.
 
 
 ## Usage
@@ -18,4 +18,4 @@
 ```
 
 !!! note "Scope"
-    Counting is character-based and dependency-free. Word- or token-based counting (e.g. via `tiktoken`) is out of scope today and may arrive in later releases. Non-string content is treated as zero-length.
+    Counting is character-based and dependency-free. Word- or token-based counting (e.g. via `tiktoken`) is out of scope today and may arrive in later releases. Only text is counted; attachments count as zero characters.

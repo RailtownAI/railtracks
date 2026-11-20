@@ -45,14 +45,14 @@ class TestTransformOutput:
         decision = guard(event)
         assert decision.action == GuardrailAction.TRANSFORM
         assert decision.output_message is not None
-        assert "[EMAIL_ADDRESS]" in decision.output_message.content
-        assert "alice@example.com" not in decision.output_message.content
+        assert "[EMAIL_ADDRESS]" in decision.output_message.text
+        assert "alice@example.com" not in decision.output_message.text
 
     def test_ssn_in_output(self, guard: PIIRedactOutputGuard) -> None:
         event = _make_output_event("Your SSN is 123-45-6789.")
         decision = guard(event)
         assert decision.action == GuardrailAction.TRANSFORM
-        assert "[US_SSN]" in decision.output_message.content
+        assert "[US_SSN]" in decision.output_message.text
 
 
 class TestMetaSummary:

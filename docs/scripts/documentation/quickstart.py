@@ -15,4 +15,4 @@ flow = rt.Flow("Quickstart Example", entry_point=Agent)
 result = flow.invoke("Hello, what can you do?")
 
 # --8<-- [end: setup]
-print(result.content)
+print(result.text)

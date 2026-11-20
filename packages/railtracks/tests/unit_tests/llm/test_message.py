@@ -47,7 +47,8 @@ def test_message_str_and_repr(content, role, expected_str, expected_repr):
 
 def test_system_message():
     message = SystemMessage("System message")
-    assert message.content == "System message"
+    assert message.content == ["System message"]
+    assert message.text == "System message"
     assert message.role == "system"
     assert str(message) == "system: System message"
     assert repr(message) == "system: System message"
@@ -55,7 +56,8 @@ def test_system_message():
 
 def test_assistant_message():
     message = AssistantMessage("Assistant response")
-    assert message.content == "Assistant response"
+    assert message.content == ["Assistant response"]
+    assert message.text == "Assistant response"
     assert message.role == "assistant"
     assert str(message) == "assistant: Assistant response"
     assert repr(message) == "assistant: Assistant response"
@@ -107,15 +109,43 @@ def test_copy_metadata_from_plain_message_is_noop():
 
 
 def test_tool_message():
-    tool_response = ToolResponse(name="tool1", result="result", identifier="123")
-    message = ToolMessage(tool_response)
-    assert message.content == tool_response
+    message = ToolMessage("result", tool_call_id="123", name="tool1")
+    assert message.content == ["result"]
+    assert message.text == "result"
     assert message.role == "tool"
-    assert str(message) == f"tool: {tool_response}"
-    assert repr(message) == f"tool: {tool_response}"
-    assert message.content.name == "tool1"
-    assert message.content.result == "result"
-    assert message.content.identifier == "123"
+    assert message.tool_call_id == "123"
+    assert message.name == "tool1"
+    assert str(message) == "tool: tool1 -> result"
+    assert repr(message) == "tool: tool1 -> result"
+
+
+def test_tool_message_from_a_deprecated_tool_response():
+    tool_response = ToolResponse(name="tool1", result="result", identifier="123")
+    with pytest.warns(DeprecationWarning, match="tool_call_id"):
+        message = ToolMessage(tool_response)
+    assert message.content == ["result"]
+    assert (message.tool_call_id, message.name) == ("123", "tool1")
+
+
+def test_tool_message_deprecated_views():
+    message = ToolMessage("result", tool_call_id="123", name="tool1")
+    with pytest.warns(DeprecationWarning, match="text"):
+        assert message.result == "result"
+    with pytest.warns(DeprecationWarning, match="tool_call_id"):
+        assert message.identifier == "123"
+
+
+def test_tool_message_encode_keeps_the_session_json_shape():
+    message = ToolMessage("result", tool_call_id="123", name="tool1")
+    assert message.encode() == {
+        "role": "tool",
+        "content": {"identifier": "123", "name": "tool1", "result": "result"},
+    }
+
+
+def test_tool_message_needs_its_call_id_and_name():
+    with pytest.raises(TypeError, match="tool_call_id and name"):
+        ToolMessage("result")
 
 
 @pytest.mark.parametrize(
@@ -123,7 +153,8 @@ def test_tool_message():
     [
         (123, TypeError),
         (None, ValueError),
-        (["list", "of", "strings"], TypeError),
+        (["text", 123], TypeError),
+        ([], ValueError),
     ],
 )
 def test_invalid_user_message_content(invalid_content, expected_exception):
@@ -136,7 +167,12 @@ def test_invalid_user_message_content(invalid_content, expected_exception):
     [
         (123, TypeError),
         (None, TypeError),
-        (["list", "of", "strings"], TypeError),
+        (["text", 3], TypeError),
+        (Attachment.from_bytes(b"%PDF-1.7 file", filename="a.pdf"), TypeError),
+        (
+            ["text", Attachment.from_bytes(b"%PDF-1.7 file", filename="a.pdf")],
+            TypeError,
+        ),
     ],
 )
 def test_invalid_system_message_content(invalid_content, expected_exception):
@@ -642,8 +678,8 @@ class TestAttachment:
             attachment=["https://example.com/report.pdf"],
             trust_urls=True,
         )
-        assert msg.attachment[0].modality == "document"
-        assert msg.attachment[0].encoding.startswith("data:application/pdf;base64,")
+        assert msg.attachments[0].modality == "document"
+        assert msg.attachments[0].encoding.startswith("data:application/pdf;base64,")
 
     def test_data_uri(self):
         data_uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"
@@ -924,10 +960,11 @@ class TestUserMessageAttachments:
         image_file.write_bytes(b"\x89PNG\r\n\x1a\n")
 
         message = UserMessage("Check this", attachment=str(image_file))
-        assert message.content == "Check this"
-        assert message.attachment is not None
-        assert len(message.attachment) == 1
-        assert message.attachment[0].type == "local"
+        assert message.content[0] == "Check this"
+        assert message.text == "Check this"
+        assert message.attachments
+        assert len(message.attachments) == 1
+        assert message.attachments[0].type == "local"
 
     def test_multiple_attachments(self, tmp_path):
         image1 = tmp_path / "test1.png"
@@ -936,25 +973,25 @@ class TestUserMessageAttachments:
         image2.write_bytes(b"\xff\xd8\xff")
 
         message = UserMessage("Check these", attachment=[str(image1), str(image2)])
-        assert message.attachment is not None
-        assert len(message.attachment) == 2
-        assert all(att.type == "local" for att in message.attachment)
+        assert message.attachments
+        assert len(message.attachments) == 2
+        assert all(att.type == "local" for att in message.attachments)
 
     def test_no_attachment(self):
         message = UserMessage("Just text")
-        assert message.attachment is None
+        assert message.attachments == []
 
     @pytest.mark.parametrize("wrap", [bytes, bytearray, memoryview])
     def test_raw_bytes_become_one_attachment(self, wrap):
         message = UserMessage("Check this", attachment=wrap(_PNG))
-        assert message.attachment == [Attachment.from_bytes(_PNG)]
+        assert message.attachments == [Attachment.from_bytes(_PNG)]
 
     def test_raw_bytes_mixed_with_other_sources(self):
         message = UserMessage(
             "Compare",
             attachment=[_PNG, "https://example.com/b.png", Attachment.from_bytes(_WAV)],
         )
-        assert [a.mime_type for a in message.attachment] == [
+        assert [a.mime_type for a in message.attachments] == [
             "image/png",
             "image/png",
             "audio/wav",
@@ -973,8 +1010,8 @@ class TestUserMessageAttachments:
     )
     def test_attachment_types(self, attachment, expected_type):
         message = UserMessage("Test", attachment=attachment)
-        assert message.attachment is not None
-        assert message.attachment[0].type == expected_type
+        assert message.attachments
+        assert message.attachments[0].type == expected_type
 
     def test_mixed_attachments(self, tmp_path):
         local_file = tmp_path / "test.png"
@@ -986,11 +1023,11 @@ class TestUserMessageAttachments:
         ]
 
         message = UserMessage("Mixed", attachment=attachments)
-        assert message.attachment is not None
-        assert len(message.attachment) == 3
-        assert message.attachment[0].type == "local"
-        assert message.attachment[1].type == "url"
-        assert message.attachment[2].type == "data_uri"
+        assert message.attachments
+        assert len(message.attachments) == 3
+        assert message.attachments[0].type == "local"
+        assert message.attachments[1].type == "url"
+        assert message.attachments[2].type == "data_uri"
 
     def test_accepts_attachment_objects(self):
         audio = Attachment.from_bytes(_WAV, filename="call.wav")
@@ -998,11 +1035,11 @@ class TestUserMessageAttachments:
         single = UserMessage("Transcribe", attachment=audio)
         mixed = UserMessage("Compare", attachment=("https://example.com/a.png", audio))
 
-        assert single.attachment == [audio]
-        assert single.attachment[0] is audio
-        assert mixed.attachment is not None
-        assert [a.type for a in mixed.attachment] == ["url", "data_uri"]
-        assert mixed.attachment[1] is audio
+        assert single.attachments == [audio]
+        assert single.attachments[0] is audio
+        assert mixed.attachments
+        assert [a.type for a in mixed.attachments] == ["url", "data_uri"]
+        assert mixed.attachments[1] is audio
 
     def test_encode_keeps_the_session_record_shape(self, tmp_path):
         """The session JSON reads `encode()`; new sources must keep its shape and stay payload-free."""
@@ -1035,48 +1072,47 @@ class TestUserMessageAttachments:
 # =================================== END UserMessage Attachments Tests ==================================
 
 
-# =================================== START ToolCalls Content Tests ==================================
-class TestToolCallsContent:
-    """A tool-calling turn carries the calls AND whatever the model said with them."""
+# =================================== START Tool Call Parts Tests ==================================
+class TestToolCallParts:
+    """A tool-calling turn holds the text the model spoke and its calls, in order."""
 
     @pytest.fixture
     def call(self):
         return ToolCall(identifier="id1", name="example_tool", arguments={"foo": 1})
 
-    def test_holds_text_alongside_the_calls(self, call):
-        content = ToolCalls([call], text="I will call example_tool for you.")
-        assert list(content) == [call]
-        assert content.text == "I will call example_tool for you."
-
-    def test_text_defaults_to_none(self, call):
-        assert ToolCalls([call]).text is None
-
-    def test_behaves_as_a_list_of_tool_calls(self, call):
-        content = ToolCalls([call], text="prose")
-        assert isinstance(content, list)
-        assert len(content) == 1
-        assert content[0] is call
-        assert list(content) == [call]
-        assert content == [call]  # equality stays list equality
-
-    def test_deepcopy_preserves_text(self, call):
-        content = deepcopy(ToolCalls([call], text="prose"))
-        assert isinstance(content, ToolCalls)
-        assert content.text == "prose"
-
-    def test_assistant_message_normalizes_a_plain_list(self, call):
-        """Passing a bare list of tool calls still works, and becomes a ToolCalls."""
-        message = AssistantMessage(content=[call])
-        assert isinstance(message.content, ToolCalls)
-        assert message.content.text is None
+    def test_text_and_calls_share_the_content(self, call):
+        message = AssistantMessage(["I will call example_tool for you.", call])
+        assert message.content == ["I will call example_tool for you.", call]
+        assert message.text == "I will call example_tool for you."
         assert message.tool_calls == [call]
 
-    def test_assistant_message_keeps_a_tool_calls_as_is(self, call):
-        content = ToolCalls([call], text="prose")
-        assert AssistantMessage(content=content).content is content
+    def test_tool_calls_are_copies(self, call):
+        message = AssistantMessage([call])
+        copied = message.tool_calls[0]
+        assert copied == call
+        assert copied is not call
 
-    def test_encode_surfaces_the_text(self, call):
-        encoded = AssistantMessage(content=ToolCalls([call], text="prose")).encode()
+    def test_a_single_call_is_a_one_item_list(self, call):
+        assert AssistantMessage(call).content == [call]
+
+    def test_deprecated_tool_calls_become_parts(self, call):
+        with pytest.warns(DeprecationWarning, match="tool_calls"):
+            content = ToolCalls([call], text="prose")
+        assert AssistantMessage(content=content).content == ["prose", call]
+
+    def test_deprecated_tool_calls_without_text(self, call):
+        with pytest.warns(DeprecationWarning):
+            content = ToolCalls([call])
+        assert AssistantMessage(content=content).content == [call]
+
+    def test_str_renders_the_call(self, call):
+        assert str(AssistantMessage(["prose", call])) == (
+            "assistant: prose\nexample_tool({'foo': 1})"
+        )
+
+    def test_encode_keeps_the_session_json_shape(self, call):
+        encoded = AssistantMessage(["prose", call]).encode()
+        assert encoded["content"] == [call]
         assert encoded["text"] == "prose"
 
     def test_encode_omits_text_when_there_is_none(self, call):
@@ -1084,4 +1120,4 @@ class TestToolCallsContent:
         assert "text" not in AssistantMessage(content="hi").encode()
 
 
-# =================================== END ToolCalls Content Tests ==================================
+# =================================== END Tool Call Parts Tests ==================================

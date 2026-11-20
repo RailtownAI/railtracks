@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from railtracks.guardrails.core.decision import GuardrailAction
 from railtracks.guardrails.core.event import LLMGuardrailEvent, LLMGuardrailPhase
 from railtracks.llm import MessageHistory, UserMessage
-from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
+from railtracks.llm.content import ToolCall
 from railtracks.llm.message import AssistantMessage, ToolMessage
 from railtracks.prebuilt.guardrails import InputLengthGuard, OutputLengthGuard
 from railtracks.prebuilt.guardrails._length import message_char_count
@@ -182,27 +182,23 @@ class TestMessageCharCount:
     def test_str(self):
         assert message_char_count("hello") == 5
 
-    def test_tool_response_str_result(self):
-        tr = ToolResponse(identifier="1", name="weather", result="15C")
-        assert message_char_count(tr) == 3
-
-    def test_tool_response_bytes_result(self):
-        tr = ToolResponse(identifier="1", name="bin", result=b"abc")
-        assert message_char_count(tr) == 3
+    def test_tool_message_result(self):
+        message = ToolMessage("15C", tool_call_id="1", name="weather")
+        assert message_char_count(message.content) == 3
 
     def test_tool_calls_counts_text_name_and_args(self):
-        calls = ToolCalls(
-            [ToolCall(identifier="1", name="search", arguments={"q": "hi"})],
-            text="Looking up.",
-        )
+        content = [
+            "Looking up.",
+            ToolCall(identifier="1", name="search", arguments={"q": "hi"}),
+        ]
         # "Looking up." (11) + "search" (6) + json.dumps({"q": "hi"})
         expected = 11 + 6 + len('{"q": "hi"}')
-        assert message_char_count(calls) == expected
+        assert message_char_count(content) == expected
 
     def test_tool_calls_without_text(self):
-        calls = ToolCalls([ToolCall(identifier="1", name="ping", arguments={})])
+        content = [ToolCall(identifier="1", name="ping", arguments={})]
         expected = 0 + 4 + len("{}")
-        assert message_char_count(calls) == expected
+        assert message_char_count(content) == expected
 
     def test_base_model(self):
         model = _SampleModel(answer="yes", score=1)
@@ -222,7 +218,7 @@ class TestInputLengthGuardNonStringContent:
         history = MessageHistory(
             [
                 UserMessage("What is the weather?"),
-                ToolMessage(ToolResponse(identifier="1", name="weather", result="15C")),
+                ToolMessage("15C", tool_call_id="1", name="weather"),
             ]
         )
         event = LLMGuardrailEvent(phase=LLMGuardrailPhase.INPUT, messages=history)
@@ -235,9 +231,7 @@ class TestInputLengthGuardNonStringContent:
         history = MessageHistory(
             [
                 UserMessage("hi"),
-                ToolMessage(
-                    ToolResponse(identifier="1", name="weather", result="x" * 50)
-                ),
+                ToolMessage("x" * 50, tool_call_id="1", name="weather"),
             ]
         )
         event = LLMGuardrailEvent(phase=LLMGuardrailPhase.INPUT, messages=history)
@@ -246,10 +240,7 @@ class TestInputLengthGuardNonStringContent:
         assert decision.meta["total_chars"] == 2 + 50
 
     def test_tool_calls_turn_counts_name_and_arguments(self):
-        calls = ToolCalls(
-            [ToolCall(identifier="1", name="search", arguments={"q": "hi"})],
-            text="ok",
-        )
+        calls = ["ok", ToolCall(identifier="1", name="search", arguments={"q": "hi"})]
         history = MessageHistory([UserMessage("go"), AssistantMessage(calls)])
         event = LLMGuardrailEvent(phase=LLMGuardrailPhase.INPUT, messages=history)
         decision = InputLengthGuard(max_chars=1000)(event)
@@ -260,10 +251,7 @@ class TestInputLengthGuardNonStringContent:
 
 class TestOutputLengthGuardNonStringContent:
     def test_tool_calls_output_under_limit(self):
-        calls = ToolCalls(
-            [ToolCall(identifier="1", name="ping", arguments={})],
-            text="done",
-        )
+        calls = ["done", ToolCall(identifier="1", name="ping", arguments={})]
         event = LLMGuardrailEvent(
             phase=LLMGuardrailPhase.OUTPUT,
             messages=MessageHistory([UserMessage("prompt")]),

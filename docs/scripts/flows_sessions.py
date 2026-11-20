@@ -12,7 +12,7 @@ flow = rt.Flow(name="MyFlow", entry_point=MyAgent)
 
 # And then invoke it with some input!
 response = flow.invoke("What is the capital of France?")
-print(response.content)
+print(response.text)
 # --8<-- [end: quickstart]
 
 
@@ -61,7 +61,7 @@ history_response = history_connection.invoke("What is the capital of France?")
 for history in history_connection.message_histories():
     print(history.node_name)
     for message in history.message_history:
-        print(f"  {message.role}: {message.content}")
+        print(f"  {message.role}: {message.text}")
 # --8<-- [end: connection_message_histories]
 
 

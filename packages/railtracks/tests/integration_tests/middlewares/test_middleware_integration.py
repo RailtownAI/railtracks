@@ -227,7 +227,7 @@ class TestAgentNodeMiddleware:
         result = await rt.Flow("ExitAgent", agent).ainvoke("hi")
 
         assert side_effects["called"]
-        assert "hello" in result.content
+        assert "hello" in result.text
 
     async def test_node_level_wrapper_wraps_whole_agent_invocation(self, mock_llm):
         call_count = {"n": 0}
@@ -389,7 +389,7 @@ class TestModelMiddleware:
 
         @rt.wrap_node
         async def capture_first_message(call, messages, schema, tools):
-            received_content.append(messages[0].content)
+            received_content.append(messages[0].text)
             return await call(messages, schema, tools)
 
         agent = rt.agent_node(
@@ -431,7 +431,7 @@ class TestModelMiddleware:
 
         result = await rt.Flow("RetryAgent", agent).ainvoke("try this")
 
-        assert "success" in result.content
+        assert "success" in result.text
         assert attempts["n"] == 1
 
     async def test_model_middleware_independent_per_agent_node(self, mock_llm):
@@ -479,7 +479,7 @@ class TestContextInjection:
         async def capture_system(call, messages, schema, tools):
             for m in messages:
                 if m.role == "system":
-                    injected_system_content.append(m.content)
+                    injected_system_content.append(m.text)
             return await call(messages, schema, tools)
 
         agent = rt.agent_node(
@@ -506,7 +506,7 @@ class TestContextInjection:
         async def capture_system(call, messages, schema, tools):
             for m in messages:
                 if m.role == "system":
-                    injected_system_content.append(m.content)
+                    injected_system_content.append(m.text)
             return await call(messages, schema, tools)
 
         agent = rt.agent_node(
@@ -607,7 +607,7 @@ class TestGuardrailsEndToEnd:
 
         # The intermediate tool-call turn is skipped; only the final reply is guarded.
         assert fired["n"] == 1
-        assert "2" in result.content
+        assert "2" in result.text
 
     async def test_guardrail_block_is_not_wrapped_as_llmerror(self, mock_llm):
         """GuardrailBlockedError is a NodeInvocationError; llm_invoke_factory
@@ -713,7 +713,7 @@ class TestGuardrailsEndToEnd:
 
         result = await rt.Flow("MultiGuardToolAgent", agent).ainvoke("increment 1")
 
-        assert "2" in result.content
+        assert "2" in result.text
         # first raw call (tool-call request -- intermediate turn): all "before"-side
         # entries fire in list order; the output guard is skipped. Second raw call
         # (final reply): before-side fires again, then the output guard fires once.
@@ -789,7 +789,7 @@ class TestGuardrailsEndToEnd:
 
         def recording_chat_with_tools(messages, tools, **kwargs):
             marker_counts_per_call.append(
-                sum(1 for m in messages if getattr(m, "content", None) == "[seen]")
+                sum(1 for m in messages if m.text == "[seen]")
             )
             return original_chat_with_tools(messages, tools, **kwargs)
 
@@ -808,7 +808,7 @@ class TestGuardrailsEndToEnd:
         # reply); the guard fires before each one, appending exactly one fresh
         # marker on top of the (unmutated, growing) real history each time.
         assert marker_counts_per_call == [1, 1]
-        assert "2" in result.content
+        assert "2" in result.text
 
 
 # ---------------------------------------------------------------------------
@@ -844,7 +844,7 @@ class TestToolCallingWithPrepareArgs:
         result = await rt.Flow("DoubleAgent", agent).ainvoke("double 5")
 
         assert received.get("n") == 5
-        assert "10" in result.content
+        assert "10" in result.text
 
     async def test_multiple_parallel_tool_calls(self, mock_llm):
         calls_made = []
@@ -930,7 +930,7 @@ class TestToolCallingWithPrepareArgs:
         result = await rt.Flow("ToolWithMiddlewareAgent", agent).ainvoke("increment 9")
 
         assert fired["value"]
-        assert "10" in result.content
+        assert "10" in result.text
 
 
 # ---------------------------------------------------------------------------
@@ -957,7 +957,7 @@ class TestCoupleAndComposition:
 
         result = await rt.Flow("CoupledAgent", agent).ainvoke("hi")
 
-        assert "ok" in result.content
+        assert "ok" in result.text
         assert log == ["in", "out"]
 
     async def test_full_stack_composition_order(self, mock_llm):
@@ -1138,7 +1138,7 @@ class TestConcurrencyAndRetryInterplay:
         with patch("railtracks.llm.retries.base.time.sleep"):
             result = await rt.Flow("RetryInterplayAgent", agent).ainvoke("hi")
 
-        assert result.content == "final answer"
+        assert result.text == "final answer"
         assert middleware_attempts["n"] == 1
 
 

@@ -24,7 +24,7 @@ def test_simple_message(mock_llm):
     )
     response = model.chat(mess_hist)
 
-    assert response.message.content == hello_world
+    assert response.message.text == hello_world
     assert response.message.role == "assistant"
 
 
@@ -42,7 +42,7 @@ def test_simple_message_2(mock_llm):
 
     response = model.chat(mess_hist)
 
-    assert response.message.content == hello_world
+    assert response.message.text == hello_world
     assert response.message.role == "assistant"
 
 
@@ -62,7 +62,7 @@ def test_conversation_message(mock_llm):
 
     response = model.chat(mess_hist)
 
-    assert response.message.content == hello_world
+    assert response.message.text == hello_world
     assert response.message.role == "assistant"
 
 

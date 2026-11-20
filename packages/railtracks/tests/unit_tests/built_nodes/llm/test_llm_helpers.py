@@ -29,7 +29,6 @@ from railtracks.llm._exceptions import (
     ProviderTimeoutError,
     RetryError,
 )
-from railtracks.llm.content import ToolResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, UserMessage
 from railtracks.llm.models._model_exception_base import ModelError, ModelNotFoundError
@@ -88,7 +87,7 @@ def test_prepare_called_as_tool_formats_array_param_with_list_value():
 
     history = prepare(items=[1, 2, 3])
 
-    assert "items: 1, 2, 3" in history[0].content
+    assert "items: 1, 2, 3" in history[0].text
 
 
 def test_prepare_called_as_tool_formats_object_param_with_dict_value():
@@ -97,7 +96,7 @@ def test_prepare_called_as_tool_formats_object_param_with_dict_value():
 
     history = prepare(config={"a": 1, "b": 2})
 
-    assert "config: a=1; b=2" in history[0].content
+    assert "config: a=1; b=2" in history[0].text
 
 
 def test_prepare_called_as_tool_formats_string_param_plainly():
@@ -106,7 +105,7 @@ def test_prepare_called_as_tool_formats_string_param_plainly():
 
     history = prepare(x="hello")
 
-    assert "x: hello" in history[0].content
+    assert "x: hello" in history[0].text
 
 
 def test_prepare_called_as_tool_missing_required_param_raises():
@@ -126,8 +125,8 @@ def test_prepare_called_as_tool_skips_missing_optional_param():
 
     history = prepare(city="Paris")
 
-    assert "city: Paris" in history[0].content
-    assert "units" not in history[0].content
+    assert "city: Paris" in history[0].text
+    assert "units" not in history[0].text
 
 
 def test_prepare_called_as_tool_ignores_unknown_arguments():
@@ -265,24 +264,25 @@ async def test_response_without_text_content_raises_llmerror(monkeypatch):
 
     assert "no text content" in exc.value.reason
     assert exc.value.message_history is not None
-    assert exc.value.message_history[-1].content == "hello"
+    assert exc.value.message_history[-1].text == "hello"
 
 
 class _Answer(BaseModel):
     text: str
 
 
+class _Unexpected(BaseModel):
+    value: int
+
+
 @pytest.mark.parametrize(
-    "schema,expected", [(None, "expected str."), (_Answer, "expected str or _Answer.")]
+    "schema,expected",
+    [(None, "expected text."), (_Answer, "expected text or _Answer.")],
 )
 def test_unusable_content_type_raises_llmerror_naming_the_expected_types(
     schema, expected
 ):
-    response = Response(
-        message=AssistantMessage(
-            content=ToolResponse(identifier="1", name="t", result="r")
-        )
-    )
+    response = Response(message=AssistantMessage(content=_Unexpected(value=1)))
     history = MessageHistory([UserMessage("hello")])
 
     with pytest.raises(LLMError, match=re.escape(expected)) as exc:
@@ -431,13 +431,11 @@ async def test_run_tools_preserves_reasoning_and_isolates_history(monkeypatch):
     (so signed thinking survives the loop) while staying a distinct object from the
     Response, which `post_llm` middleware may still mutate."""
     from railtracks.llm import AssistantMessage, Response
-    from railtracks.llm.content import ToolCall, ToolCalls
+    from railtracks.llm.content import ToolCall
 
     blocks = [{"type": "thinking", "thinking": "use the tool", "signature": "sig"}]
     message = AssistantMessage(
-        content=ToolCalls(
-            [ToolCall(identifier="c1", name="t", arguments={})], text="calling"
-        )
+        content=["calling", ToolCall(identifier="c1", name="t", arguments={})]
     )
     message.raw_litellm_message = {"raw": "msg"}
     message.reasoning_content = "use the tool"
@@ -454,6 +452,11 @@ async def test_run_tools_preserves_reasoning_and_isolates_history(monkeypatch):
 
     appended = history[0]
     assert appended is not response.message
+    assert appended.content == [
+        "calling",
+        ToolCall(identifier="c1", name="t", arguments={}),
+    ]
+    assert appended.content[1] is not response.message.content[1]
     assert appended.reasoning_content == "use the tool"
     assert appended.thinking_blocks == blocks
     assert appended.raw_litellm_message == {"raw": "msg"}

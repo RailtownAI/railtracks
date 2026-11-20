@@ -1,7 +1,7 @@
 import pytest
 import railtracks as rt
 from railtracks.exceptions import NodeCreationError
-from railtracks.llm import AssistantMessage, ToolCall, ToolCalls
+from railtracks.llm import AssistantMessage, ToolCall
 from railtracks.llm.message import Role
 from railtracks.llm.response import Response
 
@@ -69,16 +69,14 @@ class TestSimpleToolCalling:
                 )
             return Response(
                 message=AssistantMessage(
-                    content=ToolCalls(
-                        [
-                            ToolCall(
-                                name="secret_phrase",
-                                identifier="id_42424242",
-                                arguments={},
-                            )
-                        ],
-                        text=preamble,
-                    )
+                    content=[
+                        preamble,
+                        ToolCall(
+                            name="secret_phrase",
+                            identifier="id_42424242",
+                            arguments={},
+                        ),
+                    ]
                 )
             )
 
@@ -97,13 +95,11 @@ class TestSimpleToolCalling:
             "test_text_returned_with_tool_call_is_kept", agent
         ).ainvoke("What is the secret phrase?")
 
-        tool_call_messages = [
-            m for m in response.message_history if isinstance(m.content, ToolCalls)
-        ]
+        tool_call_messages = [m for m in response.message_history if m.tool_calls]
         assert len(tool_call_messages) == 1
-        assert tool_call_messages[0].content.text == preamble
-        # the calls themselves are still reachable exactly as before
-        assert [tc.name for tc in tool_call_messages[0].content] == ["secret_phrase"]
+        assert tool_call_messages[0].text == preamble
+        assert tool_call_messages[0].content[0] == preamble
+        assert [tc.name for tc in tool_call_messages[0].tool_calls] == ["secret_phrase"]
 
 
 class TestLimitedToolCalling:
@@ -203,4 +199,4 @@ class TestFunctionNodeCallWithFunctionList:
             )
         )
 
-        assert "92" in result.content
+        assert "92" in result.text

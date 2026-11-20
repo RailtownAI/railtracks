@@ -424,16 +424,13 @@ def test_attachment_raises_not_implemented(fake_sdk):
     silently dropping the image and letting the model hallucinate a
     description of something it never saw.
     """
-    from railtracks.llm import MessageHistory, UserMessage
+    from railtracks.llm import Attachment, MessageHistory, UserMessage
 
     mod = _import_apple_fm_llm()
     llm = mod.AppleFMLLM()
 
-    # A stubbed attachment on the message — real Attachment construction
-    # requires a valid file path, so hand the UserMessage an object with
-    # the same duck-typed shape.
-    msg = UserMessage(content="what is this?")
-    msg.attachment = [object()]
+    image = Attachment.from_bytes(b"\x89PNG\r\n\x1a\n" + bytes(32), filename="x.png")
+    msg = UserMessage(["what is this?", image])
     history = MessageHistory([msg])
 
     async def run():
