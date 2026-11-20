@@ -270,9 +270,18 @@ class TestAttachment:
         "path",
         ["//server/share/photo", "//NAS/photos/IMG0001", "//usr/share/sounds/beep"],
     )
-    def test_slash_slash_path_is_not_read_as_base64(self, path):
+    def test_slash_slash_path_is_not_read_as_base64(self, path, monkeypatch):
+        """Keep UNC paths on the file branch without looking up a network share."""
+        read_paths = []
+
+        def missing_file(file_path: str) -> bytes:
+            read_paths.append(file_path)
+            raise FileNotFoundError(file_path)
+
+        monkeypatch.setattr(message_module, "read_file", missing_file)
         with pytest.raises(FileNotFoundError):
             Attachment(path)
+        assert read_paths == [path]
 
     @pytest.mark.parametrize(
         "path", ["s3://bucket/a.png", "gs://bucket/a.png", "az://container/a.png"]
