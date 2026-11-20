@@ -270,9 +270,19 @@ class TestAttachment:
         "path",
         ["//server/share/photo", "//NAS/photos/IMG0001", "//usr/share/sounds/beep"],
     )
-    def test_slash_slash_path_is_not_read_as_base64(self, path):
+    def test_slash_slash_path_is_not_read_as_base64(self, path, monkeypatch):
+        # On Windows these are UNC paths, so a real read would query the network.
+        read_paths = []
+
+        def fake_read_file(p):
+            read_paths.append(p)
+            raise FileNotFoundError(p)
+
+        monkeypatch.setattr(message_module, "read_file", fake_read_file)
+        assert message_module.decode_base64_attachment(path) is None
         with pytest.raises(FileNotFoundError):
             Attachment(path)
+        assert read_paths == [path]
 
     @pytest.mark.parametrize(
         "path", ["s3://bucket/a.png", "gs://bucket/a.png", "az://container/a.png"]
