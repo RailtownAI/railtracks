@@ -6,8 +6,13 @@ import warnings
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, Optional
 
-from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.content_extraction import labelled_join
+from railtracks.retrieval.loaders.base import (
+    RENAMED_ARGUMENTS_GUIDE,
+    BaseDocumentLoader,
+)
 from railtracks.retrieval.models import Document, DocumentType
+from railtracks.utils.deprecation import renamed_kwargs
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
@@ -54,40 +59,55 @@ class SQLLoader(BaseDocumentLoader):
                (``[A-Za-z_][A-Za-z0-9_$]*``) at construction time. Never
                pass user-controlled strings here.
 
-        content_column: Name of the column whose value becomes
-            :attr:`Document.content`.
-        keys: Explicit list of ``id_column`` values to load. When set,
+        content_columns: Column, or list of columns, whose values become
+            :attr:`Document.content`. A single column name gives that column's
+            value as-is; a list gives ``"col: value"`` lines joined with
+            ``content_separator``, as in :class:`CSVLoader`.
+        ids: Explicit list of ``id_column`` values to load. When set,
             ``id_column`` must also be provided. When ``None`` (default), all
             rows are loaded.
         metadata_columns: Column names to include in :attr:`Document.metadata`.
-            When ``None`` all columns except ``content_column`` and
+            When ``None`` all columns except ``content_columns`` and
             ``id_column`` are included.
         id_column: Column whose value is preserved in :attr:`Document.source`
             (when ``source_column`` is not set) and used as the lookup key for
-            ``keys`` filtering. :attr:`Document.id` is always an auto-generated
+            ``ids`` filtering. :attr:`Document.id` is always an auto-generated
             UUID regardless of this value.
         source_column: Column to use as :attr:`Document.source`. Falls back
             to ``id_column`` when ``None``.
+        content_separator: String used to join the content-column lines.
+            Defaults to ``"\\n"``.
         engine: An existing ``sqlalchemy.Engine`` instance.
         engine_kwargs: Extra keyword arguments forwarded to
             ``sqlalchemy.create_engine()``.
 
     Raises:
         ImportError: If ``sqlalchemy`` is not installed.
-        ValueError: If an identifier argument contains unsafe characters, or
-            if ``keys`` is provided without an ``id_column``.
+        TypeError: If ``content_column`` or ``keys``, the deprecated names for
+            ``content_columns`` and ``ids`` (removed in 2.0.0), is passed
+            together with its replacement.
+        ValueError: If ``content_columns`` is empty, an identifier argument
+            contains unsafe characters, or ``ids`` is provided without an
+            ``id_column``.
     """
 
+    @renamed_kwargs(
+        content_column="content_columns",
+        keys="ids",
+        version="2.0.0",
+        guide=RENAMED_ARGUMENTS_GUIDE,
+    )
     def __init__(
         self,
         connection_string: str,
         table_or_query: str,
-        content_column: str,
+        content_columns: str | list[str],
         *,
-        keys: Optional[list[str]] = None,
+        ids: Optional[list[str]] = None,
         metadata_columns: Optional[list[str]] = None,
         id_column: Optional[str] = None,
         source_column: Optional[str] = None,
+        content_separator: str = "\n",
         engine: Optional[Engine] = None,
         engine_kwargs: Optional[dict[str, Any]] = None,
     ) -> None:
@@ -99,27 +119,37 @@ class SQLLoader(BaseDocumentLoader):
                 "Install it via `pip install railtracks[sql]` or `uv add railtracks[sql]`."
             )
 
-        self._content_column = content_column
+        self._single_column = isinstance(content_columns, str)
+        self._content_columns = (
+            [content_columns]
+            if isinstance(content_columns, str)
+            else list(content_columns)
+        )
+        if not self._content_columns:
+            raise ValueError(
+                "SQLLoader() needs at least one column in 'content_columns'."
+            )
+        self._content_separator = content_separator
         self._metadata_columns = metadata_columns
         self._id_column = id_column
         self._source_column = source_column
         self._table_or_query = table_or_query
         self._is_raw_query = _looks_like_query(table_or_query)
-        self._keys = list(keys) if keys is not None else None
+        self._ids = list(ids) if ids is not None else None
 
-        if self._keys is not None and id_column is None:
-            raise ValueError("An 'id_column' must be set when filtering by 'keys'.")
+        if self._ids is not None and id_column is None:
+            raise ValueError("An 'id_column' must be set when filtering by 'ids'.")
 
         if not self._is_raw_query:
             _validate_identifier(table_or_query, "table_or_query")
-        _validate_identifier(content_column, "content_column")
-        if id_column is not None:
-            _validate_identifier(id_column, "id_column")
-        if source_column is not None:
-            _validate_identifier(source_column, "source_column")
-        if metadata_columns is not None:
-            for col in metadata_columns:
-                _validate_identifier(col, f"metadata_columns[{col!r}]")
+        columns: list[tuple[str | None, str]] = [
+            (c, f"content_columns[{c!r}]") for c in self._content_columns
+        ]
+        columns += [(id_column, "id_column"), (source_column, "source_column")]
+        columns += [(c, f"metadata_columns[{c!r}]") for c in metadata_columns or []]
+        for column, label in columns:
+            if column is not None:
+                _validate_identifier(column, label)
 
         self._owns_engine = engine is None
         if engine is not None:
@@ -149,19 +179,26 @@ class SQLLoader(BaseDocumentLoader):
         self.close()
 
     def _row_to_document(self, row: dict[str, Any]) -> Document:
-        if self._content_column not in row:
+        missing = [col for col in self._content_columns if col not in row]
+        if missing:
             available = sorted(row.keys())
             raise ValueError(
-                f"content_column {self._content_column!r} was not found in the "
+                f"content_columns {missing} were not found in the "
                 f"query results. Available columns: {available}. "
-                "Check that 'content_column' matches a column returned by the query."
+                "Check that 'content_columns' matches columns returned by the query."
             )
-        content = str(row[self._content_column])
+        if self._single_column:
+            content = str(row[self._content_columns[0]])
+        else:
+            content = labelled_join(
+                ((col, str(row[col])) for col in self._content_columns),
+                self._content_separator,
+            )
 
         if self._metadata_columns is not None:
             meta = {col: row[col] for col in self._metadata_columns if col in row}
         else:
-            excluded = {self._content_column}
+            excluded = set(self._content_columns)
             if self._id_column:
                 excluded.add(self._id_column)
             meta = {k: v for k, v in row.items() if k not in excluded}
@@ -194,7 +231,7 @@ class SQLLoader(BaseDocumentLoader):
             result = conn.execute(stmt)
             return [dict(row._mapping) for row in result]
 
-    def _fetch_by_ids(self, keys: list[str]) -> list[dict[str, Any]]:
+    def _fetch_by_ids(self, ids: list[str]) -> list[dict[str, Any]]:
         import sqlalchemy as sa
 
         if self._is_raw_query:
@@ -210,14 +247,14 @@ class SQLLoader(BaseDocumentLoader):
             ).bindparams(sa.bindparam("keys", expanding=True))
 
         with self._engine.connect() as conn:
-            result = conn.execute(stmt, {"keys": keys})
+            result = conn.execute(stmt, {"keys": ids})
             return [dict(row._mapping) for row in result]
 
     def _fetch_rows(self) -> list[dict[str, Any]]:
-        if self._keys is not None:
-            if not self._keys:
+        if self._ids is not None:
+            if not self._ids:
                 return []
-            return self._fetch_by_ids(self._keys)
+            return self._fetch_by_ids(self._ids)
         return self._fetch_all()
 
     async def astream(self) -> AsyncGenerator[Document, None]:

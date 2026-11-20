@@ -89,8 +89,8 @@ Loaders accept their scope in the constructor:
 
 - `prefix=` — load every object/blob/row whose key starts with the prefix
   (recursive — nested "folders" such as `docs/A/B.txt` are included).
-- `keys=` — load an explicit list of keys (S3/GCS/Azure) or `id_column`
-  values (SQL).
+- `keys=` — load an explicit list of object keys (S3/GCS/Azure).
+- `ids=` — load an explicit list of `id_column` values (SQL).
 
 ```python
 S3Loader("my-bucket", prefix="docs/")

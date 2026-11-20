@@ -84,7 +84,7 @@ Additionally you can decide what you want to use as a _separator_ for merging co
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `file_path` | `str` | required | Path to a `.csv` file or directory |
-| `content_columns` | `list[str] | None` | `None` | Columns joined into `content`. `None` = all columns. |
+| `content_columns` | `str \| list[str] \| None` | `None` | Column, or columns, that form `content`. A single name gives the raw value; a list gives `col: value` lines. `None` = all columns. |
 | `ignore_columns` | `list[str] | None` | `None` | Columns dropped entirely |
 | `content_separator` | `str` | `"\n"` | Used to join content-column values |
 | `encoding` | `str` | `"utf-8-sig"` | File encoding |
@@ -126,10 +126,10 @@ For `.jsonl`:
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `file_path` | `str` | required | Path to a `.json` / `.jsonl` file, or a directory containing them |
-| `content_keys` | `list[str] \| "*"` | `"*"` | Keys whose values form `content`. `"*"` serialises the whole object. |
-| `id_key` | `str \| None` | `None` | Top-level key whose value is the per-object id in `Document.source`. Falls back to position (array index or JSONL line). |
-| `ignore_keys` | `list[str] \| None` | `None` | Keys dropped entirely |
-| `content_separator` | `str` | `"\n"` | Used to join content-key values |
+| `content_columns` | `str \| list[str]` | `"*"` | Keys whose values form `content`. `"*"` serialises the whole object; a single key name gives the raw value; a list gives `key: value` lines. |
+| `id_column` | `str \| None` | `None` | Top-level key whose value is the per-object id in `Document.source`. Falls back to position (array index or JSONL line). |
+| `ignore_columns` | `list[str] \| None` | `None` | Keys dropped entirely |
+| `content_separator` | `str` | `"\n"` | Used to join content values |
 | `encoding` | `str` | `"utf-8-sig"` | File encoding |
 | `content_extractor` | `ContentExtractor \| None` | `None` | Converts selected values to text. Omitted preserves existing serialization. |
 
@@ -333,7 +333,7 @@ For gated datasets set `HF_TOKEN` in your environment, or pass
 |---|---|---|---|
 | `dataset_name` | `str` | required | Dataset name on the Hub |
 | `split` | `str` | required | Split to stream (`"train"`, `"validation"`, etc.) |
-| `content_columns` | `list[str]` | required | Columns joined into `content`. Must be non-empty. |
+| `content_columns` | `str \| list[str]` | required | Column, or columns, joined into `content`. Must be non-empty. |
 | `metadata_columns` | `list[str] \| None` | `None` | Columns copied into `metadata` |
 | `content_separator` | `str` | `"\n"` | Used to join `content_columns` values |
 | `dataset_kwargs` | `dict \| None` | `None` | Forwarded to `datasets.load_dataset` |
@@ -357,7 +357,7 @@ For example, the `passages` column in `ms_marco` is structured. The
 remain visible in the extracted text, including `is_selected` flags and raw URLs. For retrieval focused on passage content, use a custom extractor that selects only `passage_text`. Extractors apply only to content fields;
 `metadata_columns` stay as their original Python values.
 
-An extraction failure raises a `ValueError` naming the content column or key, zero-based row or object index, and source; the original exception is preserved as the cause. `JSONLoader.astream()` yields it as a `LoadFailure` for that file (objects before it are kept, the rest of the file is skipped) and moves on to the next file, while `load()` and `aload()` raise it. The Hugging Face loader reads a single stream that can't resume, so there the error still stops loading. For `JSONLoader(content_keys="*")`, the reported key is `"*"` because the extractor receives the entire filtered object.
+An extraction failure raises a `ValueError` naming the content column or key, zero-based row or object index, and source; the original exception is preserved as the cause. `JSONLoader.astream()` yields it as a `LoadFailure` for that file (objects before it are kept, the rest of the file is skipped) and moves on to the next file, while `load()` and `aload()` raise it. The Hugging Face loader reads a single stream that can't resume, so there the error still stops loading. For `JSONLoader(content_columns="*")`, the reported key is `"*"` because the extractor receives the entire filtered object.
 
 ---
 # LangChain Loaders
@@ -500,6 +500,23 @@ Set `Document.source` to something stable: a path, a URL, a primary key.
 The runtime hashes content and pairs it with `source` to skip re-ingest
 of unchanged documents. Without a stable `source`, every run looks
 "new" and you pay for embedding the same content repeatedly.
+
+---
+
+## Renamed arguments
+
+Some loader arguments were renamed so the same idea has the same name across loaders. The old names still work but emit a `FutureWarning`, and they are removed in railtracks 2.0.0. Passing both the old and the new name raises a `TypeError`.
+
+| Loader | Old name | New name |
+|---|---|---|
+| `JSONLoader` | `content_keys` | `content_columns` |
+| `JSONLoader` | `id_key` | `id_column` |
+| `JSONLoader` | `ignore_keys` | `ignore_columns` |
+| [`SQLLoader`](../../../integrations/storage/sql.md) | `content_column` | `content_columns` (also accepts a list) |
+| [`SQLLoader`](../../../integrations/storage/sql.md) | `keys` | `ids` |
+| [`GCSLoader`](../../../integrations/storage/gcs.md) | `bucket_name` | `bucket` |
+| [`AzureBlobLoader`](../../../integrations/storage/azure_blob.md) | `container_name` | `container` |
+| `S3Loader`, `GCSLoader`, `AzureBlobLoader` | `pdf_breakdown_strategy` | `breakdown_strategy` |
 
 ---
 

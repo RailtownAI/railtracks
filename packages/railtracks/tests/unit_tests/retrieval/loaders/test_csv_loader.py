@@ -77,6 +77,16 @@ class TestCSVLoaderContentColumns:
         docs = await CSVLoader(str(csv_file), content_columns=["name"]).aload()
         assert "name" not in docs[0].metadata
 
+    async def test_single_column_string_gives_the_raw_value(self, csv_file):
+        """A bare column name is used as-is, not split into characters or labelled."""
+        docs = await CSVLoader(str(csv_file), content_columns="name").aload()
+        assert [d.content for d in docs] == ["Alice", "Bob"]
+        assert "name" not in docs[0].metadata
+
+    async def test_single_column_list_is_labelled(self, csv_file):
+        docs = await CSVLoader(str(csv_file), content_columns=["name"]).aload()
+        assert docs[0].content == "name: Alice"
+
     async def test_unknown_content_column_raises_value_error(self, csv_file):
         """A content_column that does not exist in the CSV raises ValueError."""
         loader = CSVLoader(str(csv_file), content_columns=["nonexistent"])
