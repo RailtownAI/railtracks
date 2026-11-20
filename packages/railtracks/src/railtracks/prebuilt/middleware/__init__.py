@@ -7,6 +7,7 @@ from railtracks.prebuilt.middleware.context_injection import ContextInjection
 from railtracks.prebuilt.middleware.conversation_memory import (
     ConversationMemory,
 )
+from railtracks.prebuilt.middleware.fallback import Fallback
 from railtracks.prebuilt.middleware.lock import Lock
 from railtracks.prebuilt.middleware.max_calls import MaxCalls, MaxCallsExceededError
 from railtracks.prebuilt.middleware.post_verifier import post_verifier
@@ -19,6 +20,7 @@ __all__ = [
     "ConversationMemory",
     "pre_verifier",
     "post_verifier",
+    "Fallback",
     "Lock",
     "MaxCalls",
     "MaxCallsExceededError",
