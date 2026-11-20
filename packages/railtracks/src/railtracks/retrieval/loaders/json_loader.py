@@ -4,16 +4,20 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
-from railtracks.retrieval.content_extraction import ContentExtractor, JsonExtractor
+from railtracks.retrieval.content_extraction import (
+    ContentExtractor,
+    JsonExtractor,
+    labelled_join,
+)
 from railtracks.retrieval.loaders.base import (
     RENAMED_ARGUMENTS_GUIDE,
     BaseDocumentLoader,
 )
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
-from railtracks.utils.deprecation import renamed_argument
+from railtracks.utils.deprecation import renamed_kwargs
 
 
 class JSONLoader(BaseDocumentLoader):
@@ -39,11 +43,11 @@ class JSONLoader(BaseDocumentLoader):
     Args:
         file_path: Path to a `.json` / `.jsonl` file, or a directory
             containing them.
-        content_columns: Keys whose values are concatenated to form
-            `Document.content`. Use `"*"` (default) to serialise the entire
-            object as content. Pass an explicit list to control which fields
-            become content — all remaining non-ignored fields are added to
-            `Document.metadata`.
+        content_columns: Keys whose values form `Document.content`. Use
+            `"*"` (default) to serialise the entire object as content. A
+            single key name gives that key's value as-is; a list gives
+            `"key: value"` lines joined with `content_separator`. All
+            remaining non-ignored fields are added to `Document.metadata`.
         id_column: Top-level key whose value uniquely identifies an object
             (e.g. `"id"`, `"_id"`). Used as the object id in
             `Document.source`. Default: `None` (fall back to the object's
@@ -58,13 +62,12 @@ class JSONLoader(BaseDocumentLoader):
             into text. When omitted, the loader preserves its existing JSON
             serialization for `content_columns="*"` and `str(value)` behavior
             for explicit keys.
-        content_keys: Deprecated alias for `content_columns`, removed in 2.0.0.
-        id_key: Deprecated alias for `id_column`, removed in 2.0.0.
-        ignore_keys: Deprecated alias for `ignore_columns`, removed in 2.0.0.
 
     Raises:
         FileNotFoundError: If `file_path` does not exist.
-        TypeError: If a deprecated alias is passed together with its
+        TypeError: If `content_keys`, `id_key` or `ignore_keys`, the
+            deprecated names for `content_columns`, `id_column` and
+            `ignore_columns` (removed in 2.0.0), is passed together with its
             replacement.
         ValueError: If `file_path` points to a file with an unsupported
             extension, the JSON/JSONL structure does not match the format
@@ -74,50 +77,31 @@ class JSONLoader(BaseDocumentLoader):
             object, or a content extractor fails (with key, index, and source).
     """
 
+    @renamed_kwargs(
+        content_keys="content_columns",
+        id_key="id_column",
+        ignore_keys="ignore_columns",
+        version="2.0.0",
+        guide=RENAMED_ARGUMENTS_GUIDE,
+    )
     def __init__(
         self,
         file_path: str,
-        content_columns: list[str] | Literal["*"] = "*",
+        content_columns: str | list[str] = "*",
         id_column: str | None = None,
         ignore_columns: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
         content_extractor: ContentExtractor | None = None,
-        *,
-        content_keys: list[str] | Literal["*"] | None = None,
-        id_key: str | None = None,
-        ignore_keys: list[str] | None = None,
     ) -> None:
-        content_columns = renamed_argument(
-            "JSONLoader",
-            old="content_keys",
-            new="content_columns",
-            old_value=content_keys,
-            new_value=content_columns,
-            unset="*",
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
-        id_column = renamed_argument(
-            "JSONLoader",
-            old="id_key",
-            new="id_column",
-            old_value=id_key,
-            new_value=id_column,
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
-        ignore_columns = renamed_argument(
-            "JSONLoader",
-            old="ignore_keys",
-            new="ignore_columns",
-            old_value=ignore_keys,
-            new_value=ignore_columns,
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
         self._path = Path(file_path)
-        self._content_columns = content_columns
+        self._all_content = content_columns == "*"
+        self._single_column = isinstance(content_columns, str)
+        self._content_columns = (
+            [content_columns]
+            if isinstance(content_columns, str)
+            else list(content_columns)
+        )
         self._id_column = id_column
         self._ignore_columns = set(ignore_columns or [])
         self._content_separator = content_separator
@@ -148,7 +132,7 @@ class JSONLoader(BaseDocumentLoader):
             ValueError: If any key in `content_columns` or `id_column` is not
                 present in `obj`.
         """
-        if self._content_columns == "*":
+        if self._all_content:
             content_value = {
                 k: v for k, v in obj.items() if k not in self._ignore_columns
             }
@@ -162,10 +146,14 @@ class JSONLoader(BaseDocumentLoader):
                 raise ValueError(
                     f"content_columns {unknown} not found in object at index {index} in {source_prefix}"
                 )
-            content = self._content_separator.join(
-                f"{k}: {self._extract_content(obj[k], str, k, source_prefix, index)}"
+            texts = [
+                (k, self._extract_content(obj[k], str, k, source_prefix, index))
                 for k in self._content_columns
-            )
+            ]
+            if self._single_column:
+                content = texts[0][1]
+            else:
+                content = labelled_join(texts, self._content_separator)
             content_column_set = set(self._content_columns)
             metadata = {
                 k: v

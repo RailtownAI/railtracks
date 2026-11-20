@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import inspect
 import warnings
 
 import pytest
 from railtracks.utils.deprecation import (
     NEXT_VERSION,
     UPGRADE_GUIDE,
-    renamed_argument,
+    renamed_kwargs,
     warn_pending_change,
 )
 
@@ -42,75 +43,79 @@ def test_warn_pending_change_links_given_guide():
     assert UPGRADE_GUIDE not in message
 
 
+GUIDE = "https://docs.example.org/renames/"
+
+
 class _Widget:
-    def __init__(self, new: str | None = None, *, old: str | None = None) -> None:
-        self.value = renamed_argument(
-            "_Widget",
-            old="old",
-            new="new",
-            old_value=old,
-            new_value=new,
-            version="2.0.0",
-        )
+    @renamed_kwargs(old="new", stale="mode", version="2.0.0", guide=GUIDE)
+    def __init__(self, new: str, *, mode: str = "default") -> None:
+        self.value = new
+        self.mode = mode
 
 
-def test_renamed_argument_returns_new_value_silently():
+def test_renamed_kwargs_new_name_is_silent():
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         assert _Widget(new="x").value == "x"
 
 
-def test_renamed_argument_returns_old_value_with_warning():
+def test_renamed_kwargs_forwards_old_name_with_warning():
     with pytest.warns(FutureWarning) as record:
         widget = _Widget(old="x")
 
     assert widget.value == "x"
     message = str(record[0].message)
-    assert "_Widget(old=...)" in message
-    assert "2.0.0" in message
+    assert "_Widget(old=...) is removed in railtracks 2.0.0." in message
     assert "Use new= instead." in message
+    assert GUIDE in message
+    assert UPGRADE_GUIDE not in message
 
 
-def test_renamed_argument_warning_points_at_the_caller():
+def test_renamed_kwargs_warning_points_at_the_calling_line():
     with pytest.warns(FutureWarning) as record:
+        line = inspect.currentframe().f_lineno + 1
         _Widget(old="x")
 
     assert record[0].filename == __file__
+    assert record[0].lineno == line
 
 
-def test_renamed_argument_rejects_both_names():
-    with pytest.raises(TypeError, match="old.*new"):
+def test_renamed_kwargs_rejects_both_names_by_keyword():
+    with pytest.raises(TypeError, match=r"_Widget\(\) got both old= and new="):
         _Widget(new="x", old="y")
 
 
-def test_renamed_argument_treats_new_default_as_unset():
-    with pytest.warns(FutureWarning):
-        value = renamed_argument(
-            "Thing",
-            old="old",
-            new="new",
-            old_value="y",
-            new_value="*",
-            unset="*",
-            stacklevel=3,
-        )
-
-    assert value == "y"
+def test_renamed_kwargs_rejects_old_name_with_new_name_by_position():
+    with pytest.raises(TypeError, match="old=.*new="):
+        _Widget("x", old="y")
 
 
-def test_renamed_argument_passes_guide_through():
-    guide = "https://docs.example.org/renames/"
+def test_renamed_kwargs_rejects_both_names_when_new_is_at_its_default():
+    with pytest.raises(TypeError, match="stale=.*mode="):
+        _Widget("x", mode="default", stale="other")
+
+
+def test_renamed_kwargs_keeps_required_arguments_required():
+    with pytest.raises(TypeError, match="new"):
+        _Widget()
+
+
+def test_renamed_kwargs_handles_each_rename_independently():
     with pytest.warns(FutureWarning) as record:
-        renamed_argument(
-            "Thing",
-            old="old",
-            new="new",
-            old_value="y",
-            new_value=None,
-            guide=guide,
-            stacklevel=3,
-        )
+        widget = _Widget(old="x", stale="other")
+
+    assert (widget.value, widget.mode) == ("x", "other")
+    assert len(record) == 2
+
+
+def test_renamed_kwargs_defaults_to_next_version_and_upgrade_guide():
+    @renamed_kwargs(before="after")
+    def func(*, after: int) -> int:
+        return after
+
+    with pytest.warns(FutureWarning) as record:
+        assert func(before=1) == 1
 
     message = str(record[0].message)
-    assert guide in message
-    assert UPGRADE_GUIDE not in message
+    assert f"railtracks {NEXT_VERSION}" in message
+    assert UPGRADE_GUIDE in message

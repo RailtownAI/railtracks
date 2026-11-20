@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -168,3 +169,9 @@ class TestGCSLoaderRenamedArguments:
         with patch_gcs(make_gcs_client_for_loading({})):
             with pytest.raises(TypeError, match="bucket"):
                 GCSLoader()
+
+    def test_bucket_is_required_in_the_signature(self) -> None:
+        from railtracks.retrieval.loaders.cloud.gcs import GCSLoader
+
+        parameter = inspect.signature(GCSLoader).parameters["bucket"]
+        assert parameter.default is inspect.Parameter.empty

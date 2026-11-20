@@ -5,7 +5,7 @@ from typing import Any, Optional
 from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
 from railtracks.retrieval.loaders.base import RENAMED_ARGUMENTS_GUIDE
 from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
-from railtracks.utils.deprecation import renamed_argument
+from railtracks.utils.deprecation import renamed_kwargs
 
 
 def _ensure_credential(credential: Optional[Any]) -> Any:
@@ -58,30 +58,31 @@ class AzureBlobLoader(ObjectStoreLoader):
         breakdown_strategy: How to split each PDF into ``Document`` objects,
             as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
             ``"document"``.
-        pdf_breakdown_strategy: Deprecated alias for ``breakdown_strategy``,
-            removed in 2.0.0.
-        container_name: Deprecated alias for ``container``, removed in
-            2.0.0.
 
     Raises:
         ImportError: If ``azure-storage-blob`` or ``azure-identity`` are not installed.
-        TypeError: If ``container`` is missing, or a deprecated alias is
-            passed together with its replacement.
+        TypeError: If ``container_name`` or ``pdf_breakdown_strategy``, the
+            deprecated names for ``container`` and ``breakdown_strategy``
+            (removed in 2.0.0), is passed together with its replacement.
         ValueError: If ``breakdown_strategy`` is not a known strategy.
     """
 
+    @renamed_kwargs(
+        container_name="container",
+        pdf_breakdown_strategy="breakdown_strategy",
+        version="2.0.0",
+        guide=RENAMED_ARGUMENTS_GUIDE,
+    )
     def __init__(
         self,
         account_url: str,
-        container: Optional[str] = None,
+        container: str,
         *,
         prefix: Optional[str] = None,
         keys: Optional[list[str]] = None,
         credential: Optional[Any] = None,
         encoding: str = "utf-8",
         breakdown_strategy: BreakdownStrategy = "page",
-        pdf_breakdown_strategy: Optional[BreakdownStrategy] = None,
-        container_name: Optional[str] = None,
     ) -> None:
         try:
             from azure.storage.blob import ContainerClient
@@ -93,27 +94,6 @@ class AzureBlobLoader(ObjectStoreLoader):
 
         credential = _ensure_credential(credential)
 
-        container = renamed_argument(
-            "AzureBlobLoader",
-            old="container_name",
-            new="container",
-            old_value=container_name,
-            new_value=container,
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
-        if container is None:
-            raise TypeError("AzureBlobLoader() missing required argument: 'container'")
-        breakdown_strategy = renamed_argument(
-            "AzureBlobLoader",
-            old="pdf_breakdown_strategy",
-            new="breakdown_strategy",
-            old_value=pdf_breakdown_strategy,
-            new_value=breakdown_strategy,
-            unset="page",
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
         super().__init__(
             prefix=prefix,
             keys=keys,

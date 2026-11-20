@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import sys
 
 import pytest
@@ -235,11 +236,19 @@ class TestSQLLoaderContentColumns:
         contents = {d.content for d in loader.load()}
         assert contents == {f"title: {r['title']}\nbody: {r['body']}" for r in ROWS}
 
-    def test_single_column_in_a_list_is_not_labelled(self, populated_engine) -> None:
+    def test_single_column_string_is_not_labelled(self, populated_engine) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        loader = SQLLoader("", "documents", "body", engine=populated_engine)
+        assert {d.content for d in loader.load()} == {r["body"] for r in ROWS}
+
+    def test_single_column_in_a_list_is_labelled(self, populated_engine) -> None:
         from railtracks.retrieval.loaders.cloud.sql import SQLLoader
 
         loader = SQLLoader("", "documents", ["body"], engine=populated_engine)
-        assert {d.content for d in loader.load()} == {r["body"] for r in ROWS}
+        assert {d.content for d in loader.load()} == {
+            f"body: {r['body']}" for r in ROWS
+        }
 
     def test_all_content_columns_excluded_from_metadata(self, populated_engine) -> None:
         from railtracks.retrieval.loaders.cloud.sql import SQLLoader
@@ -269,6 +278,12 @@ class TestSQLLoaderContentColumns:
 
 
 class TestSQLLoaderRenamedArguments:
+    def test_content_columns_is_required_in_the_signature(self) -> None:
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        parameter = inspect.signature(SQLLoader).parameters["content_columns"]
+        assert parameter.default is inspect.Parameter.empty
+
     def test_content_column_keyword_warns(self, populated_engine) -> None:
         from railtracks.retrieval.loaders.cloud.sql import SQLLoader
 

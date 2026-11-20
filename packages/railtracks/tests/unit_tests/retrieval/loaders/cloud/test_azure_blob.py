@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -176,3 +177,17 @@ class TestAzureBlobLoaderRenamedArguments:
         with patch_azure(make_container_client_for_loading({})):
             with pytest.raises(TypeError, match="container"):
                 AzureBlobLoader(ACCOUNT_URL)
+
+    def test_missing_container_raises_before_building_a_credential(self) -> None:
+        from railtracks.retrieval.loaders.cloud import azure_blob
+
+        with patch.object(azure_blob, "_ensure_credential") as ensure_credential:
+            with pytest.raises(TypeError, match="container"):
+                azure_blob.AzureBlobLoader(ACCOUNT_URL)
+        ensure_credential.assert_not_called()
+
+    def test_container_is_required_in_the_signature(self) -> None:
+        from railtracks.retrieval.loaders.cloud.azure_blob import AzureBlobLoader
+
+        parameter = inspect.signature(AzureBlobLoader).parameters["container"]
+        assert parameter.default is inspect.Parameter.empty

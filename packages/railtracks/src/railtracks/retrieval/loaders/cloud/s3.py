@@ -5,7 +5,7 @@ from typing import Any, Optional
 from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
 from railtracks.retrieval.loaders.base import RENAMED_ARGUMENTS_GUIDE
 from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
-from railtracks.utils.deprecation import renamed_argument
+from railtracks.utils.deprecation import renamed_kwargs
 
 
 class S3Loader(ObjectStoreLoader):
@@ -45,13 +45,11 @@ class S3Loader(ObjectStoreLoader):
         breakdown_strategy: How to split each PDF into ``Document`` objects,
             as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
             ``"document"``.
-        pdf_breakdown_strategy: Deprecated alias for ``breakdown_strategy``,
-            removed in 2.0.0.
 
     Raises:
         ImportError: If ``boto3`` is not installed.
-        TypeError: If a deprecated alias is passed together with its
-            replacement.
+        TypeError: If ``pdf_breakdown_strategy``, the deprecated name for
+            ``breakdown_strategy`` (removed in 2.0.0), is passed together with it.
         ValueError: If ``breakdown_strategy`` is not a known strategy.
 
     Example::
@@ -69,6 +67,11 @@ class S3Loader(ObjectStoreLoader):
             ...
     """
 
+    @renamed_kwargs(
+        pdf_breakdown_strategy="breakdown_strategy",
+        version="2.0.0",
+        guide=RENAMED_ARGUMENTS_GUIDE,
+    )
     def __init__(
         self,
         bucket: str,
@@ -82,7 +85,6 @@ class S3Loader(ObjectStoreLoader):
         endpoint_url: Optional[str] = None,
         encoding: str = "utf-8",
         breakdown_strategy: BreakdownStrategy = "page",
-        pdf_breakdown_strategy: Optional[BreakdownStrategy] = None,
     ) -> None:
         try:
             import boto3
@@ -92,16 +94,6 @@ class S3Loader(ObjectStoreLoader):
                 "Install it via `pip install railtracks[aws]` or `uv add railtracks[aws]`."
             )
 
-        breakdown_strategy = renamed_argument(
-            "S3Loader",
-            old="pdf_breakdown_strategy",
-            new="breakdown_strategy",
-            old_value=pdf_breakdown_strategy,
-            new_value=breakdown_strategy,
-            unset="page",
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
         super().__init__(
             prefix=prefix,
             keys=keys,

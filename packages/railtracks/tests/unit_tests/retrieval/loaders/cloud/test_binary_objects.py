@@ -172,6 +172,20 @@ class TestPdfObjects:
             ):
                 pass
 
+    def test_old_breakdown_strategy_with_new_at_its_default_raises(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        with pytest.raises(
+            TypeError, match="pdf_breakdown_strategy.*breakdown_strategy"
+        ):
+            with make_loader(
+                {}, breakdown_strategy="page", pdf_breakdown_strategy="document"
+            ):
+                pass
+
     def test_invalid_breakdown_strategy_raises(
         self,
         make_loader: LoaderFactory,

@@ -120,6 +120,31 @@ class TestJSONLoaderContentColumns:
             await loader.aload()
 
 
+class TestJSONLoaderSingleContentColumn:
+    """A bare key name gives the raw value; a list gives labelled lines."""
+
+    async def test_single_key_string_gives_the_raw_value(self, json_object_file):
+        docs = await JSONLoader(str(json_object_file), content_columns="body").aload()
+        assert docs[0].content == "Content here"
+        assert docs[0].metadata == {"title": "Doc", "score": 42, "index": 0}
+
+    async def test_single_key_list_is_labelled(self, json_object_file):
+        docs = await JSONLoader(str(json_object_file), content_columns=["body"]).aload()
+        assert docs[0].content == "body: Content here"
+
+    async def test_single_key_string_uses_the_content_extractor(self, json_object_file):
+        docs = await JSONLoader(
+            str(json_object_file),
+            content_columns="score",
+            content_extractor=lambda value: f"<{value}>",
+        ).aload()
+        assert docs[0].content == "<42>"
+
+    async def test_missing_single_key_raises(self, json_object_file):
+        with pytest.raises(ValueError, match=r"content_columns \['nope'\]"):
+            await JSONLoader(str(json_object_file), content_columns="nope").aload()
+
+
 class TestJSONLoaderIdColumn:
     """Tests for the id_column parameter (per-object source identity)."""
 
@@ -444,6 +469,12 @@ class TestJSONLoaderRenamedArguments:
     def test_passing_both_names_raises(self, json_object_file, old, new, value):
         with pytest.raises(TypeError, match=rf"{old}.*{new}"):
             JSONLoader(str(json_object_file), **{old: value, new: value})
+
+    def test_old_name_with_new_name_at_its_default_raises(self, json_object_file):
+        with pytest.raises(TypeError, match="content_keys.*content_columns"):
+            JSONLoader(
+                str(json_object_file), content_columns="*", content_keys=["title"]
+            )
 
     def test_new_names_are_silent(self, json_object_file, recwarn):
         JSONLoader(

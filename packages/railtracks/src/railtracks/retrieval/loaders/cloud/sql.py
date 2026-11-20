@@ -6,12 +6,13 @@ import warnings
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, Optional
 
+from railtracks.retrieval.content_extraction import labelled_join
 from railtracks.retrieval.loaders.base import (
     RENAMED_ARGUMENTS_GUIDE,
     BaseDocumentLoader,
 )
 from railtracks.retrieval.models import Document, DocumentType
-from railtracks.utils.deprecation import renamed_argument
+from railtracks.utils.deprecation import renamed_kwargs
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
@@ -59,8 +60,8 @@ class SQLLoader(BaseDocumentLoader):
                pass user-controlled strings here.
 
         content_columns: Column, or list of columns, whose values become
-            :attr:`Document.content`. A single column's value is used as-is;
-            multiple columns become ``"col: value"`` lines joined with
+            :attr:`Document.content`. A single column name gives that column's
+            value as-is; a list gives ``"col: value"`` lines joined with
             ``content_separator``, as in :class:`CSVLoader`.
         ids: Explicit list of ``id_column`` values to load. When set,
             ``id_column`` must also be provided. When ``None`` (default), all
@@ -74,28 +75,33 @@ class SQLLoader(BaseDocumentLoader):
             UUID regardless of this value.
         source_column: Column to use as :attr:`Document.source`. Falls back
             to ``id_column`` when ``None``.
-        content_separator: String used to join multiple content-column values.
+        content_separator: String used to join the content-column lines.
             Defaults to ``"\\n"``.
         engine: An existing ``sqlalchemy.Engine`` instance.
         engine_kwargs: Extra keyword arguments forwarded to
             ``sqlalchemy.create_engine()``.
-        content_column: Deprecated alias for ``content_columns``, removed in 2.0.0.
-        keys: Deprecated alias for ``ids``, removed in 2.0.0.
 
     Raises:
         ImportError: If ``sqlalchemy`` is not installed.
-        TypeError: If ``content_columns`` is missing, or a deprecated alias is
-            passed together with its replacement.
+        TypeError: If ``content_column`` or ``keys``, the deprecated names for
+            ``content_columns`` and ``ids`` (removed in 2.0.0), is passed
+            together with its replacement.
         ValueError: If ``content_columns`` is empty, an identifier argument
             contains unsafe characters, or ``ids`` is provided without an
             ``id_column``.
     """
 
+    @renamed_kwargs(
+        content_column="content_columns",
+        keys="ids",
+        version="2.0.0",
+        guide=RENAMED_ARGUMENTS_GUIDE,
+    )
     def __init__(
         self,
         connection_string: str,
         table_or_query: str,
-        content_columns: str | list[str] | None = None,
+        content_columns: str | list[str],
         *,
         ids: Optional[list[str]] = None,
         metadata_columns: Optional[list[str]] = None,
@@ -104,8 +110,6 @@ class SQLLoader(BaseDocumentLoader):
         content_separator: str = "\n",
         engine: Optional[Engine] = None,
         engine_kwargs: Optional[dict[str, Any]] = None,
-        content_column: Optional[str] = None,
-        keys: Optional[list[str]] = None,
     ) -> None:
         try:
             import sqlalchemy as sa  # noqa: F401
@@ -115,27 +119,7 @@ class SQLLoader(BaseDocumentLoader):
                 "Install it via `pip install railtracks[sql]` or `uv add railtracks[sql]`."
             )
 
-        content_columns = renamed_argument(
-            "SQLLoader",
-            old="content_column",
-            new="content_columns",
-            old_value=content_column,
-            new_value=content_columns,
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
-        ids = renamed_argument(
-            "SQLLoader",
-            old="keys",
-            new="ids",
-            old_value=keys,
-            new_value=ids,
-            version="2.0.0",
-            guide=RENAMED_ARGUMENTS_GUIDE,
-        )
-        if content_columns is None:
-            raise TypeError("SQLLoader() missing required argument: 'content_columns'")
-
+        self._single_column = isinstance(content_columns, str)
         self._content_columns = (
             [content_columns]
             if isinstance(content_columns, str)
@@ -203,11 +187,12 @@ class SQLLoader(BaseDocumentLoader):
                 f"query results. Available columns: {available}. "
                 "Check that 'content_columns' matches columns returned by the query."
             )
-        if len(self._content_columns) == 1:
+        if self._single_column:
             content = str(row[self._content_columns[0]])
         else:
-            content = self._content_separator.join(
-                f"{col}: {row[col]}" for col in self._content_columns
+            content = labelled_join(
+                ((col, str(row[col])) for col in self._content_columns),
+                self._content_separator,
             )
 
         if self._metadata_columns is not None:
