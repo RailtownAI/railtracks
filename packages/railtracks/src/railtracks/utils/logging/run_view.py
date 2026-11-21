@@ -50,10 +50,13 @@ class _Node:
     retrying: dict[str, Any] | None = None
 
 
-@dataclass
+@dataclass(eq=False)
 class _Run:
-    """What the view has learned about one running session."""
+    """What the view has learned about one running top-level request."""
 
+    session: _Session = field(repr=False)
+    # the top-level request this run is for, told apart from the session's other runs
+    request_id: str
     level: int
     label: str
     end_on_error: bool
@@ -61,10 +64,6 @@ class _Run:
     show_content: bool
     # shared across runs: keyed by type id, which a middleware keeps in every run
     middleware_names: dict[str, str]
-    # LLM id -> model name; a model announces itself before each call
-    models: dict[str, str] = field(default_factory=dict)
-    # node id -> name, from its creation until the node is first seen
-    names: dict[str, str] = field(default_factory=dict)
     nodes: dict[str, _Node] = field(default_factory=dict)
     # ids of the nodes running right now
     running: set[str] = field(default_factory=set)
@@ -72,6 +71,73 @@ class _Run:
     owners: dict[str, str] = field(default_factory=dict)
     # what the entry point returned, shown under the run's closing line
     result: str | None = None
+    # the ids this run holds in its session's ``scope_runs``, released when it ends
+    scope_ids: set[str] = field(default_factory=set)
+
+    def claim(self, scope_id: str) -> None:
+        """Records that the node, or LLM or middleware call, ``scope_id`` is in this run."""
+        self.session.scope_runs[scope_id] = self
+        self.scope_ids.add(scope_id)
+
+
+# what ties an event to the node or call it happened in
+_ANCHORS = (
+    "spatial_parent_node_id",
+    "spatial_parent_llm_invoke_id",
+    "spatial_parent_middleware_invoke_id",
+)
+
+
+@dataclass(eq=False)
+class _Session:
+    """The runs of one session that are printing, and what they share.
+
+    Every event of every run arrives under the session's id, so a run is told apart by
+    the nodes it started: ``scope_runs`` maps the id of each node, and of each LLM or
+    middleware call, to its run.
+    """
+
+    runs: dict[str, _Run] = field(default_factory=dict)
+    scope_runs: dict[str, _Run] = field(default_factory=dict)
+    # node id -> name, from its creation until the node is first seen
+    names: dict[str, str] = field(default_factory=dict)
+    # LLM id -> model name; a model announces itself before each call
+    models: dict[str, str] = field(default_factory=dict)
+
+    def announce(self, event: Event) -> None:
+        """Keeps what an event announces before the run it belongs to can be told."""
+        payload = event.payload
+        if event.event_type == "node.creation":
+            self.names[payload["node_id"]] = payload["name"]
+        elif event.event_type == "llm.creation":
+            self.models[payload["llm_id"]] = payload["model_name"]
+
+    def locate(self, event: Event) -> _Run | None:
+        """The run ``event`` happened in, or None when that can't be told."""
+        payload = event.payload
+        event_type = event.event_type
+        if event_type.startswith("session."):
+            return self.runs.get(payload["request_id"])
+        if event_type == "node.creation":
+            # only a run's entry node was created by the run's own request
+            run = self.runs.get(payload["request_id"])
+            if run is not None:
+                run.claim(payload["node_id"])
+            return run
+
+        node_id = payload["parent_node_id"] if event_type.startswith("node.") else None
+        run = self.scope_runs.get(node_id) if node_id is not None else None
+        if run is not None:
+            return run
+
+        anchors = [payload[key] for key in _ANCHORS if payload.get(key) is not None]
+        run = next((self.scope_runs[a] for a in anchors if a in self.scope_runs), None)
+        if run is None and not anchors:
+            # nothing ties it to a run, so it is the session's run if there is only one
+            run = next(iter(self.runs.values())) if len(self.runs) == 1 else None
+        if run is not None and node_id is not None:
+            run.claim(node_id)
+        return run
 
 
 @dataclass
@@ -86,15 +152,15 @@ class _Line:
 
 
 class RunView:
-    """Turns session events into console lines, keeping each session's state apart."""
+    """Turns session events into console lines, keeping each run's state apart."""
 
     def __init__(self) -> None:
-        self._runs: dict[str, _Run] = {}
+        self._sessions: dict[str, _Session] = {}
         self._middleware_names: dict[str, str] = {}
 
     def is_showing(self, session_id: str | None) -> bool:
-        """Whether the run in ``session_id`` is being printed right now."""
-        return session_id in self._runs
+        """Whether a run in ``session_id`` is being printed right now."""
+        return session_id in self._sessions
 
     def record(self, event: Event) -> None:
         payload = event.payload
@@ -103,21 +169,13 @@ class RunView:
                 "middleware_name"
             ]
         elif event.event_type == "session.started":
-            level = _run_view_level()
-            if level is None:
-                return
-            self._runs[event.scope_id] = _Run(
-                level=level,
-                label=payload.get("flow_name")
-                or payload.get("session_name")
-                or payload.get("entry_point_name")
-                or "run",
-                end_on_error=bool(payload.get("end_on_error")),
-                show_content=level <= logging.DEBUG,
-                middleware_names=self._middleware_names,
-            )
+            self._open(event)
 
-        run = self._runs.get(event.scope_id)
+        session = self._sessions.get(event.scope_id)
+        if session is None:
+            return
+        session.announce(event)
+        run = session.locate(event)
         if run is None:
             return
 
@@ -135,26 +193,57 @@ class RunView:
                 _console.print(Text(pad) + detail, soft_wrap=True)
 
         if event.event_type == "session.completed":
-            self._runs.pop(event.scope_id, None)
+            self._close(event.scope_id, run)
+
+    def _open(self, event: Event) -> None:
+        """Starts printing the run for a ``session.started``, at the level in effect."""
+        level = _run_view_level()
+        if level is None:
+            return
+        payload = event.payload
+        session = self._sessions.setdefault(event.scope_id, _Session())
+        session.runs[payload["request_id"]] = _Run(
+            session=session,
+            request_id=payload["request_id"],
+            level=level,
+            label=payload.get("flow_name")
+            or payload.get("session_name")
+            or payload.get("entry_point_name")
+            or "run",
+            end_on_error=bool(payload.get("end_on_error")),
+            show_content=level <= logging.DEBUG,
+            middleware_names=self._middleware_names,
+        )
+
+    def _close(self, session_id: str, run: _Run) -> None:
+        """Forgets a finished run, and its session once no run in it is left."""
+        session = run.session
+        for scope_id in run.scope_ids:
+            session.scope_runs.pop(scope_id, None)
+        session.runs.pop(run.request_id, None)
+        if not session.runs:
+            self._sessions.pop(session_id, None)
 
 
 def _track(run: _Run, event: Event) -> None:
-    """Records the names and nesting that later lines need."""
+    """Records the nesting that later lines need."""
     payload = event.payload
     event_type = event.event_type
 
-    if event_type == "node.creation":
-        run.names[payload["node_id"]] = payload["name"]
-    elif event_type.startswith("node."):
+    if event_type in ("node.creation", "llm.creation"):
+        return
+    if event_type.startswith("node."):
         _track_node(run, event_type, payload)
-    elif event_type == "llm.creation":
-        run.models[payload["llm_id"]] = payload["model_name"]
     elif event_type.startswith("llm."):
-        run.owners[payload["parent_llm_invoke_id"]] = payload["spatial_parent_node_id"]
+        llm_invoke_id = payload["parent_llm_invoke_id"]
+        run.owners[llm_invoke_id] = payload["spatial_parent_node_id"]
+        run.claim(llm_invoke_id)
     elif event_type.startswith("middleware.") and event_type != "middleware.creation":
         owner = _owner(run, payload)
         if owner is not None:
-            run.owners[payload["parent_middleware_invoke_id"]] = owner
+            middleware_invoke_id = payload["parent_middleware_invoke_id"]
+            run.owners[middleware_invoke_id] = owner
+            run.claim(middleware_invoke_id)
 
 
 def _track_node(run: _Run, event_type: str, payload: dict[str, Any]) -> None:
@@ -187,7 +276,7 @@ def _place(run: _Run, node_id: str, payload: dict[str, Any]) -> _Node:
     parent = _caller(run, payload)
     caller = run.nodes.get(parent) if parent is not None else None
     return _Node(
-        name=run.names.pop(node_id, node_id),
+        name=run.session.names.pop(node_id, node_id),
         parent=parent,
         depth=caller.depth + 1 if caller is not None else 1,
     )
@@ -376,7 +465,7 @@ def _nested_depth(run: _Run, payload: dict[str, Any]) -> int:
 def _model_name(run: _Run, payload: dict[str, Any]) -> str:
     return (
         payload.get("reported_model_name")
-        or run.models.get(payload.get("parent_llm_type_id"))
+        or run.session.models.get(payload.get("parent_llm_type_id"))
         or "LLM"
     )
 

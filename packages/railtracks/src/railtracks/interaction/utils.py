@@ -85,14 +85,15 @@ def top_level_message_filter(request_id: str):
     return message_filter
 
 
-async def begin_top_level(node: type[Node]) -> float:
-    """Announces a top-level request; returns its start time."""
+async def begin_top_level(node: type[Node], request_id: str) -> float:
+    """Announces the top-level request ``request_id``; returns its start time."""
     config = get_local_config()
     identity = get_session_identity()
 
     await emit(
         SessionStarted(
             session_id=identity.session_id,
+            request_id=request_id,
             flow_name=identity.flow_name,
             flow_id=identity.flow_id,
             session_name=identity.session_name,
@@ -106,12 +107,15 @@ async def begin_top_level(node: type[Node]) -> float:
     return time.perf_counter()
 
 
-async def end_top_level(start_time: float, error: BaseException | None) -> None:
-    """Announces how a top-level request ended."""
+async def end_top_level(
+    start_time: float, error: BaseException | None, request_id: str
+) -> None:
+    """Announces how the top-level request ``request_id`` ended."""
     await emit_snapshot(ContextCompletion)
     await emit(
         SessionCompleted(
             session_id=get_session_identity().session_id,
+            request_id=request_id,
             status="success" if error is None else "failure",
             error=None if error is None else format_error(error),
             duration_seconds=time.perf_counter() - start_time,

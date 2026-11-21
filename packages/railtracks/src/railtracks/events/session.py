@@ -33,9 +33,13 @@ class SessionEventFamilyBase(SessionEventBase[NoSpatialParent]):
 
     It is emitted outside of any node/middleware/llm scope, so there is nothing above
     it in the chain to resolve: neither a spatial parent nor a parent.
+
+    `request_id` is the top-level request the run is for. It tells runs in one session
+    apart, and the `node.creation` of the run's entry node carries the same id.
     """
 
     session_id: str
+    request_id: str
 
     def _get_spatial_parent(self, scope: ScopeLink[ScopeEntry] | None):
         return NoSpatialParent()

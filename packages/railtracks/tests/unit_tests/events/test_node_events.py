@@ -26,7 +26,9 @@ def chain(*entries: tuple[ScopeKind, str]) -> ScopeLink[ScopeEntry] | None:
 
 def test_event_type_strings():
     assert (
-        NodeCreation(node_id="1", name="Agent", node_type="agent").event_type()
+        NodeCreation(
+            node_id="1", name="Agent", node_type="agent", request_id="r"
+        ).event_type()
         == "node.creation"
     )
     assert NodeInvocation(args=(), kwargs={}).event_type() == "node.invocation"
@@ -136,7 +138,7 @@ def test_runtime_node_event_resolves_self_and_enclosing_node():
 
 def test_node_creation_has_no_spatial_parent():
     # a creation event is emitted before the node enters its own scope
-    ev = NodeCreation(node_id="1", name="Agent", node_type="agent")
+    ev = NodeCreation(node_id="1", name="Agent", node_type="agent", request_id="r")
     assert ev._get_spatial_parent(None) == NoSpatialParent()
     assert (
         ev._get_spatial_parent(chain((ScopeKind.NODE, "caller"))) == NoSpatialParent()

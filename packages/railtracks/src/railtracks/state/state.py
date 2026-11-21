@@ -241,6 +241,7 @@ class RTState:
                 node_id=node_instance.uuid,
                 node_type=node_instance.type(),
                 name=node_instance.name(),
+                request_id=request_id,
             )
 
             await emit(creation_event)
