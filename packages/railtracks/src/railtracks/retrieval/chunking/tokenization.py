@@ -12,9 +12,7 @@ from typing import Protocol, runtime_checkable
 
 try:
     import tiktoken as _tiktoken
-except (
-    ModuleNotFoundError
-):  # pragma: no cover - exercised only when rag extras are missing
+except ModuleNotFoundError:  # pragma: no cover - tiktoken ships via litellm
     _tiktoken = None
 
 
@@ -45,7 +43,7 @@ class TiktokenTokenizer(Tokenizer):
         if _tiktoken is None:
             raise ModuleNotFoundError(
                 "tiktoken is required to use TiktokenTokenizer. "
-                "Install railtracks with the tiktok extra: pip install 'railtracks[tiktok]'."
+                "It normally comes with railtracks; reinstall it with: pip install tiktoken"
             )
 
         self.encoding_name = encoding_name

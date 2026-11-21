@@ -2978,33 +2978,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pdfminer-six"
-version = "20251230"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "charset-normalizer" },
-    { name = "cryptography" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/46/9a/d79d8fa6d47a0338846bb558b39b9963b8eb2dfedec61867c138c1b17eeb/pdfminer_six-20251230.tar.gz", hash = "sha256:e8f68a14c57e00c2d7276d26519ea64be1b48f91db1cdc776faa80528ca06c1e", size = 8511285, upload-time = "2025-12-30T15:49:13.104Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/d7/b288ea32deb752a09aab73c75e1e7572ab2a2b56c3124a5d1eb24c62ceb3/pdfminer_six-20251230-py3-none-any.whl", hash = "sha256:9ff2e3466a7dfc6de6fd779478850b6b7c2d9e9405aa2a5869376a822771f485", size = 6591909, upload-time = "2025-12-30T15:49:10.76Z" },
-]
-
-[[package]]
-name = "pdfplumber"
-version = "0.11.9"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pdfminer-six" },
-    { name = "pillow" },
-    { name = "pypdfium2" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/38/37/9ca3519e92a8434eb93be570b131476cc0a4e840bb39c62ddb7813a39d53/pdfplumber-0.11.9.tar.gz", hash = "sha256:481224b678b2bbdbf376e2c39bf914144eef7c3d301b4a28eebf0f7f6109d6dc", size = 102768, upload-time = "2026-01-05T08:10:29.072Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/c8/cdbc975f5b634e249cfa6597e37c50f3078412474f21c015e508bfbfe3c3/pdfplumber-0.11.9-py3-none-any.whl", hash = "sha256:33ec5580959ba524e9100138746e090879504c42955df1b8a997604dd326c443", size = 60045, upload-time = "2026-01-05T08:10:27.512Z" },
-]
-
-[[package]]
 name = "pdoc"
 version = "15.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3969,7 +3942,6 @@ all = [
     { name = "google-cloud-storage" },
     { name = "httpx" },
     { name = "numpy" },
-    { name = "pdfplumber" },
     { name = "pgvector" },
     { name = "pillow" },
     { name = "portkey-ai" },
@@ -3980,7 +3952,6 @@ all = [
     { name = "scikit-learn" },
     { name = "sqlalchemy" },
     { name = "tavily-python" },
-    { name = "tiktoken" },
     { name = "trafilatura" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -3997,7 +3968,6 @@ azure-blob = [
 ]
 chroma = [
     { name = "chromadb" },
-    { name = "pdfplumber" },
 ]
 gcp = [
     { name = "google-cloud-storage" },
@@ -4030,7 +4000,6 @@ retrieval = [
     { name = "datasets" },
     { name = "google-cloud-storage" },
     { name = "numpy" },
-    { name = "pdfplumber" },
     { name = "pgvector" },
     { name = "pillow" },
     { name = "pypdf" },
@@ -4038,13 +4007,11 @@ retrieval = [
     { name = "pytesseract" },
     { name = "scikit-learn" },
     { name = "sqlalchemy" },
-    { name = "tiktoken" },
 ]
 retrieval-core = [
     { name = "numpy" },
     { name = "pypdf" },
     { name = "scikit-learn" },
-    { name = "tiktoken" },
 ]
 semantic = [
     { name = "scikit-learn" },
@@ -4063,9 +4030,6 @@ stores-chroma = [
 stores-vector = [
     { name = "asyncpg" },
     { name = "pgvector" },
-]
-tiktok = [
-    { name = "tiktoken" },
 ]
 visual = [
     { name = "duckdb" },
@@ -4088,8 +4052,7 @@ requires-dist = [
     { name = "azure-storage-blob", marker = "extra == 'azure-blob'", specifier = ">=12.0.0" },
     { name = "boto3", marker = "extra == 'aws'", specifier = ">=1.26.0" },
     { name = "certifi", specifier = ">=2024.7.4" },
-    { name = "chromadb", marker = "extra == 'chroma'", specifier = ">=1.3.0" },
-    { name = "chromadb", marker = "extra == 'stores-chroma'", specifier = ">1.3.0" },
+    { name = "chromadb", marker = "extra == 'stores-chroma'", specifier = ">=1.3.0" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "datasets", marker = "extra == 'huggingface'", specifier = ">=2.14.0,<6" },
     { name = "duckdb", marker = "extra == 'visual'", specifier = ">=1.5.0,<1.5.5" },
@@ -4097,10 +4060,9 @@ requires-dist = [
     { name = "glmocr", marker = "extra == 'glm'", specifier = "~=0.1.1" },
     { name = "google-cloud-storage", marker = "extra == 'gcp'", specifier = ">=2.0.0" },
     { name = "httpx", marker = "extra == 'websearch'", specifier = ">=0.27.0" },
-    { name = "litellm", specifier = ">=1.104.3,<1.109" },
+    { name = "litellm", specifier = ">=1.105.0,<1.109" },
     { name = "mcp", specifier = ">=1.23.0,<2" },
     { name = "numpy", marker = "extra == 'retrieval-core'", specifier = ">=1.24" },
-    { name = "pdfplumber", marker = "extra == 'chroma'", specifier = ">=0.10.1" },
     { name = "pgvector", marker = "extra == 'stores-vector'", specifier = ">=0.3" },
     { name = "pillow", marker = "extra == 'ocr'", specifier = ">=10.0.0" },
     { name = "portkey-ai", marker = "extra == 'portkey'", specifier = ">=2.0.2" },
@@ -4114,7 +4076,6 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "railtracks", extras = ["aws"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["azure-blob"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
-    { name = "railtracks", extras = ["chroma"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["gcp"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["huggingface"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["ocr"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
@@ -4125,16 +4086,15 @@ requires-dist = [
     { name = "railtracks", extras = ["semantic"], marker = "extra == 'retrieval-core'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["sql"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-all"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
+    { name = "railtracks", extras = ["stores-chroma"], marker = "extra == 'chroma'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-chroma"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-vector"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
-    { name = "railtracks", extras = ["tiktok"], marker = "extra == 'retrieval-core'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["visual"], marker = "extra == 'all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["websearch"], marker = "extra == 'all'", editable = "packages/railtracks" },
     { name = "rich", specifier = ">=13.7.1" },
     { name = "scikit-learn", marker = "extra == 'semantic'", specifier = ">=1.3.0" },
     { name = "sqlalchemy", marker = "extra == 'sql'", specifier = ">=2.0.0" },
     { name = "tavily-python", marker = "extra == 'websearch'", specifier = ">=0.5.0" },
-    { name = "tiktoken", marker = "extra == 'tiktok'", specifier = ">=0.10.0,<=0.12.0" },
     { name = "trafilatura", marker = "extra == 'websearch'", specifier = ">=1.8.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'visual'", specifier = ">=0.24.0" },
 ]
