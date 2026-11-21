@@ -25,7 +25,6 @@ from railtracks.retrieval import (
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
 from railtracks.retrieval.embedding.models import TextEmbeddings
-from railtracks.retrieval.models import EmbeddingMetrics
 from railtracks.retrieval.loaders import TextLoader
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.loaders.models import LoadFailure
@@ -33,7 +32,7 @@ from railtracks.retrieval.loaders.sanitizing import (
     Sanitizer,
     SanitizingLoader,
 )
-from railtracks.retrieval.models import Chunk
+from railtracks.retrieval.models import Chunk, EmbeddingMetrics
 from railtracks.retrieval.runtime import _content_hash
 from railtracks.retrieval.stores import ALL_SCOPES, AllScopes, StoreScope, VectorStore
 from railtracks.retrieval.stores.models import StoreEntry, exact_scope_filter

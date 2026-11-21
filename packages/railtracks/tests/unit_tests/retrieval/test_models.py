@@ -7,7 +7,6 @@ from uuid import UUID
 
 import railtracks.retrieval.embedding
 import railtracks.retrieval.models
-
 from railtracks.retrieval import (
     Chunk,
     Document,
