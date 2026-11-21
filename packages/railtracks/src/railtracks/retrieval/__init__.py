@@ -16,6 +16,7 @@ from .content_extraction import (
 )
 from .embedding.models import EmbeddingFailure
 from .errors import EmbeddingModelMismatchError
+from .loaders.models import LoadFailure
 from .models import (
     Chunk,
     Document,
@@ -29,12 +30,23 @@ from .runtime import (
     BatchIngested,
     DocumentFailed,
     DocumentSkipped,
+    IngestionStage,
     IngestionStats,
     RetrievalRuntime,
 )
-from .stores import Store, StoreEntry, StoreQuery, StoreScope, VectorStore
+from .stores import (
+    ALL_SCOPES,
+    AllScopes,
+    Store,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
+    VectorStore,
+)
 
 __all__ = [
+    "ALL_SCOPES",
+    "AllScopes",
     "BatchIngested",
     "Chunk",
     "ContentExtractor",
@@ -45,8 +57,10 @@ __all__ = [
     "EmbeddedChunk",
     "EmbeddingFailure",
     "EmbeddingModelMismatchError",
+    "IngestionStage",
     "IngestionStats",
     "JsonExtractor",
+    "LoadFailure",
     "OCRResult",
     "ProseExtractor",
     "RetrievalResult",

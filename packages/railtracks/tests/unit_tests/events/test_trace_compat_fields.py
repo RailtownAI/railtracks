@@ -8,12 +8,7 @@ from railtracks.built_nodes.llm.model_invoker import ModelInvoker
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import Message, Role
 from railtracks.llm.response import MessageInfo, Response
-from railtracks.observability import (
-    Event,
-    configure_writers,
-    ensure_started,
-    shutdown,
-)
+from railtracks.observability import Event, configure_writers
 from railtracks.utils.config import ExecutorConfig
 
 
@@ -21,13 +16,13 @@ class _Collecting:
     def __init__(self):
         self.events: list[Event] = []
 
-    async def start(self):
+    def start(self):
         pass
 
-    async def write(self, event: Event):
+    def write(self, event: Event):
         self.events.append(event)
 
-    async def shutdown(self):
+    def shutdown(self):
         pass
 
 
@@ -72,14 +67,12 @@ def _register(session_id="sess-1"):
 async def _run_model_invoker(model: _FakeModel) -> list[Event]:
     writer = _Collecting()
     configure_writers([writer])
-    await ensure_started()
     invoker = ModelInvoker.create_with_llm_observe(
         model, get_scope_manager=central.ContextVarScopeManager
     )
     with central.ContextVarScopeManager().enter_node("node-1"):
         with contextlib.suppress(Exception):  # the failure path re-raises by design
             await invoker.invoke(MessageHistory())
-    await shutdown()  # drains the writer queue so delivery is deterministic
     return writer.events
 
 

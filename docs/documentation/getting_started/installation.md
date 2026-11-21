@@ -1,6 +1,6 @@
 # Installation
 
-Railtracks requires **Python 3.10+**. Install it using your preferred package manager:
+Railtracks requires **Python 3.11+**. Install it using your preferred package manager:
 
 === "pip"
 

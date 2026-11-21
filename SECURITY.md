@@ -26,7 +26,7 @@ Railtracks is a lightweight, modular framework for building agentic systems. It 
 ## What Railtracks Is and Is Not
 
 - Is: a framework to compose agents, call tools, and interact with Machine Learning Models; provides logging, execution history, debugging tools, and a API with optional CLI and visualization.
-- Is not: a security sandbox, a secrets manager, a network firewall, a model training framework or a data loss prevention system. Railtracks does not enforce allow/deny-lists for network/filesystem access and does not implement provider-side data privacy controls.
+- Is not: a security sandbox, a secrets manager, a network firewall, a model training framework or a data loss prevention system. Railtracks does not enforce allow/deny-lists for network/filesystem access (apart from the web search address check described under Network Egress and Environment Security) and does not implement provider-side data privacy controls.
 
 ## Remote Artifacts and Remote Code
 
@@ -72,6 +72,7 @@ Defaults (consult docs for the exact version you use; defaults may change):
 ## Network Egress and Environment Security
 
 - Railtracks does not enforce network allow/deny-lists. Control egress at your network, container, or host layer (for example, proxies, firewall rules, VPC egress controls).
+- The one exception is the prebuilt web search tool: its default fetch backend (`HttpFetch`) refuses URLs that resolve to non-public addresses, such as `localhost`, private networks or the cloud metadata service, and checks every redirect. To let a trusted internal host through, add it to `litellm.user_url_allowed_hosts`. Other in-process downloads, such as attachment URLs with `trust_urls=True`, are not checked.
 - Run untrusted or experimental tools in isolated environments (containers/VMs) with:
   - Non-root users and minimal filesystem access
   - Limited outbound network access (only required endpoints)

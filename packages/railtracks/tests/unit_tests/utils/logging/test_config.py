@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 import railtracks as rt
-from railtracks.observability import configure
+from railtracks.observability import Observer, configure
 from railtracks.utils.logging import config, run_view, setup
 from railtracks.utils.logging.config import (
     ThreadAwareFilter,
@@ -321,6 +321,22 @@ def test_the_log_file_is_utf8_and_labels_its_columns(tmp_path):
     assert re.search(r" - \d+ms - ERROR - RT - cannot handle 'x ✓ é 中文'\n$", line)
 
 
+def test_the_log_file_keeps_a_line_with_an_unpaired_surrogate(tmp_path):
+    log_file = tmp_path / "test.log"
+    setup_file_handler(file_name=log_file)
+    token = _module_logging_level.set(logging.INFO)
+    try:
+        rt_logger.error("cut \ud83d")
+    finally:
+        _module_logging_level.reset(token)
+        for handler in rt_logger.handlers:
+            handler.close()
+        rt_logger.handlers.clear()
+
+    line = log_file.read_text(encoding="utf-8")
+    assert re.search(r" - ERROR - RT - cut \\ud83d\n$", line)
+
+
 # ================= detach_logging_handlers Tests =================
 
 
@@ -356,7 +372,7 @@ def test_enable_logging_adds_real_handlers():
 
 def test_enable_logging_registers_the_run_view(monkeypatch):
     """Logging registers its own run view with observability; core doesn't wire it."""
-    monkeypatch.setattr(configure, "_inline_listeners", [])
+    monkeypatch.setattr(configure, "observer", Observer())
     detach_logging_handlers()
 
     enable_logging(level="INFO")

@@ -135,3 +135,31 @@ def test_current_node_id_prefers_node_body_over_stale_node(dummy_executor_config
 
 
 # ============ END SessionContext with_scope_pushed Tests ===============
+
+
+# ============ START SessionContext registered_middleware Tests ===============
+def test_new_session_contexts_start_with_their_own_empty_registry(
+    dummy_executor_config,
+):
+    first = SessionContext(session_id="a", executor_config=dummy_executor_config)
+    second = SessionContext(session_id="b", executor_config=dummy_executor_config)
+
+    first.registered_middleware.add("mw")
+
+    assert second.registered_middleware == set()
+
+
+def test_with_scope_pushed_shares_the_registry_with_its_parent(dummy_executor_config):
+    root = SessionContext(session_id="r", executor_config=dummy_executor_config)
+    child = root.with_scope_pushed(ScopeEntry(ScopeKind.NODE, "node-1"))
+    grandchild = child.with_scope_pushed(
+        ScopeEntry(ScopeKind.MIDDLEWARE, "mw-1", type_id="guard")
+    )
+
+    grandchild.registered_middleware.add("guard")
+
+    assert root.registered_middleware is grandchild.registered_middleware
+    assert "guard" in root.registered_middleware
+
+
+# ============ END SessionContext registered_middleware Tests ===============

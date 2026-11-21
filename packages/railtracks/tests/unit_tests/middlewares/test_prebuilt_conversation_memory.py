@@ -10,7 +10,7 @@ from railtracks.built_nodes.llm.response import StringResponse
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, Message, Role, UserMessage
 from railtracks.llm.response import Response
-from railtracks.middleware import Middleware
+from railtracks.middleware import Middleware, wrap_node
 from railtracks.prebuilt.middleware.conversation_memory import (
     ConversationMemory,
 )
@@ -445,3 +445,29 @@ async def test_lock_outermost_serializes_concurrent_turns():
         guarded = Lock().wrap(locked.wrap(mock_node))
         await asyncio.gather(guarded("A"), guarded("B"))
         assert len(locked.get_history()) == 4
+
+
+@pytest.mark.asyncio
+async def test_coupled_agent_keeps_the_callers_memory_handle():
+    fake_model = _FakeEchoModel()
+    memory = ConversationMemory()
+    agent = rt.agent_node("ChatAgent", llm=fake_model, middleware=[memory])
+
+    @wrap_node
+    async def passthrough(call, *args, **kwargs):
+        return await call(*args, **kwargs)
+
+    coupled = rt.couple(agent, middleware=[passthrough])
+    flow = rt.Flow("coupled-memory-flow", entry_point=coupled)
+
+    await flow.ainvoke("first")
+    await flow.ainvoke("second")
+
+    assert coupled._user_middleware[1] is memory
+    assert len(fake_model.seen_messages[1]) == 3
+    assert [m.content for m in memory.get_history()] == [
+        "first",
+        "Processed: first",
+        "second",
+        "Processed: second",
+    ]

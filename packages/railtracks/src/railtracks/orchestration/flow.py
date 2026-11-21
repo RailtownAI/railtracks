@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import warnings
-from copy import deepcopy
 from typing import Any, Callable, Coroutine, Generic, ParamSpec, TypeVar
 
 from railtracks.built_nodes.function.base import RTFunction
@@ -88,8 +88,8 @@ class Flow(Generic[_P, _TOutput]):
         Returns:
             A new :class:`Flow` instance with the merged context.
         """
-        new_obj = deepcopy(self)
-        new_obj._context.update(context)
+        new_obj = copy.copy(self)
+        new_obj._context = {**self._context, **context}
         return new_obj
 
     def connect(self) -> FlowConnection[_P, _TOutput]:

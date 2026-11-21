@@ -3,7 +3,8 @@ import gc
 import logging
 import threading
 from json import JSONDecodeError
-from unittest.mock import patch
+from typing import get_args
+from unittest.mock import PropertyMock, patch
 
 import litellm
 import pytest
@@ -17,7 +18,13 @@ from litellm.types.utils import (
     Usage,
 )
 from pydantic import BaseModel
-from railtracks.llm import AssistantMessage, ToolCalls, UserMessage
+from railtracks.llm import (
+    AssistantMessage,
+    Attachment,
+    AttachmentNotSupportedError,
+    ToolCalls,
+    UserMessage,
+)
 from railtracks.llm._exceptions import (
     ProviderAuthenticationError,
     ProviderRateLimitError,
@@ -25,6 +32,7 @@ from railtracks.llm._exceptions import (
     RetryError,
 )
 from railtracks.llm.history import MessageHistory
+from railtracks.llm.message import Modality
 from railtracks.llm.models._litellm_wrapper import (
     LiteLLMWrapper,
     _parameters_to_json_schema,
@@ -236,6 +244,7 @@ class TestHelpers:
         assert file_block["type"] == "file"
         assert file_block["file"]["file_data"] == data_uri
         assert file_block["file"]["filename"] == "attachment.pdf"
+        assert file_block["file"]["format"] == "application/pdf"
 
     def test_to_litellm_message_local_pdf_uses_source_filename(
         self,
@@ -302,6 +311,146 @@ class TestHelpers:
 
         file_block = litellm_message["content"][1]
         assert file_block["type"] == "file"
+
+    def test_to_litellm_message_attachment_from_bytes(self, mock_litellm_wrapper):
+        wrapper = mock_litellm_wrapper()
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+        message = UserMessage("View this.", attachment=Attachment.from_bytes(png))
+
+        image_block = wrapper._to_litellm_message(message)["content"][1]
+
+        assert image_block == {
+            "type": "image_url",
+            "image_url": {"url": "data:image/png;base64,iVBORw0KGgoAAAAAAAAAAA=="},
+        }
+
+    def test_to_litellm_message_encodes_each_attachment_once(
+        self, mock_litellm_wrapper, monkeypatch
+    ):
+        """The whole history is re-sent each turn, so base64 is built once per part."""
+        import base64 as _b64
+
+        calls = []
+        real_b64encode = _b64.b64encode
+
+        def counting_b64encode(data):
+            calls.append(len(data))
+            return real_b64encode(data)
+
+        monkeypatch.setattr(_b64, "b64encode", counting_b64encode)
+        wrapper = mock_litellm_wrapper(model_name="gpt-4o")
+        message = UserMessage(
+            "Summarize.",
+            attachment=Attachment.from_bytes(b"%PDF-1.7\n" + bytes(64)),
+        )
+
+        wrapper._to_litellm_message(message)
+
+        assert len(calls) == 1
+
+    @pytest.mark.parametrize(
+        "attachment,part",
+        [
+            (
+                Attachment.from_bytes(b"ID3\x04\x00", filename="call.mp3"),
+                {
+                    "type": "input_audio",
+                    "input_audio": {"data": "SUQzBAA=", "format": "mp3"},
+                },
+            ),
+            (
+                Attachment.from_bytes(b"wav", mime_type="audio/x-wav"),
+                {
+                    "type": "input_audio",
+                    "input_audio": {"data": "d2F2", "format": "wav"},
+                },
+            ),
+            (
+                Attachment.from_bytes(b"ogg", mime_type="audio/ogg"),
+                {
+                    "type": "input_audio",
+                    "input_audio": {"data": "b2dn", "format": "ogg"},
+                },
+            ),
+            (
+                Attachment("https://example.com/call.mp3"),
+                {
+                    "type": "file",
+                    "file": {
+                        "file_data": "https://example.com/call.mp3",
+                        "filename": "call.mp3",
+                        "format": "audio/mpeg",
+                    },
+                },
+            ),
+            (
+                Attachment("https://example.com/clip.mp4"),
+                {
+                    "type": "file",
+                    "file": {
+                        "file_data": "https://example.com/clip.mp4",
+                        "filename": "clip.mp4",
+                        "format": "video/mp4",
+                    },
+                },
+            ),
+            (
+                Attachment.from_bytes(b"plain text", mime_type="text/plain"),
+                {
+                    "type": "file",
+                    "file": {
+                        "file_data": "data:text/plain;base64,cGxhaW4gdGV4dA==",
+                        "filename": "attachment.txt",
+                        "format": "text/plain",
+                    },
+                },
+            ),
+        ],
+        ids=["audio", "audio_alias", "audio_other", "audio_url", "video_url", "file"],
+    )
+    def test_to_litellm_message_part_per_modality(
+        self, mock_litellm_wrapper, monkeypatch, attachment, part
+    ):
+        wrapper = mock_litellm_wrapper()
+        monkeypatch.setattr(
+            wrapper, "_ACCEPTED_MODALITIES", frozenset(get_args(Modality))
+        )
+        message = UserMessage("Describe this.", attachment=attachment)
+
+        assert wrapper._to_litellm_message(message)["content"][1] == part
+
+    def test_to_litellm_message_rejects_modality_not_accepted(
+        self, mock_litellm_wrapper
+    ):
+        """By default only images and PDFs are sent, as no route was checked for more."""
+        wrapper = mock_litellm_wrapper()
+        message = UserMessage(
+            "Transcribe this.",
+            attachment=Attachment.from_bytes(b"wav", mime_type="audio/wav"),
+        )
+
+        with (
+            patch.object(
+                Attachment, "base64", new_callable=PropertyMock
+            ) as base64_payload,
+            pytest.raises(
+                AttachmentNotSupportedError, match="sends document, image .*not audio"
+            ),
+        ):
+            wrapper._to_litellm_message(message)
+        base64_payload.assert_not_called()
+
+    def test_to_litellm_message_rejected_pdf_suggests_rendering(
+        self, mock_litellm_wrapper, monkeypatch
+    ):
+        wrapper = mock_litellm_wrapper()
+        monkeypatch.setattr(wrapper, "_ACCEPTED_MODALITIES", frozenset({"image"}))
+        message = UserMessage(
+            "Summarize.", attachment=Attachment.from_bytes(b"%PDF-1.7\n")
+        )
+
+        with pytest.raises(AttachmentNotSupportedError, match="Render the PDF pages"):
+            wrapper._to_litellm_message(message)
 
     def test_to_litellm_message_structured_output_content(self, mock_litellm_wrapper):
         """

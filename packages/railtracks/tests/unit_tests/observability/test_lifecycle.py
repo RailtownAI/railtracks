@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from railtracks.observability import (
     SCOPE_SESSION,
     Event,
     configure,
     configure_writers,
-    ensure_started,
     publish_event,
     shutdown,
 )
@@ -16,15 +16,17 @@ from railtracks.observability import (
 class _CollectingWriter:
     def __init__(self) -> None:
         self.events: list[Event] = []
+        self.starts = 0
+        self.shutdowns = 0
 
-    async def start(self) -> None:
-        pass
+    def start(self) -> None:
+        self.starts += 1
 
-    async def write(self, event: Event) -> None:
+    def write(self, event: Event) -> None:
         self.events.append(event)
 
-    async def shutdown(self) -> None:
-        pass
+    def shutdown(self) -> None:
+        self.shutdowns += 1
 
 
 def _make_session_event(event_type: str = "test.event") -> Event:
@@ -36,51 +38,54 @@ def _make_session_event(event_type: str = "test.event") -> Event:
     )
 
 
-async def test_concurrent_ensure_started_coalesces():
-    """Concurrent ensure_started() calls must not both register the same
-    pending writers — Observer's start() coalesces via its internal lock."""
+def test_first_events_from_many_threads_start_the_writers_once():
     writer = _CollectingWriter()
     configure_writers([writer])
+    barrier = threading.Barrier(8)
 
-    # Kick off five ensure_started() calls concurrently.
-    results = await asyncio.gather(*[ensure_started() for _ in range(5)])
+    def publish_some() -> None:
+        barrier.wait()
+        for _ in range(50):
+            publish_event(_make_session_event())
 
-    # All returned the same singleton, only one actually did the registration.
-    assert all(r is configure.observer for r in results)
-    assert configure.observer._running is True
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for future in [pool.submit(publish_some) for _ in range(8)]:
+            future.result()
 
-    # Registration succeeded — publishing works end-to-end.
-    event = _make_session_event()
-    await publish_event(event)
-    await shutdown()
-    assert writer.events == [event]
+    assert writer.starts == 1
+    assert len(writer.events) == 400
 
 
-async def test_reset_for_tests_swaps_in_fresh_observer():
-    # First run.
+def test_shutdown_stops_writers_once_and_later_events_are_ignored():
+    writer = _CollectingWriter()
+    configure_writers([writer])
+    publish_event(_make_session_event("before"))
+
+    shutdown()
+    shutdown()
+    publish_event(_make_session_event("after"))
+
+    assert writer.shutdowns == 1
+    assert [e.event_type for e in writer.events] == ["before"]
+
+
+def test_reset_for_tests_swaps_in_fresh_observer():
     writer1 = _CollectingWriter()
     configure_writers([writer1])
-    await ensure_started()
     event1 = _make_session_event("first")
-    await publish_event(event1)
-    await shutdown()
+    publish_event(event1)
     assert writer1.events == [event1]
 
     first_observer = configure.observer
 
-    # Reset — should swap in a fresh Observer.
     configure.reset_for_tests()
     assert configure.observer is not first_observer
-    assert configure.observer._running is False
-    assert configure.observer._pending_writers == []
+    assert configure.observer._started is False
+    assert configure.observer._pending == []
 
-    # Fresh start with a different writer.
     writer2 = _CollectingWriter()
     configure_writers([writer2])
-    await ensure_started()
     event2 = _make_session_event("second")
-    await publish_event(event2)
-    await shutdown()
+    publish_event(event2)
     assert writer2.events == [event2]
-    # writer1 was not touched by the second run.
     assert writer1.events == [event1]

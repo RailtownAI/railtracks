@@ -1,6 +1,7 @@
 import pytest
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.loaders.text_loader import TextLoader
-from railtracks.retrieval.models import DocumentType
+from railtracks.retrieval.models import Document, DocumentType
 
 
 class TestTextLoaderSingleFile:
@@ -115,3 +116,34 @@ class TestTextLoaderErrors:
         loader = TextLoader(str(f))
         with pytest.raises(ValueError, match="Unsupported file extension"):
             await loader.aload()
+
+
+class TestTextLoaderUnreadableFiles:
+    """Tests for files that cannot be decoded."""
+
+    async def test_undecodable_file_in_directory_yields_load_failure(self, tmp_path):
+        (tmp_path / "a.txt").write_text("alpha", encoding="utf-8")
+        (tmp_path / "b.txt").write_bytes("caf\xe9".encode("latin-1"))
+        (tmp_path / "c.txt").write_text("gamma", encoding="utf-8")
+
+        items = [item async for item in TextLoader(str(tmp_path)).astream()]
+
+        assert [type(i) for i in items] == [Document, LoadFailure, Document]
+        assert items[1].source == str(tmp_path / "b.txt")
+        assert isinstance(items[1].error, UnicodeDecodeError)
+
+    async def test_undecodable_single_file_yields_load_failure(self, tmp_path):
+        f = tmp_path / "bad.txt"
+        f.write_bytes(b"\xff\xfe\x00binary")
+
+        items = [item async for item in TextLoader(str(f)).astream()]
+
+        assert len(items) == 1
+        assert isinstance(items[0], LoadFailure)
+        assert items[0].source == str(f)
+
+    async def test_aload_raises_on_undecodable_file(self, tmp_path):
+        (tmp_path / "b.txt").write_bytes("caf\xe9".encode("latin-1"))
+
+        with pytest.raises(UnicodeDecodeError):
+            await TextLoader(str(tmp_path)).aload()

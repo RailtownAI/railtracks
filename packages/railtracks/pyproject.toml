@@ -16,7 +16,7 @@ authors = [
 readme = "README.md"
 license = { file = "LICENSE" }
 dynamic = ["version", "description"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = [
     "agent",
     "agent-harness",
@@ -34,7 +34,6 @@ keywords = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -52,8 +51,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "certifi >= 2024.7.4",
     "colorama >= 0.4.6",
-    "litellm >= 1.104.3, < 1.106",
+    "litellm >= 1.105.0, < 1.109",
     "mcp >= 1.23.0, <2",
     "pydantic >= 2.11, <3",
     "python-dotenv >= 1.0.0",
@@ -88,25 +88,24 @@ websearch = [
 
 # Retrieval-stack building blocks. Install one of the two bundles below rather
 # than these individually: `retrieval-core` for the minimal pipeline, or
-# `retrieval` for everything. `[all]` includes `railtracks[retrieval]`, so it
-# pulls in every extra in this section.
-tiktok = ["tiktoken>=0.10.0, <=0.12.0"]
+# `retrieval` for everything. `[retrieval]` (and so `[all]`) pulls in every
+# extra in this section except `glm`, which stays opt-in because glmocr depends
+# on PyMuPDF (AGPL-3.0). `tiktok` and `chroma` are kept only so existing
+# installs keep resolving.
+tiktok = []
 semantic = ["scikit-learn>=1.3.0"]
-pdf = ["pypdf >= 6.16.1, < 7"]
+pdf = ["pypdf >= 6.21.4, < 7"]
 ocr = [
     "pypdfium2 >= 4.30.0",
     "pytesseract >= 0.3.10",
     "pillow >= 10.0.0",
-    "pypdf >= 6.16.1, < 7",
+    "pypdf >= 6.21.4, < 7",
 ]
 glm = [
     "glmocr ~= 0.1.1",
 ]
 huggingface = ["datasets >= 2.14.0, < 6"]
-chroma = [
-    "chromadb >= 1.3.0",
-    "pdfplumber >= 0.10.1",
-]
+chroma = ["railtracks[stores-chroma]"]
 aws = ["boto3 >= 1.26.0"]
 azure-blob = [
     "azure-core >= 1.30.0",
@@ -116,14 +115,13 @@ azure-blob = [
 gcp = ["google-cloud-storage >= 2.0.0"]
 sql = ["sqlalchemy >= 2.0.0"]
 stores-vector = ["asyncpg>=0.29", "pgvector>=0.3"]
-stores-chroma = ["chromadb>1.3.0"]
+stores-chroma = ["chromadb >= 1.3.0"]
 stores-turbovec = ["turbovec >= 1.1.2"]
-stores-all = ["railtracks[stores-chroma]", "railtracks[stores-turbovec]", "railtracks[stores-vector]"]
+stores-all = ["railtracks[stores-vector]", "railtracks[stores-chroma]", "railtracks[stores-turbovec]"]
 
 # Minimum needed for the retrieval pipeline (chunking, embedding, in-memory
 # store, basic local-file loaders). No cloud connectors, no heavy backends.
 retrieval-core = [
-    "railtracks[tiktok]",
     "railtracks[semantic]",
     "railtracks[pdf]",
     "numpy >= 1.24",
@@ -134,7 +132,6 @@ retrieval = [
     "railtracks[retrieval-core]",
     "railtracks[ocr]",
     "railtracks[huggingface]",
-    "railtracks[chroma]",
     "railtracks[aws]",
     "railtracks[azure-blob]",
     "railtracks[gcp]",

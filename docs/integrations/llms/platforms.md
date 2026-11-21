@@ -64,7 +64,7 @@ The code remains the same as [LLM Providers](providers.md) with the provider nam
         - Apple Intelligence enabled in System Settings
         - Xcode 26.0+ installed, with the Xcode and Apple SDKs licence
           agreement accepted (open Xcode once after installing)
-        - Python 3.10+
+        - Python 3.11+
         - Install with `pip install railtracks[apple]`
 
     !!! caution "No tool calling"

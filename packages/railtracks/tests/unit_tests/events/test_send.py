@@ -5,12 +5,7 @@ import datetime
 import railtracks.context.central as central
 from railtracks.events.node import NodeInvocation
 from railtracks.events.send import pipe
-from railtracks.observability import (
-    Event,
-    configure_writers,
-    ensure_started,
-    shutdown,
-)
+from railtracks.observability import Event, configure_writers
 from railtracks.utils.config import ExecutorConfig
 
 
@@ -18,13 +13,13 @@ class _Collecting:
     def __init__(self):
         self.events: list[Event] = []
 
-    async def start(self):
+    def start(self):
         pass
 
-    async def write(self, event: Event):
+    def write(self, event: Event):
         self.events.append(event)
 
-    async def shutdown(self):
+    def shutdown(self):
         pass
 
 
@@ -40,9 +35,7 @@ def _register(session_id="sess-1"):
 async def _emit(event):
     writer = _Collecting()
     configure_writers([writer])
-    await ensure_started()
     await pipe(event)
-    await shutdown()  # drains per-writer queues so delivery is deterministic
     return writer.events
 
 

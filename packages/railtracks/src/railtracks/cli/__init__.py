@@ -9,7 +9,7 @@ Commands:
   viz     Start the railtracks development server
 
 - Checks to see if there is a .railtracks directory
-- If not, it creates one (and adds it to .gitignore)
+- If not, it creates one, with a .gitignore inside that keeps it out of git
 - If there is a build directory, it runs the build command
 - If there is a .railtracks directory, it starts the server
 
@@ -31,7 +31,7 @@ from pathlib import Path
 
 from colorama import Fore, Style
 
-from railtracks.paths import resolve_railtracks_home
+from railtracks.paths import ensure_gitignore, resolve_railtracks_home
 
 from ._agents_md import CLAUDE_IMPORT, FileChange, MalformedBlockError, write_agents_md
 from ._skillkit import (
@@ -157,30 +157,17 @@ def is_port_in_use(port):
 
 
 def create_railtracks_dir():
-    """Create .railtracks directory if it doesn't exist and add to .gitignore"""
+    """Create .railtracks directory if it doesn't exist and keep it out of git"""
     railtracks_dir = resolve_railtracks_home()
     if not railtracks_dir.exists():
         print_status(f"Creating {cli_directory} directory...")
         railtracks_dir.mkdir(parents=True, exist_ok=True)
         print_success(f"Created {railtracks_dir}")
-
-        gitignore_path = railtracks_dir.parent / ".gitignore"
-        if gitignore_path.exists():
-            with open(gitignore_path) as f:
-                gitignore_content = f.read()
-
-            if cli_directory not in gitignore_content:
-                print_status(f"Adding {cli_directory} to .gitignore...")
-                with open(gitignore_path, "a") as f:
-                    f.write(f"\n{cli_directory}\n")
-                print_success(f"Added {cli_directory} to .gitignore")
-        else:
-            print_status("Creating .gitignore file...")
-            with open(gitignore_path, "w") as f:
-                f.write(f"{cli_directory}\n")
-            print_success(f"Created .gitignore with {cli_directory}")
     else:
         print_status(f"Using existing {railtracks_dir}")
+
+    if ensure_gitignore(railtracks_dir):
+        print_success(f"Added a .gitignore inside {cli_directory} so git skips it")
 
 
 def _ui_subdir(beta: bool) -> str:

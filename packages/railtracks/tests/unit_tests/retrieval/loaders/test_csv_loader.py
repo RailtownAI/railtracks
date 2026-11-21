@@ -1,5 +1,6 @@
 import pytest
 from railtracks.retrieval.loaders.csv_loader import CSVLoader
+from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import DocumentType
 
 
@@ -178,3 +179,37 @@ class TestCSVLoaderErrors:
         loader = CSVLoader(str(f))
         with pytest.raises(ValueError, match="CSVLoader expects a .csv file"):
             await loader.aload()
+
+
+class TestCSVLoaderUnreadableFiles:
+    """Tests for CSV files that cannot be read."""
+
+    async def test_bad_file_in_directory_yields_load_failure(self, tmp_path):
+        (tmp_path / "a.csv").write_text("name\nalpha\n", encoding="utf-8")
+        (tmp_path / "b.csv").write_bytes("name\ncaf\xe9\n".encode("latin-1"))
+        (tmp_path / "c.csv").write_text("name\ngamma\n", encoding="utf-8")
+
+        items = [item async for item in CSVLoader(str(tmp_path)).astream()]
+
+        failures = [i for i in items if isinstance(i, LoadFailure)]
+        assert len(items) == 3
+        assert len(failures) == 1
+        assert failures[0].source == str(tmp_path / "b.csv")
+        assert isinstance(failures[0].error, UnicodeDecodeError)
+
+    async def test_missing_content_column_in_one_file_yields_load_failure(
+        self, tmp_path
+    ):
+        (tmp_path / "a.csv").write_text("body\nalpha\n", encoding="utf-8")
+        (tmp_path / "b.csv").write_text("other\nbeta\n", encoding="utf-8")
+
+        items = [
+            item
+            async for item in CSVLoader(
+                str(tmp_path), content_columns=["body"]
+            ).astream()
+        ]
+
+        assert items[0].content == "body: alpha"
+        assert isinstance(items[1], LoadFailure)
+        assert isinstance(items[1].error, ValueError)

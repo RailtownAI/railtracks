@@ -169,6 +169,8 @@ Railtracks loads a local `.env` file on import, save your provider keys there:
 echo "OPENAI_API_KEY=sk-..." >> .env
 ```
 
+If you cloned this repo, you can also run `cp .env.example .env` and uncomment the keys you need.
+
 </details>
 
 

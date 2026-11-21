@@ -34,6 +34,8 @@ yourself:
 --8<-- "docs/scripts/retrieval/retrieval_example.py:metadata_filters"
 ```
 
+These two keys belong to the runtime: if a loader puts a `source_path` or `content_hash` column into the metadata, the runtime's value replaces it and a warning is logged. Every key in `metadata_filters` refers to `Chunk.metadata` (apart from `scope_<label>` keys, which narrow by one scope label), even one named like an entry field: `{"document_id": "42"}` matches a `document_id` metadata column, not the internal document id. To restrict a search to one document, filter on its `source_path`.
+
 !!! warning "Filters are flat equality only"
     Currently we only support `field==value` for filtering. For other common filtering needs (`or`, `is_in`, etc) please open an issue or a PR at https://github.com/RailtownAI/railtracks/issues
 
@@ -51,6 +53,8 @@ When the same runtime serves multiple users, pass `StoreScope` on each
 Scope is enforced at the store layer, not the runtime and even
 `VectorStore.nearest_neighbors()` (the lower-level bypass method) honors
 it. And unlike metadata filters, scope is stamped onto entries at write time, not just applied at read time.
+
+A scope matches entries written with exactly the same labels, and `metadata_filters` can't widen it. `retrieve()` without a scope (or with `StoreScope()`) searches only unscoped entries, so forgetting the scope never returns another tenant's data. To search every scope, for example from an admin tool, pass `ALL_SCOPES` (from `railtracks.retrieval`) explicitly.
 
 ---
 
