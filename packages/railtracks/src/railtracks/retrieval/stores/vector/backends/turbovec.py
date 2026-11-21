@@ -32,6 +32,16 @@ def _matches(payload: dict[str, Any], filters: dict[str, Any]) -> bool:
     return all(payload.get(key) == value for key, value in filters.items())
 
 
+def _fsync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    directory_fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
 class TurbovecBackend:
     """Local TurboQuant vector backend with a JSON metadata sidecar.
 
@@ -267,11 +277,7 @@ class TurbovecBackend:
                     stream.flush()
                     os.fsync(stream.fileno())
                 os.replace(manifest_tmp, self._snapshot_path)
-                directory_fd = os.open(self._snapshot_path.parent, os.O_RDONLY)
-                try:
-                    os.fsync(directory_fd)
-                finally:
-                    os.close(directory_fd)
+                _fsync_directory(self._snapshot_path.parent)
                 for old_name in (previous.get("index"), previous.get("payloads")):
                     if isinstance(old_name, str) and Path(old_name).name == old_name:
                         old_path = self._snapshot_path.parent / old_name
