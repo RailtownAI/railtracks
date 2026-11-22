@@ -7,7 +7,7 @@ import pytest
 import requests
 from railtracks.llm._exceptions import ProviderError
 from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import AssistantMessage, UserMessage
+from railtracks.llm.message import AssistantMessage, Attachment, UserMessage
 from railtracks.llm.models._model_exception_base import (
     AttachmentNotSupportedError,
     ModelError,
@@ -44,13 +44,21 @@ PDF_DATA_URI = (
 IMAGE_DATA_URI = "data:image/png;base64,iVBORw0KGgo="
 
 
-def test_pdf_attachment_rejected(mock_response):
-    """PDF attachments raise: litellm's Ollama transform drops them (#1628)."""
+@pytest.mark.parametrize(
+    "attachment,mime_type",
+    [
+        (PDF_DATA_URI, "application/pdf"),
+        (Attachment.from_bytes(b"wav", mime_type="audio/wav"), "audio/wav"),
+    ],
+    ids=["pdf", "audio"],
+)
+def test_non_image_attachment_rejected(mock_response, attachment, mime_type):
+    """Only images are sent: litellm's Ollama transform drops other parts (#1628)."""
     with patch("requests.get", return_value=mock_response):
         ollama = OllamaLLM("test-model")
-    message = UserMessage(content="Summarize this.", attachment=[PDF_DATA_URI])
+    message = UserMessage(content="Summarize this.", attachment=[attachment])
 
-    with pytest.raises(AttachmentNotSupportedError, match="application/pdf") as exc:
+    with pytest.raises(AttachmentNotSupportedError, match=mime_type) as exc:
         ollama._to_litellm_message(message)
     assert isinstance(exc.value, ModelError)
     assert isinstance(exc.value, ValueError)
