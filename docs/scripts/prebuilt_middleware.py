@@ -41,6 +41,8 @@ def researcher(agent_model: ModelSource, summary_model: ModelSource):
             )
         ],
     )
+
+
 # --8<-- [end: tool_output_summarizer]
 
 # --8<-- [start: retry]
@@ -179,4 +181,3 @@ flow = rt.Flow("ChatFlow", entry_point=ChatAgent)
 # flow.invoke("What is your name?")
 # flow.invoke("What did I just ask?")  -> Agent remembers Turn 1!
 # --8<-- [end: conversation_memory]
-
