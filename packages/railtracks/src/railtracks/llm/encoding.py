@@ -1,6 +1,5 @@
 import base64
 import functools
-import hashlib
 import http.client
 import math
 import os
@@ -17,9 +16,15 @@ import certifi
 
 from .attachment_formats import detect_attachment_mime_from_bytes
 
+AttachmentSource = Literal["local", "url", "data_uri"]
+"""Where an attachment came from; `data_uri` covers every inline payload, raw bytes included."""
+
 DEFAULT_MAX_DOWNLOAD_MB = 32.0
 _READ_CHUNK_BYTES = 64 * 1024
 _URLSAFE_TO_STANDARD = str.maketrans("-_", "+/")
+
+MIME_TYPE = re.compile(r"[a-z0-9.+-]+/[a-z0-9.+-]+")
+"""A bare, lowercase `type/subtype` with no parameters."""
 
 
 def redact_url(url: str) -> str:
@@ -88,119 +93,96 @@ def _normalize_base64(s: str) -> str:
     """Convert base64 text to the standard alphabet with no whitespace and full padding.
 
     Args:
-        s: Base64 text, possibly line-wrapped, unpadded, or URL-safe.
+        s: Base64 text, possibly line-wrapped, under- or over-padded, or URL-safe.
 
     Returns:
         Standard-alphabet base64 with a length that is a multiple of 4.
     """
-    s = "".join(s.split()).translate(_URLSAFE_TO_STANDARD)
+    s = "".join(s.split()).translate(_URLSAFE_TO_STANDARD).rstrip("=")
     return s + "=" * (-len(s) % 4)
 
 
-def decode_data_uri(data_uri: str) -> bytes:
-    """Return the bytes carried by a base64 data URI.
-
-    Args:
-        data_uri: A `data:<mime>;base64,<payload>` string. The payload may be
-            line-wrapped, unpadded, or URL-safe.
-
-    Returns:
-        The decoded payload.
+def _decode_base64(s: str) -> bytes:
+    """Decode base64 text, tolerating line wrapping, missing padding and the URL-safe alphabet.
 
     Raises:
-        ValueError: If `data_uri` has no payload or the payload is not base64.
+        ValueError: If `s` is not valid base64.
     """
-    _, sep, payload = data_uri.partition(",")
-    if not sep:
-        raise ValueError("Data URI has no comma separating header and payload.")
-    return base64.b64decode(_normalize_base64(payload))
+    try:
+        return base64.b64decode(s, validate=True)
+    except ValueError as e:
+        try:
+            return base64.b64decode(_normalize_base64(s), validate=True)
+        except ValueError:
+            raise ValueError("Provided string is not valid base64 or a data URI") from e
 
 
-def media_sha256(data: bytes) -> str:
-    """Return the content hash media is recorded and stored under.
+def decode_data_uri(base64_or_data_uri: str) -> tuple[str, bytes]:
+    """Split a data URI or plain base64 payload into its MIME type and raw bytes.
 
     Args:
-        data: The raw media bytes, never their base64 or data-URI text.
+        base64_or_data_uri: A `data:<mime>;base64,...` URI, or plain base64 whose
+            MIME type is detected from its magic bytes.
 
     Returns:
-        The hex SHA-256 digest of `data`.
+        The lowercase MIME type and the decoded bytes.
+
+    Raises:
+        ValueError: If the URI is malformed, the payload is not valid base64, or the
+            MIME type of plain base64 cannot be detected.
     """
-    return hashlib.sha256(data).hexdigest()
-
-
-def _is_base64_attachment(s: str) -> bool:
-    """
-    Return True if s appears to be a base64-encoded attachment payload (image or PDF),
-    not a full data URI. Attempts a strict decode first, then a tolerant decode if needed.
-    """
-    s_stripped = s.strip()
-    # fast reject common non-base64 characters (allow padding and urlsafe variants)
-    if not re.fullmatch(r"[A-Za-z0-9+/=\s]+", s_stripped):
-        # could still be urlsafe base64 without +/; try replace
-        if re.fullmatch(r"[A-Za-z0-9\-_=\s]+", s_stripped) is None:
-            return False
-
-    try:
-        decoded = base64.b64decode(s_stripped, validate=True)
-    except Exception:
-        try:
-            decoded = base64.b64decode(_normalize_base64(s_stripped))
-        except Exception:
-            return False
-
-    return detect_attachment_mime_from_bytes(decoded) is not None
-
-
-def _validate_data_uri_header(header: str) -> bool:
-    # Expect pattern like: data:image/{type};base64, or data:application/pdf;base64,
-    return bool(
-        re.match(
-            r"^data:(image/[a-z0-9.+-]+|application/pdf);base64,$", header, flags=re.I
+    s = base64_or_data_uri.strip()
+    if not s.startswith("data:"):
+        return _decode_plain_base64(s)
+    header, comma, payload = s.partition(",")
+    if not comma:
+        raise ValueError(
+            "Incomplete data URI: missing comma separating header and base64 payload"
         )
-    )
+    mime, _, encoding = header.removeprefix("data:").lower().partition(";")
+    if encoding != "base64" or not MIME_TYPE.fullmatch(mime):
+        raise ValueError(
+            f"Malformed data URI header. Expected format like 'data:image/png;base64,' or 'data:application/pdf;base64,'. Got: {header},"
+        )
+    return mime, _decode_base64(payload)
+
+
+def _decode_plain_base64(s: str) -> tuple[str, bytes]:
+    data = _decode_base64(s)
+    mime = detect_attachment_mime_from_bytes(data)
+    if not mime:
+        raise ValueError(
+            "Could not detect MIME type from provided base64 data. Provide a proper data URI or a supported attachment (image, audio, video or PDF)."
+        )
+    return mime, data
+
+
+def decode_base64_attachment(s: str) -> tuple[str, bytes] | None:
+    """Decode plain base64 that holds an attachment with a detectable type.
+
+    Args:
+        s: Any string; data URIs, paths and URLs give None.
+
+    Returns:
+        The MIME type and decoded bytes, or None when `s` is not such a payload.
+    """
+    try:
+        return _decode_plain_base64(s.strip())
+    except ValueError:
+        return None
 
 
 def ensure_data_uri(base64_or_data_uri: str) -> str:
+    """Return a data URI with standard, padded base64 for a data URI or plain base64.
+
+    Raises:
+        ValueError: For the reasons listed on `decode_data_uri`.
     """
-    If input is a valid data URI (with header), use as-is.
-    Otherwise, detect attachment type and construct header dynamically.
-    Raises ValueError on malformed input or unknown attachment type.
-    """
-    s = base64_or_data_uri.strip()
-    if s.startswith("data:"):
-        try:
-            header, payload = s.split(",", 1)
-        except ValueError:
-            raise ValueError(
-                "Incomplete data URI: missing comma separating header and base64 payload"
-            )
-        header_with_comma = header + ","
-        if not _validate_data_uri_header(header_with_comma):
-            raise ValueError(
-                f"Malformed data URI header. Expected format like 'data:image/png;base64,' or 'data:application/pdf;base64,'. Got: {header_with_comma}"
-            )
-        return header_with_comma + payload
-
-    # Otherwise treat as plain base64: try to decode some bytes to detect MIME
-    try:
-        decoded = base64.b64decode(s, validate=True)
-    except Exception as e:
-        # The returned URI carries s, so it must be the normalized form.
-        s = _normalize_base64(s)
-        try:
-            decoded = base64.b64decode(s)
-        except Exception:
-            raise ValueError("Provided string is not valid base64 or a data URI") from e
-
-    mime = detect_attachment_mime_from_bytes(decoded)
-    if not mime:
-        raise ValueError(
-            "Could not detect MIME type from provided base64 data. Provide a proper data URI or a supported attachment (image or PDF)."
-        )
-    return f"data:{mime};base64," + s
+    mime, data = decode_data_uri(base64_or_data_uri)
+    return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
 
 
-def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
+def detect_source(path: str) -> AttachmentSource:
     """Detects whether the image path is a local file, URL, or data URI/base64.
 
     Args:
@@ -216,10 +198,24 @@ def detect_source(path: str) -> Literal["local", "url", "data_uri"]:
     if path.startswith("data:"):
         return "data_uri"
 
-    # If it's a plain base64-encoded attachment payload (image or PDF), treat as data_uri too
-    if _is_base64_attachment(path):
+    if decode_base64_attachment(path) is not None:
         return "data_uri"
 
+    return detect_path_source(path)
+
+
+def detect_path_source(path: str) -> Literal["url", "local"]:
+    """Return whether a string that is not a data URI or base64 is a URL or a local path.
+
+    Args:
+        path: The URL or path to check.
+
+    Returns:
+        "url" for http(s) and ftp(s), "local" for no scheme, `file:` or a Windows drive.
+
+    Raises:
+        ValueError: If the string has any other scheme, such as `s3://`.
+    """
     parsed = urlparse(path)
 
     if parsed.scheme in ("http", "https", "ftp", "ftps"):
@@ -280,25 +276,46 @@ def _download_capped(path: str, *, timeout: float, max_mb: float) -> bytes:
     return b"".join(chunks)
 
 
-def encode(
-    path: str, *, timeout: float = 10.0, max_mb: float = DEFAULT_MAX_DOWNLOAD_MB
-) -> str:
-    """Encodes image/audio located at path to a Base64 string.
+def read_file(path: str) -> bytes:
+    """Read a local file.
 
     Args:
-        path: The path to the local file or URL to encode.
+        path: The file path.
+
+    Returns:
+        The file content.
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+        ValueError: If the path is not a file.
+    """
+    file_path = Path(path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    if not file_path.is_file():
+        raise ValueError(f"Path is not a file: {path}")
+    return file_path.read_bytes()
+
+
+def load_bytes(
+    path: str, *, timeout: float = 10.0, max_mb: float = DEFAULT_MAX_DOWNLOAD_MB
+) -> bytes:
+    """Read the bytes of a local file or URL.
+
+    Args:
+        path: The path to the local file or URL to read.
         timeout: Per-request timeout in seconds for URL fetches.
         max_mb: Largest body accepted from a URL, in megabytes. Must be positive
             and finite. The body is read in chunks and the download stops as soon
             as it passes the limit. Local files are not limited.
 
     Returns:
-        str: Base64 encoded string
+        bytes: The file or response body.
 
     Raises:
         FileNotFoundError: If the file doesn't exist.
-        ValueError: If `max_mb` is not positive and finite, the path is not a
-            local file, a URL returns an HTTP error status, a URL body exceeds
+        ValueError: If `max_mb` is not positive and finite, the path is a data URI
+            or not a file, a URL returns an HTTP error status, a URL body exceeds
             `max_mb`, or a URL body ends before its declared `Content-Length`
             or final chunk.
         urllib.error.URLError: If a URL's host cannot be resolved or reached.
@@ -306,26 +323,36 @@ def encode(
     validate_max_mb(max_mb)
     source_type = detect_source(path)
 
-    encoding = ""
-
     match source_type:
         case "local":
-            file_path = Path(path)
-            if not file_path.exists():
-                raise FileNotFoundError(f"File not found: {path}")
-            if not file_path.is_file():
-                raise ValueError(f"Path is not a file: {path}")
-            with open(path, "rb") as image_file:
-                encoding = base64.b64encode(image_file.read()).decode("utf-8")
+            return read_file(path)
         case "url":
-            data = _download_capped(path, timeout=timeout, max_mb=max_mb)
-            encoding = base64.b64encode(data).decode("utf-8")
+            return _download_capped(path, timeout=timeout, max_mb=max_mb)
         case "data_uri":
             raise ValueError("Data is already in byte64 encoded format.")
         case _:
             raise ValueError(f"Unsupported source type: {source_type}")
 
-    if not encoding:
+
+def encode(
+    path: str, *, timeout: float = 10.0, max_mb: float = DEFAULT_MAX_DOWNLOAD_MB
+) -> str:
+    """Encodes the file located at path to a Base64 string.
+
+    Args:
+        path: The path to the local file or URL to encode.
+        timeout: Per-request timeout in seconds for URL fetches.
+        max_mb: Largest body accepted from a URL, in megabytes. Must be positive
+            and finite. Local files are not limited.
+
+    Returns:
+        str: Base64 encoded string
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+        ValueError: For the reasons listed on `load_bytes`, or if the file is empty.
+    """
+    data = load_bytes(path, timeout=timeout, max_mb=max_mb)
+    if not data:
         raise ValueError("Failed to encode image.")
-    else:
-        return encoding
+    return base64.b64encode(data).decode("utf-8")

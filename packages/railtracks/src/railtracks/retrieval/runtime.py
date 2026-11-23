@@ -7,8 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 from uuid import UUID
 
-from railtracks.utils.logging.create import get_rt_logger
-
+from ._logging import RetrievalComponent, get_logger
 from .chunking.base import Chunker
 from .chunking.tokenization import Tokenizer
 from .embedding.base import Embedding
@@ -17,10 +16,16 @@ from .errors import EmbeddingModelMismatchError
 from .loaders.base import BaseDocumentLoader
 from .loaders.models import LoadFailure
 from .models import Chunk, Document, EmbeddedChunk, RetrievalResult, RetrievedChunk
-from .stores.models import StoreEntry, StoreQuery, StoreScope
+from .stores.models import (
+    AllScopes,
+    StoreEntry,
+    StoreQuery,
+    StoreScope,
+    exact_scope_filter,
+)
 from .stores.protocol import Store
 
-logger = get_rt_logger(__name__)
+logger = get_logger(RetrievalComponent.RUNTIME)
 
 IngestionStage = Literal["load", "chunk", "embed", "store"]
 """The ingest step a ``DocumentFailed`` happened in."""
@@ -252,7 +257,10 @@ class RetrievalRuntime:
         Args:
             loader: Source of ``Document`` objects to ingest.
             scope: Tag written onto every ``StoreEntry`` produced by this
-                call. Single-tenant callers can leave this ``None``.
+                call. The skip check and the replacement of a changed
+                document only see entries with exactly this scope; ``None``
+                means unscoped entries. Single-tenant callers can leave this
+                ``None``.
 
         Yields:
             ``BatchIngested`` after each successful batch finishes writing,
@@ -263,6 +271,7 @@ class RetrievalRuntime:
             written; ``DocumentFailed`` signals the partial state.
 
         Raises:
+            ValueError: If ``scope`` is ``ALL_SCOPES``; ingest needs one scope.
             Exception: Any per-document error when ``on_error="raise"``.
             EmbeddingModelMismatchError: When the embedder's model differs
                 from the one the store was built with.
@@ -294,6 +303,8 @@ class RetrievalRuntime:
     ) -> AsyncGenerator[
         BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSkipped, None
     ]:
+        # Fail fast on ALL_SCOPES instead of once per document.
+        exact_scope_filter(scope)
         async with aclosing(loader.astream()) as stream:
             async for item in stream:
                 if isinstance(item, LoadFailure):
@@ -392,7 +403,7 @@ class RetrievalRuntime:
         stale_filters = {
             "source_path": doc.source,
             "content_hash": doc.content_hash,
-            **(scope.to_payload_filters() if scope is not None else {}),
+            **exact_scope_filter(scope),
         }
         existing = await self._store.find(stale_filters, limit=1)
         if not existing:
@@ -407,12 +418,28 @@ class RetrievalRuntime:
     @staticmethod
     def _stamp_staleness_metadata(doc: Document, chunks: list[Chunk]) -> None:
         """Inject staleness-detection metadata into every chunk so future
-        `find` calls can identify whether this document has changed."""
+        `find` calls can identify whether this document has changed.
+
+        The runtime owns these keys: they overwrite any same-named metadata
+        from the loader, which would otherwise break the skip check. A
+        warning is logged once per document when a different value is
+        replaced.
+        """
+        runtime_keys = {"source_path": doc.source, "content_hash": doc.content_hash}
+        runtime_keys = {k: v for k, v in runtime_keys.items() if v is not None}
+        overwritten: set[str] = set()
         for chunk in chunks:
-            if doc.source is not None:
-                chunk.metadata.setdefault("source_path", doc.source)
-            if doc.content_hash is not None:
-                chunk.metadata.setdefault("content_hash", doc.content_hash)
+            for key, value in runtime_keys.items():
+                if key in chunk.metadata and chunk.metadata[key] != value:
+                    overwritten.add(key)
+                chunk.metadata[key] = value
+        if overwritten:
+            logger.warning(
+                "Document %r has metadata %s, which the runtime sets for its "
+                "skip check; the loader's values were replaced.",
+                doc.source,
+                sorted(overwritten),
+            )
 
     def _split_oversized(
         self, chunks: list[Chunk], stats: IngestionStats
@@ -467,7 +494,7 @@ class RetrievalRuntime:
                     await self._store.delete_where(
                         {
                             "document_id": str(doc.id),
-                            **(scope.to_payload_filters() if scope is not None else {}),
+                            **exact_scope_filter(scope),
                         }
                     )
                     delete_done = True
@@ -496,7 +523,7 @@ class RetrievalRuntime:
         retrieve() calls can enforce model consistency."""
         if self._captured_model is None and embedded.embedding_model:
             self._captured_model = embedded.embedding_model
-            logger.info(
+            logger.debug(
                 "RetrievalRuntime captured embedding model %r "
                 "from first successful batch; subsequent retrieve() "
                 "calls will enforce this model.",
@@ -516,7 +543,7 @@ class RetrievalRuntime:
         existing = await self._store.find({}, limit=1)
         if existing and existing[0].embedding_model:
             self._captured_model = existing[0].embedding_model
-            logger.info(
+            logger.debug(
                 "RetrievalRuntime seeded captured embedding model %r from "
                 "an existing store entry; mismatched embedders will raise.",
                 self._captured_model,
@@ -555,20 +582,30 @@ class RetrievalRuntime:
         logger.warning("Could not ingest %s (stage %r): %r", source, stage, errors[-1])
         return failed
 
-    async def delete_document(self, document_id: UUID) -> None:
-        """Remove all chunks for a document from the store.
+    async def delete_document(
+        self, document_id: UUID, *, scope: StoreScope | None = None
+    ) -> None:
+        """Remove all chunks for a document within one scope.
 
-        Convenience wrapper around ``store.delete_where({"document_id": ...})``
-        so callers don't need to know the metadata key.
+        Document ids come from ``Document.source``, so tenants that ingest the
+        same source share an id; only the copy in ``scope`` is deleted.
+
+        Args:
+            document_id: Id of the document to delete.
+            scope: Scope the document was ingested with. ``None`` deletes only
+                the unscoped copy. To delete every tenant's copy, call
+                ``store.delete_where({"document_id": str(document_id)})``.
         """
-        await self._store.delete_where({"document_id": str(document_id)})
+        await self._store.delete_where(
+            {"document_id": str(document_id), **exact_scope_filter(scope)}
+        )
 
     async def retrieve(
         self,
         query: str,
         top_k: int = 5,
         metadata_filters: dict[str, Any] | None = None,
-        scope: StoreScope | None = None,
+        scope: StoreScope | AllScopes | None = None,
     ) -> RetrievalResult:
         """Embed ``query`` and return the top ``top_k`` matches from the store.
 
@@ -576,8 +613,10 @@ class RetrievalRuntime:
             query: The text to embed and search with.
             top_k: Maximum number of results.
             metadata_filters: Additional equality filters on chunk metadata.
-            scope: Restricts the search to entries written with the same
-                scope. Leave ``None`` to search across all scopes.
+                They can't widen ``scope``.
+            scope: Restricts the search to entries written with exactly this
+                scope. ``None`` searches only unscoped entries; pass
+                ``ALL_SCOPES`` to search across every scope.
 
         Raises:
             EmbeddingModelMismatchError: When the embedder reports a model
@@ -605,7 +644,11 @@ class RetrievalRuntime:
             )
             for hit in store_hits
         ]
-        result = RetrievalResult(query=query, chunks=chunks)
+        result = RetrievalResult(
+            query=query,
+            chunks=chunks,
+            embedding_metrics=text_result.metrics,
+        )
         if self._on_retrieve is not None:
             self._on_retrieve(query, result)
         return result

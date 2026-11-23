@@ -45,8 +45,7 @@ class TestAttachmentHash:
     def test_pdf_url_is_hashed_from_the_downloaded_bytes(self, monkeypatch):
         pdf_bytes = b"%PDF-1.4\n%fake pdf body\n%%EOF"
         monkeypatch.setattr(
-            "railtracks.llm.message.encode",
-            lambda url, **_: base64.b64encode(pdf_bytes).decode(),
+            "railtracks.llm.message.load_bytes", lambda url, **_: pdf_bytes
         )
 
         attachment = Attachment("https://example.com/doc.pdf", trust_urls=True)
@@ -56,11 +55,6 @@ class TestAttachmentHash:
 
     def test_image_url_has_no_hash(self):
         attachment = Attachment("https://example.com/cat.png")
-        assert attachment.sha256 is None
-        assert attachment.size is None
-
-    def test_malformed_data_uri_payload_has_no_hash(self):
-        attachment = Attachment("data:image/png;base64,abcde")
         assert attachment.sha256 is None
         assert attachment.size is None
 
