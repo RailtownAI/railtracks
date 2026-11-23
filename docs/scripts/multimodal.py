@@ -111,6 +111,38 @@ message_history = rt.llm.MessageHistory(
 )
 # --8<-- [end: production_fetch]
 
+# --8<-- [start: attachment_object]
+# The type is detected from the bytes; pass mime_type= when it can't be.
+chart = rt.llm.Attachment.from_bytes(img_bytes, filename="random.png")
+# A URL without an extension, typed up front so no HEAD probe is needed.
+thumbnail = rt.llm.Attachment.from_url(
+    "https://cdn.example.com/thumbnails/8f3a2c", mime_type="image/webp"
+)
+
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Do these two images show the same chart?",
+            attachment=[chart, thumbnail],
+        )
+    ]
+)
+# --8<-- [end: attachment_object]
+
+# --8<-- [start: audio_video]
+voice_note = rt.llm.Attachment("path/to/voice_note.mp3")
+clip = rt.llm.Attachment("https://example.com/demo.mp4")
+
+message_history = rt.llm.MessageHistory(
+    [
+        rt.llm.UserMessage(
+            content="Answer the question in the voice note using the clip.",
+            attachment=[voice_note, clip],
+        )
+    ]
+)
+# --8<-- [end: audio_video]
+
 # --8<-- [start: combined]
 message_history = rt.llm.MessageHistory(
     [

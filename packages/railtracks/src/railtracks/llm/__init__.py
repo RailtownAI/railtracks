@@ -8,7 +8,14 @@ from ._exceptions import (
 )
 from .content import ToolCall, ToolCalls, ToolResponse
 from .history import MessageHistory
-from .message import AssistantMessage, Message, SystemMessage, ToolMessage, UserMessage
+from .message import (
+    AssistantMessage,
+    Attachment,
+    Message,
+    SystemMessage,
+    ToolMessage,
+    UserMessage,
+)
 from .model import ModelBase
 from .models import (
     AnthropicLLM,
@@ -60,6 +67,7 @@ __all__ = [
     "ToolCalls",
     "ToolResponse",
     "UserMessage",
+    "Attachment",
     "SystemMessage",
     "AssistantMessage",
     "Message",

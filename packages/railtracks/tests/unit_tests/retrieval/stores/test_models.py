@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 from uuid import uuid4
 
+import pytest
 from railtracks.retrieval.models import Chunk, EmbeddedChunk
 from railtracks.retrieval.stores.models import (
     RetrievedStoreEntry,
@@ -158,3 +159,22 @@ def test_retrieved_store_entry():
     assert retrieved.rank == 0
     assert retrieved.source_retriever == "dense"
     assert retrieved.rerank_score is None
+
+
+@pytest.mark.parametrize("value", ["alice", 42, 1.5, True])
+def test_store_scope_accepts_scalar_label_values(value):
+    assert StoreScope(labels={"tenant": value}).labels == {"tenant": value}
+
+
+@pytest.mark.parametrize(
+    ("value", "type_name"),
+    [(uuid4(), "UUID"), (None, "NoneType"), (["a"], "list"), ({"a": 1}, "dict")],
+)
+def test_store_scope_rejects_non_scalar_label_values(value, type_name):
+    with pytest.raises(TypeError, match=rf"'tenant' is a {type_name}.*str\(value\)"):
+        StoreScope(labels={"tenant": value})
+
+
+def test_store_scope_rejects_non_str_label_keys():
+    with pytest.raises(TypeError, match="label keys must be str"):
+        StoreScope(labels={1: "alice"})  # type: ignore[dict-item]

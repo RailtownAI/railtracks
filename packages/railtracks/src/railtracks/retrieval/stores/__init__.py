@@ -5,6 +5,8 @@ from .key_value import (
     KeyValueStore,
 )
 from .models import (
+    ALL_SCOPES,
+    AllScopes,
     Entity,
     RetrievedStoreEntry,
     StoreEntry,
@@ -26,6 +28,8 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "ALL_SCOPES",
+    "AllScopes",
     "ChromaBackend",
     "ChromaCloudBackend",
     "DistanceMetric",
