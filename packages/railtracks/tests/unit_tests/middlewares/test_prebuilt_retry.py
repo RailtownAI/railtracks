@@ -13,7 +13,7 @@ import litellm
 import pytest
 import railtracks as rt
 from litellm.utils import ModelResponse
-from railtracks.exceptions import LLMRateLimitError
+from railtracks.exceptions import LLMRateLimitError, LLMTimeoutError
 from railtracks.llm._exceptions import RetryError
 from railtracks.llm.retries import ExponentialRetry, FixedRetry
 from railtracks.middleware import Middleware
@@ -172,4 +172,28 @@ async def test_model_middleware_does_not_restart_an_exhausted_retry_approach():
         with pytest.raises(LLMRateLimitError):
             await rt.Flow(name="Stacked retries", entry_point=agent).ainvoke("Hello")
 
+    assert calls["n"] == 3
+
+
+@pytest.mark.parametrize(
+    "error_factory, node_error",
+    [(_rate_limit_error, LLMRateLimitError), (_timeout_error, LLMTimeoutError)],
+)
+async def test_exhausted_model_middleware_retry_keeps_the_error_type(
+    error_factory, node_error
+):
+    calls = {"n": 0}
+    agent = rt.agent_node(
+        "Agent",
+        llm=rt.llm.OpenAILLM("gpt-6-luna"),
+        model_middleware=[_no_sleep_retry()],
+    )
+
+    with patch.object(
+        litellm, "completion", side_effect=_flaky_completion(error_factory, 20, calls)
+    ):
+        with pytest.raises(node_error) as exc:
+            await rt.Flow(name="Retry model", entry_point=agent).ainvoke("Hello")
+
+    assert type(exc.value) is node_error
     assert calls["n"] == 3
