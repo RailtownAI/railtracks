@@ -88,6 +88,6 @@ import sentry_sdk
 
 sentry_sdk.init(
     dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
-    send_default_pii=True,  # Collects additional metadata
+    data_collection={"user_info": True},  # Collects user identity metadata
 )
 # --8<-- [end: logging_sentry]

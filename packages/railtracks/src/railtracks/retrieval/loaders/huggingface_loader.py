@@ -48,8 +48,8 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
         dataset_name: Dataset name on the Hugging Face Hub
             (e.g. `"squad"`, `"ms_marco"`).
         split: Which split to stream (`"train"`, `"validation"`, etc.).
-        content_columns: Columns whose values get joined into
-            `Document.content`.
+        content_columns: Column, or list of columns, whose values get
+            joined into `Document.content`.
         id_column: Column whose value uniquely identifies a row (e.g.
             `"id"`, `"qid"`, `"_id"`). Used as the row id in
             `Document.source`. Default: None (fall back to `row_index`).
@@ -81,7 +81,7 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
         self,
         dataset_name: str,
         split: str,
-        content_columns: list[str],
+        content_columns: str | list[str],
         id_column: str | None = None,
         metadata_columns: list[str] | None = None,
         content_separator: str = "\n",
@@ -92,7 +92,11 @@ class HuggingFaceDatasetLoader(BaseDocumentLoader):
             raise ValueError("content_columns must be a non-empty list of column names")
         self._dataset_name = dataset_name
         self._split = split
-        self._content_columns = list(content_columns)
+        self._content_columns = (
+            [content_columns]
+            if isinstance(content_columns, str)
+            else list(content_columns)
+        )
         self._id_column = id_column
         self._metadata_columns = list(metadata_columns or [])
         self._content_separator = content_separator
