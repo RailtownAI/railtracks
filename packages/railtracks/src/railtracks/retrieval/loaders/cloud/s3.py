@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from railtracks.retrieval.loaders._pdf_options import BreakdownStrategy
+from railtracks.retrieval.loaders.base import RENAMED_ARGUMENTS_GUIDE
 from railtracks.retrieval.loaders.cloud._common import ObjectStoreLoader
+from railtracks.utils.deprecation import renamed_kwargs
 
 
 class S3Loader(ObjectStoreLoader):
@@ -16,7 +18,7 @@ class S3Loader(ObjectStoreLoader):
 
     Text objects are decoded with ``encoding``. PDFs are parsed with the same
     logic as ``PyPDFLoader`` (requires the ``pdf`` extra), split according to
-    ``pdf_breakdown_strategy``. An object that cannot be downloaded or parsed,
+    ``breakdown_strategy``. An object that cannot be downloaded or parsed,
     including a ``.txt``, ``.md``, ``.csv``, ``.json`` or ``.jsonl`` object that
     is not valid text, is yielded as a ``LoadFailure`` and the remaining
     objects still load. Any other object that is not valid text, such as an
@@ -40,13 +42,15 @@ class S3Loader(ObjectStoreLoader):
         aws_session_token: Explicit session token for temporary credentials (optional).
         endpoint_url: Custom endpoint URL for S3-compatible services such as MinIO (optional).
         encoding: Text encoding used to decode object bytes. Defaults to ``"utf-8"``.
-        pdf_breakdown_strategy: How to split each PDF into ``Document`` objects,
+        breakdown_strategy: How to split each PDF into ``Document`` objects,
             as in ``PyPDFLoader``: ``"page"`` (default), ``"paragraph"``, or
             ``"document"``.
 
     Raises:
         ImportError: If ``boto3`` is not installed.
-        ValueError: If ``pdf_breakdown_strategy`` is not a known strategy.
+        TypeError: If ``pdf_breakdown_strategy``, the deprecated name for
+            ``breakdown_strategy`` (removed in 2.0.0), is passed together with it.
+        ValueError: If ``breakdown_strategy`` is not a known strategy.
 
     Example::
 
@@ -63,6 +67,11 @@ class S3Loader(ObjectStoreLoader):
             ...
     """
 
+    @renamed_kwargs(
+        pdf_breakdown_strategy="breakdown_strategy",
+        version="2.0.0",
+        guide=RENAMED_ARGUMENTS_GUIDE,
+    )
     def __init__(
         self,
         bucket: str,
@@ -75,7 +84,7 @@ class S3Loader(ObjectStoreLoader):
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         encoding: str = "utf-8",
-        pdf_breakdown_strategy: BreakdownStrategy = "page",
+        breakdown_strategy: BreakdownStrategy = "page",
     ) -> None:
         try:
             import boto3
@@ -89,7 +98,7 @@ class S3Loader(ObjectStoreLoader):
             prefix=prefix,
             keys=keys,
             encoding=encoding,
-            pdf_breakdown_strategy=pdf_breakdown_strategy,
+            breakdown_strategy=breakdown_strategy,
         )
         self._bucket = bucket
         self._client = boto3.client(

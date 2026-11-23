@@ -4,12 +4,20 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
-from railtracks.retrieval.content_extraction import ContentExtractor, JsonExtractor
-from railtracks.retrieval.loaders.base import BaseDocumentLoader
+from railtracks.retrieval.content_extraction import (
+    ContentExtractor,
+    JsonExtractor,
+    labelled_join,
+)
+from railtracks.retrieval.loaders.base import (
+    RENAMED_ARGUMENTS_GUIDE,
+    BaseDocumentLoader,
+)
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
+from railtracks.utils.deprecation import renamed_kwargs
 
 
 class JSONLoader(BaseDocumentLoader):
@@ -27,60 +35,77 @@ class JSONLoader(BaseDocumentLoader):
       JSONL is the preferred format for corpora larger than memory.
 
     `Document.source` is set to `"{file_path}#{obj_id}"`, where `obj_id`
-    is `obj[id_key]` when `id_key` is given and the object's position in
-    the file otherwise. Per-object sources keep `Document.id` stable and
+    is `obj[id_column]` when `id_column` is given and the object's position
+    in the file otherwise. Per-object sources keep `Document.id` stable and
     unique across objects, which is what the runtime needs for upsert
     (`delete_where` on `document_id`).
 
     Args:
         file_path: Path to a `.json` / `.jsonl` file, or a directory
             containing them.
-        content_keys: Keys whose values are concatenated to form
-            `Document.content`. Use `"*"` (default) to serialise the entire
-            object as content. Pass an explicit list to control which fields
-            become content — all remaining non-ignored fields are added to
-            `Document.metadata`.
-        id_key: Top-level key whose value uniquely identifies an object
+        content_columns: Keys whose values form `Document.content`. Use
+            `"*"` (default) to serialise the entire object as content. A
+            single key name gives that key's value as-is; a list gives
+            `"key: value"` lines joined with `content_separator`. All
+            remaining non-ignored fields are added to `Document.metadata`.
+        id_column: Top-level key whose value uniquely identifies an object
             (e.g. `"id"`, `"_id"`). Used as the object id in
             `Document.source`. Default: `None` (fall back to the object's
             position in the file). Prefer this when the JSON has a stable
             id field and objects may be reordered — position is only
             stable as long as the order is.
-        ignore_keys: Keys to drop entirely from both content and metadata.
-        content_separator: String used to join multiple content-key values.
+        ignore_columns: Keys to drop entirely from both content and metadata.
+        content_separator: String used to join multiple content values.
             Defaults to `"\\n"`.
         encoding: File encoding. Defaults to `utf-8-sig`.
-        content_extractor: Optional callable used to turn content-key values
+        content_extractor: Optional callable used to turn content values
             into text. When omitted, the loader preserves its existing JSON
-            serialization for `content_keys="*"` and `str(value)` behavior
+            serialization for `content_columns="*"` and `str(value)` behavior
             for explicit keys.
 
     Raises:
         FileNotFoundError: If `file_path` does not exist.
+        TypeError: If `content_keys`, `id_key` or `ignore_keys`, the
+            deprecated names for `content_columns`, `id_column` and
+            `ignore_columns` (removed in 2.0.0), is passed together with its
+            replacement.
         ValueError: If `file_path` points to a file with an unsupported
             extension, the JSON/JSONL structure does not match the format
             (e.g. a `.json` file that is neither object nor array of
             objects, or a `.jsonl` line that is not a JSON object), or any
-            key in `content_keys` or `id_key` is not found in a parsed
+            key in `content_columns` or `id_column` is not found in a parsed
             object, or a content extractor fails (with key, index, and source).
     """
 
+    @renamed_kwargs(
+        content_keys="content_columns",
+        id_key="id_column",
+        ignore_keys="ignore_columns",
+        version="2.0.0",
+        guide=RENAMED_ARGUMENTS_GUIDE,
+    )
     def __init__(
         self,
         file_path: str,
-        content_keys: list[str] | Literal["*"] = "*",
-        id_key: str | None = None,
-        ignore_keys: list[str] | None = None,
+        content_columns: str | list[str] = "*",
+        id_column: str | None = None,
+        ignore_columns: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
         content_extractor: ContentExtractor | None = None,
     ) -> None:
         self._path = Path(file_path)
-        self._content_keys = content_keys
-        self._id_key = id_key
-        self._ignore_keys = set(ignore_keys or [])
+        self._all_content = content_columns == "*"
+        self._single_column = isinstance(content_columns, str)
+        self._content_columns = (
+            [content_columns]
+            if isinstance(content_columns, str)
+            else list(content_columns)
+        )
+        self._id_column = id_column
+        self._ignore_columns = set(ignore_columns or [])
         self._content_separator = content_separator
-        # Unlike the HF loader, the default depends on the content-keys mode.
+        # Unlike the HF loader, the default depends on the content-columns mode.
         self._content_extractor = content_extractor
         self._encoding = encoding
 
@@ -104,37 +129,45 @@ class JSONLoader(BaseDocumentLoader):
             Document: The converted document.
 
         Raises:
-            ValueError: If any key in `content_keys` or `id_key` is not
+            ValueError: If any key in `content_columns` or `id_column` is not
                 present in `obj`.
         """
-        if self._content_keys == "*":
-            content_value = {k: v for k, v in obj.items() if k not in self._ignore_keys}
+        if self._all_content:
+            content_value = {
+                k: v for k, v in obj.items() if k not in self._ignore_columns
+            }
             content = self._extract_content(
                 content_value, JsonExtractor(), "*", source_prefix, index
             )
             metadata: dict[str, Any] = {}
         else:
-            unknown = [k for k in self._content_keys if k not in obj]
+            unknown = [k for k in self._content_columns if k not in obj]
             if unknown:
                 raise ValueError(
-                    f"content_keys {unknown} not found in object at index {index} in {source_prefix}"
+                    f"content_columns {unknown} not found in object at index {index} in {source_prefix}"
                 )
-            content = self._content_separator.join(
-                f"{k}: {self._extract_content(obj[k], str, k, source_prefix, index)}"
-                for k in self._content_keys
-            )
-            content_key_set = set(self._content_keys)
+            texts = [
+                (k, self._extract_content(obj[k], str, k, source_prefix, index))
+                for k in self._content_columns
+            ]
+            if self._single_column:
+                content = texts[0][1]
+            else:
+                content = labelled_join(texts, self._content_separator)
+            content_column_set = set(self._content_columns)
             metadata = {
                 k: v
                 for k, v in obj.items()
-                if k not in content_key_set and k not in self._ignore_keys
+                if k not in content_column_set and k not in self._ignore_columns
             }
 
-        if self._id_key is not None and self._id_key not in obj:
+        if self._id_column is not None and self._id_column not in obj:
             raise ValueError(
-                f"id_key {self._id_key!r} not found in object at index {index} in {source_prefix}"
+                f"id_column {self._id_column!r} not found in object at index {index} in {source_prefix}"
             )
-        obj_id = str(obj[self._id_key]) if self._id_key is not None else str(index)
+        obj_id = (
+            str(obj[self._id_column]) if self._id_column is not None else str(index)
+        )
 
         metadata["index"] = index
         return Document(

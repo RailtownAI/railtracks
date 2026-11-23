@@ -5,6 +5,7 @@ import csv
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
+from railtracks.retrieval.content_extraction import labelled_join
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document, DocumentType
@@ -21,8 +22,9 @@ class CSVLoader(BaseDocumentLoader):
 
     Column handling:
 
-    - `content_columns`: values are concatenated via `content_separator` to
-      form `Document.content`. When `None`, all columns are used as content.
+    - `content_columns`: a single column name gives that column's value as
+      `Document.content`; a list gives `"col: value"` lines joined with
+      `content_separator`. When `None`, all columns are used as content.
     - `ignore_columns`: columns dropped entirely from both content and metadata.
     - Every remaining column (not in `content_columns`, not in
       `ignore_columns`) is added to `Document.metadata`.
@@ -35,7 +37,7 @@ class CSVLoader(BaseDocumentLoader):
     Args:
         file_path: Path to a `.csv` file or a directory containing `.csv`
             files.
-        content_columns: Ordered list of columns to concatenate into
+        content_columns: Column, or ordered list of columns, that form
             `Document.content`. Defaults to `None`, which uses all columns.
         id_column: Column whose value uniquely identifies a row (e.g.
             `"id"`, `"uuid"`). Used as the row id in `Document.source`.
@@ -58,14 +60,17 @@ class CSVLoader(BaseDocumentLoader):
     def __init__(
         self,
         file_path: str,
-        content_columns: list[str] | None = None,
+        content_columns: str | list[str] | None = None,
         id_column: str | None = None,
         ignore_columns: list[str] | None = None,
         content_separator: str = "\n",
         encoding: str = "utf-8-sig",
     ) -> None:
         self._path = Path(file_path)
-        self._content_columns = content_columns
+        self._single_column = isinstance(content_columns, str)
+        self._content_columns = (
+            [content_columns] if isinstance(content_columns, str) else content_columns
+        )
         self._id_column = id_column
         self._ignore_columns = set(ignore_columns or [])
         self._content_separator = content_separator
@@ -113,9 +118,14 @@ class CSVLoader(BaseDocumentLoader):
                 content_col_set = set(content_columns)
 
                 for row_index, row in enumerate(reader):
-                    content = self._content_separator.join(
-                        f"{col}: {row[col]}" for col in content_columns
-                    )
+                    # DictReader fills cells missing from a short row with None.
+                    if self._single_column:
+                        content = row[content_columns[0]] or ""
+                    else:
+                        content = labelled_join(
+                            ((col, row[col] or "") for col in content_columns),
+                            self._content_separator,
+                        )
                     metadata = {
                         col: row[col]
                         for col in fieldnames
