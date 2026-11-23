@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from typing import Any, Protocol
+
+
+def labelled_join(fields: Iterable[tuple[str, str]], separator: str) -> str:
+    """Join ``(name, text)`` pairs into ``"name: text"`` lines."""
+    return separator.join(f"{name}: {text}" for name, text in fields)
 
 
 class ContentExtractor(Protocol):

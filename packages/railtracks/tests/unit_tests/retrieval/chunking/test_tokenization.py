@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from railtracks.retrieval.chunking import TiktokenTokenizer, Tokenizer
+import pytest
+from railtracks.retrieval.chunking import TiktokenTokenizer, Tokenizer, tokenization
 
 
 def test_tiktoken_tokenizer_roundtrip():
@@ -23,3 +24,13 @@ def test_tiktoken_tokenizer_satisfies_protocol():
 def test_tiktoken_tokenizer_count_empty_string():
     tok = TiktokenTokenizer()
     assert tok.count("") == 0
+
+
+def test_missing_tiktoken_hint_points_at_plain_tiktoken(monkeypatch):
+    monkeypatch.setattr(tokenization, "_tiktoken", None)
+
+    with pytest.raises(ModuleNotFoundError) as exc_info:
+        tokenization.TiktokenTokenizer()
+
+    assert "pip install tiktoken" in str(exc_info.value)
+    assert "railtracks[tiktok]" not in str(exc_info.value)

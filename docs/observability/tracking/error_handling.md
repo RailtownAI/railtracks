@@ -65,7 +65,9 @@ A reply that ends early but carries some text is returned as that text, so it ma
 
 You never have to unwrap anything to find out *what* went wrong: an exhausted retry of timeouts arrives as an `LLMTimeoutError`, whether or not a retry approach was configured.
 
-Because wrapping produces a *new* exception object, `e` is the `LLMError` and `e.__cause__` is the original. The two hierarchies share no ancestor, so `isinstance(e, RetryError)` is always `False`.
+Because wrapping produces a *new* exception object, `e` is the `LLMError` and `e.__cause__` is the original. The two hierarchies share no ancestor, so `isinstance(e, RetryError)` is `False` for an error the node translated.
+
+Node-level [`Retry`](../../documentation/agent_design/middleware/prebuilt/list/retry.md) with your own `retry_on`, such as `Retry(retry_on=(LLMRateLimitError,))`, is the exception. It wraps the whole node rather than the model call, so once it runs out it raises `RetryError` itself, with each attempt's `LLMError` in `.exception_list`.
 
 ## Error Types
 
