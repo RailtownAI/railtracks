@@ -34,7 +34,8 @@ class Retry(Middleware[Any, Any, Never]):
         )
 
     As node middleware on an agent, each attempt re-runs the whole node, including
-    tools it already called and any streamed text the caller already received.
+    tools it already called. In either slot, a retry while streaming repeats the
+    text the caller already received.
 
     The backoff schedule is delegated to a :class:`~railtracks.llm.retries.RetryApproach`
     (the same strategies used by ``retry_approach`` on model objects).
