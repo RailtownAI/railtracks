@@ -87,6 +87,19 @@ class TestCSVLoaderContentColumns:
         docs = await CSVLoader(str(csv_file), content_columns=["name"]).aload()
         assert docs[0].content == "name: Alice"
 
+    async def test_short_row_single_column_gives_empty_content(self, tmp_path):
+        """A cell missing from a short row becomes "", not None."""
+        f = tmp_path / "short.csv"
+        f.write_text("id,title,body\n1,T\n", encoding="utf-8")
+        docs = await CSVLoader(str(f), content_columns="body").aload()
+        assert docs[0].content == ""
+
+    async def test_short_row_column_list_gives_empty_value(self, tmp_path):
+        f = tmp_path / "short.csv"
+        f.write_text("id,title,body\n1,T\n", encoding="utf-8")
+        docs = await CSVLoader(str(f), content_columns=["title", "body"]).aload()
+        assert docs[0].content == "title: T\nbody: "
+
     async def test_unknown_content_column_raises_value_error(self, csv_file):
         """A content_column that does not exist in the CSV raises ValueError."""
         loader = CSVLoader(str(csv_file), content_columns=["nonexistent"])

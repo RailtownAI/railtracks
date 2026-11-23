@@ -118,11 +118,12 @@ class CSVLoader(BaseDocumentLoader):
                 content_col_set = set(content_columns)
 
                 for row_index, row in enumerate(reader):
+                    # DictReader fills cells missing from a short row with None.
                     if self._single_column:
-                        content = row[content_columns[0]]
+                        content = row[content_columns[0]] or ""
                     else:
                         content = labelled_join(
-                            ((col, row[col]) for col in content_columns),
+                            ((col, row[col] or "") for col in content_columns),
                             self._content_separator,
                         )
                     metadata = {
