@@ -10,12 +10,11 @@ from __future__ import annotations
 import railtracks as rt
 from railtracks.prebuilt.middleware import Retry
 
-# Retry is slot-agnostic: use it as node middleware, model middleware, or both.
+# On an agent, retry each model call rather than the whole node.
 RetryAgent = rt.agent_node(
     name="retry-demo",
     llm=rt.llm.OpenAILLM("gpt-6-luna"),
-    middleware=[Retry(3)],  # retry the whole node call
-    model_middleware=[Retry(3)],  # retry each raw model call
+    model_middleware=[Retry(3)],
 )
 # --8<-- [end: retry]
 
