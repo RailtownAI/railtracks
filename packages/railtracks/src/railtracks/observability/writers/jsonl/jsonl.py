@@ -7,20 +7,34 @@ from typing import TextIO
 from railtracks.paths import ensure_gitignore
 
 from ...models import Event
-from ...storage import resolve_events_dir
+from ...storage import MEDIA_SUBDIR, resolve_events_dir
+from ._media import MediaStore, save_media_max_bytes
 from ._serialize import RTObserverEncoder
 
 _SESSION_COMPLETED = "session.completed"
 
 
 class JsonlWriter:
-    def __init__(self, directory: Path | None = None):
+    def __init__(
+        self, directory: Path | None = None, media_directory: Path | None = None
+    ):
         """Write events to ``directory`` or the shared visualizer event store.
 
         A session's file is closed once its ``session.completed`` is written, and
         reopened in append mode if more events arrive for it.
+
+        Media in the events is recorded as metadata and a content hash, and its
+        bytes are saved once per hash to ``media_directory``, by default a
+        ``media`` folder inside the events directory. ``RAILTRACKS_SAVE_MEDIA_MAX_MB``
+        caps the size saved: unset saves everything, ``0`` saves nothing.
         """
         self._directory = directory if directory is not None else resolve_events_dir()
+        self._media = MediaStore(
+            media_directory
+            if media_directory is not None
+            else self._directory / MEDIA_SUBDIR,
+            save_media_max_bytes(),
+        )
         self._files: dict[str, TextIO] = {}
 
     def start(self) -> None:
@@ -36,7 +50,7 @@ class JsonlWriter:
                 "a", encoding="utf-8", errors="backslashreplace"
             )
             self._files[event.scope_id] = handle
-        handle.write(_serialize(event) + "\n")
+        handle.write(_serialize(event, self._media) + "\n")
         handle.flush()
         if event.event_type == _SESSION_COMPLETED:
             self._files.pop(event.scope_id).close()
@@ -48,8 +62,8 @@ class JsonlWriter:
         self._files.clear()
 
 
-def _serialize(event: Event) -> str:
-    return json.dumps(event, cls=RTObserverEncoder, ensure_ascii=False)
+def _serialize(event: Event, media: MediaStore) -> str:
+    return json.dumps(event, cls=RTObserverEncoder, ensure_ascii=False, media=media)
 
 
 _UNSAFE_SCOPE_ID_CHARS = frozenset("/\\\0")

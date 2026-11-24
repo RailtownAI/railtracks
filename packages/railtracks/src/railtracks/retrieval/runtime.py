@@ -11,11 +11,18 @@ from ._logging import RetrievalComponent, get_logger
 from .chunking.base import Chunker
 from .chunking.tokenization import Tokenizer
 from .embedding.base import Embedding
-from .embedding.models import EmbeddingFailure, EmbeddingMetrics, EmbeddingResult
+from .embedding.models import EmbeddingFailure, EmbeddingResult
 from .errors import EmbeddingModelMismatchError
 from .loaders.base import BaseDocumentLoader
 from .loaders.models import LoadFailure
-from .models import Chunk, Document, EmbeddedChunk, RetrievalResult, RetrievedChunk
+from .models import (
+    Chunk,
+    Document,
+    EmbeddedChunk,
+    EmbeddingMetrics,
+    RetrievalResult,
+    RetrievedChunk,
+)
 from .stores.models import (
     AllScopes,
     StoreEntry,

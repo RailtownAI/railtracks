@@ -8,6 +8,8 @@ from contextlib import aclosing
 from railtracks.retrieval.loaders.models import LoadFailure
 from railtracks.retrieval.models import Document
 
+RENAMED_ARGUMENTS_GUIDE = "https://docs.railtracks.org/retrieval/components/ingestion/methods/#renamed-arguments"
+
 
 class BaseDocumentLoader(ABC):
     """Abstract base class for all document loaders.
