@@ -18,15 +18,16 @@ from litellm.litellm_core_utils.prompt_templates.image_handling import (
 from railtracks.llm import attachment_formats
 from railtracks.llm import encoding as encoding_module
 from railtracks.llm.attachment_formats import (
+    _signature,
     detect_attachment_mime_from_bytes,
-    detect_image_mime_from_bytes,
     detect_mime,
     detect_mime_from_extension,
 )
 from railtracks.llm.encoding import (
     _READ_CHUNK_BYTES,
-    _is_base64_attachment,
+    decode_base64_attachment,
     decode_data_uri,
+    detect_path_source,
     detect_source,
     encode,
     ensure_data_uri,
@@ -55,6 +56,8 @@ class TestDetectSource:
     )
     def test_detect_source_types(self, path, expected):
         assert detect_source(path) == expected
+        if expected != "data_uri":
+            assert detect_path_source(path) == expected
 
     @patch("os.name", "nt")
     def test_detect_windows_forward_slash(self):
@@ -281,22 +284,25 @@ class TestAdditionalEncodingCases:
         with pytest.raises(ValueError, match="Provided string is not valid base64"):
             ensure_data_uri("not_base64!!")
 
-    def test_is_base64_attachment_invalid(self):
-        assert not _is_base64_attachment("not_base64!!")
+    def test_decode_base64_attachment_invalid(self):
+        assert decode_base64_attachment("not_base64!!") is None
 
-    def test_is_base64_attachment_valid_non_attachment(self):
+    def test_decode_base64_attachment_valid_non_attachment(self):
         # base64 for "hello world" (not an image or PDF)
         b64 = base64.b64encode(b"hello world").decode("utf-8")
-        assert not _is_base64_attachment(b64)
+        assert decode_base64_attachment(b64) is None
 
-    def test_is_base64_attachment_pdf(self):
+    def test_decode_base64_attachment_pdf(self):
         # PDF magic bytes are recognized as a valid attachment
-        b64 = base64.b64encode(b"%PDF-1.4\n%\xc2\xa5\xc2\xb1\xc3\xab").decode("utf-8")
-        assert _is_base64_attachment(b64)
+        pdf = b"%PDF-1.4\n%\xc2\xa5\xc2\xb1\xc3\xab"
+        b64 = base64.b64encode(pdf).decode("utf-8")
+        assert decode_base64_attachment(b64) == ("application/pdf", pdf)
 
-    def test_detect_image_mime_from_bytes_unsupported(self):
-        # Should return None for random bytes
-        assert detect_image_mime_from_bytes(b"abcdefg") is None
+    def test_decode_base64_attachment_tolerates_extra_padding(self):
+        png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 9
+        b64 = base64.b64encode(png_bytes).decode("utf-8") + "=="
+        assert decode_base64_attachment(b64) == ("image/png", png_bytes)
+        assert detect_source(b64) == "data_uri"
 
     def test_ensure_data_uri_restores_missing_padding(self):
         png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 9
@@ -337,7 +343,33 @@ class TestAdditionalEncodingCases:
         assert base64.b64decode(payload, validate=True) == png_bytes
 
 
+# EBML header fields before the DocType, as mkvmerge and ffmpeg write them.
+_EBML = b"\x1a\x45\xdf\xa3\xa3\x42\x86\x81\x01\x42\xf7\x81\x01\x42\xf2\x81\x04"
+_MKV = _EBML + b"\x42\x82\x88matroska\x42\x87\x81\x04"
+# Some encoders write the generic HEIF brand first and the specific one after it.
+_HEIF_BRAND_AVIF = b"\x00\x00\x00\x1cftypmif1\x00\x00\x00\x00avifmif1miaf"
+
+
 class TestDetectAttachmentMime:
+    @pytest.mark.parametrize(
+        "data,mime_type",
+        [
+            (_MKV, "video/x-matroska"),
+            (_EBML + b"\x42\x82\x84webm\x42\x87\x81\x04", "video/webm"),
+            (b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic", "image/heic"),
+            (b"\x00\x00\x00\x18ftypmif1\x00\x00\x00\x00mif1heic", "image/heif"),
+            (b"\x00\x00\x01\x00\x01\x00\x10\x10", "image/x-icon"),
+            (b"\x00\x00\x01\x02\x01\x00\x10\x10", None),
+        ],
+        ids=["mkv", "webm", "heic", "heif", "ico", "not_ico"],
+    )
+    def test_detected_without_a_name(self, data, mime_type):
+        assert detect_attachment_mime_from_bytes(data) == mime_type
+
+    def test_signature_text_above_latin1_fails_loudly(self):
+        with pytest.raises(UnicodeEncodeError):
+            _signature({0: "\u0100"})
+
     @pytest.mark.parametrize("brand", [b"avif", b"avis"])
     def test_avif_detected_from_real_header(self, brand):
         header = b"\x00\x00\x00\x1cftyp" + brand + b"\x00\x00\x00\x00mif1miaf"
@@ -462,6 +494,14 @@ class TestDetectMime:
             (b"OggS\x00\x02\x00\x00", None, "audio/ogg"),
             (b"\x1a\x45\xdf\xa3\x9f\x42", "movie.mkv", "video/x-matroska"),
             (b"\x1a\x45\xdf\xa3\x9f\x42", "notes.txt", "video/webm"),
+            (_MKV, None, "video/x-matroska"),
+            (_MKV, "song.mka", "audio/x-matroska"),
+            (_HEIF_BRAND_AVIF, None, "image/heif"),
+            (_HEIF_BRAND_AVIF, "photo.avif", "image/avif"),
+            (_HEIF_BRAND_AVIF, "photo.heic", "image/heic"),
+            (_HEIF_BRAND_AVIF, "notes.txt", "image/heif"),
+            (_HEIF_BRAND_AVIF, "photo.jpg", "image/heif"),
+            (_HEIF_BRAND_AVIF, "photo.webp", "image/heif"),
             (b"\x89PNG\r\n\x1a\n", "clip.mp4", "image/png"),
             (b"plain text", "notes.txt", "text/plain"),
             (b"plain text", None, None),
@@ -474,12 +514,10 @@ class TestDetectMime:
 class TestDetectMimeFromExtension:
     def test_every_listed_extension_gives_its_row_type(self):
         """A file's name and its contents must give the same MIME type."""
-        formats = attachment_formats._formats
-        for section in ("prefix_formats", "offset_formats", "extension_formats"):
-            for row in formats[section]:
-                for extension in row.get("extensions", []):
-                    mime_type = detect_mime_from_extension(f"x{extension}")
-                    assert mime_type == row["mime_type"], extension
+        for row in attachment_formats._FORMATS:
+            for extension in row.get("extensions", []):
+                mime_type = detect_mime_from_extension(f"x{extension}")
+                assert mime_type == row["mime_type"], extension
 
     @pytest.mark.parametrize(
         "name,mime_type",

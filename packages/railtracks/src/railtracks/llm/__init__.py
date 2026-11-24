@@ -18,6 +18,7 @@ from .message import (
 )
 from .model import ModelBase
 from .models import (
+    XAILLM,
     AnthropicLLM,
     AppleFMLLM,
     AzureAILLM,
@@ -85,6 +86,7 @@ __all__ = [
     "OllamaLLM",
     "PortKeyLLM",
     "OpenAICompatibleProvider",
+    "XAILLM",
     # Parameter types
     "Parameter",
     "UnionParameter",

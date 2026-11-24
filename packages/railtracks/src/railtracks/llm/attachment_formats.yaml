@@ -1,115 +1,82 @@
-# Attachment formats: magic byte patterns, file extensions and their MIME types.
-# Magic bytes are base64-encoded to preserve exact byte values where needed.
-# `extensions` map a file name to the same MIME type its bytes produce; names not
-# listed here fall back to Python's `mimetypes`.
-# `container: true` marks formats that can hold either audio or video; for those,
-# an audio or video extension decides the type (an Ogg file named .ogv is video).
-prefix_formats:
-  - magic_bytes_b64: "iVBORw0KGgo="  # \x89PNG\r\n\x1a\n
-    mime_type: "image/png"
+# Attachment formats, checked in order. A row's bytes match when, at each byte offset
+# in `match`, the content holds that string or one of that list. Strings are read as
+# latin-1, so `\x` escapes give exact bytes. Rows without `match` are named by extension only.
+# `extensions` map a file name to the same MIME type its bytes produce, overriding
+# Python's `mimetypes`.
+# `container` lists the top-level types (`audio`) or exact MIME types (`image/avif`) a format
+# can hold. A file name naming one of them decides it, so an Ogg file named .ogv is video
+# and a HEIF named .avif is AVIF.
+formats:
+  - mime_type: "image/png"
+    match: {0: "\x89PNG\r\n\x1a\n"}
     extensions: [".png"]
-  - magic_bytes_b64: "/9j/"  # \xff\xd8\xff
-    mime_type: "image/jpeg"
+  - mime_type: "image/jpeg"
+    match: {0: "\xff\xd8\xff"}
     extensions: [".jpg", ".jpeg", ".jpe"]
-  - magic_bytes: "GIF87a"
-    mime_type: "image/gif"
+  - mime_type: "image/gif"
+    match: {0: ["GIF87a", "GIF89a"]}
     extensions: [".gif"]
-  - magic_bytes: "GIF89a"
-    mime_type: "image/gif"
-  - magic_bytes_b64: "AAAB"  # \x00\x00\x01\x00
-    mime_type: "image/x-icon"
+  - mime_type: "image/x-icon"
+    match: {0: "\0\0\x01\0"}
     extensions: [".ico"]
-  - magic_bytes: "%PDF"
-    mime_type: "application/pdf"
+  - mime_type: "application/pdf"
+    match: {0: "%PDF"}
     extensions: [".pdf"]
-  - magic_bytes: "OggS"
-    mime_type: "audio/ogg"
+  - mime_type: "audio/ogg"
+    match: {0: "OggS"}
     extensions: [".ogg", ".oga"]
-    container: true
-  - magic_bytes: "fLaC"
-    mime_type: "audio/flac"
+    container: [audio, video]
+  - mime_type: "audio/flac"
+    match: {0: "fLaC"}
     extensions: [".flac"]
-  - magic_bytes_b64: "GkXfow=="  # \x1a\x45\xdf\xa3, EBML header (Matroska shares it)
-    mime_type: "video/webm"
+  # EBML header, shared with Matroska; its DocType tells them apart in code.
+  - mime_type: "video/webm"
+    match: {0: "\x1a\x45\xdf\xa3"}
     extensions: [".webm"]
-    container: true
-
-# fixed_bytes must appear at fixed_offset (default 0); one of variable_bytes must
-# fill [offset_start, offset_end).
-offset_formats:
-  - name: "MP3"
-    offset_start: 3  # ID3v2 major version, so text starting "ID3" is not audio
-    offset_end: 4
-    fixed_bytes: "ID3"
-    variable_bytes: ["\x02", "\x03", "\x04"]
-    mime_type: "audio/mpeg"
+    container: [audio, video]
+  # ID3v2 major version, so text starting "ID3" is not audio.
+  - mime_type: "audio/mpeg"
+    match: {0: "ID3", 3: ["\x02", "\x03", "\x04"]}
     extensions: [".mp3"]
-  - name: "BMP"
-    offset_start: 6  # reserved header fields, always zero
-    offset_end: 10
-    fixed_bytes: "BM"
-    variable_bytes: ["\0\0\0\0"]
-    mime_type: "image/bmp"
+  # Reserved header fields, always zero.
+  - mime_type: "image/bmp"
+    match: {0: "BM", 6: "\0\0\0\0"}
     extensions: [".bmp"]
-  - name: "AVIF"
-    fixed_offset: 4  # ISO-BMFF: 4-byte box size, then "ftyp", then the brand
-    offset_start: 8
-    offset_end: 12
-    fixed_bytes: "ftyp"
-    variable_bytes: ["avif", "avis"]
-    mime_type: "image/avif"
+  # ISO-BMFF: 4-byte box size, then "ftyp", then the major brand.
+  - mime_type: "image/avif"
+    match: {4: "ftyp", 8: ["avif", "avis"]}
     extensions: [".avif"]
-  - name: "M4A"
-    fixed_offset: 4
-    offset_start: 8
-    offset_end: 12
-    fixed_bytes: "ftyp"
-    variable_bytes: ["M4A "]
-    mime_type: "audio/mp4"
+  - mime_type: "image/heic"
+    match: {4: "ftyp", 8: ["heic", "heix", "hevc", "hevx"]}
+    extensions: [".heic"]
+  # Generic HEIF brands, also used by some AVIF and HEIC files.
+  - mime_type: "image/heif"
+    match: {4: "ftyp", 8: ["mif1", "msf1"]}
+    extensions: [".heif"]
+    container: [image/avif, image/heic]
+  - mime_type: "audio/mp4"
+    match: {4: "ftyp", 8: "M4A "}
     extensions: [".m4a"]
-  - name: "QuickTime"
-    fixed_offset: 4
-    offset_start: 8
-    offset_end: 12
-    fixed_bytes: "ftyp"
-    variable_bytes: ["qt  "]
-    mime_type: "video/quicktime"
+  - mime_type: "video/quicktime"
+    match: {4: "ftyp", 8: "qt  "}
     extensions: [".mov"]
-  - name: "MP4"
-    fixed_offset: 4
-    offset_start: 8
-    offset_end: 12
-    fixed_bytes: "ftyp"
-    variable_bytes: ["isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "dash", "M4V "]
-    mime_type: "video/mp4"
+  - mime_type: "video/mp4"
+    match: {4: "ftyp", 8: ["isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "dash", "M4V "]}
     extensions: [".mp4", ".m4v"]
-    container: true
-  - name: "WebP"
-    offset_start: 8
-    offset_end: 12
-    fixed_bytes: "RIFF"
-    variable_bytes: ["WEBP"]
-    mime_type: "image/webp"
+    container: [audio, video]
+  - mime_type: "image/webp"
+    match: {0: "RIFF", 8: "WEBP"}
     extensions: [".webp"]
-  - name: "WAV"
-    offset_start: 8
-    offset_end: 12
-    fixed_bytes: "RIFF"
-    variable_bytes: ["WAVE"]
-    mime_type: "audio/wav"
+  - mime_type: "audio/wav"
+    match: {0: "RIFF", 8: "WAVE"}
     extensions: [".wav"]
-  - name: "AVI"
-    offset_start: 8
-    offset_end: 12
-    fixed_bytes: "RIFF"
-    variable_bytes: ["AVI "]
-    mime_type: "video/x-msvideo"
+  - mime_type: "video/x-msvideo"
+    match: {0: "RIFF", 8: "AVI "}
     extensions: [".avi"]
-
-# Types told apart by extension only, where `mimetypes` lacks them on some Pythons.
-extension_formats:
+  # Detected from the EBML DocType when the bytes are WebM's.
   - mime_type: "video/x-matroska"
     extensions: [".mkv"]
+    container: [audio, video]
   - mime_type: "audio/x-matroska"
     extensions: [".mka"]
   - mime_type: "audio/webm"
@@ -118,3 +85,6 @@ extension_formats:
     extensions: [".ogv"]
   - mime_type: "video/x-ms-wmv"
     extensions: [".wmv"]
+
+# URLs ending in these raise: providers cannot take them as attachments by URL.
+unsupported_url_extensions: [".csv", ".htm", ".html", ".md", ".txt", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"]

@@ -3,6 +3,7 @@ We currently support connecting to different available LLMs through the followin
 - **OpenAI** - GPT models
 - **Anthropic** - Claude models
 - **Gemini** - Google's Gemini models
+- **xAI** - Grok models
 
 Take a look at the examples below to see how using different providers look for achieving the same task.
 
@@ -22,6 +23,12 @@ Take a look at the examples below to see how using different providers look for 
 
     ```python
     --8<-- "docs/scripts/providers.py:gemini"
+    ```
+
+=== "xAI"
+
+    ```python
+    --8<-- "docs/scripts/providers.py:xai"
     ```
     
 ??? info "Environment Variables Configuration"
