@@ -12,6 +12,7 @@ from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
+from railtracks.built_nodes.llm.llm_helpers import TOOL_ERROR_PREFIX
 from railtracks.llm import ToolCall, ToolResponse
 
 from ..utils.logging.create import get_rt_logger
@@ -345,9 +346,7 @@ class ChatUI(HIL):
         """
         try:
             for tc, tr in tool_invocations:
-                success = not str(tr.result).startswith(
-                    "There was an error running the tool"
-                )
+                success = not str(tr.result).startswith(TOOL_ERROR_PREFIX)
 
                 message = {
                     "type": "tool_invoked",

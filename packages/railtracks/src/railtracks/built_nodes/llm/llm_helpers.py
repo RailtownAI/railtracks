@@ -44,6 +44,9 @@ from railtracks.validation.node_invocation.validation import check_message_histo
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
+# Shared with the chat UI so failed tool calls are reported as unsuccessful.
+TOOL_ERROR_PREFIX = "There was an error during tool execution"
+
 
 class StringLLMInvoke(Protocol):
     async def __call__(
@@ -216,11 +219,7 @@ async def invoke_tools(tool_calls: list[ToolCall], tool_nodes: list[type[Node]])
 
     tool_results = await asyncio.gather(*contracts, return_exceptions=True)
     stringified_results = [
-        (
-            str(x)
-            if not isinstance(x, Exception)
-            else f"There was an error during tool execution: {repr(x)}"
-        )
+        (str(x) if not isinstance(x, Exception) else f"{TOOL_ERROR_PREFIX}: {repr(x)}")
         for x in tool_results
     ]
 
