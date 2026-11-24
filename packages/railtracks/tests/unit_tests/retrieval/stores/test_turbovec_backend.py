@@ -4,6 +4,7 @@ import asyncio
 import builtins
 import json
 import threading
+from pathlib import Path
 from uuid import uuid4
 
 import numpy as np
@@ -16,6 +17,7 @@ from railtracks.retrieval.stores import (
     TurbovecBackend,
     VectorStore,
 )
+from railtracks.retrieval.stores.vector.backends import turbovec as turbovec_module
 from railtracks.retrieval.stores.vector.backends.turbovec import _unit
 
 
@@ -30,6 +32,8 @@ def test_unit_rejects_non_finite_and_normalizes_in_float64() -> None:
     np.testing.assert_array_equal(_unit([0.0, 0.0]), [0.0, 0.0])
     np.testing.assert_allclose(_unit([1e20, 0.0]), [1.0, 0.0])
     np.testing.assert_allclose(_unit([1e-25, 0.0]), [1.0, 0.0])
+    np.testing.assert_allclose(_unit([1e200, 0.0]), [1.0, 0.0])
+    np.testing.assert_allclose(_unit([1e-200, 0.0]), [1.0, 0.0])
     with pytest.raises(ValueError, match="finite"):
         _unit([float("nan")])
     with pytest.raises(ValueError, match="finite"):
@@ -194,6 +198,137 @@ async def test_snapshot_no_op_deletes_do_not_rewrite_manifest(
     assert snapshot.read_text(encoding="utf-8") == original_manifest
 
 
+@pytest.mark.parametrize("delete_method", ["delete", "delete_where"])
+async def test_delete_retry_flushes_a_pending_snapshot(
+    require_turbovec, tmp_path, delete_method
+) -> None:
+    snapshot = tmp_path / "vectors.json"
+    backend = TurbovecBackend(snapshot)
+    await backend.upsert("record", [1.0] + [0.0] * 7, {"tenant": "a"})
+    original_manifest = snapshot.read_text(encoding="utf-8")
+    write_snapshot = backend._write_snapshot
+
+    def fail_write(content: str) -> None:
+        raise OSError("simulated snapshot write failure")
+
+    backend._write_snapshot = fail_write
+    with pytest.raises(OSError, match="simulated snapshot write failure"):
+        if delete_method == "delete":
+            await backend.delete("record")
+        else:
+            await backend.delete_where({"tenant": "a"})
+    assert await backend.count({}) == 0
+    assert backend._dirty
+
+    backend._write_snapshot = write_snapshot
+    if delete_method == "delete":
+        await backend.delete("record")
+    else:
+        await backend.delete_where({"tenant": "a"})
+    assert not backend._dirty
+    assert snapshot.read_text(encoding="utf-8") != original_manifest
+    assert await TurbovecBackend(snapshot).count({}) == 0
+
+
+async def test_snapshot_reader_retries_after_generation_is_replaced(
+    require_turbovec, tmp_path, monkeypatch
+) -> None:
+    snapshot = tmp_path / "vectors.json"
+    backend = TurbovecBackend(snapshot)
+    await backend.upsert("first", [1.0] + [0.0] * 7, {})
+    original_read_text = Path.read_text
+    manifest_captured = threading.Event()
+    resume_reader = threading.Event()
+
+    def pause_reader_after_manifest(path, *args, **kwargs):
+        content = original_read_text(path, *args, **kwargs)
+        if path == snapshot and not manifest_captured.is_set():
+            manifest_captured.set()
+            if not resume_reader.wait(timeout=5):
+                raise TimeoutError("timed out waiting to resume snapshot reader")
+        return content
+
+    monkeypatch.setattr(Path, "read_text", pause_reader_after_manifest)
+    reader = asyncio.create_task(asyncio.to_thread(TurbovecBackend, snapshot))
+    assert await asyncio.to_thread(manifest_captured.wait, 5)
+    try:
+        await backend.upsert("second", [0.0, 1.0] + [0.0] * 6, {})
+    finally:
+        resume_reader.set()
+
+    restored = await reader
+    assert await restored.count({}) == 2
+
+
+async def test_snapshot_cleanup_tolerates_open_old_sidecar(
+    require_turbovec, tmp_path, monkeypatch
+) -> None:
+    snapshot = tmp_path / "vectors.json"
+    backend = TurbovecBackend(snapshot)
+    await backend.upsert("first", [1.0] + [0.0] * 7, {})
+    manifest = json.loads(snapshot.read_text(encoding="utf-8"))
+    old_payload = tmp_path / manifest["payloads"]
+    original_unlink = Path.unlink
+
+    def block_old_payload(path, *args, **kwargs):
+        if path == old_payload:
+            raise PermissionError("simulated open sidecar")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", block_old_payload)
+    await backend.upsert("second", [0.0, 1.0] + [0.0] * 6, {})
+
+    assert old_payload.is_file()
+    assert await TurbovecBackend(snapshot).count({}) == 2
+
+
+async def test_snapshot_cleanup_preserves_files_owned_by_another_manifest(
+    require_turbovec, tmp_path
+) -> None:
+    original_snapshot = tmp_path / "original.json"
+    original = TurbovecBackend(original_snapshot)
+    await original.upsert("first", [1.0] + [0.0] * 7, {})
+    original_manifest = json.loads(original_snapshot.read_text(encoding="utf-8"))
+    original_files = [
+        tmp_path / original_manifest["index"],
+        tmp_path / original_manifest["payloads"],
+    ]
+
+    copied_snapshot = tmp_path / "branch.json"
+    copied_snapshot.write_text(
+        original_snapshot.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    copied = TurbovecBackend(copied_snapshot)
+    await copied.upsert("second", [0.0, 1.0] + [0.0] * 6, {})
+
+    assert all(path.is_file() for path in original_files)
+    assert await TurbovecBackend(original_snapshot).count({}) == 1
+    assert await TurbovecBackend(copied_snapshot).count({}) == 2
+
+
+async def test_snapshot_manifest_replace_retries_permission_error(
+    require_turbovec, tmp_path, monkeypatch
+) -> None:
+    snapshot = tmp_path / "vectors.json"
+    backend = TurbovecBackend(snapshot)
+    await backend.upsert("first", [1.0] + [0.0] * 7, {})
+    original_replace = turbovec_module.os.replace
+    failures_remaining = 1
+
+    def fail_manifest_once(source, destination):
+        nonlocal failures_remaining
+        if destination == snapshot and failures_remaining:
+            failures_remaining -= 1
+            raise PermissionError("simulated manifest sharing violation")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(turbovec_module.os, "replace", fail_manifest_once)
+    await backend.upsert("second", [0.0, 1.0] + [0.0] * 6, {})
+
+    assert failures_remaining == 0
+    assert await TurbovecBackend(snapshot).count({}) == 2
+
+
 async def test_concurrent_upserts_and_searches_are_serialized(require_turbovec) -> None:
     backend = TurbovecBackend()
     vectors = [[float(i == dimension) for dimension in range(8)] for i in range(8)]
@@ -285,6 +420,7 @@ async def test_failed_replacement_does_not_leave_a_payload_without_an_index(
 
 async def test_search_and_listing_edge_cases(require_turbovec) -> None:
     backend = TurbovecBackend()
+    assert await backend.search([1.0] * 8, 3, {}) == []
     await backend.upsert("seed", [1.0] + [0.0] * 7, {"tenant": "a"})
     await backend.upsert("other", [0.0, 1.0] + [0.0] * 6, {"tenant": "a"})
 

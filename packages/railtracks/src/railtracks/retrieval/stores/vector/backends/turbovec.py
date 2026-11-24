@@ -7,6 +7,7 @@ import math
 import os
 import secrets
 import tempfile
+import time
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
@@ -25,12 +26,14 @@ def _unit(vector: list[float]) -> np.ndarray:
         raise ValueError(
             "Turbovec vectors must be non-empty finite one-dimensional values"
         )
-    norm = float(np.linalg.norm(values))
+    scale = float(np.max(np.abs(values)))
+    if scale == 0.0:
+        return np.zeros(values.shape, dtype=np.float32)
+    scaled = values / scale
+    norm = float(np.linalg.norm(scaled))
     if not math.isfinite(norm):
         raise ValueError("Turbovec vector norm must be finite")
-    if norm == 0.0:
-        return np.zeros(values.shape, dtype=np.float32)
-    return np.ascontiguousarray(values / norm, dtype=np.float32)
+    return np.ascontiguousarray(scaled / norm, dtype=np.float32)
 
 
 def _matches(payload: dict[str, Any], filters: dict[str, Any]) -> bool:
@@ -74,11 +77,34 @@ def _write_fsynced_file(path: Path, content: str, prefix: str) -> None:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        for attempt in range(5):
+            try:
+                os.replace(temporary, path)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.01 * (attempt + 1))
     except BaseException:
         with suppress(OSError):
             os.unlink(temporary)
         raise
+
+
+def _owned_generation_path(
+    snapshot_path: Path, file_name: object, suffix: str
+) -> Path | None:
+    if not isinstance(file_name, str) or not file_name.endswith(suffix):
+        return None
+    prefix = f"{snapshot_path.name}."
+    if not file_name.startswith(prefix):
+        return None
+    generation = file_name[len(prefix) : -len(suffix)]
+    if len(generation) != 32 or any(
+        character not in "0123456789abcdef" for character in generation
+    ):
+        return None
+    return snapshot_path.parent / file_name
 
 
 def _remove_previous_snapshot_files(
@@ -86,12 +112,16 @@ def _remove_previous_snapshot_files(
     previous: dict[str, Any],
     current_paths: tuple[Path, Path],
 ) -> None:
-    for old_name in (previous.get("index"), previous.get("payloads")):
-        if not isinstance(old_name, str) or Path(old_name).name != old_name:
+    for old_name, suffix in (
+        (previous.get("index"), ".tvim"),
+        (previous.get("payloads"), ".payloads.json"),
+    ):
+        old_path = _owned_generation_path(snapshot_path, old_name, suffix)
+        if old_path is None:
             continue
-        old_path = snapshot_path.parent / old_name
         if old_path not in current_paths:
-            old_path.unlink(missing_ok=True)
+            with suppress(OSError):
+                old_path.unlink(missing_ok=True)
 
 
 class TurbovecBackend:
@@ -128,10 +158,31 @@ class TurbovecBackend:
         self._payloads: dict[str, dict[str, Any]] = {}
         self._id_to_uint: dict[str, int] = {}
         self._uint_to_id: dict[int, str] = {}
+        self._dirty = False
         if self._snapshot_path is not None and self._snapshot_path.exists():
             self._load_snapshot(self._snapshot_path)
 
     def _load_snapshot(self, snapshot_path: Path) -> None:
+        while True:
+            manifest = self._read_manifest(snapshot_path)
+            try:
+                index, payloads, id_to_uint, uint_to_id = (
+                    self._load_snapshot_generation(snapshot_path, manifest)
+                )
+            except FileNotFoundError as exc:
+                if self._read_manifest(snapshot_path) != manifest:
+                    continue
+                raise ValueError("Turbovec snapshot references missing files") from exc
+            if self._read_manifest(snapshot_path) != manifest:
+                continue
+            self._index = index
+            self._payloads = payloads
+            self._id_to_uint = id_to_uint
+            self._uint_to_id = uint_to_id
+            self._bit_width = index.bit_width
+            return
+
+    def _read_manifest(self, snapshot_path: Path) -> dict[str, Any]:
         try:
             manifest = json.loads(snapshot_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
@@ -151,6 +202,12 @@ class TurbovecBackend:
             or not payload_name.endswith(".payloads.json")
         ):
             raise ValueError("invalid Turbovec snapshot manifest")
+        return manifest
+
+    def _load_snapshot_generation(
+        self, snapshot_path: Path, manifest: dict[str, Any]
+    ) -> tuple[Any, dict[str, dict[str, Any]], dict[str, int], dict[int, str]]:
+        index_name, payload_name = manifest["index"], manifest["payloads"]
         try:
             data = json.loads(
                 (snapshot_path.parent / payload_name).read_text(encoding="utf-8")
@@ -189,11 +246,7 @@ class TurbovecBackend:
             uid not in index for uid in id_to_uint.values()
         ):
             raise ValueError("inconsistent Turbovec snapshot index and payloads")
-        self._index = index
-        self._payloads = payloads
-        self._id_to_uint = id_to_uint
-        self._uint_to_id = uint_to_id
-        self._bit_width = index.bit_width
+        return index, payloads, id_to_uint, uint_to_id
 
     def _candidate_id(self, id_: str) -> int:
         current = self._id_to_uint.get(id_)
@@ -259,14 +312,19 @@ class TurbovecBackend:
             except BaseException:
                 if existed and uid not in index:
                     self._drop_ids([id])
+                    self._mark_dirty()
+                    await self._flush()
                 elif not existed and uid in index:
                     self._id_to_uint[id] = uid
                     self._uint_to_id[uid] = id
                     self._payloads[id] = value
+                    self._mark_dirty()
+                    await self._flush()
                 raise
             self._id_to_uint[id] = uid
             self._uint_to_id[uid] = id
             self._payloads[id] = value
+            self._mark_dirty()
             await self._flush()
             if cancelled:
                 raise asyncio.CancelledError
@@ -324,6 +382,7 @@ class TurbovecBackend:
         async with self._lock:
             uid = self._id_to_uint.get(id)
             if id not in self._payloads or uid is None:
+                await self._flush()
                 return
             index = self._index
             if index is not None:
@@ -332,24 +391,29 @@ class TurbovecBackend:
                 except BaseException:
                     if uid not in index:
                         self._drop_ids([id])
+                        self._mark_dirty()
+                        await self._flush()
                     raise
             else:
                 cancelled = False
             self._drop_ids([id])
+            self._mark_dirty()
             await self._flush()
             if cancelled:
                 raise asyncio.CancelledError
 
     async def delete_where(self, filters: dict) -> None:
-        if not filters:
-            return
         async with self._lock:
+            if not filters:
+                await self._flush()
+                return
             removals = [
                 key
                 for key, payload in self._payloads.items()
                 if _matches(payload, filters)
             ]
             if not removals:
+                await self._flush()
                 return
             index = self._index
             if index is not None:
@@ -364,11 +428,14 @@ class TurbovecBackend:
                     _, cancelled = await self._await_thread(remove_index_entries)
                 except BaseException:
                     self._drop_ids(removed)
+                    if removed:
+                        self._mark_dirty()
                     await self._flush()
                     raise
             else:
                 cancelled = False
             self._drop_ids(removals)
+            self._mark_dirty()
             await self._flush()
             if cancelled:
                 raise asyncio.CancelledError
@@ -400,8 +467,12 @@ class TurbovecBackend:
             if uid is not None:
                 self._uint_to_id.pop(uid, None)
 
+    def _mark_dirty(self) -> None:
+        if self._snapshot_path is not None:
+            self._dirty = True
+
     async def _flush(self) -> None:
-        if self._snapshot_path is None or self._index is None:
+        if self._snapshot_path is None or self._index is None or not self._dirty:
             return
         content = json.dumps(
             {"ids": self._id_to_uint, "payloads": self._payloads},
@@ -409,6 +480,7 @@ class TurbovecBackend:
             allow_nan=False,
         )
         _, cancelled = await self._await_thread(lambda: self._write_snapshot(content))
+        self._dirty = False
         if cancelled:
             raise asyncio.CancelledError
 
