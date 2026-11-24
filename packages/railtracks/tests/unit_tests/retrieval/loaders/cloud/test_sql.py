@@ -106,7 +106,7 @@ class TestSQLLoaderLoad:
         loader = SQLLoader(
             "",
             table_or_query="documents",
-            content_column="body",
+            content_columns="body",
             id_column="id",
             engine=populated_engine,
         )
@@ -122,7 +122,7 @@ class TestSQLLoaderLoad:
         loader = SQLLoader(
             "",
             table_or_query="documents",
-            content_column="body",
+            content_columns="body",
             engine=populated_engine,
         )
         docs = loader.load()
@@ -148,7 +148,7 @@ class TestSQLLoaderLoad:
         loader = SQLLoader(
             "",
             table_or_query="documents",
-            content_column="body",
+            content_columns="body",
             id_column="id",
             engine=engine,
         )
@@ -159,6 +159,56 @@ class TestSQLLoaderLoad:
             "documents#row=2",
         ]
         assert len({d.id for d in docs}) == 3
+
+    def test_null_source_column_falls_back_to_id_column(self) -> None:
+        """A NULL source_column value falls back to id_column before row=N."""
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        from .conftest import make_sqlite_engine
+
+        rows = [
+            {"id": "1", "title": "A", "body": "first"},
+            {"id": "5", "title": None, "body": "null title"},
+            {"id": "7", "title": "C", "body": "third"},
+        ]
+        engine = make_sqlite_engine(rows, table="documents")
+        loader = SQLLoader(
+            "",
+            table_or_query="documents",
+            content_columns="body",
+            id_column="id",
+            source_column="title",
+            engine=engine,
+        )
+        assert [d.source for d in loader.load()] == [
+            "documents#A",
+            "documents#5",
+            "documents#C",
+        ]
+
+    def test_null_source_column_row_keeps_same_id_from_ids_load(self) -> None:
+        """The NULL-source_column row gets the same Document.id from a full
+        load and from an ids=[...] load."""
+        from railtracks.retrieval.loaders.cloud.sql import SQLLoader
+
+        from .conftest import make_sqlite_engine
+
+        rows = [
+            {"id": "1", "title": "A", "body": "first"},
+            {"id": "5", "title": None, "body": "null title"},
+            {"id": "7", "title": "C", "body": "third"},
+        ]
+        engine = make_sqlite_engine(rows, table="documents")
+        kwargs = {
+            "table_or_query": "documents",
+            "content_columns": "body",
+            "id_column": "id",
+            "source_column": "title",
+            "engine": engine,
+        }
+        full = {d.source: d.id for d in SQLLoader("", **kwargs).load()}
+        picked = {d.source: d.id for d in SQLLoader("", ids=["5"], **kwargs).load()}
+        assert picked["documents#5"] == full["documents#5"]
 
     def test_document_type_is_text(self, loader) -> None:
         for doc in loader.load():
