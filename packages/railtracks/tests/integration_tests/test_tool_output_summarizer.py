@@ -8,7 +8,13 @@ import railtracks as rt
 from railtracks.built_nodes.llm import model_invoker
 from railtracks.context.central import get_parent_id
 from railtracks.events.llm import LLMResponseEvent
-from railtracks.llm import AssistantMessage, Response, ToolCall, ToolMessage
+from railtracks.llm import (
+    AssistantMessage,
+    Response,
+    ToolCall,
+    ToolMessage,
+    UserMessage,
+)
 from railtracks.prebuilt.middleware import ToolOutputSummarizer
 
 
@@ -147,3 +153,78 @@ async def test_parallel_results_use_observable_summary_nodes(mock_llm, monkeypat
         assert event.output_tokens == 42
         assert event.total_cost == 0.00042
         assert event.reported_model_name == "MockLLM"
+
+
+async def test_same_agent_calls_in_one_session_have_independent_summary_caches(
+    mock_llm,
+):
+    @rt.function_node
+    def large_result() -> str:
+        """Return a large result shared by both calls."""
+        return "x" * 5_000
+
+    first_summary_ready = threading.Event()
+    summary_calls = 0
+    seen_summaries = {}
+    agent_model = mock_llm()
+    summarizer = mock_llm()
+
+    def agent_chat(messages, tools, **kwargs):
+        user_message = next(m for m in messages if isinstance(m, UserMessage))
+        user_text = user_message.content
+        tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
+        if not tool_messages:
+            if user_text == "second":
+                assert first_summary_ready.wait(timeout=10)
+            return Response(
+                AssistantMessage(
+                    [
+                        ToolCall(
+                            identifier="same-call",
+                            name="large_result",
+                            arguments={},
+                        )
+                    ]
+                )
+            )
+
+        seen_summaries[user_text] = tool_messages[-1].content.result
+        if user_text == "first":
+            first_summary_ready.set()
+        return Response(AssistantMessage("done"))
+
+    def summary_chat(messages, **kwargs):
+        nonlocal summary_calls
+        summary_calls += 1
+        return Response(AssistantMessage(f"SUMMARY-{summary_calls}"))
+
+    async def summary_achat(messages, **kwargs):
+        return summary_chat(messages, **kwargs)
+
+    agent_model._chat_with_tools = agent_chat
+    summarizer._chat = summary_chat
+    summarizer._achat = summary_achat
+    agent = rt.agent_node(
+        name="same-agent-parallel-runs",
+        system_message="Research the request.",
+        llm=agent_model,
+        tool_nodes=[large_result],
+        model_middleware=[ToolOutputSummarizer(lambda: summarizer)],
+    )
+
+    @rt.function_node
+    async def run_both() -> list[str]:
+        results = await asyncio.gather(
+            rt.call(agent, "first"), rt.call(agent, "second")
+        )
+        return [result.text for result in results]
+
+    connection = rt.Flow("same-agent-parallel-runs", run_both).connect()
+    await connection.ainvoke()
+
+    assert summary_calls == 2
+    assert set(seen_summaries) == {"first", "second"}
+    assert {
+        summary.rsplit("\n", maxsplit=1)[-1] for summary in seen_summaries.values()
+    } == {"SUMMARY-1", "SUMMARY-2"}
+    assert set(connection.context.keys()) == set()

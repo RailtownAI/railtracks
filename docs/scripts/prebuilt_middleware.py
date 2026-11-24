@@ -8,7 +8,6 @@ from __future__ import annotations
 
 # --8<-- [start: tool_output_summarizer]
 import railtracks as rt
-from railtracks.built_nodes._types import ModelSource
 from railtracks.prebuilt.middleware import ToolOutputSummarizer
 
 
@@ -26,21 +25,19 @@ def search_notes(query: str) -> str:
     return "\n".join(note for note in notes if query.casefold() in note.casefold())
 
 
-def researcher(agent_model: ModelSource, summary_model: ModelSource):
-    """Supply your configured models or no-argument model factories."""
-    return rt.agent_node(
-        "Researcher",
-        llm=agent_model,
-        tool_nodes=[search_notes],
-        model_middleware=[
-            ToolOutputSummarizer(
-                summarizer=summary_model,
-                max_chars=4_000,
-                summary_max_chars=1_000,
-                input_max_chars=20_000,
-            )
-        ],
-    )
+researcher = rt.agent_node(
+    "Researcher",
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+    tool_nodes=[search_notes],
+    model_middleware=[
+        ToolOutputSummarizer(
+            summarizer=rt.llm.OpenAILLM("gpt-6-luna"),
+            max_chars=4_000,
+            summary_max_chars=1_000,
+            input_max_chars=20_000,
+        )
+    ],
+)
 
 
 # --8<-- [end: tool_output_summarizer]
