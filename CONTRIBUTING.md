@@ -70,6 +70,22 @@ We flag issues that are triaged, scoped, and safe to pick up with the `help want
 
 **Feature ideas** go through the Feature Request template. Bugs go through Bug Report. Open-ended questions belong in [Discussions](https://github.com/RailtownAI/railtracks/discussions).
 
+### Claiming an issue
+
+#### `help wanted` issues
+
+Once you find a `help wanted` issue you want to work on, check the comments to make sure nobody else is already actively working on it, then follow these steps:
+
+1. **Leave a comment** on the issue to let others know you are starting work on it, including a basic description of your implementation plan.
+2. **Start right away.** You do not need maintainer approval or formal GitHub assignment to begin working on a `help wanted` issue.
+3. **Open a PR within 3 days**, or state in your comment how much time you need if you expect the task to take longer.
+
+If no PR is opened within 3 days (or within the timeframe stated in the comment), anyone can pick up the issue right away following the same steps above. You do not need to wait for a maintainer to officially mark or announce that the issue is open again.
+
+#### Unassigned issues without `help wanted`
+
+If an issue does not have the `help wanted` label and is not assigned to anyone, you are free to leave a comment requesting assignment. Include a detailed implementation plan in your comment, and wait for a maintainer to approve before opening a PR.
+
 ### Code Style
 Ensure linting is enabled on auto or ran before commits. We check `ruff` for linting and formatting. You can run it manually with:
 ```bash
