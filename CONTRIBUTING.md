@@ -78,9 +78,9 @@ Once you find a `help wanted` issue you want to work on, check the comments to m
 
 1. **Leave a comment** on the issue to let others know you are starting work on it, including a basic description of your implementation plan.
 2. **Start right away.** You do not need maintainer approval or formal GitHub assignment to begin working on a `help wanted` issue.
-3. **Open a PR within 3 days**, or state in your comment how much time you need if you expect the task to take longer.
+3. **Open a PR within 5 days**, or state in your comment how much time you need if you expect the task to take longer.
 
-If no PR is opened within 3 days (or within the timeframe stated in the comment), anyone can pick up the issue right away following the same steps above. You do not need to wait for a maintainer to officially mark or announce that the issue is open again.
+If no PR is opened within 5 days (or within the timeframe stated in the comment), anyone can pick up the issue right away following the same steps above. You do not need to wait for a maintainer to officially mark or announce that the issue is open again.
 
 #### Unassigned issues without `help wanted`
 
