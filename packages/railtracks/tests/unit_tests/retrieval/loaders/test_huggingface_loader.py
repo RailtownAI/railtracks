@@ -135,6 +135,12 @@ class TestHuggingFaceLoaderContentColumns:
         ).aload()
         assert docs[0].content == "what is rag"
 
+    async def test_single_content_column_string(self, mock_load_dataset):
+        docs = await HuggingFaceDatasetLoader(
+            "fake/ds", split="train", content_columns="query"
+        ).aload()
+        assert docs[0].content == "what is rag"
+
     async def test_multiple_content_columns_joined_with_separator(
         self, mock_load_dataset
     ):

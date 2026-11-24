@@ -1,14 +1,23 @@
 import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
 from railtracks.utils.json.encoder import RTJSONEncoder
+from railtracks.utils.json.recordable import MediaSink, Recordable
 
 
 class RTObserverEncoder(RTJSONEncoder):
     """
     Custom JSON encoder for Railtracks objects.
+
+    Objects with a `to_event_record()` are encoded through it rather than `encode()`, and
+    `media` is where they store any media bytes. Without `media`, nothing is stored.
     """
+
+    def __init__(self, *args: Any, media: MediaSink | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._media = media
 
     def default(self, o):
         try:
@@ -22,6 +31,8 @@ class RTObserverEncoder(RTJSONEncoder):
                         for k, v in o.model_fields.items()
                     ],
                 }
+            if isinstance(o, Recordable):
+                return o.to_event_record(self._media)
             return super().default(o)
         except TypeError:
             return str(o)

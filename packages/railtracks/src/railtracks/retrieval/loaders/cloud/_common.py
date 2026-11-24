@@ -57,10 +57,10 @@ class ObjectStoreLoader(BaseDocumentLoader):
             Ignored when `keys` is provided.
         keys: Explicit keys to load. When set, `prefix` is ignored.
         encoding: Text encoding used to decode non-PDF objects.
-        pdf_breakdown_strategy: How to split each PDF into `Document` objects.
+        breakdown_strategy: How to split each PDF into `Document` objects.
 
     Raises:
-        ValueError: If `pdf_breakdown_strategy` is not a known strategy.
+        ValueError: If `breakdown_strategy` is not a known strategy.
     """
 
     def __init__(
@@ -69,15 +69,13 @@ class ObjectStoreLoader(BaseDocumentLoader):
         prefix: str | None,
         keys: Iterable[str] | None,
         encoding: str,
-        pdf_breakdown_strategy: BreakdownStrategy,
+        breakdown_strategy: BreakdownStrategy,
     ) -> None:
-        validate_breakdown_strategy(
-            pdf_breakdown_strategy, name="pdf_breakdown_strategy"
-        )
+        validate_breakdown_strategy(breakdown_strategy, name="breakdown_strategy")
         self._prefix = prefix
         self._keys = list(keys) if keys is not None else None
         self._encoding = encoding
-        self._pdf_breakdown_strategy: BreakdownStrategy = pdf_breakdown_strategy
+        self._breakdown_strategy: BreakdownStrategy = breakdown_strategy
 
     @abstractmethod
     def _list_keys(self) -> list[str]:
@@ -139,7 +137,7 @@ class ObjectStoreLoader(BaseDocumentLoader):
             async for doc in stream_pdf(
                 data,
                 source=source,
-                breakdown_strategy=self._pdf_breakdown_strategy,
+                breakdown_strategy=self._breakdown_strategy,
                 metadata=self._metadata(key),
             ):
                 yield doc

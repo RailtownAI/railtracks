@@ -5,8 +5,9 @@ from typing import Any
 
 import litellm
 
+from ...models import EmbeddingMetrics
 from ..base import Embedding
-from ..models import EmbeddingMetrics, TextEmbeddings
+from ..models import TextEmbeddings
 
 
 def _get_vector(item: Any) -> list[float]:
