@@ -175,7 +175,7 @@ jobs:
         uses: ./.github/actions/install-deps
         with:
           python-version: "${{ env.PYTHON_VERSION }}"
-          extras: "all,retrieval"
+          extras: "all,retrieval,stores-turbovec"
 
       - name: Run retrieval tests
         shell: bash

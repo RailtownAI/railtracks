@@ -3953,7 +3953,6 @@ all = [
     { name = "sqlalchemy" },
     { name = "tavily-python" },
     { name = "trafilatura" },
-    { name = "turbovec" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 apple = [
@@ -4008,7 +4007,6 @@ retrieval = [
     { name = "pytesseract" },
     { name = "scikit-learn" },
     { name = "sqlalchemy" },
-    { name = "turbovec" },
 ]
 retrieval-core = [
     { name = "numpy" },
@@ -4025,7 +4023,6 @@ stores-all = [
     { name = "asyncpg" },
     { name = "chromadb" },
     { name = "pgvector" },
-    { name = "turbovec" },
 ]
 stores-chroma = [
     { name = "chromadb" },
@@ -4094,7 +4091,6 @@ requires-dist = [
     { name = "railtracks", extras = ["stores-all"], marker = "extra == 'retrieval'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-chroma"], marker = "extra == 'chroma'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-chroma"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
-    { name = "railtracks", extras = ["stores-turbovec"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["stores-vector"], marker = "extra == 'stores-all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["visual"], marker = "extra == 'all'", editable = "packages/railtracks" },
     { name = "railtracks", extras = ["websearch"], marker = "extra == 'all'", editable = "packages/railtracks" },

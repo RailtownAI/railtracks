@@ -15,7 +15,7 @@ set that covers what you're building.
 | Add a specific source (S3, GCS, Azure Blob, SQL, HuggingFace) | `[retrieval-core]` + the connector extra |
 | OCR scanned PDFs | `[retrieval-core]` + `[ocr]` (plus the Tesseract system binary) |
 | OCR images and PDFs with GLM-OCR | `[retrieval-core]` + `[glm]` |
-| Use a real vector store backend | `[retrieval-core]` + `[stores-vector]` or `[stores-chroma]` |
+| Use a real vector store backend | `[retrieval-core]` + `[stores-vector]`, `[stores-chroma]`, or `[stores-turbovec]` |
 
 ---
 
@@ -34,10 +34,10 @@ pip install "railtracks[retrieval-core]"
 
 ### **`[retrieval]`**:
 
-`[retrieval-core]` plus every built-in connector
-and backend (Tesseract OCR, HuggingFace, AWS, Azure Blob, GCP, SQL,
-ChromaDB, pgvector). Largest install; use when you want everything available.
-It leaves out `[glm]` (see below).
+`[retrieval-core]` plus the built-in connectors and the ChromaDB and
+pgvector backends. `TurbovecBackend` remains a separate opt-in extra because
+its platform-specific wheel is not available on Intel macOS. It leaves out
+`[glm]` (see below).
 
 ```bash
 pip install "railtracks[retrieval]"
@@ -63,7 +63,7 @@ Combine these with `[retrieval-core]` to add specific capabilities.
 
 ## Store backends
 
-The retrieval pipeline ships three vector store backends. The
+The retrieval pipeline ships four vector store backends. The
 in-memory backend is included in `[retrieval-core]`; the others are
 opt-in:
 
@@ -73,7 +73,8 @@ opt-in:
 | `[stores-vector]` | `PgvectorBackend` | Adds `asyncpg`, `pgvector`. Requires a Postgres instance with the `pgvector` extension. |
 | `[stores-chroma]` | `ChromaBackend` | Adds `chromadb`. |
 | `[chroma]` | `ChromaBackend` | Alias for `[stores-chroma]`, kept for backwards compatibility. Prefer `[stores-chroma]`. |
-| `[stores-all]` | both | Convenience umbrella for the two persistent backends. |
+| `[stores-all]` | ChromaDB, pgvector | Convenience umbrella for these two persistent backends. |
+| `[stores-turbovec]` | `TurbovecBackend` | Optional local compressed-vector backend; see the platform note below. |
 
 !!! note "`[tiktok]`"
     `[tiktok]` is now an empty extra: `tiktoken` comes with railtracks itself. It is kept only so existing install commands keep working; drop it from new installs.
@@ -92,6 +93,9 @@ A few extras need things that aren't on PyPI:
   The cloud API reads its key from `ZHIPU_API_KEY`.
 - **`[stores-vector]`**: `asyncpg`/`pgvector` need a running Postgres
   with the `pgvector` extension enabled.
+- **`[stores-turbovec]`**: on x86, Turbovec wheels target x86-64-v2
+  (SSE4.2); runtime dispatch uses AVX2/AVX-512 when available and has a
+  scalar fallback. The extra is not included in `[retrieval]` or `[all]`.
 
 ---
 
@@ -99,8 +103,8 @@ A few extras need things that aren't on PyPI:
 
 `railtracks[all]` **includes `[retrieval]`**, alongside the rest of
 railtracks (visualizer, Portkey integration, web search). It is the
-heaviest install available: every loader, connector, and vector-store
-backend comes with it, except `GLMOCRLoader` (`[glm]`).
+heaviest default install available: it includes the loaders, connectors,
+ChromaDB, and pgvector, but not `TurbovecBackend` or `GLMOCRLoader`.
 
 Reach for `[all]` when you want everything and do not care about
 install size. If you only need retrieval, install `[retrieval]`

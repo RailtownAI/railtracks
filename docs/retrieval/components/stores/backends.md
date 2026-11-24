@@ -267,15 +267,44 @@ unless you have a strong reason for a managed vector DB.
 
 ---
 
+## `TurbovecBackend`
+
+Local compressed cosine search backed by Turbovec. It stores the index and a JSON metadata sidecar on disk when `snapshot_path` is provided.
+
+```bash
+pip install "railtracks[stores-turbovec]"
+```
+
+```python
+from pathlib import Path
+
+from railtracks.retrieval.stores import TurbovecBackend, VectorStore
+
+store = VectorStore(TurbovecBackend(snapshot_path=Path("data/vectors.json")))
+```
+
+The backend supports cosine similarity and vector dimensions divisible by eight. Its `bit_width` setting accepts 2, 3, or 4. Keep the snapshot manifest and the index and payload files it references together when backing up or moving the store.
+
+On x86, Turbovec wheels target x86-64-v2 (SSE4.2); runtime dispatch uses AVX2 or AVX-512 when available and has a scalar fallback. This extra stays opt-in because an x86-64 macOS wheel is not published.
+
+| Property | Value |
+|---|---|
+| Install | `pip install "railtracks[stores-turbovec]"` |
+| Persistence | Local snapshot files |
+| Distance metrics | COSINE |
+| Suitable for | Local compressed-vector search |
+
+---
+
 ## Choosing a backend
 
-|  | InMemory | Chroma | ChromaCloud | Pgvector |
-|---|---|---|---|---|
-| Extra install | None | `stores-chroma` | `stores-chroma` | `stores-vector` |
-| Persistence | Optional snapshot | Client-dependent | Managed | Postgres |
-| Scale | Small (in-process) | Medium–Large | Large | Large |
-| Infrastructure | None | Chroma server (optional) | Chroma Cloud account | Postgres + pgvector |
-| Best for | Tests & dev | Standalone apps | Managed vector DB | Postgres-native stacks |
+|  | InMemory | Turbovec | Chroma | ChromaCloud | Pgvector |
+|---|---|---|---|---|---|
+| Extra install | None | `stores-turbovec` | `stores-chroma` | `stores-chroma` | `stores-vector` |
+| Persistence | Optional snapshot | Local snapshot | Client-dependent | Managed | Postgres |
+| Scale | Small (in-process) | Local compressed index | Medium–Large | Large | Large |
+| Infrastructure | None | None | Chroma server (optional) | Chroma Cloud account | Postgres + pgvector |
+| Best for | Tests & dev | Local compressed search | Standalone apps | Managed vector DB | Postgres-native stacks |
 
 ---
 

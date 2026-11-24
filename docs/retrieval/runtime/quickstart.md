@@ -93,4 +93,4 @@ covers the trade-offs.
 | **Load** | `TextLoader`, `CSVLoader`, `PyPDFLoader`, `PyPDFOCRLoader`, `HuggingFaceDatasetLoader`, `JSONLoader`, `LangChainLoaderAdapter` | [Ingestion overview](../components/ingestion/base.md) |
 | **Chunk** | `RecursiveCharacterChunker`, `MarkdownHeaderChunker`, `SentenceChunker`, `FixedTokenChunker` | [Chunking methods](../components/chunking/methods.md) |
 | **Embed** | `OpenAIEmbedding`, `AzureEmbedding`, `OllamaEmbedding`, `LiteLLMEmbedding` | [Embeddings methods](../components/embeddings/methods.md) |
-| **Store** | `VectorStore` with `InMemoryVectorBackend`, `ChromaBackend`, or `PgvectorBackend` | [Store backends](../components/stores/backends.md) |
+| **Store** | `VectorStore` with `InMemoryVectorBackend`, `TurbovecBackend`, `ChromaBackend`, or `PgvectorBackend` | [Store backends](../components/stores/backends.md) |

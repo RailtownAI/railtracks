@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         ChromaCloudBackend,
         DistanceMetric,
         PgvectorBackend,
+        TurbovecBackend,
     )
     from .vector.backends import (
         InMemoryBackend as InMemoryVectorBackend,
@@ -43,6 +44,7 @@ __all__ = [
     "StoreEntry",
     "StoreQuery",
     "StoreScope",
+    "TurbovecBackend",
     "VectorStore",
 ]
 
@@ -64,6 +66,10 @@ def __getattr__(name: str):
         from .vector.backends import PgvectorBackend
 
         return PgvectorBackend
+    elif name == "TurbovecBackend":
+        from .vector.backends import TurbovecBackend
+
+        return TurbovecBackend
     elif name == "InMemoryVectorBackend":
         from .vector.backends import InMemoryBackend as InMemoryVectorBackend
 
