@@ -56,6 +56,20 @@ async def test_parts_list_input_reaches_the_model_in_order(image):
 
 
 @pytest.mark.asyncio
+async def test_tuple_inputs_work_like_lists(image):
+    llm = _RecordingLLM()
+    agent = rt.agent_node(name="tuples", llm=llm)
+
+    await rt.Flow("tuple_parts", agent).ainvoke(("Before:", image))
+    assert llm.seen[-1][-1].content == ["Before:", image]
+
+    await rt.Flow("tuple_messages", agent).ainvoke(
+        (UserMessage("Hi"), AssistantMessage("Hello"), UserMessage("Bye"))
+    )
+    assert [m.text for m in llm.seen[-1]] == ["Hi", "Hello", "Bye"]
+
+
+@pytest.mark.asyncio
 async def test_a_reply_can_be_passed_straight_to_the_next_agent():
     first_llm, second_llm = _RecordingLLM("Paris"), _RecordingLLM("Sunny")
     first = rt.agent_node(name="first", llm=first_llm)

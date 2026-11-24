@@ -108,12 +108,12 @@ class ConversationMemory(Middleware):
         elif isinstance(user_input, UserMessage):
             history.append(user_input)
         elif (
-            isinstance(user_input, list)
+            isinstance(user_input, (list, tuple))
             and user_input
             and all(isinstance(part, (str, Attachment)) for part in user_input)
         ):
             history.append(UserMessage(user_input))
-        elif isinstance(user_input, (list, MessageHistory)):
+        elif isinstance(user_input, (list, tuple)):
             for msg in user_input:
                 if isinstance(msg, Message):
                     history.append(msg)
@@ -123,9 +123,7 @@ class ConversationMemory(Middleware):
     def _combine_history(
         self, existing: MessageHistory, user_input: object
     ) -> MessageHistory:
-        if isinstance(user_input, (list, MessageHistory)) and _continues(
-            existing, user_input
-        ):
+        if isinstance(user_input, (list, tuple)) and _continues(existing, user_input):
             # The caller handed back history this middleware already holds, so the
             # input supersedes the stored copy rather than being appended to it.
             combined = MessageHistory(deepcopy(list(user_input)))

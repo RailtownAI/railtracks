@@ -173,8 +173,7 @@ message.attachments  # [before, after]
 
 # --8<-- [start: interleaved_agent]
 VisionAgent = rt.agent_node(name="Vision Agent", llm=rt.llm.OpenAILLM("gpt-6-luna"))
-result = rt.Flow("compare-charts", entry_point=VisionAgent).invoke(
-    ["Before:", before, "After:", after, "What changed?"]
-)
+flow = rt.Flow("compare-charts", entry_point=VisionAgent)
+result = flow.invoke(["Before:", before, "After:", after, "What changed?"])
 print(result.text)
 # --8<-- [end: interleaved_agent]

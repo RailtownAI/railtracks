@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Sequence
 from copy import deepcopy
 from typing import (
     Callable,
@@ -48,8 +49,11 @@ from railtracks.validation.node_invocation.validation import check_message_histo
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
-UserInput = Union[str, MessageHistory, list[Message], list[ContentPart], UserMessage]
-"""What an agent accepts: text, a message, a history, or a list of text and attachments."""
+UserInput = Union[
+    str, MessageHistory, UserMessage, Sequence[Union[Message, str, Attachment]]
+]
+"""What an agent accepts: text, a message, a history, a list of messages, or a list of
+text and attachments. A list may not mix messages with text or attachments."""
 
 
 class StringLLMInvoke(Protocol):
@@ -412,7 +416,7 @@ def create_message_history(
         message_history = MessageHistory([user_input])
     elif isinstance(user_input, str):
         message_history = MessageHistory([UserMessage(user_input)])
-    elif isinstance(user_input, list):
+    elif isinstance(user_input, (list, tuple)):
         items: list[object] = list(user_input)
         if all(isinstance(msg, Message) for msg in items):
             message_history = MessageHistory(cast(list[Message], items))
