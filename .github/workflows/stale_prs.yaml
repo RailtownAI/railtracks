@@ -1,0 +1,697 @@
+name: Stale PR Triage
+
+on:
+  schedule:
+    # Run daily at 16:00 UTC (09:00 PT / 12:00 ET).
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Classify PRs and write the summary only (skip Slack notification and approval/execution)"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: stale-prs
+  cancel-in-progress: true
+
+permissions: {}
+
+env:
+  REMIND_AFTER_DAYS: "5"
+  CLOSE_AFTER_REMINDER_DAYS: "2"
+  EXEMPT_LABELS: "keep-open,status:blocked,pinned"
+  WAITING_LABEL: "waiting-on-author"
+  STALE_LABEL: "status:stale"
+  TRACKING_LABEL: "kind:tracking"
+  INCLUDE_MAINTAINER_PRS: "false"
+
+jobs:
+  classify:
+    name: Classify Stale PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      has_actions: ${{ steps.plan.outputs.has_actions }}
+
+    steps:
+      - name: Classify open PRs
+        id: plan
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+
+            const MS_PER_DAY = 86_400_000;
+            const REMINDER_MARKER = "<!-- stale-pr-reminder -->";
+            const MAINTAINER_ASSOCS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+
+            const remindDays = Number(process.env.REMIND_AFTER_DAYS || "5");
+            const closeDays = Number(process.env.CLOSE_AFTER_REMINDER_DAYS || "2");
+            const exemptLabels = new Set(
+              (process.env.EXEMPT_LABELS || "")
+                .split(",")
+                .map((s) => s.trim().toLowerCase())
+                .filter(Boolean)
+            );
+            const waitingLabel = (process.env.WAITING_LABEL || "waiting-on-author").trim().toLowerCase();
+            const trackingLabel = (process.env.TRACKING_LABEL || "kind:tracking").trim().toLowerCase();
+            const includeMaintainerPrs = (process.env.INCLUDE_MAINTAINER_PRS || "false").toLowerCase() === "true";
+
+            const query = `
+              query($owner: String!, $repo: String!, $cursor: String) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequests(states: OPEN, first: 50, after: $cursor) {
+                    pageInfo { hasNextPage endCursor }
+                    nodes {
+                      number
+                      title
+                      url
+                      isDraft
+                      updatedAt
+                      reviewDecision
+                      author { login }
+                      authorAssociation
+                      labels(first: 20) { nodes { name } }
+                      commits(last: 1) {
+                        nodes {
+                          commit {
+                            committedDate
+                            pushedDate
+                          }
+                        }
+                      }
+                      reviews(last: 50) {
+                        nodes {
+                          state
+                          submittedAt
+                          author { login }
+                          authorAssociation
+                        }
+                      }
+                      comments(last: 50) {
+                        nodes {
+                          body
+                          createdAt
+                          author { login }
+                          authorAssociation
+                        }
+                      }
+                      reviewThreads(last: 50) {
+                        nodes {
+                          comments(last: 20) {
+                            nodes {
+                              createdAt
+                              author { login }
+                            }
+                          }
+                        }
+                      }
+                      closingIssuesReferences(first: 10) {
+                        nodes {
+                          number
+                          url
+                          state
+                          labels(first: 20) { nodes { name } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const openPrs = [];
+            let cursor = null;
+            while (true) {
+              const data = await github.graphql(query, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                cursor,
+              });
+              const conn = data.repository.pullRequests;
+              openPrs.push(...conn.nodes);
+              if (!conn.pageInfo.hasNextPage) break;
+              cursor = conn.pageInfo.endCursor;
+            }
+
+            // Track which open PRs reference each issue so we only announce reopen when no other open PR targets it.
+            const openPrsByIssue = new Map();
+            for (const pr of openPrs) {
+              for (const issue of pr.closingIssuesReferences?.nodes || []) {
+                if (!openPrsByIssue.has(issue.number)) {
+                  openPrsByIssue.set(issue.number, new Set());
+                }
+                openPrsByIssue.get(issue.number).add(pr.number);
+              }
+            }
+
+            const nowMs = Date.now();
+            const classifiedAt = new Date(nowMs).toISOString();
+            const actions = [];
+
+            const parseTime = (iso) => (iso ? Date.parse(iso) : null);
+
+            for (const pr of openPrs) {
+              if (pr.isDraft) continue;
+              if (!includeMaintainerPrs && MAINTAINER_ASSOCS.has(pr.authorAssociation)) continue;
+
+              const labelNames = new Set((pr.labels?.nodes || []).map((l) => l.name.toLowerCase()));
+              let isExempt = false;
+              for (const ex of exemptLabels) {
+                if (labelNames.has(ex)) {
+                  isExempt = true;
+                  break;
+                }
+              }
+              if (isExempt) continue;
+
+              // Determine active maintainer CHANGES_REQUESTED reviews.
+              const latestMaintainerDecision = new Map();
+              let latestMaintainerReviewAt = null;
+              for (const r of pr.reviews?.nodes || []) {
+                if (!MAINTAINER_ASSOCS.has(r.authorAssociation)) continue;
+                const submittedMs = parseTime(r.submittedAt);
+                if (submittedMs && (!latestMaintainerReviewAt || submittedMs > latestMaintainerReviewAt)) {
+                  latestMaintainerReviewAt = submittedMs;
+                }
+                const reviewer = r.author?.login;
+                if (!reviewer) continue;
+                if (r.state === "CHANGES_REQUESTED" || r.state === "APPROVED" || r.state === "DISMISSED") {
+                  const prev = latestMaintainerDecision.get(reviewer);
+                  if (!prev || (submittedMs || 0) >= prev.submittedMs) {
+                    latestMaintainerDecision.set(reviewer, { state: r.state, submittedMs: submittedMs || 0 });
+                  }
+                }
+              }
+
+              let activeChangesRequestedAt = null;
+              for (const decision of latestMaintainerDecision.values()) {
+                if (decision.state === "CHANGES_REQUESTED") {
+                  if (!activeChangesRequestedAt || decision.submittedMs > activeChangesRequestedAt) {
+                    activeChangesRequestedAt = decision.submittedMs;
+                  }
+                }
+              }
+
+              const hasChangesRequested =
+                activeChangesRequestedAt !== null || pr.reviewDecision === "CHANGES_REQUESTED";
+              const hasWaitingLabel = labelNames.has(waitingLabel);
+              if (!hasChangesRequested && !hasWaitingLabel) continue;
+
+              let waitingSinceMs = activeChangesRequestedAt;
+              if (!waitingSinceMs) {
+                let latestMaintainerCommentAt = latestMaintainerReviewAt;
+                for (const c of pr.comments?.nodes || []) {
+                  if (!MAINTAINER_ASSOCS.has(c.authorAssociation)) continue;
+                  const t = parseTime(c.createdAt);
+                  if (t && (!latestMaintainerCommentAt || t > latestMaintainerCommentAt)) {
+                    latestMaintainerCommentAt = t;
+                  }
+                }
+                waitingSinceMs = latestMaintainerCommentAt || parseTime(pr.updatedAt) || nowMs;
+              }
+
+              const headCommit = pr.commits?.nodes?.[0]?.commit;
+              const headCommitMs = parseTime(headCommit?.pushedDate || headCommit?.committedDate);
+
+              // If the author pushed new commits after changes were requested, the ball is back with maintainers.
+              if (headCommitMs && headCommitMs > waitingSinceMs) continue;
+
+              const authorLogin = pr.author?.login || null;
+              let lastAuthorCommentMs = null;
+              let lastReminderMs = null;
+
+              for (const c of pr.comments?.nodes || []) {
+                const t = parseTime(c.createdAt);
+                if (!t) continue;
+                if (c.body && c.body.includes(REMINDER_MARKER)) {
+                  if (!lastReminderMs || t > lastReminderMs) lastReminderMs = t;
+                }
+                if (authorLogin && c.author?.login === authorLogin) {
+                  if (!lastAuthorCommentMs || t > lastAuthorCommentMs) lastAuthorCommentMs = t;
+                }
+              }
+
+              if (authorLogin) {
+                for (const r of pr.reviews?.nodes || []) {
+                  if (r.author?.login === authorLogin) {
+                    const t = parseTime(r.submittedAt);
+                    if (t && (!lastAuthorCommentMs || t > lastAuthorCommentMs)) lastAuthorCommentMs = t;
+                  }
+                }
+                for (const thread of pr.reviewThreads?.nodes || []) {
+                  for (const tc of thread.comments?.nodes || []) {
+                    if (tc.author?.login === authorLogin) {
+                      const t = parseTime(tc.createdAt);
+                      if (t && (!lastAuthorCommentMs || t > lastAuthorCommentMs)) lastAuthorCommentMs = t;
+                    }
+                  }
+                }
+              }
+
+              const lastActivityMs = Math.max(waitingSinceMs, headCommitMs || 0, lastAuthorCommentMs || 0);
+
+              if (lastReminderMs && lastReminderMs >= lastActivityMs) {
+                const daysSinceReminder = (nowMs - lastReminderMs) / MS_PER_DAY;
+                if (daysSinceReminder >= closeDays) {
+                  const reopenIssues = [];
+                  for (const issue of pr.closingIssuesReferences?.nodes || []) {
+                    if (issue.state !== "OPEN") continue;
+                    const issueLabels = new Set((issue.labels?.nodes || []).map((l) => l.name.toLowerCase()));
+                    if (issueLabels.has(trackingLabel)) continue;
+                    const referencingPrs = openPrsByIssue.get(issue.number) || new Set();
+                    const hasOtherOpenPr = [...referencingPrs].some((num) => num !== pr.number);
+                    if (hasOtherOpenPr) continue;
+                    reopenIssues.push({ number: issue.number, url: issue.url });
+                  }
+
+                  actions.push({
+                    number: pr.number,
+                    title: pr.title,
+                    url: pr.url,
+                    author: authorLogin,
+                    action: "close",
+                    daysSinceActivity: Math.floor((nowMs - lastActivityMs) / MS_PER_DAY),
+                    daysSinceReminder: Math.floor(daysSinceReminder),
+                    reopenIssues,
+                    reason: `No update ${Math.floor(daysSinceReminder)}d after reminder (${Math.floor((nowMs - lastActivityMs) / MS_PER_DAY)}d since last activity).`,
+                  });
+                }
+              } else {
+                const daysInactive = (nowMs - lastActivityMs) / MS_PER_DAY;
+                if (daysInactive >= remindDays) {
+                  actions.push({
+                    number: pr.number,
+                    title: pr.title,
+                    url: pr.url,
+                    author: authorLogin,
+                    action: "remind",
+                    daysSinceActivity: Math.floor(daysInactive),
+                    daysSinceReminder: null,
+                    reopenIssues: [],
+                    reason: `Changes requested with no author update for ${Math.floor(daysInactive)}d.`,
+                  });
+                }
+              }
+            }
+
+            const plan = {
+              classifiedAt,
+              remindDays,
+              closeDays,
+              actions,
+            };
+            fs.writeFileSync("stale-pr-plan.json", JSON.stringify(plan, null, 2));
+
+            core.setOutput("has_actions", actions.length > 0 ? "true" : "false");
+
+            const isDryRun = "${{ inputs.dry_run }}" === "true";
+            await core.summary
+              .addHeading(`Stale PR Triage${isDryRun ? " (Dry Run)" : ""}`, 2)
+              .addRaw(
+                `Scanned **${openPrs.length}** open PRs (remind after **${remindDays}d**, close **${closeDays}d** after reminder).\n\n`
+              );
+
+            if (actions.length === 0) {
+              await core.summary.addRaw("No stale PR actions proposed.\n").write();
+              return;
+            }
+
+            const rows = [
+              [
+                { data: "PR", header: true },
+                { data: "Author", header: true },
+                { data: "Action", header: true },
+                { data: "Details", header: true },
+                { data: "Issues to Reopen", header: true },
+              ],
+            ];
+            for (const item of actions) {
+              const issuesCell =
+                item.reopenIssues.length > 0
+                  ? item.reopenIssues.map((i) => `<a href="${i.url}">#${i.number}</a>`).join(", ")
+                  : "-";
+              rows.push([
+                `<a href="${item.url}">#${item.number}</a> ${item.title.replace(/</g, "&lt;")}`,
+                item.author ? `@${item.author}` : "(deleted)",
+                `<code>${item.action}</code>`,
+                item.reason,
+                issuesCell,
+              ]);
+            }
+
+            await core.summary
+              .addTable(rows)
+              .addRaw(
+                "\nTo skip a specific PR before approving, add the `keep-open` label to that PR first.\n"
+              )
+              .write();
+
+      - name: Upload action plan
+        if: steps.plan.outputs.has_actions == 'true' && inputs.dry_run != true
+        uses: actions/upload-artifact@v4
+        with:
+          name: stale-pr-plan
+          path: stale-pr-plan.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Notify maintainers on Slack
+        if: steps.plan.outputs.has_actions == 'true' && inputs.dry_run != true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.STALE_PR_SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+            if (!webhookUrl) {
+              core.info("STALE_PR_SLACK_WEBHOOK_URL secret is not configured; skipping Slack notification.");
+              return;
+            }
+
+            const plan = JSON.parse(fs.readFileSync("stale-pr-plan.json", "utf8"));
+            const remindCount = plan.actions.filter((a) => a.action === "remind").length;
+            const closeCount = plan.actions.filter((a) => a.action === "close").length;
+
+            const lines = [
+              `*Stale PR Triage (${context.repo.owner}/${context.repo.repo})*: ${remindCount} reminder(s), ${closeCount} closure(s) awaiting approval.`,
+              "",
+            ];
+            for (const item of plan.actions) {
+              const reopenNote =
+                item.reopenIssues.length > 0
+                  ? ` | reopen notice: ${item.reopenIssues.map((i) => `<${i.url}|#${i.number}>`).join(", ")}`
+                  : "";
+              lines.push(
+                `• *${item.action.toUpperCase()}* <${item.url}|#${item.number}> (${item.author ? `@${item.author}` : "unknown"}): ${item.reason}${reopenNote}`
+              );
+            }
+            lines.push(
+              "",
+              `<${process.env.RUN_URL}|Review & approve in GitHub Actions> (add \`keep-open\` to any PR first if you want to skip it).`
+            );
+
+            const res = await fetch(webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: lines.join("\n") }),
+            });
+            if (!res.ok) {
+              core.warning(`Slack webhook returned HTTP ${res.status}: ${await res.text()}`);
+            }
+
+  execute:
+    name: Execute Approved Stale PR Actions
+    needs: classify
+    if: needs.classify.outputs.has_actions == 'true' && inputs.dry_run != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stale-pr-approval
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Download action plan
+        uses: actions/download-artifact@v4
+        with:
+          name: stale-pr-plan
+
+      - name: Apply approved actions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+
+            const REMINDER_MARKER = "<!-- stale-pr-reminder -->";
+            const CLOSED_MARKER = "<!-- stale-pr-closed -->";
+
+            const exemptLabels = new Set(
+              (process.env.EXEMPT_LABELS || "")
+                .split(",")
+                .map((s) => s.trim().toLowerCase())
+                .filter(Boolean)
+            );
+            const staleLabel = (process.env.STALE_LABEL || "status:stale").trim();
+            const trackingLabel = (process.env.TRACKING_LABEL || "kind:tracking").trim().toLowerCase();
+
+            const plan = JSON.parse(fs.readFileSync("stale-pr-plan.json", "utf8"));
+            const classifiedMs = Date.parse(plan.classifiedAt);
+
+            const prCheckQuery = `
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    state
+                    isDraft
+                    author { login }
+                    labels(first: 20) { nodes { name } }
+                    commits(last: 1) {
+                      nodes {
+                        commit {
+                          committedDate
+                          pushedDate
+                        }
+                      }
+                    }
+                    reviews(last: 20) {
+                      nodes {
+                        submittedAt
+                        author { login }
+                      }
+                    }
+                    comments(last: 20) {
+                      nodes {
+                        body
+                        createdAt
+                        author { login }
+                      }
+                    }
+                    reviewThreads(last: 30) {
+                      nodes {
+                        comments(last: 10) {
+                          nodes {
+                            createdAt
+                            author { login }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const issueCheckQuery = `
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    state
+                    labels(first: 20) { nodes { name } }
+                    comments(last: 20) { nodes { body } }
+                    closedByPullRequestsReferences(first: 10, includeClosedPrs: false) {
+                      nodes { number state }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const parseTime = (iso) => (iso ? Date.parse(iso) : null);
+            const results = [];
+
+            for (const item of plan.actions) {
+              const liveData = await github.graphql(prCheckQuery, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                number: item.number,
+              });
+              const pr = liveData.repository.pullRequest;
+
+              if (!pr || pr.state !== "OPEN" || pr.isDraft) {
+                results.push({ number: item.number, action: item.action, outcome: "skipped", note: "PR is no longer open or is now a draft." });
+                continue;
+              }
+
+              const liveLabels = new Set((pr.labels?.nodes || []).map((l) => l.name.toLowerCase()));
+              const matchedExempt = [...exemptLabels].find((ex) => liveLabels.has(ex));
+              if (matchedExempt) {
+                results.push({ number: item.number, action: item.action, outcome: "skipped", note: `Exempt label '${matchedExempt}' present.` });
+                continue;
+              }
+
+              const headCommit = pr.commits?.nodes?.[0]?.commit;
+              const headCommitMs = parseTime(headCommit?.pushedDate || headCommit?.committedDate);
+              if (headCommitMs && headCommitMs > classifiedMs) {
+                results.push({ number: item.number, action: item.action, outcome: "skipped", note: "New commit pushed after classification." });
+                continue;
+              }
+
+              const authorLogin = pr.author?.login || item.author;
+              let authorActedAfterClassify = false;
+              let reminderAlreadyPosted = false;
+              let closedAlreadyPosted = false;
+
+              for (const c of pr.comments?.nodes || []) {
+                const t = parseTime(c.createdAt);
+                if (t && t > classifiedMs) {
+                  if (authorLogin && c.author?.login === authorLogin) authorActedAfterClassify = true;
+                  if (c.body && c.body.includes(REMINDER_MARKER)) reminderAlreadyPosted = true;
+                  if (c.body && c.body.includes(CLOSED_MARKER)) closedAlreadyPosted = true;
+                }
+              }
+              if (authorLogin && !authorActedAfterClassify) {
+                for (const r of pr.reviews?.nodes || []) {
+                  const t = parseTime(r.submittedAt);
+                  if (r.author?.login === authorLogin && t && t > classifiedMs) {
+                    authorActedAfterClassify = true;
+                    break;
+                  }
+                }
+              }
+              if (authorLogin && !authorActedAfterClassify) {
+                for (const thread of pr.reviewThreads?.nodes || []) {
+                  for (const tc of thread.comments?.nodes || []) {
+                    const t = parseTime(tc.createdAt);
+                    if (tc.author?.login === authorLogin && t && t > classifiedMs) {
+                      authorActedAfterClassify = true;
+                      break;
+                    }
+                  }
+                  if (authorActedAfterClassify) break;
+                }
+              }
+
+              if (authorActedAfterClassify) {
+                results.push({ number: item.number, action: item.action, outcome: "skipped", note: "Author commented after classification." });
+                continue;
+              }
+
+              const mention = authorLogin ? `@${authorLogin}` : "there";
+
+              if (item.action === "remind") {
+                if (reminderAlreadyPosted) {
+                  results.push({ number: item.number, action: "remind", outcome: "skipped", note: "Reminder already posted." });
+                  continue;
+                }
+
+                const body = [
+                  REMINDER_MARKER,
+                  `Hi ${mention}, changes were requested on this PR and there has been no update for ${item.daysSinceActivity} days.`,
+                  "",
+                  `If you are still working on it, please push an update or leave a comment letting us know how much time you need. Otherwise, this PR may be closed in ${plan.closeDays} days so another contributor can pick up the issue.`,
+                ].join("\n");
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: item.number,
+                  body,
+                });
+
+                if (staleLabel) {
+                  try {
+                    await github.rest.issues.addLabels({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: item.number,
+                      labels: [staleLabel],
+                    });
+                  } catch (err) {
+                    core.warning(`Could not add label '${staleLabel}' to PR #${item.number}: ${err.message}`);
+                  }
+                }
+
+                results.push({ number: item.number, action: "remind", outcome: "applied", note: "Posted reminder comment." });
+              } else if (item.action === "close") {
+                if (!closedAlreadyPosted) {
+                  const body = [
+                    CLOSED_MARKER,
+                    `Closing this PR due to inactivity after the reminder. Thank you for the work you put into it, ${mention}. If you finish the requested changes before someone else picks up the issue, feel free to reopen the PR.`,
+                  ].join("\n");
+
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: item.number,
+                    body,
+                  });
+                }
+
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: item.number,
+                  state: "closed",
+                });
+
+                const reopenedNotes = [];
+                const reopenMarker = `<!-- stale-pr-reopen-notice:pr-${item.number} -->`;
+                const contributingUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CONTRIBUTING.md#claiming-an-issue`;
+
+                for (const issueRef of item.reopenIssues || []) {
+                  const issueData = await github.graphql(issueCheckQuery, {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    number: issueRef.number,
+                  });
+                  const issue = issueData.repository.issue;
+                  if (!issue || issue.state !== "OPEN") continue;
+
+                  const issueLabels = new Set((issue.labels?.nodes || []).map((l) => l.name.toLowerCase()));
+                  if (issueLabels.has(trackingLabel)) continue;
+
+                  const otherOpenPr = (issue.closedByPullRequestsReferences?.nodes || []).some(
+                    (refPr) => refPr.number !== item.number && refPr.state === "OPEN"
+                  );
+                  if (otherOpenPr) continue;
+
+                  const alreadyNotified = (issue.comments?.nodes || []).some(
+                    (c) => c.body && c.body.includes(reopenMarker)
+                  );
+                  if (alreadyNotified) continue;
+
+                  const reopenBody = [
+                    reopenMarker,
+                    `PR #${item.number} was closed due to inactivity, so this issue is open again for anyone to pick up. Please see [CONTRIBUTING.md](${contributingUrl}) for how to claim it.`,
+                  ].join("\n");
+
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueRef.number,
+                    body: reopenBody,
+                  });
+                  reopenedNotes.push(`#${issueRef.number}`);
+                }
+
+                const note =
+                  reopenedNotes.length > 0
+                    ? `Closed PR and notified issue(s): ${reopenedNotes.join(", ")}.`
+                    : "Closed PR.";
+                results.push({ number: item.number, action: "close", outcome: "applied", note });
+              }
+            }
+
+            const rows = [
+              [
+                { data: "PR", header: true },
+                { data: "Action", header: true },
+                { data: "Outcome", header: true },
+                { data: "Note", header: true },
+              ],
+            ];
+            for (const r of results) {
+              rows.push([`#${r.number}`, `<code>${r.action}</code>`, `<strong>${r.outcome}</strong>`, r.note]);
+            }
+
+            await core.summary.addHeading("Stale PR Execution Results", 2).addTable(rows).write();
