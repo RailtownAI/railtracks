@@ -101,7 +101,10 @@ class TestPdfObjects:
 
         assert [d.content for d in docs] == ["First page", "Third page"]
         assert all(d.type == DocumentType.PDF for d in docs)
-        assert all(d.source == f"{source_prefix}report.pdf" for d in docs)
+        assert [d.source for d in docs] == [
+            f"{source_prefix}report.pdf#page=1",
+            f"{source_prefix}report.pdf#page=3",
+        ]
         assert [d.metadata["page"] for d in docs] == [1, 3]
         for doc in docs:
             assert doc.metadata["total_pages"] == 3
@@ -115,10 +118,11 @@ class TestPdfObjects:
         provider_metadata: dict[str, str],
     ) -> None:
         objects = {"report.pdf": make_pdf("First page", "Second page")}
-        with make_loader(objects, pdf_breakdown_strategy="document") as loader:
+        with make_loader(objects, breakdown_strategy="document") as loader:
             (doc,) = loader.load()
 
         assert doc.content == "First page\n\nSecond page"
+        assert doc.source == f"{source_prefix}report.pdf"
         assert doc.metadata["total_pages"] == 2
         assert "page" not in doc.metadata
 
@@ -129,15 +133,66 @@ class TestPdfObjects:
         provider_metadata: dict[str, str],
     ) -> None:
         objects = {"report.pdf": make_pdf("First page", "Second page")}
-        with make_loader(objects, pdf_breakdown_strategy="paragraph") as loader:
+        with make_loader(objects, breakdown_strategy="paragraph") as loader:
             docs = loader.load()
 
         assert [d.content for d in docs] == ["First page", "Second page"]
+        assert [d.source for d in docs] == [
+            f"{source_prefix}report.pdf#page=1&paragraph=1",
+            f"{source_prefix}report.pdf#page=2&paragraph=1",
+        ]
         assert [(d.metadata["page"], d.metadata["paragraph"]) for d in docs] == [
             (1, 1),
             (2, 1),
         ]
         assert all(provider_metadata.items() <= d.metadata.items() for d in docs)
+
+    def test_pdf_breakdown_strategy_keyword_warns(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        objects = {"report.pdf": make_pdf("First page", "Second page")}
+        with pytest.warns(
+            FutureWarning, match=r"Loader\(pdf_breakdown_strategy=.*2\.0\.0"
+        ) as record:
+            with make_loader(objects, pdf_breakdown_strategy="document") as loader:
+                (doc,) = loader.load()
+
+        assert "breakdown_strategy=" in str(record[0].message)
+        assert "ingestion/methods/#renamed-arguments" in str(record[0].message)
+        assert "1_5_0" not in str(record[0].message)
+        assert record[0].filename == __file__
+        assert doc.content == "First page\n\nSecond page"
+
+    def test_passing_both_breakdown_strategy_names_raises(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        with pytest.raises(
+            TypeError, match="pdf_breakdown_strategy.*breakdown_strategy"
+        ):
+            with make_loader(
+                {}, breakdown_strategy="document", pdf_breakdown_strategy="document"
+            ):
+                pass
+
+    def test_old_breakdown_strategy_with_new_at_its_default_raises(
+        self,
+        make_loader: LoaderFactory,
+        source_prefix: str,
+        provider_metadata: dict[str, str],
+    ) -> None:
+        with pytest.raises(
+            TypeError, match="pdf_breakdown_strategy.*breakdown_strategy"
+        ):
+            with make_loader(
+                {}, breakdown_strategy="page", pdf_breakdown_strategy="document"
+            ):
+                pass
 
     def test_invalid_breakdown_strategy_raises(
         self,
@@ -145,8 +200,8 @@ class TestPdfObjects:
         source_prefix: str,
         provider_metadata: dict[str, str],
     ) -> None:
-        with pytest.raises(ValueError, match="pdf_breakdown_strategy"):
-            with make_loader({}, pdf_breakdown_strategy="chapters"):
+        with pytest.raises(ValueError, match="breakdown_strategy"):
+            with make_loader({}, breakdown_strategy="chapters"):
                 pass
 
     def test_pdf_and_text_objects_keep_their_order(
