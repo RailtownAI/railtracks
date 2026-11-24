@@ -132,6 +132,7 @@ Each provider class sends only the modalities checked against its litellm route.
 | `GeminiLLM` | Yes | Yes | Yes | Yes | Yes |
 | `OpenAILLM` | Yes | Yes | Audio models only (such as `gpt-audio-mini`), `wav` and `mp3` | No | No |
 | `OllamaLLM` | Yes | No | No | No | No |
+| `XAILLM` | Yes | No | No | No | No |
 | `AppleFMLLM` | No | No | No | No | No |
 | Others (`AnthropicLLM`, `AzureAILLM`, OpenAI-compatible, ...) | Yes | Yes | No | No | No |
 

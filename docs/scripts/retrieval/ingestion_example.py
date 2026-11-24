@@ -369,6 +369,18 @@ print(docs[0].metadata)
 # --8<-- [end:pdf_ocr_document_strategy]
 
 
+# --8<-- [start:glm_ocr_basic]
+
+# Requires: pip install "railtracks[glm]", and ZHIPU_API_KEY set for the cloud API.
+from railtracks.retrieval.loaders import GLMOCRLoader
+
+cloud = GLMOCRLoader("scans/")
+self_hosted = GLMOCRLoader("scans/invoice.pdf", endpoint="http://localhost:8080")
+docs = cloud.load()
+print(docs[0].metadata["json_result"])  # bounding boxes, tables, reading order
+# --8<-- [end:glm_ocr_basic]
+
+
 # --8<-- [start:hf_basic]
 async def hf_basic():
     # Requires: pip install "railtracks[huggingface]"
@@ -439,12 +451,12 @@ HuggingFaceDatasetLoader(
 
 from railtracks.retrieval.loaders import JSONLoader
 
-# Root must be an object or array of objects. content_keys selects which
-# keys form the searchable text; ignore_keys drops keys entirely.
+# Root must be an object or array of objects. content_columns selects which
+# keys form the searchable text; ignore_columns drops keys entirely.
 docs = JSONLoader(
     "articles.json",
-    content_keys=["title", "body"],
-    ignore_keys=["internal_id"],
+    content_columns=["title", "body"],
+    ignore_columns=["internal_id"],
 ).load()
 
 print(docs[0].content)   # "title: Getting started\nbody: ..."
@@ -460,7 +472,7 @@ from railtracks.retrieval.loaders import JSONLoader
 # Preserve a nested field as valid JSON instead of Python's dict repr.
 JSONLoader(
     "questions.json",
-    content_keys=["question"],
+    content_columns=["question"],
     content_extractor=JsonExtractor(),
 )
 # --8<-- [end:json_structured_content]
@@ -471,13 +483,13 @@ JSONLoader(
 from railtracks.retrieval.loaders import JSONLoader
 
 # JSONL: one JSON object per line. Streamed line by line — safe for
-# corpora larger than memory. Use id_key for stable Document IDs across
+# corpora larger than memory. Use id_column for stable Document IDs across
 # re-ingestion when objects may be reordered.
 async def jsonl_stream():
     async for doc in JSONLoader(
         "events.jsonl",
-        content_keys=["title", "body"],
-        id_key="_id",
+        content_columns=["title", "body"],
+        id_column="_id",
     ).astream():
         print(doc.source)  # "events.jsonl#<_id>"
 # --8<-- [end:jsonl_loader]

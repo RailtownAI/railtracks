@@ -7,7 +7,17 @@ import warnings
 from collections.abc import Sequence
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Generic, Literal, TypeVar, Union, cast, overload
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Literal,
+    Protocol,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 from urllib import error as urllib_error
 from urllib.parse import urlparse
 
@@ -42,6 +52,20 @@ Modality = Literal["image", "audio", "video", "document", "file"]
 _PATH_IMAGE_TYPES = frozenset(
     ("image/png", "image/jpeg", "image/gif", "image/webp", "image/avif")
 )
+
+# Attachment.type -> the `source` of its record, which also names the reference key.
+_RECORD_SOURCES = {"local": "path", "url": "url", "data_uri": "inline"}
+
+
+class MediaSink(Protocol):
+    """Where `to_event_record()` stores media bytes, keyed by their hash.
+
+    The same shape as `railtracks.utils.json.recordable.MediaSink`, declared here
+    because the llm package does not import the rest of railtracks.
+    """
+
+    def save(self, sha256: str, size: int, data: Callable[[], bytes]) -> None: ...
+
 
 _BYTES_LIKE = (bytes, bytearray, memoryview)
 
@@ -459,6 +483,37 @@ class Attachment:
             fields.append(f"size={self.size}")
         return f"Attachment({', '.join(fields)})"
 
+    def to_event_record(self, media: MediaSink | None) -> dict[str, Any]:
+        """Describe this attachment for the event record, without its bytes.
+
+        Args:
+            media: Where to store the bytes under their hash, or None to store
+                nothing.
+
+        Returns:
+            The media part: `type` (the modality), `mime_type`, `filename`,
+            `source` (`path`, `url` or `inline`), the path or URL under a key
+            named after `source`, `sha256` and `size` of the bytes (None when
+            the attachment holds none, as with a plain image URL).
+        """
+        source = _RECORD_SOURCES[self.type]
+        part: dict[str, Any] = {
+            "type": self.modality,
+            "mime_type": self.mime_type,
+            "filename": self.filename,
+            "source": source,
+        }
+        if source != "inline":
+            part[source] = self.url
+        part["sha256"] = self.sha256
+        part["size"] = self.size
+
+        data = self.data
+        sha256 = self.sha256
+        if media is not None and data is not None and sha256 is not None:
+            media.save(sha256, len(data), lambda: data)
+        return part
+
 
 AttachmentInput = str | Attachment | bytes | bytearray | memoryview
 
@@ -783,6 +838,31 @@ class UserMessage(_PromptMessage[Role.user]):
             stacklevel=2,
         )
         return self.attachments or None
+
+    def to_event_record(self, media: MediaSink | None) -> dict[str, Any]:
+        """Describe this message for the event record.
+
+        Matches `encode()` when the message has no attachments. Otherwise `content`
+        lists the parts in order: each piece of text as a text part, and each
+        attachment as a media part from `Attachment.to_event_record`.
+
+        Args:
+            media: Where to store attachment bytes under their hash, or None to
+                store nothing.
+
+        Returns:
+            The message, with its text and media parts as `content` when it has
+            attachments.
+        """
+        if not self.attachments:
+            return self.encode()
+        parts: list[dict[str, Any]] = []
+        for part in self.content:
+            if isinstance(part, Attachment):
+                parts.append(part.to_event_record(media))
+            elif isinstance(part, str):
+                parts.append({"type": "text", "text": part})
+        return {"role": self.role.value, "content": parts}
 
 
 class SystemMessage(_PromptMessage[Role.system]):

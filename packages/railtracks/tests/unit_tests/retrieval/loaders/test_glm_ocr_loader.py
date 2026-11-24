@@ -231,3 +231,10 @@ class TestMissingDependency:
                 sys.modules.pop("glmocr", None)
             if saved_loader is not None:
                 sys.modules[loader_key] = saved_loader
+
+
+def test_glm_ocr_loader_exported_lazily_from_loaders_package():
+    import railtracks.retrieval.loaders as loaders
+
+    assert "GLMOCRLoader" in loaders.__all__
+    assert loaders.GLMOCRLoader is GLMOCRLoader

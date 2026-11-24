@@ -24,7 +24,7 @@ from railtracks.retrieval import (
 )
 from railtracks.retrieval.chunking.base import Chunker
 from railtracks.retrieval.embedding.base import Embedding
-from railtracks.retrieval.embedding.models import EmbeddingMetrics, TextEmbeddings
+from railtracks.retrieval.embedding.models import TextEmbeddings
 from railtracks.retrieval.loaders import TextLoader
 from railtracks.retrieval.loaders.base import BaseDocumentLoader
 from railtracks.retrieval.loaders.models import LoadFailure
@@ -32,7 +32,7 @@ from railtracks.retrieval.loaders.sanitizing import (
     Sanitizer,
     SanitizingLoader,
 )
-from railtracks.retrieval.models import Chunk
+from railtracks.retrieval.models import Chunk, EmbeddingMetrics
 from railtracks.retrieval.runtime import _content_hash
 from railtracks.retrieval.stores import ALL_SCOPES, AllScopes, StoreScope, VectorStore
 from railtracks.retrieval.stores.models import StoreEntry, exact_scope_filter
@@ -700,6 +700,19 @@ async def test_retrieve_returns_chunks_ranked():
 # ---------------------------------------------------------------------------
 # Phase 4a — Staleness detection
 # ---------------------------------------------------------------------------
+
+
+async def test_retrieve_exposes_query_embedding_metrics():
+    """Query embed metrics (including cost) must surface on RetrievalResult."""
+    runtime, _, embedder = _runtime()
+    doc = Document(content="alpha beta")
+    async for _ in runtime.ingest(_ListLoader([doc])):
+        pass
+
+    result = await runtime.retrieve("alpha", top_k=1)
+    assert result.embedding_metrics is not None
+    assert result.embedding_metrics.model == embedder._model
+    assert result.embedding_metrics.vector_count == 1
 
 
 async def test_unchanged_document_is_skipped_on_reingest():
