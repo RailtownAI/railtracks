@@ -198,14 +198,6 @@ async def test_all_scopes_does_not_bypass_metadata_filters():
     assert [r.entry.id for r in results] == [entries["bob"].id]
 
 
-async def test_nearest_neighbors_with_all_scopes_searches_every_scope():
-    store, entries = await _store_with_mixed_scopes()
-
-    results = await store.nearest_neighbors([1.0, 0.0, 0.0], k=10, scope=ALL_SCOPES)
-
-    assert {r.entry.id for r in results} == {e.id for e in entries.values()}
-
-
 async def test_clear_rejects_all_scopes():
     store, entries = await _store_with_mixed_scopes()
 
@@ -251,16 +243,6 @@ async def test_read_does_not_mutate_metadata_filters():
     )
 
     assert metadata_filters == {"page": 1}
-
-
-async def test_nearest_neighbors_scope_is_exact():
-    store, entries = await _store_with_mixed_scopes()
-
-    results = await store.nearest_neighbors(
-        [1.0, 0.0, 0.0], k=10, scope=StoreScope(labels={"tenant": "alice"})
-    )
-
-    assert [r.entry.id for r in results] == [entries["alice"].id]
 
 
 async def test_clear_removes_only_the_exact_scope():
@@ -398,7 +380,7 @@ async def test_search_drops_nonfinite_vectors_without_warnings(caplog):
     assert str(nan_vec.id) in msg or str(inf_vec.id) in msg
 
 
-async def test_nearest_neighbors_rank_order():
+async def test_read_rank_order():
     store = VectorStore(InMemoryBackend())
 
     e1 = _make_entry(vector=[1.0, 0.0, 0.0])
@@ -409,8 +391,12 @@ async def test_nearest_neighbors_rank_order():
     await store.write(e2)
     await store.write(e3)
 
-    results = await store.nearest_neighbors(
-        [1.0, 0.0, 0.0], k=3, scope=StoreScope(labels={"user_id": "alice"})
+    results = await store.read(
+        StoreQuery(
+            embedding=[1.0, 0.0, 0.0],
+            top_k=3,
+            scope=StoreScope(labels={"user_id": "alice"}),
+        )
     )
     assert len(results) == 3
     assert results[0].rank == 0

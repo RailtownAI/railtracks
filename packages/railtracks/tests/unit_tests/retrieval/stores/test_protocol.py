@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from railtracks.retrieval.stores.models import (
-    AllScopes,
     RetrievedStoreEntry,
     StoreEntry,
     StoreQuery,
@@ -52,14 +51,6 @@ class _CompleteStore:
     ) -> int:
         return 0
 
-    async def nearest_neighbors(
-        self,
-        embedding: list[float],
-        k: int,
-        scope: StoreScope | AllScopes | None = None,
-    ) -> list[RetrievedStoreEntry]:
-        return []
-
 
 class _IncompleteStore:
     async def write(self, entry: StoreEntry) -> str:
@@ -68,7 +59,7 @@ class _IncompleteStore:
     async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]:
         return []
 
-    # missing delete, clear, delete_where, find, count, nearest_neighbors
+    # missing delete, clear, delete_where, find, count
 
 
 def test_complete_implementation_satisfies_store():
@@ -79,17 +70,3 @@ def test_complete_implementation_satisfies_store():
 def test_incomplete_implementation_fails_store():
     obj = _IncompleteStore()
     assert not isinstance(obj, Store)
-
-
-def test_store_requires_nearest_neighbors():
-    without_nearest_neighbors = type(
-        "_StoreWithoutNearestNeighbors",
-        (),
-        {
-            name: member
-            for name, member in vars(_CompleteStore).items()
-            if name != "nearest_neighbors"
-        },
-    )
-
-    assert not isinstance(without_nearest_neighbors(), Store)

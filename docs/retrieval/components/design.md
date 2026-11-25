@@ -250,8 +250,8 @@ doesn't know what dimensions you scope by. Common shapes:
 Scope is request-level context, so it isn't a constructor argument and
 one runtime serves any number of tenants.
 
-The scope filter lives in `Store.read`, not the runtime meaning even direct
-calls to `VectorStore.nearest_neighbors()` honor it. Two tenants can
+The scope filter lives in `Store.read`, not the runtime, so even direct
+calls to `VectorStore.read()` honor it. Two tenants can
 share an `InMemoryVectorBackend` without leaking data across.
 
 Scopes match exactly. Each entry stores its full label set as one canonical `scope` key (`StoreScope.to_key()`), because the backends only support flat equality filters: filtering on the individual `scope_<label>` keys would let `{"tenant": "alice"}` also match `{"tenant": "alice", "env": "prod"}`. An unscoped entry stores the empty label set, so `scope=None` means "unscoped entries only" everywhere: ingest, `delete_document`, `retrieve()` and the store's reads. Searching every scope takes an explicit `ALL_SCOPES`, which only reads accept; deleting across scopes goes through `Store.delete_where`. Leaving the scope out therefore fails closed.

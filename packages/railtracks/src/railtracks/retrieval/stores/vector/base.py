@@ -333,24 +333,3 @@ class VectorStore:
         return await self._backend.count(
             _store_filters_to_payload(filters, metadata_filters)
         )
-
-    async def nearest_neighbors(
-        self,
-        embedding: list[float],
-        k: int,
-        scope: StoreScope | AllScopes | None = None,
-    ) -> list[RetrievedStoreEntry]:
-        raw_hits = await self._backend.search(embedding, k, _with_scope({}, scope))
-
-        results: list[RetrievedStoreEntry] = []
-        for rank, (hit_id, score, payload) in enumerate(raw_hits):
-            entry = _payload_to_entry(hit_id, payload)
-            results.append(
-                RetrievedStoreEntry(
-                    entry=entry,
-                    score=score,
-                    rank=rank,
-                    source_retriever="dense",
-                )
-            )
-        return results

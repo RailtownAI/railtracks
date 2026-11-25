@@ -98,15 +98,9 @@ class Store(Protocol):
         *,
         metadata_filters: dict[str, Any] | None = None,
     ) -> int: ...
-    async def nearest_neighbors(
-        self,
-        embedding: list[float],
-        k: int,
-        scope: StoreScope | AllScopes | None = None,
-    ) -> list[RetrievedStoreEntry]: ...
 ```
 
-`write` returns the entry ID as a string, and `delete` takes that string. `clear` removes all entries written with exactly the given scope (it rejects `ALL_SCOPES`); that's the path for session cleanup and user data deletion. `nearest_neighbors` is a raw vector search that still enforces the scope (see [below](#nearest_neighbors-low-level-bypass)).
+`write` returns the entry ID as a string, and `delete` takes that string. `clear` removes all entries written with exactly the given scope (it rejects `ALL_SCOPES`); that's the path for session cleanup and user data deletion. To search by a vector you already have, call `read` with only `embedding` set (see [below](#vector-search-with-read)).
 
 `delete_where`, `find` and `count` power the runtime's upsert and staleness-detection paths (see [Design → Upsert and staleness](../design.md#upsert-and-staleness)); they match entries by equality, without a vector search. They take two kinds of filter, and an entry must match both. If both read the same key as chunk metadata and give it different values (`1` and `True` count as different), the call raises `ValueError`. An entry-field name in `filters` and the same name in `metadata_filters` are separate keys, so no error is raised and an entry has to match both:
 
@@ -131,13 +125,15 @@ while owning serialization and scope filtering.
 --8<-- "docs/scripts/retrieval/store.py:vs"
 ```
 
-### `nearest_neighbors`: low-level bypass
+### Vector search with `read`
+
+`StoreQuery.text` is optional, so a precomputed vector is enough to search the store directly, without the runtime:
 
 ```python
---8<-- "docs/scripts/retrieval/store.py:knn"
+--8<-- "docs/scripts/retrieval/store.py:vector_read"
 ```
 
-Returns raw scored entries. **Scope is still enforced**: you can't skip the multi-tenant filter by dropping to this method.
+Returns raw scored entries. **Scope is still enforced**: calling the store directly doesn't skip the multi-tenant filter.
 
 ### Note on retrieved vectors
 

@@ -57,17 +57,19 @@ async def filtered(document_id: str):
     # --8<-- [end:filters]
 
 
-# --8<-- [start:knn]
-async def knn():
+# --8<-- [start:vector_read]
+async def vector_read():
     embedder = OpenAIEmbedding()
     query_vec = (await embedder.aembed(["What is the refund policy?"])).vectors[0]
-    results = await store.nearest_neighbors(
-        embedding=query_vec,
-        k=10,
-        # Omit to search unscoped entries only; ALL_SCOPES searches every scope.
-        scope=StoreScope(labels={"user_id": "alice"}),
+    results = await store.read(
+        StoreQuery(
+            embedding=query_vec,
+            top_k=10,
+            # Omit to search unscoped entries only; ALL_SCOPES searches every scope.
+            scope=StoreScope(labels={"user_id": "alice"}),
+        )
     )
-# --8<-- [end:knn]
+# --8<-- [end:vector_read]
 
 
 # --8<-- [start:e2e]

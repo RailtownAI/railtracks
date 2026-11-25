@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from .models import AllScopes, RetrievedStoreEntry, StoreEntry, StoreQuery, StoreScope
+from .models import RetrievedStoreEntry, StoreEntry, StoreQuery, StoreScope
 
 
 @runtime_checkable
@@ -30,9 +30,3 @@ class Store(Protocol):
         *,
         metadata_filters: dict[str, Any] | None = None,
     ) -> int: ...
-    async def nearest_neighbors(
-        self,
-        embedding: list[float],
-        k: int,
-        scope: StoreScope | AllScopes | None = None,
-    ) -> list[RetrievedStoreEntry]: ...
