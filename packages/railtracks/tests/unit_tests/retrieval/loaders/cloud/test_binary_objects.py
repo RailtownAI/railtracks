@@ -101,7 +101,10 @@ class TestPdfObjects:
 
         assert [d.content for d in docs] == ["First page", "Third page"]
         assert all(d.type == DocumentType.PDF for d in docs)
-        assert all(d.source == f"{source_prefix}report.pdf" for d in docs)
+        assert [d.source for d in docs] == [
+            f"{source_prefix}report.pdf#page=1",
+            f"{source_prefix}report.pdf#page=3",
+        ]
         assert [d.metadata["page"] for d in docs] == [1, 3]
         for doc in docs:
             assert doc.metadata["total_pages"] == 3
@@ -119,6 +122,7 @@ class TestPdfObjects:
             (doc,) = loader.load()
 
         assert doc.content == "First page\n\nSecond page"
+        assert doc.source == f"{source_prefix}report.pdf"
         assert doc.metadata["total_pages"] == 2
         assert "page" not in doc.metadata
 
@@ -133,6 +137,10 @@ class TestPdfObjects:
             docs = loader.load()
 
         assert [d.content for d in docs] == ["First page", "Second page"]
+        assert [d.source for d in docs] == [
+            f"{source_prefix}report.pdf#page=1&paragraph=1",
+            f"{source_prefix}report.pdf#page=2&paragraph=1",
+        ]
         assert [(d.metadata["page"], d.metadata["paragraph"]) for d in docs] == [
             (1, 1),
             (2, 1),
