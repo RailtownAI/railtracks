@@ -66,7 +66,7 @@ async def test_azure_embedding_model_enables_cost_tracking():
             model="text-embedding-3-small",
         )
         result = await emb.aembed(["x"])
-    assert "base_model" not in mock.call_args.kwargs
+    assert mock.call_args.kwargs["base_model"] == "text-embedding-3-small"
     assert result.metrics.total_cost is not None and result.metrics.total_cost > 0
 
 
