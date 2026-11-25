@@ -52,7 +52,7 @@ async def filtered(document_id: str):
     # Chunks of one document (in any scope) whose metadata has page=4.
     doc_filter = {"document_id": document_id}
     entries = await store.find(doc_filter, limit=10, metadata_filters={"page": 4})
-    n = await store.count(metadata_filters={"page": 4})
+    n = await store.count(doc_filter, metadata_filters={"page": 4})
     await store.delete_where(doc_filter, metadata_filters={"page": 4})
     # --8<-- [end:filters]
 
