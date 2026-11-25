@@ -95,7 +95,8 @@ def _store_filters_to_payload(
     ``metadata_filters`` is a chunk_metadata key, as in a read.
 
     Raises:
-        ValueError: If both name the same payload key with different values.
+        ValueError: If both name the same payload key with different values;
+            values of different types (``1`` and ``True``) count as different.
     """
     translated = {
         k
@@ -104,7 +105,9 @@ def _store_filters_to_payload(
         for k, v in (filters or {}).items()
     }
     for key, value in _metadata_filters_to_payload(metadata_filters or {}).items():
-        if key in translated and translated[key] != value:
+        if key in translated and (
+            type(translated[key]) is not type(value) or translated[key] != value
+        ):
             raise ValueError(
                 f"filters and metadata_filters give different values for {key!r}: "
                 f"{translated[key]!r} and {value!r}."
@@ -299,7 +302,7 @@ class VectorStore:
 
         Raises:
             ValueError: If both are empty (use ``clear`` to empty a scope), or
-                they give the same key different values.
+                both give the same chunk-metadata key different values.
         """
         payload_filters = _store_filters_to_payload(filters, metadata_filters)
         if not payload_filters:

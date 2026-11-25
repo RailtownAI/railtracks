@@ -942,6 +942,18 @@ async def test_conflicting_filters_and_metadata_filters_raise(method):
 
 
 @_STORE_FILTER_METHODS
+async def test_filters_equal_only_across_types_raise(method):
+    # 1 == True in Python, but pgvector compares JSONB, where they differ.
+    store = VectorStore(InMemoryBackend())
+    await store.write(_csv_like_entry(None, {"flag": 1}))
+
+    with pytest.raises(ValueError, match="flag"):
+        await getattr(store, method)({"flag": 1}, metadata_filters={"flag": True})
+
+    assert await store.count() == 1
+
+
+@_STORE_FILTER_METHODS
 async def test_agreeing_filters_and_metadata_filters_are_accepted(method):
     store = VectorStore(InMemoryBackend())
     await store.write(_csv_like_entry(None, {"page": 4}))
