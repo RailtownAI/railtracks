@@ -146,6 +146,12 @@ class PgvectorBackend:
                 """
             )
 
+    async def aclose(self) -> None:
+        """Close the connection pool. Safe to call more than once."""
+        pool, self._pool = self._pool, None
+        if pool is not None:
+            await pool.close()
+
     async def upsert(self, id: str, vector: list[float], payload: dict) -> None:
         self._require_initialized()
         async with self._pool.acquire() as conn:

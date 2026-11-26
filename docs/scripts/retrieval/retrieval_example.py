@@ -62,7 +62,7 @@ from railtracks.retrieval.stores import InMemoryVectorBackend, VectorStore  # no
 
 
 def log_retrieve(query: str, result):
-    # Synchronous; runs after the retrieve call returns. Use for query-side
+    # Runs before retrieve() returns; an `async def` hook is awaited. Use for query-side
     # audit logging, hit-rate metrics, or feeding an evaluation harness.
     print(f"[retrieve] {query!r} → {len(result.chunks)} hits")
 

@@ -457,3 +457,33 @@ async def test_vector_store_write_read_via_pgvector():
     assert results[0].entry.id == entry.id
     assert results[0].score == pytest.approx(0.95)
     assert results[0].entry.content == "hello"
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
+
+
+async def test_aclose_closes_pool_once_and_is_idempotent():
+    _, pool = _make_pool()
+    pool.close = AsyncMock()
+    backend = _injected_backend(pool)
+
+    await backend.aclose()
+    await backend.aclose()
+
+    pool.close.assert_awaited_once()
+    with pytest.raises(RuntimeError, match="not initialized"):
+        await backend.delete("x")
+
+
+async def test_aclose_before_initialize_is_a_no_op():
+    await PgvectorBackend("postgresql://test/test").aclose()
+
+
+async def test_vector_store_async_with_closes_pgvector_pool():
+    _, pool = _make_pool()
+    pool.close = AsyncMock()
+    async with VectorStore(_injected_backend(pool)):
+        pass
+    pool.close.assert_awaited_once()

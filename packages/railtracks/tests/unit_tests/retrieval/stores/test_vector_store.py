@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import fields, replace
 from pathlib import Path
 from unittest.mock import patch
@@ -976,3 +977,69 @@ async def test_clear_of_unscoped_namespace_still_works():
     await store.clear(StoreScope())
 
     assert [e.id for e in await store.find({}, limit=10)] == [scoped.id]
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
+
+
+class _ClosingBackend(InMemoryBackend):
+    def __init__(self) -> None:
+        super().__init__()
+        self.close_calls = 0
+
+    async def aclose(self) -> None:
+        self.close_calls += 1
+
+
+class _NoCloseBackend:
+    async def upsert(self, id, vector, payload) -> None: ...
+
+
+async def test_aclose_delegates_to_backend_aclose():
+    backend = _ClosingBackend()
+    await VectorStore(backend).aclose()
+    assert backend.close_calls == 1
+
+
+async def test_aclose_is_a_no_op_for_backend_without_aclose():
+    store = VectorStore(_NoCloseBackend())  # type: ignore[arg-type]
+    await store.aclose()
+
+
+async def test_async_with_closes_store_on_exit():
+    backend = _ClosingBackend()
+    async with VectorStore(backend) as store:
+        assert isinstance(store, VectorStore)
+        assert backend.close_calls == 0
+    assert backend.close_calls == 1
+
+
+async def test_async_with_closes_store_when_body_raises():
+    backend = _ClosingBackend()
+    with pytest.raises(RuntimeError, match="inside"):
+        async with VectorStore(backend):
+            raise RuntimeError("inside")
+    assert backend.close_calls == 1
+
+
+class _FailingCloseBackend(InMemoryBackend):
+    async def aclose(self) -> None:
+        raise ConnectionError("close failed")
+
+
+async def test_async_with_keeps_body_error_when_close_also_fails(
+    caplog: pytest.LogCaptureFixture,
+):
+    with caplog.at_level(logging.WARNING, logger="RT.retrieval.store"):
+        with pytest.raises(RuntimeError, match="inside"):
+            async with VectorStore(_FailingCloseBackend()):
+                raise RuntimeError("inside")
+    assert any("aclose" in r.getMessage() for r in caplog.records)
+
+
+async def test_async_with_raises_close_error_on_clean_exit():
+    with pytest.raises(ConnectionError, match="close failed"):
+        async with VectorStore(_FailingCloseBackend()):
+            pass

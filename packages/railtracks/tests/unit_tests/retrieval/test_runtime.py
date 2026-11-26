@@ -8,6 +8,8 @@ inject failures.
 
 from __future__ import annotations
 
+import asyncio
+import dataclasses
 import logging
 from collections.abc import AsyncGenerator
 from unittest.mock import patch
@@ -21,6 +23,8 @@ from railtracks.retrieval import (
     DocumentSkipped,
     EmbeddingFailure,
     EmbeddingModelMismatchError,
+    IngestCompleted,
+    IngestionStats,
     RetrievalRuntime,
 )
 from railtracks.retrieval.chunking import IdentityChunker
@@ -1005,6 +1009,187 @@ async def test_on_retrieve_hook_is_called():
     await runtime.ingest_all(_ListLoader([Document(content="alpha beta")]))
     result = await runtime.retrieve("alpha")
     assert seen == [("alpha", result)]
+
+
+async def test_async_on_ingest_hook_is_awaited():
+    seen: list = []
+
+    async def _record(event) -> None:
+        await asyncio.sleep(0)
+        seen.append(event)
+
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=_store(),
+        on_ingest=_record,
+    )
+    events = [e async for e in runtime.ingest(_ListLoader([Document(content="a b")]))]
+    assert seen == events
+
+
+async def test_async_on_retrieve_hook_is_awaited():
+    seen: list = []
+
+    async def _record(query, result) -> None:
+        await asyncio.sleep(0)
+        seen.append((query, result))
+
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=_store(),
+        on_retrieve=_record,
+    )
+    await runtime.ingest_all(_ListLoader([Document(content="alpha beta")]))
+    result = await runtime.retrieve("alpha")
+    assert seen == [("alpha", result)]
+
+
+async def test_hook_returning_a_task_is_not_awaited():
+    release = asyncio.Event()
+    tasks: list[asyncio.Task] = []
+
+    def _schedule(event) -> asyncio.Task:
+        task = asyncio.create_task(release.wait())
+        tasks.append(task)
+        return task
+
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=_store(),
+        on_ingest=_schedule,
+    )
+    try:
+        await asyncio.wait_for(
+            runtime.ingest_all(_ListLoader([Document(content="a b")])), timeout=5
+        )
+        assert tasks and not any(task.done() for task in tasks)
+    finally:
+        release.set()
+        await asyncio.gather(*tasks)
+
+
+# ---------------------------------------------------------------------------
+# IngestCompleted
+# ---------------------------------------------------------------------------
+
+
+async def test_ingest_yields_ingest_completed_last_with_stats():
+    runtime, _, _ = _runtime(embedder=_FakeEmbedder(fail_on_texts={"bad"}))
+    docs = [
+        Document(content="alpha beta gamma"),
+        Document(content="bad"),
+        LoadFailure(source="broken.txt", error=OSError("unreadable")),
+    ]
+
+    events = [e async for e in runtime.ingest(_ListLoader(docs))]
+
+    assert isinstance(events[-1], IngestCompleted)
+    assert not any(isinstance(e, IngestCompleted) for e in events[:-1])
+    stats = events[-1].stats
+    assert isinstance(stats, IngestionStats)
+    assert stats.documents_loaded == 2
+    assert stats.documents_failed == 2
+    assert stats.chunks_created == 4
+    assert stats.chunks_embedded == 3
+    assert stats.batches_failed == 1
+
+
+async def test_ingest_completed_is_passed_to_on_ingest():
+    seen: list = []
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=_store(),
+        on_ingest=seen.append,
+    )
+    stats = await runtime.ingest_all(_ListLoader([Document(content="alpha beta")]))
+    assert isinstance(seen[-1], IngestCompleted)
+    assert seen[-1].stats is stats
+
+
+async def test_ingest_completed_on_empty_loader():
+    runtime, _, _ = _runtime()
+    events = [e async for e in runtime.ingest(_ListLoader([]))]
+    assert len(events) == 1
+    assert isinstance(events[0], IngestCompleted)
+    assert events[0].stats == IngestionStats()
+
+
+def test_ingest_completed_is_frozen():
+    event = IngestCompleted(stats=IngestionStats())
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        event.stats = IngestionStats()  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
+
+
+class _ClosingStore(VectorStore):
+    def __init__(self) -> None:
+        super().__init__(InMemoryBackend())
+        self.close_calls = 0
+
+    async def aclose(self) -> None:
+        self.close_calls += 1
+
+
+async def test_runtime_aclose_delegates_to_store():
+    store = _ClosingStore()
+    runtime, _, _ = _runtime(store=store)
+    await runtime.aclose()
+    assert store.close_calls == 1
+
+
+async def test_runtime_async_with_closes_store():
+    store = _ClosingStore()
+    runtime, _, _ = _runtime(store=store)
+    async with runtime as entered:
+        assert entered is runtime
+        assert store.close_calls == 0
+    assert store.close_calls == 1
+
+
+async def test_runtime_aclose_tolerates_store_without_aclose():
+    class _BareStore:
+        pass
+
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=_BareStore(),  # type: ignore[arg-type]
+    )
+    await runtime.aclose()
+
+
+class _FailingCloseStore(VectorStore):
+    def __init__(self) -> None:
+        super().__init__(InMemoryBackend())
+
+    async def aclose(self) -> None:
+        raise ConnectionError("close failed")
+
+
+async def test_runtime_async_with_keeps_body_error_when_close_also_fails(
+    caplog: pytest.LogCaptureFixture,
+):
+    runtime, _, _ = _runtime(store=_FailingCloseStore())
+    with caplog.at_level(logging.WARNING, logger="RT.retrieval.runtime"):
+        with pytest.raises(RuntimeError, match="inside"):
+            async with runtime:
+                raise RuntimeError("inside")
+    assert any("aclose" in r.getMessage() for r in caplog.records)
+
+
+async def test_runtime_async_with_raises_close_error_on_clean_exit():
+    runtime, _, _ = _runtime(store=_FailingCloseStore())
+    with pytest.raises(ConnectionError, match="close failed"):
+        async with runtime:
+            pass
 
 
 # ---------------------------------------------------------------------------

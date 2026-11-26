@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from types import TracebackType
 from typing import Any, Protocol
 from uuid import UUID
 
+from typing_extensions import Self
+
+from ..._logging import RetrievalComponent, get_logger
 from ..models import (
     _LABEL_VALUE_TYPES,
     AllScopes,
@@ -14,6 +18,8 @@ from ..models import (
     StoreScope,
     exact_scope_filter,
 )
+
+logger = get_logger(RetrievalComponent.STORE)
 
 
 class VectorBackend(Protocol):
@@ -243,10 +249,38 @@ class VectorStore:
     """Cosine similarity search over StoreEntry vectors.
 
     Satisfies the Store protocol. Does not inherit from any base class.
+    Use it as ``async with VectorStore(backend) as store:`` (or call
+    ``aclose()``) to release the backend's resources when done.
     """
 
     def __init__(self, backend: VectorBackend) -> None:
         self._backend = backend
+
+    async def aclose(self) -> None:
+        """Release the backend's resources, if it holds any. Safe to call twice."""
+        aclose = getattr(self._backend, "aclose", None)
+        if aclose is not None:
+            await aclose()
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        if exc is None:
+            await self.aclose()
+            return
+        # Don't let a close failure replace the exception raised in the body.
+        try:
+            await self.aclose()
+        except Exception:
+            logger.warning(
+                "aclose() failed while handling another exception", exc_info=True
+            )
 
     async def write(self, entry: StoreEntry) -> str:
         if entry.vector is None:

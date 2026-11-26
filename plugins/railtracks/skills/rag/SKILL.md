@@ -173,7 +173,12 @@ if __name__ == "__main__":
 ### Streaming ingestion events (for progress / error handling)
 ```python
 from railtracks.retrieval import RetrievalRuntime
-from railtracks.retrieval.runtime import BatchIngested, DocumentFailed, DocumentSkipped
+from railtracks.retrieval.runtime import (
+    BatchIngested,
+    DocumentFailed,
+    DocumentSkipped,
+    IngestCompleted,
+)
 
 
 async def ingest_with_progress(runtime: RetrievalRuntime, loader) -> None:
@@ -185,6 +190,9 @@ async def ingest_with_progress(runtime: RetrievalRuntime, loader) -> None:
             print(f"FAILED at {event.stage}: {event.source} — {event.errors!r}")
         elif isinstance(event, DocumentSkipped):
             print(f"skipped (unchanged): {event.document_id}")
+        elif isinstance(event, IngestCompleted):
+            # always last; same stats ingest_all() returns
+            print(f"done: {event.stats.chunks_embedded} chunks embedded")
 ```
 
 ### PDF ingestion
