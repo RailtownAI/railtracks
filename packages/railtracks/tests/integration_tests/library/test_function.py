@@ -50,7 +50,7 @@ class TestPrimitiveInputTypes:
         response, secret_called = await rt.Flow("test_empty_function", entry).ainvoke(
             "What is the secret phrase? Only return the secret phrase, no other text."
         )
-        assert "Constantinople" in response.content
+        assert "Constantinople" in response.text
         assert secret_called
 
     async def test_single_int_input(self, _agent_node_factory, mock_llm):
@@ -93,7 +93,7 @@ class TestPrimitiveInputTypes:
             "Find what the magic function output is for 6? Only return the magic number, no other text.",
         )
         assert called
-        assert "666666" in response.content
+        assert "666666" in response.text
 
     async def test_single_str_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single str parameter works correctly."""
@@ -135,7 +135,7 @@ class TestPrimitiveInputTypes:
             "What is the magic phrase for the word 'hello'? Only return the magic phrase, no other text.",
         )
         assert called
-        assert "h$e$l$l$o" in response.content
+        assert "h$e$l$l$o" in response.text
 
     async def test_single_float_input(self, _agent_node_factory, mock_llm):
         """Test that a function with a single float parameter works correctly."""
@@ -177,7 +177,7 @@ class TestPrimitiveInputTypes:
             "Does 5 pass the magic test? Only return the result, no other text.",
         )
         assert called
-        resp: str = response.content
+        resp: str = response.text
         assert "True" in resp
 
     async def test_single_bool_input(self, _agent_node_factory, mock_llm):
@@ -220,7 +220,7 @@ class TestPrimitiveInputTypes:
             "Is the magic test true? Only return the result, no other text."
         )
         assert called
-        assert "Wish Granted" in response.content
+        assert "Wish Granted" in response.text
 
     # TODO: think carefully about how we can test the graceful error handling. This test is temporary.
     async def test_function_error_handling(self, _agent_node_factory, mock_llm):
@@ -263,7 +263,7 @@ class TestPrimitiveInputTypes:
             "What does the tool return for an input of 0? Only return the result, no other text.",
         )
 
-        assert "There was an error" in output.content  # graceful error handling
+        assert "There was an error" in output.text  # graceful error handling
         assert called
 
 
@@ -309,7 +309,7 @@ class TestSequenceInputTypes:
         response, called = await rt.Flow("test_single_list_input", entry).ainvoke(
             "What is the magic list for ['1', '2', '3']? Only return the result, no other text.",
         )
-        assert "3 2 1" in response.content
+        assert "3 2 1" in response.text
         assert called
 
     async def test_single_tuple_input(self, _agent_node_factory, mock_llm):
@@ -352,7 +352,7 @@ class TestSequenceInputTypes:
             "What is the magic tuple for ('1', '2', '3')? Only return the result, no other text.",
         )
 
-        assert "3 2 1" in response.content
+        assert "3 2 1" in response.text
         assert called
 
     async def test_lists(self, _agent_node_factory, mock_llm):
@@ -392,7 +392,7 @@ class TestSequenceInputTypes:
             "What is the magic result for [1, 2] and [5.5, 10]? Only return the result, no other text.",
         )
 
-        assert "25.5" in response.content
+        assert "25.5" in response.text
 
 
 class TestDictionaryInputTypes:
@@ -474,7 +474,7 @@ class TestUnionAndOptionalParameter:
             "Calculate the magic number for 5. Then calculate the magic number for 'fox'.",
         )
         assert called
-        assert len(re.findall(r"21", response.content)) == 2  # 21 appears twice
+        assert len(re.findall(r"21", response.text)) == 2  # 21 appears twice
 
     @pytest.mark.parametrize(
         "default_value, expected",
@@ -525,10 +525,10 @@ class TestUnionAndOptionalParameter:
 
         # verify each expected number appears in the response
         for val in expected:
-            assert str(val) in response.content
+            assert str(val) in response.text
 
         # also check counts if you want stricter validation
         for val in set(expected):
-            assert len(re.findall(str(val), response.content)) == expected.count(val)
+            assert len(re.findall(str(val), response.text)) == expected.count(val)
 
         assert called

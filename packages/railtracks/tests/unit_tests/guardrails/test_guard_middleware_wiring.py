@@ -84,7 +84,7 @@ async def test_input_guard_allow_passes_history_through_unchanged():
     result = await guard.wrap(fake_call)(original, None, None)
 
     assert seen["message_history"] == original
-    assert result.message.content == "ok"
+    assert result.message.text == "ok"
 
 
 @pytest.mark.asyncio

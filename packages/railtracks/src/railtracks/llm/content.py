@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import warnings
 from typing import (
+    TYPE_CHECKING,
     Any,
     AnyStr,
     Dict,
@@ -13,6 +15,9 @@ from typing import (
 )
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from .message import ContentPart
 
 
 ####################################################################################################
@@ -37,22 +42,22 @@ class ToolCall(BaseModel):
 
 class ToolCalls(List[ToolCall]):
     """
-    An assistant turn that calls tools: the calls themselves, plus any text the
-    model spoke alongside them.
+    Deprecated: put tool calls in the message content instead, as
+    `AssistantMessage(["Let me check.", ToolCall(...)])`.
 
-    Models routinely answer with both at once — "I'll look that up for you."
-    followed by a call to `search`. Holding that text here rather than in a
-    separate field on the message keeps the model's whole response inside
-    `content`.
-
-    This is a `list[ToolCall]`, so anything that already treats tool-call
-    content as a list — iteration, indexing, `isinstance(content, list)` —
-    keeps working, and `AssistantMessage` accepts a plain list as before.
+    An `AssistantMessage` given a `ToolCalls` stores its text and calls as content
+    parts, and `message.tool_calls` lists the calls of any message.
     """
 
     def __init__(
         self, tool_calls: Iterable[ToolCall] = (), text: str | None = None
     ) -> None:
+        warnings.warn(
+            "ToolCalls is deprecated and will be removed; put the calls in the message "
+            "content, as AssistantMessage([text, *calls]), and read message.tool_calls.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(tool_calls)
         self.text = text
 
@@ -64,9 +69,9 @@ class ToolCalls(List[ToolCall]):
 
 class ToolResponse(BaseModel):
     """
-    A simple model object that represents a tool response.
+    Deprecated: build `ToolMessage(result, tool_call_id=..., name=...)` instead.
 
-    This simple model should be used when adding a response to a tool.
+    `ToolMessage(ToolResponse(...))` still works and is converted to that form.
     """
 
     identifier: str = Field(
@@ -134,7 +139,4 @@ class Stream(Generic[_TOutput]):
         return f"Stream(streamer={self._streamer})"
 
 
-# ToolCalls is a List[ToolCall] subclass, so it is already covered by the
-# List[ToolCall] member; it is named here because it is the shape an assistant
-# tool-calling turn actually takes.
-Content = Union[str, ToolCalls, List[ToolCall], ToolResponse, BaseModel]
+Content = Union["List[ContentPart]", str, BaseModel]

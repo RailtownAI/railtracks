@@ -4,7 +4,7 @@ from typing import Any, Optional, Tuple, Union
 import pytest
 from litellm.utils import CustomStreamWrapper, ModelResponse  # type: ignore
 from pydantic import BaseModel
-from railtracks.llm.content import ToolCall, ToolResponse
+from railtracks.llm.content import ToolCall
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import AssistantMessage, ToolMessage, UserMessage
 from railtracks.llm.models._litellm_wrapper import LiteLLMWrapper
@@ -77,19 +77,11 @@ def assistant_message():
 
 
 @pytest.fixture
-def tool_message(tool_response):
+def tool_message():
     """
     Fixture to provide a ToolMessage instance.
     """
-    return ToolMessage(content=tool_response)
-
-
-@pytest.fixture
-def tool_response():
-    """
-    Fixture to provide a ToolResponse instance.
-    """
-    return ToolResponse(identifier="123", name="example_tool", result="success")
+    return ToolMessage("success", tool_call_id="123", name="example_tool")
 
 
 @pytest.fixture

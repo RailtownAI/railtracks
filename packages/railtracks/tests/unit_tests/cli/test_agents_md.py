@@ -200,7 +200,8 @@ class TestBlockContent:
         report = namespace["report_flow"].invoke("Paris is sunny and 22C.")
         final = namespace["pipeline_flow"].invoke("Paris")
 
-        assert isinstance(answer.content, str)
+        assert isinstance(answer.text, str)
+        assert isinstance(answer.content, list)
         assert isinstance(report.structured, report_cls)
         assert isinstance(final, report_cls)
 

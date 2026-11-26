@@ -51,7 +51,7 @@ def test_chat_success(message_history):
         ),
     ):
         response = llm.chat(message_history)
-        assert response.message.content == "This is a response from Azure AI."
+        assert response.message.text == "This is a response from Azure AI."
 
 
 def test_chat_passes_temperature(message_history):
@@ -93,7 +93,7 @@ def test_chat_with_tools_success(message_history, response, tool):
 
     with patch.object(LiteLLMWrapper, "chat_with_tools", return_value=response):
         response = llm.chat_with_tools(message_history, [tool])
-        assert response.message.content == "This is a response with no tool calls."
+        assert response.message.text == "This is a response with no tool calls."
 
 
 def test_chat_with_tools_failure(message_history, tool):

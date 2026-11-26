@@ -42,7 +42,7 @@ def test_string_response():
     content = "hello world"
     history = DummyMessageHistory()
     resp = StringResponse(content, history)
-    assert resp.content == content
+    assert resp.content == [content]
     assert resp.message_history is history
     assert resp.text == content
 
@@ -58,7 +58,7 @@ def test_string_response_repr():
     content = "abc"
     history = DummyMessageHistory()
     resp = StringResponse(content, history)
-    assert repr(resp) == "LLMResponse(abc)"
+    assert repr(resp) == "LLMResponse(['abc'])"
 
 
 def test_llmresponse_str():

@@ -9,7 +9,7 @@ import pytest
 import railtracks.built_nodes.llm.llm_helpers as llm_helpers
 from railtracks.built_nodes.llm.llm_helpers import _wire_history
 from railtracks.exceptions import LLMError, NodeInvocationError
-from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
+from railtracks.llm.content import ToolCall
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
     AssistantMessage,
@@ -23,7 +23,7 @@ from railtracks.validation.node_invocation.validation import check_message_histo
 
 
 def _contents(history: MessageHistory) -> list[str]:
-    return [str(m.content) for m in history]
+    return [m.text for m in history]
 
 
 def _roles(history: MessageHistory) -> list[str]:
@@ -60,11 +60,11 @@ def _answer(text: str = "answer") -> Response:
 
 def _tool_request() -> Response:
     call = ToolCall(identifier="1", name="a_tool", arguments={})
-    return Response(message=AssistantMessage(ToolCalls([call])))
+    return Response(message=AssistantMessage([call]))
 
 
-def _tool_result() -> ToolResponse:
-    return ToolResponse(identifier="1", name="a_tool", result="tool result")
+def _tool_result() -> ToolMessage:
+    return ToolMessage("tool result", tool_call_id="1", name="a_tool")
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +153,7 @@ async def test_a_caller_system_message_comes_back(monkeypatch):
     response = await invoke(_FakeNode(), history)
 
     assert _roles(response.message_history) == ["system", "user", "assistant"]
-    assert response.message_history[0].content == "caller"
+    assert response.message_history[0].text == "caller"
 
 
 async def test_a_caller_system_message_survives_repeated_turns(monkeypatch):
@@ -167,7 +167,7 @@ async def test_a_caller_system_message_survives_repeated_turns(monkeypatch):
         history.append(UserMessage("again"))
 
     assert sum(1 for m in history if m.role == Role.system) == 1
-    assert history[0].content == "caller"
+    assert history[0].text == "caller"
 
 
 async def test_the_agent_system_message_does_not_accumulate(monkeypatch):
@@ -182,7 +182,7 @@ async def test_the_agent_system_message_does_not_accumulate(monkeypatch):
         history.append(UserMessage("again"))
 
     assert [sum(1 for m in h if m.role == Role.system) for h in sent] == [1, 1, 1]
-    assert all(h[0].content == "agent" for h in sent)
+    assert all(h[0].text == "agent" for h in sent)
 
 
 async def test_the_callers_own_history_object_is_not_modified(monkeypatch):
@@ -206,14 +206,14 @@ async def test_every_model_call_in_the_loop_carries_the_agent_message(monkeypatc
     monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
 
     async def _fake_run_tools(response, message_history, tool_nodes):
-        message_history.append(ToolMessage(_tool_result()))
+        message_history.append(_tool_result())
 
     monkeypatch.setattr(llm_helpers, "run_tools", _fake_run_tools)
     invoke = llm_helpers.llm_invoke_factory(object(), SystemMessage("agent"))
 
     response = await invoke(_FakeNode(), "hi")
 
-    assert [h[0].content for h in sent] == ["agent", "agent"]
+    assert [h[0].text for h in sent] == ["agent", "agent"]
     assert sum(1 for m in sent[1] if m.role == Role.system) == 1
     assert "agent" not in _contents(response.message_history)
 
@@ -223,7 +223,7 @@ async def test_the_history_is_validated_once_per_invocation(monkeypatch):
     monkeypatch.setattr(llm_helpers, "ModelInvoker", invoker)
 
     async def _fake_run_tools(response, message_history, tool_nodes):
-        message_history.append(ToolMessage(_tool_result()))
+        message_history.append(_tool_result())
 
     monkeypatch.setattr(llm_helpers, "run_tools", _fake_run_tools)
 

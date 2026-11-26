@@ -139,6 +139,26 @@ Each provider class sends only the modalities checked against its litellm route.
 The model itself must still support what is sent: a PDF to a model without PDF input, or audio to an OpenAI model that isn't an audio model, is rejected by litellm's catalog check or by the provider.
 
 ---
+## Text and attachments in order
+`attachment=` places every attachment after the text. When the position matters, for example "this chart, then that one", pass the content as a list of text and `Attachment`s instead. The model receives them in that order:
+
+```python
+--8<-- "docs/scripts/multimodal.py:interleaved"
+```
+
+A message's `content` is always such a list: `UserMessage("Hi").content` is `["Hi"]`, and `UserMessage("Describe this.", attachment="cat.png").content` is `["Describe this.", Attachment(...)]`. Read `.text` for the text parts joined with newlines and `.attachments` for the attachments in order. `attachment=` still works, and its attachments go after whatever `content` holds.
+
+Every message follows the same rule. A `SystemMessage` holds text parts only, a `ToolMessage` holds the tool's text and attachments, and an assistant turn that calls tools holds the text the model spoke and its `ToolCall`s, in order, such as `["Let me check.", ToolCall(...)]`. Read the calls with `.tool_calls`.
+
+An agent takes the same list as its input and wraps it in one `UserMessage`:
+
+```python
+--8<-- "docs/scripts/multimodal.py:interleaved_agent"
+```
+
+A text-only message is still sent to the provider as one string. A message with attachments is sent as one content part per item, in order; empty text parts are left out, since some providers reject them.
+
+---
 ## Attachment URLs in production
 
 Railtracks doesn't check where an attachment URL points. Who downloads it depends on the attachment:

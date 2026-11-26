@@ -143,8 +143,8 @@ def test_inject_values_injects_value():
     value_dict = ValueDict({"name": "Alice", "system_info": "All systems operational"})
 
     result = context_injection.inject_values(history, value_dict)
-    assert result[0].content == "System says All systems operational"
-    assert result[1].content == "Hello, Alice!"
+    assert result[0].text == "System says All systems operational"
+    assert result[1].text == "Hello, Alice!"
 
 
 def test_inject_values_ignores_other_roles():
@@ -178,7 +178,7 @@ def test_inject_values_passes_through_unfillable_placeholders():
 
     result = context_injection.inject_values(history, value_dict)
     for message, original in zip(result, contents):
-        assert message.content == original
+        assert message.text == original
 
 
 # ================ END inject_values tests ==================

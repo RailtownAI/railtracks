@@ -12,7 +12,7 @@ from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
-from railtracks.llm import ToolCall, ToolResponse
+from railtracks.llm import ToolCall, ToolMessage
 
 from ..utils.logging.create import get_rt_logger
 from .human_in_the_loop import HIL, HILMessage
@@ -331,7 +331,7 @@ class ChatUI(HIL):
             return None
 
     async def update_tools(
-        self, tool_invocations: list[tuple[ToolCall, ToolResponse]]
+        self, tool_invocations: list[tuple[ToolCall, ToolMessage]]
     ) -> bool:
         """
         Send a tool invocation update to the chat interface.
@@ -345,9 +345,7 @@ class ChatUI(HIL):
         """
         try:
             for tc, tr in tool_invocations:
-                success = not str(tr.result).startswith(
-                    "There was an error running the tool"
-                )
+                success = not tr.text.startswith("There was an error running the tool")
 
                 message = {
                     "type": "tool_invoked",
@@ -355,7 +353,7 @@ class ChatUI(HIL):
                         "name": tc.name,
                         "identifier": tc.identifier,
                         "arguments": tc.arguments,
-                        "result": str(tr.result),
+                        "result": tr.text,
                         "success": success,
                     },
                 }

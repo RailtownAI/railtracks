@@ -126,6 +126,16 @@ class TestUserMessageRecord:
         assert local["source"] == "path" and url["source"] == "url"
         assert sink.saved == [(PNG_SHA256, len(PNG_BYTES), PNG_BYTES)]
 
+    def test_parts_keep_their_order(self, png_path):
+        message = UserMessage(["Before:", Attachment(png_path), "What changed?"])
+
+        recorded = message.to_event_record(None)
+
+        before, image, question = recorded["content"]
+        assert before == {"type": "text", "text": "Before:"}
+        assert image["source"] == "path"
+        assert question == {"type": "text", "text": "What changed?"}
+
     def test_without_attachments_matches_encode(self):
         message = UserMessage("just text")
         assert message.to_event_record(_Sink()) == message.encode()

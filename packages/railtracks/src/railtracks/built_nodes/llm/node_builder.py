@@ -1,28 +1,24 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Generic, Iterable, Type, TypeVar, Union, cast, overload
+from typing import Generic, Iterable, Type, TypeVar, cast, overload
 
 from pydantic import BaseModel
 
 from railtracks.built_nodes._node_builder import NodeBuilder
 from railtracks.built_nodes._types import ModelSource
 from railtracks.llm import Parameter, SystemMessage
-from railtracks.llm.history import MessageHistory
-from railtracks.llm.message import Message, UserMessage
 from railtracks.llm.middleware import ModelMiddleware
 from railtracks.middleware.core import Middleware
 from railtracks.nodes.nodes import Node
 from railtracks.validation.node_creation.validation import _check_duplicate_tool_names
 
 from ._agent_tool import agent_tool_arguments, agent_tool_info
-from .llm_helpers import llm_invoke_factory
+from .llm_helpers import UserInput, llm_invoke_factory
 from .response import StringResponse, StructuredResponse
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 _R = TypeVar("_R", bound=StringResponse | StructuredResponse)
-
-UserInput = Union[str, MessageHistory, list[Message], UserMessage]
 
 
 class LLMNodeBuilder(NodeBuilder[[UserInput], _R], Generic[_R]):

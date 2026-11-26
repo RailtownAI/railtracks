@@ -205,15 +205,15 @@ StrongAgent = rt.agent_node(llm=rt.llm.AnthropicLLM("claude-sonnet-5-5"), name="
 async def summarise(user_input: str) -> str:
     """Summarise text, degrading gracefully as things go wrong."""
     try:
-        return (await rt.call(CheapAgent, user_input)).content
+        return (await rt.call(CheapAgent, user_input)).text
 
     except LLMTimeoutError:
         # Slow model, not a broken one -- a second attempt often lands.
-        return (await rt.call(CheapAgent, user_input)).content
+        return (await rt.call(CheapAgent, user_input)).text
 
     except LLMRateLimitError:
         # Rate limited on the cheap tier; spend money instead of waiting.
-        return (await rt.call(StrongAgent, user_input)).content
+        return (await rt.call(StrongAgent, user_input)).text
 
     except LLMError as e:
         # Anything else from the LLM: give the caller something usable.

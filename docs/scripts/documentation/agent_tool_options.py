@@ -44,7 +44,7 @@ async def weather_report(city: str, units: str) -> str:
         units: Either "metric" or "imperial".
     """
     response = await rt.call(WeatherAgent, f"Weather in {city}, in {units} units.")
-    return response.content
+    return response.text
 
 
 FunctionAssistant = rt.agent_node(

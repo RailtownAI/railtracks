@@ -36,7 +36,7 @@ WeatherStructuredAgent = rt.agent_node(
 @rt.function_node
 async def weather_agent(prompt: str):
     tool_response = await rt.call(WeatherToolCallAgent, user_input=prompt)
-    return await rt.call(WeatherStructuredAgent, user_input=tool_response.content)
+    return await rt.call(WeatherStructuredAgent, user_input=tool_response.text)
 
 
 
@@ -103,10 +103,10 @@ async def code_agent(prompt : str):
         user_input=prompt + " Your Problem Last Time: " + problem
         )
 
-        valid, problem = static_check(response.content)
+        valid, problem = static_check(response.text)
 
     with open("new_script.py", "w") as file:
-        file.write(response.content)
+        file.write(response.text)
     
     return "Success"
 

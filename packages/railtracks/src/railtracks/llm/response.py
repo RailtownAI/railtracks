@@ -1,8 +1,10 @@
 from typing import Literal, TypeVar
 
+from pydantic import BaseModel
+
 from railtracks.llm.content import Content
 
-from .message import Message, Role
+from .message import Attachment, Message, Role
 
 
 class MessageInfo:
@@ -105,25 +107,30 @@ class Response:
     @property
     def text(self) -> str:
         """
-        The plain-text content of the response message.
+        The text of the response message.
 
-        This is a typed convenience accessor for the common case where the model returned
-        text (e.g. the final `Response` of `astream_chat`).
+        Text parts are joined with newlines. For a tool-calling turn this is the text the
+        model spoke alongside its calls, which may be empty.
 
         Returns:
-            str: The message's text content.
+            str: The message's text.
 
         Raises:
-            TypeError: If the message content is not a string (e.g. tool calls or a
-                structured/pydantic output). Access `message.content` directly for those.
+            TypeError: If the message holds structured (pydantic) output. Access
+                `message.content` directly for that.
         """
         content = self._message.content
-        if not isinstance(content, str):
+        if isinstance(content, BaseModel):
             raise TypeError(
-                f"Response content is not text; it is {type(content).__name__}. "
-                "Access `response.message.content` directly for non-text content."
+                f"Response content is structured output ({type(content).__name__}), "
+                "not text. Access `response.message.content` directly."
             )
-        return content
+        return self._message.text
+
+    @property
+    def attachments(self) -> list[Attachment]:
+        """The attachments in the response message, in order."""
+        return self._message.attachments
 
     @property
     def reasoning(self) -> str | None:

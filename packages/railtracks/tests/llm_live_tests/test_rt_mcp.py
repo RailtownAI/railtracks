@@ -31,7 +31,7 @@ async def test_from_mcp_server_with_llm():
     ).ainvoke(message_history)
 
     assert response is not None
-    assert response.content != "It didn't work!"
+    assert response.text != "It didn't work!"
 
 
 @pytest.mark.skip(reason="Skipped due to LLM stochasticity")
@@ -57,4 +57,4 @@ async def test_from_mcp_server_with_http():
     ).ainvoke(message_history)
 
     assert response is not None
-    assert response.content != "It didn't work!"
+    assert response.text != "It didn't work!"

@@ -25,7 +25,7 @@ Using a [Flow](../invocation/flows.md) you can separate out the tool calling and
 async def flow_func(arg: str)->str:
     first_resp = await rt.call(ToolCallingAgent, arg)
 
-    second_resp = await rt.call(StructuredAgent, first_step.message_history) # or pass in first_step.content
+    second_resp = await rt.call(StructuredAgent, first_step.message_history) # or pass in first_step.text
 ```
 See [Message History](../invocation/message_history.md) for how returned history can be passed safely between calls.
 !!! warning "`ToolCallingAgent` vs `StructuredAgent`"

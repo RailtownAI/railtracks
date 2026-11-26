@@ -47,11 +47,11 @@ def _make_guard(mock_llm, label="IN_SCOPE", sensitivity="MEDIUM", scope=SCOPE):
 
 
 def _judge_user_text(seen: dict[str, list], call: int = 0) -> str:
-    return next(m.content for m in seen["calls"][call] if m.role == Role.user)
+    return next(m.text for m in seen["calls"][call] if m.role == Role.user)
 
 
 def _judge_system_text(seen: dict[str, list], call: int = 0) -> str:
-    return next(m.content for m in seen["calls"][call] if m.role == Role.system)
+    return next(m.text for m in seen["calls"][call] if m.role == Role.system)
 
 
 class TestConstruction:
@@ -207,14 +207,13 @@ class TestAllow:
 class TestSkipJudge:
     async def test_tool_loop_continuation(self, mock_llm):
         guard, seen = _make_guard(mock_llm, label="OUT_OF_SCOPE")
-        tool_result = rt.llm.ToolResponse(identifier="1", result="done", name="lookup")
         history = MessageHistory(
             [
                 UserMessage("write a poem"),
                 AssistantMessage(
                     [rt.llm.ToolCall(identifier="1", name="lookup", arguments={})]
                 ),
-                ToolMessage(tool_result),
+                ToolMessage("done", tool_call_id="1", name="lookup"),
             ]
         )
 
@@ -313,11 +312,7 @@ class TestJudgeInput:
                 AssistantMessage(
                     [rt.llm.ToolCall(identifier="1", name="lookup_tool", arguments={})]
                 ),
-                ToolMessage(
-                    rt.llm.ToolResponse(
-                        identifier="1", result="TOOL RESULT", name="lookup_tool"
-                    )
-                ),
+                ToolMessage("TOOL RESULT", tool_call_id="1", name="lookup_tool"),
                 AssistantMessage("answer"),
                 UserMessage("follow up"),
             ]

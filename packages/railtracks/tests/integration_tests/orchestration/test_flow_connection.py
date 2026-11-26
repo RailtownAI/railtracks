@@ -217,7 +217,7 @@ class TestMessageHistories:
 
         researcher = conn.message_histories()[0]
         roles = [str(m.role) for m in researcher.message_history]
-        contents = [str(m.content) for m in researcher.message_history]
+        contents = [m.text for m in researcher.message_history]
 
         assert roles == ["Role.user", "Role.assistant"]
         assert contents == ["topic", "facts"]

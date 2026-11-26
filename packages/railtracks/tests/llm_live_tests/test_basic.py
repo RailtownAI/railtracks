@@ -62,7 +62,7 @@ async def test_terminal_llm(llm):
     )
     final_resp: StringResponse | None = response
 
-    assert final_resp is not None and "54321" in final_resp.content
+    assert final_resp is not None and "54321" in final_resp.text
 
 
 @pytest.mark.asyncio

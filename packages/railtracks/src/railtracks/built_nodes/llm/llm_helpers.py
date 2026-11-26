@@ -1,10 +1,13 @@
 import asyncio
+from collections.abc import Sequence
 from copy import deepcopy
 from typing import (
     Callable,
     Literal,
     Protocol,
     TypeVar,
+    Union,
+    cast,
 )
 
 from pydantic import BaseModel
@@ -26,10 +29,12 @@ from railtracks.llm._exceptions import (
     ProviderRateLimitError,
     ProviderTimeoutError,
 )
-from railtracks.llm.content import ToolCall, ToolCalls, ToolResponse
+from railtracks.llm.content import ToolCall
 from railtracks.llm.history import MessageHistory
 from railtracks.llm.message import (
     AssistantMessage,
+    Attachment,
+    ContentPart,
     Message,
     SystemMessage,
     ToolMessage,
@@ -44,11 +49,17 @@ from railtracks.validation.node_invocation.validation import check_message_histo
 
 _TStructured = TypeVar("_TStructured", bound=BaseModel)
 
+UserInput = Union[
+    str, MessageHistory, UserMessage, Sequence[Union[Message, str, Attachment]]
+]
+"""What an agent accepts: text, a message, a history, a list of messages, or a list of
+text and attachments. A list may not mix messages with text or attachments."""
+
 
 class StringLLMInvoke(Protocol):
     async def __call__(
         self: Node,
-        user_input: MessageHistory | UserMessage | str | list[Message],
+        user_input: UserInput,
     ) -> StringResponse: ...
 
 
@@ -80,7 +91,7 @@ def _node_error_for(exc: BaseException) -> type[LLMError]:
 class StructuredLLMInvoke(Protocol[_TStructured]):
     async def __call__(
         self: Node,
-        user_input: MessageHistory | UserMessage | str | list[Message],
+        user_input: UserInput,
     ) -> StructuredResponse[_TStructured]: ...
 
 
@@ -105,7 +116,7 @@ def llm_invoke_factory(
 
     async def llm_invoke(
         self: Node,
-        user_input: MessageHistory | UserMessage | str | list[Message],
+        user_input: UserInput,
     ):
         model_invoker = ModelInvoker.create_with_llm_observe(
             model_source,
@@ -188,21 +199,17 @@ async def run_tools(
     tool_nodes: list[type[Node]],
 ):
     assert len(tool_nodes) > 0, "No tool nodes provided to run_tools"
-    tool_calls = response.message.tool_calls
-
-    # `tool_calls` is a copy (so the loop can hand it to `invoke_tools` without history
-    # sharing mutable argument dicts), so carry the text over from the response's own
-    # content and copy the reasoning/provider metadata the rebuild would otherwise drop
-    # -- signed thinking blocks (which Anthropic requires echoed back) included.
-    hist_msg = AssistantMessage(
-        content=ToolCalls(
-            tool_calls, text=getattr(response.message.content, "text", None)
-        )
-    ).copy_metadata_from(response.message)
+    # `deepcopy` so history never shares mutable argument dicts with the Response that
+    # `post_llm` middleware may still mutate; `copy_metadata_from` carries the
+    # reasoning/provider metadata the rebuild would otherwise drop -- signed thinking
+    # blocks (which Anthropic requires echoed back) included.
+    hist_msg = AssistantMessage(deepcopy(response.message.content)).copy_metadata_from(
+        response.message
+    )
 
     message_history.append(hist_msg)
 
-    tool_messages = await invoke_tools(tool_calls, tool_nodes)
+    tool_messages = await invoke_tools(hist_msg.tool_calls, tool_nodes)
 
     message_history.extend(tool_messages)
 
@@ -224,23 +231,10 @@ async def invoke_tools(tool_calls: list[ToolCall], tool_nodes: list[type[Node]])
         for x in tool_results
     ]
 
-    tool_ids = [tool_call.identifier for tool_call in tool_calls]
-    tool_names = [tool_call.name for tool_call in tool_calls]
-
-    tool_messages: list[ToolMessage] = []
-
-    for tool_id, tool_name, result in zip(tool_ids, tool_names, stringified_results):
-        tool_messages.append(
-            ToolMessage(
-                ToolResponse(
-                    identifier=tool_id,
-                    name=tool_name,
-                    result=result,
-                )
-            )
-        )
-
-    return tool_messages
+    return [
+        ToolMessage(result, tool_call_id=tool_call.identifier, name=tool_call.name)
+        for tool_call, result in zip(tool_calls, stringified_results)
+    ]
 
 
 async def invoke_tool(tool_call: ToolCall, tool_nodes: list[type[Node]]):
@@ -358,18 +352,18 @@ def process_message(
 
     if len(tool_calls) > 0:
         return "Tool"
-    elif isinstance(content, str):
+    elif isinstance(content, str) or (content and isinstance(content, list)):
         return "Content"
     elif schema is not None and isinstance(content, schema):
         return "Structured"
-    elif content is None:
+    elif not content:
         reason = (
             "The model returned no text content. This can happen when the reply is cut "
             "off or blocked by the provider's content filter, or when the model answers "
             "with only audio or images, which are not supported."
         )
     else:
-        expected = "str" if schema is None else f"str or {schema.__name__}"
+        expected = "text" if schema is None else f"text or {schema.__name__}"
         reason = (
             f"The model returned {type(content).__name__} content; expected {expected}."
         )
@@ -400,8 +394,21 @@ def _wire_history(
 
 
 def create_message_history(
-    user_input: MessageHistory | UserMessage | str | list[Message],
+    user_input: UserInput,
 ) -> MessageHistory:
+    """Turn an agent's input into the message history to send.
+
+    Args:
+        user_input: A history, a message, text, a list of messages, or a list of text
+            and attachments, which becomes one `UserMessage`.
+
+    Returns:
+        A copy of the input as a `MessageHistory`.
+
+    Raises:
+        ValueError: If `user_input` is none of these, or a list mixes messages with
+            text or attachments.
+    """
     message_history: MessageHistory
     if isinstance(user_input, MessageHistory):
         message_history = user_input
@@ -409,13 +416,22 @@ def create_message_history(
         message_history = MessageHistory([user_input])
     elif isinstance(user_input, str):
         message_history = MessageHistory([UserMessage(user_input)])
-    elif isinstance(user_input, list):
-        if not all(isinstance(msg, Message) for msg in user_input):
-            raise ValueError("All items in the list must be instances of Message.")
-        message_history = MessageHistory(user_input)
+    elif isinstance(user_input, (list, tuple)):
+        items: list[object] = list(user_input)
+        if all(isinstance(msg, Message) for msg in items):
+            message_history = MessageHistory(cast(list[Message], items))
+        elif all(isinstance(part, (str, Attachment)) for part in items):
+            message_history = MessageHistory(
+                [UserMessage(cast(list[ContentPart], items))]
+            )
+        else:
+            raise ValueError(
+                "A list input must hold only Messages, or only text and Attachments."
+            )
     else:
         raise ValueError(
-            "Invalid input type for user_input. Must be MessageHistory, UserMessage, str, or list of Messages."
+            "Invalid input type for user_input. Must be MessageHistory, UserMessage, str, "
+            "a list of Messages, or a list of text and Attachments."
         )
 
     return deepcopy(message_history)
@@ -442,8 +458,8 @@ def prepare_string_response(
 
     content = last_message.content
 
-    assert isinstance(content, str), (
-        "Content of the last message must be a string to be returned as is"
+    assert isinstance(content, list), (
+        "Content of the last message must be text and attachments to be returned as is"
     )
 
     return StringResponse(content=content, message_history=message_history)
