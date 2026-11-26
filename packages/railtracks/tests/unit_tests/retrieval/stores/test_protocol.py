@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any
-from uuid import UUID
 
 from railtracks.retrieval.stores.models import (
     RetrievedStoreEntry,
@@ -21,19 +20,35 @@ class _CompleteStore:
     async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]:
         return []
 
-    async def delete(self, id: UUID) -> None:
+    async def delete(self, id: str) -> None:
         pass
 
     async def clear(self, scope: StoreScope) -> None:
         pass
 
-    async def delete_where(self, filters: dict[str, Any]) -> None:
+    async def delete_where(
+        self,
+        filters: dict[str, Any] | None = None,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> None:
         pass
 
-    async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]:
+    async def find(
+        self,
+        filters: dict[str, Any] | None = None,
+        limit: int = 1,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> list[StoreEntry]:
         return []
 
-    async def count(self, filters: dict[str, Any] | None = None) -> int:
+    async def count(
+        self,
+        filters: dict[str, Any] | None = None,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> int:
         return 0
 
 
@@ -44,7 +59,7 @@ class _IncompleteStore:
     async def read(self, query: StoreQuery) -> list[RetrievedStoreEntry]:
         return []
 
-    # missing delete, clear, delete_where, find
+    # missing delete, clear, delete_where, find, count
 
 
 def test_complete_implementation_satisfies_store():

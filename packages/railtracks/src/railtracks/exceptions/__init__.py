@@ -14,7 +14,6 @@ from .errors import (
     NodeCreationError,
     NodeInvocationError,
 )
-from .optional import VisualExtraRequiredError
 
 __all__ = [
     "FatalError",
@@ -31,5 +30,4 @@ __all__ = [
     "DecisionAuthenticationError",
     "DecisionRefusalError",
     "ContextError",
-    "VisualExtraRequiredError",
 ]

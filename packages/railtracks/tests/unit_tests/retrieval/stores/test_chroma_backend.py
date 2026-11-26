@@ -130,8 +130,6 @@ def _make_entry(
         embedding_model="toy",
         chunk_id=uuid4(),
         document_id=uuid4(),
-        abstract="abs",
-        summary="sum",
         scope=StoreScope(labels={"user_id": user_id}),
     )
 

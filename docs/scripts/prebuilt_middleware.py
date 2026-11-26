@@ -6,6 +6,42 @@ pages by MkDocs. Type-checked in CI via scripts/docs_validation.sh.
 
 from __future__ import annotations
 
+# --8<-- [start: tool_output_summarizer]
+import railtracks as rt
+from railtracks.prebuilt.middleware import ToolOutputSummarizer
+
+
+@rt.function_node
+def search_notes(query: str) -> str:
+    """Search the example notes.
+
+    Args:
+        query: Text to find in the notes.
+
+    Returns:
+        Matching notes, including their identifiers.
+    """
+    notes = ["note-1: Railtracks agents can use model middleware."]
+    return "\n".join(note for note in notes if query.casefold() in note.casefold())
+
+
+researcher = rt.agent_node(
+    "Researcher",
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+    tool_nodes=[search_notes],
+    model_middleware=[
+        ToolOutputSummarizer(
+            summarizer=rt.llm.OpenAILLM("gpt-6-luna"),
+            max_chars=4_000,
+            summary_max_chars=1_000,
+            input_max_chars=20_000,
+        )
+    ],
+)
+
+
+# --8<-- [end: tool_output_summarizer]
+
 # --8<-- [start: retry]
 import railtracks as rt
 from railtracks.prebuilt.middleware import Retry
@@ -141,4 +177,3 @@ flow = rt.Flow("ChatFlow", entry_point=ChatAgent)
 # flow.invoke("What is your name?")
 # flow.invoke("What did I just ask?")  -> Agent remembers Turn 1!
 # --8<-- [end: conversation_memory]
-

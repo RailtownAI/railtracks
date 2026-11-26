@@ -183,25 +183,6 @@ def test_surviving_names_do_not_warn(name):
     assert_silent(lambda: getattr(rt.guardrails, name))
 
 
-def test_rt_interactive_warns():
-    with pytest.warns(FutureWarning, match="rt.interactive is removed"):
-        rt.interactive
-
-
-def test_rt_interactive_warns_on_every_access():
-    """Must not be cached into globals(), or the notice fires only once per process."""
-    for _ in range(2):
-        with pytest.warns(FutureWarning, match="rt.interactive is removed"):
-            rt.interactive
-
-
-def test_local_chat_warns():
-    module = importlib.import_module("railtracks.interaction")
-
-    with pytest.warns(FutureWarning, match="local_chat is removed"):
-        module.local_chat
-
-
 # ---------------------------------------------------------------------------------------
 # decisions that were deliberately rejected — these must stay silent
 # ---------------------------------------------------------------------------------------

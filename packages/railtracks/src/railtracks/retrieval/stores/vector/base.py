@@ -8,7 +8,6 @@ from uuid import UUID
 from ..models import (
     _LABEL_VALUE_TYPES,
     AllScopes,
-    Entity,
     RetrievedStoreEntry,
     StoreEntry,
     StoreQuery,
@@ -61,11 +60,6 @@ _RESERVED_PAYLOAD_KEYS = frozenset(
         _META_KEYS,
         "embedding_version",
         "scope",
-        "abstract",
-        "summary",
-        "valid_from",
-        "valid_until",
-        "entities",
     }
 )
 
@@ -91,18 +85,35 @@ def _metadata_filters_to_payload(filters: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _store_filters_to_payload(filters: dict[str, Any]) -> dict[str, Any]:
+def _store_filters_to_payload(
+    filters: dict[str, Any] | None, metadata_filters: dict[str, Any] | None
+) -> dict[str, Any]:
     """Translate ``find``/``count``/``delete_where`` filters to payload keys.
 
-    Entry-field names, ``scope`` and ``scope_*`` labels are kept as they are;
-    every other key is treated as a chunk_metadata key.
+    In ``filters``, entry-field names, ``scope`` and ``scope_*`` labels are kept
+    as they are and every other key is a chunk_metadata key. Every key in
+    ``metadata_filters`` is a chunk_metadata key, as in a read.
+
+    Raises:
+        ValueError: If both name the same payload key with different values;
+            values of different types (``1`` and ``True``) count as different.
     """
-    return {
+    translated = {
         k
         if k in _RESERVED_PAYLOAD_KEYS or k.startswith("scope_")
         else _metadata_key(k): v
-        for k, v in filters.items()
+        for k, v in (filters or {}).items()
     }
+    for key, value in _metadata_filters_to_payload(metadata_filters or {}).items():
+        if key in translated and (
+            type(translated[key]) is not type(value) or translated[key] != value
+        ):
+            raise ValueError(
+                f"filters and metadata_filters give different values for {key!r}: "
+                f"{translated[key]!r} and {value!r}."
+            )
+        translated[key] = value
+    return translated
 
 
 def _decode_chunk_metadata(payload: dict) -> dict:
@@ -142,30 +153,10 @@ def _encode_provenance(entry: StoreEntry) -> dict:
     return out
 
 
-def _encode_enrichment(entry: StoreEntry) -> dict:
+def _encode_scope(entry: StoreEntry) -> dict:
     out: dict = exact_scope_filter(entry.scope)
     if entry.scope is not None:
         out.update(entry.scope.to_payload_filters())
-    if entry.abstract is not None:
-        out["abstract"] = entry.abstract
-    if entry.summary is not None:
-        out["summary"] = entry.summary
-    if entry.valid_from is not None:
-        out["valid_from"] = entry.valid_from.isoformat()
-    if entry.valid_until is not None:
-        out["valid_until"] = entry.valid_until.isoformat()
-    if entry.entities is not None:
-        out["entities"] = json.dumps(
-            [
-                {
-                    "name": e.name,
-                    "type": e.type,
-                    "source_chunk_id": str(e.source_chunk_id),
-                    "metadata": e.metadata,
-                }
-                for e in entry.entities
-            ]
-        )
     return out
 
 
@@ -179,7 +170,7 @@ def _entry_to_payload(entry: StoreEntry) -> dict:
         "created_at": entry.created_at.isoformat(),
     }
     payload.update(_encode_provenance(entry))
-    payload.update(_encode_enrichment(entry))
+    payload.update(_encode_scope(entry))
     return payload
 
 
@@ -197,30 +188,6 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
 
     chunk_metadata = _decode_chunk_metadata(payload)
 
-    entities: list[Entity] | None = None
-    if "entities" in payload:
-        raw = json.loads(payload["entities"])
-        entities = [
-            Entity(
-                name=e["name"],
-                type=e["type"],
-                source_chunk_id=UUID(e["source_chunk_id"]),
-                metadata=e.get("metadata", {}),
-            )
-            for e in raw
-        ]
-
-    valid_from = (
-        datetime.fromisoformat(payload["valid_from"])
-        if "valid_from" in payload
-        else None
-    )
-    valid_until = (
-        datetime.fromisoformat(payload["valid_until"])
-        if "valid_until" in payload
-        else None
-    )
-
     created_at_raw = payload.get("created_at")
     created_at = (
         datetime.fromisoformat(created_at_raw)
@@ -237,8 +204,6 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
         chunk_id=UUID(payload["chunk_id"]),
         document_id=UUID(payload["document_id"]),
         chunk_index=int(payload.get("chunk_index", 0)),
-        abstract=payload.get("abstract"),
-        summary=payload.get("summary"),
         scope=StoreScope(
             labels={
                 k.removeprefix("scope_"): v
@@ -252,9 +217,6 @@ def _payload_to_entry(id: str, payload: dict) -> StoreEntry:
         parent_chunk_id=parent_chunk_id,
         chunk_offsets=offsets,
         chunk_metadata=chunk_metadata,
-        entities=entities,
-        valid_from=valid_from,
-        valid_until=valid_until,
         created_at=created_at,
     )
 
@@ -323,41 +285,51 @@ class VectorStore:
             )
         return results
 
-    async def delete(self, id: UUID) -> None:
+    async def delete(self, id: str) -> None:
+        # A UUID (e.g. entry.id) would otherwise match no row and delete nothing.
         await self._backend.delete(str(id))
 
     async def clear(self, scope: StoreScope) -> None:
         await self._backend.delete_where(exact_scope_filter(scope))
 
-    async def delete_where(self, filters: dict[str, Any]) -> None:
-        await self._backend.delete_where(_store_filters_to_payload(filters))
+    async def delete_where(
+        self,
+        filters: dict[str, Any] | None = None,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> None:
+        """Delete every entry matching ``filters`` and ``metadata_filters``.
 
-    async def find(self, filters: dict[str, Any], limit: int = 1) -> list[StoreEntry]:
+        Raises:
+            ValueError: If both are empty (use ``clear`` to empty a scope), or
+                both give the same chunk-metadata key different values.
+        """
+        payload_filters = _store_filters_to_payload(filters, metadata_filters)
+        if not payload_filters:
+            raise ValueError(
+                "VectorStore.delete_where needs at least one filter; use "
+                "clear(scope) to delete every entry in a scope."
+            )
+        await self._backend.delete_where(payload_filters)
+
+    async def find(
+        self,
+        filters: dict[str, Any] | None = None,
+        limit: int = 1,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> list[StoreEntry]:
         raw_hits = await self._backend.list_where(
-            _store_filters_to_payload(filters), limit
+            _store_filters_to_payload(filters, metadata_filters), limit
         )
         return [_payload_to_entry(hit_id, payload) for hit_id, payload in raw_hits]
 
-    async def count(self, filters: dict[str, Any] | None = None) -> int:
-        return await self._backend.count(_store_filters_to_payload(filters or {}))
-
-    async def nearest_neighbors(
+    async def count(
         self,
-        embedding: list[float],
-        k: int,
-        scope: StoreScope | AllScopes | None = None,
-    ) -> list[RetrievedStoreEntry]:
-        raw_hits = await self._backend.search(embedding, k, _with_scope({}, scope))
-
-        results: list[RetrievedStoreEntry] = []
-        for rank, (hit_id, score, payload) in enumerate(raw_hits):
-            entry = _payload_to_entry(hit_id, payload)
-            results.append(
-                RetrievedStoreEntry(
-                    entry=entry,
-                    score=score,
-                    rank=rank,
-                    source_retriever="dense",
-                )
-            )
-        return results
+        filters: dict[str, Any] | None = None,
+        *,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> int:
+        return await self._backend.count(
+            _store_filters_to_payload(filters, metadata_filters)
+        )
