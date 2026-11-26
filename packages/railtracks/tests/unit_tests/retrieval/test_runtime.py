@@ -768,7 +768,7 @@ async def test_partial_document_is_reingested_not_skipped():
     assert entries[0].chunk_metadata["doc_chunk_count"] == 3
 
     # Simulate an interrupted ingest: drop one chunk so the store is partial.
-    await store.delete(entries[0].id)
+    await store.delete(str(entries[0].id))
     assert await store.count({"source_path": "path/to/doc"}) == 2
 
     # Re-ingest the *same* content. Old find()-only logic would skip (an entry
@@ -922,9 +922,9 @@ async def test_reingest_never_issues_large_limit_find():
     find_limits: list[int] = []
     original_find = store.find
 
-    async def spying_find(filters, limit=1):
+    async def spying_find(filters=None, limit=1, **kwargs):
         find_limits.append(limit)
-        return await original_find(filters, limit=limit)
+        return await original_find(filters, limit=limit, **kwargs)
 
     store.find = spying_find  # type: ignore[method-assign]
 
@@ -936,6 +936,45 @@ async def test_reingest_never_issues_large_limit_find():
     assert embedder2.calls == []
     assert find_limits, "duplicate check should have consulted the store"
     assert max(find_limits) == 1
+
+
+async def test_duplicate_check_passes_staleness_keys_as_metadata_filters():
+    """source_path/content_hash are chunk metadata, so the duplicate check
+    sends them as metadata_filters; only the scope stays in filters."""
+    store = _store()
+    scope = StoreScope(labels={"tenant": "alice"})
+    seed_runtime, _, _ = _runtime(store=store)
+    doc = Document(source="path/to/doc", content="alpha beta")
+    await seed_runtime.ingest_all(_ListLoader([doc]), scope=scope)
+
+    calls: list[tuple[str, dict | None, dict | None]] = []
+    original_find, original_count = store.find, store.count
+
+    async def spying_find(filters=None, limit=1, *, metadata_filters=None):
+        calls.append(("find", filters, metadata_filters))
+        return await original_find(
+            filters, limit=limit, metadata_filters=metadata_filters
+        )
+
+    async def spying_count(filters=None, *, metadata_filters=None):
+        calls.append(("count", filters, metadata_filters))
+        return await original_count(filters, metadata_filters=metadata_filters)
+
+    store.find = spying_find  # type: ignore[method-assign]
+    store.count = spying_count  # type: ignore[method-assign]
+
+    runtime2, _, embedder2 = _runtime(store=store)
+    same = Document(source="path/to/doc", content="alpha beta")
+    stats = await runtime2.ingest_all(_ListLoader([same]), scope=scope)
+
+    assert stats.documents_skipped == 1
+    assert embedder2.calls == []
+    expected_metadata = {"source_path": same.source, "content_hash": same.content_hash}
+    dedup_calls = [c for c in calls if c[2] is not None]
+    assert [c[0] for c in dedup_calls] == ["find", "count"]
+    for _, filters, metadata_filters in dedup_calls:
+        assert filters == exact_scope_filter(scope)
+        assert metadata_filters == expected_metadata
 
 
 # ---------------------------------------------------------------------------

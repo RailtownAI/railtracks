@@ -121,7 +121,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - **`rt.call(...)`**: `interaction/_call.py`, alongside `call_batch`/`astream`/`broadcast`/`couple`. [Call](https://docs.railtracks.org/documentation/invocation/call/).
 - **Agent-as-tool**: pass the agent in `tool_nodes`. Without `manifest=`, its tool is generated from its name and `system_message` in `built_nodes/llm/_agent_tool.py`. `rt.ToolManifest(...)` (`nodes/manifest.py`) overrides it. [Agents as Tools](https://docs.railtracks.org/documentation/agent_design/tools/agents_as_tools/).
 - **Middleware**: `middleware/chain.py` (see "Things to avoid" below for the `middleware=`/`model_middleware=` gotcha). Use `pre_llm`/`post_llm`/`post_node` in new code; `before_llm`/`after_llm`/`after_node` are deprecated aliases kept only for compatibility. [Middleware](https://docs.railtracks.org/documentation/agent_design/middleware/overview/).
-- **Human-in-the-loop verifier**: `rt.prebuilt.middleware.pre_verifier`/`post_verifier` (`prebuilt/middleware/pre_verifier.py`/`post_verifier.py`); `Verdict`/`VerifierRejectedError` are in `middleware/verdict.py`. There is no top-level `rt.verifier`; don't generate code that uses one. [Human in the Loop](https://docs.railtracks.org/observability/human_in_the_loop/hil/).
+- **Human-in-the-loop verifier**: `rt.prebuilt.middleware.pre_verifier`/`post_verifier` (`prebuilt/middleware/pre_verifier.py`/`post_verifier.py`); `Verdict`/`VerifierRejectedError` are in `middleware/verdict.py`. There is no top-level `rt.verifier`; don't generate code that uses one. [Verifiers](https://docs.railtracks.org/documentation/agent_design/middleware/verifiers/overview/).
 
 ### Package layout under `src/railtracks/`
 - `nodes/`: base `Node` class, `ToolManifest`, tool-callable protocol.
@@ -136,7 +136,7 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - `llm/`: model abstractions (`ModelBase`, provider clients: `AnthropicLLM`, `OpenAILLM`, `GeminiLLM`, `OpenAICompatibleProvider`, etc.), messages, tool schemas.
 - `decisions/`: decision models, the counterpart of `llm/`: questions (`Predicate`/`Choice`/`Score`), `DecisionSchema`, typed answers, `DecisionResponse`, the providers (`TypeSafeDecisions`, `OpenRouterDecisions`, `OpenAIDecisions`, all through `litellm.adecisions`) and their errors (`DecisionProviderError`, `SchemaDefinitionError`). It is self-contained: from the rest of railtracks it may import only `railtracks.llm.retries`, it never raises an `RTError`, and it records no events; `tests/unit_tests/decisions/test_layering.py` enforces this. Node concerns belong in `built_nodes/decisions/`.
 - `rt_mcp/`: MCP client/server integration (`connect_mcp`, `create_mcp_server`).
-- `exceptions/`: the `RTError` hierarchy (`NodeCreationError`, `NodeInvocationError`, `LLMError`, `GlobalTimeOutError`, `ContextError`, `FatalError`, `VisualExtraRequiredError`).
+- `exceptions/`: the `RTError` hierarchy (`NodeCreationError`, `NodeInvocationError`, `LLMError`, `GlobalTimeOutError`, `ContextError`, `FatalError`).
 - `guardrails/`: `input_guard`/`output_guard`, guardrail decisions/traces.
 - `evaluations/`: `evaluate`, `JudgeEvaluator`, `ToolUseEvaluator`, metrics.
 - `observability/`: framework-agnostic event pipeline (`Observer`, writers, `publish_event`).
@@ -144,7 +144,6 @@ For usage patterns (how to define tools/agents/flows, structured output, agent-a
 - `events/`: internal event definitions/registry/emit plumbing (distinct from `observability`).
 - `query/`: `connect`/`EventQuery` for querying recorded session/event data (DuckDB-backed).
 - `retrieval/`: RAG subsystem, `RetrievalRuntime`, loaders, chunking, embedding, `Store`/`VectorStore` (install via `railtracks[retrieval]`).
-- `human_in_the_loop/`: `HIL`, `HILMessage`, optional local chat UI.
 - `prebuilt/`: ready-made agents/middleware/guardrails/tools, including `pre_verifier.py`/`post_verifier.py` (see above), `lock.py` (`Lock`), and `max_calls.py` (`MaxCalls`).
 - `prompts/`: prompt template helpers.
 - `validation/`: node-creation/invocation-time checks (duplicate tool names/params, etc.).
