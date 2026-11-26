@@ -12,6 +12,8 @@ class VectorBackend(Protocol):
     ) -> list[tuple[str, float, dict]]: ...
     async def delete(self, id: str) -> None: ...
     async def delete_where(self, filters: dict) -> None: ...
+    async def list_where(self, filters: dict, limit: int) -> list[tuple[str, dict]]: ...
+    async def count(self, filters: dict) -> int: ...
 ```
 
 **Pick by infra, not features.** All three backends speak the same
@@ -311,8 +313,8 @@ On x86, Turbovec wheels target x86-64-v2 (SSE4.2); runtime dispatch uses AVX2 or
 ## Custom backends
 
 Any class satisfying the `VectorBackend` protocol works with `VectorStore`.
-Four methods (`upsert`, `search`, `delete`, `delete_where`) are the
-entire contract.
+Six methods (`upsert`, `search`, `delete`, `delete_where`, `list_where`,
+`count`) are the entire contract.
 
 ```python
 --8<-- "docs/scripts/retrieval/store.py:custom"
