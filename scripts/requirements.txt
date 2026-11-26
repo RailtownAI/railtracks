@@ -1,0 +1,6 @@
+sympy==1.14.0
+railtownai>=2.1.2
+sentry-sdk>=3.0.0
+loggly-python-handler>=1.0.1
+
+

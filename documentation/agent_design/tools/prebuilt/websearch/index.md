@@ -1,0 +1,116 @@
+# Web Search Tooling
+
+A common need for an agent is to look things up on the live web. Railtracks provides a built-in web search tool you can drop into your agent right away.
+
+## Usage
+
+The default web-search backends rely on optional dependencies in the `websearch` extra, so install it before constructing `WebSearchToolSet`:
+
+```bash
+pip install "railtracks[websearch]"
+# or
+uv pip install "railtracks[websearch]"
+```
+
+This installs the default search and fetch dependencies (`tavily-python`, `httpx`, and `trafilatura`). Even if you swap in another backend such as `BraveSearch`, the fetch side still relies on the same HTTP/text-extraction packages, so the extra is still required.
+
+Adding the web search tool to your agent is super easy.
+
+```python
+import railtracks as rt
+from railtracks.prebuilt.tools.websearch import WebSearchToolSet
+
+# create your web search toolset (defaults to Tavily for search, httpx + trafilatura for fetch)
+web_search = WebSearchToolSet()
+
+ResearchAgent = rt.agent_node(
+    name="Research Agent",
+    tool_nodes=[*web_search.tool_set()],  # the tools your agent can call
+    llm=rt.llm.OpenAILLM("gpt-6-luna"),
+    system_message=WebSearchToolSet.prompt(),
+)
+```
+
+You will usually want to tell the agent how to use the tools in your prompt. We provide a helper that returns a ready-made guidance string:
+
+```python
+# the tool set provides a class method returning a prompt that guides the agent.
+WebSearchToolSet.prompt()
+```
+
+## The Tools
+
+The toolset exposes three tools to the agent:
+
+| Tool                               | Purpose                                                                                                                                                        |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search(query, top_k=5)`           | Search the web and return ranked title, url, and snippet results.                                                                                              |
+| `fetch(url)`                       | Fetch a url, usually one from `search()`, and return its cleaned page text.                                                                                    |
+| `search_and_fetch(query, top_k=3)` | Search and fetch full content for the top results in a single call. Convenient when you want full page content right away, at the cost of fetching more pages. |
+
+If a search or fetch fails (a backend outage, a blocked or paywalled page, no extractable content), the tool returns a plain message describing the failure instead of raising, so the agent can see what happened and try something else.
+
+## Swapping the search backend
+
+By default the toolset uses `TavilySearch`, so it needs a `TAVILY_API_KEY`. You can swap in a different backend, for example `BraveSearch`, which needs a `BRAVE_API_KEY` instead:
+
+```python
+import railtracks as rt
+from railtracks.prebuilt.tools.websearch.search import BraveSearch
+
+# swap Tavily for Brave, only requires setting BRAVE_API_KEY
+web_search = WebSearchToolSet(search=BraveSearch())
+```
+
+Any object that implements the `SearchBackend` protocol, an async `search(query, top_k)` method returning a list of results, can be passed in, so you can bring your own backend too.
+
+## Swapping the fetch backend
+
+By default the toolset uses `HttpFetch`, a plain HTTP request paired with `trafilatura` to extract clean text from the page. You can tune it, or swap in your own implementation of the `FetchBackend` protocol, for example to use a headless browser for JavaScript-heavy pages:
+
+```python
+import railtracks as rt
+from railtracks.prebuilt.tools.websearch.fetch import HttpFetch
+
+# tune the default fetch backend, e.g. a longer timeout for slow pages
+web_search = WebSearchToolSet(fetch=HttpFetch(timeout=30.0))
+```
+
+## Internal addresses
+
+The URL passed to `fetch` usually comes from the model, which may have picked it up from a page anyone can write. So `HttpFetch` refuses URLs that resolve to a non-public address, such as `localhost`, a private network or the cloud metadata service at `169.254.169.254`, and checks every redirect the same way. A refused URL comes back to the agent as a failed fetch.
+
+The check is litellm's, the same one litellm applies to the image URLs it downloads. It resolves the host on your machine, so it needs local DNS even when you fetch through a proxy. To let the agent read an internal host, add the host to litellm's allowlist. The setting applies to the whole process:
+
+```python
+import litellm
+
+# let the default fetch backend read an internal host (process-wide)
+litellm.user_url_allowed_hosts = ["wiki.internal:8080"]
+```
+
+For rules of your own, such as an allow-list of sites, wrap `HttpFetch` in your own `FetchBackend`. This example checks only the first URL, and `HttpFetch` still follows redirects to any public host, so write your own fetch if redirects must stay on the allow-list too:
+
+```python
+from urllib.parse import urlparse
+
+from railtracks.prebuilt.tools.websearch import FetchResult
+
+
+class AllowListFetch:
+    """Fetch pages only from hosts your app allows."""
+
+    def __init__(self, allowed_hosts: set[str]) -> None:
+        self._allowed_hosts = allowed_hosts
+        self._fetch = HttpFetch()
+
+    async def fetch(self, url: str) -> FetchResult:
+        if urlparse(url).hostname not in self._allowed_hosts:
+            return FetchResult(
+                url=url, is_error=True, error_message="This host is not allowed."
+            )
+        return await self._fetch.fetch(url)
+
+
+web_search = WebSearchToolSet(fetch=AllowListFetch({"docs.python.org"}))
+```
