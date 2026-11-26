@@ -1166,6 +1166,32 @@ async def test_runtime_aclose_tolerates_store_without_aclose():
     await runtime.aclose()
 
 
+class _FailingCloseStore(VectorStore):
+    def __init__(self) -> None:
+        super().__init__(InMemoryBackend())
+
+    async def aclose(self) -> None:
+        raise ConnectionError("close failed")
+
+
+async def test_runtime_async_with_keeps_body_error_when_close_also_fails(
+    caplog: pytest.LogCaptureFixture,
+):
+    runtime, _, _ = _runtime(store=_FailingCloseStore())
+    with caplog.at_level(logging.WARNING, logger="RT.retrieval.runtime"):
+        with pytest.raises(RuntimeError, match="inside"):
+            async with runtime:
+                raise RuntimeError("inside")
+    assert any("aclose" in r.getMessage() for r in caplog.records)
+
+
+async def test_runtime_async_with_raises_close_error_on_clean_exit():
+    runtime, _, _ = _runtime(store=_FailingCloseStore())
+    with pytest.raises(ConnectionError, match="close failed"):
+        async with runtime:
+            pass
+
+
 # ---------------------------------------------------------------------------
 # Phase 4c — Token-size guard
 # ---------------------------------------------------------------------------

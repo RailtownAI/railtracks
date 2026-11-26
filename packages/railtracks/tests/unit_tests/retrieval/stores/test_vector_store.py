@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import fields, replace
 from pathlib import Path
 from unittest.mock import patch
@@ -1021,3 +1022,24 @@ async def test_async_with_closes_store_when_body_raises():
         async with VectorStore(backend):
             raise RuntimeError("inside")
     assert backend.close_calls == 1
+
+
+class _FailingCloseBackend(InMemoryBackend):
+    async def aclose(self) -> None:
+        raise ConnectionError("close failed")
+
+
+async def test_async_with_keeps_body_error_when_close_also_fails(
+    caplog: pytest.LogCaptureFixture,
+):
+    with caplog.at_level(logging.WARNING, logger="RT.retrieval.store"):
+        with pytest.raises(RuntimeError, match="inside"):
+            async with VectorStore(_FailingCloseBackend()):
+                raise RuntimeError("inside")
+    assert any("aclose" in r.getMessage() for r in caplog.records)
+
+
+async def test_async_with_raises_close_error_on_clean_exit():
+    with pytest.raises(ConnectionError, match="close failed"):
+        async with VectorStore(_FailingCloseBackend()):
+            pass

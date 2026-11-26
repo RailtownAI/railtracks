@@ -267,7 +267,16 @@ class RetrievalRuntime:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        await self.aclose()
+        if exc is None:
+            await self.aclose()
+            return
+        # Don't let a close failure replace the exception raised in the body.
+        try:
+            await self.aclose()
+        except Exception:
+            logger.warning(
+                "aclose() failed while handling another exception", exc_info=True
+            )
 
     @property
     def store(self) -> Store:

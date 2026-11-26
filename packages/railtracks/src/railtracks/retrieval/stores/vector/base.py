@@ -8,6 +8,7 @@ from uuid import UUID
 
 from typing_extensions import Self
 
+from ..._logging import RetrievalComponent, get_logger
 from ..models import (
     _LABEL_VALUE_TYPES,
     AllScopes,
@@ -17,6 +18,8 @@ from ..models import (
     StoreScope,
     exact_scope_filter,
 )
+
+logger = get_logger(RetrievalComponent.STORE)
 
 
 class VectorBackend(Protocol):
@@ -268,7 +271,16 @@ class VectorStore:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        await self.aclose()
+        if exc is None:
+            await self.aclose()
+            return
+        # Don't let a close failure replace the exception raised in the body.
+        try:
+            await self.aclose()
+        except Exception:
+            logger.warning(
+                "aclose() failed while handling another exception", exc_info=True
+            )
 
     async def write(self, entry: StoreEntry) -> str:
         if entry.vector is None:
