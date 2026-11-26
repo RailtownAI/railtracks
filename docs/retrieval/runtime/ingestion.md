@@ -151,7 +151,7 @@ metrics, or write-ahead logging:
 --8<-- "docs/scripts/retrieval/ingestion_example.py:on_ingest_hook"
 ```
 
-The callback can be a plain function or an `async def`; an async callback is awaited before the event is yielded. Either way it runs inline with the ingest stream, so a slow hook (DB writes, HTTP webhooks) slows ingestion and an exception it raises ends the run. The final call receives `IngestCompleted`. Hand slow work to a queue or background worker if the stream must keep moving.
+The callback can be a plain function or an `async def`; an async callback is awaited before the event is yielded. Either way it runs inline with the ingest stream, so a slow hook (DB writes, HTTP webhooks) slows ingestion and an exception it raises ends the run. The final call receives `IngestCompleted`. Hand slow work to a queue or background worker if the stream must keep moving; a callback that returns an `asyncio.Task` (for example `lambda e: asyncio.create_task(send(e))`) is not awaited, so the task keeps running in the background.
 
 ---
 

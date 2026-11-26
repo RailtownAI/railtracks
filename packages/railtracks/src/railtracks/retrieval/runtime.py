@@ -144,7 +144,8 @@ _DocumentEvent = BatchIngested | EmbeddingFailure | DocumentFailed | DocumentSki
 
 async def _call_hook(hook: Callable[..., Awaitable[None] | None], *args: Any) -> None:
     result = hook(*args)
-    if inspect.isawaitable(result):
+    # Only coroutines: a returned Task is fire-and-forget and keeps running.
+    if inspect.iscoroutine(result):
         await result
 
 
@@ -192,10 +193,12 @@ class RetrievalRuntime:
             ``ValueError`` at construction if neither is set.
         on_ingest: Callback invoked with each ``IngestionEvent`` before it
             is yielded, ending with ``IngestCompleted``. May be sync or
-            async; an async callback is awaited, so it delays the run.
+            ``async def``; an ``async def`` callback is awaited, so it delays
+            the run. A returned ``asyncio.Task`` is left running.
         on_retrieve: Callback invoked with the query string and the
             ``RetrievalResult`` after each retrieve call. May be sync or
-            async; an async callback is awaited before ``retrieve`` returns.
+            ``async def``; an ``async def`` callback is awaited before
+            ``retrieve`` returns. A returned ``asyncio.Task`` is left running.
         max_tokens: When set, chunks whose token count exceeds this limit
             are dropped before embedding and reported via
             ``EmbeddingFailure`` rather than being sent to the provider.

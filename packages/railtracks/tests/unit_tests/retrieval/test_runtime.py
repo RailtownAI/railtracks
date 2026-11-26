@@ -1046,6 +1046,31 @@ async def test_async_on_retrieve_hook_is_awaited():
     assert seen == [("alpha", result)]
 
 
+async def test_hook_returning_a_task_is_not_awaited():
+    release = asyncio.Event()
+    tasks: list[asyncio.Task] = []
+
+    def _schedule(event) -> asyncio.Task:
+        task = asyncio.create_task(release.wait())
+        tasks.append(task)
+        return task
+
+    runtime = RetrievalRuntime(
+        chunker=_OneChunkPerWordChunker(),
+        embedder=_FakeEmbedder(),
+        store=_store(),
+        on_ingest=_schedule,
+    )
+    try:
+        await asyncio.wait_for(
+            runtime.ingest_all(_ListLoader([Document(content="a b")])), timeout=5
+        )
+        assert tasks and not any(task.done() for task in tasks)
+    finally:
+        release.set()
+        await asyncio.gather(*tasks)
+
+
 # ---------------------------------------------------------------------------
 # IngestCompleted
 # ---------------------------------------------------------------------------
