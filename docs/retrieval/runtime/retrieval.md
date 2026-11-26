@@ -55,9 +55,8 @@ When the same runtime serves multiple users, pass `StoreScope` on each
 --8<-- "docs/scripts/retrieval/retrieval_example.py:scope_override"
 ```
 
-Scope is enforced at the store layer, not the runtime and even
-`VectorStore.nearest_neighbors()` (the lower-level bypass method) honors
-it. And unlike metadata filters, scope is stamped onto entries at write time, not just applied at read time.
+Scope is enforced at the store layer, not the runtime, so even a direct
+`VectorStore.read()` call honors it. And unlike metadata filters, scope is stamped onto entries at write time, not just applied at read time.
 
 A scope matches entries written with exactly the same labels, and `metadata_filters` can't widen it. `retrieve()` without a scope (or with `StoreScope()`) searches only unscoped entries, so forgetting the scope never returns another tenant's data. To search every scope, for example from an admin tool, pass `ALL_SCOPES` (from `railtracks.retrieval`) explicitly.
 
@@ -118,7 +117,7 @@ agent.
 - **[Ingestion](ingestion.md)**: the write path: streaming events,
   re-ingest, multi-tenant writes, sanitization, token guards.
 - **[Components → Stores](../components/stores/base.md)**: the `Store`
-  protocol, `StoreQuery`, and the low-level `nearest_neighbors` bypass.
+  protocol, `StoreQuery`, and direct vector search with `read`.
 - **[Components → Design](../components/design.md)**: embedding-model guard,
   staleness check, what's not in scope yet (boolean filters, hybrid search,
   built-in reranker).

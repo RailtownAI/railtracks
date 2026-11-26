@@ -47,8 +47,8 @@ def test_embedded_retrieved_and_result():
     assert retrieved.rerank_score is None
 
     result = RetrievalResult(query="q", chunks=[retrieved])
-    assert result.total_candidates is None
     assert result.metadata == {}
+    assert not hasattr(result, "total_candidates")
     assert result.embedding_metrics is None
 
 
