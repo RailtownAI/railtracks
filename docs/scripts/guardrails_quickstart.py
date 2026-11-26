@@ -13,7 +13,7 @@ from railtracks.guardrails import (
 def block_sensitive_requests(event: LLMGuardrailEvent) -> GuardrailDecision:
     """Check the latest user message and block requests that mention passwords."""
     latest_message = event.messages[-1]
-    content = str(latest_message.content).lower()
+    content = latest_message.text.lower()
 
     if "password" in content:
         return GuardrailDecision.block(

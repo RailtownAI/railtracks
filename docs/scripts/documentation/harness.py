@@ -23,7 +23,7 @@ RepoReader = rt.agent_node(
 
 reader_flow = rt.Flow("repo-reader", entry_point=RepoReader)
 answer = reader_flow.invoke("What package name does pyproject.toml declare?")
-print(answer.content)
+print(answer.text)
 # --8<-- [end: loop]
 
 
@@ -132,7 +132,7 @@ async def run_harness() -> None:
     outcome = await harness_flow.ainvoke(
         "Find the slowest unit test and explain why it is slow."
     )
-    print(outcome.content)
+    print(outcome.text)
     # every ToDoToolSet read is async, pretty_dashboard included
     print(await todos.pretty_dashboard())
 

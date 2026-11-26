@@ -50,7 +50,7 @@ async def weather_report(city: str) -> Report:
         A structured weather report.
     """
     answer = await rt.call(WeatherAgent, f"What's the weather in {city}?")
-    report = await rt.call(ReportAgent, answer.content)
+    report = await rt.call(ReportAgent, answer.text)
     return report.structured
 
 
@@ -61,7 +61,7 @@ pipeline_flow = rt.Flow(name="Weather Report", entry_point=weather_report)
 if __name__ == "__main__":
     # Use await flow.ainvoke(...) instead of flow.invoke(...) in async code.
     answer = weather_flow.invoke("What's the weather in Paris?")
-    print(answer.content)  # a str
+    print(answer.text)  # a str
 
     report = report_flow.invoke("Paris is sunny and 22C.")
     print(report.structured.summary)  # a Report instance
@@ -73,7 +73,8 @@ if __name__ == "__main__":
 - **Tools** are functions decorated with `@rt.function_node`. Type hints become the parameter schema and the docstring becomes the description the LLM sees, so write both.
 - **Agents** come from `rt.agent_node(name, llm=..., tool_nodes=[...] or output_schema=Model, system_message=...)`. Pass `llm=` every time; it's required. Pass at most one of `tool_nodes` and `output_schema`.
 - **Run** an agent through `rt.Flow(name=..., entry_point=Agent)` with `flow.invoke(...)` or `await flow.ainvoke(...)`. For multi-step work, make the entry point an `async` `@rt.function_node` that calls agents with `await rt.call(Agent, ...)`; the flow then returns whatever that function returns. Give each agent one entry point: a `Flow`, or `rt.call` inside another node.
-- **Results** are read with `result.content` (a `str`, or your `output_schema` instance) and `result.message_history` (the full conversation). When the agent was given an `output_schema`, `result.structured` also returns that instance; otherwise `result.text` also returns the `str`.
+- **Results**: read a text agent's reply with `result.text` (a `str`) and an `output_schema` agent's with `result.structured` (your model instance); `result.message_history` is the full conversation. Don't read a text agent's `result.content`: it becomes a list of parts in railtracks 1.9.0.
+- **Message text**: read `message.text` (and `message.attachments`), never `message.content`, which becomes a list of parts in railtracks 1.9.0.
 - **Streaming** is `rt.astream(Agent, user_input=...)`, async only: `async for chunk in stream`, then `stream.result`.
 - **Agent as a tool**: pass `manifest=rt.ToolManifest(description=..., parameters=[...])` to `agent_node`, then list that agent in another agent's `tool_nodes`.
 - **Middleware**: `middleware=[...]` wraps the whole node; `model_middleware=[...]` wraps each LLM call. The first entry is outermost. Use `@rt.wrap_node`, `@rt.wrap_llm`, `@rt.pre_llm`, `@rt.post_llm`, `@rt.post_node`, and `@rt.input_guard` / `@rt.output_guard` in `model_middleware=[...]` for guardrails. Prebuilt guards come from `railtracks.prebuilt.guardrails`; for example, `model_middleware=[BlockTextInputGuard(pattern=r"(?i)password")]` blocks input that matches a regex.

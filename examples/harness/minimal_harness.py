@@ -75,5 +75,5 @@ if __name__ == "__main__":
         "Which optional dependency extras does the railtracks package declare, and what is in each?"
     )
 
-    print(result.content)
+    print(result.text)
     print("\nRun `railtracks viz` to replay this run.")

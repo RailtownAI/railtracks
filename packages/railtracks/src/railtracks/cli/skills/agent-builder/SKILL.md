@@ -13,7 +13,7 @@ The user wants to build an agent using the railtracks framework: $ARGUMENTS
 - **Agents** are created with `rt.agent_node()`. Its behaviour depends on whether tools or a structured output schema are passed (see below).
 - **Flows** wrap an agent or async function as the entry point and handle execution, config, and context.
 - **`rt.call()`** is used inside async workflows to call agents or nodes directly.
-- **Results**: `flow.invoke()`, `await flow.ainvoke()` and `await rt.call()` on an agent return a response object. Read it with `.content`: a `str` for a text agent, an instance of your schema for an `output_schema` agent. The full conversation is on `.message_history`. When the agent was given an `output_schema`, `.structured` also returns that instance; otherwise `.text` also returns the `str`.
+- **Results**: `flow.invoke()`, `await flow.ainvoke()` and `await rt.call()` on an agent return a response object. Read a text agent's reply with `.text` (a `str`) and an `output_schema` agent's with `.structured` (an instance of your schema). The full conversation is on `.message_history`. Don't read a text agent's `.content`: it becomes a list of parts in railtracks 1.9.0. Read messages with `message.text` too.
 
 ### What `agent_node` builds
 `rt.agent_node()` builds one node behind the scenes — there is no separate named type to pick. What you pass changes what the agent does at runtime:
@@ -51,7 +51,7 @@ rt.llm.OpenAICompatibleProvider(
    - `llm` — follow the provider the project already uses, or one whose API key is configured (providers and their key variables: https://docs.railtracks.org/documentation/getting_started/llm_setup/); otherwise ask the user which LLM to use
    - `system_message` — a clear, specific system prompt
 5. **Wrap in a Flow** — create `rt.Flow(name="...", entry_point=MyAgent)` for simple cases. For multi-step or multi-agent workflows, define an `async def` function as the entry point and use `await rt.call(MyAgent, ...)` inside it.
-6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example and prints `result.content`, so the user can run it immediately. Use `await flow.ainvoke(...)` instead if the code is already async.
+6. **Add invocation code** — include a `if __name__ == "__main__":` block that calls `flow.invoke(...)` with a representative example and prints `result.text`, so the user can run it immediately. Use `await flow.ainvoke(...)` instead if the code is already async.
 7. **Check imports** — make sure `import railtracks as rt` is at the top and any Pydantic models import `from pydantic import BaseModel`.
 
 ---
@@ -85,7 +85,7 @@ MyAgent = rt.agent_node(
 flow = rt.Flow(name="My Flow", entry_point=MyAgent)
 if __name__ == "__main__":
     result = flow.invoke("user query here")
-    print(result.content)
+    print(result.text)
 ```
 
 ### Structured Output
@@ -105,7 +105,7 @@ StructuredAgent = rt.agent_node(
 )
 flow = rt.Flow(name="Structured Flow", entry_point=StructuredAgent)
 result = flow.invoke("user query here")
-print(result.content.field1)  # .content is an Output instance
+print(result.structured.field1)  # .structured is an Output instance
 ```
 
 ### Decision Node (Classify, Route, Grade)
@@ -132,8 +132,8 @@ It's also a tool: pass it in an agent's `tool_nodes`. Failures raise `rt.excepti
 @rt.function_node
 async def pipeline(query: str) -> str:
     step1 = await rt.call(AgentA, query)
-    step2 = await rt.call(AgentB, step1.content)
-    return step2.content
+    step2 = await rt.call(AgentB, step1.text)
+    return step2.text
 
 
 flow = rt.Flow(name="Pipeline", entry_point=pipeline)
@@ -146,7 +146,7 @@ import asyncio
 
 async def main():
     result = await flow.ainvoke("user query here")
-    print(result.content)
+    print(result.text)
 
 
 if __name__ == "__main__":
@@ -161,7 +161,7 @@ async def main():
     stream = rt.astream(MyAgent, user_input="user query here")
     async for chunk in stream:
         print(chunk, end="", flush=True)  # str chunks
-    final = stream.result  # the complete response; read final.content
+    final = stream.result  # the complete response; read final.text
 ```
 `await rt.astream(...)` without the loop returns just the final response.
 
