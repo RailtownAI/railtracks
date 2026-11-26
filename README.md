@@ -57,7 +57,7 @@ WeatherAgent = rt.agent_node(
 flow = rt.Flow(name="Weather Flow", entry_point=WeatherAgent)
 result = flow.invoke("What's the weather in Paris?")
 # or `await flow.ainvoke("What's the weather in Paris?")` in an async context
-print(result.content)  # "Based on the current data, it's sunny in Paris!"
+print(result.text)  # "Based on the current data, it's sunny in Paris!"
 ```
 
 Execution order, branching, and looping are expressed using standard Python control flow.
@@ -222,7 +222,7 @@ TextAnalyzer = rt.agent_node(
 text_flow = rt.Flow(name="Text Analysis Flow", entry_point=TextAnalyzer)
 
 result = text_flow.invoke("How many 'r's are in 'strawberry'?")
-print(result.content)
+print(result.text)
 ```
 
 </details>

@@ -36,16 +36,16 @@ class BlockTextOutputGuard(OutputGuard):
         self._user_facing_message = user_facing_message
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        """Block if the output message matches the pattern.
+        """Block if the text of the output message matches the pattern.
 
         Returns:
             ``BLOCK`` when the pattern is found, ``ALLOW`` otherwise.
         """
         msg = event.output_message
-        if msg is None or not isinstance(msg.content, str):
-            return GuardrailDecision.allow(reason="No string output to scan.")
+        if msg is None or not msg.text:
+            return GuardrailDecision.allow(reason="No text output to scan.")
 
-        if self._pattern.search(msg.content):
+        if self._pattern.search(msg.text):
             return GuardrailDecision.block(
                 reason=("Output blocked: prohibited content detected."),
                 user_facing_message=self._user_facing_message,

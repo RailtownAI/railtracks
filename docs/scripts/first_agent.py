@@ -88,7 +88,7 @@ WeatherStructuredAgent = rt.agent_node(
 @rt.function_node
 async def StructuredToolCallWeatherAgent(prompt: str):
     tool_response = await rt.call(WeatherToolCallAgent, user_input=prompt)
-    return await rt.call(WeatherStructuredAgent, user_input=tool_response.content)
+    return await rt.call(WeatherStructuredAgent, user_input=tool_response.text)
 # --8<-- [end: first_agent_all]
 
 # --8<-- [start: call]

@@ -13,8 +13,7 @@ def inject_values(message_history: MessageHistory, value_dict: ValueDict):
     """
 
     for message in message_history:
-        if isinstance(message.content, str):
-            if isinstance(message, (UserMessage, SystemMessage)):
-                message.fill_prompt(value_dict)
+        if isinstance(message, (UserMessage, SystemMessage)):
+            message.fill_prompt(value_dict)
 
     return message_history

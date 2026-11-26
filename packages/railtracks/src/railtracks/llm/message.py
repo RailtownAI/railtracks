@@ -4,6 +4,7 @@ import base64
 import hashlib
 import logging
 import os
+import sys
 import warnings
 from collections.abc import Sequence
 from copy import deepcopy
@@ -11,6 +12,8 @@ from enum import Enum
 from typing import Any, Callable, Generic, Literal, Protocol, TypeVar, cast
 from urllib import error as urllib_error
 from urllib.parse import urlparse
+
+from pydantic import BaseModel
 
 from .attachment_formats import (
     UNSUPPORTED_URL_EXTENSIONS,
@@ -546,6 +549,38 @@ class Role(str, Enum):
 
 _TRole = TypeVar("_TRole", bound=Role)
 
+CONTENT_PARTS_VERSION = "1.9.0"
+CONTENT_PARTS_GUIDE = "https://docs.railtracks.org/documentation/upgrading/1_9_0/"
+
+
+def warn_content_read(owner: str, content: object, instead: str) -> None:
+    """Warn that user code read a `.content` that becomes a list of parts in 1.9.0.
+
+    Call it directly from a `content` property. Silent for structured output, which
+    keeps its shape, and for reads from a `railtracks` module, so the notice never
+    fires on an internal call path. The message follows
+    `railtracks.utils.deprecation.warn_pending_change`, which this package cannot
+    import.
+
+    Args:
+        owner: The class whose `content` was read, such as `"UserMessage"`.
+        content: The value being returned.
+        instead: The readers that give the same value in both releases.
+    """
+    structured = isinstance(content, BaseModel) and not isinstance(
+        content, ToolResponse
+    )
+    reader = sys._getframe(2).f_globals.get("__name__", "")
+    if structured or reader == "railtracks" or reader.startswith("railtracks."):
+        return
+    warnings.warn(
+        f"{owner}.content becomes a list of parts in railtracks "
+        f"{CONTENT_PARTS_VERSION}. Use {instead} instead. "
+        f"See {CONTENT_PARTS_GUIDE} for details.",
+        FutureWarning,
+        stacklevel=3,
+    )
+
 
 class Message(Generic[_T, _TRole]):
     """
@@ -583,8 +618,46 @@ class Message(Generic[_T, _TRole]):
 
     @property
     def content(self) -> _T:
-        """Collects the content of the message."""
+        """Collects the content of the message.
+
+        Reading it from user code emits a `FutureWarning` unless it holds structured
+        output, since it becomes a list of parts in railtracks 1.9.0.
+        """
+        warn_content_read(type(self).__name__, self._content, self._forward_readers())
         return self._content
+
+    @property
+    def text(self) -> str:
+        """The message's text: its string content, the text a model spoke alongside
+        its tool calls, or a tool's result. Empty for structured output."""
+        content = self._content
+        if isinstance(content, str):
+            return content
+        if isinstance(content, ToolCalls):
+            return content.text or ""
+        if isinstance(content, ToolResponse):
+            result = content.result
+            return (
+                result.decode("utf-8", "replace")
+                if isinstance(result, bytes)
+                else result
+            )
+        return ""
+
+    @property
+    def attachments(self) -> list[Attachment]:
+        """The message's attachments, in order; empty when it has none."""
+        return []
+
+    def _forward_readers(self) -> str:
+        """Name the readers that replace `.content` for this message's content."""
+        if isinstance(self._content, ToolCalls):
+            return ".tool_calls and .text"
+        if isinstance(self._content, ToolResponse):
+            return ".text, .tool_call_id and .name"
+        if self.attachments:
+            return ".text and .attachments"
+        return ".text"
 
     @property
     def role(self) -> _TRole:
@@ -607,8 +680,8 @@ class Message(Generic[_T, _TRole]):
     def tool_calls(self):
         """Gets the tool calls attached to this message, if any. If there are none return and empty list."""
         tools: list[ToolCall] = []
-        if isinstance(self.content, list):
-            tools.extend(deepcopy(self.content))
+        if isinstance(self._content, list):
+            tools.extend(deepcopy(self._content))
 
         return tools
 
@@ -702,6 +775,11 @@ class UserMessage(_StringOnlyContent[Role.user]):
                 "UserMessage must have content if no attachment is provided."
             )
         super().__init__(content=content, role=Role.user)
+
+    @property
+    def attachments(self) -> list[Attachment]:
+        """The message's attachments, in order; empty when it has none."""
+        return list(self.attachment or [])
 
     def encode(self):
         if self.attachment is not None:
@@ -837,3 +915,13 @@ class ToolMessage(Message[ToolResponse, Role.tool]):
                 f"A {self.__class__.__name__} needs a ToolResponse but got {type(content)}. Check the invoke function of the OutputLessToolCallLLM node. That is the only place to return a ToolMessage."
             )
         super().__init__(content=content, role=Role.tool)
+
+    @property
+    def tool_call_id(self) -> str:
+        """The identifier of the tool call this message answers."""
+        return self._content.identifier
+
+    @property
+    def name(self) -> str:
+        """The name of the tool that produced this result."""
+        return self._content.name

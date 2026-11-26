@@ -34,7 +34,7 @@ async def head(prompt: str) -> str:
     stream = rt.astream(Poet, user_input=prompt)
     async for chunk in stream:
         print(chunk, end="", flush=True)
-    return stream.result.content
+    return stream.result.text
 
 
 async def main_nested():

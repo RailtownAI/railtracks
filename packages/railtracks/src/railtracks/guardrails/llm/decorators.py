@@ -11,7 +11,7 @@ Example::
         event: rt.guardrails.LLMGuardrailEvent,
     ) -> rt.guardrails.GuardrailDecision:
         for msg in event.messages:
-            if isinstance(msg.content, str) and "SECRET" in msg.content:
+            if "SECRET" in msg.text:
                 return rt.guardrails.GuardrailDecision.block(reason="secret leaked")
         return rt.guardrails.GuardrailDecision.allow()
 
@@ -31,7 +31,7 @@ rail::
 
     @rt.input_guard
     async def llm_judge(event):
-        verdict = await rt.call(Judge, event.messages[-1].content)
+        verdict = await rt.call(Judge, event.messages[-1].text)
         if "UNSAFE" in str(verdict):
             return rt.guardrails.GuardrailDecision.block(reason="judge flagged input")
         return rt.guardrails.GuardrailDecision.allow()
