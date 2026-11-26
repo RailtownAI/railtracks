@@ -219,12 +219,16 @@ class SQLLoader(BaseDocumentLoader):
 
         # Namespace row keys with table_or_query so Document.id (uuid5 of
         # source) is unique across tables and across rows that share an id.
-        source_col = self._source_column or self._id_column
-        if source_col and source_col in row and row[source_col] is not None:
-            row_key = str(row[source_col])
-        else:
+        # Try source_column, then id_column; a NULL in one does not mask the other.
+        row_key = next(
+            (
+                str(row[col])
+                for col in (self._source_column, self._id_column)
+                if col and row.get(col) is not None
+            ),
             # Distinct from real column values (e.g. id=1 vs NULL-at-index-1).
-            row_key = f"row={row_index}"
+            f"row={row_index}",
+        )
         source = f"{self._table_or_query}#{row_key}"
 
         return Document(
