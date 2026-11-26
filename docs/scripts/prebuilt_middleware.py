@@ -123,6 +123,29 @@ LockedAgent = rt.agent_node(
 # --8<-- [end: lock]
 
 
+# --8<-- [start: fallback]
+import railtracks as rt
+from railtracks.prebuilt.middleware import Fallback
+
+
+def weather_agent(name, llm, **kwargs):
+    return rt.agent_node(name=name, llm=llm, **kwargs)
+
+
+ClaudeBackup = weather_agent("Claude Backup", rt.llm.AnthropicLLM("claude-sonnet-5-5"))
+LunaBackup = weather_agent("Luna Backup", rt.llm.OpenAILLM("gpt-6-luna"))
+
+# Fallback is node-level: when the primary raises an error covered by `on`
+# (LLMError by default), the backups are tried in order — each as a real node
+# call, recorded in the session like any other node.
+Agent = weather_agent(
+    "Agent",
+    rt.llm.OpenAILLM("gpt-4o-mini"),
+    middleware=[Fallback(ClaudeBackup, LunaBackup)],
+)
+# --8<-- [end: fallback]
+
+
 # --8<-- [start: combining]
 import railtracks as rt
 from railtracks.prebuilt.middleware import Retry, Timeout
