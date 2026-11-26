@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 
 if TYPE_CHECKING:
     from railtracks import retrieval
-    from railtracks.interaction import interactive as interactive
 
 __all__ = [
     "call",
@@ -103,7 +102,6 @@ from .orchestration.flow import Flow
 from .rt_mcp import MCPHttpParams, MCPStdioParams, connect_mcp, create_mcp_server
 from .state.info import ExecutionInfo
 from .utils.config import ExecutorConfig
-from .utils.deprecation import warn_pending_change
 from .utils.logging.setup import enable_logging
 
 load_dotenv()
@@ -117,14 +115,6 @@ __version__ = "1.0.0"
 
 
 def __getattr__(name: str):
-    if name == "interactive":
-        # Not cached in globals()
-        warn_pending_change(
-            "rt.interactive",
-            change="is removed",
-            detail="There is no replacement; the local chat UI is going away.",
-        )
-        return importlib.import_module("railtracks.interaction.interactive")
     if name == "retrieval":
         try:
             module = importlib.import_module("railtracks.retrieval")
@@ -140,4 +130,4 @@ def __getattr__(name: str):
 
 def __dir__() -> list[str]:
     # Reachable but out of __all__, so pdoc does not advertise them
-    return sorted({*__all__, "interactive", "Session", "session"})
+    return sorted({*__all__, "Session", "session"})

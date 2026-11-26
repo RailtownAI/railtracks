@@ -88,7 +88,7 @@ async def llm_compliance_check(result: str, customer_message: str) -> Verdict[st
 )
 async def draft_reply(customer_message: str) -> str:
     resp = await rt.call(ReplyDrafter, customer_message)
-    return resp.content
+    return resp.text
 ```
 
 `review.revised_reply` is `None` when the draft needed no changes. `Verdict.result` propagates the original result whenever the override is `None`, so leaving it unset is the correct way for the reviewer to say "no change needed."

@@ -53,9 +53,9 @@ async def research(question: str) -> str:
 
     # Summarizer turns the raw findings into a direct, cited answer.
     answer = await rt.call(
-        Summarizer, f"Question: {question}\n\nSource material:\n{findings.content}"
+        Summarizer, f"Question: {question}\n\nSource material:\n{findings.text}"
     )
-    return answer.content
+    return answer.text
 
 
 #### Flow Definition #####

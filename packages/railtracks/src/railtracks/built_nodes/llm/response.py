@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from railtracks.llm import MessageHistory, ToolCall, ToolResponse
 from railtracks.llm.content import Content
-from railtracks.llm.message import Role
+from railtracks.llm.message import Role, warn_content_read
 
 _T = TypeVar("_T", bound=Content)
 
@@ -19,8 +19,36 @@ class LLMResponse(Generic[_T]):
     """
 
     def __init__(self, content: _T, message_history: MessageHistory):
-        self.content = content
+        self._content = content
         self.message_history = message_history
+
+    @property
+    def content(self) -> _T:
+        """The final reply: its text, or your model for an `output_schema` agent.
+
+        Reading text content from user code emits a `FutureWarning`, since it becomes a
+        list of parts in railtracks 1.9.0. Read `.text` instead.
+        """
+        warn_content_read(type(self).__name__, self._content, ".text")
+        return self._content
+
+    @content.setter
+    def content(self, value: _T) -> None:
+        self._content = value
+
+    @property
+    def text(self) -> str:
+        """The text of the final reply.
+
+        Raises:
+            TypeError: If the response holds structured output; read `structured` instead.
+        """
+        if isinstance(self._content, BaseModel):
+            raise TypeError(
+                f"This response holds structured output ({type(self._content).__name__}), "
+                "not text. Read `.structured` instead."
+            )
+        return str(self._content)
 
     def __repr__(self):
         return f"LLMResponse({self.content})"
@@ -90,11 +118,3 @@ class StringResponse(LLMResponse[str]):
 
     def __init__(self, content: str, message_history: MessageHistory):
         super().__init__(content, message_history)
-
-    @property
-    def text(self) -> str:
-        """Returns the text content of the response."""
-        if isinstance(self.content, str):
-            return self.content
-        else:
-            raise TypeError("Unexpected content type")

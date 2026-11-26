@@ -39,15 +39,15 @@ class BlockTextInputGuard(InputGuard):
         self._user_facing_message = user_facing_message
 
     def __call__(self, event: LLMGuardrailEvent) -> GuardrailDecision:
-        """Block if any user/system string message matches the pattern.
+        """Block if the text of any user/system message matches the pattern.
 
         Returns:
             ``BLOCK`` when the pattern is found, ``ALLOW`` otherwise.
         """
         for msg in event.messages:
-            if msg.role not in _SCANNABLE_ROLES or not isinstance(msg.content, str):
+            if msg.role not in _SCANNABLE_ROLES:
                 continue
-            if self._pattern.search(msg.content):
+            if self._pattern.search(msg.text):
                 return GuardrailDecision.block(
                     reason=("Input blocked: prohibited content detected."),
                     user_facing_message=self._user_facing_message,
