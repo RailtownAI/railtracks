@@ -463,7 +463,7 @@ async def test_vector_store_round_trip(require_turbovec) -> None:
     assert [result.entry.id for result in results] == [entry.id]
     assert [item.id for item in await store.find({"category": "guide"})] == [entry.id]
     assert await store.count({"category": "guide"}) == 1
-    nearest = await store.nearest_neighbors(vector, 1, scope=scope)
+    nearest = await store.read(StoreQuery(embedding=vector, top_k=1, scope=scope))
     assert [result.entry.id for result in nearest] == [entry.id]
 
     await store.delete(entry.id)
