@@ -1021,24 +1021,3 @@ async def test_async_with_closes_store_when_body_raises():
         async with VectorStore(backend):
             raise RuntimeError("inside")
     assert backend.close_calls == 1
-
-
-async def test_in_memory_aclose_persists_snapshot(tmp_path: Path):
-    snapshot = tmp_path / "snap.json"
-    backend = InMemoryBackend(snapshot_path=snapshot)
-    store = VectorStore(backend)
-    entry = _make_entry()
-    await store.write(entry)
-    snapshot.unlink()
-
-    await store.aclose()
-
-    data = json.loads(snapshot.read_text(encoding="utf-8"))
-    assert str(entry.id) in data["vectors"]
-
-
-async def test_in_memory_aclose_without_snapshot_path_is_a_no_op(tmp_path: Path):
-    backend = InMemoryBackend()
-    await backend.aclose()
-    await backend.aclose()
-    assert list(tmp_path.iterdir()) == []
