@@ -47,7 +47,7 @@ def warn_pending_change(
 
     Args:
         what: The API that is changing, spelled the way a user writes it
-            (e.g. ``"rt.interactive"``).
+            (e.g. ``"rt.after_node"``).
         change: Verb phrase describing the change, e.g. ``"is removed"`` or ``"moves"``.
         instead: The replacement to use. Only pass this when the replacement already
             works in the current release; omit it when no forward path exists yet, and
