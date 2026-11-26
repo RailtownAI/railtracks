@@ -32,6 +32,10 @@ class LLMResponse(Generic[_T]):
         warn_content_read(type(self).__name__, self._content, ".text")
         return self._content
 
+    @content.setter
+    def content(self, value: _T) -> None:
+        self._content = value
+
     @property
     def text(self) -> str:
         """The text of the final reply.
