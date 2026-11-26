@@ -56,7 +56,7 @@ Three options decide the shape of a runtime: **chunker**, **embedder**,
 **store**. 
 **Loader** is a parameter passed to `.ingest(...)` or `.ingest_all(...)` allowing reading of file systems with different file types.
 
-`RetrievalRuntime` is also an async context manager. Leaving `async with` (or calling `await runtime.aclose()`) closes its store, which releases backend resources such as a Postgres connection pool. See [Store backends](../components/stores/backends.md#closing).
+`RetrievalRuntime` is also an async context manager. Leaving `async with` (or calling `await runtime.aclose()`) closes its store, which releases backend resources such as a Postgres connection pool. The runtime takes ownership of the store you pass it, so if several runtimes share one store, don't use `async with` on them; close the store yourself once every runtime is done. See [Store backends](../components/stores/backends.md#closing).
 
 ```python
 --8<-- "docs/scripts/retrieval/store.py:runtime_close"

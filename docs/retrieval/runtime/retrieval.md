@@ -64,8 +64,7 @@ A scope matches entries written with exactly the same labels, and `metadata_filt
 
 ## Audit hook
 
-`on_retrieve=callback` fires after every `retrieve()` call, before it returns, with `(query: str, result: RetrievalResult)`. It can be a plain function or an `async def`, which is awaited. Use it for query logs,
-hit-rate metrics, or feeding queries into an evaluation harness:
+`on_retrieve=callback` fires after every `retrieve()` call, before it returns, with `(query: str, result: RetrievalResult)`. It can be a plain function or an `async def`, which is awaited. Use it for query logs, hit-rate metrics, or feeding queries into an evaluation harness:
 
 ```python
 --8<-- "docs/scripts/retrieval/retrieval_example.py:on_retrieve_hook"
