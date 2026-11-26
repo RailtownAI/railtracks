@@ -48,7 +48,7 @@ construction.
 
 ## Closing
 
-`VectorStore` is an async context manager. Leaving `async with` (or calling `await store.aclose()`) closes the backend: `PgvectorBackend` closes its connection pool, the Chroma backends drop their collection, and `InMemoryVectorBackend` writes a final snapshot when `snapshot_path` is set. Closing twice is safe.
+`VectorStore` is an async context manager. Leaving `async with` (or calling `await store.aclose()`) closes the backend: `PgvectorBackend` closes its connection pool, the Chroma backends drop their collection, and `InMemoryVectorBackend` writes a final snapshot when `snapshot_path` is set. `TurbovecBackend` already writes its snapshot on every change, so it has nothing to close. Closing twice is safe.
 
 ```python
 --8<-- "docs/scripts/retrieval/store.py:close"
