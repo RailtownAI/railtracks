@@ -1,12 +1,19 @@
+from typing import Any
+
 from railtracks.context.central import safe_get_runner_context
 from railtracks.llm import MessageHistory
 from railtracks.utils.context_injection import ValueDict, inject_values
 
 
 class _ContextDict(ValueDict):
-    def __getitem__(self, key):
-        context = safe_get_runner_context()
-        return context.external_context.get(key)
+    def __init__(self) -> None:
+        super().__init__()
+        self._snapshot: dict[str, Any] | None = None
+
+    def __getitem__(self, key: str) -> Any:
+        if self._snapshot is None:
+            self._snapshot = dict(safe_get_runner_context().external_context.items())
+        return self._snapshot[key]
 
 
 def inject_context(message_history: MessageHistory):

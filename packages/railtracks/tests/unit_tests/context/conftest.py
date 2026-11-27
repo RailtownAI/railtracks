@@ -55,6 +55,7 @@ def make_external_context_mock():
             side_effect=lambda k, default=None: {"foo": "bar"}.get(k, default)
         )
         ec.put = mock.Mock()
+        ec.mutate = mock.Mock(side_effect=lambda k, fn, default=None: fn(default))
         return ec
 
     return _make_external_context_mock
