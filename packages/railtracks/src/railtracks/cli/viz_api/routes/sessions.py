@@ -11,6 +11,7 @@ from railtracks.query import EventQuery
 
 from .. import queries
 from ..models import (
+    DecisionCall,
     GraphEdge,
     GraphNode,
     Guardrail,
@@ -198,6 +199,7 @@ async def get_node_detail(
         model_name = final["model_name"] if final else None
         model_provider = final["model_provider"] if final else None
         tool_output: Any = None
+        decisions: list[dict[str, Any]] = []
     elif node_type == "Tool":
         tool = queries.get_tool_io(q.con, session_id, node_id)
         inputs = _tool_input_messages(name, tool) if tool else []
@@ -212,6 +214,7 @@ async def get_node_detail(
             "output_tokens": decision["output_tokens"] if decision else 0,
             "total_cost": decision["total_cost"] if decision else 0.0,
         }
+        decisions = queries.list_decision_calls(q.con, session_id, node_id)
     else:
         inputs = []
         output = None
@@ -219,6 +222,7 @@ async def get_node_detail(
         model_name = None
         model_provider = None
         totals = {"input_tokens": 0, "output_tokens": 0, "total_cost": 0.0}
+        decisions = []
 
     return NodeDetail(
         node_id=node_id,
@@ -237,6 +241,7 @@ async def get_node_detail(
         output_tokens=int(totals["output_tokens"] or 0),
         guardrails=[Guardrail(**g) for g in guardrails],
         latency_seconds=latency,
+        decisions=[DecisionCall(**d) for d in decisions],
     )
 
 
