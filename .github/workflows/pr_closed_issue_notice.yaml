@@ -1,0 +1,91 @@
+name: Unclaim Issues On Closed PR
+
+# Runs as pull_request_target so the token can comment on issues when the PR came from a fork.
+# This workflow never checks out or runs PR code, it only reads the API.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions: {}
+
+jobs:
+  notice:
+    name: Comment on issues left without an open PR
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          TRACKING_LABEL: "kind:tracking"
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const marker = `<!-- pr-closed-notice:pr-${prNumber} -->`;
+            const trackingLabel = process.env.TRACKING_LABEL.toLowerCase();
+
+            const { repository } = await github.graphql(
+              `query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    closingIssuesReferences(first: 20) {
+                      nodes {
+                        number
+                        state
+                        labels(first: 20) { nodes { name } }
+                        closedByPullRequestsReferences(first: 20, includeClosedPrs: false) {
+                          nodes { number state }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`,
+              { owner: context.repo.owner, repo: context.repo.repo, number: prNumber }
+            );
+
+            const contributing = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CONTRIBUTING.md#finding-something-to-work-on`;
+            const notified = [];
+
+            for (const issue of repository.pullRequest.closingIssuesReferences.nodes) {
+              if (issue.state !== "OPEN") continue;
+
+              const labels = issue.labels.nodes.map((l) => l.name.toLowerCase());
+              if (labels.includes(trackingLabel)) continue;
+
+              // A tracking issue aside, leave the issue alone while another PR is still open against it.
+              const otherOpenPr = issue.closedByPullRequestsReferences.nodes.some(
+                (pr) => pr.number !== prNumber && pr.state === "OPEN"
+              );
+              if (otherOpenPr) continue;
+
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                per_page: 100,
+              });
+              if (comments.some((c) => c.body && c.body.includes(marker))) continue;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: [
+                  marker,
+                  `PR #${prNumber} was closed without merging, so this issue is open again for anyone to pick up.`,
+                  "",
+                  `See [CONTRIBUTING.md](${contributing}) for how to claim it.`,
+                ].join("\n"),
+              });
+              notified.push(issue.number);
+            }
+
+            const summary = notified.length
+              ? `Commented on issue(s): ${notified.map((n) => `#${n}`).join(", ")}.`
+              : "No issues needed a notice.";
+            core.info(summary);
+            await core.summary.addRaw(summary).write();

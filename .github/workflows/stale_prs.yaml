@@ -1,0 +1,59 @@
+name: Stale PR Triage
+
+on:
+  schedule:
+    # Daily at 16:00 UTC (09:00 PT / 12:00 ET).
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Log what would be marked or closed without changing anything"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: stale-prs
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  stale:
+    name: Mark and close inactive PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # The action reaches PRs through the issues API for labels and comments.
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v11
+        with:
+          # Issues are handled by triage, not by this workflow.
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+
+          days-before-pr-stale: 7
+          days-before-pr-close: 2
+
+          stale-pr-label: "status:stale"
+          exempt-pr-labels: "keep-open,status:blocked"
+          exempt-draft-pr: true
+
+          stale-pr-message: |
+            This PR has had no activity for 7 days, so it is being marked stale.
+
+            If you are still working on it, push a commit or leave a comment and the label clears itself. Otherwise this PR will be closed in 2 days so the linked issue is free for someone else to pick up.
+
+            Maintainers: add the `keep-open` label to exempt this PR.
+          close-pr-message: |
+            Closing this PR after 2 more days without activity. Thank you for the work you put into it.
+
+            If you want to finish the changes, reopen this PR or open a new one. Please comment on the linked issue first so two people do not pick it up at once.
+
+          # Oldest PRs first, so the per-run budget goes to the most overdue.
+          ascending: true
+          operations-per-run: 100
+          debug-only: ${{ inputs.dry_run == true }}
