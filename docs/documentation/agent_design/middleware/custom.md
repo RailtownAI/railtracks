@@ -52,7 +52,9 @@ This counter keeps its count in `rt.context`, so each run starts from zero and c
 --8<-- "docs/scripts/middleware.py:per_run_state"
 ```
 
-The prebuilt middleware follow the same split and are good references: [`MaxCalls`](prebuilt/list/max_calls.md) keeps a separate budget per session, [`ConversationMemory`](prebuilt/list/conversation_memory.md) stores its history in `rt.context`, and [`Lock`](prebuilt/list/lock.md) serializes the calls that share it.
+A fixed key like `"calls"` is fine for a middleware you attach once. If you create several instances and each needs its own count, give each instance its own key, for example one made in `__init__` from a `uuid` or passed to the constructor. When your own code is the caller, passing the value as an argument is often simpler still.
+
+The prebuilt middleware follow the same split and are good references: [`MaxCalls`](prebuilt/list/max_calls.md) keeps its budget in `rt.context` under a key made per instance, [`ConversationMemory`](prebuilt/list/conversation_memory.md) stores its history in `rt.context`, and [`Lock`](prebuilt/list/lock.md) serializes the calls that share it.
 
 !!! warning "Instance state is shared across concurrent runs"
     A per-run value kept on `self` mixes runs together: two runs in flight at once both read and write it, and a run sees whatever the previous one left behind. Keep per-run state in `rt.context`. When runs genuinely need to coordinate on shared state, put a [`Lock`](prebuilt/list/lock.md) outside the middleware that uses it.
