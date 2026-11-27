@@ -57,7 +57,7 @@ The user wants to add middleware to a railtracks node/agent: $ARGUMENTS
 
 ### 5. State
 - A middleware instance is shared, never copied: every node it is attached to (both slots), every node `rt.couple` builds from those, and every run, including concurrent runs, call the same object.
-- Keep per-run state in `rt.context` under a key the middleware owns (one key per instance, e.g. a `uuid` suffix), as `ConversationMemory` does. Each run gets its own copy of the context dictionary, so concurrent runs stay apart.
+- Keep per-run state in `rt.context` under a key the middleware owns. Each run gets its own copy of the context dictionary, so concurrent runs stay apart. A fixed key is fine for a middleware attached once; when several instances need separate state, make the key per instance (e.g. a `uuid` suffix in `__init__`), as `MaxCalls` and `ConversationMemory` do.
 - Keep only process-wide resources on `self` or in a closure: clients, connection pools, semaphores.
 - For a budget, use `railtracks.prebuilt.middleware.MaxCalls`, which keeps a separate count per session. To serialize calls that share state, put `railtracks.prebuilt.middleware.Lock` outside the middleware that uses it.
 
