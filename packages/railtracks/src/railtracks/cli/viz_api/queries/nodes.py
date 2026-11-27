@@ -208,6 +208,71 @@ def get_decision_details(
     }
 
 
+def list_decision_calls(
+    con: DuckDBPyConnection, session_id: str, node_id: str
+) -> list[dict[str, Any]]:
+    """Every decision request a node made, in invocation order, each paired
+    with its response or failure by ``decision_id``.
+
+    A request with neither is still in flight and reports ``"running"``.
+    """
+    sql = """
+    WITH invocation AS (
+      SELECT decision_id, model_name, questions, timestamp
+      FROM decision
+      WHERE event_type = 'decision.invocation'
+        AND scope_id = ? AND spatial_parent_node_id = ?
+    ),
+    outcome AS (
+      SELECT decision_id, event_type, reported_model_name, provider, answers,
+             input_tokens, output_tokens, total_cost, latency,
+             exception_name, exception_message
+      FROM decision
+      WHERE event_type IN ('decision.response', 'decision.failure')
+        AND scope_id = ? AND spatial_parent_node_id = ?
+    )
+    SELECT i.decision_id,
+           CASE o.event_type
+             WHEN 'decision.response' THEN 'success'
+             WHEN 'decision.failure' THEN 'failure'
+             ELSE 'running'
+           END                                        AS status,
+           COALESCE(o.reported_model_name, i.model_name) AS model_name,
+           o.provider,
+           i.questions,
+           o.answers,
+           o.exception_name,
+           o.exception_message,
+           o.input_tokens,
+           o.output_tokens,
+           o.total_cost,
+           o.latency                                  AS latency_seconds
+    FROM invocation i
+    LEFT JOIN outcome o USING (decision_id)
+    ORDER BY i.timestamp, i.decision_id
+    """
+    rows = _rows(
+        con,
+        sql,
+        (session_id, node_id, session_id, node_id),
+        label=f"list_decision_calls({node_id[:8]})",
+    )
+    calls = []
+    for row in rows:
+        questions = _parse_json(row.pop("questions")) or {}
+        name = row.pop("exception_name")
+        message = row.pop("exception_message")
+        calls.append(
+            {
+                **row,
+                "questions": list(questions.values()),
+                "answers": _parse_json(row["answers"]),
+                "error": f"{name}: {message}" if row["status"] == "failure" else None,
+            }
+        )
+    return calls
+
+
 def get_node_row(
     con: DuckDBPyConnection, session_id: str, node_id: str
 ) -> dict[str, Any] | None:

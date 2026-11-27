@@ -12,7 +12,7 @@ Timestamps are unix **seconds** (float). Durations are also seconds.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -380,6 +380,28 @@ class SessionDetail(SessionSummary):
     default_selection: NodeRef | None = None
 
 
+class DecisionCall(BaseModel):
+    """One decision request a node made, with its questions and outcome."""
+
+    decision_id: str
+    #: "running" when no response or failure is recorded yet.
+    status: Literal["success", "failure", "running"]
+    #: The model the provider reported, else the one requested.
+    model_name: str | None = None
+    provider: str | None = None
+    #: Each question in wire form: ``type``, ``name``, ``instructions``, plus
+    #: ``choices`` or ``levels``. In definition order.
+    questions: list[dict[str, Any]] = Field(default_factory=list)
+    #: Answers keyed by question name; None unless the request succeeded.
+    answers: dict[str, dict[str, Any]] | None = None
+    #: ``ExceptionName: message``; None unless the request failed.
+    error: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_cost: float | None = None
+    latency_seconds: float | None = None
+
+
 class NodeDetail(BaseModel):
     """Everything the node details panel renders for one selected node."""
 
@@ -403,6 +425,8 @@ class NodeDetail(BaseModel):
     output_tokens: int = 0
     guardrails: list[Guardrail] = Field(default_factory=list)
     latency_seconds: float | None = None
+    #: Tool nodes: each decision request the node made, in order.
+    decisions: list[DecisionCall] = Field(default_factory=list)
 
 
 class GraphNode(BaseModel):

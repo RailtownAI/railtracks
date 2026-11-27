@@ -33,6 +33,7 @@ from .nodes import (
     get_decision_details,
     get_node_row,
     get_tool_io,
+    list_decision_calls,
     list_llm_totals_by_node,
     list_session_node_rows,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "get_session_row",
     "get_session_stats",
     "get_tool_io",
+    "list_decision_calls",
     "list_event_filter_options",
     "list_event_rows",
     "list_guardrails_by_node",
