@@ -1221,6 +1221,172 @@ def test_tool_node_detail_and_graph_show_decision_cost(
         assert node["latency_seconds"] != pytest.approx(9.0)
 
 
+_ON_DECISION_NODE = {
+    "spatial_parent_type": "node",
+    "spatial_parent_node_id": _DECISION_NODE,
+    "parent_type": "node",
+    "parent_node_id": _DECISION_NODE,
+}
+_QUESTIONS = {
+    "is_urgent": {
+        "type": "predicate",
+        "name": "is_urgent",
+        "instructions": "Is the ticket urgent?",
+    },
+    "team": {
+        "type": "choice",
+        "name": "team",
+        "instructions": "Which team owns it?",
+        "choices": [{"value": "billing"}, {"value": "support"}],
+    },
+}
+_ANSWERS = {
+    "is_urgent": {"probability": 0.93},
+    "team": {
+        "choice": "billing",
+        "confidence": 0.8,
+        "probabilities": {"billing": 0.9, "support": 0.1},
+    },
+}
+
+
+def _decision_call_events(
+    session_id: str, decision_id: str, outcome: str | None, stamp: str
+) -> list[dict[str, object]]:
+    """One decision request on the decision node, ending in ``outcome``
+    (``"response"``, ``"failure"``, or None for a request still in flight)."""
+    common = {**_ON_DECISION_NODE, "decision_id": decision_id, "model_name": "jev"}
+    events = [
+        _event(
+            f"{decision_id}-invocation",
+            "decision.invocation",
+            session_id,
+            {**common, "state": "Help!", "questions": _QUESTIONS},
+            stamp=stamp,
+        )
+    ]
+    if outcome == "response":
+        payload = {
+            **common,
+            "reported_model_name": "jev-1.13.0",
+            "provider": "TypeSafe",
+            "answers": _ANSWERS,
+            "input_tokens": 296,
+            "output_tokens": 20,
+            "total_cost": 0.5,
+            "latency": 1.5,
+        }
+    elif outcome == "failure":
+        payload = {
+            **common,
+            "exception_name": "DecisionProviderError",
+            "exception_message": "upstream timed out",
+        }
+    else:
+        return events
+    events.append(
+        _event(
+            f"{decision_id}-{outcome}",
+            f"decision.{outcome}",
+            session_id,
+            payload,
+            stamp=stamp,
+        )
+    )
+    return events
+
+
+def test_list_decision_calls_returns_questions_and_answers(tmp_path: Path) -> None:
+    _write_events(
+        tmp_path,
+        _DECISION_SESSION,
+        *_decision_call_events(
+            _DECISION_SESSION, "d1", "response", "2026-01-01T00:00:01+00:00"
+        ),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    calls = queries.list_decision_calls(query.con, _DECISION_SESSION, _DECISION_NODE)
+
+    assert calls == [
+        {
+            "decision_id": "d1",
+            "status": "success",
+            "model_name": "jev-1.13.0",
+            "provider": "TypeSafe",
+            "questions": list(_QUESTIONS.values()),
+            "answers": _ANSWERS,
+            "error": None,
+            "input_tokens": 296,
+            "output_tokens": 20,
+            "total_cost": pytest.approx(0.5),
+            "latency_seconds": pytest.approx(1.5),
+        }
+    ]
+
+
+def test_list_decision_calls_orders_requests_and_reports_their_status(
+    tmp_path: Path,
+) -> None:
+    _write_events(
+        tmp_path,
+        _DECISION_SESSION,
+        *_decision_call_events(
+            _DECISION_SESSION, "running", None, "2026-01-01T00:00:03+00:00"
+        ),
+        *_decision_call_events(
+            _DECISION_SESSION, "failed", "failure", "2026-01-01T00:00:02+00:00"
+        ),
+        *_decision_call_events(
+            _DECISION_SESSION, "answered", "response", "2026-01-01T00:00:01+00:00"
+        ),
+    )
+    query = queries.get_query(tmp_path)
+    assert query is not None
+
+    calls = queries.list_decision_calls(query.con, _DECISION_SESSION, _DECISION_NODE)
+    missing = queries.list_decision_calls(query.con, _DECISION_SESSION, "other-node")
+
+    assert [(c["decision_id"], c["status"]) for c in calls] == [
+        ("answered", "success"),
+        ("failed", "failure"),
+        ("running", "running"),
+    ]
+    failed, running = calls[1], calls[2]
+    assert failed["error"] == "DecisionProviderError: upstream timed out"
+    assert failed["answers"] is None
+    assert failed["model_name"] == "jev"
+    assert running["answers"] is None and running["error"] is None
+    assert running["questions"] == list(_QUESTIONS.values())
+    assert missing == []
+
+
+def test_node_detail_lists_decisions_on_the_decision_node_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_events(
+        tmp_path,
+        _DECISION_SESSION,
+        *_decision_session_events(_DECISION_SESSION, with_llm=True),
+    )
+    monkeypatch.setenv(EVENTS_DIR_ENV, str(tmp_path))
+    client = TestClient(app)
+
+    decision = client.get(
+        f"/api/v2/sessions/{_DECISION_SESSION}/nodes/{_DECISION_NODE}"
+    ).json()
+    agent = client.get(
+        f"/api/v2/sessions/{_DECISION_SESSION}/nodes/{_AGENT_NODE}"
+    ).json()
+
+    [call] = decision["decisions"]
+    assert call["decision_id"] == "d1"
+    assert call["status"] == "success"
+    assert call["answers"] == {"is_urgent": {"probability": 0.93}}
+    assert agent["decisions"] == []
+
+
 _BLOCKED_SESSION = "33333333-4444-5555-6666-777777777777"
 
 
