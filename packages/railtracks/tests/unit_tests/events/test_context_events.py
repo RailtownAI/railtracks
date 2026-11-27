@@ -1,6 +1,7 @@
 """Context events: the RAILTRACKS_CONTEXT_EVENTS level, and real Flows asserting what
 gets emitted."""
 
+import asyncio
 import threading
 
 import pytest
@@ -462,3 +463,91 @@ async def test_nothing_is_snapshotted_without_a_writer(monkeypatch):
 
     assert result == "w"
     assert snapshotted == []
+
+
+async def test_mutate_records_put_event_and_skips_errors():
+    @rt.function_node
+    def node(_: str) -> int:
+        """Mutate existing and missing keys, swallowing expected failures."""
+        with pytest.raises(KeyError):
+            rt.context.mutate("missing", lambda x: x)
+        with pytest.raises(RuntimeError):
+            rt.context.mutate(
+                "count", lambda _: (_ for _ in ()).throw(RuntimeError()), default=0
+            )
+        return rt.context.mutate("count", lambda n: n + 1, default=0)
+
+    result, events = _run(node, "x")
+
+    assert result == 1
+    puts = _of_type(events, "context.put")
+    assert len(puts) == 1
+    assert puts[0].payload["keys"] == ["count"]
+    assert puts[0].payload["values"] == {"count": 1}
+
+
+async def test_parallel_sync_tools_mutate_without_lost_updates():
+    @rt.function_node
+    def increment(_: int) -> int:
+        """Increment a shared context counter on a worker thread."""
+        return rt.context.mutate("count", lambda n: n + 1, default=0)
+
+    @rt.function_node
+    async def fan_out(total: int) -> int:
+        """Run many sync tools concurrently via asyncio.gather."""
+        await asyncio.gather(*(rt.call(increment, i) for i in range(total)))
+        return rt.context.get("count")
+
+    total_calls = 40
+    result, events = _run(fan_out, total_calls)
+
+    assert result == total_calls
+    puts = _of_type(events, "context.put")
+    assert len(puts) == total_calls
+    (completion,) = _of_type(events, "context.completion")
+    assert completion.payload["values"]["count"] == total_calls
+
+
+async def test_prompt_injection_sees_consistent_multi_key_snapshot():
+    stop = threading.Event()
+    writer_errors: list[BaseException] = []
+
+    async def fake_call(message_history, schema, tools):
+        return message_history[0].content
+
+    @rt.function_node
+    async def node(history):
+        """Inject two paired keys while another thread updates both together."""
+        from railtracks.context.central import safe_get_runner_context
+
+        conn_ctx = safe_get_runner_context().external_context
+
+        def writer():
+            try:
+                i = 0
+                while not stop.is_set():
+                    i += 1
+                    conn_ctx.update({"a": i, "b": i})
+            except BaseException as exc:  # pragma: no cover
+                writer_errors.append(exc)
+
+        thread = threading.Thread(target=writer)
+        thread.start()
+        try:
+            seen = []
+            for _ in range(50):
+                rendered = await ContextInjection().wrap(fake_call)(history, None, None)
+                left, right = rendered.split(":")
+                assert left == right
+                seen.append(int(left))
+            return seen
+        finally:
+            stop.set()
+            thread.join()
+
+    result = await rt.Flow(
+        "ctx-injection-snapshot", node, context={"a": 0, "b": 0}
+    ).ainvoke(MessageHistory([SystemMessage("{a}:{b}")]))
+
+    assert writer_errors == []
+    assert len(result) == 50

@@ -14,6 +14,7 @@ You can use the context with the following main functions:
 * `rt.context.put(key, value)` - Stores a value in the context
 * `rt.context.update(dict)` - Updates multiple values in the context at once
 * `rt.context.delete(key)` - Removes a value from the context
+* `rt.context.mutate(key, fn, default=...)` - Atomically reads, updates, and stores a value
 
 ## Quick Start
 
@@ -54,7 +55,7 @@ Each `rt.context` call your code makes is recorded in the run's event stream. Ev
 | --- | --- |
 | `context.creation` | everything the run starts with, plus the `level` it was recorded at |
 | `context.get` | the key read, and the value it returned (the default, on a miss) |
-| `context.put` | the key and value set |
+| `context.put` | the key and value set (also emitted by `rt.context.mutate`) |
 | `context.update` | the keys and values passed in |
 | `context.delete` | the key removed; `values` is `null` |
 | `context.completion` | everything the run ends with, plus the `level` |
@@ -67,6 +68,16 @@ Values are recorded as they were at the moment of the call. A call that raises `
     `rt.context` hands you the stored object, not a copy, so `rt.context.get("cart").append("pear")` changes the context without a `put`. At level `2`, such an edit only shows up in `context.completion`; at level `1` it doesn't show up at all.
 
 Railtracks' own use of the context isn't recorded, to keep the log to your code's calls. For example, `ConversationMemory`'s history and the reads behind [context injection](#context-injection) don't appear.
+
+## Concurrency
+
+All `rt.context` operations (`get`, `put`, `update`, `delete`, `keys`, and `mutate`) and `FlowConnection.context` methods are thread-safe across parallel sync tools and concurrent external readers.
+
+For read-modify-write updates such as incrementing a counter or appending to a collection, use `rt.context.mutate(key, fn, default=...)` instead of `put(key, get(key) + 1)`. Keep the callback synchronous and return a new value (for example, `lambda xs: [*xs, item]`) rather than mutating a retrieved container in place, since the context lock does not synchronize mutations made outside `rt.context`.
+
+For multi-key consistency, group related writes in a single `rt.context.update({...})` call and read a consistent point-in-time snapshot from a `FlowConnection` with `dict(conn.context.items())`. `rt.context.keys()` returns a snapshot view that is safe to iterate while other threads add or delete keys.
+
+If async nodes need mutual exclusion across an `await`, use [`rt.prebuilt.middleware.Lock`](../agent_design/middleware/prebuilt/list/lock.md) or an `asyncio.Lock`.
 
 ### Choosing what's recorded
 
