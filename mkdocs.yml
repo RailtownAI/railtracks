@@ -226,6 +226,7 @@ nav:
     - MCP:
         - Github: integrations/mcps/github.md
         - Slack: integrations/mcps/slack.md
+        - Parallel Search: integrations/mcps/parallel.md
         - Email: integrations/mcps/notion.md
     - Storage & Databases:
         - Overview: integrations/storage/overview.md
