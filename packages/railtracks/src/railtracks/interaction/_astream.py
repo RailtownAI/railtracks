@@ -125,7 +125,7 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
             self._on_start()
 
         if not is_context_active():
-            self._top_level_start = await begin_top_level(self._node)
+            self._top_level_start = await begin_top_level(self._node, self._request_id)
         await activate_publisher()
         publisher = get_publisher()
         # token chunks are written onto this queue directly by the streamed frame's LLM node
@@ -172,7 +172,9 @@ class Stream(Generic[_TOutput], AsyncIterator[Any]):
         if not self._closed:
             self._closed = True
             if self._top_level_start is not None:
-                await end_top_level(self._top_level_start, self._error)
+                await end_top_level(
+                    self._top_level_start, self._error, self._request_id
+                )
             if self._on_close is not None:
                 self._on_close()
 

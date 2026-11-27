@@ -18,6 +18,7 @@ from rich.console import Console
 
 SESSION = "sess-1"
 ENTRY = "node-entry"
+REQUEST = "req-entry"
 CHILD = "node-child"
 LLM_CALL = "llm-invoke-1"
 MIDDLEWARE_CALL = "mw-invoke-1"
@@ -49,10 +50,13 @@ def _event(event_type: str, session: str = SESSION, **payload) -> Event:
     )
 
 
-def _started(session: str = SESSION, end_on_error: bool = False) -> Event:
+def _started(
+    session: str = SESSION, end_on_error: bool = False, request_id: str = REQUEST
+) -> Event:
     return _event(
         "session.started",
         session=session,
+        request_id=request_id,
         flow_name="My Flow",
         session_name=None,
         entry_point_name="Entry",
@@ -61,10 +65,14 @@ def _started(session: str = SESSION, end_on_error: bool = False) -> Event:
 
 
 def _completed(
-    status: str = "success", error: str | None = None, fatal: bool = False
+    status: str = "success",
+    error: str | None = None,
+    fatal: bool = False,
+    request_id: str = REQUEST,
 ) -> Event:
     return _event(
         "session.completed",
+        request_id=request_id,
         status=status,
         error=error,
         duration_seconds=0.5,
@@ -72,9 +80,20 @@ def _completed(
     )
 
 
+def _created(node_id: str, name: str, node_type: str, entry: bool = False) -> Event:
+    """A creation; only the run's entry node is created by the run's own request."""
+    return _event(
+        "node.creation",
+        node_id=node_id,
+        name=name,
+        node_type=node_type,
+        request_id=REQUEST if entry else f"req-{node_id}",
+    )
+
+
 def _node_started(node_id: str, name: str, caller: str | None) -> list[Event]:
     return [
-        _event("node.creation", node_id=node_id, name=name, node_type="Tool"),
+        _created(node_id, name, "Tool", entry=caller is None),
         _event(
             "node.invocation",
             parent_node_id=node_id,
@@ -354,7 +373,7 @@ def test_a_node_whose_middleware_raises_before_it_runs_shows_as_failed(output, l
         RunView(),
         _started(),
         _node_started(ENTRY, "Entry", caller=None),
-        _event("node.creation", node_id=CHILD, name="Guarded", node_type="Tool"),
+        _created(CHILD, "Guarded", "Tool"),
         _node_failed(CHILD, caller=ENTRY, exception_name="VerifierRejectedError"),
     )
 
@@ -559,7 +578,7 @@ def test_node_called_from_middleware_nests_under_that_middleware_node(output, le
             args=(),
             kwargs={},
         ),
-        _event("node.creation", node_id=CHILD, name="Judge", node_type="Agent"),
+        _created(CHILD, "Judge", "Agent"),
         _event(
             "node.invocation",
             parent_node_id=CHILD,
@@ -596,6 +615,7 @@ def test_each_run_keeps_the_level_it_started_with(output, level):
                 node_id=session,
                 name=session,
                 node_type="Tool",
+                request_id=REQUEST,
             ),
             _event(
                 "node.invocation",
@@ -616,7 +636,95 @@ def test_run_state_is_dropped_when_the_run_completes(output, level):
     view = RunView()
     _feed(view, _started(), _completed())
 
-    assert view._runs == {}
+    assert view._sessions == {}
+
+
+def _concurrent_run(request_id: str, node_id: str, name: str) -> dict[str, list[Event]]:
+    """One top-level run of a shared session: its bracket, and its entry node's events."""
+    return {
+        "start": [
+            _started(request_id=request_id),
+            _event(
+                "node.creation",
+                node_id=node_id,
+                name=name,
+                node_type="Tool",
+                request_id=request_id,
+            ),
+            _event(
+                "node.invocation",
+                parent_node_id=node_id,
+                spatial_parent_type="node",
+                spatial_parent_node_id=None,
+                args=(),
+                kwargs={},
+            ),
+        ],
+        "done": [_node_done(node_id), _completed(request_id=request_id)],
+        "failed": [
+            _node_failed(node_id),
+            _completed(status="failure", error="bad", request_id=request_id),
+        ],
+    }
+
+
+def test_concurrent_runs_of_one_session_each_get_their_own_lines(output, level):
+    slow = _concurrent_run("req-slow", "node-slow", "slow")
+    boom = _concurrent_run("req-boom", "node-boom", "boom")
+
+    _feed(RunView(), slow["start"], boom["start"], boom["failed"], slow["done"])
+
+    lines = _lines(output)
+    assert lines[0] == "▶ My Flow  entry: Entry"
+    assert lines.count("▶ My Flow  entry: Entry") == 2
+    assert [
+        line for line in lines if line.startswith("✓ ") or line.startswith("✗ ")
+    ] == [
+        "✗ My Flow failed in 0.500s: bad",
+        "✓ My Flow in 0.500s",
+    ]
+    assert "  ✗ boom failed: ValueError: bad" in lines
+    assert any(line.startswith("  ✓ slow ") for line in lines)
+
+
+def test_a_run_that_ends_first_leaves_the_other_running(output, level):
+    view = RunView()
+    first = _concurrent_run("req-a", "node-a", "a")
+    second = _concurrent_run("req-b", "node-b", "b")
+
+    _feed(view, first["start"], second["start"], first["done"])
+
+    assert view.is_showing(SESSION)
+    assert list(view._sessions[SESSION].runs) == ["req-b"]
+
+    _feed(view, second["done"])
+
+    assert not view.is_showing(SESSION)
+
+
+def test_concurrent_runs_keep_their_nested_nodes_apart(output, level):
+    view = RunView()
+    first = _concurrent_run("req-a", "node-a", "a")
+    second = _concurrent_run("req-b", "node-b", "b")
+
+    _feed(
+        view,
+        first["start"],
+        second["start"],
+        _node_started("child-b", "ChildB", caller="node-b"),
+        _node_done("child-b"),
+        first["done"],
+    )
+    # the first run finished, so what remains in the session belongs to the second
+    session = view._sessions[SESSION]
+    assert set(session.runs) == {"req-b"}
+    assert session.scope_runs["child-b"] is session.runs["req-b"]
+    assert "node-a" not in session.scope_runs
+
+    _feed(view, second["done"])
+
+    assert view._sessions == {}
+    assert "    ↳ ChildB" in _lines(output)
 
 
 @pytest.fixture
